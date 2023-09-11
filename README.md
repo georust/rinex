@@ -34,13 +34,13 @@ and we aim towards advanced geodesic and ionospheric analysis.
 ## Advantages :rocket: 
 
 - Fast
+- Open sources
 - Native Hatanaka decompression and compression
 - Seamless .gzip decompression with `flate2` compilation feature
 - RINEX V4 full support, that includes modern Navigation messages
-- Full support of Meteo RINEX
-- File merging and splitting
-- Integrated pre processing toolkit 
-- Partial IONEX and Clock support : concluded in near future 
+- Meteo RINEX full support
+- IONEX and Clock RINEX partial support, will be concluded soon
+- File merging, splitting and pre processing
 - Full support of modern constellations like BeiDou, Galileo and IRNSS
 - Supported time scales are GPST, BDT, GST, UTC
 - Full support of Military codes : if you're working with such signals you can
