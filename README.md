@@ -31,6 +31,37 @@ By default, all timestamps are in UTC with leap seconds correctly managed.
 This RINEX toolsuite is part of the [GeoRust community](https://github.com/georust),
 and we aim towards advanced geodesic and ionospheric analysis.
 
+## Advantages :rocket: 
+
+- Fast
+- Native Hatanaka decompression and compression
+- Seamless .gzip decompression with `flate2` compilation feature
+- RINEX V4 full support, that includes modern Navigation messages
+- Full support of Meteo RINEX
+- File merging and splitting
+- Integrated pre processing toolkit 
+- Partial IONEX and Clock support : concluded in near future 
+- Full support of modern constellations like BeiDou, Galileo and IRNSS
+- Supported time scales are GPST, BDT, GST, UTC
+- Full support of Military codes : if you're working with such signals you can
+at least run a -qc analysis, and possibly the position solver once it is merged 
+- Supports high precision RINEX (scaled phase data with micro cycle precision)
+- RINEX post processing like SNR, DCB analysis, high precision Broadcast
+and SP3 ephemeris interpolation..
+- RINEX-qc : statistical analysis like "teqc", including on modern signals and SP3 high precision orbits
+- An SPP/PPP position solver is under develoment:
+checkout [this branch](https://github.com/georust/rinex/tree/solver) which
+is kept up to date until merged
+
+## Known weaknesses :warning:
+
+- QZNSST is represented as GPST at the moment
+- GLONASST and IRNSST are not supported : calculations (mostly orbits) will not be accurate 
+- Partial SBAS support : some features are not yet available
+- The command line tool does not accept BINEX or other proprietary formats
+- File production is not fully concluded to this day, some formats are still not correctly supported
+(mostly NAV).
+
 RINEX Standards
 ===============
 
@@ -63,11 +94,6 @@ File formats
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
 
-## Known weaknesses :warning:
-
-- Glonass Time Scale is not known to this day.
-We cannot parse and apply system time corrections from other time scales into the glonass time scale.
-
 Benchmarking
 ============
 
@@ -83,6 +109,11 @@ processing/esbc00dnkr2021/mask:gnss | 352.81 ms |
 processing/esbc00dnkr2021/mask:obs |  438.73 ms |
 processing/esbc00dnkr2021/mask:sv | 341.42 ms | 
 processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms | 
+
+Special Thanks
+==============
+
+RINEX relies heavily on the great libraries written by C. Rabotin, [check out his work](https://github.com/nyx-space)
 
 Contributions
 =============
