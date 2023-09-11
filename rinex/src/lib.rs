@@ -2290,7 +2290,7 @@ impl Rinex {
             }
         }))
     }
-    /// Interpolates SV positions at desired Epoch `t`.
+    /// Interpolates SV position at desired Epoch `t`.
     /// An interpolation order of at least 7 is recommended.
     /// Operation is not feasible if sampling interval cannot be determined.
     /// In ideal scenarios, Broadcast Ephemeris are complete and evenly spaced in time:
@@ -2302,7 +2302,12 @@ impl Rinex {
     /// spanning [t - order /2; t + order/2+1]. Operation might also be not feasible,
     /// if Ephemeris are interrupted and we can't have a continuous window.
     /// See [Bibliography::Japhet2021].
-    pub fn sv_position_interpolate(&self, t: Epoch, order: usize) -> HashMap<Sv, (f64, f64, f64)> {
+    pub fn sv_position_interpolate(
+        &self,
+        sv: Sv,
+        t: Epoch,
+        order: usize,
+    ) -> Option<(f64, f64, f64)> {
         let odd_order = order % 2 > 0;
         let mut ret: HashMap<Sv, (f64, f64, f64)> = HashMap::new();
 
@@ -2314,79 +2319,72 @@ impl Rinex {
                     /*
                      * Can't determine anything: not enough information
                      */
-                    return ret;
+                    return None;
                 },
             },
         };
 
-        let sv_position: Vec<_> = self.sv_position().collect();
-
-        for sv in self.sv() {
-            let sv_position: Vec<_> = sv_position
-                .iter()
-                .filter_map(
-                    |(e, svnn, pos)| {
-                        if *svnn == sv {
-                            Some((*e, *pos))
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect();
-            /*
-             * Determine cloesest Epoch in time
-             */
-            let center = match sv_position.iter().find(|(e, _)| (*e - t).abs() < dt) {
-                Some(center) => center,
-                None => {
-                    /*
-                     * Failed to determine central Epoch for this SV
-                     * empty data set: should not happen
-                     */
-                    continue;
-                },
-            };
-
-            // println!("CENTRAL EPOCH: {:?}", center); // DEBUG
-            let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
-                Some(center) => center,
-                None => {
-                    /* will never happen at this point */
-                    continue;
-                },
-            };
-
-            let (min_before, min_after): (usize, usize) = match odd_order {
-                true => ((order + 1) / 2, (order + 1) / 2),
-                false => (order / 2, order / 2 + 1),
-            };
-
-            if center_pos < min_before || sv_position.len() - center_pos < min_after {
-                /* can't design time window */
-                continue;
-            }
-
-            let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
-            let offset = center_pos - min_before;
-
-            for i in 0..order + 1 {
-                let mut li = 1.0_f64;
-                let (e_i, (x_i, y_i, z_i)) = sv_position[offset + i];
-                for j in 0..order + 1 {
-                    let (e_j, _) = sv_position[offset + j];
-                    if j != i {
-                        li *= (t - e_j).to_seconds();
-                        li /= (e_i - e_j).to_seconds();
-                    }
+        let sv_position: Vec<_> = self
+            .sv_position()
+            .filter_map(|(e, svnn, (x, y, z))| {
+                if sv == svnn {
+                    Some((e, (x, y, z)))
+                } else {
+                    None
                 }
-                polynomials.0 += x_i * li;
-                polynomials.1 += y_i * li;
-                polynomials.2 += z_i * li;
-                ret.insert(sv, polynomials);
-            }
+            })
+            .collect();
+        /*
+         * Determine cloesest Epoch in time
+         */
+        let center = match sv_position.iter().find(|(e, _)| (*e - t).abs() < dt) {
+            Some(center) => center,
+            None => {
+                /*
+                 * Failed to determine central Epoch for this SV
+                 * empty data set: should not happen
+                 */
+                return None;
+            },
+        };
+
+        // println!("CENTRAL EPOCH: {:?}", center); // DEBUG
+        let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
+            Some(center) => center,
+            None => {
+                /* will never happen at this point */
+                return None;
+            },
+        };
+
+        let (min_before, min_after): (usize, usize) = match odd_order {
+            true => ((order + 1) / 2, (order + 1) / 2),
+            false => (order / 2, order / 2 + 1),
+        };
+
+        if center_pos < min_before || sv_position.len() - center_pos < min_after {
+            /* can't design time window */
+            return None;
         }
-        ret
+
+        let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
+        let offset = center_pos - min_before;
+
+        for i in 0..order + 1 {
+            let mut li = 1.0_f64;
+            let (e_i, (x_i, y_i, z_i)) = sv_position[offset + i];
+            for j in 0..order + 1 {
+                let (e_j, _) = sv_position[offset + j];
+                if j != i {
+                    li *= (t - e_j).to_seconds();
+                    li /= (e_i - e_j).to_seconds();
+                }
+            }
+            polynomials.0 += x_i * li;
+            polynomials.1 += y_i * li;
+            polynomials.2 += z_i * li;
+        }
+        Some(polynomials)
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed as geodetic coordinates, with latitude and longitude

@@ -49,10 +49,10 @@ pub struct QcContext {
     pub atx: Option<QcExtraData<Rinex>>,
     /// Optionnal SP3 Orbit Data
     pub sp3: Option<QcExtraData<SP3>>,
-    // Interpolated orbits
-    pub orbits: HashMap<(Sv, Epoch), (f64, f64, f64)>,
     /// true if orbits have been interpolated
     pub interpolated: bool,
+    // Interpolated orbits
+    pub orbits: HashMap<(Epoch, Sv), (f64, f64, f64)>,
 }
 
 impl QcContext {
@@ -189,18 +189,34 @@ impl QcContext {
         }
     }
     /// Performs SV Orbit interpolation
-    pub fn orbit_interpolation_mut(&mut self) {
-        for ((e, _flag), sv, observ, data) in self.primary_data().carrier_phase() {
-            // make it smart :
-            // if orbit already exit do not interpolate
-            // this will make things much quicker for high quality data products
-            let found = self
-                .sv_position()
-                .into_iter()
-                .find(|(sv_e, svnn, _)| *sv_e == e && *svnn == sv);
-            if found.is_none() {
-                if let Some(sp3) = self.sp3_data() {
-                } else if let Some(nav) = self.navigation_data() {
+    pub fn orbit_interpolation_mut(&mut self, order: usize, min_snr: Option<Snr>) {
+        /* NB: interpolate Complete Epochs only */
+        let complete_epoch: Vec<_> = self.primary_data()
+            .complete_epoch(min_snr)
+            .collect();
+        for (e, sv_signals) in complete_epoch {
+            for (sv, carrier) in sv_signals {
+                // if orbit already exists: do not interpolate
+                // this will make things much quicker for high quality data products
+                let found = self
+                    .sv_position()
+                    .into_iter()
+                    .find(|(sv_e, svnn, _)| *sv_e == e && *svnn == sv);
+                if let Some((_, _, (x, y, z))) = found {
+                    // store as is
+                    self.orbits.insert((e, sv), (x, y, z));
+                } else {
+                    if let Some(sp3) = self.sp3_data() {
+                        if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(sv, e, order)
+                        {
+                            self.orbits.insert((e, sv), (x_km, y_km, z_km));
+                        }
+                    } else if let Some(nav) = self.navigation_data() {
+                        if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
+                            self.orbits
+                                .insert((e, sv), (x_m / 1.0E3, y_m / 1.0E3, z_m / 1.0E3));
+                        }
+                    }
                 }
             }
         }
@@ -209,16 +225,20 @@ impl QcContext {
     /// Returns (unique) Iterator over SV orbit (3D positions)
     /// to be used in this context
     pub fn sv_position(&self) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
-        match self.sp3_data() {
-            Some(sp3) => sp3.sv_position().collect(),
-            _ => self
-                .navigation_data()
-                .unwrap()
-                .sv_position()
-                .map(|(e, sv, (x, y, z))| {
-                    (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
-                })
-                .collect(),
+        if self.interpolated {
+            panic!("not yet");
+        } else {
+            match self.sp3_data() {
+                Some(sp3) => sp3.sv_position().collect(),
+                _ => self
+                    .navigation_data()
+                    .unwrap()
+                    .sv_position()
+                    .map(|(e, sv, (x, y, z))| {
+                        (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
+                    })
+                    .collect(),
+            }
         }
     }
 }

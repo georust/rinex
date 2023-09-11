@@ -104,13 +104,14 @@ impl Solver {
 
             // 1: eclipse filte
             self.eval_sun_vector3d(ctx);
-            trace!("applying eclipse filter..");
             self.eclipse_filter(ctx);
 
             // 2: interpolate: if need be
             if !ctx.interpolated {
                 trace!("orbit interpolation..");
-                ctx.orbit_interpolation_mut();
+                ctx.orbit_interpolation_mut(7, None);
+                //TODO could be nice to have some kind of timing/perf evaluation here
+                //     and also total number of required interpolations
             }
 
             // 3: t_tx evaluation
@@ -255,6 +256,7 @@ impl Solver {
      * Remove all Sv that are in Eclipse::umbra condition
      */
     fn eclipse_filter(&self, ctx: &mut QcContext) {
+        trace!("applying eclipse filter..");
         let eclipses = self.eclipses(ctx, Duration::from_seconds(30.0 * 60.0));
         for (sv, (start, end)) in eclipses {
             // design interval filter
