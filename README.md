@@ -113,7 +113,10 @@ processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms |
 Special Thanks
 ==============
 
-RINEX relies heavily on the great libraries written by C. Rabotin, [check out his work](https://github.com/nyx-space)
+RINEX relies heavily on the great libraries written by C. Rabotin, [check out his work](https://github.com/nyx-space).  
+Some features would not exist without the invaluable help of J. Lesouple,
+check out his 
+[PhD manuscript (french)](http://perso.recherche.enac.fr/~julien.lesouple/fr/publication/thesis/THESIS.pdf?fbclid=IwAR3WlHm0eP7ygRzywbL07Ig-JawvsdCEdvz1umJJaRRXVO265J9cp931YyI)
 
 Contributions
 =============
