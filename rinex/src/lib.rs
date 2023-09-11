@@ -1990,8 +1990,7 @@ impl Rinex {
         &self,
     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
         Box::new(self.pseudo_range().filter_map(|(e, sv, observable, pr)| {
-            if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
-                let t = carrier.code_length(sv.constellation);
+            if let Some(t) = observable.code_length(sv.constellation) {
                 let c = 299792458_f64; // speed of light
                 Some((e, sv, observable, pr / c / t))
             } else {

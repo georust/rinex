@@ -92,15 +92,17 @@ impl Observable {
     pub fn carrier(&self, c: Constellation) -> Result<Carrier, carrier::Error> {
         Carrier::from_observable(c, self)
     }
-    /// Returns the code length, expressed in seconds,
-    /// of self: a valid Pseudo Range observable.
+    /// Returns the code length (repetition period), expressed in seconds,
+    /// of self: a valid Pseudo Range observable. This is not intended to be used
+    /// on phase observables, although they are also determined from PRN codes.
+    /// This is mostly used in fractional pseudo range determination.
     pub fn code_length(&self, c: Constellation) -> Option<f64> {
         match c {
             Constellation::GPS => {
                 match self {
                     Self::PseudoRange(code) => {
                         match code.as_ref() {
-                            "C1" => Some(1.0_f64),  //TODO
+                            "C1" => Some(20.0E-3_f64),
                             "C1C" => Some(1.0_f64), // TODO
                             "C1L" => Some(1.0_f64), // TODO
                             "C1X" => Some(1.0_f64), // TODO
@@ -127,7 +129,7 @@ impl Observable {
                 match self {
                     Self::PseudoRange(code) => {
                         match code.as_ref() {
-                            "C1" => Some(1.0_f64),  // TODO
+                            "C1" => Some(20.0E-3_f64),
                             "C1C" => Some(1.0_f64), // TODO
                             "C1L" => Some(1.0_f64), // TODO
                             "C1X" => Some(1.0_f64), // TODO
@@ -227,7 +229,7 @@ impl Observable {
                     _ => None, // invalid: not a pseudo range
                 }
             },
-            Constellation::GEO | Constellation::SBAS(_) => {
+            Constellation::Geo | Constellation::SBAS(_) => {
                 match self {
                     Self::PseudoRange(code) => {
                         match code.as_ref() {
