@@ -29,8 +29,8 @@ and we aim towards advanced geodesic and ionospheric analysis.
 - Full support of Military codes : if you're working with such signals you can
 at least run a -qc analysis, and possibly the position solver once it is merged 
 - Supports high precision RINEX (scaled phase data with micro cycle precision)
-- RINEX post processing like SNR, DCB analysis, high precision Broadcast
-and SP3 ephemeris interpolation..
+- RINEX post processing like SNR, DCB analysis, Broadcast ephemeris interpolation,
+high precision orbit interpolation (SP3)..
 - RINEX-qc : statistical analysis like "teqc", including on modern signals and SP3 high precision orbits
 - An SPP/PPP position solver is under develoment:
 checkout [this branch](https://github.com/georust/rinex/tree/solver) which
@@ -62,8 +62,8 @@ The application is auto-generated for a few architectures, download it from the
 * [`ublox-rnx`](ublox-rnx/) is an application intended to generate RINEX Data
 from raw uBlox GNSS receiver frames. This application is work in progress at the moment.
 
-RINEX Standards
-===============
+RINEX formats & applications
+============================
 
 | Type                       | Parser            | Writer              |  CLI                 | UBX                  |          Content         | Record browsing      |
 |----------------------------|-------------------|---------------------|----------------------|----------------------|--------------------------| ---------------------|
@@ -79,8 +79,10 @@ RINEX Standards
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias estimates, like DCB.. | Epoch iteration | 
 
 :heavy_check_mark: means all revisions supported   
-:construction: under development   
-__CLI__ + :chart_with_upwards_trend: means record analysis is supported by the CLI, [README](rinex-cli/README.md)
+:construction: : Work in Progress 
+__CLI__ + :chart_with_upwards_trend: means the [cli app](rinex-cli/README.md) provides one or several visualizations
+
+The [cli app](rinex-cli/README.md) accepts more than RINEX input, for example SP3 (high precision orbits) are accepted.
 
 File formats
 ============
@@ -91,6 +93,7 @@ File formats
 | CRINEX                 | :heavy_minus_sign:                | :heavy_check_mark:                 | 
 | gzip compressed RINEX  | Name must end with `.gz`          | `--flate2` feature must be enabled |
 | gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
+| SP3                    | :heavy_minus_sign:                | `--flate2` feature must be enabled | 
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
 
