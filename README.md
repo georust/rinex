@@ -56,21 +56,18 @@ The application is auto-generated for a few architectures, download it from the
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
-* [`qc-traits`](qc-traits/) is a library dedicated to RINEX files analysis 
+* [`qc-traits`](qc-traits/) declares Traits that are shared between `rinex` and `rinex-qc`
 * [`sinex`](sinex/) SNX dedicated core library
 
-* [`ublox-rnx`](ublox-rnx/) is an application that connects to a `Ublox`
-receiver and generates RINEX data quickly & easily.   
-It is the combination of the [ublox](https://github.com/lkolbly/ublox)
-and [rinex](rinex/) crates.
-
+* [`ublox-rnx`](ublox-rnx/) is an application intended to generate RINEX Data
+from raw uBlox GNSS receiver frames. This application is work in progress at the moment.
 
 RINEX Standards
 ===============
 
-| Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
-|----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :construction: V4 :construction: |  :heavy_check_mark: :chart_with_upwards_trend:  | :construction:       | Epoch iteration |
+| Type                       | Parser            | Writer              |  CLI                 | UBX                  |          Content         | Record browsing      |
+|----------------------------|-------------------|---------------------|----------------------|----------------------|--------------------------| ---------------------|
+| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :construction: V4 :construction: |  :heavy_check_mark: :chart_with_upwards_trend:  | :construction:       | Orbit parameters, Ionospheric models.. | Epoch iteration |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Epoch iteration |  
