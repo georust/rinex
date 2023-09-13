@@ -1,33 +1,28 @@
 RINEX-cli 
 =========
 
-Command line tool to parse, analyze and manage RINEX files.  
-
 [![crates.io](https://img.shields.io/crates/v/rinex-cli.svg)](https://crates.io/crates/rinex-cli)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
 
-The main purpose of this tool is to expose the [library](https://github.com/gwbres/rinex/rinex) 
-capabilities, in a high level and easy to use interface.
 
-## RINEX files
+`rinex-cli` is a command line application based off the RINEX crate,
+to manage RINEX files (like reshaping or mixing), but also perform geodesic calculations,
+analyze broadcast ephemeris, estimate differential code biases etc..
 
-Several RINEX files exist, this tool supports already quite a few.  
-Refer to the 
-[main table](https://github.com/gwbres/rinex/blob/main/README.md#supported-rinex-types)
-to understand what is doable.
+It can also generate an html report that is similar to "teqc" QC mode.
 
-### File naming conventions
+## File naming conventions
 
 File names are disregarded by this tool, you can parse & analyze
 files that do not follow naming conventions.
 
-### Compressed data
+## Compressed data
 
 CRINEX (V1 and V3) are natively supported.  
 This tool supports gzip compressed files but the file name must be terminated by `.gz`.
 
-### Analysis and report files
+### Analysis and reporting
 
 Reports and plots are rendered in HTML in the `rinex/rinex-cli/workspace` directory.  
 Analysis is named after the primary RINEX file.
