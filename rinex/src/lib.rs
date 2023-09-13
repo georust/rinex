@@ -2254,8 +2254,8 @@ impl Rinex {
         )
     }
     /// Returns Ephemeris Reference Epoch (a.k.a toe) for desired SV and specified Epoch `t`.
-    /// Toe is the central Epoch (frame validity) of broadcasted ephemeris around that instant.
-    pub fn time_of_ephemeris(&self, sv: Sv, t: Epoch) -> Option<Epoch> {
+    /// Toe is the central Epoch of broadcasted ephemeris around that instant.
+    pub fn sv_toe(&self, sv: Sv, t: Epoch) -> Option<Epoch> {
         let (_, (_, _, ephemeris)) = self
             .ephemeris()
             .find(|(epoch, (_, svnn, _))| **epoch == t && **svnn == sv)?;
@@ -2266,7 +2266,7 @@ impl Rinex {
     /// and its associated GNSS time scale. Offset expressed as a [`Duration`].
     pub fn sv_clock_offset(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, Duration)> + '_> {
         Box::new(self.sv_clock().filter_map(|(t, sv, (a0, a1, a2))| {
-            if let Some(toe) = self.time_of_ephemeris(sv, t) {
+            if let Some(toe) = self.sv_toe(sv, t) {
                 let dt = (t - toe).to_seconds();
                 let dt_sat = a0 + a1 * dt + a2 * dt.powi(2);
                 Some((t, sv, Duration::from_seconds(dt_sat)))
