@@ -7,9 +7,9 @@ you want to perform.
 
 ## Meteo RINEX analysis
 
-To analyze a Meteo file, a primary file of this type should be passed
-to `--fp` (or `-f`). In this case, you get a visualization
-of all observations. An in depth statistical analysis is feasible with `--qc`.
+To analyze a Meteo file, a primary file of this type should be passed to `--fp` (or `-f`).   
+In this case, you get a visualization of all observations. 
+An in depth statistical analysis is feasible with `--qc`.
 
 It does not make sense to stack other RINEX files to such analysis.
 

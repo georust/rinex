@@ -50,7 +50,7 @@ if you know how to operate the preprocessing toolkit
 ## Data analysis 
 
 This tool can perform several data analysis. Feasible operations
-are highly dependent on the context provided by the user.
+are highly dependent on the context provided by the user.  
 Refer to [this page](doc/file-combination.md) to understand
 what minimal context should be provided, for the analysis you want to perform.
 
