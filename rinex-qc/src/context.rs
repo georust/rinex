@@ -212,7 +212,7 @@ impl QcContext {
                     } else if let Some(nav) = self.navigation_data() {
                         if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
                             self.orbits
-                                .insert((e, sv), (x_m / 1.0E3, y_m / 1.0E3, z_m / 1.0E3));
+                                .insert((e, sv), (x_m * 1.0E-3, y_m * 1.0E-3, z_m * 1.0E-3));
                         }
                     }
                 }
@@ -224,7 +224,7 @@ impl QcContext {
     /// to be used in this context
     pub fn sv_position(&self) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
         if self.interpolated {
-            self.orbits.iter().collect()
+            todo!("CONCLUDE THIS PLEASE");
         } else {
             match self.sp3_data() {
                 Some(sp3) => sp3.sv_position().collect(),

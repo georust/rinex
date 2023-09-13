@@ -2303,7 +2303,7 @@ impl Rinex {
             }
         }))
     }
-    /// Interpolates SV position at desired Epoch `t`.
+    /// Interpolates SV position, expressed in meters ECEF at desired Epoch `t`.
     /// An interpolation order of at least 7 is recommended.
     /// Operation is not feasible if sampling interval cannot be determined.
     /// In ideal scenarios, Broadcast Ephemeris are complete and evenly spaced in time:
@@ -2311,10 +2311,8 @@ impl Rinex {
     ///   - the last Epoch we an interpolate is  [..;  T - (N +1)/2 * τ]
     /// where N is the interpolation order, τ the broadcast interval and T
     /// the last broadcast message received.
-    /// In order to minimize interpolation errors, we design a continuous time window
-    /// spanning [t - order /2; t + order/2+1]. Operation might also be not feasible,
-    /// if Ephemeris are interrupted and we can't have a continuous window.
-    /// See [Bibliography::Japhet2021].
+    /// This method is designed to minimize interpolation errors at the expense
+    /// of interpolatable Epochs. See [Bibliography::Japhet2021].
     pub fn sv_position_interpolate(
         &self,
         sv: Sv,
@@ -2322,8 +2320,6 @@ impl Rinex {
         order: usize,
     ) -> Option<(f64, f64, f64)> {
         let odd_order = order % 2 > 0;
-        let mut ret: HashMap<Sv, (f64, f64, f64)> = HashMap::new();
-
         let dt = match self.sample_rate() {
             Some(dt) => dt,
             None => match self.dominant_sample_rate() {
@@ -2360,7 +2356,6 @@ impl Rinex {
                 return None;
             },
         };
-
         // println!("CENTRAL EPOCH: {:?}", center); // DEBUG
         let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
             Some(center) => center,
@@ -2397,6 +2392,7 @@ impl Rinex {
             polynomials.1 += y_i * li;
             polynomials.2 += z_i * li;
         }
+
         Some(polynomials)
     }
     /// Returns an Iterator over Sv position vectors,

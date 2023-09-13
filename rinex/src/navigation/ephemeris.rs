@@ -348,6 +348,7 @@ impl Ephemeris {
         let omega_k = kepler.omega_0
             + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84) * t_k
             - Kepler::EARTH_OMEGA_E_WGS84 * kepler.toe;
+
         let xp_k = r_k * u_k.cos();
         let yp_k = r_k * u_k.sin();
 
@@ -358,27 +359,29 @@ impl Ephemeris {
         Some((x_k, y_k, z_k))
     }
     /*
-     * Returns Sv position in ECEF m, based off Self Ephemeris data,
-     * and for given Satellite Vehicle at given Epoch.
-     * Either by solving Kepler equations, or directly if such data is available.
+     * Returns Sv position in meters ECEF, based off Self Ephemeris data,
+     * either by solving Kepler equations, or directly if such data is available.
      */
     pub(crate) fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        if let Some(pos_x_km) = self.get_orbit_f64("satPosX") {
-            if let Some(pos_y_km) = self.get_orbit_f64("satPosY") {
-                if let Some(pos_z_km) = self.get_orbit_f64("satPosZ") {
-                    /*
-                     * GLONASS + SBAS: position vector already available,
-                     *                 distances expressed in km ECEF
-                     */
-                    return Some((
-                        pos_x_km * 1000.0_f64,
-                        pos_y_km * 1000.0_f64,
-                        pos_z_km * 1000.0_f64,
-                    ));
-                }
-            }
+        let (x_km, y_km, z_km) = (
+            self.get_orbit_f64("satPosX"),
+            self.get_orbit_f64("satPosY"),
+            self.get_orbit_f64("satPosZ"),
+        );
+        match (x_km, y_km, z_km) {
+            (Some(x_km), Some(y_km), Some(z_km)) => {
+                /*
+                 * GLONASS + SBAS: position vector already available,
+                 *                 distances expressed in km ECEF
+                 */
+                Some((
+                    x_km * 1000.0_f64,
+                    y_km * 1000.0_f64,
+                    z_km * 1000.0_f64,
+                ))
+            },
+            _ => self.kepler2ecef(sv, epoch),
         }
-        self.kepler2ecef(sv, epoch)
     }
     /*
      * Computes elev, azim angles both in degrees
