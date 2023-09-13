@@ -2256,7 +2256,7 @@ impl Rinex {
             })
         }))
     }
-    /// Returns iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
+    /// Returns an Iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)
     /// ```
     /// use rinex::prelude::*;
@@ -2274,6 +2274,28 @@ impl Rinex {
             self.ephemeris()
                 .map(|(e, (_, sv, data))| (*e, *sv, data.sv_clock())),
         )
+    }
+    /// Returns Ephemeris Reference Epoch (a.k.a toe) for desired SV and specified Epoch `t`.
+    /// Toe is the central Epoch (frame validity) of broadcasted ephemeris around that instant.
+    pub fn time_of_ephemeris(&self, sv: Sv, t: Epoch) -> Option<Epoch> {
+        let (_, (_, _, ephemeris)) = self
+            .ephemeris()
+            .find(|(epoch, (_, svnn, _))| **epoch == t && **svnn == sv)?;
+        let ts = sv.constellation.timescale()?;
+        ephemeris.toe(ts)
+    }
+    /// Returns an Iterator over Sv (embedded) time offsets between the SV local onboard clock,
+    /// and its associated GNSS time scale. Offset expressed as a [`Duration`].
+    pub fn sv_clock_offset(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, Duration)> + '_> {
+        Box::new(self.sv_clock().filter_map(|(t, sv, (a0, a1, a2))| {
+            if let Some(toe) = self.time_of_ephemeris(sv, t) {
+                let dt = (t - toe).to_seconds();
+                let dt_sat = a0 + a1 * dt + a2 * dt.powi(2);
+                Some((t, sv, Duration::from_seconds(dt_sat)))
+            } else {
+                None
+            }
+        }))
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed in meters ECEF for all Epochs.

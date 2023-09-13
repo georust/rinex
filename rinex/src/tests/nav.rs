@@ -1700,7 +1700,7 @@ mod test {
                 }
                 //TODO FIX THIS PLEASE
                 if interpolated.is_none() {
-                    continue ;
+                    continue;
                 }
                 /*
                  * test interpolation errors

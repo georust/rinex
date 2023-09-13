@@ -118,9 +118,23 @@ impl Ephemeris {
         self.orbits
             .insert(field.to_string(), OrbitItem::from(value));
     }
-    /// Retrieve week counter, if such data exists.
-    pub fn get_week(&self) -> Option<u32> {
+    /*
+     * Retrieves week counter, if such data exists
+     */
+    pub(crate) fn get_week(&self) -> Option<u32> {
         self.orbits.get("week").and_then(|field| field.as_u32())
+    }
+    /*
+     * Retrieves toe, if such data exists
+     */
+    pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
+        let week = self.get_week()?;
+        let toe_f64 = self.get_orbit_f64("toe")?;
+        Some(Epoch::from_time_of_week(
+            week,
+            toe_f64.round() as u64 * 1_000_000_000,
+            ts,
+        ))
     }
     /*
      * Parses ephemeris from given line iterator
@@ -374,11 +388,7 @@ impl Ephemeris {
                  * GLONASS + SBAS: position vector already available,
                  *                 distances expressed in km ECEF
                  */
-                Some((
-                    x_km * 1000.0_f64,
-                    y_km * 1000.0_f64,
-                    z_km * 1000.0_f64,
-                ))
+                Some((x_km * 1000.0_f64, y_km * 1000.0_f64, z_km * 1000.0_f64))
             },
             _ => self.kepler2ecef(sv, epoch),
         }
