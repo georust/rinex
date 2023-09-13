@@ -1,54 +1,52 @@
 CONTRIBUTING
 ============
 
-First of all: Hello and welcome on board!
+Hello and welcome on board :wave:
 
-Use `cargo fmt` prior submitting a pull request so the CI/CD does not fail on coding standards issues.
+Use the github portal to submit PR, all contributions are welcomed.  
+Don't forget to run a quick `cargo fmt` prior any submissions, so the CI/CD does not fail
+on coding style "issues".
 
 This crate and ecosystem is part of the Georust community.  
-You can contact us to ask questions on our Discord channel, 
-see the [community portal](https://github.com/georust/geo)
+You can reach us on our Discord channel, 
+see our [community portal](https://github.com/georust/geo),
+to ask questions, request features..
 
-lib architecture
-================
+Crate architecture
+==================
 
-For each supported RINEX types, we have one folder.  
-The folder bears the name of such RINEX type. In that folder,
-you can find a `record.rs` file where that particular files content is described. 
-It also contains its dedicated parsing methods.
+For each supported RINEX types, we have one folder named after that format.  
+`src/navigation` is one of those. 
 
-- src/lib.rs : main library, `Rinex` definitions
-- src/constellation/mod.rs : GNSS constellations definition
-  - src/constellation/augmentation.rs : SBAS related definitions 
-- src/sv.rs : Satellite vehicule definitions
-- src/observation/mod.rs : OBS RINEX entry point
-  - src/observation/record.rs : OBS RINEX specific record definitions
-- src/navigation/mod.rs : NAV RINEX entry point
-  - src/navigation/record.rs : NAV RINEX specific generic record definitions
-  - src/navigation/ephemeris.rs : Ephemeris frames definition, parsing method and related calculations, like Kepler solving
-  - src/navigation/ionmessage.rs : new ION frame definition and parsing methods
-  - src/navigation/eopmessage.rs : new EOP frame definition and parsing methods
-- src/meteo/mod.rs : Meteo RINEX entry point
-  - src/meteo/record.rs : specific record definitions, including parsing methods
-  - src/hatanaka/mod.rs : Compression / Decompression module 
-  - src/qc/mod.rs : Quality Check module
-  - src/qc/analysis/sv.rs : Satellite Vehicle general analysis
-  - src/qc/analysis/obs.rs : OBS RINEX specific analysis
+The module contains the record type definition. RINEX file contents vary a lot
+depending on which type of RINEX we're talking about.  
+For complex RINEX formats like Navigation Data, that module will contain all possible inner types.
+
+Other important structures :
+- `src/constellation.rs` defines GNSS constellations
+- `src/constellation/augmentation.rs` : preliminary SBAS support
+- `src/sv.rs` defines a Satellite vehicle, which is associated to a constellation
+  - src/hatanaka/mod.rs : the Hatanaka module contains the RINEX Compressor and Decompressor 
 
 NAV RINEX
 =========
 
-Abstraction for NAV files parsing is provided by the `navigation.json` descriptor.  
-This is how we describe all supported revisions and their data fields.  
+Orbit instantaneous parameters, broadcasted by GNSS vehicles, are presented in different
+forms depending on the RINEX revision and the GNSS constellation.
 
-Improving or updating NAV file parsing either means updating this database, 
-or improving the way we rely on it. This is handle
+To solve that problem, we use a dictionary, in the form of `src/db/NAV/orbits.json`,
+which describes all fields per RINEX revision and GNSS constellation.
+
+This file is processed at build time, by the build script and ends up as a static 
+pool we rely on when parsing a file. 
+
+The dictionary is powerful enough to describe all revision, the default Navigation Message
+is `LNAV`: Legacy NAV message, which can be omitted. Therefore, it is only declared 
+for modern Navigation messages.
 
 Introducing a new RINEX type
 ============================
 
-A good guideline would be to follow the src/meteo/mod.rs module, which is simple enough,
-yet follows the basic principles previously explained.  
+`src/meteo/mod.rs` is the easiest format and can serve as a guideline to follow.
 
-A more complex RINEX declination would be src/navigation, because the inner record entry
-can have 3 or 4 different variations.
+When introducing a new Navigation Data, the dictionary will most likely have to be updated (see previous paragraph).
