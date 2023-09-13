@@ -79,7 +79,7 @@ RINEX formats & applications
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias estimates, like DCB.. | Epoch iteration | 
 
 :heavy_check_mark: means all revisions supported   
-:construction: : Work in Progress 
+:construction: : Work in Progress   
 __CLI__ + :chart_with_upwards_trend: means the [cli app](rinex-cli/README.md) provides one or several visualizations
 
 The [cli app](rinex-cli/README.md) accepts more than RINEX input, for example SP3 (high precision orbits) are accepted.
