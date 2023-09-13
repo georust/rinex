@@ -7,10 +7,8 @@ Use the github portal to submit PR, all contributions are welcomed.
 Don't forget to run a quick `cargo fmt` prior any submissions, so the CI/CD does not fail
 on coding style "issues".
 
-This crate and ecosystem is part of the Georust community.  
-You can reach us on our Discord channel, 
-see our [community portal](https://github.com/georust/geo),
-to ask questions, request features..
+This crate and ecosystem is part of the Georust community. 
+You can contact us on [Discord](https://discord.gg/Fp2aape).
 
 Crate architecture
 ==================
