@@ -7,7 +7,6 @@ use serde::Serialize;
 
 use super::{
     antex, clocks,
-    gnss_time::GnssTime,
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_comment, merge,
     merge::Merge,
@@ -691,34 +690,6 @@ impl Split for Record {
     }
     fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, split::Error> {
         Ok(Vec::new())
-    }
-}
-
-impl GnssTime for Record {
-    fn timeseries(&self, dt: Duration) -> TimeSeries {
-        if let Some(r) = self.as_obs() {
-            r.timeseries(dt)
-        } else {
-            todo!()
-        }
-    }
-    fn convert_timescale(&mut self, ts: TimeScale) {
-        if let Some(r) = self.as_mut_obs() {
-            r.convert_timescale(ts);
-        } else if let Some(r) = self.as_mut_nav() {
-            r.convert_timescale(ts);
-        } else if let Some(r) = self.as_mut_meteo() {
-            r.convert_timescale(ts);
-        } else if let Some(r) = self.as_mut_ionex() {
-            r.convert_timescale(ts);
-        } else if let Some(r) = self.as_mut_clock() {
-            r.convert_timescale(ts);
-        }
-    }
-    fn with_timescale(&self, ts: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.convert_timescale(ts);
-        s
     }
 }
 

@@ -85,7 +85,6 @@ pub mod preprocessing {
 extern crate horrorshow;
 
 use carrier::Carrier;
-use gnss_time::GnssTime;
 use prelude::*;
 
 pub use merge::Merge;
@@ -306,27 +305,6 @@ impl Rinex {
                 prog: "rust-crinex".to_string(),
             });
         }
-    }
-
-    /// Returns [`TimeScale`] used in this RINEX
-    pub fn timescale(&self) -> Option<TimeScale> {
-        /*
-         * all epochs share the same timescale,
-         * by construction & definition.
-         * No need to test other epochs */
-        self.epoch().next().map(|e| e.time_scale)
-    }
-
-    /// Converts self into given [`TimeScale`]
-    pub fn into_timescale(&mut self, ts: TimeScale) {
-        self.record.convert_timescale(ts);
-    }
-
-    /// Converts self to given timescale
-    pub fn with_timescale(&self, ts: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.into_timescale(ts);
-        s
     }
 
     /// Converts a CRINEX (compressed RINEX) into readable RINEX.

@@ -34,8 +34,7 @@ fn double_exponent_digits(content: &str) -> String {
 }
 
 use crate::{
-    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split, split::Split, types::Type,
-    version::Version,
+    epoch, merge, merge::Merge, prelude::*, split, split::Split, types::Type, version::Version,
 };
 
 use super::{
@@ -1169,29 +1168,6 @@ impl Split for Record {
     }
     fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
         Ok(Vec::new())
-    }
-}
-
-impl GnssTime for Record {
-    fn timeseries(&self, dt: Duration) -> TimeSeries {
-        let epochs: Vec<_> = self.keys().collect();
-        TimeSeries::inclusive(
-            **epochs.get(0).expect("failed to determine first epoch"),
-            **epochs
-                .get(epochs.len() - 1)
-                .expect("failed to determine last epoch"),
-            dt,
-        )
-    }
-    fn convert_timescale(&mut self, ts: TimeScale) {
-        self.iter_mut()
-            .map(|(k, v)| (k.in_time_scale(ts), v))
-            .count();
-    }
-    fn with_timescale(&self, ts: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.convert_timescale(ts);
-        s
     }
 }
 
