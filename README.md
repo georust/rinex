@@ -11,23 +11,6 @@ RINEX
 
 Rust tool suites to parse, analyze and process [RINEX Data](https://en.wikipedia.org/wiki/RINEX).
 
-* [`rinex`](rinex/) is the core library 
-* [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
-It can be used to process RINEX files and perform operations similar to `teqc`.   
-The application is auto-generated for a few architectures, download it from the 
-[release portal](https://github.com/gwbres/rinex/releases)
-
-* [`rnx2crx`](rnx2crx/) is a RINEX compression program 
-* [`crx2rnx`](crx2rnx/) is a CRINEX decompression program (Compact RINEX to RINEX)
-* [`sinex`](sinex/) SNX dedicated core library
-
-* [`ublox-rnx`](ublox-rnx/) is an application that connects to a `Ublox`
-receiver and generates RINEX data quickly & easily.   
-It is the combination of the [ublox](https://github.com/lkolbly/ublox)
-and [rinex](rinex/) crates.
-
-By default, all timestamps are in UTC with leap seconds correctly managed.
-
 This RINEX toolsuite is part of the [GeoRust community](https://github.com/georust),
 and we aim towards advanced geodesic and ionospheric analysis.
 
@@ -41,7 +24,7 @@ and we aim towards advanced geodesic and ionospheric analysis.
 - Meteo RINEX full support
 - IONEX and Clock RINEX partial support, will be concluded soon
 - File merging, splitting and pre processing
-- Full support of modern constellations like BeiDou, Galileo and IRNSS
+- Modern constellations like BeiDou, Galileo and IRNSS
 - Supported time scales are GPST, BDT, GST, UTC
 - Full support of Military codes : if you're working with such signals you can
 at least run a -qc analysis, and possibly the position solver once it is merged 
@@ -61,6 +44,26 @@ is kept up to date until merged
 - The command line tool does not accept BINEX or other proprietary formats
 - File production is not fully concluded to this day, some formats are still not correctly supported
 (mostly NAV).
+
+## Architecture 
+
+* [`rinex`](rinex/) is the core library 
+* [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
+It can be used to process RINEX files and perform operations similar to `teqc`.   
+The application is auto-generated for a few architectures, download it from the 
+[release portal](https://github.com/gwbres/rinex/releases)
+
+* [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
+* [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
+* [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
+* [`qc-traits`](qc-traits/) is a library dedicated to RINEX files analysis 
+* [`sinex`](sinex/) SNX dedicated core library
+
+* [`ublox-rnx`](ublox-rnx/) is an application that connects to a `Ublox`
+receiver and generates RINEX data quickly & easily.   
+It is the combination of the [ublox](https://github.com/lkolbly/ublox)
+and [rinex](rinex/) crates.
+
 
 RINEX Standards
 ===============
