@@ -72,7 +72,6 @@ pub fn create_workspace(path: PathBuf) {
  * Appends file content, to data context being constructed
  */
 fn load_rinex_file(path: &Path, ctx: &mut QcExtraData<Rinex>, ftype: RinexType) {
-    let stem = path.file_stem();
     let fullpath = path.to_string_lossy();
     let new = Rinex::from_file(&fullpath);
     if let Ok(new) = new {
@@ -109,7 +108,6 @@ fn load_rinex_file(path: &Path, ctx: &mut QcExtraData<Rinex>, ftype: RinexType) 
  * Appends SP3 file content, to data context being constructed
  */
 fn load_sp3_file(path: &Path, ctx: &mut QcExtraData<SP3>) {
-    let stem = path.file_stem();
     let fullpath = path.to_string_lossy();
     let new = SP3::from_file(&fullpath);
     if let Ok(new) = new {
@@ -123,9 +121,9 @@ fn load_sp3_file(path: &Path, ctx: &mut QcExtraData<SP3>) {
             let r = ctx.data_mut().merge_mut(&new);
             if r.is_ok() {
                 ctx.paths.push(path.to_path_buf());
-                trace!("SP3 : \"{}\"", fullpath);
+                trace!("SP3 : \"{}\"", fullpath); 
             } else {
-                error!("failed to stack sp3 : \"{}\"", fullpath);
+                error!("failed to stack sp3 : \"{}\"", fullpath); 
             }
         }
     } else {

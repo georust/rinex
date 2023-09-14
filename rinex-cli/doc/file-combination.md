@@ -83,9 +83,17 @@ When combined (both provided):
 the residual errors between them. For this plot to be available, you need overlapping
 Navigation / SP3 Data (common time frame and SV).
 
-Here's an example of overlapping SP3/NAV Ephemeris residuals analysis 
+Here's an example of overlapping SP3/NAV Ephemeris residuals analysis:
 
-<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/TODO.png">
+```bash
+./target/release/rinex-cli \
+   -P G03,E19,R13,R09,R03 \
+   --fp DATA/2023/OBS/256/ANK200TUR_S_20232560000_01D_30S_MO.crx \
+   --nav DATA/2023/NAV/254 \
+   --sp3 DATA/2023/SP3/254
+```
+
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/sp3_residual.png">
 
 NB: such a context is not hosted on this repo. You'll have to download similar
 joint `--nav` and `--sp3` context yourself.
