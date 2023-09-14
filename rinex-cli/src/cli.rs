@@ -4,7 +4,7 @@ use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
 use std::fs::ReadDir;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 
 pub struct Cli {
@@ -463,7 +463,7 @@ Refer to README"))
      * as a specific data provider
      */
     pub fn data_dir(&self, key: &str) -> Option<ReadDir> {
-        if let Some(mut matches) = self.matches.get_many::<String>(key) {
+        if let Some(matches) = self.matches.get_many::<String>(key) {
             if matches.len() == 1 {
                 for m in matches {
                     let path = Path::new(m);

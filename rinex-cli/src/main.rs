@@ -30,7 +30,6 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use clap::parser::ValuesRef;
 use fops::open_with_web_browser;
 use sp3::{prelude::SP3, Merge as SP3Merge};
 use std::io::Write;
