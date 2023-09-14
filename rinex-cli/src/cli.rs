@@ -3,7 +3,8 @@ use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
-use std::path::Path;
+use std::fs::ReadDir;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub struct Cli {
@@ -26,7 +27,9 @@ impl Cli {
                         .short('f')
                         .long("fp")
                         .value_name("FILE")
-                        .help("Input RINEX file")
+                        .help("Input RINEX file. Serves as primary data.
+In advanced usage, this must be Observation Data.
+Observation, Meteo and IONEX, can only serve as primary data.")
                         .action(ArgAction::Append)
                         .required(true))
                 .next_help_heading("General")
@@ -94,6 +97,10 @@ Useful to determine common Epochs or compare sample rates in between
                         .short('J')
                         .action(ArgAction::SetTrue)
                         .help("Filters out all QZSS vehicles"))
+                    .arg(Arg::new("irnss-filter")
+                        .short('I')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all IRNSS vehicles"))
                     .arg(Arg::new("sbas-filter")
                         .short('S')
                         .action(ArgAction::SetTrue)
@@ -335,6 +342,9 @@ Refer to README"))
     pub fn sbas_filter(&self) -> bool {
         self.matches.get_flag("sbas-filter")
     }
+    pub fn irnss_filter(&self) -> bool {
+        self.matches.get_flag("irnss-filter")
+    }
     pub fn gf_recombination(&self) -> bool {
         self.matches.get_flag("gf")
     }
@@ -448,15 +458,30 @@ Refer to README"))
             None
         }
     }
-    /// Returns optionnal Nav path, for enhanced capabilities
-    pub fn nav_paths(&self) -> Option<ValuesRef<'_, String>> {
-        self.matches.get_many::<String>("nav")
+    /*
+     * Returns possible name of directory passed
+     * as a specific data provider
+     */
+    pub fn data_dir(&self, key: &str) -> Option<ReadDir> {
+        if let Some(mut matches) = self.matches.get_many::<String>(key) {
+            if matches.len() == 1 {
+                for m in matches {
+                    let path = Path::new(m);
+                    if path.is_dir() {
+                        if let Ok(rd) = path.read_dir() {
+                            return Some(rd);
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
-    pub fn atx_paths(&self) -> Option<ValuesRef<'_, String>> {
-        self.matches.get_many::<String>("atx")
-    }
-    pub fn sp3_paths(&self) -> Option<ValuesRef<'_, String>> {
-        self.matches.get_many::<String>("sp3")
+    /*
+     * Returns possible list of files to be loaded
+     */
+    pub fn data_paths(&self, key: &str) -> Option<ValuesRef<'_, String>> {
+        self.matches.get_many::<String>(key)
     }
     fn manual_ecef(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-ecef")

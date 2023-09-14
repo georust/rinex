@@ -1,7 +1,8 @@
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
 use rinex::prelude::{GroundPosition, Rinex};
+use rinex::Error;
 use rinex_qc_traits::HtmlReport;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use sp3::prelude::SP3;
 
@@ -19,6 +20,16 @@ pub struct QcExtraData<T> {
     pub paths: Vec<PathBuf>,
     /// Data
     pub data: T,
+}
+
+impl QcPrimaryData {
+    /// Parses Self from local file
+    pub fn from_file(path: &str) -> Result<Self, Error> {
+        Ok(Self {
+            path: Path::new(path).to_path_buf(),
+            data: Rinex::from_file(path)?,
+        })
+    }
 }
 
 impl<T> QcExtraData<T> {

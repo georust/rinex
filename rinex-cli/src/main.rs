@@ -70,91 +70,156 @@ pub fn create_workspace(path: PathBuf) {
 }
 
 /*
+ * Appends file content, to data context being constructed
+ */
+fn load_rinex_file(path: &Path, ctx: &mut QcExtraData<Rinex>, ftype: RinexType) {
+    let stem = path.file_stem();
+    let fullpath = path.to_string_lossy();
+    let new = Rinex::from_file(&fullpath);
+    if let Ok(new) = new {
+        if new.header.rinex_type != ftype {
+            let stem = path.file_stem().unwrap();
+            error!("file \"{}\" is not {}", stem.to_string_lossy(), ftype);
+        } else {
+            if ctx.paths().is_empty() {
+                // first file of this type, to be passed
+                ctx.data = new.clone();
+                ctx.paths.push(path.to_path_buf());
+                trace!("{} : \"{}\"", ftype, fullpath);
+            } else {
+                // after that: we use merge() to create a blob
+                let r = ctx.data_mut().merge_mut(&new);
+                if r.is_ok() {
+                    ctx.paths.push(path.to_path_buf());
+                    trace!("{} : \"{}\"", ftype, fullpath);
+                } else {
+                    error!("failed to stack {} : \"{}\"", ftype, fullpath);
+                }
+            }
+        }
+    } else {
+        error!(
+            "failed to parse file \"{}\": {:?}",
+            fullpath,
+            new.err().unwrap()
+        );
+    }
+}
+
+/*
+ * Appends SP3 file content, to data context being constructed
+ */
+fn load_sp3_file(path: &Path, ctx: &mut QcExtraData<SP3>) {
+    let stem = path.file_stem();
+    let fullpath = path.to_string_lossy();
+    let new = SP3::from_file(&fullpath);
+    if let Ok(new) = new {
+        if ctx.paths().is_empty() {
+            // first file of this type, to be passed
+            ctx.data = new.clone();
+            ctx.paths.push(path.to_path_buf());
+            trace!("SP3 : \"{}\"", fullpath);
+        } else {
+            // after that: we use merge() to create a blob
+            let r = ctx.data_mut().merge_mut(&new);
+            if r.is_ok() {
+                ctx.paths.push(path.to_path_buf());
+                trace!("SP3 : \"{}\"", fullpath);
+            } else {
+                error!("failed to stack sp3 : \"{}\"", fullpath);
+            }
+        }
+    } else {
+        error!(
+            "failed to parse file \"{}\": {:?}",
+            fullpath,
+            new.err().unwrap()
+        );
+    }
+}
+
+use std::fs::ReadDir;
+
+/*
+ * Appends directory content, to data context being constructed
+ */
+fn load_rinex_directory(dir: ReadDir, ctx: &mut QcExtraData<Rinex>, ftype: RinexType) {
+    for entry in dir {
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            if path.is_dir() {
+                /* recursive loading */
+                if let Ok(dir) = path.read_dir() {
+                    load_rinex_directory(dir, ctx, ftype);
+                }
+            } else {
+                load_rinex_file(&path, ctx, ftype);
+            }
+        }
+    }
+}
+
+/*
+ * Appends SP3 directory content, to data context being constructed
+ */
+fn load_sp3_directory(dir: ReadDir, ctx: &mut QcExtraData<SP3>) {
+    for entry in dir {
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            if path.is_dir() {
+                /* recursive loading */
+                if let Ok(dir) = path.read_dir() {
+                    load_sp3_directory(dir, ctx);
+                }
+            } else {
+                load_sp3_file(&path, ctx);
+            }
+        }
+    }
+}
+
+/*
  * Macro to build QcExtraData of a specific RINEX Type
  */
 fn build_extra_rinex_data(
-    paths: Option<ValuesRef<'_, String>>,
-    rtype: RinexType,
+    cli: &Cli,
+    cli_key: &str,
+    ftype: RinexType,
 ) -> Option<QcExtraData<Rinex>> {
-    if let Some(paths) = paths {
+    if let Some(dir) = cli.data_dir(cli_key) {
+        let mut ctx = QcExtraData::<Rinex>::default();
+        load_rinex_directory(dir, &mut ctx, ftype);
+        Some(ctx)
+    } else if let Some(paths) = cli.data_paths(cli_key) {
         let mut ctx = QcExtraData::<Rinex>::default();
         for path in paths {
-            let new = Rinex::from_file(path);
-            if let Ok(new) = new {
-                if new.header.rinex_type != rtype {
-                    let stem = Path::new(path).file_stem().unwrap();
-                    error!("\"{}\" : invalid {} RINEX", stem.to_string_lossy(), rtype);
-                    continue;
-                }
-                if ctx.paths().is_empty() {
-                    // first file passed by user
-                    ctx = QcExtraData {
-                        paths: vec![Path::new(path).to_path_buf()],
-                        data: new.clone(),
-                    };
-                    trace!("{} file \"{}\"", rtype, path);
-                } else {
-                    match ctx.data_mut().merge_mut(&new) {
-                        Ok(_) => {
-                            trace!("{} file \"{}\"", rtype, path);
-                            ctx.paths.push(Path::new(path).to_path_buf());
-                        },
-                        Err(e) => error!("failed to parse nav file \"{}\" : {:?}", path, e),
-                    }
-                }
-            } else {
-                let stem = Path::new(path).file_stem().unwrap();
-                error!(
-                    "failed to parse file \"{}\" - {:?}",
-                    stem.to_string_lossy(),
-                    new.err().unwrap()
-                );
-            }
+            load_rinex_file(Path::new(path), &mut ctx, ftype);
         }
         Some(ctx)
     } else {
         None // no files provided by user
     }
 }
+
 /*
- * Macro to build QcExtraInput of type SP3 specifically
+ * Macro to build QcExtraData of SP3 Type
  */
-fn build_extra_sp3_data(paths: Option<ValuesRef<'_, String>>) -> Option<QcExtraData<SP3>> {
-    if let Some(paths) = paths {
+fn build_extra_sp3_data(cli: &Cli) -> Option<QcExtraData<SP3>> {
+    if let Some(dir) = cli.data_dir("sp3") {
+        let mut ctx = QcExtraData::<SP3>::default();
+        load_sp3_directory(dir, &mut ctx);
+        Some(ctx)
+    } else if let Some(paths) = cli.data_paths("sp3") {
         let mut ctx = QcExtraData::<SP3>::default();
         for path in paths {
-            let new = SP3::from_file(path);
-            if let Ok(new) = new {
-                if ctx.paths().is_empty() {
-                    // first file passed by user
-                    ctx = QcExtraData {
-                        paths: vec![Path::new(path).to_path_buf()],
-                        data: new.clone(),
-                    };
-                    trace!("SP3 file \"{}\"", path);
-                } else {
-                    match ctx.data_mut().merge_mut(&new) {
-                        Ok(_) => {
-                            trace!("SP3 file \"{}\"", path);
-                            ctx.paths.push(Path::new(path).to_path_buf());
-                        },
-                        Err(e) => error!("failed to parse sp3 file \"{}\" : {:?}", path, e),
-                    }
-                }
-            } else {
-                let stem = Path::new(path).file_stem().unwrap();
-                error!(
-                    "failed to parse file \"{}\" - {:?}",
-                    stem.to_string_lossy(),
-                    new.err().unwrap()
-                );
-            }
+            load_sp3_file(Path::new(path), &mut ctx);
         }
         Some(ctx)
     } else {
         None // no files provided by user
     }
 }
+
 /*
  * Creates File/Data context defined by user.
  * Regroups all provided files/folders,
@@ -162,15 +227,21 @@ fn build_extra_sp3_data(paths: Option<ValuesRef<'_, String>>) -> Option<QcExtraD
 fn create_context(cli: &Cli) -> QcContext {
     QcContext {
         primary: {
-            let path = cli.input_path();
-            QcPrimaryData {
-                path: Path::new(path).to_path_buf(),
-                data: Rinex::from_file(path).expect("failed to parse primary RINEX file"),
+            let fp = cli.input_path();
+            let data = QcPrimaryData::from_file(fp);
+            if let Ok(data) = data {
+                data
+            } else {
+                panic!(
+                    "failed to rinex file \"{}\" - {:?}",
+                    fp,
+                    data.err().unwrap()
+                );
             }
         },
-        nav: build_extra_rinex_data(cli.nav_paths(), RinexType::NavigationData),
-        atx: build_extra_rinex_data(cli.atx_paths(), RinexType::AntennaData),
-        sp3: build_extra_sp3_data(cli.sp3_paths()),
+        nav: build_extra_rinex_data(cli, "nav", RinexType::NavigationData),
+        atx: build_extra_rinex_data(cli, "atx", RinexType::AntennaData),
+        sp3: build_extra_sp3_data(cli),
     }
 }
 

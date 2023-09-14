@@ -12,6 +12,71 @@ analyze broadcast ephemeris, estimate differential code biases etc..
 
 It can also generate an html report that is similar to "teqc" QC mode.
 
+## File loading interface
+
+`rinex-cli` accepts one primary file and possible context enhancers.
+
+In basic operations, only a primary file is expected.  
+Some RINEX files can only serve as primary files too.  
+Refer to [this page](doc/file-combination.md) to understand
+what data context you should provide for the analysis you want to perform.
+
+In any case: 
+
+- `--fp` (`-f`) only accepts one file at the moment
+- `--nav`, `--sp3` and similar context enhancer,
+can either load a single directory or several files.
+
+To load several files, use the command line flag once per file, for example :
+
+```bash
+./target/release/rinex-cli --fp /tmp/PRIMARY.txt \
+  --nav /foo/NAV1 \
+  --nav /tmp/NAV2
+```
+
+You can stack as many as you want.
+
+Stacking so many files can be tedious. We leave the option to load a Directory at once.
+In this case you must point to the directory full path. In this example,
+/tmp is expected to only contain Navigation Data:
+
+```bash
+./target/release/rinex-cli --fp /tmp/PRIMARY.txt --nav /tmp
+```
+
+When loading a directory, we only search for a specific data type (nav in this example).
+Any other types will not cause the application to crash, but will not be loaded at all.
+
+The directory is loaded recursively, subdirectories are therefore supported, but the previous rule still applies.
+
+As a summary, we recommend sorting you data by file types. 
+This allows loading them with a single command. Example of architecture:
+
+```
+POOL/2023/100/OBS/
+POOL/2023/100/SP3/
+POOL/2023/100/NAV/
+POOL/2023/101/OBS/
+POOL/2023/101/SP3/
+POOL/2023/101/NAV/
+```
+
+The recursive directory loader allows finer data classification.  
+For example, you can still load POOL/2023/100/NAV or POOL/2023/101/SP3 in this example, 
+with a single --nav or --sp3 respectively:
+
+```
+POOL/2023/100/OBS/
+POOL/2023/100/SP3/
+POOL/2023/100/NAV/GPS/
+POOL/2023/100/NAV/BEIDOU/
+POOL/2023/100/NAV/GALILEO/
+POOL/2023/101/SP3/GPS/
+POOL/2023/101/SP3/BEIDOU/
+POOL/2023/101/SP3/GALILEO/
+```
+
 ## File naming conventions
 
 File names are disregarded by this tool, you can parse & analyze
@@ -19,8 +84,11 @@ files that do not follow naming conventions.
 
 ## Compressed data
 
-CRINEX (V1 and V3) are natively supported.  
-This tool supports gzip compressed files but the file name must be terminated by `.gz`.
+CRINEX (V1 and V3) are natively supported. That means you can load
+compressed Observation Data directly.  
+
+This tool supports gzip compressed files but their names must be terminated by `.gz`
+so we can determine a first decompression is needed.
 
 ### Analysis and reporting
 
@@ -41,13 +109,6 @@ Some teqc operations are supported:
 if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
 - other advanced operations are documented in the [processing](doc/processing.md) suite
-
-## Data analysis 
-
-This tool can perform several data analysis. Feasible operations
-are highly dependent on the context provided by the user.  
-Refer to [this page](doc/file-combination.md) to understand
-what minimal context should be provided, for the analysis you want to perform.
 
 ## Getting started
 

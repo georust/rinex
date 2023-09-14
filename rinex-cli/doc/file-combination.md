@@ -75,8 +75,8 @@ SP3 cannot be passed as primary data: they can only serve as context enhancer.
 With SP3 basically all analysis performed with Navigation Data are feasible,
 but on this high precision data.
 
-NB: it is not a problem to combine both SP3 and NAV ephemeris as context enhancers.
-If you do so:
+NB: combining SP3 and NAV ephermeris is not a problem.
+When combined (both provided):
 
 - SP3 is prefered for high precision calculations
 - SP3 Orbits and Broadcast Ephemeris are compared to one another by plotting
@@ -84,11 +84,11 @@ the residual errors between them. For this plot to be available, you need overla
 Navigation / SP3 Data (common time frame and SV).
 
 Here's an example of overlapping SP3/NAV Ephemeris residuals analysis 
-(NB: these files are not hosted on this repo)
 
-```bash
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/TODO.png">
 
-```
+NB: such a context is not hosted on this repo. You'll have to download similar
+joint `--nav` and `--sp3` context yourself.
 
 ## IONEX analysis
 
