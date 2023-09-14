@@ -185,11 +185,13 @@ If you're just interested in CS information, you probably just want `-qc` instea
                     .arg(Arg::new("nav")
                         .long("nav")
                         .num_args(1..)
-                        .value_name("FILE")
+                        .value_name("FILE/FOLDER")
                         .action(ArgAction::Append)
-                        .help("Local NAV RINEX file. Enhance given context with Navigation Data.
-Use --nav once per file to add. You can stack as many as you want.
-Most useful when combined to Observation RINEX. Enables complete `--qc` analysis with elevation mask taken into account.")) 
+                        .help("Local NAV RINEX file(s). Enhance given context with Navigation Data.
+Use this flag to either load a directory containing your Navigation data, 
+or once per individual files. You can stack as many as you want.
+Most useful when combined to Observation RINEX.  
+Enables complete `--qc` analysis with elevation mask taken into account.")) 
                     .arg(Arg::new("antenna-ecef")
                         .long("antenna-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
@@ -219,18 +221,21 @@ Ideally this information is contained in the file Header, but user can manually 
                     .arg(Arg::new("sp3")
                         .long("sp3")
                         .num_args(1..)
-                        .value_name("FILE")
+                        .value_name("FILE/FOLDER")
                         .action(clap::ArgAction::Append)
-                        .help("Local SP3 file. Enhance given context with IGS high precision Orbit predictions.
-Use --sp3 once per file. You can stack as many as you want."))
+                        .help("Local SP3 file(s). Enhance given context with IGS high precision Orbits.
+Use this flag to either load a directory containing your SP3 data,
+or once per individual files. You can stack as many as you want. 
+Combining --sp3 and --nav unlocks residual comparison between the two datasets."))
                 .next_help_heading("Antenna")
                     .arg(Arg::new("atx")
                         .long("atx")
 						.num_args(1..)
-                        .value_name("FILE")
+                        .value_name("FILE/FOLDER")
                         .action(ArgAction::Append)
-                        .help("Local ANTEX file. Enhance given context with ANTEX Data.
-Use --atx once per file to add. You can stack as many as you want."))
+                        .help("Local ANTEX file(s). Enhance given context with ANTEX Data.
+Use this flag to either load a directory containing your ATX data,
+or once per individual files. You can stack as many as you want."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
