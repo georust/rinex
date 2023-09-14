@@ -8,3 +8,4 @@ Cargo.lock
 .DS_Store
 rinex/merge.rnx
 rinex/test.crx
+DATA/
