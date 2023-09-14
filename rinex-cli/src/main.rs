@@ -79,7 +79,8 @@ fn build_extra_rinex_data(
     if let Some(paths) = paths {
         let mut ctx = QcExtraData::<Rinex>::default();
         for path in paths {
-            if let Ok(new) = Rinex::from_file(path) {
+            let new = Rinex::from_file(path);
+            if let Ok(new) = new {
                 if new.header.rinex_type != rtype {
                     let stem = Path::new(path).file_stem().unwrap();
                     error!("\"{}\" : invalid {} RINEX", stem.to_string_lossy(), rtype);
@@ -103,7 +104,11 @@ fn build_extra_rinex_data(
                 }
             } else {
                 let stem = Path::new(path).file_stem().unwrap();
-                error!("\"{}\" : invalid {} RINEX", stem.to_string_lossy(), rtype);
+                error!(
+                    "failed to parse file \"{}\" - {:?}",
+                    stem.to_string_lossy(),
+                    new.err().unwrap()
+                );
             }
         }
         Some(ctx)
@@ -118,7 +123,8 @@ fn build_extra_sp3_data(paths: Option<ValuesRef<'_, String>>) -> Option<QcExtraD
     if let Some(paths) = paths {
         let mut ctx = QcExtraData::<SP3>::default();
         for path in paths {
-            if let Ok(new) = SP3::from_file(path) {
+            let new = SP3::from_file(path);
+            if let Ok(new) = new {
                 if ctx.paths().is_empty() {
                     // first file passed by user
                     ctx = QcExtraData {
@@ -137,7 +143,11 @@ fn build_extra_sp3_data(paths: Option<ValuesRef<'_, String>>) -> Option<QcExtraD
                 }
             } else {
                 let stem = Path::new(path).file_stem().unwrap();
-                error!("\"{}\" : invalid SP3", stem.to_string_lossy());
+                error!(
+                    "failed to parse file \"{}\" - {:?}",
+                    stem.to_string_lossy(),
+                    new.err().unwrap()
+                );
             }
         }
         Some(ctx)
