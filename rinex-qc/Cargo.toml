@@ -26,7 +26,7 @@ strum_macros = "0.25"
 horrorshow = "0.8"
 itertools = "0.11.0"
 statrs = "0.16"
-sp3 = { version = "1.0.2", features = ["serde", "flate2"] }
+sp3 = { version = "1.0.2", features = ["serde"] }
 rinex-qc-traits = "0.1.0"
 rinex = { version = "0.13.1", features = ["obs", "nav", "qc", "processing"] }
 
