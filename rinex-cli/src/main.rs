@@ -121,9 +121,9 @@ fn load_sp3_file(path: &Path, ctx: &mut QcExtraData<SP3>) {
             let r = ctx.data_mut().merge_mut(&new);
             if r.is_ok() {
                 ctx.paths.push(path.to_path_buf());
-                trace!("SP3 : \"{}\"", fullpath); 
+                trace!("SP3 : \"{}\"", fullpath);
             } else {
-                error!("failed to stack sp3 : \"{}\"", fullpath); 
+                error!("failed to stack sp3 : \"{}\"", fullpath);
             }
         }
     } else {

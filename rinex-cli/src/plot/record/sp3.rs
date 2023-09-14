@@ -206,13 +206,15 @@ pub fn plot_residual_ephemeris(ctx: &QcContext, plot_ctx: &mut PlotContext) {
             );
             trace!("|sp3 - broadcast| residual (x, y, z) error");
         }
-        let sv_position = nav.sv_position().filter_map(|(t, (nav_sv, x_km, y_km, z_km))| {
-            if sv == nav_sv {
-                Some((t, (x_km, y_km, z_km)))
-            } else {
-                None
-            }
-        });
+        let sv_position = nav
+            .sv_position()
+            .filter_map(|(t, (nav_sv, x_km, y_km, z_km))| {
+                if sv == nav_sv {
+                    Some((t, (x_km, y_km, z_km)))
+                } else {
+                    None
+                }
+            });
 
         let mut epochs: Vec<Epoch> = Vec::new();
         let mut residuals: Vec<f64> = Vec::new();
@@ -224,27 +226,37 @@ pub fn plot_residual_ephemeris(ctx: &QcContext, plot_ctx: &mut PlotContext) {
             {
                 /* no need to interpolate => use right away */
                 epochs.push(t);
-                let err = ((sp3_x/1000.0 - sv_x/1000.0).powi(2) + (sp3_y/1000.0 - sv_y/1000.0).powi(2) + (sp3_z/1000.0 - sv_z/1000.0).powi(2)).sqrt();
+                let err = ((sp3_x / 1000.0 - sv_x / 1000.0).powi(2)
+                    + (sp3_y / 1000.0 - sv_y / 1000.0).powi(2)
+                    + (sp3_z / 1000.0 - sv_z / 1000.0).powi(2))
+                .sqrt();
                 residuals.push(err);
-
             } else {
                 /* needs interpolation */
                 if let Some((sp3_x, sp3_y, sp3_z)) = sp3.sv_position_interpolate(sv, t, 11) {
                     epochs.push(t);
-                    let err = ((sp3_x/1000.0 - sv_x/1000.0).powi(2) + (sp3_y/1000.0 - sv_y/1000.0).powi(2) + (sp3_z/1000.0 - sv_z/1000.0).powi(2)).sqrt();
+                    let err = ((sp3_x / 1000.0 - sv_x / 1000.0).powi(2)
+                        + (sp3_y / 1000.0 - sv_y / 1000.0).powi(2)
+                        + (sp3_z / 1000.0 - sv_z / 1000.0).powi(2))
+                    .sqrt();
                     residuals.push(err);
                 }
             }
         }
-        let trace = build_chart_epoch_axis(&format!("|{}_err|", sv), Mode::LinesMarkers, epochs, residuals)
-            .web_gl_mode(true)
-            .visible({
-                if sv_index < 4 {
-                    Visible::True
-                } else {
-                    Visible::LegendOnly
-                }
-            });
+        let trace = build_chart_epoch_axis(
+            &format!("|{}_err|", sv),
+            Mode::LinesMarkers,
+            epochs,
+            residuals,
+        )
+        .web_gl_mode(true)
+        .visible({
+            if sv_index < 4 {
+                Visible::True
+            } else {
+                Visible::LegendOnly
+            }
+        });
         plot_ctx.add_trace(trace);
     }
 }
