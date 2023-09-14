@@ -1236,7 +1236,7 @@ impl Rinex {
     /// Record: refer to supported RINEX types
     pub fn to_file(&self, path: &str) -> Result<(), Error> {
         let mut writer = BufferedWriter::new(path)?;
-        write!(writer, "{}", self.header);
+        write!(writer, "{}", self.header)?;
         self.record.to_file(&self.header, &mut writer)?;
         Ok(())
     }
