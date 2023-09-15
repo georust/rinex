@@ -1,4 +1,5 @@
-use nyx_space::cosmic::SPEED_OF_LIGHT;
+use nyx_space::cosmic::eclipse::{eclipse_state, EclipseState};
+use nyx_space::cosmic::{Orbit, SPEED_OF_LIGHT};
 use nyx_space::md::prelude::{Arc, Bodies, Cosm, LightTimeCalc};
 use rinex::prelude::{Duration, Epoch, Sv};
 use rinex_qc::QcContext;
@@ -13,10 +14,12 @@ pub(crate) enum Error {
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub(crate) enum SolverType {
-    /// SPP : code based
+    /// SPP : code based and approximated models
+    /// aiming a metric resolution.
     #[default]
     SPP,
-    /// PPP : phase + code based, the ultimate
+    /// PPP : phase + code based, the ultimate solver
+    /// aiming a millimetric resolution.
     PPP,
 }
 
@@ -153,7 +156,7 @@ impl Solver {
                         None
                     }
                 })
-                .take(1); // dont care about signals : just need one
+                .take(1); // dont need other signals : just one
             if let Some(pr) = pr.next() {
                 let t_tx = t_rx.to_duration().to_seconds() - pr / SPEED_OF_LIGHT - sv_clk;
                 let t_tx = Epoch::from_duration(Duration::from_seconds(t_tx), t_rx.time_scale);
@@ -191,16 +194,22 @@ impl Solver {
     /*
      * Computes celestial angle condition
      */
-    fn eclipsed(&self, x: f64, y: f64, z: f64, e: Epoch) -> bool {
+    fn eclipsed(&self, x_km: f64, y_km: f64, z_km: f64, epoch: Epoch) -> bool {
         let mean_equatorial = 6378137.0_f64;
-        let (sun_x_km, sun_y_km, sun_z_km) = self.sun.get(&e).unwrap();
-        let (sun_x, sun_y, sun_z) = (sun_x_km / 1000.0, sun_y_km / 1000.0, sun_z_km / 1000.0);
-        let dot = sun_x * x + sun_y * y + sun_z * z;
-        let norm_sv = (x.powi(2) + y.powi(2) + z.powi(2)).sqrt();
-        let norm_sun = (sun_x.powi(2) + sun_y.powi(2) + sun_z.powi(2)).sqrt();
-        let cos_phi = dot / norm_sv / norm_sun;
-        let azim = norm_sv * (1.0 - cos_phi.powi(2)).sqrt();
-        cos_phi < 0.0 && azim < mean_equatorial
+        let sun_frame = self.cosmic.frame("ICRF");
+        let earth_frame = self.cosmic.frame("EME2000");
+        let sv_orbit = Orbit {
+            x_km,
+            y_km,
+            z_km,
+            vx_km_s: 0.0_f64,
+            vy_km_s: 0.0_f64,
+            vz_km_s: 0.0_f64,
+            epoch,
+            frame: earth_frame,
+            stm: None,
+        };
+        eclipse_state(&sv_orbit, sun_frame, earth_frame, &self.cosmic) == EclipseState::Umbra
     }
     /*
      * Returns Eclipse Start/End Epoch and related vehicle identity
