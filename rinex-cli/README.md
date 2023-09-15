@@ -25,33 +25,33 @@ In any case:
 
 - `--fp` (`-f`) only accepts one file at the moment
 - `--nav`, `--sp3` and similar context enhancer,
-can either load a single directory or several files.
+accept both directories and individual files.
 
 To load several files, use the command line flag once per file, for example :
 
 ```bash
-./target/release/rinex-cli --fp /tmp/PRIMARY.txt \
-  --nav /foo/NAV1 \
-  --nav /tmp/NAV2
+./target/release/rinex-cli \
+    --fp /tmp/PRIMARY.txt \
+    --nav /foo/NAV1.txt \
+    --nav /tmp/NAV2.txt
 ```
 
 You can stack as many as you want.
 
-Stacking so many files can be tedious. We leave the option to load a Directory at once.
-In this case you must point to the directory full path. In this example,
-/tmp is expected to only contain Navigation Data:
+This also applies to directories, for example : 
 
 ```bash
-./target/release/rinex-cli --fp /tmp/PRIMARY.txt --nav /tmp
+./target/release/rinex-cli \
+    --fp /tmp/PRIMARY.txt \
+    --nav /foo/NAV_DIR1 \
+    --nav /tmp/NAV_DIR2
 ```
 
-When loading a directory, we only search for a specific data type (nav in this example).
-Any other types will not cause the application to crash, but will not be loaded at all.
+When loading a specific data type, we expect the directory to only contain this type of data.  
+For example when loading --nav, we only Navigation data. Other types of data will not be loaded.
 
-The directory is loaded recursively, subdirectories are therefore supported, but the previous rule still applies.
-
-As a summary, we recommend sorting you data by file types. 
-This allows loading them with a single command. Example of architecture:
+Directories loading is recursive. that means rinex-cli works particularly well if you sort your data
+on file types and constellations. For example :
 
 ```
 POOL/2023/100/OBS/
@@ -62,9 +62,7 @@ POOL/2023/101/SP3/
 POOL/2023/101/NAV/
 ```
 
-The recursive directory loader allows finer data classification.  
-For example, you can still load POOL/2023/100/NAV or POOL/2023/101/SP3 in this example, 
-with a single --nav or --sp3 respectively:
+Or even better: 
 
 ```
 POOL/2023/100/OBS/

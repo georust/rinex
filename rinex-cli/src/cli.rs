@@ -1,4 +1,3 @@
-use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info};
 use rinex::prelude::*;
@@ -188,7 +187,7 @@ If you're just interested in CS information, you probably just want `-qc` instea
                         .value_name("FILE/FOLDER")
                         .action(ArgAction::Append)
                         .help("Local NAV RINEX file(s). Enhance given context with Navigation Data.
-Use this flag to either load a directory containing your Navigation data, 
+Use this flag to either load directories containing your Navigation data, 
 or once per individual files. You can stack as many as you want.
 Most useful when combined to Observation RINEX.  
 Enables complete `--qc` analysis with elevation mask taken into account.")) 
@@ -224,7 +223,7 @@ Ideally this information is contained in the file Header, but user can manually 
                         .value_name("FILE/FOLDER")
                         .action(clap::ArgAction::Append)
                         .help("Local SP3 file(s). Enhance given context with IGS high precision Orbits.
-Use this flag to either load a directory containing your SP3 data,
+Use this flag to either load directories containing your SP3 data,
 or once per individual files. You can stack as many as you want. 
 Combining --sp3 and --nav unlocks residual comparison between the two datasets."))
                 .next_help_heading("Antenna")
@@ -234,7 +233,7 @@ Combining --sp3 and --nav unlocks residual comparison between the two datasets."
                         .value_name("FILE/FOLDER")
                         .action(ArgAction::Append)
                         .help("Local ANTEX file(s). Enhance given context with ANTEX Data.
-Use this flag to either load a directory containing your ATX data,
+Use this flag to either load directories containing your ATX data,
 or once per individual files. You can stack as many as you want."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
@@ -464,29 +463,46 @@ Refer to README"))
         }
     }
     /*
-     * Returns possible name of directory passed
-     * as a specific data provider
+     * Returns possible list of directories passed as specific data pool
      */
-    pub fn data_dir(&self, key: &str) -> Option<ReadDir> {
+    pub fn data_directories(&self, key: &str) -> Vec<ReadDir> {
         if let Some(matches) = self.matches.get_many::<String>(key) {
-            if matches.len() == 1 {
-                for m in matches {
-                    let path = Path::new(m);
+            matches
+                .filter_map(|s| {
+                    let path = Path::new(s.as_str());
                     if path.is_dir() {
                         if let Ok(rd) = path.read_dir() {
-                            return Some(rd);
+                            Some(rd)
+                        } else {
+                            None
                         }
+                    } else {
+                        None
                     }
-                }
-            }
+                })
+                .collect()
+        } else {
+            vec![]
         }
-        None
     }
     /*
-     * Returns possible list of files to be loaded
+     * Returns possible list of files to be loaded individually
      */
-    pub fn data_paths(&self, key: &str) -> Option<ValuesRef<'_, String>> {
-        self.matches.get_many::<String>(key)
+    pub fn data_files(&self, key: &str) -> Vec<String> {
+        if let Some(matches) = self.matches.get_many::<String>(key) {
+            matches
+                .filter_map(|s| {
+                    let path = Path::new(s.as_str());
+                    if path.is_file() {
+                        Some(path.to_string_lossy().to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            vec![]
+        }
     }
     fn manual_ecef(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-ecef")
