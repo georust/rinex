@@ -3,7 +3,7 @@
 
 use hifitime::{Duration, Epoch, TimeScale};
 use rinex::prelude::{Constellation, Sv};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use std::str::FromStr;
 use thiserror::Error;

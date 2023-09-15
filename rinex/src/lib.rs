@@ -2204,7 +2204,7 @@ impl Rinex {
         )
     }
     /// Returns an Iterator over Sv position vectors,
-    /// expressed in meters ECEF for all Epochs.
+    /// expressed in km ECEF for all Epochs.
     /// ```
     /// use rinex::prelude::*;
     ///
@@ -2214,9 +2214,9 @@ impl Rinex {
     ///
     /// for (epoch, (sv, x, y, z)) in rinex.sv_position() {
     ///     // sv: satellite vehicle
-    ///     // x: x(t) [m ECEF]
-    ///     // y: y(t) [m ECEF]
-    ///     // z: z(t) [m ECEF]
+    ///     // x: x(t) [km ECEF]
+    ///     // y: y(t) [km ECEF]
+    ///     // z: z(t) [km ECEF]
     /// }
     /// ```
     pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
@@ -2255,7 +2255,7 @@ impl Rinex {
             (e, (sv, lat, lon, alt))
         }))
     }
-    /// Returns Iterator over Sv speed vectors, expressed in m/s ECEF.
+    /// Returns Iterator over Sv speed vectors, expressed in km/s ECEF.
     /// ```
     /// use rinex::prelude::*;
     ///
@@ -2264,9 +2264,9 @@ impl Rinex {
     ///         .unwrap();
     ///
     /// //for (epoch, (sv, sv_x, sv_y, sv_z)) in rinex.sv_speed() {
-    /// //    // sv_x : m/s
-    /// //    // sv_y : m/s
-    /// //    // sv_z : m/s
+    /// //    // sv_x : km/s
+    /// //    // sv_y : km/s
+    /// //    // sv_z : km/s
     /// //}
     /// ```
     pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
