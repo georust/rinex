@@ -15,4 +15,4 @@ readme = "README.md"
 chrono = "0.4"
 thiserror = "1"
 clap = { version = "4", features = ["derive", "color"] }
-rinex = { path = "../rinex", features = ["serde"] }
+rinex = { version = "0.13.1", features = ["serde"] }

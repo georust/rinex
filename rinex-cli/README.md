@@ -1,33 +1,94 @@
 RINEX-cli 
 =========
 
-Command line tool to parse, analyze and manage RINEX files.  
-
 [![crates.io](https://img.shields.io/crates/v/rinex-cli.svg)](https://crates.io/crates/rinex-cli)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
 
-The main purpose of this tool is to expose the [library](https://github.com/gwbres/rinex/rinex) 
-capabilities, in a high level and easy to use interface.
 
-## RINEX files
+`rinex-cli` is a command line application based off the RINEX crate,
+to manage RINEX files (like reshaping or mixing), but also perform geodesic calculations,
+analyze broadcast ephemeris, estimate differential code biases etc..
 
-Several RINEX files exist, this tool supports already quite a few.  
-Refer to the 
-[main table](https://github.com/gwbres/rinex/blob/main/README.md#supported-rinex-types)
-to understand what is doable.
+It can also generate an html report that is similar to "teqc" QC mode.
 
-### File naming conventions
+## File loading interface
+
+`rinex-cli` accepts one primary file and possible context enhancers.
+
+In basic operations, only a primary file is expected.  
+Some RINEX files can only serve as primary files too.  
+Refer to [this page](doc/file-combination.md) to understand
+what data context you should provide for the analysis you want to perform.
+
+In any case: 
+
+- `--fp` (`-f`) only accepts one file at the moment
+- `--nav`, `--sp3` and similar context enhancer,
+accept both directories and individual files.
+
+To load several files, use the command line flag once per file, for example :
+
+```bash
+./target/release/rinex-cli \
+    --fp /tmp/PRIMARY.txt \
+    --nav /foo/NAV1.txt \
+    --nav /tmp/NAV2.txt
+```
+
+You can stack as many as you want.
+
+This also applies to directories, for example : 
+
+```bash
+./target/release/rinex-cli \
+    --fp /tmp/PRIMARY.txt \
+    --nav /foo/NAV_DIR1 \
+    --nav /tmp/NAV_DIR2
+```
+
+When loading a specific data type, we expect the directory to only contain this type of data.  
+For example when loading --nav, we only Navigation data. Other types of data will not be loaded.
+
+Directories loading is recursive. that means rinex-cli works particularly well if you sort your data
+on file types and constellations. For example :
+
+```
+POOL/2023/100/OBS/
+POOL/2023/100/SP3/
+POOL/2023/100/NAV/
+POOL/2023/101/OBS/
+POOL/2023/101/SP3/
+POOL/2023/101/NAV/
+```
+
+Or even better: 
+
+```
+POOL/2023/100/OBS/
+POOL/2023/100/SP3/
+POOL/2023/100/NAV/GPS/
+POOL/2023/100/NAV/BEIDOU/
+POOL/2023/100/NAV/GALILEO/
+POOL/2023/101/SP3/GPS/
+POOL/2023/101/SP3/BEIDOU/
+POOL/2023/101/SP3/GALILEO/
+```
+
+## File naming conventions
 
 File names are disregarded by this tool, you can parse & analyze
 files that do not follow naming conventions.
 
-### Compressed data
+## Compressed data
 
-CRINEX (V1 and V3) are natively supported.  
-This tool supports gzip compressed files but the file name must be terminated by `.gz`.
+CRINEX (V1 and V3) are natively supported. That means you can load
+compressed Observation Data directly.  
 
-### Analysis and report files
+This tool supports gzip compressed files but their names must be terminated by `.gz`
+so we can determine a first decompression is needed.
+
+### Analysis and reporting
 
 Reports and plots are rendered in HTML in the `rinex/rinex-cli/workspace` directory.  
 Analysis is named after the primary RINEX file.
@@ -46,13 +107,6 @@ Some teqc operations are supported:
 if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
 - other advanced operations are documented in the [processing](doc/processing.md) suite
-
-## Data analysis 
-
-This tool can perform several data analysis. Feasible operations
-are highly dependent on the context provided by the user.  
-Refer to [this page](doc/file-combination.md) to understand
-what minimal context should be provided, for the analysis you want to perform.
 
 ## Getting started
 

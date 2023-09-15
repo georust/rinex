@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc"
-version = "0.1.0"
+version = "0.1.2"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX data analysis"
@@ -9,7 +9,6 @@ repository = "https://github.com/georust/rinex"
 keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "science::geo", "parsing"]
 edition = "2021"
-readme = "README.md"
 rust-version = "1.64"
 
 [features]
@@ -27,9 +26,9 @@ strum_macros = "0.25"
 horrorshow = "0.8"
 itertools = "0.11.0"
 statrs = "0.16"
-sp3 = { path = "../../sp3", features = ["serde"] }
+sp3 = { path = "../sp3", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits" }
-rinex = { path = "../rinex", features = ["obs", "nav", "qc", "processing"] }
+rinex = { path = "../rinex", features = ["obs", "nav", "qc", "processing", "serde", "flate2"] }
 
 [dev-dependencies]
 serde_json = "1"

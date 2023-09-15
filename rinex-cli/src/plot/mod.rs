@@ -384,6 +384,9 @@ pub fn build_chart_epoch_axis(
 }
 
 pub fn plot_record(ctx: &QcContext, plot_ctx: &mut PlotContext) {
+    /*
+     * primary analysis
+     */
     if ctx.primary_data().is_observation_rinex() {
         record::plot_observation(ctx, plot_ctx);
     } else if ctx.primary_data().is_meteo_rinex() {
@@ -394,9 +397,10 @@ pub fn plot_record(ctx: &QcContext, plot_ctx: &mut PlotContext) {
         }
     }
 
-    if ctx.has_sp3() {
-        record::plot_sp3(ctx, plot_ctx);
-    } else if ctx.has_navigation_data() {
+    if ctx.has_navigation_data() || ctx.has_sp3() {
         record::plot_navigation(ctx, plot_ctx);
+    }
+    if ctx.has_sp3() && ctx.has_navigation_data() {
+        record::plot_residual_ephemeris(ctx, plot_ctx);
     }
 }

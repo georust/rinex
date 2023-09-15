@@ -530,6 +530,7 @@ mod test {
         }
     }
     #[test]
+    #[cfg(feature = "flate2")]
     fn v3_mojn00dnk_sig_strength_regression() {
         let crnx =
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");

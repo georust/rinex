@@ -1,6 +1,6 @@
 [package]
 name = "rinex-cli"
-version = "0.9.1"
+version = "0.9.2"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Command line tool parse and analyze RINEX data"
@@ -15,10 +15,10 @@ rust-version = "1.64"
 [dependencies]
 log = "0.4"
 pretty_env_logger = "0.5"
-clap = { version = "4", features = ["derive", "color"] }
+clap = { version = "4.4.3", features = ["derive", "color"] }
 rand = "0.8"
 serde_json = "1"
-sp3 = { path = "../../sp3", features = ["serde", "flate2"] }
+sp3 = { path = "../sp3", features = ["serde", "flate2"] }
 rinex-qc = { path = "../rinex-qc", features = ["serde"] }
 rinex = { path = "../rinex", features = ["serde", "flate2", "sbas", "obs", "nav", "qc", "processing"] }
 thiserror = "1"

@@ -1,2 +1,13 @@
 [workspace]
-members = ["rinex", "crx2rnx", "rnx2crx", "qc-traits", "rinex-qc", "rinex-cli", "ublox-rnx", "sinex"]
+resolver = "2"
+members = [
+    "rinex", 
+    "crx2rnx", 
+    "rnx2crx", 
+    "qc-traits", 
+    "rinex-qc", 
+    "rinex-cli", 
+    "ublox-rnx", 
+    "sinex",
+    "sp3",
+]
