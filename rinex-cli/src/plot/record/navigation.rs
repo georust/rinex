@@ -31,7 +31,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let sv_epochs: Vec<_> = rinex
             .sv_clock()
             .filter_map(
-                |(epoch, (svnn, (_, _, _)))| {
+                |(epoch, svnn, (_, _, _))| {
                     if svnn == sv {
                         Some(epoch)
                     } else {
@@ -156,7 +156,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let epochs: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(epoch, (svnn, _, _, _))| {
+                |(epoch, svnn, (_, _, _))| {
                     if svnn == sv {
                         Some(epoch)
                     } else {
@@ -169,7 +169,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let x_km: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(_epoch, (svnn, x, _, _))| {
+                |(_epoch, svnn, (x, _, _))| {
                     if svnn == sv {
                         Some(x)
                     } else {
@@ -196,7 +196,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let y_km: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(_epoch, (svnn, _, y, _))| {
+                |(_epoch, svnn, (_, y, _))| {
                     if svnn == sv {
                         Some(y)
                     } else {
@@ -293,7 +293,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let epochs: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(epoch, (svnn, _, _, _z))| {
+                |(epoch, svnn, (_, _, _z))| {
                     if svnn == sv {
                         Some(epoch)
                     } else {
@@ -305,7 +305,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let z_km: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(_epoch, (svnn, _, _, z))| {
+                |(_epoch, svnn, (_, _, z))| {
                     if svnn == sv {
                         Some(z)
                     } else {

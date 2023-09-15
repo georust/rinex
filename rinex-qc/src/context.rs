@@ -1,13 +1,12 @@
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
-use rinex::prelude::{GroundPosition, Rinex};
-use rinex::Error;
 use rinex_qc_traits::HtmlReport;
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use rinex::carrier::Carrier;
 use rinex::observation::Snr;
 use rinex::prelude::{Epoch, GroundPosition, Rinex, Sv};
+use rinex::Error;
 use sp3::prelude::SP3;
 
 #[derive(Default, Debug, Clone)]
