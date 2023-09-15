@@ -1,10 +1,16 @@
+debug/
 target/
+
 test_resources/
+
 Cargo.lock
+
 *.png
 *.jpg
 *.swp
 *.swo
+**/*.rs.bk
 .DS_Store
+
 rinex/merge.rnx
 rinex/test.crx
