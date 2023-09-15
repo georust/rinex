@@ -104,7 +104,10 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             }
         });
         plot_ctx.add_trace(trace);
-
+        /*
+         * Plot SP3 similar data (if available)
+         * useful for comparison
+         */
         if let Some(sp3) = sp3 {
             let epochs: Vec<_> = sp3
                 .sv_clock()
@@ -142,6 +145,46 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                     });
             plot_ctx.add_trace(trace);
         }
+    }
+    for (sv_index, sv) in rinex.sv().enumerate() {
+        if sv_index == 0 {
+            plot_ctx.add_cartesian2d_plot(
+                "|SV - GNSST| offset",
+                "SV Clock Offset [s]",
+            );
+            trace!("sv gnsst offset");
+        }
+        let epochs: Vec<_> = rinex
+            .sv_clock_offset()
+            .filter_map(|(epoch, svnn, _)| {
+                if svnn == sv {
+                    Some(epoch)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let data: Vec<_> = rinex
+            .sv_clock_offset()
+            .filter_map(|(_, svnn, dt)| {
+                if svnn == sv {
+                    Some(dt.to_seconds())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let trace =
+            build_chart_epoch_axis(&sv.to_string(), Mode::LinesMarkers, epochs, data)
+                .visible({
+                    if sv_index == 0 {
+                        // Clock data differs too much: plot only one to begin with
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                });
+        plot_ctx.add_trace(trace);
     }
     /*
      * Plot Broadcast Orbits
