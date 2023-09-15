@@ -53,6 +53,7 @@ It can be used to process RINEX files and perform operations similar to `teqc`.
 The application is auto-generated for a few architectures, download it from the 
 [release portal](https://github.com/gwbres/rinex/releases)
 
+* [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 

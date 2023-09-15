@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc"
-version = "0.1.1"
+version = "0.1.2"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX data analysis"
@@ -26,9 +26,9 @@ strum_macros = "0.25"
 horrorshow = "0.8"
 itertools = "0.11.0"
 statrs = "0.16"
-sp3 = { version = "1.0.2", features = ["serde"] }
-rinex-qc-traits = "0.1.0"
-rinex = { version = "0.13.1", features = ["obs", "nav", "qc", "processing"] }
+sp3 = { path = "../sp3", features = ["serde"] }
+rinex-qc-traits = { path = "../qc-traits" }
+rinex = { path = "../rinex", features = ["obs", "nav", "qc", "processing", "serde", "flate2"] }
 
 [dev-dependencies]
 serde_json = "1"
