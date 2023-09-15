@@ -397,11 +397,8 @@ pub fn plot_record(ctx: &QcContext, plot_ctx: &mut PlotContext) {
         }
     }
 
-    if ctx.has_navigation_data() {
+    if ctx.has_navigation_data() || ctx.has_sp3() {
         record::plot_navigation(ctx, plot_ctx);
-    }
-    if ctx.has_sp3() {
-        record::plot_sp3(ctx, plot_ctx);
     }
     if ctx.has_sp3() && ctx.has_navigation_data() {
         record::plot_residual_ephemeris(ctx, plot_ctx);
