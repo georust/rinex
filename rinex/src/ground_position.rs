@@ -7,6 +7,18 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GroundPosition(f64, f64, f64);
 
+impl From<(f64, f64, f64)> for GroundPosition {
+    fn from(xyz: (f64, f64, f64)) -> Self {
+        Self(xyz.0, xyz.1, xyz.2)
+    }
+}
+
+impl Into<(f64, f64, f64)> for GroundPosition {
+    fn into(self) -> (f64, f64, f64) {
+        (self.0, self.1, self.2)
+    }
+}
+
 impl GroundPosition {
     pub fn from_ecef_wgs84(pos: (f64, f64, f64)) -> Self {
         Self(pos.0, pos.1, pos.2)
