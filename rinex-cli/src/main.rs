@@ -7,10 +7,12 @@ mod cli; // command line interface
 pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
 mod plot; // plotting operations
-mod solver; // position solver
 
 mod preprocessing;
 use preprocessing::preprocess;
+
+mod solver; // position solver
+use solver::SolverType;
 
 //use horrorshow::Template;
 use rinex::{
@@ -366,13 +368,21 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * print more info on possible solver to deploy
      */
-    if let Ok(ref solver) = solver {
+    if let Ok(ref mut solver) = solver {
         info!(
             "provided context is compatible with {} position solver",
             solver.solver
         );
         if !positioning {
             warn!("position solver currently turned off");
+        } else {
+            if cli.forced_spp() {
+                solver.solver = SolverType::SPP;
+                warn!("position solver restricted to SPP mode");
+            } else if cli.forced_ppp() {
+                solver.solver = SolverType::PPP;
+                warn!("position solver forced to PPP mode");
+            }
         }
     } else {
         info!("context is not sufficient for any position solving method");
@@ -664,10 +674,13 @@ pub fn main() -> Result<(), rinex::Error> {
         // position solver is feasible, with provided context
         if positioning {
             info!("%%%%%%%%% {} Position Solver %%%%%%%%%", solver.solver);
-            let (position, time) = solver.run(&mut ctx);
-            // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);
-            info!("%%%%%%%%% Position : {:?}, Time: {:?}", position, time);
-            // iteration += 1;
+            while let Some((t, estimate)) = solver.run(&mut ctx) {
+                trace!("epoch: {}", t);
+                // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);
+                //info!("%%%%%%%%% Position : {:?}, Time: {:?}", position, time);
+                // iteration += 1;
+            }
+            info!("done");
         }
     }
     Ok(())

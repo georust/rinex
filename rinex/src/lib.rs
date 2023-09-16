@@ -2275,6 +2275,21 @@ impl Rinex {
             }
         }))
     }
+    /// Interpolates SV clock offset @ desired t
+    pub fn sv_clock_offset_interpolate(&self, sv: Sv, t: Epoch) -> Option<Duration> {
+        //TODO
+        self.sv_clock_offset()
+            .filter_map(
+                |(e, svnn, dt)| {
+                    if e == t && svnn == sv {
+                        Some(dt)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .reduce(|dt, _| dt) //unique
+    }
     /// Returns an Iterator over Sv position vectors,
     /// expressed in km ECEF for all Epochs.
     /// ```
