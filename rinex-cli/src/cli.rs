@@ -259,12 +259,14 @@ The summary report by default is integrated to the global HTML report."))
 This is only possible if provided context is sufficient.
 Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
 method is deployed.
-This is turned of by default, because it involves quite heavy computations."))
+This is turned of by default, because it involves quite heavy computations.
+See [spp] for more information. "))
                     .arg(Arg::new("spp")
                         .long("spp")
                         .action(ArgAction::SetTrue)
                         .help("Enables Positioning forced to Single Frequency SPP solver mode.
-Disregards whether the provided context is PPP compatible."))
+Disregards whether the provided context is PPP compatible. 
+NB: we do not account for Relativistic effects in clock bias estimates."))
                     .arg(Arg::new("positioning-only")
                         .long("pos-only")
                         .action(ArgAction::SetTrue)

@@ -125,7 +125,7 @@ impl Ephemeris {
         self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
-     * Retrieves toe, if such data exists
+     * Retrieves toe, expressed as an Epoch, if Week + TOE are properly received
      */
     pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
         let week = self.get_week()?;
@@ -444,6 +444,23 @@ impl Ephemeris {
             az += 360.0;
         }
         Some((el, az))
+    }
+    /*
+     * Returns max time difference between an Epoch and
+     * related Time of Issue of Ephemeris, for each constellation.
+     */
+    pub(crate) fn max_dtoe(c: Constellation) -> Option<Duration> {
+        match c {
+            Constellation::GPS | Constellation::QZSS | Constellation::Geo => {
+                Some(Duration::from_seconds(7200.0))
+            },
+            Constellation::Galileo => Some(Duration::from_seconds(10800.0)),
+            Constellation::BeiDou => Some(Duration::from_seconds(21600.0)),
+            Constellation::SBAS(_) => Some(Duration::from_seconds(360.0)),
+            Constellation::IRNSS => Some(Duration::from_seconds(86400.0)),
+            Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
+            _ => None,
+        }
     }
 }
 

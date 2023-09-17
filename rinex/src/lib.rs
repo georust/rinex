@@ -2234,6 +2234,42 @@ impl Rinex {
             })
         }))
     }
+    /// Select Ephemeris data for given Sv at desired Epoch "t"
+    /// using closest TOE in time
+    pub fn sv_ephemeris(&self, sv: Sv, t: Epoch) -> Option<(Epoch, Ephemeris)> {
+        /* ephemeris data for this sv */
+        let ephemeris_toe = self.ephemeris().filter_map(|(toc, (_, svnn, eph))| {
+            if *svnn == sv {
+                let ts = sv.constellation.timescale()?;
+                if let Some(toe) = eph.toe(ts) {
+                    Some((toc, eph, toe))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+        let max_dtoe = Ephemeris::max_dtoe(sv.constellation)?;
+        // search for ephemeris with closest toe
+        let mut ret: Option<(Epoch, Ephemeris, Duration)> = None;
+
+        for (toc, ephemeris, toe) in ephemeris_toe {
+            let dt = t - toe;
+            if dt <= max_dtoe {
+                // allowed
+                if let Some((ref mut ttoc, ref mut ep, ref mut ddt)) = ret.as_mut() {
+                    *ep = ephemeris.clone();
+                    *ddt = dt;
+                    *ttoc = *toc;
+                } else {
+                    ret = Some((*toc, ephemeris.clone(), dt));
+                }
+            }
+        }
+        let (toc, ephemeris, _) = ret?;
+        Some((toc, ephemeris))
+    }
     /// Returns an Iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)
     /// ```
@@ -2253,42 +2289,29 @@ impl Rinex {
                 .map(|(e, (_, sv, data))| (*e, *sv, data.sv_clock())),
         )
     }
-    /// Returns Ephemeris Reference Epoch (a.k.a toe) for desired SV and specified Epoch `t`.
-    /// Toe is the central Epoch of broadcasted ephemeris around that instant.
-    pub fn sv_toe(&self, sv: Sv, t: Epoch) -> Option<Epoch> {
-        let (_, (_, _, ephemeris)) = self
-            .ephemeris()
-            .find(|(epoch, (_, svnn, _))| **epoch == t && **svnn == sv)?;
-        let ts = sv.constellation.timescale()?;
-        ephemeris.toe(ts)
-    }
-    /// Returns an Iterator over Sv (embedded) time offsets between the SV local onboard clock,
-    /// and its associated GNSS time scale. Offset expressed as a [`Duration`].
-    pub fn sv_clock_offset(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, Duration)> + '_> {
-        Box::new(self.sv_clock().filter_map(|(t, sv, (a0, a1, a2))| {
-            if let Some(toe) = self.sv_toe(sv, t) {
-                let dt = (t - toe).to_seconds();
-                let dt_sat = a0 + a1 * dt + a2 * dt.powi(2);
-                Some((t, sv, Duration::from_seconds(dt_sat)))
-            } else {
+    /// Returns Sv clock bias, at desired t_tx that should be expressed
+    /// in correct timescale.
+    pub fn sv_clock_bias(&self, sv: Sv, t_tx: Epoch) -> Option<Duration> {
+        let (toc, ephemeris) = self.sv_ephemeris(sv, t_tx)?;
+        let (a0, a1, a2) = ephemeris.sv_clock();
+        match sv.constellation {
+            Constellation::Glonass => {
+                //GLONASST not supported
+                //let ts = sv.constellation.timescale()?;
+                //let toe = ephemeris.toe()?;
+                //let dt = (t_tx - toe).to_seconds();
+                //Some(Duration::from_seconds(-a0 + a1 * dt))
                 None
-            }
-        }))
-    }
-    /// Interpolates SV clock offset @ desired t
-    pub fn sv_clock_offset_interpolate(&self, sv: Sv, t: Epoch) -> Option<Duration> {
-        //TODO
-        self.sv_clock_offset()
-            .filter_map(
-                |(e, svnn, dt)| {
-                    if e == t && svnn == sv {
-                        Some(dt)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .reduce(|dt, _| dt) //unique
+            },
+            Constellation::Geo | Constellation::SBAS(_) => {
+                let dt = (t_tx - toc).to_seconds();
+                Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
+            },
+            _ => {
+                let dt = (t_tx - toc).to_seconds();
+                Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
+            },
+        }
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed in km ECEF for all Epochs.

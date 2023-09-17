@@ -673,7 +673,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if let Ok(ref mut solver) = solver {
         // position solver is feasible, with provided context
         if positioning {
-            info!("%%%%%%%%% {} Position Solver %%%%%%%%%", solver.solver);
+            info!("entering positioning mode\n");
             while let Some((t, estimate)) = solver.run(&mut ctx) {
                 trace!("epoch: {}", t);
                 // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);

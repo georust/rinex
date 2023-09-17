@@ -63,8 +63,6 @@ pub struct Solver {
     pub opts: SolverOpts,
     /// Whether this solver is initiated (ready to iterate) or not
     initiated: bool,
-    /// transmission time
-    t_tx: Vec<(Sv, Epoch, Epoch)>,
     /// Type of solver implemented
     pub solver: SolverType,
     /// Current epoch
@@ -87,7 +85,6 @@ impl Solver {
         Ok(Self {
             cosmic: Cosm::de438(),
             solver,
-            t_tx: vec![],
             initiated: false,
             opts: SolverOpts::default(solver),
             nth_epoch: 0,
@@ -95,7 +92,7 @@ impl Solver {
         })
     }
     pub fn init(&mut self, ctx: &mut QcContext) {
-        trace!("solver initialization");
+        trace!("{} solver initialization..", self.solver);
         //TODO: Preprocessing:
         //      only for ppp solver
         //      preseve "complete" epochs only
@@ -129,7 +126,7 @@ impl Solver {
     pub fn run(&mut self, ctx: &mut QcContext) -> Option<(Epoch, Estimate)> {
         if !self.initiated {
             self.init(ctx);
-            trace!("{} solver initiated", self.solver);
+            trace!("solver initiated");
         } else {
             // move on to next epoch
             self.nth_epoch += 1;
@@ -141,12 +138,14 @@ impl Solver {
         let interp_order = self.opts.interp_order;
 
         /* elect vehicles */
-        let mut elected_sv: Vec<Sv> = ctx
-            .primary_data()
-            .sv_epoch()
-            .filter_map(|(epoch, svs)| if epoch == t { Some(svs) } else { None })
-            .reduce(|svs, _| svs)
-            .expect("failed to elect any vehicle @ this epoch");
+        let mut elected_sv = Self::sv_election(ctx, t);
+        if elected_sv.is_none() {
+            warn!("no vehicles elected @ {}", t);
+            return Some((t, self.estimate));
+        }
+
+        let mut elected_sv = elected_sv.unwrap();
+        debug!("elected sv : {:?}", elected_sv);
 
         /* determine sv positions */
         /* TODO: SP3 APC corrections */
@@ -196,22 +195,10 @@ impl Solver {
         Some((t, self.estimate))
     }
     /*
-     * Returns Sv clock data from given context
-     */
-    fn sv_clock_offset(ctx: &QcContext, sv: Sv, t: Epoch) -> Option<Duration> {
-        match ctx.sp3_data() {
-            Some(sp3) => panic!("not available yet"),
-            _ => ctx
-                .navigation_data()
-                .unwrap()
-                .sv_clock_offset_interpolate(sv, t),
-        }
-    }
-    /*
      * Evalutes T_tx transmission time, for given Sv at desired 't'
      */
     fn sv_transmission_time(ctx: &QcContext, sv: Sv, t: Epoch) -> Option<Epoch> {
-        let dt_sat = Self::sv_clock_offset(ctx, sv, t)?;
+        let nav = ctx.navigation_data()?;
         // need one pseudo range observation for this SV @ 't'
         let mut pr = ctx
             .primary_data()
@@ -224,11 +211,21 @@ impl Solver {
                 }
             })
             .take(1);
-        let pr = pr.next()?;
-        let t_tx = t.to_duration().to_seconds() - pr / SPEED_OF_LIGHT - dt_sat.to_seconds();
-        let t_tx = Epoch::from_duration(Duration::from_seconds(t_tx), t.time_scale);
-        debug!("{} : t(rx): {} | t(tx) {}", sv, t, t_tx);
-        Some(t_tx)
+        if let Some(pr) = pr.next() {
+            let t_tx = Duration::from_seconds(t.to_duration().to_seconds() - pr / SPEED_OF_LIGHT);
+            debug!("t_tx(pr): {}@{} : {}", sv, t, t_tx);
+
+            let mut e_tx = Epoch::from_duration(t_tx, sv.constellation.timescale()?);
+            let dt_sat = nav.sv_clock_bias(sv, e_tx)?;
+            debug!("clock bias: {}@{} : {}", sv, t, dt_sat);
+
+            e_tx -= dt_sat;
+            debug!("{} : t(obs): {} | t(tx) {}", sv, t, e_tx);
+            Some(e_tx)
+        } else {
+            debug!("missing PR measurement");
+            None
+        }
     }
     /*
      * Evaluates Sun/Earth vector, <!> expressed in Km <!>
@@ -260,5 +257,14 @@ impl Solver {
             stm: None,
         };
         eclipse_state(&sv_orbit, sun_frame, earth_frame, &self.cosmic) == EclipseState::Umbra
+    }
+    /*
+     * Elects sv for this epoch
+     */
+    fn sv_election(ctx: &QcContext, t: Epoch) -> Option<Vec<Sv>> {
+        ctx.primary_data()
+            .sv_epoch()
+            .filter_map(|(epoch, svs)| if epoch == t { Some(svs) } else { None })
+            .reduce(|svs, _| svs)
     }
 }
