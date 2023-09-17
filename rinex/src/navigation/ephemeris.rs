@@ -19,8 +19,8 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::Error),
-    #[error("failed to identify sat vehicle")]
-    ParseSvError(#[from] sv::Error),
+    #[error("sv parsing error")]
+    SvParsing(#[from] sv::ParsingError),
 }
 
 /// Ephermeris NAV frame type
@@ -295,7 +295,7 @@ impl Ephemeris {
         s
     }
     /*
-    * Manual calculations of satellite position vector, in ECEF.
+    * Manual calculations of satellite position vector, in km ECEF.
     * `t_sv`: orbit epoch as parsed in RINEX.
     * TODO: this is currently only verified in GPST
             need to verify GST/BDT/IRNSST support
@@ -359,26 +359,22 @@ impl Ephemeris {
         let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
         let z_k = yp_k * i_k.sin();
 
-        Some((x_k, y_k, z_k))
+        Some((x_k / 1000.0, y_k / 1000.0, z_k / 1000.0))
     }
     /*
-     * Returns Sv position in ECEF m, based off Self Ephemeris data,
+     * Returns Sv position in km ECEF, based off Self Ephemeris data,
      * and for given Satellite Vehicle at given Epoch.
      * Either by solving Kepler equations, or directly if such data is available.
      */
     pub(crate) fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        if let Some(pos_x_km) = self.get_orbit_f64("satPosX") {
-            if let Some(pos_y_km) = self.get_orbit_f64("satPosY") {
-                if let Some(pos_z_km) = self.get_orbit_f64("satPosZ") {
+        if let Some(x_km) = self.get_orbit_f64("satPosX") {
+            if let Some(y_km) = self.get_orbit_f64("satPosY") {
+                if let Some(z_km) = self.get_orbit_f64("satPosZ") {
                     /*
                      * GLONASS + SBAS: position vector already available,
                      *                 distances expressed in km ECEF
                      */
-                    return Some((
-                        pos_x_km * 1000.0_f64,
-                        pos_y_km * 1000.0_f64,
-                        pos_z_km * 1000.0_f64,
-                    ));
+                    return Some((x_km, y_km, z_km));
                 }
             }
         }
@@ -400,7 +396,11 @@ impl Ephemeris {
             map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
 
         // ||sv - ref_pos|| pseudo range
-        let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
+        let a_i = (
+            sv_x * 1000.0 - ref_x,
+            sv_y * 1000.0 - ref_y,
+            sv_z * 1000.0 - ref_z,
+        );
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
         let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm);
 
@@ -1037,9 +1037,9 @@ mod test {
 
             let ecef = ecef.unwrap();
 
-            let x_err = (ecef.0 - helper.ecef.0).abs();
-            let y_err = (ecef.1 - helper.ecef.1).abs();
-            let z_err = (ecef.2 - helper.ecef.2).abs();
+            let x_err = (ecef.0 * 1000.0 - helper.ecef.0).abs();
+            let y_err = (ecef.1 * 1000.0 - helper.ecef.1).abs();
+            let z_err = (ecef.2 * 1000.0 - helper.ecef.2).abs();
             assert!(x_err < 1E-6, "kepler2ecef: x_err too large: {}", x_err);
             assert!(y_err < 1E-6, "kepler2ecef: y_err too large: {}", y_err);
             assert!(z_err < 1E-6, "kepler2ecef: z_err too large: {}", z_err);

@@ -1,8 +1,8 @@
-use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
+use std::fs::ReadDir;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -26,7 +26,9 @@ impl Cli {
                         .short('f')
                         .long("fp")
                         .value_name("FILE")
-                        .help("Input RINEX file")
+                        .help("Input RINEX file. Serves as primary data.
+In advanced usage, this must be Observation Data.
+Observation, Meteo and IONEX, can only serve as primary data.")
                         .action(ArgAction::Append)
                         .required(true))
                 .next_help_heading("General")
@@ -35,9 +37,8 @@ impl Cli {
                         .long("quiet")
                         .action(ArgAction::SetTrue)
                         .help("Disable all terminal output. Also disables auto HTML reports opener."))
-                    .arg(Arg::new("pretty")
-                        .short('p')
-                        .long("pretty")
+                    .arg(Arg::new("readable")
+                        .short('r')
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable."))
                     .arg(Arg::new("workspace")
@@ -95,6 +96,10 @@ Useful to determine common Epochs or compare sample rates in between
                         .short('J')
                         .action(ArgAction::SetTrue)
                         .help("Filters out all QZSS vehicles"))
+                    .arg(Arg::new("irnss-filter")
+                        .short('I')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all IRNSS vehicles"))
                     .arg(Arg::new("sbas-filter")
                         .short('S')
                         .action(ArgAction::SetTrue)
@@ -179,11 +184,13 @@ If you're just interested in CS information, you probably just want `-qc` instea
                     .arg(Arg::new("nav")
                         .long("nav")
                         .num_args(1..)
-                        .value_name("FILE")
+                        .value_name("FILE/FOLDER")
                         .action(ArgAction::Append)
-                        .help("Local NAV RINEX file. Enhance given context with Navigation Data.
-Use --nav once per file to add. You can stack as many as you want.
-Most useful when combined to Observation RINEX. Enables complete `--qc` analysis with elevation mask taken into account.")) 
+                        .help("Local NAV RINEX file(s). Enhance given context with Navigation Data.
+Use this flag to either load directories containing your Navigation data, 
+or once per individual files. You can stack as many as you want.
+Most useful when combined to Observation RINEX.  
+Enables complete `--qc` analysis with elevation mask taken into account.")) 
                     .arg(Arg::new("antenna-ecef")
                         .long("antenna-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
@@ -213,18 +220,21 @@ Ideally this information is contained in the file Header, but user can manually 
                     .arg(Arg::new("sp3")
                         .long("sp3")
                         .num_args(1..)
-                        .value_name("FILE")
+                        .value_name("FILE/FOLDER")
                         .action(clap::ArgAction::Append)
-                        .help("Local SP3 file. Enhance given context with IGS high precision Orbit predictions.
-Use --sp3 once per file. You can stack as many as you want."))
+                        .help("Local SP3 file(s). Enhance given context with IGS high precision Orbits.
+Use this flag to either load directories containing your SP3 data,
+or once per individual files. You can stack as many as you want. 
+Combining --sp3 and --nav unlocks residual comparison between the two datasets."))
                 .next_help_heading("Antenna")
                     .arg(Arg::new("atx")
                         .long("atx")
 						.num_args(1..)
-                        .value_name("FILE")
+                        .value_name("FILE/FOLDER")
                         .action(ArgAction::Append)
-                        .help("Local ANTEX file. Enhance given context with ANTEX Data.
-Use --atx once per file to add. You can stack as many as you want."))
+                        .help("Local ANTEX file(s). Enhance given context with ANTEX Data.
+Use this flag to either load directories containing your ATX data,
+or once per individual files. You can stack as many as you want."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
@@ -336,6 +346,9 @@ Refer to README"))
     pub fn sbas_filter(&self) -> bool {
         self.matches.get_flag("sbas-filter")
     }
+    pub fn irnss_filter(&self) -> bool {
+        self.matches.get_flag("irnss-filter")
+    }
     pub fn gf_recombination(&self) -> bool {
         self.matches.get_flag("gf")
     }
@@ -400,9 +413,9 @@ Refer to README"))
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
     }
-    /// returns true if --pretty was passed
-    pub fn pretty(&self) -> bool {
-        self.get_flag("pretty")
+    /// returns true if pretty JSON is requested
+    pub fn readable_json(&self) -> bool {
+        self.get_flag("readable")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
@@ -449,15 +462,47 @@ Refer to README"))
             None
         }
     }
-    /// Returns optionnal Nav path, for enhanced capabilities
-    pub fn nav_paths(&self) -> Option<ValuesRef<'_, String>> {
-        self.matches.get_many::<String>("nav")
+    /*
+     * Returns possible list of directories passed as specific data pool
+     */
+    pub fn data_directories(&self, key: &str) -> Vec<ReadDir> {
+        if let Some(matches) = self.matches.get_many::<String>(key) {
+            matches
+                .filter_map(|s| {
+                    let path = Path::new(s.as_str());
+                    if path.is_dir() {
+                        if let Ok(rd) = path.read_dir() {
+                            Some(rd)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            vec![]
+        }
     }
-    pub fn atx_paths(&self) -> Option<ValuesRef<'_, String>> {
-        self.matches.get_many::<String>("atx")
-    }
-    pub fn sp3_paths(&self) -> Option<ValuesRef<'_, String>> {
-        self.matches.get_many::<String>("sp3")
+    /*
+     * Returns possible list of files to be loaded individually
+     */
+    pub fn data_files(&self, key: &str) -> Vec<String> {
+        if let Some(matches) = self.matches.get_many::<String>(key) {
+            matches
+                .filter_map(|s| {
+                    let path = Path::new(s.as_str());
+                    if path.is_file() {
+                        Some(path.to_string_lossy().to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            vec![]
+        }
     }
     fn manual_ecef(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-ecef")

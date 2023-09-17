@@ -1,6 +1,6 @@
 [package]
 name = "sinex"
-version = "0.2.0"
+version = "0.2.1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze SINEX data"
@@ -20,4 +20,4 @@ chrono = "0.4"
 thiserror = "1"
 strum = { version = "0.25", features = ["derive"] }
 strum_macros = "0.25"
-rinex = { path = "../rinex", features = ["serde"] }
+rinex = { version = "0.13.1", features = ["serde"] }

@@ -33,6 +33,10 @@ pub fn preprocess(ctx: &mut QcContext, cli: &Cli) {
         gnss_filters.push("!=qzss");
         trace!("applying -J filter..");
     }
+    if cli.irnss_filter() {
+        gnss_filters.push("!=irnss");
+        trace!("applying -I filter..");
+    }
 
     for filt in gnss_filters {
         let filt = Filter::from_str(filt).unwrap(); // cannot fail

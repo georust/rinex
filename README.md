@@ -11,45 +11,79 @@ RINEX
 
 Rust tool suites to parse, analyze and process [RINEX Data](https://en.wikipedia.org/wiki/RINEX).
 
+This RINEX toolsuite is part of the [GeoRust community](https://github.com/georust),
+and we aim towards advanced geodesic and ionospheric analysis.
+
+## Advantages :rocket: 
+
+- Fast
+- Open sources
+- Native Hatanaka decompression and compression
+- Seamless .gzip decompression with `flate2` compilation feature
+- RINEX V4 full support, that includes modern Navigation messages
+- Meteo RINEX full support
+- IONEX and Clock RINEX partial support, will be concluded soon
+- File merging, splitting and pre processing
+- Modern constellations like BeiDou, Galileo and IRNSS
+- Supported time scales are GPST, BDT, GST, UTC
+- Full support of Military codes : if you're working with such signals you can
+at least run a -qc analysis, and possibly the position solver once it is merged 
+- Supports high precision RINEX (scaled phase data with micro cycle precision)
+- RINEX post processing like SNR, DCB analysis, Broadcast ephemeris interpolation,
+high precision orbit interpolation (SP3)..
+- RINEX-qc : statistical analysis like "teqc", including on modern signals and SP3 high precision orbits
+- An SPP/PPP position solver is under develoment:
+checkout [this branch](https://github.com/georust/rinex/tree/solver) which
+is kept up to date until merged
+
+## Known weaknesses :warning:
+
+- QZNSST is represented as GPST at the moment
+- GLONASST and IRNSST are not supported : calculations (mostly orbits) will not be accurate 
+- Partial SBAS support : some features are not yet available
+- The command line tool does not accept BINEX or other proprietary formats
+- File production is not fully concluded to this day, some formats are still not correctly supported
+(mostly NAV).
+
+## Architecture 
+
 * [`rinex`](rinex/) is the core library 
 * [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
 It can be used to process RINEX files and perform operations similar to `teqc`.   
 The application is auto-generated for a few architectures, download it from the 
 [release portal](https://github.com/gwbres/rinex/releases)
 
-* [`rnx2crx`](rnx2crx/) is a RINEX compression program 
-* [`crx2rnx`](crx2rnx/) is a CRINEX decompression program (Compact RINEX to RINEX)
+* [`sp3`](sp3/) High Precision Orbits (by IGS) 
+* [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
+* [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
+* [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
+* [`qc-traits`](qc-traits/) declares Traits that are shared between `rinex` and `rinex-qc`
 * [`sinex`](sinex/) SNX dedicated core library
 
-* [`ublox-rnx`](ublox-rnx/) is an application that connects to a `Ublox`
-receiver and generates RINEX data quickly & easily.   
-It is the combination of the [ublox](https://github.com/lkolbly/ublox)
-and [rinex](rinex/) crates.
+* [`ublox-rnx`](ublox-rnx/) is an application intended to generate RINEX Data
+from raw uBlox GNSS receiver frames. This application is work in progress at the moment.
 
-By default, all timestamps are in UTC with leap seconds correctly managed.
+RINEX formats & applications
+============================
 
-This RINEX toolsuite is part of the [GeoRust community](https://github.com/georust),
-and we aim towards advanced geodesic and ionospheric analysis.
-
-RINEX Standards
-===============
-
-| Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
-|----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :construction: V4 :construction: |  :heavy_check_mark: :chart_with_upwards_trend:  | :construction:       | Epoch iteration |
-| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Epoch iteration |
-|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Sorted by `antex::Antenna` |
-|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: |:construction: | Epoch iteration |
-|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
-|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
-|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |
+| Type                       | Parser            | Writer              |  CLI                 | UBX                  |          Content         | Record browsing      |
+|----------------------------|-------------------|---------------------|----------------------|----------------------|--------------------------| ---------------------|
+| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :construction: V4 :construction: |  :heavy_check_mark: :chart_with_upwards_trend:  | :construction:       | Orbit parameters, Ionospheric models.. | Epoch iteration |
+| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Phase, Pseudo Range, Doppler, SSI | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:  | see OBS Data     | Epoch iteration |
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Meteo sensors data (Temperature, Moisture..) | Epoch iteration |  
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Clock comparison |  Epoch iteration |
+|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Antenna calibration data | Sorted by `antex::Antenna` |
+|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: |:construction: | Ionosphere Electron density | Epoch iteration |
+|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch iteration |
+|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere modeling | Epoch iteration | 
+|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias estimates, like DCB.. | Epoch iteration | 
 
 :heavy_check_mark: means all revisions supported   
-:construction: under development   
-__CLI__ + :chart_with_upwards_trend: means record analysis is supported by the CLI, [README](rinex-cli/README.md)
+:construction: : Work in Progress   
+__CLI__ + :chart_with_upwards_trend: means the [cli app](rinex-cli/README.md) provides one or several visualizations
+
+The [cli app](rinex-cli/README.md) accepts more than RINEX input, for example SP3 (high precision orbits) are accepted.
 
 File formats
 ============
@@ -60,13 +94,9 @@ File formats
 | CRINEX                 | :heavy_minus_sign:                | :heavy_check_mark:                 | 
 | gzip compressed RINEX  | Name must end with `.gz`          | `--flate2` feature must be enabled |
 | gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
+| SP3                    | :heavy_minus_sign:                | `--flate2` feature must be enabled | 
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
-
-## Known weaknesses :warning:
-
-- Glonass Time Scale is not known to this day.
-We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
 Benchmarking
 ============
@@ -83,6 +113,14 @@ processing/esbc00dnkr2021/mask:gnss | 352.81 ms |
 processing/esbc00dnkr2021/mask:obs |  438.73 ms |
 processing/esbc00dnkr2021/mask:sv | 341.42 ms | 
 processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms | 
+
+Special Thanks
+==============
+
+RINEX relies heavily on the great libraries written by C. Rabotin, [check out his work](https://github.com/nyx-space).  
+Some features would not exist without the invaluable help of J. Lesouple,
+check out his 
+[PhD manuscript (french)](http://perso.recherche.enac.fr/~julien.lesouple/fr/publication/thesis/THESIS.pdf?fbclid=IwAR3WlHm0eP7ygRzywbL07Ig-JawvsdCEdvz1umJJaRRXVO265J9cp931YyI)
 
 Contributions
 =============

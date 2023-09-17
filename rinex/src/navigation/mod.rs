@@ -32,8 +32,8 @@ pub enum Error {
     UnknownFrameClass,
     #[error("unknown nav message type")]
     UnknownNavMsgType,
-    #[error("failed to parse msg type")]
-    SvError(#[from] sv::Error),
+    #[error("sv parsing error")]
+    SvParsing(#[from] sv::ParsingError),
     #[error("failed to parse orbit field")]
     ParseOrbitError(#[from] orbits::OrbitItemError),
     #[error("failed to parse sv::prn")]

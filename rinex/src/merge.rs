@@ -7,7 +7,7 @@ use thiserror::Error;
 /// Merge operation related error(s)
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("file type mismatch: cannot merge different types together")]
+    #[error("file type mismatch: cannot merge different RINEX together")]
     FileTypeMismatch,
     #[error("cannot merge mixed absolute/relative phase antenna together")]
     AntexAbsoluteRelativeMismatch,

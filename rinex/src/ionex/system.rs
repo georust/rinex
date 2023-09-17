@@ -6,10 +6,10 @@ use thiserror::Error;
 /// Reference System parsing error
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("unknown gnss constellation")]
-    ConstellationError(#[from] constellation::Error),
     #[error("unknown reference system")]
     UnknownRefSystem,
+    #[error("constellation parsing error")]
+    ConstellationParsing(#[from] constellation::ParsingError),
 }
 
 /// RefSystem "Reference System" describes either reference GNSS
@@ -99,20 +99,14 @@ impl FromStr for RefSystem {
     fn from_str(system: &str) -> Result<Self, Self::Err> {
         if let Ok(gnss) = Constellation::from_str(system) {
             Ok(Self::GnssConstellation(gnss))
+        } else if system.eq("GNSS") {
+            Ok(Self::GnssConstellation(Constellation::Mixed))
+        } else if let Ok(obs) = ObsSystem::from_str(system) {
+            Ok(Self::ObservationSystem(obs))
+        } else if let Ok(m) = Model::from_str(system) {
+            Ok(Self::Model(m))
         } else {
-            if system.eq("GNSS") {
-                Ok(Self::GnssConstellation(Constellation::Mixed))
-            } else {
-                if let Ok(obs) = ObsSystem::from_str(system) {
-                    Ok(Self::ObservationSystem(obs))
-                } else {
-                    if let Ok(m) = Model::from_str(system) {
-                        Ok(Self::Model(m))
-                    } else {
-                        Err(Error::UnknownRefSystem)
-                    }
-                }
-            }
+            Err(Error::UnknownRefSystem)
         }
     }
 }
