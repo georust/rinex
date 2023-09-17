@@ -320,14 +320,21 @@ mod test {
         assert_eq!(ephemeris.len(), 6);
 
         let epochs = vec![
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 0, 0),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 15, 0, 0),
-            Epoch::from_gregorian_utc(2021, 01, 01, 05, 00, 0, 0),
-            Epoch::from_gregorian_utc(2021, 01, 01, 09, 45, 0, 0),
-            Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 0, 0),
-            Epoch::from_gregorian_utc(2021, 01, 01, 15, 40, 0, 0),
+            Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap(),
+            Epoch::from_str("2021-01-01T00:15:00 UTC").unwrap(),
+            Epoch::from_str("2021-01-01T05:00:00 BDT").unwrap(),
+            Epoch::from_str("2021-01-01T09:45:00 UTC").unwrap(),
+            Epoch::from_str("2021-01-01T10:10:00 GST").unwrap(),
+            Epoch::from_str("2021-01-01T15:40:00 GST").unwrap(),
         ];
-        assert!(rinex.epoch().eq(epochs), "parsed wrong epoch content");
+
+        assert!(
+            rinex.epoch().eq(epochs.clone()),
+            "Parsed wrong epoch content.\nExpecting {:?}\nGot {:?}",
+            epochs.clone(),
+            rinex.epoch().collect::<Vec<Epoch>>(),
+        );
+
         let mut vehicles = vec![
             sv!("c05"),
             sv!("c21"),
@@ -1319,15 +1326,18 @@ mod test {
 
         let record = record.unwrap();
         let mut epochs: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 01, 28, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 07, 15, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 08, 20, 00, 00),
+            Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap(),
+            Epoch::from_str("2021-01-01T07:15:00 UTC").unwrap(),
+            Epoch::from_str("2021-01-01T01:28:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T08:20:00 GST").unwrap(),
         ];
         epochs.sort(); // for comparison purposes
+
         assert!(
-            rinex.epoch().sorted().eq(epochs),
-            "parsed wrong epoch content"
+            rinex.epoch().sorted().eq(epochs.clone()),
+            "parsed wrong epoch content.\nExpecting {:?}\nGot {:?}",
+            epochs.clone(),
+            rinex.epoch().collect::<Vec<Epoch>>(),
         );
 
         let mut vehicles: Vec<Sv> = vec![

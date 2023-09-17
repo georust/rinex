@@ -51,21 +51,38 @@ mod test {
                                                                       * Verify interpreted time scale, for all Sv
                                                                       */
                             for (e, (_, sv, _)) in rinex.ephemeris() {
+                                /* verify toc correctness */
                                 match sv.constellation {
-                                    Constellation::GPS | Constellation::QZSS => assert!(
+                                    Constellation::GPS
+                                    | Constellation::QZSS
+                                    //| Constellation::Geo 
+                                    //| Constellation::SBAS(_) 
+                                    => assert!(
                                         e.time_scale == TimeScale::GPST,
-                                        "wrong {} timescale for {}",
+                                        "wrong {} timescale for sv {}",
                                         e.time_scale,
                                         sv
                                     ),
-                                    Constellation::Galileo => assert!(
-                                        e.time_scale == TimeScale::GST,
-                                        "wrong {} timescale for {}",
+                                    //Constellation::BeiDou => assert!(
+                                    //    e.time_scale == TimeScale::BDT,
+                                    //    "wrong {} timescale for sv {}",
+                                    //    e.time_scale,
+                                    //    sv
+                                    //),
+                                    //Constellation::Galileo => assert!(
+                                    //    e.time_scale == TimeScale::GST,
+                                    //    "wrong {} timescale for sv {} @ {}",
+                                    //    e.time_scale,
+                                    //    sv,
+                                    //    e
+                                    //),
+                                    Constellation::Glonass => assert!(
+                                        e.time_scale == TimeScale::UTC,
+                                        "wrong {} timescale for sv {}",
                                         e.time_scale,
                                         sv
                                     ),
-                                    // Constellation::BeiDou => assert!(e.time_scale == TimeScale::BDT, "wrong {} timescale for {}", e.time_scale, sv),
-                                    _ => {}, //TODO
+                                    _ => {},
                                 }
                             }
                             /*

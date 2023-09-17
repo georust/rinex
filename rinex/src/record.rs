@@ -387,13 +387,6 @@ pub fn parse_record(
                                 .entry(e)
                                 .and_modify(|frames| frames.push(fr.clone()))
                                 .or_insert_with(|| vec![fr.clone()]);
-                            //    // epoch already encountered
-                            //    // add new entry
-                            //    frames.push(fr);
-                            //} else {
-                            //    // new epoch: create entry entry
-                            //    nav_rec.insert(e, vec![fr]);
-                            //}
                             comment_ts = e.clone(); // for comments classification & management
                         }
                     },

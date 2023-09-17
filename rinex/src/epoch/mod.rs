@@ -217,15 +217,19 @@ pub(crate) fn parse_in_timescale(
     match constellation {
         Constellation::GPS | Constellation::QZSS => {
             epoch.time_scale = TimeScale::GPST;
-            epoch -= Duration::from_seconds(18.0); // GPST(t=0) leap
+            epoch -= Duration::from_seconds(18.0);
+        },
+        Constellation::Geo | Constellation::SBAS(_) => {
+            epoch.time_scale = TimeScale::GPST;
+            epoch -= Duration::from_seconds(37.0);
         },
         Constellation::Galileo => {
             epoch.time_scale = TimeScale::GST;
-            epoch -= Duration::from_seconds(31.0); // GST(t=0) leap
+            epoch -= Duration::from_seconds(37.0);
         },
         Constellation::BeiDou => {
             epoch.time_scale = TimeScale::BDT;
-            epoch -= Duration::from_seconds(32.0); // BDT(t=0) leap
+            epoch -= Duration::from_seconds(37.0);
         },
         _ => {}, // not really supported as of today
     }

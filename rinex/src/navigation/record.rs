@@ -694,10 +694,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
 
         let (epoch, frame) = entry.unwrap();
-        assert_eq!(
-            epoch,
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00)
-        );
+        assert_eq!(epoch, Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap());
 
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
@@ -860,10 +857,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
 
         let (epoch, frame) = entry.unwrap();
-        assert_eq!(
-            epoch,
-            Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 00, 00)
-        );
+        assert_eq!(epoch, Epoch::from_str("2021-01-01T10:10:00 GST").unwrap(),);
 
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);

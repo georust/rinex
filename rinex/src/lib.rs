@@ -1293,19 +1293,18 @@ impl Rinex {
             .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
             .map(|dominant| dominant.0)
     }
-
+    /// Histogram analysis on Epoch interval. Although
+    /// it is feasible on all types indexed by [Epoch],
+    /// this operation only makes truly sense on Observation Data.
     /// ```
     /// use rinex::prelude::*;
     /// use itertools::Itertools;
     /// use std::collections::HashMap;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
     ///     .unwrap();
     ///  assert!(
     ///     rinex.sampling_histogram().sorted().eq(vec![
-    ///         (Duration::from_seconds(15.0 * 60.0), 1),
-    ///         (Duration::from_seconds(25.0 * 60.0), 1),
-    ///         (Duration::from_seconds(4.0 * 3600.0 + 45.0 * 60.0), 2),
-    ///         (Duration::from_seconds(5.0 * 3600.0 + 30.0 * 60.0), 1),
+    ///         (Duration::from_seconds(30.0), 1),
     ///     ]),
     ///     "sampling_histogram failed"
     /// );

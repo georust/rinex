@@ -21,6 +21,8 @@ pub enum Error {
     EpochError(#[from] epoch::Error),
     #[error("sv parsing error")]
     SvParsing(#[from] sv::ParsingError),
+    #[error("failed to identify timescale for sv \"{0}\"")]
+    TimescaleIdentification(Sv),
 }
 
 /// Ephermeris NAV frame type
@@ -171,6 +173,12 @@ impl Ephemeris {
             _ => unreachable!("V4 is treated in a dedicated method"),
         };
 
+        let ts = sv
+            .constellation
+            .to_timescale()
+            .ok_or(Error::TimescaleIdentification(sv))?;
+        //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts);
+
         let (epoch, _) = epoch::parse_in_timescale(date.trim(), sv.constellation)?;
 
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
@@ -206,6 +214,13 @@ impl Ephemeris {
         let (svnn, rem) = line.split_at(4);
         let sv = Sv::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
+
+        let ts = sv
+            .constellation
+            .to_timescale()
+            .ok_or(Error::TimescaleIdentification(sv))?;
+        //println!("V4 CONTENT \"{}\" TIMESCALE {}", line, ts);
+
         let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), sv.constellation)?;
 
         let (clk_bias, rem) = rem.split_at(19);
@@ -306,21 +321,21 @@ impl Ephemeris {
         // Hifitime v4, once released, will help here
         let mut t_sv = epoch.clone();
 
-        //match sv.constellation {
-        //    Constellation::GPS | Constellation::QZSS => {
-        //        t_sv.time_scale = TimeScale::GPST;
-        //        t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
-        //    },
-        //    Constellation::Galileo => {
-        //        t_sv.time_scale = TimeScale::GST;
-        //        t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
-        //    },
-        //    Constellation::BeiDou => {
-        //        t_sv.time_scale = TimeScale::BDT;
-        //        t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
-        //    },
-        //    _ => {}, // either not needed, or most probably not truly supported
-        //}
+        match sv.constellation {
+            Constellation::GPS | Constellation::QZSS => {
+                t_sv.time_scale = TimeScale::GPST;
+                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
+            },
+            Constellation::Galileo => {
+                t_sv.time_scale = TimeScale::GST;
+                t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
+            },
+            Constellation::BeiDou => {
+                t_sv.time_scale = TimeScale::BDT;
+                t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
+            },
+            _ => {}, // either not needed, or most probably not truly supported
+        }
 
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
