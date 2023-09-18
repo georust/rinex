@@ -76,6 +76,7 @@ pub enum PositioningMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum SpecificOpts {
     /// SPP solver specific parameters
     SPPSpecificOpts(SppOpts),
@@ -83,6 +84,7 @@ pub enum SpecificOpts {
     PPPSpecificOpts(PppOpts),
 }
 
+#[allow(dead_code)]
 impl SpecificOpts {
     fn spp(&self) -> Option<SppOpts> {
         match self {

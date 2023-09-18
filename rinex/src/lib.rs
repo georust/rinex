@@ -2077,8 +2077,12 @@ impl Rinex {
                                 }
                                 let carrier_code = &observable.to_string()[1..2];
                                 let carrier =
-                                    Carrier::from_observable(sv.constellation, observable)
-                                        .unwrap_or(Carrier::default());
+                                    Carrier::from_observable(sv.constellation, observable);
+                                if carrier.is_err() {
+                                    // fail to identify this signal
+                                    continue;
+                                }
+                                let carrier = carrier.unwrap();
                                 if carrier == Carrier::L1 {
                                     l1_pr_ph.0 |= observable.is_pseudorange_observable();
                                     l1_pr_ph.1 |= observable.is_phase_observable();

@@ -31,10 +31,11 @@ at least run a -qc analysis, and possibly the position solver once it is merged
 - Supports high precision RINEX (scaled phase data with micro cycle precision)
 - RINEX post processing like SNR, DCB analysis, Broadcast ephemeris interpolation,
 high precision orbit interpolation (SP3)..
-- RINEX-qc : statistical analysis like "teqc", including on modern signals and SP3 high precision orbits
-- An SPP/PPP position solver is under develoment:
-checkout [this branch](https://github.com/georust/rinex/tree/solver) which
-is kept up to date until merged
+- RINEX-qc: statistical analysis that you can request in the "cli" application directly.
+Analysis can run on modern GNSS signals and SP3 high precision data.
+Emulates "teqc" historical application.
+- An SPP/PPP position solver (under development), in the form of the "gnss-rtk" library that you can
+summon from the "cli" application directly.
 
 ## Known weaknesses :warning:
 
@@ -54,6 +55,8 @@ The application is auto-generated for a few architectures, download it from the
 [release portal](https://github.com/gwbres/rinex/releases)
 
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
+* [`gnss-rtk`](gnss-rtk/) a position solver from raw GNSS signals.
+Currently works from RINEX input data, but that is not exclusive.
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 

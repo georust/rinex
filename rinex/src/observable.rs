@@ -148,7 +148,6 @@ impl Observable {
                             "C5X" => Some(1.0_f64), //TODO
                             "C5Z" => Some(1.0_f64), //TODO
                             "C6" => Some(1.0_f64),  //TODO
-                            "C6S" => Some(1.0_f64), //TODO
                             "C6L" => Some(1.0_f64), //TODO
                             "C6X" => Some(1.0_f64), //TODO
                             "C6E" => Some(1.0_f64), //TODO

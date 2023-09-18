@@ -153,7 +153,7 @@ impl Solver {
         let interp_order = self.opts.interp_order;
 
         /* elect vehicles */
-        let mut elected_sv = Self::sv_election(ctx, t);
+        let elected_sv = Self::sv_election(ctx, t);
         if elected_sv.is_none() {
             warn!("no vehicles elected @ {}", t);
             return Some((t, self.estimate));
@@ -163,7 +163,8 @@ impl Solver {
         debug!("elected sv : {:?}", elected_sv);
 
         /* determine sv positions */
-        /* TODO: SP3 APC corrections */
+        /* TODO: SP3 APC corrections: Self::eval_sun_vector3d */
+
         let mut sv_pos: HashMap<Sv, (f64, f64, f64)> = HashMap::new();
         for sv in &elected_sv {
             if let Some(sp3) = ctx.sp3_data() {
@@ -221,7 +222,6 @@ impl Solver {
 
         // form matrix
         // resolve
-
         Some((t, self.estimate))
     }
     /*
@@ -262,6 +262,7 @@ impl Solver {
      * Evaluates Sun/Earth vector, <!> expressed in Km <!>
      * for all SV NAV Epochs in provided context
      */
+    #[allow(dead_code)]
     fn eval_sun_vector3d(&mut self, ctx: &QcContext, t: Epoch) -> (f64, f64, f64) {
         let sun_body = Bodies::Sun;
         let eme_j2000 = self.cosmic.frame("EME2000");
