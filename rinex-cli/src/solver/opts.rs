@@ -27,6 +27,11 @@ pub struct SolverOpts {
     pub iono: bool,
     /// true if we're using total group delay modeling
     pub tgd: bool,
+    /// Minimal percentage ]0; 1[ of Sun light to be received by an SV
+    /// for not to be considered in Eclipse.
+    /// A value closer to 0 means we tolerate fast Eclipse exit.
+    /// A value closer to 1 is a stringent criteria: eclipse must be totally exited.
+    pub min_sv_sunlight_rate: f64,
 }
 
 impl SolverOpts {
@@ -43,6 +48,7 @@ impl SolverOpts {
                 tropo: false,
                 iono: false,
                 tgd: false,
+                min_sv_sunlight_rate: 0.1,
             },
             SolverType::PPP => Self {
                 epsilon: 0.1_f64,
@@ -55,6 +61,7 @@ impl SolverOpts {
                 tropo: false,
                 iono: false,
                 tgd: false,
+                min_sv_sunlight_rate: 0.25,
             },
         }
     }

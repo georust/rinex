@@ -175,7 +175,14 @@ impl Solver {
 
         /* remove sv in eclipse */
         if self.solver == SolverType::PPP {
-            sv_pos.retain(|_, (x_km, y_km, z_km)| !self.eclipsed(*x_km, *y_km, *z_km, t));
+            sv_pos.retain(|sv, (x_km, y_km, z_km)| {
+                let eclipsed =
+                    self.eclipsed(*x_km, *y_km, *z_km, t, self.opts.min_sv_sunlight_rate);
+                if eclipsed {
+                    debug!("dropping eclipsed {}", sv);
+                }
+                !eclipsed
+            });
         }
 
         // 3: t_tx
@@ -221,6 +228,7 @@ impl Solver {
 
             e_tx -= dt_sat;
             debug!("{} : t(obs): {} | t(tx) {}", sv, t, e_tx);
+
             Some(e_tx)
         } else {
             debug!("missing PR measurement");
@@ -242,7 +250,7 @@ impl Solver {
     /*
      * Computes celestial angle condition
      */
-    fn eclipsed(&self, x_km: f64, y_km: f64, z_km: f64, epoch: Epoch) -> bool {
+    fn eclipsed(&self, x_km: f64, y_km: f64, z_km: f64, epoch: Epoch, min_rate: f64) -> bool {
         let sun_frame = self.cosmic.frame("Sun J2000");
         let earth_frame = self.cosmic.frame("EME2000");
         let sv_orbit = Orbit {
@@ -256,7 +264,8 @@ impl Solver {
             frame: earth_frame,
             stm: None,
         };
-        eclipse_state(&sv_orbit, sun_frame, earth_frame, &self.cosmic) == EclipseState::Umbra
+        eclipse_state(&sv_orbit, sun_frame, earth_frame, &self.cosmic)
+            <= EclipseState::Penumbra(min_rate)
     }
     /*
      * Elects sv for this epoch
