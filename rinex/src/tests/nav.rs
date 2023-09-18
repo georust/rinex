@@ -503,7 +503,7 @@ mod test {
         // test last epoch
         assert_eq!(
             rinex.last_epoch(),
-            Some(Epoch::from_str("2022-06-10T19:56:48 UTC").unwrap()),
+            Some(Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap()),
             "wrong last epoch",
         );
 
@@ -884,8 +884,8 @@ mod test {
                     ion_count += 1; // ION test
                     let (_msg, _sv, model) = fr;
                     if let Some(model) = model.as_klobuchar() {
-                        let e0 = Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 48, 0);
-                        let e1 = Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 50, 0);
+                        let e0 = Epoch::from_str("2022-06-08T09:59:48 GPST").unwrap();
+                        let e1 = Epoch::from_str("2022-06-08T09:59:50 BDT").unwrap();
                         if *e == e0 {
                             assert_eq!(
                                 model.alpha,
@@ -925,11 +925,11 @@ mod test {
                                 )
                             );
                         } else {
-                            panic!("misplaced ION message")
+                            panic!("misplaced ION message {:?} @ {}", model, e)
                         }
                         assert_eq!(model.region, KbRegionCode::WideArea);
                     } else if let Some(model) = model.as_nequick_g() {
-                        assert_eq!(*e, Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 57, 00));
+                        assert_eq!(*e, Epoch::from_str("2022-06-08T09:59:57 GST").unwrap());
                         assert_eq!(model.region, NgRegionFlags::empty());
                     }
                 }

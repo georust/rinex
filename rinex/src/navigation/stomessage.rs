@@ -37,7 +37,7 @@ impl StoMessage {
 
         let (epoch, rem) = line.split_at(23);
         let (system, _) = rem.split_at(5);
-        let (epoch, _) = epoch::parse_utc(epoch.trim())?;
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
         let line = match lines.next() {
             Some(l) => l,
