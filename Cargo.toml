@@ -1,13 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "rinex", 
+    "gnss-rtk",
     "crx2rnx", 
-    "rnx2crx", 
     "qc-traits", 
+    "rinex", 
     "rinex-qc", 
     "rinex-cli", 
-    "ublox-rnx", 
+    "rnx2crx", 
     "sinex",
     "sp3",
+    "ublox-rnx", 
 ]

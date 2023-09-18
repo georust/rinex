@@ -249,7 +249,28 @@ The summary report by default is integrated to the global HTML report."))
                     .arg(Arg::new("qc-only")
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
-                        .help("Enables QC mode and ensures no other analysis are performed (quickest qc rendition)."))
+                        .help("Activates QC mode and disables all other features: quickest qc rendition."))
+                .next_help_heading("Position Solver")
+                    .arg(Arg::new("positioning")
+                        .short('p')
+                        .long("positioning")
+                        .action(ArgAction::SetTrue)
+                        .help("Activate GNSS receiver position solver.
+This is only possible if provided context is sufficient.
+Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
+method is deployed.
+This is turned of by default, because it involves quite heavy computations.
+See [spp] for more information. "))
+                    .arg(Arg::new("spp")
+                        .long("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
+Disregards whether the provided context is PPP compatible. 
+NB: we do not account for Relativistic effects in clock bias estimates."))
+                    .arg(Arg::new("positioning-only")
+                        .long("pos-only")
+                        .action(ArgAction::SetTrue)
+                        .help("Activates GNSS position solver, disables all other modes: most performant solver.")) 
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -420,6 +441,21 @@ Refer to README"))
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
+    }
+    /// Returns true if position solver is enabled
+    pub fn positioning(&self) -> bool {
+        self.matches.get_flag("positioning") || self.forced_spp() || self.forced_ppp()
+    }
+    /// Returns true if position solver forced to SPP
+    pub fn forced_spp(&self) -> bool {
+        self.matches.get_flag("spp")
+    }
+    /// Returns true if position solver forced to PPP
+    pub fn forced_ppp(&self) -> bool {
+        self.matches.get_flag("spp")
+    }
+    pub fn positioning_only(&self) -> bool {
+        self.matches.get_flag("positioning-only")
     }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")

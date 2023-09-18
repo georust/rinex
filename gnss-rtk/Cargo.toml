@@ -1,0 +1,19 @@
+[package]
+name = "gnss-rtk"
+version = "0.0.1"
+license = "MIT OR Apache-2.0"
+authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
+description = "GNSS position solver"
+homepage = "https://github.com/georust/rinex/gnss-rtk"
+repository = "https://github.com/georust/rinex/gnss-rtk"
+keywords = ["timing", "positioning", "gps", "glonass", "galileo"]
+categories = ["science", "science::geo"]
+edition = "2021"
+readme = "README.md"
+
+[dependencies]
+log = "0.4"
+thiserror = "1"
+nyx-space = "2.0.0-alpha.2" 
+rinex-qc = { path = "../rinex-qc", features = ["serde"] }
+rinex = { path = "../rinex", features = ["serde", "flate2", "sbas", "obs", "nav", "qc", "processing"] }

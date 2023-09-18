@@ -118,9 +118,23 @@ impl Ephemeris {
         self.orbits
             .insert(field.to_string(), OrbitItem::from(value));
     }
-    /// Retrieve week counter, if such data exists.
-    pub fn get_week(&self) -> Option<u32> {
+    /*
+     * Retrieves week counter, if such data exists
+     */
+    pub(crate) fn get_week(&self) -> Option<u32> {
         self.orbits.get("week").and_then(|field| field.as_u32())
+    }
+    /*
+     * Retrieves toe, expressed as an Epoch, if Week + TOE are properly received
+     */
+    pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
+        let week = self.get_week()?;
+        let toe_f64 = self.get_orbit_f64("toe")?;
+        Some(Epoch::from_time_of_week(
+            week,
+            toe_f64.round() as u64 * 1_000_000_000,
+            ts,
+        ))
     }
     /*
      * Parses ephemeris from given line iterator
@@ -348,6 +362,7 @@ impl Ephemeris {
         let omega_k = kepler.omega_0
             + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84) * t_k
             - Kepler::EARTH_OMEGA_E_WGS84 * kepler.toe;
+
         let xp_k = r_k * u_k.cos();
         let yp_k = r_k * u_k.sin();
 
@@ -363,18 +378,21 @@ impl Ephemeris {
      * Either by solving Kepler equations, or directly if such data is available.
      */
     pub(crate) fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        if let Some(x_km) = self.get_orbit_f64("satPosX") {
-            if let Some(y_km) = self.get_orbit_f64("satPosY") {
-                if let Some(z_km) = self.get_orbit_f64("satPosZ") {
-                    /*
-                     * GLONASS + SBAS: position vector already available,
-                     *                 distances expressed in km ECEF
-                     */
-                    return Some((x_km, y_km, z_km));
-                }
-            }
+        let (x_km, y_km, z_km) = (
+            self.get_orbit_f64("satPosX"),
+            self.get_orbit_f64("satPosY"),
+            self.get_orbit_f64("satPosZ"),
+        );
+        match (x_km, y_km, z_km) {
+            (Some(x_km), Some(y_km), Some(z_km)) => {
+                /*
+                 * GLONASS + SBAS: position vector already available,
+                 *                 distances expressed in km ECEF
+                 */
+                Some((x_km, y_km, z_km))
+            },
+            _ => self.kepler2ecef(sv, epoch),
         }
-        self.kepler2ecef(sv, epoch)
     }
     /*
      * Computes elev, azim angles both in degrees
@@ -426,6 +444,23 @@ impl Ephemeris {
             az += 360.0;
         }
         Some((el, az))
+    }
+    /*
+     * Returns max time difference between an Epoch and
+     * related Time of Issue of Ephemeris, for each constellation.
+     */
+    pub(crate) fn max_dtoe(c: Constellation) -> Option<Duration> {
+        match c {
+            Constellation::GPS | Constellation::QZSS | Constellation::Geo => {
+                Some(Duration::from_seconds(7200.0))
+            },
+            Constellation::Galileo => Some(Duration::from_seconds(10800.0)),
+            Constellation::BeiDou => Some(Duration::from_seconds(21600.0)),
+            Constellation::SBAS(_) => Some(Duration::from_seconds(360.0)),
+            Constellation::IRNSS => Some(Duration::from_seconds(86400.0)),
+            Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
+            _ => None,
+        }
     }
 }
 

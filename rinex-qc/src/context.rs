@@ -1,9 +1,12 @@
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
-use rinex::prelude::{GroundPosition, Rinex};
-use rinex::Error;
 use rinex_qc_traits::HtmlReport;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use rinex::carrier::Carrier;
+use rinex::observation::Snr;
+use rinex::prelude::{Epoch, GroundPosition, Rinex, Sv};
+use rinex::Error;
 use sp3::prelude::SP3;
 
 #[derive(Default, Debug, Clone)]
@@ -57,6 +60,10 @@ pub struct QcContext {
     pub atx: Option<QcExtraData<Rinex>>,
     /// Optionnal SP3 Orbit Data
     pub sp3: Option<QcExtraData<SP3>>,
+    /// true if orbits have been interpolated
+    pub interpolated: bool,
+    // Interpolated orbits
+    pub orbits: HashMap<(Epoch, Sv), (f64, f64, f64)>,
 }
 
 impl QcContext {
@@ -154,6 +161,94 @@ impl QcContext {
             }
         }
         None
+    }
+    // /// Removes "incomplete" Epochs from OBS Data
+    // pub fn complete_epoch_filter(&mut self, min_snr: Option<Snr>) {
+    //     let total = self.primary_data().epoch().count();
+    //     let complete_epochs: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
+    //     if let Some(rec) = self.primary_data_mut().record.as_mut_obs() {
+    //         rec.retain(|(epoch, _), (_, sv)| {
+    //             let epoch_is_complete = complete_epochs.iter().find(|(e, sv_carriers)| e == epoch);
+
+    //             if epoch_is_complete.is_none() {
+    //                 false
+    //             } else {
+    //                 let (_, sv_carriers) = epoch_is_complete.unwrap();
+    //                 sv.retain(|sv, observables| {
+    //                     let carriers: Vec<Carrier> = sv_carriers
+    //                         .iter()
+    //                         .filter_map(
+    //                             |(svnn, carrier)| {
+    //                                 if sv == svnn {
+    //                                     Some(*carrier)
+    //                                 } else {
+    //                                     None
+    //                                 }
+    //                             },
+    //                         )
+    //                         .collect();
+    //                     observables.retain(|obs, _| {
+    //                         let carrier = Carrier::from_observable(sv.constellation, obs)
+    //                             .unwrap_or(Carrier::default());
+    //                         carriers.contains(&carrier)
+    //                     });
+    //                     !observables.is_empty()
+    //                 });
+    //                 !sv.is_empty()
+    //             }
+    //         });
+    //     }
+    // }
+    /// Performs SV Orbit interpolation
+    pub fn orbit_interpolation(&mut self, order: usize, min_snr: Option<Snr>) {
+        /* NB: interpolate Complete Epochs only */
+        let complete_epoch: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
+        for (e, sv_signals) in complete_epoch {
+            for (sv, carrier) in sv_signals {
+                // if orbit already exists: do not interpolate
+                // this will make things much quicker for high quality data products
+                let found = self
+                    .sv_position()
+                    .into_iter()
+                    .find(|(sv_e, svnn, _)| *sv_e == e && *svnn == sv);
+                if let Some((_, _, (x, y, z))) = found {
+                    // store as is
+                    self.orbits.insert((e, sv), (x, y, z));
+                } else {
+                    if let Some(sp3) = self.sp3_data() {
+                        if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(sv, e, order)
+                        {
+                            self.orbits.insert((e, sv), (x_km, y_km, z_km));
+                        }
+                    } else if let Some(nav) = self.navigation_data() {
+                        if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
+                            self.orbits
+                                .insert((e, sv), (x_m * 1.0E-3, y_m * 1.0E-3, z_m * 1.0E-3));
+                        }
+                    }
+                }
+            }
+        }
+        self.interpolated = true;
+    }
+    /// Returns (unique) Iterator over SV orbit (3D positions)
+    /// to be used in this context
+    pub fn sv_position(&self) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
+        if self.interpolated {
+            todo!("CONCLUDE THIS PLEASE");
+        } else {
+            match self.sp3_data() {
+                Some(sp3) => sp3.sv_position().collect(),
+                _ => self
+                    .navigation_data()
+                    .unwrap()
+                    .sv_position()
+                    .map(|(e, sv, (x, y, z))| {
+                        (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
+                    })
+                    .collect(),
+            }
+        }
     }
 }
 

@@ -26,12 +26,12 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 "Clock Bias [s]",
                 "Clock Drift [s/s]",
             );
-            trace!("sv clock data visualization");
+            trace!("sv clock plot");
         }
         let sv_epochs: Vec<_> = rinex
             .sv_clock()
             .filter_map(
-                |(epoch, (svnn, (_, _, _)))| {
+                |(epoch, svnn, (_, _, _))| {
                     if svnn == sv {
                         Some(epoch)
                     } else {
@@ -43,7 +43,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let sv_clock: Vec<_> = rinex
             .sv_clock()
             .filter_map(
-                |(_epoch, (svnn, (clk, _, _)))| {
+                |(_epoch, svnn, (clk, _, _))| {
                     if svnn == sv {
                         Some(clk)
                     } else {
@@ -52,10 +52,11 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 },
             )
             .collect();
+
         let sv_drift: Vec<_> = rinex
             .sv_clock()
             .filter_map(
-                |(_epoch, (svnn, (_, drift, _)))| {
+                |(_epoch, svnn, (_, drift, _))| {
                     if svnn == sv {
                         Some(drift)
                     } else {
@@ -103,7 +104,10 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             }
         });
         plot_ctx.add_trace(trace);
-
+        /*
+         * Plot SP3 similar data (if available)
+         * useful for comparison
+         */
         if let Some(sp3) = sp3 {
             let epochs: Vec<_> = sp3
                 .sv_clock()
@@ -150,12 +154,12 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
     for (sv_index, sv) in rinex.sv().enumerate() {
         if sv_index == 0 {
             plot_ctx.add_cartesian2d_2y_plot("SV Orbit", "Position (x) [km]", "Position (y) [km]");
-            trace!("sv orbits visualization");
+            trace!("sv orbit plot");
         }
         let epochs: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(epoch, (svnn, _, _, _))| {
+                |(epoch, svnn, (_, _, _))| {
                     if svnn == sv {
                         Some(epoch)
                     } else {
@@ -168,7 +172,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let x_km: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(_epoch, (svnn, x, _, _))| {
+                |(_epoch, svnn, (x, _, _))| {
                     if svnn == sv {
                         Some(x)
                     } else {
@@ -195,7 +199,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let y_km: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(_epoch, (svnn, _, y, _))| {
+                |(_epoch, svnn, (_, y, _))| {
                     if svnn == sv {
                         Some(y)
                     } else {
@@ -287,12 +291,12 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
     for (sv_index, sv) in rinex.sv().enumerate() {
         if sv_index == 0 {
             plot_ctx.add_cartesian2d_plot("SV Altitude", "Altitude [km]");
-            trace!("sv altitude visualization");
+            trace!("sv altitude plot");
         }
         let epochs: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(epoch, (svnn, _, _, _z))| {
+                |(epoch, svnn, (_, _, _z))| {
                     if svnn == sv {
                         Some(epoch)
                     } else {
@@ -304,7 +308,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         let z_km: Vec<_> = rinex
             .sv_position()
             .filter_map(
-                |(_epoch, (svnn, _, _, z))| {
+                |(_epoch, svnn, (_, _, z))| {
                     if svnn == sv {
                         Some(z)
                     } else {

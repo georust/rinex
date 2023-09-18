@@ -116,8 +116,8 @@ impl QcReport {
     }
     /// Generates a Quality Check Report from provided Context and parametrization,
     /// in html format.
-    pub fn html(context: QcContext, opts: QcOpts) -> String {
-        let analysis = Self::build_analysis(&context, &opts);
+    pub fn html(context: &QcContext, opts: QcOpts) -> String {
+        let analysis = Self::build_analysis(context, &opts);
         format!(
             "{}",
             html! {

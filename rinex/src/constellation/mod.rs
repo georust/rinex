@@ -1,4 +1,5 @@
 //! `GNSS` constellations & associated methods
+use hifitime::TimeScale;
 use thiserror::Error;
 
 mod augmentation;
@@ -158,7 +159,7 @@ impl Constellation {
             Self::Mixed => "M",
         }
     }
-    /// Converts self to 3 letter code (RINEX standard code)
+    /* Converts self to 3 letter code (RINEX standard code) */
     pub(crate) fn to_3_letter_code(&self) -> &str {
         match self {
             Self::GPS => "GPS",
@@ -169,6 +170,18 @@ impl Constellation {
             Self::QZSS => "QZS",
             Self::IRNSS => "IRN",
             Self::Mixed => "MIX",
+        }
+    }
+
+    /// Returns associated time scale. Returns None
+    /// if related time scale is not supported.
+    pub fn timescale(&self) -> Option<TimeScale> {
+        match self {
+            Self::GPS | Self::QZSS => Some(TimeScale::GPST),
+            Self::Galileo => Some(TimeScale::GST),
+            Self::BeiDou => Some(TimeScale::BDT),
+            Self::Geo | Self::SBAS(_) => Some(TimeScale::GPST), // this is correct ?
+            _ => None,
         }
     }
 }
@@ -197,6 +210,7 @@ impl std::str::FromStr for Constellation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hifitime::TimeScale;
     use std::str::FromStr;
     #[test]
     fn from_1_letter_code() {
@@ -239,5 +253,15 @@ mod tests {
         assert_eq!(c.unwrap(), Augmentation::WAAS);
         let c = Augmentation::from_str("WASS");
         assert_eq!(c.is_err(), true);
+    }
+    #[test]
+    fn timescale() {
+        for (gnss, expected) in vec![
+            (Constellation::GPS, TimeScale::GPST),
+            (Constellation::Galileo, TimeScale::GST),
+            (Constellation::BeiDou, TimeScale::BDT),
+        ] {
+            assert_eq!(gnss.timescale(), Some(expected));
+        }
     }
 }
