@@ -240,6 +240,10 @@ pub enum Error {
     NavEpochError(#[from] navigation::Error),
     #[error("failed to produce Clock epoch")]
     ClockEpochError(#[from] clocks::Error),
+    #[error("missing TIME OF FIRST OBS")]
+    BadObservationDataDefinition,
+    #[error("failed to identify timescale")]
+    ObservationDataTimescaleIdentification,
 }
 
 /// Returns true if given line matches the start   
@@ -280,6 +284,24 @@ pub fn parse_record(
     let mut obs_rec = observation::Record::new(); // OBS
     let mut met_rec = meteo::Record::new(); // MET
     let mut clk_rec = clocks::Record::new(); // CLK
+
+    // OBSERVATION case
+    //  timescale is defined either
+    //    [+] by TIME OF FIRST header field
+    //    [+] fixed system in case of old GPS/GLO Observation Data
+    let mut obs_ts = TimeScale::default();
+    if let Some(obs) = &header.obs {
+        if let Some(time_of_first_obs) = obs.time_of_first_obs {
+            obs_ts = time_of_first_obs.time_scale
+        } else {
+            let constellation = header
+                .constellation
+                .ok_or(Error::BadObservationDataDefinition)?;
+            obs_ts = constellation
+                .to_timescale()
+                .ok_or(Error::ObservationDataTimescaleIdentification)?;
+        }
+    }
 
     // IONEX case
     //  Default map type is TEC, it will come with identified Epoch
@@ -391,7 +413,7 @@ pub fn parse_record(
                     },
                     Type::ObservationData => {
                         if let Ok((e, ck_offset, map)) =
-                            observation::record::parse_epoch(&header, &epoch_content)
+                            observation::record::parse_epoch(&header, &epoch_content, obs_ts)
                         {
                             obs_rec.insert(e, (ck_offset, map));
                             comment_ts = e.0.clone(); // for comments classification & management
@@ -519,7 +541,7 @@ pub fn parse_record(
         },
         Type::ObservationData => {
             if let Ok((e, ck_offset, map)) =
-                observation::record::parse_epoch(&header, &epoch_content)
+                observation::record::parse_epoch(&header, &epoch_content, obs_ts)
             {
                 obs_rec.insert(e, (ck_offset, map));
                 comment_ts = e.0.clone(); // for comments classification + management

@@ -475,11 +475,11 @@ impl Rinex {
         // create buffered reader
         let mut reader = BufferedReader::new(path)?;
         // --> parse header fields
-        let mut header = Header::new(&mut reader).unwrap();
+        let mut header = Header::new(&mut reader)?;
         // --> parse record (file body)
         //     we also grab encountered comments,
         //     they might serve some fileops like `splice` / `merge`
-        let (record, comments) = record::parse_record(&mut reader, &mut header).unwrap();
+        let (record, comments) = record::parse_record(&mut reader, &mut header)?;
         Ok(Rinex {
             header,
             record,

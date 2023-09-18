@@ -3,6 +3,7 @@ mod test {
     use crate::hatanaka::Decompressor;
     use crate::{observable, prelude::*};
     use std::collections::HashMap;
+    use std::path::Path;
     use std::str::FromStr;
     #[test]
     fn testbench_v1() {
@@ -163,27 +164,36 @@ mod test {
     }
     #[test]
     fn crnx_v1_zegv0010_21d() {
-        let rnx = Rinex::from_file("../test_resources/CRNX/V1/zegv0010.21d").unwrap();
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("CRNX")
+            .join("V1")
+            .join("zegv0010.21d");
+        let fullpath = path.to_string_lossy();
+        let rnx = Rinex::from_file(&fullpath.to_string());
+        assert!(rnx.is_ok(), "failed to parse CRNX/V1/zegv0010.21d");
+        let rnx = rnx.unwrap();
         let epochs = vec![
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 01, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 01, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 02, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 02, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 03, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 03, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 04, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 04, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 05, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 05, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 06, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 06, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 07, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 07, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 08, 00, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 08, 30, 00),
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 09, 00, 00),
+            Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:00:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:01:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:01:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:02:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:02:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:03:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:03:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:04:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:04:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:05:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:05:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:06:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:06:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:07:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:07:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:08:00 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:08:30 GPST").unwrap(),
+            Epoch::from_str("2021-01-01T00:09:00 GPST").unwrap(),
         ];
         assert!(rnx.epoch().eq(epochs), "Parsed wrong epoch content",);
 
@@ -338,8 +348,14 @@ mod test {
     }
     #[test]
     fn v3_acor00esp_r_2021_crx() {
-        let crnx =
-            Rinex::from_file("../test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("CRNX")
+            .join("V3")
+            .join("ACOR00ESP_R_20213550000_01D_30S_MO.crx");
+        let fullpath = path.to_string_lossy();
+        let crnx = Rinex::from_file(&fullpath.to_string());
         assert_eq!(crnx.is_ok(), true);
         let rnx = crnx.unwrap();
 
@@ -367,31 +383,31 @@ mod test {
         //);
 
         let epochs: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 00, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 00, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 01, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 01, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 02, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 02, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 03, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 03, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 04, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 04, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 05, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 05, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 06, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 06, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 07, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 07, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 08, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 08, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 09, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 09, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 10, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 10, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 11, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 11, 30, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 00, 12, 0, 0),
+            Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:01:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:01:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:02:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:02:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:03:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:03:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:04:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:04:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:05:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:05:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:06:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:06:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:07:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:07:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:08:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:08:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:09:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:09:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:10:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:10:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:11:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:11:30 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:12:00 GPST").unwrap(),
         ];
         assert!(rnx.epoch().eq(epochs.clone()), "parsed wrong epoch content");
         /*

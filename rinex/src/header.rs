@@ -1794,6 +1794,49 @@ impl std::fmt::Display for Header {
         match self.rinex_type {
             Type::ObservationData => {
                 if let Some(obs) = &self.obs {
+                    if let Some(time_of_first_obs) = obs.time_of_first_obs {
+                        //TODO: hifitime does not have a gregorian decomposition method at the moment
+                        let offset = match time_of_first_obs.time_scale {
+                            TimeScale::GPST => Duration::from_seconds(19.0),
+                            TimeScale::GST => Duration::from_seconds(35.0),
+                            TimeScale::BDT => Duration::from_seconds(35.0),
+                            _ => Duration::default(),
+                        };
+                        let (y, m, d, hh, mm, ss, nanos) = (time_of_first_obs).to_gregorian_utc();
+                        let mut descriptor = format!(
+                            "  {:04}    {:02}    {:02}    {:02}   {:02}  {:02}.{:08}   {:x}",
+                            y, m, d, hh, mm, ss, nanos, time_of_first_obs.time_scale
+                        );
+                        descriptor.push_str(&format!(
+                            "{:<width$}",
+                            "",
+                            width = 60 - descriptor.len()
+                        ));
+                        descriptor.push_str("TIME OF FIRST OBS\n");
+                        write!(f, "{}", descriptor)?;
+                    }
+                    if let Some(time_of_last_obs) = obs.time_of_last_obs {
+                        //TODO: hifitime does not have a gregorian decomposition method at the moment
+                        let offset = match time_of_last_obs.time_scale {
+                            TimeScale::GPST => Duration::from_seconds(19.0),
+                            TimeScale::GST => Duration::from_seconds(35.0),
+                            TimeScale::BDT => Duration::from_seconds(35.0),
+                            _ => Duration::default(),
+                        };
+                        let (y, m, d, hh, mm, ss, nanos) =
+                            (time_of_last_obs + offset).to_gregorian_utc();
+                        let mut descriptor = format!(
+                            "  {:04}    {:02}    {:02}  {:02}   {:02}  {:02}.{:08}   {:x}",
+                            y, m, d, hh, mm, ss, nanos, time_of_last_obs.time_scale
+                        );
+                        descriptor.push_str(&format!(
+                            "{:<width$}",
+                            "",
+                            width = 60 - descriptor.len()
+                        ));
+                        descriptor.push_str("TIME OF LAST OBS\n");
+                        write!(f, "{}", descriptor)?;
+                    }
                     match self.version.major {
                         1 | 2 => {
                             // old revisions
