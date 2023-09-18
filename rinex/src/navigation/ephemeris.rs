@@ -219,6 +219,7 @@ impl Ephemeris {
     pub(crate) fn parse_v4(
         msg: NavMsgType,
         mut lines: std::str::Lines<'_>,
+        ts: TimeScale,
     ) -> Result<(Epoch, Sv, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
@@ -228,12 +229,6 @@ impl Ephemeris {
         let (svnn, rem) = line.split_at(4);
         let sv = Sv::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
-
-        let ts = sv
-            .constellation
-            .to_timescale()
-            .ok_or(Error::TimescaleIdentification(sv))?;
-        //println!("V4 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
         let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
         let (clk_bias, rem) = rem.split_at(19);

@@ -853,21 +853,21 @@ mod test {
                     sto_count += 1; // STO test
                     let (_msg, _sv, sto) = fr;
                     if sto.system.eq("GAUT") {
-                        assert_eq!(*e, Epoch::from_gregorian_utc(2022, 06, 08, 00, 00, 00, 00));
+                        assert_eq!(*e, Epoch::from_str("2022-06-08T00:00:00 GST").unwrap());
                         assert_eq!(sto.t_tm, 295207);
                         assert_eq!(
                             sto.a,
                             (-1.862645149231E-09, 8.881784197001E-16, 0.000000000000E+00)
                         );
                     } else if sto.system.eq("GAGP") {
-                        assert_eq!(*e, Epoch::from_gregorian_utc(2022, 06, 08, 00, 00, 00, 00));
+                        assert_eq!(*e, Epoch::from_str("2022-06-08T00:00:00 GST").unwrap());
                         assert_eq!(
                             sto.a,
                             (3.201421350241E-09, -4.440892098501E-15, 0.000000000000E+00)
                         );
                         assert_eq!(sto.t_tm, 295240);
                     } else if sto.system.eq("GPUT") {
-                        assert_eq!(*e, Epoch::from_gregorian_utc(2022, 06, 10, 19, 56, 48, 00));
+                        assert_eq!(*e, Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap());
                         assert_eq!(
                             sto.a,
                             (9.313225746155E-10, 2.664535259100E-15, 0.000000000000E+00)

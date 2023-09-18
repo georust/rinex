@@ -16,6 +16,7 @@ pub use orbits::OrbitItem;
 pub use record::{NavFrame, NavMsgType, Record};
 pub use stomessage::StoMessage;
 
+use crate::prelude::Sv;
 use crate::{epoch, sv};
 use thiserror::Error;
 
@@ -52,6 +53,8 @@ pub enum Error {
     EopMessageError(#[from] eopmessage::Error),
     #[error("failed to parse STO message")]
     StoMessageError(#[from] stomessage::Error),
+    #[error("failed to identify timescale for {0}")]
+    TimescaleIdentification(Sv),
 }
 
 /*
