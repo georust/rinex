@@ -93,12 +93,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///////////////////////
     // Observation opmode
     ///////////////////////
-    device
-        .write_all(
-            &CfgMsgAllPortsBuilder::set_rate_for::<NavSat>([0, 1, 0, 0, 0, 0]).into_packet_bytes(),
-        )
-        .unwrap();
-    device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
+    // device
+    //     .write_all(
+    //         &CfgMsgAllPortsBuilder::set_rate_for::<NavSat>([0, 1, 0, 0, 0, 0]).into_packet_bytes(),
+    //     )
+    //     .unwrap();
+    // device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
 
     ///////////////////////
     // Navigation opmode
@@ -133,22 +133,22 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         // main loop
         let _ = device.update(|packet| {
             match packet {
-                PacketRef::NavSat(pkt) => {
-                    for sv in pkt.svs() {
-                        let _gnss_id = sv.gnss_id();
-                        let _sv_id = sv.sv_id();
-                        let _elev = sv.elev();
-                        let _azim = sv.azim();
-                        let _pr_res = sv.pr_res();
-                        let _flags = sv.flags();
-                        //if flags.sv_used() {
-                        //}
-                        //flags.health();
-                        //flags.quality_ind();
-                        //flags.differential_correction_available();
-                        //flags.ephemeris_available();
-                    }
-                },
+                // PacketRef::NavSat(pkt) => {
+                //     for sv in pkt.svs() {
+                //         let _gnss_id = sv.gnss_id();
+                //         let _sv_id = sv.sv_id();
+                //         let _elev = sv.elev();
+                //         let _azim = sv.azim();
+                //         let _pr_res = sv.pr_res();
+                //         let _flags = sv.flags();
+                //         //if flags.sv_used() {
+                //         //}
+                //         //flags.health();
+                //         //flags.quality_ind();
+                //         //flags.differential_correction_available();
+                //         //flags.ephemeris_available();
+                //     }
+                // },
                 /* NEED UBX CRATE UPDATE !!
                 PacketRef::NavEoe(pkt) => {
                     // End of epoch notification
