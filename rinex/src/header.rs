@@ -1664,7 +1664,46 @@ impl Header {
     }
 
     fn parse_time_of_obs(content: &str) -> Result<Epoch, ParsingError> {
-        Ok(Epoch::default())
+        let (_, rem) = content.split_at(2);
+        let (y, rem) = rem.split_at(4);
+        let (m, rem) = rem.split_at(6);
+        let (d, rem) = rem.split_at(6);
+        let (hh, rem) = rem.split_at(6);
+        let (mm, rem) = rem.split_at(6);
+        let (ss, rem) = rem.split_at(5);
+        let (_dot, rem) = rem.split_at(1);
+        let (ns, rem) = rem.split_at(8);
+
+        let y = u32::from_str_radix(y.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("year"), y.to_string()))?;
+
+        let m = u8::from_str_radix(m.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("months"), m.to_string()))?;
+
+        let d = u8::from_str_radix(d.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("days"), d.to_string()))?;
+
+        let hh = u8::from_str_radix(hh.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("hours"), hh.to_string()))?;
+
+        let mm = u8::from_str_radix(mm.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("minutes"), mm.to_string()))?;
+
+        let ss = u8::from_str_radix(ss.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("seconds"), ss.to_string()))?;
+
+        let ns = u32::from_str_radix(ns.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
+
+        let ts = TimeScale::from_str(rem.trim()).map_err(|_| {
+            ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
+        })?;
+
+        Ok(Epoch::from_str(&format!(
+            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:08} {}",
+            y, m, d, hh, mm, ss, ns, ts
+        ))
+        .map_err(|_| ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string()))?)
     }
 }
 
@@ -1804,7 +1843,7 @@ impl std::fmt::Display for Header {
                         };
                         let (y, m, d, hh, mm, ss, nanos) = (time_of_first_obs).to_gregorian_utc();
                         let mut descriptor = format!(
-                            "  {:04}    {:02}    {:02}    {:02}   {:02}  {:02}.{:08}   {:x}",
+                            "  {:04}    {:02}    {:02}    {:02}    {:02}   {:02}.{:07}     {:x}",
                             y, m, d, hh, mm, ss, nanos, time_of_first_obs.time_scale
                         );
                         descriptor.push_str(&format!(
