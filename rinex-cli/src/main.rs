@@ -20,6 +20,9 @@ use rinex::{
     split::Split,
 };
 
+extern crate gnss_rtk as rtk;
+use rtk::prelude::{Solver, SolverOpts, SolverType};
+
 use rinex_qc::*;
 
 use cli::Cli;
@@ -27,11 +30,14 @@ use identification::rinex_identification;
 use plot::PlotContext;
 
 extern crate pretty_env_logger;
+use pretty_env_logger::env_logger::Builder;
+
 #[macro_use]
 extern crate log;
 
 use fops::open_with_web_browser;
 use sp3::{prelude::SP3, Merge as SP3Merge};
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -284,6 +290,8 @@ fn create_context(cli: &Cli) -> QcContext {
         nav: build_extra_rinex_data(cli, "nav", RinexType::NavigationData),
         atx: build_extra_rinex_data(cli, "atx", RinexType::AntennaData),
         sp3: build_extra_sp3_data(cli),
+        orbits: HashMap::new(),
+        interpolated: false,
     }
 }
 
@@ -291,9 +299,9 @@ fn create_context(cli: &Cli) -> QcContext {
  * Returns true if Skyplot view if feasible
  */
 fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() {
+    if cli.quality_check_only() || cli.positioning_only() {
         /*
-         * Special mode: no plots allowed
+         * Special modes: no plots allowed
          */
         return false;
     }
@@ -308,13 +316,21 @@ fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
 }
 
 pub fn main() -> Result<(), rinex::Error> {
-    pretty_env_logger::init_timed();
+    let mut builder = Builder::from_default_env();
+    builder
+        .format_timestamp_secs()
+        .format_module_path(false)
+        .init();
 
     // Cli
     let cli = Cli::new();
     let quiet = cli.quiet();
+
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
+
+    let positioning_only = cli.positioning_only();
+    let positioning = cli.positioning() || positioning_only;
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -322,8 +338,11 @@ pub fn main() -> Result<(), rinex::Error> {
     // Initiate QC parameters
     let mut qc_opts = cli.qc_config();
 
-    // Build file context
+    // Build context
     let mut ctx = create_context(&cli);
+
+    // Position solver
+    let mut solver = Solver::from(&ctx);
 
     // Workspace
     let workspace = workspace_path(&ctx);
@@ -345,12 +364,34 @@ pub fn main() -> Result<(), rinex::Error> {
     } else {
         info!("no reference position given or identified");
     }
-
+    /*
+     * print more info on possible solver to deploy
+     */
+    if let Ok(ref mut solver) = solver {
+        info!(
+            "provided context is compatible with {} position solver",
+            solver.solver
+        );
+        if !positioning {
+            warn!("position solver currently turned off");
+        } else {
+            if cli.forced_spp() {
+                solver.solver = SolverType::SPP;
+                solver.opts = SolverOpts::default(SolverType::SPP);
+                warn!("position solver restricted to SPP mode");
+            } else if cli.forced_ppp() {
+                solver.solver = SolverType::PPP;
+                solver.opts = SolverOpts::default(SolverType::PPP);
+                warn!("position solver forced to PPP mode");
+            }
+        }
+    } else {
+        info!("context is not sufficient for any position solving method");
+    }
     /*
      * Preprocessing
      */
     preprocess(&mut ctx, &cli);
-
     /*
      * Basic file identification
      */
@@ -358,7 +399,6 @@ pub fn main() -> Result<(), rinex::Error> {
         rinex_identification(&ctx, &cli);
         return Ok(()); // not proceeding further, in this mode
     }
-
     /*
      * SV per Epoch analysis requested
      */
@@ -569,14 +609,14 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only {
+    if !qc_only && !positioning_only {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
     }
     /*
      * Render Graphs (HTML)
      */
-    if !qc_only {
+    if !qc_only && !positioning_only {
         let html_path = workspace_path(&ctx).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
@@ -589,7 +629,6 @@ pub fn main() -> Result<(), rinex::Error> {
             open_with_web_browser(&html_path);
         }
     }
-
     /*
      * QC Mode
      */
@@ -617,7 +656,7 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("Elevation mask        : {:?}", qc_opts.elev_mask);
         info!("Sampling gap tolerance: {:?}", qc_opts.gap_tolerance);
 
-        let html_report = QcReport::html(ctx, qc_opts);
+        let html_report = QcReport::html(&ctx, qc_opts);
 
         let report_path = workspace.join("report.html");
         let mut report_fd = std::fs::File::create(&report_path).expect(&format!(
@@ -630,6 +669,19 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("qc report $WORSPACE/report.html has been generated");
         if !quiet {
             open_with_web_browser(&report_path.to_string_lossy());
+        }
+    }
+    if let Ok(ref mut solver) = solver {
+        // position solver is feasible, with provided context
+        if positioning {
+            info!("entering positioning mode\n");
+            while let Some((t, estimate)) = solver.run(&mut ctx) {
+                trace!("epoch: {}", t);
+                // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);
+                //info!("%%%%%%%%% Position : {:?}, Time: {:?}", position, time);
+                // iteration += 1;
+            }
+            info!("done");
         }
     }
     Ok(())

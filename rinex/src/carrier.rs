@@ -36,8 +36,6 @@ pub enum Carrier {
     G3,
     /// E1: GAL
     E1,
-    /// E2: GAL
-    E2,
     /// E5: GAL (E5a + E5b)
     E5,
     /// E5a: GAL E5a
@@ -92,7 +90,6 @@ impl std::fmt::Display for Carrier {
             Self::L6 => write!(f, "L6"),
             Self::G3 => write!(f, "L3"),
             Self::E1 => write!(f, "E1"),
-            Self::E2 => write!(f, "E2"),
             Self::E5 | Self::E5a | Self::E5b => write!(f, "E5"),
             Self::E6 => write!(f, "E6"),
             Self::S => write!(f, "S"),
@@ -127,8 +124,6 @@ impl std::str::FromStr for Carrier {
             Ok(Self::L6)
         } else if content.eq("E1") {
             Ok(Self::E1)
-        } else if content.eq("E2") {
-            Ok(Self::E2)
         } else if content.eq("E5") {
             Ok(Self::E5)
         } else if content.eq("E6") {
@@ -177,7 +172,7 @@ impl Carrier {
     pub fn frequency_mhz(&self) -> f64 {
         match self {
             Self::L1 | Self::E1 => 1575.42_f64,
-            Self::L2 | Self::E2 => 1227.60_f64,
+            Self::L2 => 1227.60_f64,
             Self::L6 | Self::E6 => 1278.750_f64,
             Self::L5 => 1176.45_f64,
             Self::E5 => 1191.795_f64,
@@ -213,7 +208,7 @@ impl Carrier {
     pub fn bandwidth_mhz(&self) -> f64 {
         match self {
             Self::L1 | Self::G1(_) | Self::G1a | Self::E1 => 15.345_f64,
-            Self::L2 | Self::G2(_) | Self::G2a | Self::E2 => 11.0_f64,
+            Self::L2 | Self::G2(_) | Self::G2a => 11.0_f64,
             Self::L5 | Self::E5 | Self::E5a | Self::E5b => 12.5_f64,
             Self::G3 => todo!("G3 bandwidth is not known to this day"),
             Self::E6 => todo!("E6 bandwidth is not known to this day"),
@@ -226,7 +221,74 @@ impl Carrier {
             Self::B3 | Self::B3A => todo!("B3X bandwidth is not known to this day"),
         }
     }
-
+    ///// Returns the code length (signal period) expressed in seconds,
+    ///// for a signal carrier of given constellation. This is mostly used
+    ///// in fractional pseudo range determination.
+    //pub fn code_length(&self, constellation: Constellation) -> f64 {
+    //    match constellation {
+    //        Constellation::GPS => {
+    //            match self {
+    //                Self::L1 => 20.0E-3,
+    //                Self::L2 => 1.0_f64, //TODO
+    //                Self::L5 => 1.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //            },
+    //        },
+    //        Constellation::QZSS => {
+    //            match self {
+    //                Self::L1 => 1.0E-3,
+    //                Self::L2 => 20.0E-3,
+    //                Self::L5 => 1.0E-3, //TODO
+    //                Self::L6 => 10.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //            },
+    //        },
+    //        Constellation::GEO | Constellation::SBAS(_) => {
+    //            match self {
+    //                Self::L1 => 20.0E-3,
+    //                Self::L5 => 1.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //        },
+    //        Constellation::BeiDou => {
+    //            match self {
+    //                Self::B1A => 1.0_f64, //TODO
+    //                Self::B1I => 1.0E-3,
+    //                Self::B1C => 1.0_f64, //TODO
+    //                Self::B2 => 1.0_f64, //TODO
+    //                Self::B2A => 10.0E-3,
+    //                Self::B2I => 1.0_f64, //TODO
+    //                Self::B2B => 1.0_f64, //TODO
+    //                Self::B3 => 1.0_f64, //TODO
+    //                Self::B3A => 1.0_f64, //TODO
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //        Constellation::Galileo => {
+    //            match self {
+    //                Self::E1 => 4.0E-3,
+    //                Self::E5 => 10.0E-3,
+    //                Self::E5a => 10.0E-3,
+    //                Self::E5b => 10.0E-3,
+    //                Self::E6 => 50.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //        Constellation::Glonass => {
+    //            match self {
+    //                Self::G1 | Self::G1(_) => 1.0_f64, //TODO
+    //                Self::G2 | Self::G2(_) => 1.0_f64, //TODO
+    //                Self::G3 => 1.0_f64, //TODO
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //        Constellation::IRNSS => {
+    //            match self {
+    //                Self::S => 1.0_f64, // TODO
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //    }
+    //}
     /// Converts to exact Glonass carrier
     pub fn with_glonass_offset(&self, offset: i8) -> Self {
         match self {
@@ -235,36 +297,40 @@ impl Carrier {
             other => *other,
         }
     }
+    pub(crate) fn gpsl1_codes() -> [&'static str; 39] {
+        [
+            "C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C", "C1S", "L1S", "D1S", "S1S", "C1L",
+            "L1L", "D1L", "S1L", "C1X", "L1X", "D1X", "S1X", "C1P", "L1P", "D1P", "S1P", "C1W",
+            "L1W", "D1W", "S1W", "C1Y", "L1Y", "D1Y", "S1Y", "C1M", "L1M", "D1M", "S1M", "L1N",
+            "D1N", "S1N",
+        ]
+    }
+    pub(crate) fn gpsl2_codes() -> [&'static str; 43] {
+        [
+            "C2", "L2", "D2", "S2", "C2C", "L2C", "D2C", "S2C", "C2D", "L2D", "D2D", "S2D", "C2S",
+            "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L", "C2X", "L2X", "D2X", "S2X", "C2P",
+            "L2P", "D2P", "S2P", "C2W", "L2W", "D2W", "S2W", "C2Y", "L2Y", "D2Y", "S2Y", "C2M",
+            "L2M", "D2M", "S2M", "L2N", "D2N", "S2N",
+        ]
+    }
+    pub(crate) fn gpsl5_codes() -> [&'static str; 16] {
+        [
+            "C5", "L5", "D5", "S5", "C5I", "L5I", "D5I", "S5I", "C5Q", "L5Q", "D5Q", "S5Q", "C5X",
+            "L5X", "D5X", "S5X",
+        ]
+    }
     fn from_gps_observable(obs: &Observable) -> Result<Self, Error> {
-        lazy_static! {
-            static ref L1_CODES: Vec<&'static str> = vec![
-                "C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C", "C1S", "L1S", "D1S", "S1S",
-                "C1L", "L1L", "D1L", "S1L", "C1X", "L1X", "D1X", "S1X", "C1P", "L1P", "D1P", "S1P",
-                "C1W", "L1W", "D1W", "S1W", "C1Y", "L1Y", "D1Y", "S1Y", "C1M", "L1M", "D1M", "S1M",
-                "L1N", "D1N", "S1N",
-            ];
-            static ref L2_CODES: Vec<&'static str> = vec![
-                "C2", "L2", "D2", "S2", "C2C", "L2C", "D2C", "S2C", "C2D", "L2D", "D2D", "S2D",
-                "C2S", "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L", "C2X", "L2X", "D2X", "S2X",
-                "C2P", "L2P", "D2P", "S2P", "C2W", "L2W", "D2W", "S2W", "C2Y", "L2Y", "D2Y", "S2Y",
-                "C2M", "L2M", "D2M", "S2M", "L2N", "D2N", "S2N",
-            ];
-            static ref L5_CODES: Vec<&'static str> = vec![
-                "C5", "L5", "D5", "S5", "C5I", "L5I", "D5I", "S5I", "C5Q", "L5Q", "D5Q", "S5Q",
-                "C5X", "L5X", "D5X", "S5X",
-            ];
-        };
         match obs {
             Observable::Phase(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
                 let code = code.as_str();
-                if L1_CODES.contains(&code) {
+                if Self::gpsl1_codes().contains(&code) {
                     Ok(Self::L1)
-                } else if L2_CODES.contains(&code) {
+                } else if Self::gpsl2_codes().contains(&code) {
                     Ok(Self::L2)
-                } else if L5_CODES.contains(&code) {
+                } else if Self::gpsl5_codes().contains(&code) {
                     Ok(Self::L5)
                 } else {
                     Err(Error::UnknownObservable(code.to_string()))
@@ -273,40 +339,48 @@ impl Carrier {
             _ => Err(Error::UnknownObservable(obs.to_string())),
         }
     }
+    pub(crate) fn g1_codes() -> [&'static str; 12] {
+        [
+            "C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C", "C1P", "L1P", "D1P", "S1P",
+        ]
+    }
+    pub(crate) fn g1a_codes() -> [&'static str; 12] {
+        [
+            "C4A", "L4A", "D4A", "S4A", "C4B", "L4B", "D4B", "S4B", "C4X", "L4X", "D4X", "S4X",
+        ]
+    }
+    pub(crate) fn g2_codes() -> [&'static str; 12] {
+        [
+            "C2", "L2", "D2", "S2", "C2C", "L2C", "D2C", "S2C", "C2P", "L2P", "D2P", "S2P",
+        ]
+    }
+    pub(crate) fn g2a_codes() -> [&'static str; 12] {
+        [
+            "C6A", "L6A", "D6A", "S6A", "C6B", "L6B", "D6B", "S6B", "C6X", "L6X", "D6X", "S6X",
+        ]
+    }
+    pub(crate) fn g3_codes() -> [&'static str; 16] {
+        [
+            "C3", "L3", "D3", "S3", "C3I", "L3I", "D3I", "S3I", "C3Q", "L3Q", "D3Q", "S3Q", "C3X",
+            "L3X", "D3X", "S3X",
+        ]
+    }
     fn from_glo_observable(obs: &Observable) -> Result<Self, Error> {
-        lazy_static! {
-            static ref G1_CODES: Vec<&'static str> = vec![
-                "C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C", "C1P", "L1P", "D1P", "S1P",
-            ];
-            static ref G1A_CODES: Vec<&'static str> = vec![
-                "C4A", "L4A", "D4A", "S4A", "C4B", "L4B", "D4B", "S4B", "C4X", "L4X", "D4X", "S4X",
-            ];
-            static ref G2_CODES: Vec<&'static str> = vec![
-                "C2", "L2", "D2", "S2", "C2C", "L2C", "D2C", "S2C", "C2P", "L2P", "D2P", "S2P",
-            ];
-            static ref G2A_CODES: Vec<&'static str> = vec![
-                "C6A", "L6A", "D6A", "S6A", "C6B", "L6B", "D6B", "S6B", "C6X", "L6X", "D6X", "S6X",
-            ];
-            static ref G3_CODES: Vec<&'static str> = vec![
-                "C3", "L3", "D3", "S3", "C3I", "L3I", "D3I", "S3I", "C3Q", "L3Q", "D3Q", "S3Q",
-                "C3X", "L3X", "D3X", "S3X",
-            ];
-        };
         match obs {
             Observable::Phase(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
                 let code = code.as_str();
-                if G1_CODES.contains(&code) {
+                if Self::g1_codes().contains(&code) {
                     Ok(Self::G1(None))
-                } else if G1A_CODES.contains(&code) {
+                } else if Self::g1a_codes().contains(&code) {
                     Ok(Self::G1a)
-                } else if G2_CODES.contains(&code) {
+                } else if Self::g2_codes().contains(&code) {
                     Ok(Self::G2(None))
-                } else if G2A_CODES.contains(&code) {
+                } else if Self::g2a_codes().contains(&code) {
                     Ok(Self::G2a)
-                } else if G3_CODES.contains(&code) {
+                } else if Self::g3_codes().contains(&code) {
                     Ok(Self::G3)
                 } else {
                     Err(Error::UnknownObservable(code.to_string()))
@@ -315,42 +389,50 @@ impl Carrier {
             _ => Err(Error::UnknownObservable(obs.to_string())),
         }
     }
+    pub(crate) fn e1_codes() -> [&'static str; 24] {
+        [
+            "C1", "L1", "D1", "S1", "C1A", "L1A", "D1A", "S1A", "C1B", "L1B", "D1B", "S1B", "C1C",
+            "L1C", "D1C", "S1C", "C1X", "L1X", "D1X", "S1X", "C1Z", "L1Z", "D1Z", "S1Z",
+        ]
+    }
+    pub(crate) fn e5_codes() -> [&'static str; 16] {
+        [
+            "C5", "L5", "D5", "S5", "C8I", "L8I", "D8I", "S8I", "C8Q", "L8Q", "D8Q", "S8Q", "C8X",
+            "L8X", "D8X", "S8X",
+        ]
+    }
+    pub(crate) fn e5a_codes() -> [&'static str; 12] {
+        [
+            "C5I", "L5I", "D5I", "S5I", "C5Q", "L5Q", "D5Q", "S5Q", "C5X", "L5X", "D5X", "S5X",
+        ]
+    }
+    pub(crate) fn e5b_codes() -> [&'static str; 12] {
+        [
+            "C7I", "L7I", "D7I", "S7I", "C7Q", "L7Q", "D7Q", "S7Q", "C7X", "L7X", "D7X", "S7X",
+        ]
+    }
+    pub(crate) fn e6_codes() -> [&'static str; 24] {
+        [
+            "C6", "L6", "D6", "S6", "C6A", "L6A", "D6A", "S6A", "C6B", "L6B", "D6B", "S6B", "C6C",
+            "L6C", "D6C", "S6C", "C6X", "L6X", "D6X", "S6X", "C6Z", "L6Z", "D6Z", "S6Z",
+        ]
+    }
     fn from_gal_observable(obs: &Observable) -> Result<Self, Error> {
-        lazy_static! {
-            static ref E1_CODES: Vec<&'static str> = vec![
-                "C1", "L1", "D1", "S1", "C1A", "L1A", "D1A", "S1A", "C1B", "L1B", "D1B", "S1B",
-                "C1C", "L1C", "D1C", "S1C", "C1X", "L1X", "D1X", "S1X", "C1Z", "L1Z", "D1Z", "S1Z",
-            ];
-            static ref E5A_CODES: Vec<&'static str> = vec![
-                "C5I", "L5I", "D5I", "S5I", "C5Q", "L5Q", "D5Q", "S5Q", "C5X", "L5X", "D5X", "S5X",
-            ];
-            static ref E5B_CODES: Vec<&'static str> = vec![
-                "C7I", "L7I", "D7I", "S7I", "C7Q", "L7Q", "D7Q", "S7Q", "C7X", "L7X", "D7X", "S7X",
-            ];
-            static ref E5_CODES: Vec<&'static str> = vec![
-                "C5", "L5", "D5", "S5", "C8I", "L8I", "D8I", "S8I", "C8Q", "L8Q", "D8Q", "S8Q",
-                "C8X", "L8X", "D8X", "S8X",
-            ];
-            static ref E6_CODES: Vec<&'static str> = vec![
-                "C6", "L6", "D6", "S6", "C6A", "L6A", "D6A", "S6A", "C6B", "L6B", "D6B", "S6B",
-                "C6C", "L6C", "D6C", "S6C", "C6X", "L6X", "D6X", "S6X", "C6Z", "L6Z", "D6Z", "S6Z",
-            ];
-        };
         match obs {
             Observable::Phase(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
                 let code = code.as_str();
-                if E1_CODES.contains(&code) {
+                if Self::e1_codes().contains(&code) {
                     Ok(Self::E1)
-                } else if E5_CODES.contains(&code) {
+                } else if Self::e5_codes().contains(&code) {
                     Ok(Self::E5)
-                } else if E6_CODES.contains(&code) {
+                } else if Self::e6_codes().contains(&code) {
                     Ok(Self::E6)
-                } else if E5A_CODES.contains(&code) {
+                } else if Self::e5a_codes().contains(&code) {
                     Ok(Self::E5a)
-                } else if E5B_CODES.contains(&code) {
+                } else if Self::e5b_codes().contains(&code) {
                     Ok(Self::E5b)
                 } else {
                     Err(Error::UnknownObservable(code.to_string()))
@@ -359,24 +441,25 @@ impl Carrier {
             _ => Err(Error::UnknownObservable(obs.to_string())),
         }
     }
+    pub(crate) fn geol1_codes() -> [&'static str; 8] {
+        ["C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C"]
+    }
+    pub(crate) fn geol5_codes() -> [&'static str; 16] {
+        [
+            "C5", "L5", "D5", "S5", "C5I", "L5I", "D5I", "S5I", "C5Q", "L5Q", "D5Q", "S5Q", "C5X",
+            "L5X", "D5X", "S5X",
+        ]
+    }
     fn from_geo_observable(obs: &Observable) -> Result<Self, Error> {
-        lazy_static! {
-            static ref L1_CODES: Vec<&'static str> =
-                vec!["C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C",];
-            static ref L5_CODES: Vec<&'static str> = vec![
-                "C5", "L5", "D5", "S5", "C5I", "L5I", "D5I", "S5I", "C5Q", "L5Q", "D5Q", "S5Q",
-                "C5X", "L5X", "D5X", "S5X",
-            ];
-        };
         match obs {
             Observable::Phase(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
                 let code = code.as_str();
-                if L1_CODES.contains(&code) {
+                if Self::geol1_codes().contains(&code) {
                     Ok(Self::L1)
-                } else if L5_CODES.contains(&code) {
+                } else if Self::geol5_codes().contains(&code) {
                     Ok(Self::L5)
                 } else {
                     Err(Error::UnknownObservable(code.to_string()))
@@ -385,40 +468,46 @@ impl Carrier {
             _ => Err(Error::UnknownObservable(obs.to_string())),
         }
     }
+    pub(crate) fn qzl1_codes() -> [&'static str; 32] {
+        [
+            "C1", "L1", "D1", "S1", "C1B", "L1B", "D1B", "S1B", "C1C", "L1C", "D1C", "S1C", "C1E",
+            "L1E", "D1E", "S1E", "C1S", "L1S", "D1S", "S1S", "C1L", "L1L", "D1L", "S1L", "C1X",
+            "L1X", "D1X", "S1X", "C1Z", "L1Z", "D1Z", "S1Z",
+        ]
+    }
+    pub(crate) fn qzl2_codes() -> [&'static str; 16] {
+        [
+            "C2", "L2", "D2", "S2", "C2S", "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L", "C2X",
+            "L2X", "D2X", "S2X",
+        ]
+    }
+    pub(crate) fn qzl5_codes() -> [&'static str; 28] {
+        [
+            "C5", "L5", "D5", "S5", "C5D", "L5D", "D5D", "S5D", "C5I", "L5I", "D5I", "S5I", "C5P",
+            "L5P", "D5P", "S5P", "C5Q", "L5Q", "D5Q", "S5Q", "C5X", "L5X", "D5X", "S5X", "C5Z",
+            "L5Z", "D5Z", "S5Z",
+        ]
+    }
+    pub(crate) fn qzl6_codes() -> [&'static str; 24] {
+        [
+            "C6", "L6", "D6", "S6", "C6S", "L6S", "D6S", "S6S", "C6L", "L6L", "D6L", "S6L", "C6X",
+            "L6X", "D6X", "S6X", "C6E", "L6E", "D6E", "S6E", "C6S", "L6S", "D6S", "S6Z",
+        ]
+    }
     fn from_qzss_observable(obs: &Observable) -> Result<Self, Error> {
-        lazy_static! {
-            static ref L1_CODES: Vec<&'static str> = vec![
-                "C1", "L1", "D1", "S1", "C1B", "L1B", "D1B", "S1B", "C1C", "L1C", "D1C", "S1C",
-                "C1E", "L1E", "D1E", "S1E", "C1S", "L1S", "D1S", "S1S", "C1L", "L1L", "D1L", "S1L",
-                "C1X", "L1X", "D1X", "S1X", "C1Z", "L1Z", "D1Z", "S1Z",
-            ];
-            static ref L2_CODES: Vec<&'static str> = vec![
-                "C2", "L2", "D2", "S2", "C2S", "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L",
-                "C2X", "L2X", "D2X", "S2X",
-            ];
-            static ref L5_CODES: Vec<&'static str> = vec![
-                "C5", "L5", "D5", "S5", "C5D", "L5D", "D5D", "S5D", "C5I", "L5I", "D5I", "S5I",
-                "C5P", "L5P", "D5P", "S5P", "C5Q", "L5Q", "D5Q", "S5Q", "C5X", "L5X", "D5X", "S5X",
-                "C5Z", "L5Z", "D5Z", "S5Z",
-            ];
-            static ref L6_CODES: Vec<&'static str> = vec![
-                "C6", "L6", "D6", "S6", "C6S", "L6S", "D6S", "S6S", "C6L", "L6L", "D6L", "S6L",
-                "C6X", "L6X", "D6X", "S6X", "C6E", "L6E", "D6E", "S6E", "C6S", "L6S", "D6S", "S6Z",
-            ];
-        };
         match obs {
             Observable::Phase(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
                 let code = code.as_str();
-                if L1_CODES.contains(&code) {
+                if Self::qzl1_codes().contains(&code) {
                     Ok(Self::L1)
-                } else if L2_CODES.contains(&code) {
+                } else if Self::qzl2_codes().contains(&code) {
                     Ok(Self::L2)
-                } else if L5_CODES.contains(&code) {
+                } else if Self::qzl5_codes().contains(&code) {
                     Ok(Self::L5)
-                } else if L6_CODES.contains(&code) {
+                } else if Self::qzl6_codes().contains(&code) {
                     Ok(Self::L6)
                 } else {
                     Err(Error::UnknownObservable(code.to_string()))
@@ -427,61 +516,77 @@ impl Carrier {
             _ => Err(Error::UnknownObservable(obs.to_string())),
         }
     }
+    pub(crate) fn b1a_codes() -> [&'static str; 12] {
+        [
+            "C1S", "L1S", "D1S", "S1S", "C1L", "L1L", "D1L", "S1L", "C1Z", "L1Z", "D1Z", "S1Z",
+        ]
+    }
+    pub(crate) fn b1c_codes() -> [&'static str; 12] {
+        [
+            "C1D", "L1D", "D1D", "S1D", "C1P", "L1P", "D1P", "S1P", "C1X", "L1X", "D1X", "S1X",
+        ]
+    }
+    pub(crate) fn b1i_codes() -> [&'static str; 16] {
+        [
+            "C1", "L1", "D1", "S1", "C2I", "L2I", "D2I", "S2I", "C2Q", "L2Q", "D2Q", "S2Q", "C2X",
+            "L2X", "D2X", "S2X",
+        ]
+    }
+    pub(crate) fn b2a_codes() -> [&'static str; 12] {
+        [
+            "C5D", "L5D", "D5D", "S5D", "C5P", "L5P", "D5P", "S5P", "C5X", "L5X", "D5X", "S5X",
+        ]
+    }
+    pub(crate) fn b2i_codes() -> [&'static str; 16] {
+        [
+            "C2", "L2", "D2", "S2", "C7I", "L7I", "D7I", "S7I", "C7Q", "L7Q", "D7Q", "S7Q", "C7X",
+            "L7X", "D7X", "S7X",
+        ]
+    }
+    pub(crate) fn b2b_codes() -> [&'static str; 12] {
+        [
+            "C7D", "L7D", "D7D", "S7D", "C7P", "L7P", "D7P", "S7P", "C7Z", "L7Z", "D7Z", "S7Z",
+        ]
+    }
+    pub(crate) fn b2_codes() -> [&'static str; 12] {
+        [
+            "C8D", "L8D", "D8D", "S8D", "C8P", "L8P", "D8P", "S8P", "C8X", "L8X", "D8X", "S8X",
+        ]
+    }
+    pub(crate) fn b3_codes() -> [&'static str; 12] {
+        [
+            "C6I", "L6I", "D6I", "S6I", "C6Q", "L6Q", "D6Q", "S6Q", "C6X", "L6X", "D6X", "S6X",
+        ]
+    }
+    pub(crate) fn b3a_codes() -> [&'static str; 12] {
+        [
+            "C6D", "L6D", "D6D", "S6D", "C6P", "L6P", "D6P", "S6P", "C6Z", "L6Z", "D6Z", "S6Z",
+        ]
+    }
     fn from_bds_observable(obs: &Observable) -> Result<Self, Error> {
-        lazy_static! {
-            static ref B1I_CODES: Vec<&'static str> = vec![
-                "C1", "L1", "D1", "S1", "C2I", "L2I", "D2I", "S2I", "C2Q", "L2Q", "D2Q", "S2Q",
-                "C2X", "L2X", "D2X", "S2X",
-            ];
-            static ref B1C_CODES: Vec<&'static str> = vec![
-                "C1D", "L1D", "D1D", "S1D", "C1P", "L1P", "D1P", "S1P", "C1X", "L1X", "D1X", "S1X",
-            ];
-            static ref B1A_CODES: Vec<&'static str> = vec![
-                "C1S", "L1S", "D1S", "S1S", "C1L", "L1L", "D1L", "S1L", "C1Z", "L1Z", "D1Z", "S1Z",
-            ];
-            static ref B2A_CODES: Vec<&'static str> = vec![
-                "C5D", "L5D", "D5D", "S5D", "C5P", "L5P", "D5P", "S5P", "C5X", "L5X", "D5X", "S5X",
-            ];
-            static ref B2I_CODES: Vec<&'static str> = vec![
-                "C2", "L2", "D2", "S2", "C7I", "L7I", "D7I", "S7I", "C7Q", "L7Q", "D7Q", "S7Q",
-                "C7X", "L7X", "D7X", "S7X",
-            ];
-            static ref B2B_CODES: Vec<&'static str> = vec![
-                "C7D", "L7D", "D7D", "S7D", "C7P", "L7P", "D7P", "S7P", "C7Z", "L7Z", "D7Z", "S7Z",
-            ];
-            static ref B2_CODES: Vec<&'static str> = vec![
-                "C8D", "L8D", "D8D", "S8D", "C8P", "L8P", "D8P", "S8P", "C8X", "L8X", "D8X", "S8X",
-            ];
-            static ref B3_CODES: Vec<&'static str> = vec![
-                "C6I", "L6I", "D6I", "S6I", "C6Q", "L6Q", "D6Q", "S6Q", "C6X", "L6X", "D6X", "S6X",
-            ];
-            static ref B3A_CODES: Vec<&'static str> = vec![
-                "C6D", "L6D", "D6D", "S6D", "C6P", "L6P", "D6P", "S6P", "C6Z", "L6Z", "D6Z", "S6Z",
-            ];
-        };
         match obs {
             Observable::Phase(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
                 let code = code.as_str();
-                if B1I_CODES.contains(&code) {
+                if Self::b1i_codes().contains(&code) {
                     Ok(Self::B1I)
-                } else if B1C_CODES.contains(&code) {
+                } else if Self::b1c_codes().contains(&code) {
                     Ok(Self::B1C)
-                } else if B1A_CODES.contains(&code) {
+                } else if Self::b1a_codes().contains(&code) {
                     Ok(Self::B1A)
-                } else if B2I_CODES.contains(&code) {
+                } else if Self::b2i_codes().contains(&code) {
                     Ok(Self::B2I)
-                } else if B2_CODES.contains(&code) {
+                } else if Self::b2_codes().contains(&code) {
                     Ok(Self::B2)
-                } else if B2A_CODES.contains(&code) {
+                } else if Self::b2a_codes().contains(&code) {
                     Ok(Self::B2A)
-                } else if B2B_CODES.contains(&code) {
+                } else if Self::b2b_codes().contains(&code) {
                     Ok(Self::B2B)
-                } else if B3_CODES.contains(&code) {
+                } else if Self::b3_codes().contains(&code) {
                     Ok(Self::B3)
-                } else if B3A_CODES.contains(&code) {
+                } else if Self::b3a_codes().contains(&code) {
                     Ok(Self::B3A)
                 } else {
                     Err(Error::UnknownObservable(code.to_string()))
@@ -490,26 +595,28 @@ impl Carrier {
             _ => Err(Error::UnknownObservable(obs.to_string())),
         }
     }
+    pub(crate) fn irnl5_codes() -> [&'static str; 20] {
+        [
+            "C5", "L5", "D5", "S5", "C5A", "L5A", "D5A", "S5A", "C5B", "L5B", "D5B", "S5B", "C5C",
+            "L5C", "D5C", "S5C", "C5X", "L5X", "D5X", "S5X",
+        ]
+    }
+    pub(crate) fn irn_s_codes() -> [&'static str; 16] {
+        [
+            "C9A", "L9A", "D9A", "S9A", "C9B", "L9B", "D9B", "S9B", "C9C", "L9C", "D9C", "S9C",
+            "C9X", "L9X", "D9X", "S9X",
+        ]
+    }
     fn from_irnss_observable(obs: &Observable) -> Result<Self, Error> {
-        lazy_static! {
-            static ref L5_CODES: Vec<&'static str> = vec![
-                "C5", "L5", "D5", "S5", "C5A", "L5A", "D5A", "S5A", "C5B", "L5B", "D5B", "S5B",
-                "C5C", "L5C", "D5C", "S5C", "C5X", "L5X", "D5X", "S5X",
-            ];
-            static ref S_CODES: Vec<&'static str> = vec![
-                "C9A", "L9A", "D9A", "S9A", "C9B", "L9B", "D9B", "S9B", "C9C", "L9C", "D9C", "S9C",
-                "C9X", "L9X", "D9X", "S9X",
-            ];
-        };
         match obs {
             Observable::Phase(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
                 let code = code.as_str();
-                if L5_CODES.contains(&code) {
+                if Self::irnl5_codes().contains(&code) {
                     Ok(Self::L5)
-                } else if S_CODES.contains(&code) {
+                } else if Self::irn_s_codes().contains(&code) {
                     Ok(Self::S)
                 } else {
                     Err(Error::UnknownObservable(code.to_string()))
@@ -532,7 +639,7 @@ impl Carrier {
             Constellation::QZSS => Self::from_qzss_observable(observable),
             Constellation::Geo | Constellation::SBAS(_) => Self::from_geo_observable(observable),
             Constellation::IRNSS => Self::from_irnss_observable(observable),
-            _ => todo!("from_xxx_observable()"),
+            _ => todo!("from_\"{}:{}\"_observable()", constellation, observable),
         }
     }
 
@@ -555,7 +662,6 @@ impl Carrier {
             },
             Constellation::Galileo => match sv.prn {
                 1 => Ok(Self::E1),
-                2 => Ok(Self::E2),
                 5 => Ok(Self::E5a),
                 6 => Ok(Self::E6),
                 7 => Ok(Self::E5b),

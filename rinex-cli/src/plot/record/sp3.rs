@@ -45,7 +45,7 @@ pub fn plot_residual_ephemeris(ctx: &QcContext, plot_ctx: &mut PlotContext) {
         }
         let sv_position = nav
             .sv_position()
-            .filter_map(|(t, (nav_sv, x_km, y_km, z_km))| {
+            .filter_map(|(t, nav_sv, (x_km, y_km, z_km))| {
                 if sv == nav_sv {
                     Some((t, (x_km, y_km, z_km)))
                 } else {

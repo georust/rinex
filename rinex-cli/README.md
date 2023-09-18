@@ -108,6 +108,13 @@ if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
 - other advanced operations are documented in the [processing](doc/processing.md) suite
 
+## Positioning
+
+`rinex-cli` integrates a position solver that will resolve the user location 
+the best it can, from the provided RINEX context. This mode in requested with `-p`.
+
+To learn how to operate the solver, refer to [the dedicated page](doc/positioning.md).
+
 ## Getting started
 
 Download the latest release for your architecture 

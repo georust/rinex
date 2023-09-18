@@ -1,33 +1,5 @@
-use super::prelude::*;
 //use thiserror::Error;
 //use std::str::FromStr;
-
-pub trait GnssTime {
-    /// Returns a serie formed by all epochs contained in
-    /// Self, in the form of a [hifitime::TimeSeries].
-    fn timeseries(&self, dt: Duration) -> TimeSeries;
-    /// Copies and converts all Epochs contained in this
-    /// record set, to desired [hifitime::TimeScale]
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::gnss_time::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
-    ///     .unwrap();
-    /// // default definition
-    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
-    /// ```
-    fn with_timescale(&self, ts: TimeScale) -> Self;
-    /// Convers Self (entire record set) to specified [hifitime::TimeScale]
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::gnss_time::*;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
-    ///     .unwrap();
-    /// // default definition
-    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
-    /// ```
-    fn convert_timescale(&mut self, ts: TimeScale);
-}
 
 /*
 /// System Time corrections decoding error

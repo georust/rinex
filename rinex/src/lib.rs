@@ -85,7 +85,6 @@ pub mod preprocessing {
 extern crate horrorshow;
 
 use carrier::Carrier;
-use gnss_time::GnssTime;
 use prelude::*;
 
 pub use merge::Merge;
@@ -306,27 +305,6 @@ impl Rinex {
                 prog: "rust-crinex".to_string(),
             });
         }
-    }
-
-    /// Returns [`TimeScale`] used in this RINEX
-    pub fn timescale(&self) -> Option<TimeScale> {
-        /*
-         * all epochs share the same timescale,
-         * by construction & definition.
-         * No need to test other epochs */
-        self.epoch().next().map(|e| e.time_scale)
-    }
-
-    /// Converts self into given [`TimeScale`]
-    pub fn into_timescale(&mut self, ts: TimeScale) {
-        self.record.convert_timescale(ts);
-    }
-
-    /// Converts self to given timescale
-    pub fn with_timescale(&self, ts: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.into_timescale(ts);
-        s
     }
 
     /// Converts a CRINEX (compressed RINEX) into readable RINEX.
@@ -1986,6 +1964,19 @@ impl Rinex {
             })
         }))
     }
+    /// Returns an Iterator over fractional pseudo range observations
+    pub fn pseudo_range_fract(
+        &self,
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+        Box::new(self.pseudo_range().filter_map(|(e, sv, observable, pr)| {
+            if let Some(t) = observable.code_length(sv.constellation) {
+                let c = 299792458_f64; // speed of light
+                Some((e, sv, observable, pr / c / t))
+            } else {
+                None
+            }
+        }))
+    }
     /// Returns an iterator over doppler shifts. A positive doppler
     /// means Sv is moving towards receiver.
     /// ```
@@ -2061,6 +2052,69 @@ impl Rinex {
                     .filter_map(|(obs, obsdata)| obsdata.snr.map(|snr| (*e, *sv, obs, snr)))
             })
         }))
+    }
+    /// Returns an Iterator over "complete" Epochs.
+    /// "Complete" Epochs are Epochs were both Phase and Pseudo Range
+    /// observations are present on two carriers, sane sampling conditions are met
+    /// and an optional minimal SNR criteria is met (disregarded if None).
+    pub fn complete_epoch(
+        &self,
+        min_snr: Option<Snr>,
+    ) -> Box<dyn Iterator<Item = (Epoch, Vec<(Sv, Carrier)>)> + '_> {
+        Box::new(
+            self.observation()
+                .filter_map(|((e, flag), (_, vehicles))| {
+                    if flag.is_ok() {
+                        let mut list: Vec<(Sv, Carrier)> = Vec::new();
+                        for (sv, observables) in vehicles {
+                            let mut l1_pr_ph = (false, false);
+                            let mut lx_pr_ph: HashMap<Carrier, (bool, bool)> = HashMap::new();
+                            let mut criteria_met = true;
+                            for (observable, observation) in observables {
+                                if !observable.is_phase_observable()
+                                    && !observable.is_pseudorange_observable()
+                                {
+                                    continue; // not interesting here
+                                }
+                                let carrier_code = &observable.to_string()[1..2];
+                                let carrier =
+                                    Carrier::from_observable(sv.constellation, observable);
+                                if carrier.is_err() {
+                                    // fail to identify this signal
+                                    continue;
+                                }
+                                let carrier = carrier.unwrap();
+                                if carrier == Carrier::L1 {
+                                    l1_pr_ph.0 |= observable.is_pseudorange_observable();
+                                    l1_pr_ph.1 |= observable.is_phase_observable();
+                                } else {
+                                    if let Some((lx_pr, lx_ph)) = lx_pr_ph.get_mut(&carrier) {
+                                        *lx_pr |= observable.is_pseudorange_observable();
+                                        *lx_ph |= observable.is_phase_observable();
+                                    } else {
+                                        if observable.is_pseudorange_observable() {
+                                            lx_pr_ph.insert(carrier, (true, false));
+                                        } else if observable.is_phase_observable() {
+                                            lx_pr_ph.insert(carrier, (false, true));
+                                        }
+                                    }
+                                }
+                            }
+                            if l1_pr_ph == (true, true) {
+                                for (carrier, (pr, ph)) in lx_pr_ph {
+                                    if pr == true && ph == true {
+                                        list.push((*sv, carrier));
+                                    }
+                                }
+                            }
+                        }
+                        Some((*e, list))
+                    } else {
+                        None
+                    }
+                })
+                .filter(|(sv, list)| !list.is_empty()),
+        )
     }
 }
 
@@ -2185,24 +2239,84 @@ impl Rinex {
             })
         }))
     }
-    /// Returns iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
+    /// Select Ephemeris data for given Sv at desired Epoch "t"
+    /// using closest TOE in time
+    pub fn sv_ephemeris(&self, sv: Sv, t: Epoch) -> Option<(Epoch, Ephemeris)> {
+        /* ephemeris data for this sv */
+        let ephemeris_toe = self.ephemeris().filter_map(|(toc, (_, svnn, eph))| {
+            if *svnn == sv {
+                let ts = sv.constellation.timescale()?;
+                if let Some(toe) = eph.toe(ts) {
+                    Some((toc, eph, toe))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+        let max_dtoe = Ephemeris::max_dtoe(sv.constellation)?;
+        // search for ephemeris with closest toe
+        let mut ret: Option<(Epoch, Ephemeris, Duration)> = None;
+
+        for (toc, ephemeris, toe) in ephemeris_toe {
+            let dt = t - toe;
+            if dt <= max_dtoe {
+                // allowed
+                if let Some((ref mut ttoc, ref mut ep, ref mut ddt)) = ret.as_mut() {
+                    *ep = ephemeris.clone();
+                    *ddt = dt;
+                    *ttoc = *toc;
+                } else {
+                    ret = Some((*toc, ephemeris.clone(), dt));
+                }
+            }
+        }
+        let (toc, ephemeris, _) = ret?;
+        Some((toc, ephemeris))
+    }
+    /// Returns an Iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)
     /// ```
     /// use rinex::prelude::*;
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
-    /// for (epoch, (sv, (offset, clock_dr, clock_drr))) in rinex.sv_clock() {
+    /// for (epoch, sv, (offset, drift, drift_rate)) in rinex.sv_clock() {
     ///     // sv: satellite vehicle
     ///     // offset [s]
-    ///     // dr: clock drift [s.s⁻¹]
-    ///     // drr: clock drift rate [s.s⁻²]
+    ///     // clock drift [s.s⁻¹]
+    ///     // clock drift rate [s.s⁻²]
     /// }
     /// ```
-    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, (f64, f64, f64)))> + '_> {
+    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
         Box::new(
             self.ephemeris()
-                .map(|(e, (_, sv, data))| (*e, (*sv, data.sv_clock()))),
+                .map(|(e, (_, sv, data))| (*e, *sv, data.sv_clock())),
         )
+    }
+    /// Returns Sv clock bias, at desired t_tx that should be expressed
+    /// in correct timescale.
+    pub fn sv_clock_bias(&self, sv: Sv, t_tx: Epoch) -> Option<Duration> {
+        let (toc, ephemeris) = self.sv_ephemeris(sv, t_tx)?;
+        let (a0, a1, a2) = ephemeris.sv_clock();
+        match sv.constellation {
+            Constellation::Glonass => {
+                //GLONASST not supported
+                //let ts = sv.constellation.timescale()?;
+                //let toe = ephemeris.toe()?;
+                //let dt = (t_tx - toe).to_seconds();
+                //Some(Duration::from_seconds(-a0 + a1 * dt))
+                None
+            },
+            Constellation::Geo | Constellation::SBAS(_) => {
+                let dt = (t_tx - toc).to_seconds();
+                Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
+            },
+            _ => {
+                let dt = (t_tx - toc).to_seconds();
+                Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
+            },
+        }
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed in km ECEF for all Epochs.
@@ -2213,25 +2327,116 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// for (epoch, (sv, x, y, z)) in rinex.sv_position() {
+    /// for (epoch, sv, (x, y, z)) in rinex.sv_position() {
     ///     // sv: satellite vehicle
     ///     // x: x(t) [km ECEF]
     ///     // y: y(t) [km ECEF]
     ///     // z: z(t) [km ECEF]
     /// }
     /// ```
-    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
         Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
             if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
-                Some((*e, (*sv, x, y, z)))
+                Some((*e, *sv, (x, y, z)))
             } else {
-                // we might not be able to evaluate (x, y, z)
-                // for every single epoch, for example if some
-                // ephemeris parameters (Kepler, Perturbations)
-                // are missing for this epoch
+                // non feasible calculations.
+                // most likely due to missing Keplerian parameters,
+                // at this Epoch
                 None
             }
         }))
+    }
+    /// Interpolates SV position, expressed in meters ECEF at desired Epoch `t`.
+    /// An interpolation order of at least 7 is recommended.
+    /// Operation is not feasible if sampling interval cannot be determined.
+    /// In ideal scenarios, Broadcast Ephemeris are complete and evenly spaced in time:
+    ///   - the first Epoch we an interpolate is ](N +1)/2 * τ; ...]
+    ///   - the last Epoch we an interpolate is  [..;  T - (N +1)/2 * τ]
+    /// where N is the interpolation order, τ the broadcast interval and T
+    /// the last broadcast message received.
+    /// This method is designed to minimize interpolation errors at the expense
+    /// of interpolatable Epochs. See [Bibliography::Japhet2021].
+    pub fn sv_position_interpolate(
+        &self,
+        sv: Sv,
+        t: Epoch,
+        order: usize,
+    ) -> Option<(f64, f64, f64)> {
+        let odd_order = order % 2 > 0;
+        let dt = match self.sample_rate() {
+            Some(dt) => dt,
+            None => match self.dominant_sample_rate() {
+                Some(dt) => dt,
+                None => {
+                    /*
+                     * Can't determine anything: not enough information
+                     */
+                    return None;
+                },
+            },
+        };
+
+        let sv_position: Vec<_> = self
+            .sv_position()
+            .filter_map(|(e, svnn, (x, y, z))| {
+                if sv == svnn {
+                    Some((e, (x, y, z)))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        /*
+         * Determine cloesest Epoch in time
+         */
+        let center = match sv_position.iter().find(|(e, _)| (*e - t).abs() < dt) {
+            Some(center) => center,
+            None => {
+                /*
+                 * Failed to determine central Epoch for this SV
+                 * empty data set: should not happen
+                 */
+                return None;
+            },
+        };
+        // println!("CENTRAL EPOCH: {:?}", center); // DEBUG
+        let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
+            Some(center) => center,
+            None => {
+                /* will never happen at this point */
+                return None;
+            },
+        };
+
+        let (min_before, min_after): (usize, usize) = match odd_order {
+            true => ((order + 1) / 2, (order + 1) / 2),
+            false => (order / 2, order / 2 + 1),
+        };
+
+        if center_pos < min_before || sv_position.len() - center_pos < min_after {
+            /* can't design time window */
+            return None;
+        }
+
+        let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
+        let offset = center_pos - min_before;
+
+        for i in 0..order + 1 {
+            let mut li = 1.0_f64;
+            let (e_i, (x_i, y_i, z_i)) = sv_position[offset + i];
+            for j in 0..order + 1 {
+                let (e_j, _) = sv_position[offset + j];
+                if j != i {
+                    li *= (t - e_j).to_seconds();
+                    li /= (e_i - e_j).to_seconds();
+                }
+            }
+            polynomials.0 += x_i * li;
+            polynomials.1 += y_i * li;
+            polynomials.2 += z_i * li;
+        }
+
+        Some(polynomials)
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed as geodetic coordinates, with latitude and longitude
@@ -2243,17 +2448,17 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// for (epoch, (sv, lat, lon, alt)) in rinex.sv_position_geo() {
+    /// for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo() {
     ///     // sv: satellite vehicle
     ///     // lat [ddeg]
     ///     // lon [ddeg]
     ///     // alt: [m ECEF]
     /// }
     /// ```
-    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
-        Box::new(self.sv_position().map(|(e, (sv, x, y, z))| {
+    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
+        Box::new(self.sv_position().map(|(e, sv, (x, y, z))| {
             let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
-            (e, (sv, lat, lon, alt))
+            (e, sv, (lat, lon, alt))
         }))
     }
     /// Returns Iterator over Sv speed vectors, expressed in km/s ECEF.
@@ -2270,7 +2475,7 @@ impl Rinex {
     /// //    // sv_z : km/s
     /// //}
     /// ```
-    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
         todo!("sv_speed");
         //Box::new(
         //    self.sv_position()

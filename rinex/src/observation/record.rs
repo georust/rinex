@@ -4,8 +4,8 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::{
-    constellation, epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split,
-    split::Split, sv, types::Type, version::Version, Carrier, Observable,
+    constellation, epoch, merge, merge::Merge, prelude::*, split, split::Split, sv, types::Type,
+    version::Version, Carrier, Observable,
 };
 
 use super::Snr;
@@ -711,30 +711,6 @@ impl Split for Record {
             }
         }
         Ok(ret)
-    }
-}
-
-impl GnssTime for Record {
-    fn timeseries(&self, dt: Duration) -> TimeSeries {
-        let epochs: Vec<_> = self.keys().collect();
-        TimeSeries::inclusive(
-            epochs.get(0).expect("failed to determine first epoch").0,
-            epochs
-                .get(epochs.len() - 1)
-                .expect("failed to determine last epoch")
-                .0,
-            dt,
-        )
-    }
-    fn convert_timescale(&mut self, ts: TimeScale) {
-        self.iter_mut()
-            .map(|((k, f), v)| ((k.in_time_scale(ts), f), v))
-            .count();
-    }
-    fn with_timescale(&self, ts: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.convert_timescale(ts);
-        s
     }
 }
 
