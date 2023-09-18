@@ -1,15 +1,30 @@
 use nyx_space::cosmic::eclipse::{eclipse_state, EclipseState};
 use nyx_space::cosmic::{Orbit, SPEED_OF_LIGHT};
-use nyx_space::md::prelude::{Arc, Bodies, Cosm, LightTimeCalc};
+use nyx_space::md::prelude::{Bodies, LightTimeCalc};
 use rinex::prelude::{Duration, Epoch, Sv};
 use rinex_qc::QcContext;
 use std::collections::HashMap;
-use thiserror::Error;
 
-mod opts;
-use opts::{PositioningMode, SolverOpts};
+extern crate nyx_space as nyx;
+
+use nyx::md::prelude::{Arc, Cosm};
 
 mod models;
+mod opts;
+
+pub mod prelude {
+    pub use crate::opts::PositioningMode;
+    pub use crate::opts::SolverOpts;
+    pub use crate::Solver;
+    pub use crate::SolverEstimate;
+    pub use crate::SolverType;
+}
+
+use opts::SolverOpts;
+
+use log::{debug, trace, warn};
+
+use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, Error)]
 pub enum Error {
@@ -68,11 +83,11 @@ pub struct Solver {
     /// Current epoch
     nth_epoch: usize,
     /// current estimate
-    pub estimate: Estimate,
+    pub estimate: SolverEstimate,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Estimate {
+pub struct SolverEstimate {
     /// Position estimate
     pub pos: (f64, f64, f64),
     /// Time offset estimate
@@ -88,7 +103,7 @@ impl Solver {
             initiated: false,
             opts: SolverOpts::default(solver),
             nth_epoch: 0,
-            estimate: Estimate::default(),
+            estimate: SolverEstimate::default(),
         })
     }
     pub fn init(&mut self, ctx: &mut QcContext) {
@@ -123,7 +138,7 @@ impl Solver {
         self.estimate.pos = self.opts.rcvr_position.into();
         self.initiated = true;
     }
-    pub fn run(&mut self, ctx: &mut QcContext) -> Option<(Epoch, Estimate)> {
+    pub fn run(&mut self, ctx: &mut QcContext) -> Option<(Epoch, SolverEstimate)> {
         if !self.initiated {
             self.init(ctx);
             trace!("solver initiated");
@@ -174,10 +189,18 @@ impl Solver {
         }
 
         /* remove sv in eclipse */
-        if self.solver == SolverType::PPP {
+        if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
             sv_pos.retain(|sv, (x_km, y_km, z_km)| {
-                let eclipsed =
-                    self.eclipsed(*x_km, *y_km, *z_km, t, self.opts.min_sv_sunlight_rate);
+                let state = self.eclipse_state(*x_km, *y_km, *z_km, t);
+                let eclipsed = match state {
+                    EclipseState::Umbra => true,
+                    EclipseState::Visibilis => false,
+                    EclipseState::Penumbra(r) => {
+                        debug!("{} state: {}", sv, state);
+                        r < min_rate
+                    },
+                };
+
                 if eclipsed {
                     debug!("dropping eclipsed {}", sv);
                 }
@@ -250,7 +273,7 @@ impl Solver {
     /*
      * Computes celestial angle condition
      */
-    fn eclipsed(&self, x_km: f64, y_km: f64, z_km: f64, epoch: Epoch, min_rate: f64) -> bool {
+    fn eclipse_state(&self, x_km: f64, y_km: f64, z_km: f64, epoch: Epoch) -> EclipseState {
         let sun_frame = self.cosmic.frame("Sun J2000");
         let earth_frame = self.cosmic.frame("EME2000");
         let sv_orbit = Orbit {
@@ -265,7 +288,6 @@ impl Solver {
             stm: None,
         };
         eclipse_state(&sv_orbit, sun_frame, earth_frame, &self.cosmic)
-            <= EclipseState::Penumbra(min_rate)
     }
     /*
      * Elects sv for this epoch

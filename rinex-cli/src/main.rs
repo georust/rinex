@@ -11,9 +11,6 @@ mod plot; // plotting operations
 mod preprocessing;
 use preprocessing::preprocess;
 
-mod solver; // position solver
-use solver::SolverType;
-
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
@@ -23,12 +20,14 @@ use rinex::{
     split::Split,
 };
 
+extern crate gnss_rtk as rtk;
+use rtk::prelude::{Solver, SolverOpts, SolverType};
+
 use rinex_qc::*;
 
 use cli::Cli;
 use identification::rinex_identification;
 use plot::PlotContext;
-use solver::Solver;
 
 extern crate pretty_env_logger;
 use pretty_env_logger::env_logger::Builder;
@@ -378,9 +377,11 @@ pub fn main() -> Result<(), rinex::Error> {
         } else {
             if cli.forced_spp() {
                 solver.solver = SolverType::SPP;
+                solver.opts = SolverOpts::default(SolverType::SPP);
                 warn!("position solver restricted to SPP mode");
             } else if cli.forced_ppp() {
                 solver.solver = SolverType::PPP;
+                solver.opts = SolverOpts::default(SolverType::PPP);
                 warn!("position solver forced to PPP mode");
             }
         }

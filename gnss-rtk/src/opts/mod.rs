@@ -1,6 +1,5 @@
-use crate::solver::SolverType;
-use rinex::prelude::Constellation;
-use rinex::prelude::GroundPosition;
+use crate::SolverType;
+use rinex::prelude::{Constellation, GroundPosition};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct SolverOpts {
@@ -31,7 +30,7 @@ pub struct SolverOpts {
     /// for not to be considered in Eclipse.
     /// A value closer to 0 means we tolerate fast Eclipse exit.
     /// A value closer to 1 is a stringent criteria: eclipse must be totally exited.
-    pub min_sv_sunlight_rate: f64,
+    pub min_sv_sunlight_rate: Option<f64>,
 }
 
 impl SolverOpts {
@@ -48,7 +47,7 @@ impl SolverOpts {
                 tropo: false,
                 iono: false,
                 tgd: false,
-                min_sv_sunlight_rate: 0.1,
+                min_sv_sunlight_rate: None,
             },
             SolverType::PPP => Self {
                 epsilon: 0.1_f64,
@@ -61,7 +60,7 @@ impl SolverOpts {
                 tropo: false,
                 iono: false,
                 tgd: false,
-                min_sv_sunlight_rate: 0.25,
+                min_sv_sunlight_rate: Some(0.3),
             },
         }
     }
