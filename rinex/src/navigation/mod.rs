@@ -41,7 +41,7 @@ pub enum Error {
     #[error("failed to parse sv clock fields")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("failed to identify class/type")]
     StrumError(#[from] strum::ParseError),
     #[error("failed to parse EPH message")]

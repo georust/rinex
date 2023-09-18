@@ -9,7 +9,7 @@ pub enum Error {
     #[error("missing data")]
     MissingData,
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("failed to parse data")]
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
@@ -37,7 +37,7 @@ impl StoMessage {
 
         let (epoch, rem) = line.split_at(23);
         let (system, _) = rem.split_at(5);
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_utc(epoch.trim())?;
 
         let line = match lines.next() {
             Some(l) => l,

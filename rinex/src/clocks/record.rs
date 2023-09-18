@@ -54,7 +54,7 @@ pub enum Error {
     #[error("unknown data code \"{0}\"")]
     UnknownDataCode(String),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("failed to parse # of data fields")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse data payload")]
@@ -187,7 +187,7 @@ pub(crate) fn parse_epoch(
        +2+1  // m
         +11; // s
     let (epoch, rem) = rem.split_at(offset);
-    let (epoch, _) = epoch::parse(epoch.trim())?;
+    let (epoch, _) = epoch::parse_utc(epoch.trim())?;
 
     // nb of data fields
     let (n, _) = rem.split_at(4);

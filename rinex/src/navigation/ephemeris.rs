@@ -18,7 +18,7 @@ pub enum Error {
     #[error("failed to parse data")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("sv parsing error")]
     SvParsing(#[from] sv::ParsingError),
     #[error("failed to identify timescale for sv \"{0}\"")]
@@ -191,9 +191,9 @@ impl Ephemeris {
             .constellation
             .to_timescale()
             .ok_or(Error::TimescaleIdentification(sv))?;
-        //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts);
+        //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
 
-        let (epoch, _) = epoch::parse_in_timescale(date.trim(), sv.constellation)?;
+        let (epoch, _) = epoch::parse_in_timescale(date.trim(), ts)?;
 
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
@@ -233,9 +233,8 @@ impl Ephemeris {
             .constellation
             .to_timescale()
             .ok_or(Error::TimescaleIdentification(sv))?;
-        //println!("V4 CONTENT \"{}\" TIMESCALE {}", line, ts);
-
-        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), sv.constellation)?;
+        //println!("V4 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);

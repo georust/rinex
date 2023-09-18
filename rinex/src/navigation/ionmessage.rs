@@ -27,7 +27,7 @@ pub enum Error {
     #[error("failed to parse float data")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
 }
 
 /// Klobuchar Parameters region
@@ -101,7 +101,7 @@ impl KbModel {
             },
         };
 
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_utc(epoch.trim())?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -165,7 +165,7 @@ impl NgModel {
             _ => return Err(Error::NgModelMissing2ndLine),
         };
 
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_utc(epoch.trim())?;
         let a = (
             f64::from_str(a0.trim())?,
             f64::from_str(a1.trim())?,
@@ -214,7 +214,7 @@ impl BdModel {
         };
         let (a7, a8) = line.split_at(23);
 
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_utc(epoch.trim())?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),

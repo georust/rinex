@@ -225,7 +225,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[3..22];
-        epoch::parse(&datestr).is_ok()
+        epoch::parse_utc(&datestr).is_ok()
     } else if v.major == 3 {
         // RINEX V3
         if line.len() < 24 {
@@ -239,7 +239,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[4..23];
-        epoch::parse(&datestr).is_ok()
+        epoch::parse_utc(&datestr).is_ok()
     } else {
         // Modern --> easy
         if let Some(c) = line.chars().nth(0) {

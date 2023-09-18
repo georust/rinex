@@ -8,7 +8,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("eop message missing 1st line")]
     EopMissing1stLine,
     #[error("eop message missing 2nd line")]
@@ -57,7 +57,7 @@ impl EopMessage {
         let (dut, rem) = rem.split_at(19);
         let (ddut, dddut) = rem.split_at(19);
 
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_utc(epoch.trim())?;
         let x = (
             f64::from_str(xp.trim()).unwrap_or(0.0_f64),
             f64::from_str(dxp.trim()).unwrap_or(0.0_f64),
