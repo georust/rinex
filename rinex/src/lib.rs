@@ -1529,13 +1529,14 @@ impl Rinex {
     /// List all [`Sv`] per epoch of appearance.
     /// ```
     /// use rinex::prelude::*;
+    /// use std::str::FromStr;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
     ///
     /// let mut data = rnx.sv_epoch();
     ///
     /// if let Some((epoch, vehicles)) = data.nth(0) {
-    ///     assert_eq!(epoch,Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0));
+    ///     assert_eq!(epoch, Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap());
     ///     let expected = vec![
     ///         Sv::new(Constellation::GPS, 03),
     ///         Sv::new(Constellation::GPS, 08),
