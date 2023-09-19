@@ -1023,30 +1023,6 @@ impl Rinex {
         }
     */
     /*
-        /// Applies Hatch filter to all Pseudo Range observations.
-        /// When feasible dual frequency dual code method is prefered
-        /// for optimal, fully unbiased smoothed PR.
-        /// PR observations get modified in place
-        pub fn observation_pseudorange_smoothing_mut(&mut self) {
-            if let Some(r) = self.record.as_mut_obs() {
-                for ((epoch, _), (_, svs)) in r {
-                    for (sv, observations) in svs {
-                        for (code, observation) in observations {
-
-                        }
-                    }
-                }
-            }
-        }
-
-        pub fn observation_pseudorange_smoothing(&self) -> Self {
-            let mut s = self.clone();
-            s.observation_pseudorange_smoothing();
-            s
-        }
-    */
-
-    /*
         /// Returns epochs where a so called "cycle slip" has been confirmed.
         /// We confirm a cycle slip by computing the double difference
         /// between self and `rhs` Observation RINEX.
