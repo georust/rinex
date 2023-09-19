@@ -33,9 +33,15 @@ mod test {
                     if is_gzip_encoded && !cfg!(feature = "flate2") {
                         continue; // do not run in this build configuration
                     }
-                    println!("Parsing file: \"{}\"", full_path);
+                    println!("Parsing \"{}\"", full_path);
                     let rinex = Rinex::from_file(full_path);
-                    assert_eq!(rinex.is_ok(), true);
+                    assert_eq!(
+                        rinex.is_ok(),
+                        true,
+                        "error parsing \"{}\": {:?}",
+                        full_path,
+                        rinex.err().unwrap()
+                    );
                     let rinex = rinex.unwrap();
 
                     match data {
@@ -46,9 +52,48 @@ mod test {
                             assert!(rinex.is_navigation_rinex());
                             assert!(rinex.epoch().next().is_some());
                             assert!(rinex.epoch().count() > 0); // all files have content
-                                                                /*
-                                                                 * Verify ION logical correctness
-                                                                 */
+                            assert!(rinex.navigation().count() > 0); // all files have content
+                                                                     /*
+                                                                      * Verify interpreted time scale, for all Sv
+                                                                      */
+                            //for (e, (_, sv, _)) in rinex.ephemeris() {
+                            //    /* verify toc correctness */
+                            //    match sv.constellation {
+                            //        Constellation::GPS
+                            //        | Constellation::QZSS
+                            //        //| Constellation::Geo
+                            //        //| Constellation::SBAS(_)
+                            //        => assert!(
+                            //            e.time_scale == TimeScale::GPST,
+                            //            "wrong {} timescale for sv {}",
+                            //            e.time_scale,
+                            //            sv
+                            //        ),
+                            //        //Constellation::BeiDou => assert!(
+                            //        //    e.time_scale == TimeScale::BDT,
+                            //        //    "wrong {} timescale for sv {}",
+                            //        //    e.time_scale,
+                            //        //    sv
+                            //        //),
+                            //        //Constellation::Galileo => assert!(
+                            //        //    e.time_scale == TimeScale::GST,
+                            //        //    "wrong {} timescale for sv {} @ {}",
+                            //        //    e.time_scale,
+                            //        //    sv,
+                            //        //    e
+                            //        //),
+                            //        Constellation::Glonass => assert!(
+                            //            e.time_scale == TimeScale::UTC,
+                            //            "wrong {} timescale for sv {}",
+                            //            e.time_scale,
+                            //            sv
+                            //        ),
+                            //        _ => {},
+                            //    }
+                            //}
+                            /*
+                             * Verify ION logical correctness
+                             */
                             for (_, (msg, sv, ion_msg)) in rinex.ionosphere_models() {
                                 match sv.constellation {
                                     Constellation::GPS => {
@@ -136,31 +181,35 @@ mod test {
                             assert!(rinex.header.obs.is_some());
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
-                                                                /*
-                                                                                            let gf = rinex.observation_gf_combinations();
-                                                                                            let nl = rinex.observation_nl_combinations();
-                                                                                            let wl = rinex.observation_wl_combinations();
-                                                                                            let mw = rinex.observation_mw_combinations();
+                            assert!(rinex.observation().count() > 0); // all files have content
+                                                                      /*
+                                                                       * test interpreted time scale
+                                                                       */
+                            /*
+                                                        let gf = rinex.observation_gf_combinations();
+                                                        let nl = rinex.observation_nl_combinations();
+                                                        let wl = rinex.observation_wl_combinations();
+                                                        let mw = rinex.observation_mw_combinations();
 
-                                                                                            let mut gf_combinations: Vec<_> = gf.keys().collect();
-                                                                                            let mut nl_combinations: Vec<_> = nl.keys().collect();
-                                                                                            let mut wl_combinations: Vec<_> = wl.keys().collect();
-                                                                                            let mut mw_combinations: Vec<_> = mw.keys().collect();
+                                                        let mut gf_combinations: Vec<_> = gf.keys().collect();
+                                                        let mut nl_combinations: Vec<_> = nl.keys().collect();
+                                                        let mut wl_combinations: Vec<_> = wl.keys().collect();
+                                                        let mut mw_combinations: Vec<_> = mw.keys().collect();
 
-                                                                                            gf_combinations.sort();
-                                                                                            nl_combinations.sort();
-                                                                                            wl_combinations.sort();
-                                                                                            mw_combinations.sort();
+                                                        gf_combinations.sort();
+                                                        nl_combinations.sort();
+                                                        wl_combinations.sort();
+                                                        mw_combinations.sort();
 
-                                                                                            assert_eq!(gf_combinations, nl_combinations);
-                                                                                            assert_eq!(gf_combinations, wl_combinations);
-                                                                                            assert_eq!(gf_combinations, mw_combinations);
+                                                        assert_eq!(gf_combinations, nl_combinations);
+                                                        assert_eq!(gf_combinations, wl_combinations);
+                                                        assert_eq!(gf_combinations, mw_combinations);
 
-                                                                                            assert_eq!(nl_combinations, wl_combinations);
-                                                                                            assert_eq!(nl_combinations, mw_combinations);
+                                                        assert_eq!(nl_combinations, wl_combinations);
+                                                        assert_eq!(nl_combinations, mw_combinations);
 
-                                                                                            assert_eq!(wl_combinations, mw_combinations);
-                                                                */
+                                                        assert_eq!(wl_combinations, mw_combinations);
+                            */
                         },
                         "CRNX" => {
                             assert!(rinex.header.obs.is_some());
@@ -170,14 +219,38 @@ mod test {
                         "MET" => {
                             assert!(rinex.is_meteo_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
+                            assert!(rinex.meteo().count() > 0); // all files have content
+                            for (e, _) in rinex.meteo() {
+                                assert!(
+                                    e.time_scale == TimeScale::UTC,
+                                    "wrong {} time scale for a METEO RINEX",
+                                    e.time_scale
+                                );
+                            }
                         },
                         "CLK" => {
                             assert!(rinex.is_clocks_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
+                            let record = rinex.record.as_clock().unwrap();
+                            for (e, _) in record {
+                                assert!(
+                                    e.time_scale == TimeScale::UTC,
+                                    "wrong {} timescale for a CLOCK RINEX",
+                                    e.time_scale
+                                );
+                            }
                         },
                         "IONEX" => {
                             assert!(rinex.is_ionex());
                             assert!(rinex.epoch().count() > 0); // all files have content
+                            let record = rinex.record.as_ionex().unwrap();
+                            for (e, _) in record {
+                                assert!(
+                                    e.time_scale == TimeScale::UTC,
+                                    "wrong {} timescale for a IONEX",
+                                    e.time_scale
+                                );
+                            }
                         },
                         _ => unreachable!(),
                     }

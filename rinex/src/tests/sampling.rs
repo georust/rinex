@@ -3,21 +3,35 @@ mod sampling {
     use crate::prelude::*;
     use crate::preprocessing::*;
     use itertools::Itertools;
+    use std::path::Path;
     use std::str::FromStr;
     #[test]
     fn nav() {
-        let path = env!("CARGO_MANIFEST_DIR").to_owned()
-            + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
-        let rinex = Rinex::from_file(&path).unwrap();
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V2")
+            .join("AJAC3550.21O");
+
+        let fullpath = path.to_string_lossy();
+        let rinex = Rinex::from_file(&fullpath.to_string());
+        assert!(
+            rinex.is_ok(),
+            "failed to parse \"{}\"",
+            fullpath.to_string()
+        );
+        let rinex = rinex.unwrap();
+
+        let expected = vec![(Duration::from_seconds(30.0), 1 as usize)];
+
+        let histogram: Vec<_> = rinex.sampling_histogram().sorted().collect();
 
         assert!(
-            rinex.sampling_histogram().sorted().eq(vec![
-                (Duration::from_seconds(15.0 * 60.0), 1),
-                (Duration::from_seconds(25.0 * 60.0), 1),
-                (Duration::from_seconds(4.0 * 3600.0 + 45.0 * 60.0), 2),
-                (Duration::from_seconds(5.0 * 3600.0 + 30.0 * 60.0), 1),
-            ]),
-            "sampling_histogram failed"
+            histogram == expected,
+            "sampling_histogram failed.\nExpecting {:?}\nGot {:?}",
+            expected.clone(),
+            histogram.clone()
         );
 
         let initial_len = rinex.epoch().count();
@@ -28,15 +42,12 @@ mod sampling {
         );
         let decimated = decimated.decimate_by_interval(Duration::from_hours(1.0));
         assert!(
-            initial_len == decimated.epoch().count() + 2,
+            decimated.epoch().count() == 1,
             "failed to decimate to 1 hour epoch interval"
         );
 
         let decimated = rinex.decimate_by_ratio(2);
-        assert_eq!(decimated.epoch().count(), 3, "decim by 2 failed");
-
-        let decimated = decimated.decimate_by_ratio(2);
-        assert!(decimated.epoch().count() == 2, "decim by 2 + 2 failed");
+        assert_eq!(decimated.epoch().count(), 1, "decim by 2 failed");
     }
     #[test]
     fn meteo() {

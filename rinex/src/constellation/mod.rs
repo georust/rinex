@@ -146,8 +146,20 @@ impl Constellation {
             Err(ParsingError::Unrecognized(code.to_string()))
         }
     }
+    /// Converts self into time scale
+    pub fn to_timescale(&self) -> Option<TimeScale> {
+        match self {
+            Self::GPS | Self::QZSS => Some(TimeScale::GPST),
+            Self::Galileo => Some(TimeScale::GST),
+            Self::BeiDou => Some(TimeScale::BDT),
+            Self::Geo | Self::SBAS(_) => Some(TimeScale::GPST),
+            // this is wrong but we can't do better
+            Self::Glonass | Self::IRNSS => Some(TimeScale::UTC),
+            _ => None,
+        }
+    }
     /// Converts self to 1 letter code (RINEX standard code)
-    pub fn to_1_letter_code(&self) -> &str {
+    pub(crate) fn to_1_letter_code(&self) -> &str {
         match self {
             Self::GPS => "G",
             Self::Glonass => "R",

@@ -13,6 +13,7 @@ use crate::{
     Observable,
 };
 
+use hifitime::Epoch;
 use std::io::prelude::*;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -798,6 +799,12 @@ impl Header {
                 // + source of corrections (url)
                 // <o repeated for each satellite system
                 // <o blank field when no corrections applied
+            } else if marker.contains("TIME OF FIRST OBS") {
+                let time_of_first_obs = Self::parse_time_of_obs(content)?;
+                observation = observation.with_time_of_first_obs(time_of_first_obs);
+            } else if marker.contains("TIME OF LAST OBS") {
+                let time_of_last_obs = Self::parse_time_of_obs(content)?;
+                observation = observation.with_time_of_last_obs(time_of_last_obs);
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
                 let (_, content) = content.split_at(6);
@@ -1359,6 +1366,14 @@ impl Header {
                 if let Some(d0) = &self.obs {
                     if let Some(d1) = &header.obs {
                         Some(observation::HeaderFields {
+                            time_of_first_obs: std::cmp::min(
+                                d0.time_of_first_obs,
+                                d1.time_of_first_obs,
+                            ),
+                            time_of_last_obs: std::cmp::max(
+                                d0.time_of_last_obs,
+                                d1.time_of_last_obs,
+                            ),
                             crinex: d0.crinex.clone(),
                             codes: {
                                 let mut map = d0.codes.clone();
@@ -1647,6 +1662,57 @@ impl Header {
         s.obs = Some(fields);
         s
     }
+
+    fn parse_time_of_obs(content: &str) -> Result<Epoch, ParsingError> {
+        let (_, rem) = content.split_at(2);
+        let (y, rem) = rem.split_at(4);
+        let (m, rem) = rem.split_at(6);
+        let (d, rem) = rem.split_at(6);
+        let (hh, rem) = rem.split_at(6);
+        let (mm, rem) = rem.split_at(6);
+        let (ss, rem) = rem.split_at(5);
+        let (_dot, rem) = rem.split_at(1);
+        let (ns, rem) = rem.split_at(8);
+
+        // println!("Y \"{}\" M \"{}\" D \"{}\" HH \"{}\" MM \"{}\" SS \"{}\" NS \"{}\"", y, m, d, hh, mm, ss, ns); // DEBUG
+        let y = u32::from_str_radix(y.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("year"), y.to_string()))?;
+
+        let m = u8::from_str_radix(m.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("months"), m.to_string()))?;
+
+        let d = u8::from_str_radix(d.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("days"), d.to_string()))?;
+
+        let hh = u8::from_str_radix(hh.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("hours"), hh.to_string()))?;
+
+        let mm = u8::from_str_radix(mm.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("minutes"), mm.to_string()))?;
+
+        let ss = u8::from_str_radix(ss.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("seconds"), ss.to_string()))?;
+
+        let ns = u32::from_str_radix(ns.trim(), 10)
+            .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
+
+        /* timescale might be missing in OLD RINEX: we handle that externally */
+        let mut ts = TimeScale::TAI;
+
+        let rem = rem.trim();
+        if rem.len() > 0 {
+            // println!("TS \"{}\"", rem); // DBEUG
+            ts = TimeScale::from_str(rem.trim()).map_err(|_| {
+                ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
+            })?;
+        }
+
+        Ok(Epoch::from_str(&format!(
+            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:08} {}",
+            y, m, d, hh, mm, ss, ns, ts
+        ))
+        .map_err(|_| ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string()))?)
+    }
 }
 
 impl std::fmt::Display for Header {
@@ -1775,6 +1841,49 @@ impl std::fmt::Display for Header {
         match self.rinex_type {
             Type::ObservationData => {
                 if let Some(obs) = &self.obs {
+                    if let Some(time_of_first_obs) = obs.time_of_first_obs {
+                        //TODO: hifitime does not have a gregorian decomposition method at the moment
+                        let offset = match time_of_first_obs.time_scale {
+                            TimeScale::GPST => Duration::from_seconds(19.0),
+                            TimeScale::GST => Duration::from_seconds(35.0),
+                            TimeScale::BDT => Duration::from_seconds(35.0),
+                            _ => Duration::default(),
+                        };
+                        let (y, m, d, hh, mm, ss, nanos) = (time_of_first_obs).to_gregorian_utc();
+                        let mut descriptor = format!(
+                            "  {:04}    {:02}    {:02}    {:02}    {:02}   {:02}.{:07}     {:x}",
+                            y, m, d, hh, mm, ss, nanos, time_of_first_obs.time_scale
+                        );
+                        descriptor.push_str(&format!(
+                            "{:<width$}",
+                            "",
+                            width = 60 - descriptor.len()
+                        ));
+                        descriptor.push_str("TIME OF FIRST OBS\n");
+                        write!(f, "{}", descriptor)?;
+                    }
+                    if let Some(time_of_last_obs) = obs.time_of_last_obs {
+                        //TODO: hifitime does not have a gregorian decomposition method at the moment
+                        let offset = match time_of_last_obs.time_scale {
+                            TimeScale::GPST => Duration::from_seconds(19.0),
+                            TimeScale::GST => Duration::from_seconds(35.0),
+                            TimeScale::BDT => Duration::from_seconds(35.0),
+                            _ => Duration::default(),
+                        };
+                        let (y, m, d, hh, mm, ss, nanos) =
+                            (time_of_last_obs + offset).to_gregorian_utc();
+                        let mut descriptor = format!(
+                            "  {:04}    {:02}    {:02}  {:02}   {:02}  {:02}.{:08}   {:x}",
+                            y, m, d, hh, mm, ss, nanos, time_of_last_obs.time_scale
+                        );
+                        descriptor.push_str(&format!(
+                            "{:<width$}",
+                            "",
+                            width = 60 - descriptor.len()
+                        ));
+                        descriptor.push_str("TIME OF LAST OBS\n");
+                        write!(f, "{}", descriptor)?;
+                    }
                     match self.version.major {
                         1 | 2 => {
                             // old revisions

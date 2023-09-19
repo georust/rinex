@@ -3,6 +3,7 @@ mod test {
     use crate::observable;
     use crate::sv;
     use crate::{header::*, observation::*, prelude::*};
+    use std::path::Path;
     use std::str::FromStr;
     /*
      * Helper: to create a list of observable
@@ -80,16 +81,21 @@ mod test {
     }
     #[test]
     fn v2_aopr0010_17o() {
-        let test_resource =
-            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/aopr0010.17o";
-        let rinex = Rinex::from_file(&test_resource);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V2")
+            .join("aopr0010.17o");
+        let fullpath = path.to_string_lossy();
+        let rinex = Rinex::from_file(&fullpath.to_string());
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
 
         let epochs: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2017, 01, 01, 0, 0, 0, 0),
-            Epoch::from_gregorian_utc(2017, 01, 01, 3, 33, 40, 0),
-            Epoch::from_gregorian_utc(2017, 01, 01, 6, 9, 10, 0),
+            Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap(),
+            Epoch::from_str("2017-01-01T03:33:40 GPST").unwrap(),
+            Epoch::from_str("2017-01-01T06:09:10 GPST").unwrap(),
         ];
 
         let observables = create_observ_list(vec!["L1", "L2", "P1", "P2", "C1"]);
@@ -192,9 +198,14 @@ mod test {
     }
     #[test]
     fn v2_npaz3550_21o() {
-        let test_resource =
-            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/npaz3550.21o";
-        let rinex = Rinex::from_file(&test_resource);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V2")
+            .join("npaz3550.21o");
+        let fullpath = path.to_string_lossy();
+        let rinex = Rinex::from_file(&fullpath.to_string());
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
         //testbench(&rinex, 2, 11, Constellation::Mixed, epochs);
@@ -237,7 +248,7 @@ mod test {
         );
 
         // test epoch [1]
-        let epoch = Epoch::from_gregorian_utc(2021, 12, 21, 0, 0, 0, 0);
+        let epoch = Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap();
         let flag = EpochFlag::Ok;
         let epoch = record.get(&(epoch, flag));
         assert_eq!(epoch.is_some(), true);
@@ -339,12 +350,16 @@ mod test {
     }
     #[test]
     fn v2_rovn0010_21o() {
-        let test_resource =
-            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/rovn0010.21o";
-        let rinex = Rinex::from_file(&test_resource);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V2")
+            .join("rovn0010.21o");
+        let fullpath = path.to_string_lossy();
+        let rinex = Rinex::from_file(&fullpath.to_string());
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-
         /*
          * Header tb
          */
@@ -415,7 +430,7 @@ mod test {
         );
 
         // test epoch [1]
-        let epoch = Epoch::from_gregorian_utc(2021, 01, 01, 0, 0, 0, 0);
+        let epoch = Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap();
         let epoch = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(epoch.is_some(), true);
         let (clk_offset, epoch) = epoch.unwrap();
@@ -559,9 +574,14 @@ mod test {
     }
     #[test]
     fn v3_duth0630() {
-        let resource =
-            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V3/DUTH0630.22O";
-        let rinex = Rinex::from_file(&resource);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V3")
+            .join("DUTH0630.22O");
+        let fullpath = path.to_string_lossy();
+        let rinex = Rinex::from_file(&fullpath.to_string());
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
         assert_eq!(rinex.header.obs.is_some(), true);
@@ -605,16 +625,19 @@ mod test {
          * Test epochs
          */
         let expected: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2022, 03, 04, 00, 00, 00, 00),
-            Epoch::from_gregorian_utc(2022, 03, 04, 00, 28, 30, 00),
-            Epoch::from_gregorian_utc(2022, 03, 04, 00, 57, 00, 00),
+            Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap(),
+            Epoch::from_str("2022-03-04T00:28:30 GPST").unwrap(),
+            Epoch::from_str("2022-03-04T00:57:00 GPST").unwrap(),
         ];
+
+        let content: Vec<_> = rinex.epoch().collect();
         assert!(
-            rinex.epoch().collect::<Vec<Epoch>>() == expected,
-            "parsed wrong epoch content"
+            expected == content,
+            "parsed wrong epoch content {:?}",
+            content,
         );
 
-        let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 0, 0, 0, 0);
+        let epoch = Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
         let (clk, vehicles) = e.unwrap();
@@ -683,14 +706,14 @@ mod test {
         let l1c = data.get(&Observable::from_str("L1C").unwrap());
         assert_eq!(l1c.is_some(), true);
 
-        let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 00, 28, 30, 00);
+        let epoch = Epoch::from_str("2022-03-04T00:28:30 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
         let (clk, vehicles) = e.unwrap();
         assert_eq!(clk.is_none(), true);
         assert_eq!(vehicles.len(), 17);
 
-        let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 00, 57, 0, 0);
+        let epoch = Epoch::from_str("2022-03-04T00:57:00 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
         let (clk, vehicles) = e.unwrap();
@@ -753,23 +776,39 @@ mod test {
     }
     #[test]
     fn v2_kosg0010_95o() {
-        let rnx = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O").unwrap();
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V2")
+            .join("KOSG0010.95O");
+        let fullpath = path.to_string_lossy();
+        let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
         let expected: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(1995, 01, 01, 00, 00, 00, 00),
-            Epoch::from_gregorian_utc(1995, 01, 01, 11, 00, 00, 00),
-            Epoch::from_gregorian_utc(1995, 01, 01, 20, 44, 30, 00),
+            Epoch::from_str("1995-01-01T00:00:00 GPST").unwrap(),
+            Epoch::from_str("1995-01-01T11:00:00 GPST").unwrap(),
+            Epoch::from_str("1995-01-01T20:44:30 GPST").unwrap(),
         ];
+        let content: Vec<_> = rnx.epoch().collect();
         assert!(
-            rnx.epoch().collect::<Vec<Epoch>>() == expected,
-            "parsed wrong epoch content"
+            expected == content,
+            "parsed wrong epoch content {:?}",
+            content,
         );
     }
     #[test]
     fn v2_ajac3550() {
-        let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O").unwrap();
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V2")
+            .join("AJAC3550.21O");
+        let fullpath = path.to_string_lossy();
+        let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
         let epochs: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2021, 12, 21, 0, 0, 0, 0),
-            Epoch::from_gregorian_utc(2021, 12, 21, 0, 0, 30, 0),
+            Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+            Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
         ];
 
         assert!(
@@ -993,12 +1032,19 @@ mod test {
     }
     #[test]
     fn v3_noa10630() {
-        let rnx = Rinex::from_file("../test_resources/OBS/V3/NOA10630.22O").unwrap();
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V3")
+            .join("NOA10630.22O");
+        let fullpath = path.to_string_lossy();
+        let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
         let expected: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2022, 03, 04, 00, 00, 00, 00),
-            Epoch::from_gregorian_utc(2022, 03, 04, 00, 00, 30, 0),
-            Epoch::from_gregorian_utc(2022, 03, 04, 00, 01, 0, 0),
-            Epoch::from_gregorian_utc(2022, 03, 04, 00, 52, 30, 0),
+            Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap(),
+            Epoch::from_str("2022-03-04T00:00:30 GPST").unwrap(),
+            Epoch::from_str("2022-03-04T00:01:00 GPST").unwrap(),
+            Epoch::from_str("2022-03-04T00:52:30 GPST").unwrap(),
         ];
         assert!(
             rnx.epoch().collect::<Vec<Epoch>>() == expected,

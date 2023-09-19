@@ -14,7 +14,7 @@ use hifitime::Duration;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochError(#[from] epoch::ParsingError),
     #[error("constellation parsing error")]
     ConstellationParsing(#[from] constellation::ParsingError),
     #[error("sv parsing error")]
@@ -141,7 +141,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         if line.len() < 30 {
             false
         } else {
-            epoch::parse(&line[0..29]).is_ok()
+            epoch::parse_utc(&line[0..29]).is_ok()
         }
     } else {
         // Modern RINEX
@@ -161,6 +161,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
 pub(crate) fn parse_epoch(
     header: &Header,
     content: &str,
+    ts: TimeScale,
 ) -> Result<
     (
         (Epoch, EpochFlag),
@@ -196,7 +197,7 @@ pub(crate) fn parse_epoch(
     let (date, rem) = line.split_at(offset + 3);
     let (n_sat, rem) = rem.split_at(3);
     let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
-    let epoch = epoch::parse(date)?;
+    let epoch = epoch::parse_in_timescale(date, ts)?;
 
     // previously identified observables (that we expect)
     let obs = header.obs.as_ref().unwrap();

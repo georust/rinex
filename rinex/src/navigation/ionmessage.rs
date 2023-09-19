@@ -27,7 +27,7 @@ pub enum Error {
     #[error("failed to parse float data")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
 }
 
 /// Klobuchar Parameters region
@@ -62,7 +62,10 @@ pub struct KbModel {
 }
 
 impl KbModel {
-    pub(crate) fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub(crate) fn parse(
+        mut lines: std::str::Lines<'_>,
+        ts: TimeScale,
+    ) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::NgModelMissing1stLine),
@@ -101,7 +104,7 @@ impl KbModel {
             },
         };
 
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -151,7 +154,7 @@ pub struct NgModel {
 }
 
 impl NgModel {
-    pub fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub fn parse(mut lines: std::str::Lines<'_>, ts: TimeScale) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::NgModelMissing1stLine),
@@ -165,7 +168,7 @@ impl NgModel {
             _ => return Err(Error::NgModelMissing2ndLine),
         };
 
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
         let a = (
             f64::from_str(a0.trim())?,
             f64::from_str(a1.trim())?,
@@ -191,7 +194,7 @@ pub struct BdModel {
 }
 
 impl BdModel {
-    pub fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub fn parse(mut lines: std::str::Lines<'_>, ts: TimeScale) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::BdModelMissing1stLine),
@@ -214,7 +217,7 @@ impl BdModel {
         };
         let (a7, a8) = line.split_at(23);
 
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -283,7 +286,7 @@ mod test {
     -1.192092895508E-07 9.625600000000E+04 1.310720000000E+05-6.553600000000E+04
     -5.898240000000E+05 0.000000000000E+00";
         let content = content.lines();
-        let parsed = KbModel::parse(content);
+        let parsed = KbModel::parse(content, TimeScale::UTC);
         assert!(parsed.is_ok());
         let (epoch, message) = parsed.unwrap();
         assert_eq!(
@@ -315,7 +318,7 @@ mod test {
             "    2022 06 08 09 59 57 7.850000000000E+01 5.390625000000E-01 2.713012695312E-02
      0.000000000000E+00";
         let content = content.lines();
-        let parsed = NgModel::parse(content);
+        let parsed = NgModel::parse(content, TimeScale::UTC);
         assert!(parsed.is_ok());
         let (epoch, message) = parsed.unwrap();
         assert_eq!(
