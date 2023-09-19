@@ -730,55 +730,6 @@ impl Rinex {
         c.lli_and_mask_mut(mask);
         c
     }
-
-    /*
-        /// Applies given elevation mask
-        pub fn elevation_mask_mut(
-            &mut self,
-            mask: navigation::ElevationMask,
-            ref_pos: Option<(f64, f64, f64)>,
-        ) {
-            let ref_pos = match ref_pos {
-                Some(ref_pos) => ref_pos,
-                _ => self.header.coords.expect(
-                    "can't apply an elevation mask when ground/ref position is unknown.
-    Specify one yourself with `ref_pos`",
-                ),
-            };
-            if let Some(r) = self.record.as_mut_nav() {
-                r.retain(|epoch, classes| {
-                    classes.retain(|class, frames| {
-                        if *class == navigation::FrameClass::Ephemeris {
-                            frames.retain(|fr| {
-                                let (_, _, ephemeris) = fr.as_eph().unwrap();
-                                if let Some((el, _)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
-                                    mask.fits(el)
-                                } else {
-                                    false
-                                }
-                            });
-                            frames.len() > 0
-                        } else {
-                            // not an EPH
-                            true // keep it anyway
-                        }
-                    });
-                    classes.len() > 0
-                })
-            }
-        }
-    */
-    /*
-        pub fn elevation_mask(
-            &self,
-            mask: navigation::ElevationMask,
-            ref_pos: Option<(f64, f64, f64)>,
-        ) -> Self {
-            let mut s = self.clone();
-            s.elevation_mask_mut(mask, ref_pos);
-            s
-        }
-    */
     /// Aligns Phase observations at origin
     pub fn observation_phase_align_origin_mut(&mut self) {
         let mut init_phases: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
@@ -1778,6 +1729,8 @@ impl Rinex {
             })
         }))
     }
+    /// Returns a Unique Iterator over signal Codes, like "1C" or "1P"
+    /// for precision code.
     pub fn code(&self) -> Box<dyn Iterator<Item = String> + '_> {
         Box::new(
             self.observation()
