@@ -16,6 +16,7 @@ pub trait Split {
     /// ```
     /// use rinex::Split; // .split()
     /// use rinex::prelude::*; // Rinex
+    /// use std::str::FromStr;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();
     /// let epoch = Epoch::from_str("2021-01-01T00:01:00 GPST")
