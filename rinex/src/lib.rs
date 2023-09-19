@@ -1758,6 +1758,37 @@ impl Rinex {
                 .flat_map(|record| record.iter()),
         )
     }
+    /// Returns Navigation Data interator (any type of message).
+    /// NAV records may contain several different types of frames.
+    /// You should prefer narrowed down methods, like [ephemeris] or
+    /// [ionosphere_models] but those require the "nav" feature.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::navigation::NavMsgType;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
+    ///     .unwrap();
+    /// for (epoch, nav_frames) in rinex.navigation() {
+    ///     for frame in nav_frames {
+    ///         // this record only contains ephemeris frames
+    ///         assert!(frame.as_eph().is_some());
+    ///         assert!(frame.as_ion().is_none());
+    ///         assert!(frame.as_eop().is_none());
+    ///         assert!(frame.as_sto().is_none());
+    ///         if let Some((msg, sv, data)) = frame.as_eph() {
+    ///             // this record only contains legacy frames
+    ///             assert_eq!(msg, NavMsgType::LNAV);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn navigation(&self) -> Box<dyn Iterator<Item = (&Epoch, &Vec<NavFrame>)> + '_> {
+        Box::new(
+            self.record
+                .as_nav()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
 }
 
 #[cfg(feature = "obs")]
@@ -2138,35 +2169,6 @@ use map_3d::ecef2geodetic;
 #[cfg(feature = "nav")]
 #[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 impl Rinex {
-    /// Returns NAV frames interator (any types).
-    /// NAV record may contain several different types of frames.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::navigation::NavMsgType;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
-    ///     .unwrap();
-    /// for (epoch, nav_frames) in rinex.navigation() {
-    ///     for frame in nav_frames {
-    ///         // this record only contains ephemeris frames
-    ///         assert!(frame.as_eph().is_some());
-    ///         assert!(frame.as_ion().is_none());
-    ///         assert!(frame.as_eop().is_none());
-    ///         assert!(frame.as_sto().is_none());
-    ///         if let Some((msg, sv, data)) = frame.as_eph() {
-    ///             // this record only contains legacy frames
-    ///             assert_eq!(msg, NavMsgType::LNAV);
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub fn navigation(&self) -> Box<dyn Iterator<Item = (&Epoch, &Vec<NavFrame>)> + '_> {
-        Box::new(
-            self.record
-                .as_nav()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
-    }
     /// Returns a Unique Iterator over [`NavMsgType`]s that were identified
     /// ```
     /// use rinex::prelude::*;
