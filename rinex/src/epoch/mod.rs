@@ -1,4 +1,3 @@
-use crate::prelude::Constellation;
 use crate::types::Type;
 use hifitime::{Duration, Epoch, TimeScale};
 use std::str::FromStr;
