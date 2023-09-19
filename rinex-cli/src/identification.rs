@@ -57,16 +57,12 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
                 .min_by(|(e_a, sv_a, _, snr_a), (e_b, sv_b, _, snr_b)| snr_a.cmp(snr_b));
             if let Some(min) = min_snr {
                 println!("Min. SNR: {:#?}", min);
-            } else {
-                println!("No SNR data!");
             }
             let max_snr = rnx
                 .snr()
                 .max_by(|(e_a, sv_a, _, snr_a), (e_b, sv_b, _, snr_b)| snr_a.cmp(snr_b));
             if let Some(max) = max_snr {
                 println!("Max. SNR: {:#?}", max);
-            } else {
-                println!("No SNR data!");
             }
         } else if op.eq("orbits") {
             unimplemented!("nav::orbits");
