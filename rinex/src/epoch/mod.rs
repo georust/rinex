@@ -44,7 +44,13 @@ pub(crate) fn now() -> Epoch {
  * Formats given epoch to string, matching standard specifications
  */
 pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u8) -> String {
-    let (y, m, d, hh, mm, ss, nanos) = epoch.to_gregorian_utc();
+    // Hifitime V3 does not have a gregorian decomposition method
+    let (y, m, d, hh, mm, ss, nanos) = match epoch.time_scale {
+        TimeScale::GPST => (epoch + Duration::from_seconds(37.0)).to_gregorian_utc(),
+        TimeScale::GST => (epoch + Duration::from_seconds(19.0)).to_gregorian_utc(),
+        TimeScale::BDT => (epoch + Duration::from_seconds(19.0)).to_gregorian_utc(),
+        _ => epoch.to_gregorian_utc(),
+    };
 
     match t {
         Type::ObservationData => {

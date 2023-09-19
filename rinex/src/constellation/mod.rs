@@ -153,7 +153,8 @@ impl Constellation {
             Self::Galileo => Some(TimeScale::GST),
             Self::BeiDou => Some(TimeScale::BDT),
             Self::Geo | Self::SBAS(_) => Some(TimeScale::GPST),
-            Self::Glonass => Some(TimeScale::UTC),
+            // this is wrong but we can't do better
+            Self::Glonass | Self::IRNSS => Some(TimeScale::UTC),
             _ => None,
         }
     }

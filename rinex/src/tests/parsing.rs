@@ -33,9 +33,15 @@ mod test {
                     if is_gzip_encoded && !cfg!(feature = "flate2") {
                         continue; // do not run in this build configuration
                     }
-                    println!("Parsing file: \"{}\"", full_path);
+                    println!("Parsing \"{}\"", full_path);
                     let rinex = Rinex::from_file(full_path);
-                    assert_eq!(rinex.is_ok(), true);
+                    assert_eq!(
+                        rinex.is_ok(),
+                        true,
+                        "error parsing \"{}\": {:?}",
+                        full_path,
+                        rinex.err().unwrap()
+                    );
                     let rinex = rinex.unwrap();
 
                     match data {

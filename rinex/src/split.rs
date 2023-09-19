@@ -18,7 +18,8 @@ pub trait Split {
     /// use rinex::prelude::*; // Rinex
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();
-    /// let epoch = Epoch::from_gregorian_utc(2021, 01, 01, 0, 1, 00, 00);
+    /// let epoch = Epoch::from_str("2021-01-01T00:01:00 GPST")
+    ///   .unwrap();
     /// let (rnx_a, rnx_b) = rnx.split(epoch)
     ///     .unwrap();
     /// let epochs   : Vec<_> = rnx.epoch().collect();

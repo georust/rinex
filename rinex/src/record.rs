@@ -291,18 +291,20 @@ pub fn parse_record(
     //    [+] fixed system in case of old GPS/GLO Observation Data
     let mut obs_ts = TimeScale::default();
     if let Some(obs) = &header.obs {
-        if let Some(time_of_first_obs) = obs.time_of_first_obs {
-            obs_ts = time_of_first_obs.time_scale
-        } else {
-            let constellation = header
-                .constellation
-                .ok_or(Error::BadObservationDataDefinition)?;
-            obs_ts = constellation
-                .to_timescale()
-                .ok_or(Error::ObservationDataTimescaleIdentification)?;
+        match header.constellation {
+            Some(Constellation::Mixed) | None => {
+                let time_of_first_obs = obs
+                    .time_of_first_obs
+                    .ok_or(Error::BadObservationDataDefinition)?;
+                obs_ts = time_of_first_obs.time_scale;
+            },
+            Some(constellation) => {
+                obs_ts = constellation
+                    .to_timescale()
+                    .ok_or(Error::ObservationDataTimescaleIdentification)?;
+            },
         }
     }
-
     // IONEX case
     //  Default map type is TEC, it will come with identified Epoch
     //  but others may exist:

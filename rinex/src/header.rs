@@ -1674,6 +1674,7 @@ impl Header {
         let (_dot, rem) = rem.split_at(1);
         let (ns, rem) = rem.split_at(8);
 
+        // println!("Y \"{}\" M \"{}\" D \"{}\" HH \"{}\" MM \"{}\" SS \"{}\" NS \"{}\"", y, m, d, hh, mm, ss, ns); // DEBUG
         let y = u32::from_str_radix(y.trim(), 10)
             .map_err(|_| ParsingError::DateTimeParsing(String::from("year"), y.to_string()))?;
 
@@ -1695,9 +1696,16 @@ impl Header {
         let ns = u32::from_str_radix(ns.trim(), 10)
             .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
 
-        let ts = TimeScale::from_str(rem.trim()).map_err(|_| {
-            ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
-        })?;
+        /* timescale might be missing in OLD RINEX: we handle that externally */
+        let mut ts = TimeScale::TAI;
+
+        let rem = rem.trim();
+        if rem.len() > 0 {
+            // println!("TS \"{}\"", rem); // DBEUG
+            ts = TimeScale::from_str(rem.trim()).map_err(|_| {
+                ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
+            })?;
+        }
 
         Ok(Epoch::from_str(&format!(
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:08} {}",
