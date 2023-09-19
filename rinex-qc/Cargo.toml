@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc"
-version = "0.1.3"
+version = "0.1.4"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX data analysis"
