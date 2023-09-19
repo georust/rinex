@@ -326,6 +326,8 @@ impl Rinex {
                     codes: params.codes.clone(),
                     clock_offset_applied: params.clock_offset_applied,
                     scalings: params.scalings.clone(),
+                    time_of_first_obs: params.time_of_first_obs,
+                    time_of_last_obs: params.time_of_last_obs,
                 });
         }
     }
@@ -473,11 +475,11 @@ impl Rinex {
         // create buffered reader
         let mut reader = BufferedReader::new(path)?;
         // --> parse header fields
-        let mut header = Header::new(&mut reader).unwrap();
+        let mut header = Header::new(&mut reader)?;
         // --> parse record (file body)
         //     we also grab encountered comments,
         //     they might serve some fileops like `splice` / `merge`
-        let (record, comments) = record::parse_record(&mut reader, &mut header).unwrap();
+        let (record, comments) = record::parse_record(&mut reader, &mut header)?;
         Ok(Rinex {
             header,
             record,
@@ -1269,19 +1271,18 @@ impl Rinex {
             .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
             .map(|dominant| dominant.0)
     }
-
+    /// Histogram analysis on Epoch interval. Although
+    /// it is feasible on all types indexed by [Epoch],
+    /// this operation only makes truly sense on Observation Data.
     /// ```
     /// use rinex::prelude::*;
     /// use itertools::Itertools;
     /// use std::collections::HashMap;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
     ///     .unwrap();
     ///  assert!(
     ///     rinex.sampling_histogram().sorted().eq(vec![
-    ///         (Duration::from_seconds(15.0 * 60.0), 1),
-    ///         (Duration::from_seconds(25.0 * 60.0), 1),
-    ///         (Duration::from_seconds(4.0 * 3600.0 + 45.0 * 60.0), 2),
-    ///         (Duration::from_seconds(5.0 * 3600.0 + 30.0 * 60.0), 1),
+    ///         (Duration::from_seconds(30.0), 1),
     ///     ]),
     ///     "sampling_histogram failed"
     /// );
@@ -1528,13 +1529,14 @@ impl Rinex {
     /// List all [`Sv`] per epoch of appearance.
     /// ```
     /// use rinex::prelude::*;
+    /// use std::str::FromStr;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
     ///
     /// let mut data = rnx.sv_epoch();
     ///
     /// if let Some((epoch, vehicles)) = data.nth(0) {
-    ///     assert_eq!(epoch,Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0));
+    ///     assert_eq!(epoch, Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap());
     ///     let expected = vec![
     ///         Sv::new(Constellation::GPS, 03),
     ///         Sv::new(Constellation::GPS, 08),

@@ -225,7 +225,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[3..22];
-        epoch::parse(&datestr).is_ok()
+        epoch::parse_utc(&datestr).is_ok()
     } else if v.major == 3 {
         // RINEX V3
         if line.len() < 24 {
@@ -239,7 +239,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[4..23];
-        epoch::parse(&datestr).is_ok()
+        epoch::parse_utc(&datestr).is_ok()
     } else {
         // Modern --> easy
         if let Some(c) = line.chars().nth(0) {
@@ -280,37 +280,42 @@ fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
     let sv = Sv::from_str(svnn.trim())?;
     let msg_type = NavMsgType::from_str(rem.trim())?;
 
+    let ts = sv
+        .constellation
+        .to_timescale()
+        .ok_or(Error::TimescaleIdentification(sv))?;
+
     let (epoch, fr): (Epoch, NavFrame) = match frame_class {
         FrameClass::Ephemeris => {
-            let (epoch, _, ephemeris) = Ephemeris::parse_v4(msg_type, lines)?;
+            let (epoch, _, ephemeris) = Ephemeris::parse_v4(msg_type, lines, ts)?;
             (epoch, NavFrame::Eph(msg_type, sv, ephemeris))
         },
         FrameClass::SystemTimeOffset => {
-            let (epoch, msg) = StoMessage::parse(lines)?;
+            let (epoch, msg) = StoMessage::parse(lines, ts)?;
             (epoch, NavFrame::Sto(msg_type, sv, msg))
         },
         FrameClass::EarthOrientation => {
-            let (epoch, msg) = EopMessage::parse(lines)?;
+            let (epoch, msg) = EopMessage::parse(lines, ts)?;
             (epoch, NavFrame::Eop(msg_type, sv, msg))
         },
         FrameClass::IonosphericModel => {
             let (epoch, msg): (Epoch, IonMessage) = match msg_type {
                 NavMsgType::IFNV => {
-                    let (epoch, model) = NgModel::parse(lines)?;
+                    let (epoch, model) = NgModel::parse(lines, ts)?;
                     (epoch, IonMessage::NequickGModel(model))
                 },
                 NavMsgType::CNVX => match sv.constellation {
                     Constellation::BeiDou => {
-                        let (epoch, model) = BdModel::parse(lines)?;
+                        let (epoch, model) = BdModel::parse(lines, ts)?;
                         (epoch, IonMessage::BdgimModel(model))
                     },
                     _ => {
-                        let (epoch, model) = KbModel::parse(lines)?;
+                        let (epoch, model) = KbModel::parse(lines, ts)?;
                         (epoch, IonMessage::KlobucharModel(model))
                     },
                 },
                 _ => {
-                    let (epoch, model) = KbModel::parse(lines)?;
+                    let (epoch, model) = KbModel::parse(lines, ts)?;
                     (epoch, IonMessage::KlobucharModel(model))
                 },
             };
@@ -693,10 +698,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
 
         let (epoch, frame) = entry.unwrap();
-        assert_eq!(
-            epoch,
-            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00)
-        );
+        assert_eq!(epoch, Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap());
 
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
@@ -859,10 +861,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
 
         let (epoch, frame) = entry.unwrap();
-        assert_eq!(
-            epoch,
-            Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 00, 00)
-        );
+        assert_eq!(epoch, Epoch::from_str("2021-01-01T10:10:00 GST").unwrap(),);
 
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);

@@ -16,6 +16,7 @@ pub use orbits::OrbitItem;
 pub use record::{NavFrame, NavMsgType, Record};
 pub use stomessage::StoMessage;
 
+use crate::prelude::Sv;
 use crate::{epoch, sv};
 use thiserror::Error;
 
@@ -41,7 +42,7 @@ pub enum Error {
     #[error("failed to parse sv clock fields")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("failed to identify class/type")]
     StrumError(#[from] strum::ParseError),
     #[error("failed to parse EPH message")]
@@ -52,6 +53,8 @@ pub enum Error {
     EopMessageError(#[from] eopmessage::Error),
     #[error("failed to parse STO message")]
     StoMessageError(#[from] stomessage::Error),
+    #[error("failed to identify timescale for {0}")]
+    TimescaleIdentification(Sv),
 }
 
 /*

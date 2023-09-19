@@ -1,5 +1,5 @@
 use crate::epoch;
-use hifitime::Epoch;
+use hifitime::{Epoch, TimeScale};
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -9,7 +9,7 @@ pub enum Error {
     #[error("missing data")]
     MissingData,
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("failed to parse data")]
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
@@ -29,7 +29,7 @@ pub struct StoMessage {
 }
 
 impl StoMessage {
-    pub fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub fn parse(mut lines: std::str::Lines<'_>, ts: TimeScale) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::MissingData),
@@ -37,7 +37,7 @@ impl StoMessage {
 
         let (epoch, rem) = line.split_at(23);
         let (system, _) = rem.split_at(5);
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
         let line = match lines.next() {
             Some(l) => l,

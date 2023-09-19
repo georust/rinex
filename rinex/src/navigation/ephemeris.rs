@@ -18,9 +18,11 @@ pub enum Error {
     #[error("failed to parse data")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("sv parsing error")]
     SvParsing(#[from] sv::ParsingError),
+    #[error("failed to identify timescale for sv \"{0}\"")]
+    TimescaleIdentification(Sv),
 }
 
 /// Ephermeris NAV frame type
@@ -160,28 +162,38 @@ impl Ephemeris {
 
         let (svnn, rem) = line.split_at(svnn_offset);
         let (date, rem) = rem.split_at(date_offset);
-        let (epoch, _) = epoch::parse(date.trim())?;
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
 
-        let sv: Sv = match version.major {
+        let mut sv = Sv::default();
+        let mut epoch = Epoch::default();
+
+        match version.major {
             1 | 2 => {
                 match constellation {
                     Constellation::Mixed => {
                         // not sure that even exists
-                        Sv::from_str(svnn.trim())?
+                        sv = Sv::from_str(svnn.trim())?
                     },
                     _ => {
-                        Sv {
-                            constellation, // constellation.clone(),
-                            prn: u8::from_str_radix(svnn.trim(), 10)?,
-                        }
+                        sv.constellation = constellation;
+                        sv.prn = u8::from_str_radix(svnn.trim(), 10)?;
                     },
                 }
             },
-            3 => Sv::from_str(svnn.trim())?,
-            _ => unreachable!(),
+            3 => {
+                sv = Sv::from_str(svnn.trim())?;
+            },
+            _ => unreachable!("V4 is treated in a dedicated method"),
         };
+
+        let ts = sv
+            .constellation
+            .to_timescale()
+            .ok_or(Error::TimescaleIdentification(sv))?;
+        //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
+
+        let (epoch, _) = epoch::parse_in_timescale(date.trim(), ts)?;
 
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
@@ -207,6 +219,7 @@ impl Ephemeris {
     pub(crate) fn parse_v4(
         msg: NavMsgType,
         mut lines: std::str::Lines<'_>,
+        ts: TimeScale,
     ) -> Result<(Epoch, Sv, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
@@ -216,7 +229,7 @@ impl Ephemeris {
         let (svnn, rem) = line.split_at(4);
         let sv = Sv::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);

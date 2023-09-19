@@ -25,7 +25,7 @@ pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
             return false;
         }
         let datestr = &line[1..min_len.len()];
-        epoch::parse(datestr).is_ok() // valid epoch descriptor
+        epoch::parse_utc(datestr).is_ok() // valid epoch descriptor
     } else {
         let min_len = " 2021  1  7  0  0  0";
         if line.len() < min_len.len() {
@@ -33,7 +33,7 @@ pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
             return false;
         }
         let datestr = &line[1..min_len.len()];
-        epoch::parse(datestr).is_ok() // valid epoch descriptor
+        epoch::parse_utc(datestr).is_ok() // valid epoch descriptor
     }
 }
 
@@ -41,7 +41,7 @@ pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
 /// Meteo Data `Record` parsing specific errors
 pub enum Error {
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochParsingError(#[from] epoch::ParsingError),
     #[error("failed to integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
@@ -65,7 +65,7 @@ pub(crate) fn parse_epoch(
         offset += 2; // YYYY
     }
 
-    let (epoch, _) = epoch::parse(&line[0..offset])?;
+    let (epoch, _) = epoch::parse_utc(&line[0..offset])?;
 
     let codes = &header.meteo.as_ref().unwrap().codes;
     let nb_codes = codes.len();
