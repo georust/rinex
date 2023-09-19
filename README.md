@@ -97,7 +97,8 @@ File formats
 | CRINEX                 | :heavy_minus_sign:                | :heavy_check_mark:                 | 
 | gzip compressed RINEX  | Name must end with `.gz`          | `--flate2` feature must be enabled |
 | gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| SP3                    | :heavy_minus_sign:                | `--flate2` feature must be enabled | 
+| SP3                    | :heavy_minus_sign:                | :heavy_check_mark:                 | 
+| gzip compressed SP3    | Name must end with `.gz`          | `--flate2` feature must be enabled | 
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
 

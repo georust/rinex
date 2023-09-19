@@ -1,13 +1,13 @@
 [package]
 name = "sp3"
-version = "1.0.3"
+version = "1.0.4"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "IGS SP3 file parser"
 homepage = "https://github.com/georust/sp3"
 repository = "https://github.com/georust/sp3"
 documentation = "https://docs.rs/sp3/"
-keywords = ["gnss", "timing", "gps", "glonass", "galileo", "igs"]
+keywords = ["gnss", "timing", "igs"]
 categories = ["science", "science::geo", "parsing"]
 edition = "2021"
 readme = "README.md"
