@@ -132,80 +132,104 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
  * Parses an Epoch and optional flag, interpreted as a datetime within specified TimeScale.
  */
 pub(crate) fn parse_in_timescale(
-    s: &str,
+    content: &str,
     ts: TimeScale,
 ) -> Result<(Epoch, EpochFlag), ParsingError> {
-    let items: Vec<&str> = s.split_ascii_whitespace().collect();
-    if items.len() != 6 && items.len() != 7 {
-        return Err(ParsingError::FormatError);
-    }
-
-    let mut y = i32::from_str_radix(items[0], 10)
-        .map_err(|_| ParsingError::YearField(items[0].to_string()))?;
-
-    /* old RINEX problem: YY is sometimes on two digits */
-    if y < 100 {
-        if y < 80 {
-            y += 2000;
-        } else {
-            y += 1900;
-        }
-    }
-
-    let m = u8::from_str_radix(items[1], 10)
-        .map_err(|_| ParsingError::MonthField(items[1].to_string()))?;
-
-    let d = u8::from_str_radix(items[2], 10)
-        .map_err(|_| ParsingError::DayField(items[2].to_string()))?;
-
-    let hh = u8::from_str_radix(items[3], 10)
-        .map_err(|_| ParsingError::HoursField(items[3].to_string()))?;
-
-    let mm = u8::from_str_radix(items[4], 10)
-        .map_err(|_| ParsingError::MinutesField(items[4].to_string()))?;
-
-    let mut epoch = Epoch::default();
-    let mut flag = EpochFlag::default();
+    let mut y = 0_i32;
+    let mut m = 0_u8;
+    let mut d = 0_u8;
+    let mut hh = 0_u8;
+    let mut mm = 0_u8;
     let mut ss = 0_u8;
     let mut ns = 0_u32;
+    let mut epoch = Epoch::default();
+    let mut flag = EpochFlag::default();
 
-    if let Some(dot) = items[5].find(".") {
-        let is_nav = items[5].trim().len() < 7;
+    for (field_index, item) in content.split_ascii_whitespace().enumerate() {
+        match field_index {
+            0 => {
+                y = i32::from_str_radix(item, 10)
+                    .map_err(|_| ParsingError::YearField(item.to_string()))?;
 
-        ss = u8::from_str_radix(&items[5][..dot].trim(), 10)
-            .map_err(|_| ParsingError::SecondsField(items[5][..dot].to_string()))?;
+                /* old RINEX problem: YY is sometimes encoded on two digits */
+                if y < 100 {
+                    if y < 80 {
+                        y += 2000;
+                    } else {
+                        y += 1900;
+                    }
+                }
+            },
+            1 => {
+                m = u8::from_str_radix(item, 10)
+                    .map_err(|_| ParsingError::MonthField(item.to_string()))?;
+            },
+            2 => {
+                d = u8::from_str_radix(item, 10)
+                    .map_err(|_| ParsingError::DayField(item.to_string()))?;
+            },
+            3 => {
+                hh = u8::from_str_radix(item, 10)
+                    .map_err(|_| ParsingError::HoursField(item.to_string()))?;
+            },
+            4 => {
+                mm = u8::from_str_radix(item, 10)
+                    .map_err(|_| ParsingError::MinutesField(item.to_string()))?;
+            },
+            5 => {
+                if let Some(dot) = item.find(".") {
+                    let is_nav = item.trim().len() < 7;
 
-        ns = u32::from_str_radix(&items[5][dot + 1..].trim(), 10)
-            .map_err(|_| ParsingError::NanosecondsField(items[5][dot + 1..].to_string()))?;
+                    ss = u8::from_str_radix(item[..dot].trim(), 10)
+                        .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
 
-        if is_nav {
-            // NAV RINEX: precision is 0.1s
-            ns *= 100_000_000;
-        } else {
-            // OBS RINEX: precision is 0.1u
-            ns *= 100;
+                    ns = u32::from_str_radix(item[dot + 1..].trim(), 10)
+                        .map_err(|_| ParsingError::NanosecondsField(item.to_string()))?;
+
+                    if is_nav {
+                        // NAV RINEX : 100ms precision
+                        ns *= 100_000_000;
+                    } else {
+                        // OBS RINEX : 100ns precision
+                        ns *= 100;
+                    }
+                } else {
+                    ss = u8::from_str_radix(item.trim(), 10)
+                        .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
+                }
+            },
+            6 => {
+                flag = EpochFlag::from_str(item.trim())?;
+            },
+            _ => {},
         }
-
-        if items.len() == 7 {
-            // flag exists
-            flag = EpochFlag::from_str(items[6].trim())?;
-        }
-    } else {
-        ss = u8::from_str_radix(&items[5].trim(), 10)
-            .map_err(|_| ParsingError::SecondsField(items[5].to_string()))?;
     }
+
+    //println!("content \"{}\"", content); // DEBUG
+    //println!("Y {} M {} D {} HH {} MM {} SS {} NS {} FLAG {}", y, m, d, hh, mm, ss, ns, flag); // DEBUG
 
     match ts {
         TimeScale::UTC => {
+            // in case provided content is totally invalid,
+            // we end up here with. And Epoch::from_gregorian will panic
+            if y == 0 {
+                return Err(ParsingError::FormatError);
+            }
             epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns);
         },
         _ => {
+            // in case provided content is totally invalid,
+            // we end up here with. And Epoch::from_string may panic
+            if y == 0 {
+                return Err(ParsingError::FormatError);
+            }
             epoch = Epoch::from_str(&format!(
                 "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09} {}",
                 y, m, d, hh, mm, ss, ns, ts
             ))?;
         },
     }
+
     Ok((epoch, flag))
 }
 
