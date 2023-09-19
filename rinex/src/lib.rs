@@ -617,22 +617,14 @@ impl Rinex {
     /// meaning, this file is the combination of two RINEX files merged together.  
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
     pub fn is_merged(&self) -> bool {
-        for (_, content) in self.comments.iter() {
-            for c in content {
-                if c.contains("FILE MERGE") {
-                    return true;
-                }
+        let special_comment = String::from("FILE MERGE");
+        for comment in self.header.comments.iter() {
+            if comment.contains(&special_comment) {
+                return true;
             }
         }
         false
     }
-
-    //TODO: move to ObsverationIter
-    // /// Returns [`Epoch`]s where a loss of lock event happened.
-    // /// This is only relevant on OBS RINEX.
-    // pub fn epoch_lock_loss(&self) -> Vec<Epoch> {
-    //     self.lli_and_mask(observation::LliFlags::LOCK_LOSS).epoch()
-    // }
 
     /// Removes all observations where receiver phase lock was lost.   
     /// This is only relevant on OBS RINEX.
@@ -2834,34 +2826,14 @@ impl Merge for Rinex {
     /// Merges `rhs` into `Self` in place
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         self.header.merge_mut(&rhs.header)?;
+        if self.epoch().count() == 0 {
+            // lhs is empty : overwrite
+            self.record = rhs.record.clone();
+        } else if rhs.epoch().count() != 0 {
+            // real merge
+            self.record.merge_mut(&rhs.record)?;
+        }
         Ok(())
-        //TODO: needs to reapply
-        //if self.epoch().len() == 0 {
-        //    // self is empty
-        //    self.record = rhs.record.clone();
-        //    Ok(())
-        //} else if rhs.epoch().len() == 0 {
-        //    // nothing to merge
-        //    Ok(())
-        //} else {
-        //    // add special marker, ts: YYYYDDMM HHMMSS UTC
-        //    let now = hifitime::Epoch::now().expect("failed to retrieve system time");
-        //    let (y, m, d, hh, mm, ss, _) = now.to_gregorian_utc();
-        //    self.header.comments.push(format!(
-        //        "rustrnx-{:<20} FILE MERGE          {}{}{} {}{}{} {}",
-        //        env!("CARGO_PKG_VERSION"),
-        //        y + 1900,
-        //        m,
-        //        d,
-        //        hh,
-        //        mm,
-        //        ss,
-        //        now.time_scale
-        //    ));
-        //    // RINEX record merging
-        //    self.record.merge_mut(&rhs.record)?;
-        //    Ok(())
-        //}
     }
 }
 

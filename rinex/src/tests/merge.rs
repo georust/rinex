@@ -53,7 +53,10 @@ mod test {
         let rnx_a = rnx_a.unwrap();
         let rnx_b = rnx_b.unwrap();
         let merged = rnx_a.merge(&rnx_b);
-        assert!(merged.is_ok(), "failed to merge NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx into NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx");
+        assert!(
+            merged.is_ok(),
+            "failed to merge NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx into NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx"
+        );
 
         // dump
         let merged = merged.unwrap();
@@ -61,10 +64,20 @@ mod test {
             merged.to_file("merge.txt").is_ok(),
             "failed to generate file previously merged"
         );
+        assert!(
+            merged.is_merged(),
+            "is_merged() should be true after merging!"
+        );
 
         // parse back
         let rnx = Rinex::from_file("merge.txt");
         assert!(rnx.is_ok(), "Failed to parsed back previously merged file");
+
+        let rnx = rnx.unwrap();
+        assert!(
+            rnx.is_merged(),
+            "failed to identify a merged file correctly"
+        );
 
         /*
          * Unlock reciprocity test in near future

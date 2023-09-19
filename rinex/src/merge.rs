@@ -15,10 +15,12 @@ pub enum Error {
     IonexReferenceMismatch,
     #[error("cannot merge ionex with different grid definition")]
     IonexMapGridMismatch,
-    #[error("cannot merge ionex with different map dimensions")]
+    #[error("cannot merge ionex of different dimensions")]
     IonexMapDimensionsMismatch,
     #[error("cannot merge ionex where base radius differs")]
     IonexBaseRadiusMismatch,
+    #[error("failed to retrieve system time for merge ops date")]
+    HifitimeError(#[from] hifitime::Errors),
 }
 
 /*

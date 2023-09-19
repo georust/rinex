@@ -1157,411 +1157,6 @@ impl Header {
         })
     }
 
-    /// Combines self and rhs header into a new header.
-    /// Self's attribute are always preferred.
-    /// Behavior:
-    ///  - self's attributes are always preferred (in case of unique attributes)
-    ///  - observables are concatenated
-    /// This fails if :
-    ///  - RINEX types do not match
-    ///  - IONEX: map dimensions do not match and grid definitions do not strictly match
-    pub fn merge(&self, header: &Self) -> Result<Self, merge::Error> {
-        if self.rinex_type != header.rinex_type {
-            return Err(merge::Error::FileTypeMismatch);
-        }
-        if self.rinex_type == Type::IonosphereMaps {
-            if let Some(i0) = &self.ionex {
-                if let Some(i1) = &header.ionex {
-                    if i0.map_dimension != i1.map_dimension {
-                        panic!("can only merge ionex files with identical map dimensions")
-                    }
-                }
-            }
-        }
-        Ok(Self {
-            version: {
-                // retains oldest rev
-                if self.version < header.version {
-                    self.version.clone()
-                } else {
-                    header.version.clone()
-                }
-            },
-            rinex_type: self.rinex_type.clone(),
-            comments: {
-                self.comments.clone() //TODO: append rhs too!
-            },
-            leap: {
-                if let Some(leap) = self.leap {
-                    Some(leap.clone())
-                } else if let Some(leap) = header.leap {
-                    Some(leap.clone())
-                } else {
-                    None
-                }
-            },
-            glo_channels: {
-                let mut channels = self.glo_channels.clone();
-                for (svnn, channel) in &header.glo_channels {
-                    channels.insert(*svnn, *channel);
-                }
-                channels
-            },
-            run_by: self.run_by.clone(),
-            program: self.program.clone(),
-            observer: self.observer.clone(),
-            date: self.date.clone(),
-            station: self.station.clone(),
-            station_id: self.station_id.clone(),
-            station_url: self.station_url.clone(),
-            agency: self.agency.clone(),
-            license: self.license.clone(),
-            doi: self.doi.clone(),
-            dcb_compensations: {
-                /*
-                 * DCBs compensations are marked, only if
-                 * both compensated for in A & B.
-                 * In this case, resulting data, for a given constellation,
-                 * is still 100% compensated for.
-                 */
-                if self.dcb_compensations.len() == 0 || header.dcb_compensations.len() == 0 {
-                    Vec::new() // drop everything
-                } else {
-                    let rhs_constellations: Vec<_> = header
-                        .dcb_compensations
-                        .iter()
-                        .map(|dcb| dcb.constellation.clone())
-                        .collect();
-                    let dcbs: Vec<DcbCompensation> = self
-                        .dcb_compensations
-                        .clone()
-                        .iter()
-                        .filter(|dcb| rhs_constellations.contains(&dcb.constellation))
-                        .map(|dcb| dcb.clone())
-                        .collect();
-                    dcbs
-                }
-            },
-            pcv_compensations: {
-                /*
-                 * Same logic as .dcb_compensations
-                 */
-                if self.pcv_compensations.len() == 0 || header.pcv_compensations.len() == 0 {
-                    Vec::new() // drop everything
-                } else {
-                    let rhs_constellations: Vec<_> = header
-                        .pcv_compensations
-                        .iter()
-                        .map(|pcv| pcv.constellation.clone())
-                        .collect();
-                    let pcvs: Vec<PcvCompensation> = self
-                        .pcv_compensations
-                        .clone()
-                        .iter()
-                        .filter(|pcv| rhs_constellations.contains(&pcv.constellation))
-                        .map(|pcv| pcv.clone())
-                        .collect();
-                    pcvs
-                }
-            },
-            marker_type: {
-                if let Some(mtype) = &self.marker_type {
-                    Some(mtype.clone())
-                } else if let Some(mtype) = &header.marker_type {
-                    Some(mtype.clone())
-                } else {
-                    None
-                }
-            },
-            gps_utc_delta: {
-                if let Some(d) = self.gps_utc_delta {
-                    Some(d)
-                } else if let Some(d) = header.gps_utc_delta {
-                    Some(d)
-                } else {
-                    None
-                }
-            },
-            data_scaling: {
-                if let Some(d) = self.data_scaling {
-                    Some(d)
-                } else if let Some(d) = header.data_scaling {
-                    Some(d)
-                } else {
-                    None
-                }
-            },
-            constellation: {
-                if let Some(c0) = self.constellation {
-                    if let Some(c1) = header.constellation {
-                        if c0 != c1 {
-                            Some(Constellation::Mixed)
-                        } else {
-                            Some(c0.clone())
-                        }
-                    } else {
-                        Some(c0.clone())
-                    }
-                } else if let Some(constellation) = header.constellation {
-                    Some(constellation.clone())
-                } else {
-                    None
-                }
-            },
-            rcvr: {
-                if let Some(rcvr) = &self.rcvr {
-                    Some(rcvr.clone())
-                } else if let Some(rcvr) = &header.rcvr {
-                    Some(rcvr.clone())
-                } else {
-                    None
-                }
-            },
-            rcvr_antenna: {
-                if let Some(a) = &self.rcvr_antenna {
-                    Some(a.clone())
-                } else if let Some(a) = &header.rcvr_antenna {
-                    Some(a.clone())
-                } else {
-                    None
-                }
-            },
-            sv_antenna: {
-                if let Some(a) = &self.sv_antenna {
-                    Some(a.clone())
-                } else if let Some(a) = &header.sv_antenna {
-                    Some(a.clone())
-                } else {
-                    None
-                }
-            },
-            wavelengths: {
-                if let Some(wv) = &self.wavelengths {
-                    Some(wv.clone())
-                } else if let Some(wv) = &header.wavelengths {
-                    Some(wv.clone())
-                } else {
-                    None
-                }
-            },
-            sampling_interval: {
-                if let Some(interval) = self.sampling_interval {
-                    Some(interval.clone())
-                } else if let Some(interval) = header.sampling_interval {
-                    Some(interval.clone())
-                } else {
-                    None
-                }
-            },
-            ground_position: {
-                if let Some(pos) = &self.ground_position {
-                    Some(pos.clone())
-                } else if let Some(pos) = &header.ground_position {
-                    Some(pos.clone())
-                } else {
-                    None
-                }
-            },
-            obs: {
-                if let Some(d0) = &self.obs {
-                    if let Some(d1) = &header.obs {
-                        Some(observation::HeaderFields {
-                            time_of_first_obs: std::cmp::min(
-                                d0.time_of_first_obs,
-                                d1.time_of_first_obs,
-                            ),
-                            time_of_last_obs: std::cmp::max(
-                                d0.time_of_last_obs,
-                                d1.time_of_last_obs,
-                            ),
-                            crinex: d0.crinex.clone(),
-                            codes: {
-                                let mut map = d0.codes.clone();
-                                for (constellation, obscodes) in d1.codes.iter() {
-                                    if let Some(codes) = map.get_mut(&constellation) {
-                                        for obs in obscodes {
-                                            if !codes.contains(&obs) {
-                                                codes.push(obs.clone());
-                                            }
-                                        }
-                                    } else {
-                                        map.insert(constellation.clone(), obscodes.clone());
-                                    }
-                                }
-                                map
-                            },
-                            clock_offset_applied: d0.clock_offset_applied
-                                && d1.clock_offset_applied,
-                            scalings: HashMap::new(), //TODO
-                        })
-                    } else {
-                        Some(d0.clone())
-                    }
-                } else if let Some(data) = &header.obs {
-                    Some(data.clone())
-                } else {
-                    None
-                }
-            },
-            meteo: {
-                if let Some(m0) = &self.meteo {
-                    if let Some(m1) = &header.meteo {
-                        Some(meteo::HeaderFields {
-                            sensors: {
-                                let mut sensors = m0.sensors.clone();
-                                for sens in m1.sensors.iter() {
-                                    if !sensors.contains(&sens) {
-                                        sensors.push(sens.clone())
-                                    }
-                                }
-                                sensors
-                            },
-                            codes: {
-                                let mut observables = m0.codes.clone();
-                                for obs in m1.codes.iter() {
-                                    if !observables.contains(&obs) {
-                                        observables.push(obs.clone())
-                                    }
-                                }
-                                observables
-                            },
-                        })
-                    } else {
-                        Some(m0.clone())
-                    }
-                } else if let Some(meteo) = &header.meteo {
-                    Some(meteo.clone())
-                } else {
-                    None
-                }
-            },
-            clocks: {
-                if let Some(d0) = &self.clocks {
-                    if let Some(d1) = &header.clocks {
-                        Some(clocks::HeaderFields {
-                            codes: {
-                                let mut codes = d0.codes.clone();
-                                for code in d1.codes.iter() {
-                                    if !codes.contains(&code) {
-                                        codes.push(code.clone())
-                                    }
-                                }
-                                codes
-                            },
-                            agency: {
-                                if let Some(agency) = &d0.agency {
-                                    Some(agency.clone())
-                                } else if let Some(agency) = &d1.agency {
-                                    Some(agency.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            station: {
-                                if let Some(station) = &d0.station {
-                                    Some(station.clone())
-                                } else if let Some(station) = &d1.station {
-                                    Some(station.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            clock_ref: {
-                                if let Some(clk) = &d0.clock_ref {
-                                    Some(clk.clone())
-                                } else if let Some(clk) = &d1.clock_ref {
-                                    Some(clk.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            timescale: {
-                                if let Some(ts) = &d0.timescale {
-                                    Some(ts.clone())
-                                } else if let Some(ts) = &d1.timescale {
-                                    Some(ts.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                        })
-                    } else {
-                        Some(d0.clone())
-                    }
-                } else if let Some(d1) = &header.clocks {
-                    Some(d1.clone())
-                } else {
-                    None
-                }
-            },
-            antex: {
-                if let Some(d0) = &self.antex {
-                    Some(d0.clone())
-                } else if let Some(data) = &header.antex {
-                    Some(data.clone())
-                } else {
-                    None
-                }
-            },
-            ionex: {
-                if let Some(d0) = &self.ionex {
-                    if let Some(d1) = &header.ionex {
-                        Some(ionex::HeaderFields {
-                            reference: d0.reference.clone(),
-                            description: {
-                                if let Some(description) = &d0.description {
-                                    Some(description.clone())
-                                } else if let Some(description) = &d1.description {
-                                    Some(description.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            exponent: std::cmp::min(d0.exponent, d1.exponent), // TODO: this is not correct,
-                            mapping: {
-                                if let Some(map) = &d0.mapping {
-                                    Some(map.clone())
-                                } else if let Some(map) = &d1.mapping {
-                                    Some(map.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            map_dimension: d0.map_dimension,
-                            base_radius: d0.base_radius,
-                            grid: d0.grid.clone(),
-                            elevation_cutoff: d0.elevation_cutoff,
-                            observables: {
-                                if let Some(obs) = &d0.observables {
-                                    Some(obs.clone())
-                                } else if let Some(obs) = &d1.observables {
-                                    Some(obs.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            nb_stations: std::cmp::max(d0.nb_stations, d1.nb_stations),
-                            nb_satellites: std::cmp::max(d0.nb_satellites, d1.nb_satellites),
-                            dcbs: {
-                                let mut dcbs = d0.dcbs.clone();
-                                for (b, dcb) in &d1.dcbs {
-                                    dcbs.insert(b.clone(), *dcb);
-                                }
-                                dcbs
-                            },
-                        })
-                    } else {
-                        Some(d0.clone())
-                    }
-                } else if let Some(d1) = &header.ionex {
-                    Some(d1.clone())
-                } else {
-                    None
-                }
-            },
-        })
-    }
-
     /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex(&self) -> bool {
         if let Some(obs) = &self.obs {
@@ -2085,6 +1680,26 @@ impl std::fmt::Display for Header {
     }
 }
 
+impl Header {
+    /*
+     * Macro to be used when marking Self as Merged file
+     */
+    fn merge_comment(timestamp: Epoch) -> String {
+        let (y, m, d, hh, mm, ss, ns) = timestamp.to_gregorian_utc();
+        format!(
+            "rustrnx-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
+            env!("CARGO_PKG_VERSION"),
+            y,
+            m,
+            d,
+            hh,
+            mm,
+            ss,
+            timestamp.time_scale
+        )
+    }
+}
+
 impl Merge for Header {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
@@ -2111,9 +1726,22 @@ impl Merge for Header {
         let (a_rev, b_rev) = (self.version, rhs.version);
         self.version = std::cmp::min(a_rev, b_rev);
 
+        // sampling interval special case
+        match self.sampling_interval {
+            None => {
+                if rhs.sampling_interval.is_some() {
+                    self.sampling_interval = rhs.sampling_interval.clone();
+                }
+            },
+            Some(mut interval) => {
+                if let Some(rhs) = rhs.sampling_interval {
+                    interval = std::cmp::min(interval, rhs);
+                }
+            },
+        }
+
         merge::merge_mut_vec(&mut self.comments, &rhs.comments);
         merge::merge_mut_option(&mut self.marker_type, &rhs.marker_type);
-        merge::merge_mut_option(&mut self.sampling_interval, &rhs.sampling_interval);
         merge::merge_mut_option(&mut self.license, &rhs.license);
         merge::merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
         merge::merge_mut_option(&mut self.doi, &rhs.doi);
@@ -2124,6 +1752,41 @@ impl Merge for Header {
         merge::merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
         merge::merge_mut_option(&mut self.ground_position, &rhs.ground_position);
         merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
+        merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
+
+        // DCBS compensation is preserved, only if both A&B both have it
+        if self.dcb_compensations.len() == 0 || rhs.dcb_compensations.len() == 0 {
+            self.dcb_compensations.clear(); // drop everything
+        } else {
+            let rhs_constellations: Vec<_> = rhs
+                .dcb_compensations
+                .iter()
+                .map(|dcb| dcb.constellation.clone())
+                .collect();
+            self.dcb_compensations
+                .iter_mut()
+                .filter(|dcb| rhs_constellations.contains(&dcb.constellation))
+                .count();
+        }
+
+        // PCV compensation : same logic
+        // only preserve compensations present in both A & B
+        if self.pcv_compensations.len() == 0 || rhs.pcv_compensations.len() == 0 {
+            self.pcv_compensations.clear(); // drop everything
+        } else {
+            let rhs_constellations: Vec<_> = rhs
+                .pcv_compensations
+                .iter()
+                .map(|pcv| pcv.constellation.clone())
+                .collect();
+            self.dcb_compensations
+                .iter_mut()
+                .filter(|pcv| rhs_constellations.contains(&pcv.constellation))
+                .count();
+        }
+
+        //TODO :
+        //merge::merge_mut(&mut self.glo_channels, &rhs.glo_channels);
 
         // RINEX specific operation
         if let Some(lhs) = &mut self.antex {
@@ -2151,6 +1814,7 @@ impl Merge for Header {
             if let Some(rhs) = &rhs.obs {
                 merge::merge_mut_option(&mut lhs.crinex, &rhs.crinex);
                 merge::merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
+                // TODO: manage that
                 lhs.clock_offset_applied |= rhs.clock_offset_applied;
             }
         }
@@ -2174,6 +1838,10 @@ impl Merge for Header {
                 if lhs.base_radius != rhs.base_radius {
                     return Err(merge::Error::IonexBaseRadiusMismatch);
                 }
+
+                //TODO: this is not enough, need to take into account and rescale..
+                lhs.exponent = std::cmp::min(lhs.exponent, rhs.exponent);
+
                 merge::merge_mut_option(&mut lhs.description, &rhs.description);
                 merge::merge_mut_option(&mut lhs.mapping, &rhs.mapping);
                 if lhs.elevation_cutoff == 0.0 {
@@ -2188,6 +1856,10 @@ impl Merge for Header {
                 }
             }
         }
+        // add special comment
+        let now = Epoch::now()?;
+        let merge_comment = Self::merge_comment(now);
+        self.comments.push(merge_comment);
         Ok(())
     }
 }
