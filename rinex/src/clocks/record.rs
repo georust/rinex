@@ -68,20 +68,25 @@ pub enum Error {
 /// Clocks file payload
 #[derive(Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct Data {
-    /// Clock bias
+pub struct ClockData {
+    /// Clock bias [s]
     pub bias: f64,
-    pub bias_sigma: Option<f64>,
-    pub rate: Option<f64>,
-    pub rate_sigma: Option<f64>,
-    pub accel: Option<f64>,
-    pub accel_sigma: Option<f64>,
+    /// Clock bias deviation
+    pub bias_dev: Option<f64>,
+    /// Clock drift [s/s]
+    pub drift: Option<f64>,
+    /// Clock drift deviation
+    pub drift_dev: Option<f64>,
+    /// Clock drift change [s/s^2]
+    pub drift_change: Option<f64>,
+    /// Clock drift change deviation
+    pub drift_change_dev: Option<f64>,
 }
 
 /// Clock data observables
 #[derive(Debug, PartialEq, Eq, Hash, Clone, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum DataType {
+pub enum ClockDataType {
     /// Data analysis results for receiver clocks
     /// derived from a set of network receivers and satellites
     AR,
@@ -96,7 +101,7 @@ pub enum DataType {
     MS,
 }
 
-impl std::fmt::Display for DataType {
+impl std::fmt::Display for ClockDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::AR => f.write_str("AR"),
@@ -109,7 +114,6 @@ impl std::fmt::Display for DataType {
 }
 
 /// Clocks RINEX record content.
-/// Data is sorted by [Epoch], by [DataType] and by [System].
 /* TODO
 /// Example of Clock record browsing:
 /// ```
@@ -128,12 +132,12 @@ impl std::fmt::Display for DataType {
 /// }
 /// ```
 */
-pub type Record = BTreeMap<Epoch, HashMap<DataType, HashMap<System, Data>>>;
+pub type Record = BTreeMap<Epoch, HashMap<ClockDataType, HashMap<System, ClockData>>>;
 
 pub(crate) fn is_new_epoch(line: &str) -> bool {
-    // first 2 bytes match a DataType code
+    // first 2 bytes match a ClockDataType code
     let content = line.split_at(2).0;
-    DataType::from_str(content).is_ok()
+    ClockDataType::from_str(content).is_ok()
 }
 
 /// Builds `RINEX` record entry for `Clocks` data files.   
@@ -142,12 +146,12 @@ pub(crate) fn is_new_epoch(line: &str) -> bool {
 pub(crate) fn parse_epoch(
     version: Version,
     content: &str,
-) -> Result<(Epoch, DataType, System, Data), Error> {
+) -> Result<(Epoch, ClockDataType, System, ClockData), Error> {
     let mut lines = content.lines();
     let line = lines.next().unwrap();
     // Data type code
     let (dtype, rem) = line.split_at(3);
-    let data_type = DataType::from_str(dtype.trim())?; // must pass
+    let data_type = ClockDataType::from_str(dtype.trim())?; // must pass
     let mut rem = rem.clone();
     let limit = Version { major: 3, minor: 4 };
 
@@ -194,12 +198,12 @@ pub(crate) fn parse_epoch(
     let n = u8::from_str_radix(n.trim(), 10)?;
 
     // data fields
-    let mut data = Data::default();
+    let mut data = ClockData::default();
     let items: Vec<&str> = line.split_ascii_whitespace().collect();
     data.bias = f64::from_str(items[9].trim())?; // bias must pass
     if n > 1 {
         if let Ok(f) = f64::from_str(items[10].trim()) {
-            data.bias_sigma = Some(f)
+            data.bias_dev = Some(f)
         }
     }
 
@@ -210,13 +214,13 @@ pub(crate) fn parse_epoch(
             for i in 0..items.len() {
                 if let Ok(f) = f64::from_str(items[i].trim()) {
                     if i == 0 {
-                        data.rate = Some(f);
+                        data.drift = Some(f);
                     } else if i == 1 {
-                        data.rate_sigma = Some(f);
+                        data.drift_dev = Some(f);
                     } else if i == 2 {
-                        data.accel = Some(f);
+                        data.drift_change = Some(f);
                     } else if i == 3 {
-                        data.accel_sigma = Some(f);
+                        data.drift_change_dev = Some(f);
                     }
                 }
             }
@@ -229,26 +233,26 @@ pub(crate) fn parse_epoch(
 /// Writes epoch into stream
 pub(crate) fn fmt_epoch(
     epoch: &Epoch,
-    data: &HashMap<DataType, HashMap<System, Data>>,
+    data: &HashMap<ClockDataType, HashMap<System, ClockData>>,
 ) -> Result<String, Error> {
     let mut lines = String::with_capacity(128);
     for (dtype, data) in data.iter() {
         for (system, data) in data.iter() {
             lines.push_str(&format!("{} {} {} ", dtype, system, epoch));
             lines.push_str(&format!("{:.13E} ", data.bias));
-            if let Some(sigma) = data.bias_sigma {
+            if let Some(sigma) = data.bias_dev {
                 lines.push_str(&format!("{:.13E} ", sigma));
             }
-            if let Some(rate) = data.rate {
-                lines.push_str(&format!("{:.13E} ", rate));
+            if let Some(drift) = data.drift {
+                lines.push_str(&format!("{:.13E} ", drift));
             }
-            if let Some(sigma) = data.rate_sigma {
+            if let Some(sigma) = data.drift_dev {
                 lines.push_str(&format!("{:.13E} ", sigma));
             }
-            if let Some(accel) = data.accel {
-                lines.push_str(&format!("{:.13E} ", accel));
+            if let Some(drift_change) = data.drift_change {
+                lines.push_str(&format!("{:.13E} ", drift_change));
             }
-            if let Some(sigma) = data.accel_sigma {
+            if let Some(sigma) = data.drift_change_dev {
                 lines.push_str(&format!("{:.13E} ", sigma));
             }
             lines.push_str("\n");
@@ -298,29 +302,29 @@ impl Merge for Record {
                         for (system, data) in systems.iter() {
                             if let Some(ddata) = ssystems.get_mut(system) {
                                 // provide only previously omitted fields
-                                if let Some(data) = data.bias_sigma {
-                                    if ddata.bias_sigma.is_none() {
-                                        ddata.bias_sigma = Some(data);
+                                if let Some(data) = data.bias_dev {
+                                    if ddata.bias_dev.is_none() {
+                                        ddata.bias_dev = Some(data);
                                     }
                                 }
-                                if let Some(data) = data.rate {
-                                    if ddata.rate.is_none() {
-                                        ddata.rate = Some(data);
+                                if let Some(data) = data.drift {
+                                    if ddata.drift.is_none() {
+                                        ddata.drift = Some(data);
                                     }
                                 }
-                                if let Some(data) = data.rate_sigma {
-                                    if ddata.rate_sigma.is_none() {
-                                        ddata.rate_sigma = Some(data);
+                                if let Some(data) = data.drift_dev {
+                                    if ddata.drift_dev.is_none() {
+                                        ddata.drift_dev = Some(data);
                                     }
                                 }
-                                if let Some(data) = data.accel {
-                                    if ddata.accel.is_none() {
-                                        ddata.accel = Some(data);
+                                if let Some(data) = data.drift_change {
+                                    if ddata.drift_change.is_none() {
+                                        ddata.drift_change = Some(data);
                                     }
                                 }
-                                if let Some(data) = data.accel_sigma {
-                                    if ddata.accel_sigma.is_none() {
-                                        ddata.accel_sigma = Some(data);
+                                if let Some(data) = data.drift_change_dev {
+                                    if ddata.drift_change_dev.is_none() {
+                                        ddata.drift_change_dev = Some(data);
                                     }
                                 }
                             } else {

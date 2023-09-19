@@ -1662,6 +1662,13 @@ impl Rinex {
                 .flat_map(|record| record.iter()),
         )
     }
+    // /// Returns iterator over Clock Rinex Data (special RINEX type)
+    // pub fn clock(&self) -> impl Iterator<Item = (&Epoch, &HashMap<DataType, HashMap<System, Data>>)> {
+    //     self.record
+    //         .as_clock()
+    //         .into_iter()
+    //         .flat_map(|record| record.iter())
+    // }
 }
 
 #[cfg(feature = "obs")]
@@ -3064,6 +3071,22 @@ impl IonoDelay for Rinex {
         }
     }
 }
+
+// #[cfg(feature = "clock")]
+// use clocks::record::System;
+//
+// /*
+//  * CLOCK RINEX specific methods: only available on crate feature.
+//  */
+// #[cfg(feature = "clock")]
+// #[cfg_attr(docrs, doc(cfg(feature = "clock")))]
+// impl Rinex {
+//     /// Returns a Unique Iterator over identified reference [System]s
+//     pub fn clock_references(&self) -> Box<dyn Iterator<Item = System> + '_> {
+//         self.clock_data()
+//             .flat_map(|
+//     }
+// }
 
 #[cfg(test)]
 mod test {

@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use super::{
     antex, clocks,
+    clocks::{ClockData, ClockDataType},
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_comment, merge,
     merge::Merge,
@@ -436,19 +437,18 @@ pub fn parse_record(
                                     d.insert(system, data);
                                 } else {
                                     // --> new system entry for this `epoch`
-                                    let mut inner: HashMap<clocks::System, clocks::Data> =
+                                    let mut inner: HashMap<clocks::System, ClockData> =
                                         HashMap::new();
                                     inner.insert(system, data);
                                     e.insert(dtype, inner);
                                 }
                             } else {
                                 // --> new epoch entry
-                                let mut inner: HashMap<clocks::System, clocks::Data> =
-                                    HashMap::new();
+                                let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
                                 inner.insert(system, data);
                                 let mut map: HashMap<
-                                    clocks::DataType,
-                                    HashMap<clocks::System, clocks::Data>,
+                                    ClockDataType,
+                                    HashMap<clocks::System, ClockData>,
                                 > = HashMap::new();
                                 map.insert(dtype, inner);
                                 clk_rec.insert(epoch, map);
@@ -569,18 +569,18 @@ pub fn parse_record(
                     } else {
                         // --> new system entry for this `epoch`
                         let mut map: HashMap<
-                            clocks::DataType,
-                            HashMap<clocks::System, clocks::Data>,
+                            ClockDataType,
+                            HashMap<clocks::System, clocks::ClockData>,
                         > = HashMap::new();
-                        let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
+                        let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
                         inner.insert(system, data);
                         map.insert(dtype, inner);
                     }
                 } else {
                     // --> new epoch entry
-                    let mut map: HashMap<clocks::DataType, HashMap<clocks::System, clocks::Data>> =
+                    let mut map: HashMap<ClockDataType, HashMap<clocks::System, ClockData>> =
                         HashMap::new();
-                    let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
+                    let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
                     inner.insert(system, data);
                     map.insert(dtype, inner);
                     clk_rec.insert(e, map);

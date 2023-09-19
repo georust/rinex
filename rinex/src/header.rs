@@ -3,6 +3,7 @@
 use super::*;
 use crate::{
     antex, clocks,
+    clocks::{ClockAnalysisAgency, ClockDataType},
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
@@ -875,7 +876,7 @@ impl Header {
                 }
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
-                clocks = clocks.with_agency(clocks::Agency {
+                clocks = clocks.with_agency(ClockAnalysisAgency {
                     code: code.trim().to_string(),
                     name: agency.trim().to_string(),
                 });
@@ -888,7 +889,7 @@ impl Header {
                 let mut rem = r.clone();
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
-                    if let Ok(c) = clocks::DataType::from_str(code.trim()) {
+                    if let Ok(c) = ClockDataType::from_str(code.trim()) {
                         clocks.codes.push(c);
                     }
                     rem = r.clone()
