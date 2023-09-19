@@ -731,52 +731,6 @@ impl Rinex {
         c
     }
 
-    /// Extracts signal strength as (min, max) duplet,
-    /// accross all vehicles.
-    /// Only relevant on Observation RINEX.
-    pub fn observation_ssi_minmax(&self) -> Option<(observation::Snr, observation::Snr)> {
-        let mut ret: Option<(observation::Snr, observation::Snr)> = None;
-        if let Some(r) = self.record.as_obs() {
-            for (_, (_, vehicles)) in r.iter() {
-                for (_, observation) in vehicles.iter() {
-                    for (_, data) in observation.iter() {
-                        if let Some(snr) = data.snr {
-                            if let Some((min, max)) = &mut ret {
-                                if snr < *min {
-                                    *min = snr;
-                                } else if snr > *max {
-                                    *max = snr;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
-    /// Extracts signal strength as (min, max) duplet,
-    /// per vehicle. Only relevant on Observation RINEX
-    pub fn observation_ssi_sv_minmax(&self) -> HashMap<Sv, (observation::Snr, observation::Snr)> {
-        let mut map: HashMap<Sv, (observation::Snr, observation::Snr)> = HashMap::new();
-        if let Some(r) = self.record.as_obs() {
-            for (_, (_, vehicles)) in r.iter() {
-                for (sv, observations) in vehicles.iter() {
-                    let (mut min, mut max) = (observation::Snr::DbHz54, observation::Snr::DbHz0);
-                    for (_, observation) in observations.iter() {
-                        if let Some(ssi) = observation.snr {
-                            min = std::cmp::min(min, ssi);
-                            max = std::cmp::max(max, ssi);
-                        }
-                    }
-                    map.insert(*sv, (min, max));
-                }
-            }
-        }
-        map
-    }
-
     /*
         /// Applies given elevation mask
         pub fn elevation_mask_mut(

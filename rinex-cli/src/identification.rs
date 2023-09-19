@@ -52,12 +52,22 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("ssi-range") {
-            let data = &rnx.observation_ssi_minmax();
-            let content = match pretty {
-                true => serde_json::to_string_pretty(data).unwrap(),
-                false => serde_json::to_string(data).unwrap(),
-            };
-            println!("{}", content);
+            let min_snr = rnx
+                .snr()
+                .min_by(|(e_a, sv_a, _, snr_a), (e_b, sv_b, _, snr_b)| snr_a.cmp(snr_b));
+            if let Some(min) = min_snr {
+                println!("Min. SNR: {:#?}", min);
+            } else {
+                println!("No SNR data!");
+            }
+            let max_snr = rnx
+                .snr()
+                .max_by(|(e_a, sv_a, _, snr_a), (e_b, sv_b, _, snr_b)| snr_a.cmp(snr_b));
+            if let Some(max) = max_snr {
+                println!("Max. SNR: {:#?}", max);
+            } else {
+                println!("No SNR data!");
+            }
         } else if op.eq("orbits") {
             unimplemented!("nav::orbits");
             //let data: Vec<_> = rnx.orbit_fields();
