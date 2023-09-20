@@ -186,37 +186,37 @@ impl Record {
             },
             Type::IonosphereMaps => {
                 if let Some(r) = self.as_ionex() {
-                    for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
-                        let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index);
-                        let _ = write!(
-                            writer,
-                            "{}                        EPOCH OF CURRENT MAP",
-                            epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-                        );
-                        let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index);
-                    }
-                    /*
-                     * not efficient browsing, but matches provided examples and common formatting.
-                     * RMS and Height maps are passed after TEC maps.
-                     */
-                    for (index, (epoch, (_, _map, _))) in r.iter().enumerate() {
-                        let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index);
-                        let _ = write!(
-                            writer,
-                            "{}                        EPOCH OF CURRENT MAP",
-                            epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-                        );
-                        let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index);
-                    }
-                    for (index, (epoch, (_, _, _map))) in r.iter().enumerate() {
-                        let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index);
-                        let _ = write!(
-                            writer,
-                            "{}                        EPOCH OF CURRENT MAP",
-                            epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-                        );
-                        let _ = write!(writer, "{:6}                                                      END OF HEIGHT MAP", index);
-                    }
+                    //for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
+                    //    let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index);
+                    //    let _ = write!(
+                    //        writer,
+                    //        "{}                        EPOCH OF CURRENT MAP",
+                    //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
+                    //    );
+                    //    let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index);
+                    //}
+                    // /*
+                    //  * not efficient browsing, but matches provided examples and common formatting.
+                    //  * RMS and Height maps are passed after TEC maps.
+                    //  */
+                    //for (index, (epoch, (_, _map, _))) in r.iter().enumerate() {
+                    //    let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index);
+                    //    let _ = write!(
+                    //        writer,
+                    //        "{}                        EPOCH OF CURRENT MAP",
+                    //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
+                    //    );
+                    //    let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index);
+                    //}
+                    //for (index, (epoch, (_, _, _map))) in r.iter().enumerate() {
+                    //    let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index);
+                    //    let _ = write!(
+                    //        writer,
+                    //        "{}                        EPOCH OF CURRENT MAP",
+                    //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
+                    //    );
+                    //    let _ = write!(writer, "{:6}                                                      END OF HEIGHT MAP", index);
+                    //}
                 }
             },
             _ => panic!("record type not supported yet"),
@@ -256,7 +256,9 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
     match &header.rinex_type {
         Type::AntennaData => antex::record::is_new_epoch(line),
         Type::ClockData => clocks::record::is_new_epoch(line),
-        Type::IonosphereMaps => ionex::record::is_new_map(line),
+        Type::IonosphereMaps => {
+            ionex::record::is_new_tec_plane(line) || ionex::record::is_new_rms_plane(line)
+        },
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version),
         Type::ObservationData => observation::record::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
@@ -311,12 +313,8 @@ pub fn parse_record(
     //  but others may exist:
     //    in this case we used the previously identified Epoch
     //    and attach other kinds of maps
-    let mut ionx_rms = false;
-    let mut ionx_height = false;
+    let mut ionex_rms_plane = false;
     let mut ionx_rec = ionex::Record::new();
-    // we need to store encountered epochs, to relate RMS and H maps
-    //    that might be provided in a separate sequence
-    let mut ionx_epochs: Vec<Epoch> = Vec::with_capacity(128);
 
     for l in reader.lines() {
         // iterates one line at a time
@@ -395,8 +393,8 @@ pub fn parse_record(
             // in case of CRINEX -> RINEX < 3 being recovered,
             // we have more than 1 ligne to process
             let new_epoch = is_new_epoch(line, &header);
-            ionx_rms |= ionex::record::is_new_rms_map(line);
-            ionx_height |= ionex::record::is_new_height_map(line);
+
+            ionex_rms_plane |= ionex::record::is_new_rms_plane(line);
 
             if new_epoch && !first_epoch {
                 match &header.rinex_type {
@@ -476,31 +474,24 @@ pub fn parse_record(
                         }
                     },
                     Type::IonosphereMaps => {
-                        if let Ok((index, epoch, map)) =
-                            ionex::record::parse_map(header, &epoch_content)
+                        if let Ok((nth_plane, epoch, altitude, plane)) =
+                            ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
                         {
-                            if ionx_rms {
-                                ionx_rms = false;
-                                if let Some(e) = ionx_epochs.get(index) {
-                                    // relate
-                                    if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
-                                        // locate
-                                        *rms = Some(map); // insert
-                                    }
-                                }
-                            } else if ionx_height {
-                                ionx_height = false;
-                                if let Some(e) = ionx_epochs.get(index) {
-                                    // relate
-                                    if let Some((_, _, h)) = ionx_rec.get_mut(e) {
-                                        // locate
-                                        *h = Some(map); // insert
-                                    }
-                                }
+                            ionx_rec.insert((epoch, altitude), plane);
+
+                            if ionex_rms_plane {
+                                ionex_rms_plane = false;
+                                //if let Some(e) = ionx_epochs.get(index) {
+                                //    // relate
+                                //    if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
+                                //        // locate
+                                //        *rms = Some(map); // insert
+                                //    }
+                                //}
                             } else {
                                 // TEC map => insert epoch
-                                ionx_epochs.push(epoch.clone());
-                                ionx_rec.insert(epoch, (map, None, None));
+                                // ionx_epochs.push(epoch.clone());
+                                // ionx_rec.insert(epoch, (map, None, None));
                             }
                         }
                     },
@@ -589,27 +580,10 @@ pub fn parse_record(
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((index, epoch, map)) = ionex::record::parse_map(header, &epoch_content) {
-                if ionx_rms {
-                    if let Some(e) = ionx_epochs.get(index) {
-                        // relate
-                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
-                            // locate
-                            *rms = Some(map); // insert
-                        }
-                    }
-                } else if ionx_height {
-                    if let Some(e) = ionx_epochs.get(index) {
-                        // relate
-                        if let Some((_, _, h)) = ionx_rec.get_mut(e) {
-                            // locate
-                            *h = Some(map); // insert
-                        }
-                    }
-                } else {
-                    // introduce TEC+epoch
-                    ionx_rec.insert(epoch, (map, None, None));
-                }
+            if let Ok((index, epoch, altitude, plane)) =
+                ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
+            {
+                ionx_rec.insert((epoch, altitude), plane);
             }
         },
         Type::AntennaData => {

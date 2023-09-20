@@ -6,6 +6,8 @@ use thiserror::Error;
 pub enum Error {
     #[error("this record type is not indexed by epoch")]
     NoEpochIteration,
+    #[error("this record does not contained specified epoch")]
+    NonExistingEpoch,
 }
 
 pub trait Split {

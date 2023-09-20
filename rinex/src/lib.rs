@@ -52,6 +52,7 @@ use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
 use hifitime::Duration;
+use ionex::TECPlane;
 use observable::Observable;
 use observation::Crinex;
 use version::Version;
@@ -519,56 +520,6 @@ impl Rinex {
             ionex.map_dimension == 2
         } else {
             false
-        }
-    }
-
-    /// Converts 2D Ionex to 3D ionex by
-    /// providing some height maps.
-    pub fn with_height_maps(&self, height: BTreeMap<Epoch, ionex::Map>) -> Self {
-        let mut s = self.clone();
-        s.to_ionex_3d(height);
-        s
-    }
-
-    /// Add RMS maps to self, for epochs
-    /// where such map was not previously provided
-    pub fn with_rms_maps(&self, rms: BTreeMap<Epoch, ionex::Map>) -> Self {
-        let mut s = self.clone();
-        if let Some(r) = s.record.as_mut_ionex() {
-            for (e, (_, rms_map, _)) in r.iter_mut() {
-                if let Some(m) = rms.get(e) {
-                    *rms_map = Some(m.to_vec());
-                }
-            }
-        }
-        s
-    }
-
-    /// Provide Height maps for epochs where such map was not previously provided
-    pub fn to_ionex_3d(&mut self, height: BTreeMap<Epoch, ionex::Map>) {
-        if let Some(ionex) = self.header.ionex.as_mut() {
-            ionex.map_dimension = 3;
-        }
-        if let Some(r) = self.record.as_mut_ionex() {
-            for (e, (_, _, map_h)) in r.iter_mut() {
-                if let Some(m) = height.get(e) {
-                    *map_h = Some(m.to_vec());
-                }
-            }
-        }
-    }
-
-    /// Returns ionex map borders, as North Eastern
-    /// and South Western latitude longitude coordinates,
-    /// expressed in ddeg°
-    pub fn ionex_map_borders(&self) -> Option<((f64, f64), (f64, f64))> {
-        if let Some(params) = &self.header.ionex {
-            Some((
-                (params.grid.latitude.start, params.grid.longitude.start),
-                (params.grid.latitude.end, params.grid.longitude.end),
-            ))
-        } else {
-            None
         }
     }
 
@@ -1258,7 +1209,7 @@ impl Rinex {
         } else if let Some(r) = self.record.as_clock() {
             Box::new(r.iter().map(|(k, _)| *k))
         } else if let Some(r) = self.record.as_ionex() {
-            Box::new(r.iter().map(|(k, _)| *k))
+            Box::new(r.iter().map(|((k, _), _)| *k))
         } else {
             panic!(
                 "cannot get an epoch iterator for \"{:?}\" RINEX",
@@ -1639,13 +1590,18 @@ impl Rinex {
                 .flat_map(|record| record.iter()),
         )
     }
-    // /// Returns iterator over Clock Rinex Data (special RINEX type)
-    // pub fn clock(&self) -> impl Iterator<Item = (&Epoch, &HashMap<DataType, HashMap<System, Data>>)> {
-    //     self.record
-    //         .as_clock()
-    //         .into_iter()
-    //         .flat_map(|record| record.iter())
-    // }
+    /// Iterates over IONEX maps, per Epoch and altitude.
+    /// ```
+    /// use rinex::prelude::*;
+    /// ```
+    pub fn ionex(&self) -> Box<dyn Iterator<Item = (&(Epoch, u32), &TECPlane)> + '_> {
+        Box::new(
+            self.record
+                .as_ionex()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
 }
 
 #[cfg(feature = "obs")]
@@ -3039,6 +2995,7 @@ impl Dcb for Rinex {
 use observation::Combine;
 
 #[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Combine for Rinex {
     fn geo_free(
         &self,
@@ -3082,6 +3039,7 @@ impl Combine for Rinex {
 use observation::IonoDelay;
 
 #[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl IonoDelay for Rinex {
     fn iono_delay(
         &self,
@@ -3095,21 +3053,121 @@ impl IonoDelay for Rinex {
     }
 }
 
-// #[cfg(feature = "clock")]
-// use clocks::record::System;
-//
-// /*
-//  * CLOCK RINEX specific methods: only available on crate feature.
-//  */
-// #[cfg(feature = "clock")]
-// #[cfg_attr(docrs, doc(cfg(feature = "clock")))]
-// impl Rinex {
-//     /// Returns a Unique Iterator over identified reference [System]s
-//     pub fn clock_references(&self) -> Box<dyn Iterator<Item = System> + '_> {
-//         self.clock_data()
-//             .flat_map(|
-//     }
-// }
+/*
+ * IONEX specific feature
+ */
+#[cfg(feature = "ionex")]
+#[cfg_attr(docrs, doc(cfg(feature = "ionex")))]
+impl Rinex {
+    /// Returns an iterator over TEC values exclusively.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
+    ///     .unwrap();
+    /// for (t, lat, lon, alt, tec) in rnx.tec() {
+    ///     // t: Epoch
+    ///     // lat: ddeg
+    ///     // lon: ddeg
+    ///     // alt: km
+    ///     // tec: TECu (f64: properly scaled)
+    /// }
+    /// ```
+    pub fn tec(&self) -> Box<dyn Iterator<Item = (Epoch, f64, f64, f64, f64)> + '_> {
+        Box::new(self.ionex().flat_map(|((e, h), plane)| {
+            plane.iter().map(|((lat, lon), tec)| {
+                (
+                    *e,
+                    *lat as f64 / 1000.0_f64,
+                    *lon as f64 / 1000.0_f64,
+                    *h as f64 / 100.0_f64,
+                    tec.tec,
+                )
+            })
+        }))
+    }
+    /// Returns an iterator over TEC RMS exclusively
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
+    ///     .unwrap();
+    /// for (t, lat, lon, alt, rms) in rnx.tec_rms() {
+    ///     // t: Epoch
+    ///     // lat: ddeg
+    ///     // lon: ddeg
+    ///     // alt: km
+    ///     // rms|TECu| (f64)
+    /// }
+    /// ```
+    pub fn tec_rms(&self) -> Box<dyn Iterator<Item = (Epoch, f64, f64, f64, f64)> + '_> {
+        Box::new(self.ionex().flat_map(|((e, h), plane)| {
+            plane.iter().filter_map(|((lat, lon), tec)| {
+                if let Some(rms) = tec.rms {
+                    Some((
+                        *e,
+                        *lat as f64 / 1000.0_f64,
+                        *lon as f64 / 1000.0_f64,
+                        *h as f64 / 100.0_f64,
+                        rms,
+                    ))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns 2D fixed altitude value, expressed in km, in case self is a 2D IONEX.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
+    ///     .unwrap();
+    /// assert_eq!(rnx.tec_fixed_altitude(), Some(450.0));
+    ///
+    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
+    ///     .unwrap();
+    /// assert_eq!(rnx.tec_fixed_altitude(), Some(350.0));
+    /// ```
+    pub fn tec_fixed_altitude(&self) -> Option<f64> {
+        if self.is_ionex_2d() {
+            let header = self.header.ionex.as_ref()?;
+            Some(header.grid.height.start)
+        } else {
+            None
+        }
+    }
+    /// Returns altitude range of this 3D IONEX as {min, max}
+    /// both expressed in km.
+    pub fn tec_altitude_range(&self) -> Option<(f64, f64)> {
+        if self.is_ionex_3d() {
+            let header = self.header.ionex.as_ref()?;
+            Some((header.grid.height.start, header.grid.height.end))
+        } else {
+            None
+        }
+    }
+    /// Returns 2D TEC plane at specified altitude and time.
+    /// Refer to the header.grid specification for its width and height.
+    pub fn tec_plane(&self, t: Epoch, h: f64) -> Option<&TECPlane> {
+        self.ionex()
+            .filter_map(|((e, alt), plane)| {
+                if t == *e && (*alt as f64) / 100.0 == h {
+                    Some(plane)
+                } else {
+                    None
+                }
+            })
+            .reduce(|plane, _| plane) // is unique, in a normal IONEX
+    }
+    /// Returns IONEX map borders, expressed as North Eastern
+    /// and South Western (latitude; longitude) coordinates,
+    /// both expressed in ddeg.
+    pub fn tec_map_borders(&self) -> Option<((f64, f64), (f64, f64))> {
+        let ionex = self.header.ionex.as_ref()?;
+        Some((
+            (ionex.grid.latitude.start, ionex.grid.longitude.start),
+            (ionex.grid.latitude.end, ionex.grid.longitude.end),
+        ))
+    }
+}
 
 #[cfg(test)]
 mod test {

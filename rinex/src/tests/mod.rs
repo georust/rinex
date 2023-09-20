@@ -5,15 +5,16 @@ mod antex;
 mod clocks;
 mod compression;
 mod decompression;
-mod ionex;
 mod merge;
-
-#[cfg(feature = "meteo")]
-mod meteo;
-
 mod nav;
 mod obs;
 mod parsing;
 mod production;
 mod sampling;
 mod smoothing;
+
+#[cfg(feature = "meteo")]
+mod meteo;
+
+#[cfg(feature = "ionex")]
+mod ionex;

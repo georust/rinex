@@ -18,6 +18,7 @@ sbas = ["geo", "wkt"]
 obs = []
 meteo = []
 nav = []
+ionex = []
 processing = []
 qc = ["rinex-qc-traits", "horrorshow"] # rinex Quality Check (mainly OBS RINEX) 
 

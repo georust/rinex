@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use strum_macros::EnumString;
 
 pub mod record;
-pub use record::{Map, Record};
+pub use record::{Record, TECPlane, TEC};
 
 pub mod grid;
 pub use grid::{Grid, GridLinspace};

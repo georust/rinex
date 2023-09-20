@@ -243,8 +243,7 @@ mod test {
                         "IONEX" => {
                             assert!(rinex.is_ionex());
                             assert!(rinex.epoch().count() > 0); // all files have content
-                            let record = rinex.record.as_ionex().unwrap();
-                            for (e, _) in record {
+                            for e in rinex.epoch() {
                                 assert!(
                                     e.time_scale == TimeScale::UTC,
                                     "wrong {} timescale for a IONEX",
