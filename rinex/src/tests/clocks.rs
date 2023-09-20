@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::clocks;
-    use crate::clocks::{ClockData, ClockDataType, System, ClockAnalysisAgency};
+    use crate::clocks::{ClockAnalysisAgency, ClockData, ClockDataType, System};
     use crate::prelude::*;
     #[test]
     fn v3_usno_example() {
@@ -15,7 +15,12 @@ mod test {
         let clocks = rinex.header.clocks.as_ref().unwrap();
         assert_eq!(
             clocks.codes,
-            vec![ClockDataType::AS, ClockDataType::AR, ClockDataType::CR, ClockDataType::DR]
+            vec![
+                ClockDataType::AS,
+                ClockDataType::AR,
+                ClockDataType::CR,
+                ClockDataType::DR
+            ]
         );
         assert_eq!(
             clocks.agency,
