@@ -602,7 +602,6 @@ impl Rinex {
             .count()
             > 0
     }
-
     /// Returns true if Antenna Phase Center variations are compensated
     /// for in this file. Useful for high precision application.
     pub fn pcv_compensation(&self, constellation: Constellation) -> bool {
@@ -1650,7 +1649,7 @@ impl Rinex {
 }
 
 #[cfg(feature = "obs")]
-use crate::observation::Snr;
+use crate::observation::{LliFlags, Snr};
 
 /*
  * OBS RINEX specific methods: only available on crate feature.
@@ -1936,12 +1935,58 @@ impl Rinex {
     }
     /// Returns an Iterator over signal SNR indications.
     /// All observation that did not come with such indication are filtered out.
+    /// ```
+    /// use rinex::*;
+    /// let rinex =
+    ///     Rinex::from_file("../test_resources/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx")
+    ///         .unwrap();
+    /// for ((e, flag), sv, observable, snr) in rinex.snr() {
+    ///     // See RINEX specs or [Snr] documentation
+    ///     if snr.weak() {
+    ///     } else if snr.strong() {
+    ///     } else if snr.excellent() {
+    ///     }
+    ///     // you can directly compare to dBHz
+    ///     if snr < 29.0.into() {
+    ///         // considered weak signal
+    ///     } else if snr >= 30.0.into() {
+    ///         // considered strong signal
+    ///     }
+    /// }
+    /// ```
     pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, Snr)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations
                     .iter()
                     .filter_map(|(obs, obsdata)| obsdata.snr.map(|snr| (*e, *sv, obs, snr)))
+            })
+        }))
+    }
+    /// Returns an Iterator over LLI flags that might be associated to an Observation.
+    /// ```
+    /// use rinex::*;
+    /// use rinex::observation::LliFlags;
+    /// let rinex =
+    ///     Rinex::from_file("../test_resources/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx")
+    ///         .unwrap();
+    /// let custom_mask
+    ///     = LliFlags::OK_OR_UNKNOWN | LliFlags::UNDER_ANTI_SPOOFING;
+    /// for ((e, flag), sv, observable, lli) in rinex.lli() {
+    ///     // See RINEX specs or [LliFlags] documentation
+    ///     if lli.intersects(custom_mask) {
+    ///         // sane observation but under AS
+    ///     }
+    /// }
+    /// ```
+    pub fn lli(
+        &self,
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, LliFlags)> + '_> {
+        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations
+                    .iter()
+                    .filter_map(|(obs, obsdata)| obsdata.lli.map(|lli| (*e, *sv, obs, lli)))
             })
         }))
     }

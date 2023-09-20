@@ -89,8 +89,43 @@ impl FromStr for Snr {
 }
 
 impl From<f64> for Snr {
-    fn from(f: f64) -> Self {
-        Self::from(f as u8)
+    fn from(f_db: f64) -> Self {
+        if f_db < 12.0 {
+            Self::DbHz12
+        } else if f_db <= 17.0 {
+            Self::DbHz12_17
+        } else if f_db <= 23.0 {
+            Self::DbHz18_23
+        } else if f_db <= 29.0 {
+            Self::DbHz24_29
+        } else if f_db <= 35.0 {
+            Self::DbHz30_35
+        } else if f_db <= 41.0 {
+            Self::DbHz36_41
+        } else if f_db <= 47.0 {
+            Self::DbHz42_47
+        } else if f_db <= 53.0 {
+            Self::DbHz48_53
+        } else {
+            Self::DbHz54
+        }
+    }
+}
+
+impl Into<f64> for Snr {
+    fn into(self) -> f64 {
+        match self {
+            Self::DbHz0 => 0.0_f64,
+            Self::DbHz12 => 12.0_f64,
+            Self::DbHz12_17 => 17.0_f64,
+            Self::DbHz18_23 => 23.0_f64,
+            Self::DbHz24_29 => 29.0_f64,
+            Self::DbHz30_35 => 35.0_f64,
+            Self::DbHz36_41 => 41.0_f64,
+            Self::DbHz42_47 => 47.0_f64,
+            Self::DbHz48_53 => 53.0_f64,
+            Self::DbHz54 => 54.0_f64,
+        }
     }
 }
 
