@@ -632,28 +632,6 @@ impl Rinex {
         self.lli_and_mask_mut(observation::LliFlags::LOCK_LOSS)
     }
 
-    pub fn retain_best_elevation_angles_mut(&mut self) {
-        unimplemented!("retain_best_elev: use preprocessing toolkit instead");
-        //let best_vehicles = self.space_vehicles_best_elevation_angle();
-        //if let Some(record) = self.record.as_mut_nav() {
-        //    record.retain(|e, classes| {
-        //        let best = best_vehicles.get(e).unwrap();
-        //        classes.retain(|class, frames| {
-        //            if *class == navigation::FrameClass::Ephemeris {
-        //                frames.retain(|fr| {
-        //                    let (_, sv, _) = fr.as_eph().unwrap();
-        //                    best.contains(sv)
-        //                });
-        //                frames.len() > 0
-        //            } else {
-        //                false
-        //            }
-        //        });
-        //        classes.len() > 0
-        //    });
-        //}
-    }
-
     /// List [clocks::record::System] (reference systems) contained in this CLK RINEX.   
     /// Reference systems can either be an Sv or a ground station.
     pub fn clock_ref_systems(&self) -> Vec<clocks::record::System> {
