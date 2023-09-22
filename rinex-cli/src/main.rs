@@ -350,6 +350,15 @@ pub fn main() -> Result<(), rinex::Error> {
     create_workspace(workspace.clone());
 
     /*
+     * Print more info on special primary data cases
+     */
+    if ctx.primary_data().is_meteo_rinex() {
+        info!("meteo special primary data");
+    } else if ctx.primary_data().is_ionex() {
+        info!("ionex special primary data");
+    }
+
+    /*
      * Emphasize which reference position is to be used.
      * This will help user make sure everything is correct.
      * [+] Cli: always superceeds
@@ -386,7 +395,7 @@ pub fn main() -> Result<(), rinex::Error> {
             }
         }
     } else {
-        info!("context is not sufficient for any position solving method");
+        info!("context is not sufficient or not compatible with position solver");
     }
     /*
      * Preprocessing

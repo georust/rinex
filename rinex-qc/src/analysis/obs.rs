@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use crate::{pretty_array, QcOpts};
 
-use rinex::carrier;
+//use rinex::carrier;
 use rinex::carrier::Carrier;
 use rinex::observation::Snr;
 use rinex::prelude::{Epoch, EpochFlag, Observable, Rinex, Sv};

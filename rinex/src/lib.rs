@@ -1590,18 +1590,6 @@ impl Rinex {
                 .flat_map(|record| record.iter()),
         )
     }
-    /// Iterates over IONEX maps, per Epoch and altitude.
-    /// ```
-    /// use rinex::prelude::*;
-    /// ```
-    pub fn ionex(&self) -> Box<dyn Iterator<Item = (&(Epoch, u32), &TECPlane)> + '_> {
-        Box::new(
-            self.record
-                .as_ionex()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
-    }
 }
 
 #[cfg(feature = "obs")]
@@ -1956,13 +1944,12 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = (Epoch, Vec<(Sv, Carrier)>)> + '_> {
         Box::new(
             self.observation()
-                .filter_map(|((e, flag), (_, vehicles))| {
+                .filter_map(move |((e, flag), (_, vehicles))| {
                     if flag.is_ok() {
                         let mut list: Vec<(Sv, Carrier)> = Vec::new();
                         for (sv, observables) in vehicles {
                             let mut l1_pr_ph = (false, false);
                             let mut lx_pr_ph: HashMap<Carrier, (bool, bool)> = HashMap::new();
-                            let mut criteria_met = true;
                             for (observable, observation) in observables {
                                 if !observable.is_phase_observable()
                                     && !observable.is_pseudorange_observable()
@@ -1975,6 +1962,15 @@ impl Rinex {
                                 if carrier.is_err() {
                                     // fail to identify this signal
                                     continue;
+                                }
+                                if let Some(min_snr) = min_snr {
+                                    if let Some(snr) = observation.snr {
+                                        if snr < min_snr {
+                                            continue;
+                                        }
+                                    } else {
+                                        continue; // can't compare to criteria
+                                    }
                                 }
                                 let carrier = carrier.unwrap();
                                 if carrier == Carrier::L1 {
@@ -2006,7 +2002,7 @@ impl Rinex {
                         None
                     }
                 })
-                .filter(|(sv, list)| !list.is_empty()),
+                .filter(|(_sv, list)| !list.is_empty()),
         )
     }
 }
@@ -3059,6 +3055,18 @@ impl IonoDelay for Rinex {
 #[cfg(feature = "ionex")]
 #[cfg_attr(docrs, doc(cfg(feature = "ionex")))]
 impl Rinex {
+    /// Iterates over IONEX maps, per Epoch and altitude.
+    /// ```
+    /// use rinex::prelude::*;
+    /// ```
+    fn ionex(&self) -> Box<dyn Iterator<Item = (&(Epoch, i32), &TECPlane)> + '_> {
+        Box::new(
+            self.record
+                .as_ionex()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
     /// Returns an iterator over TEC values exclusively.
     /// ```
     /// use rinex::prelude::*;

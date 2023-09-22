@@ -54,13 +54,13 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
         } else if op.eq("ssi-range") {
             let min_snr = rnx
                 .snr()
-                .min_by(|(e_a, sv_a, _, snr_a), (e_b, sv_b, _, snr_b)| snr_a.cmp(snr_b));
+                .min_by(|(_, _, _, snr_a), (_, _, _, snr_b)| snr_a.cmp(snr_b));
             if let Some(min) = min_snr {
                 println!("Min. SNR: {:#?}", min);
             }
             let max_snr = rnx
                 .snr()
-                .max_by(|(e_a, sv_a, _, snr_a), (e_b, sv_b, _, snr_b)| snr_a.cmp(snr_b));
+                .max_by(|(_, _, _, snr_a), (_, _, _, snr_b)| snr_a.cmp(snr_b));
             if let Some(max) = max_snr {
                 println!("Max. SNR: {:#?}", max);
             }

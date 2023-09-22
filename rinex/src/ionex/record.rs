@@ -1,8 +1,6 @@
 use crate::{merge, merge::Merge, prelude::*, split, split::Split};
 
-use geo::Coord;
-
-use super::{grid, GridLinspace};
+use super::grid;
 
 use crate::epoch;
 use hifitime::Duration;
@@ -18,9 +16,12 @@ pub(crate) fn is_new_rms_plane(line: &str) -> bool {
     line.contains("START OF RMS MAP")
 }
 
-pub(crate) fn is_new_height_map(line: &str) -> bool {
-    line.contains("START OF HEIGHT MAP")
-}
+/*
+ * Don't know what Height maps are actually
+ */
+// pub(crate) fn is_new_height_map(line: &str) -> bool {
+//     line.contains("START OF HEIGHT MAP")
+// }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -31,7 +32,7 @@ pub struct TEC {
     pub rms: Option<f64>,
 }
 
-pub type TECPlane = HashMap<(u32, u32), TEC>;
+pub type TECPlane = HashMap<(i32, i32), TEC>;
 
 /// IONEX contains 2D (fixed altitude) or 3D Ionosphere Maps.
 /// See [Rinex::ionex] and related feature for more information.
@@ -57,7 +58,7 @@ pub type TECPlane = HashMap<(u32, u32), TEC>;
 ///     assert_eq!(params.mapping, None); // no mapping function
 /// }
 /// ```
-pub type Record = BTreeMap<(Epoch, u32), TECPlane>;
+pub type Record = BTreeMap<(Epoch, i32), TECPlane>;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -95,23 +96,22 @@ pub(crate) fn parse_plane(
     content: &str,
     header: &mut Header,
     is_rms_plane: bool,
-) -> Result<(usize, Epoch, u32, TECPlane), Error> {
+) -> Result<(usize, Epoch, i32, TECPlane), Error> {
     let lines = content.lines();
     let mut epoch = Epoch::default();
     let mut plane = TECPlane::with_capacity(128);
-    // current grid def.
-    let mut grid = GridLinspace::default();
-    // current {lat, lon} within current grid def.
-    let mut latitude = 0_u32;
-    let mut longitude = 0_u32;
-    let mut altitude = 0_u32;
-    let mut ptr: usize = 0; // pointer in longitude space
 
     // this can't fail at this point
     let ionex = header
         .ionex
         .as_mut()
         .expect("faulty ionex context: missing specific header definitions");
+
+    // current {lat, lon} within current grid def.
+    let mut latitude = 0_i32;
+    let mut longitude = 0_i32;
+    let mut altitude = 0_i32;
+    let mut dlon = (ionex.grid.longitude.spacing * 1000.0) as i32;
 
     for line in lines {
         if line.len() > 60 {
@@ -143,18 +143,18 @@ pub(crate) fn parse_plane(
                     lon1.to_string(),
                 )))?;
 
-                let (lon2, rem) = rem.split_at(6);
-                let lon2 = lon2.trim();
-                let lon2 = f64::from_str(lon2).or(Err(Error::CoordinatesParsing(
-                    String::from("longitude"),
-                    lon2.to_string(),
-                )))?;
+                let (_lon2, rem) = rem.split_at(6);
+                //let lon2 = lon2.trim();
+                //let lon2 = f64::from_str(lon2).or(Err(Error::CoordinatesParsing(
+                //    String::from("longitude"),
+                //    lon2.to_string(),
+                //)))?;
 
-                let (dlon, rem) = rem.split_at(6);
-                let dlon = dlon.trim();
-                let dlon = f64::from_str(dlon).or(Err(Error::CoordinatesParsing(
+                let (dlon_str, rem) = rem.split_at(6);
+                let dlon_str = dlon_str.trim();
+                let dlon_f64 = f64::from_str(dlon_str).or(Err(Error::CoordinatesParsing(
                     String::from("longitude"),
-                    dlon.to_string(),
+                    dlon_str.to_string(),
                 )))?;
 
                 let (h, _) = rem.split_at(6);
@@ -164,12 +164,13 @@ pub(crate) fn parse_plane(
                     h.to_string(),
                 )))?;
 
-                altitude = (alt.round() * 100.0_f64) as u32;
-                latitude = (lat.round() * 1000.0_f64) as u32;
+                altitude = (alt.round() * 100.0_f64) as i32;
+                latitude = (lat.round() * 1000.0_f64) as i32;
+                longitude = (lon1.round() * 1000.0_f64) as i32;
+                dlon = (dlon_f64.round() * 1000.0_f64) as i32;
 
-                // update grid def.
-                grid = GridLinspace::new(lon1, lon2, dlon)?;
-                ptr = 0;
+                // debug
+                // println!("NEW GRID : h: {} lat : {} lon : {}, dlon: {}", altitude, latitude, longitude, dlon);
             } else if marker.contains("EPOCH OF CURRENT MAP") {
                 epoch = epoch::parse_utc(content)?.0;
             } else if marker.contains("EXPONENT") {
@@ -199,8 +200,11 @@ pub(crate) fn parse_plane(
                         };
 
                         plane.insert((latitude, longitude), tec);
-                        ptr += 1;
                     }
+
+                    longitude += dlon;
+                    //debug
+                    //println!("longitude: {}", longitude);
                 }
             }
         } else {
@@ -226,8 +230,11 @@ pub(crate) fn parse_plane(
                     };
 
                     plane.insert((latitude, longitude), tec);
-                    ptr += 1;
                 }
+
+                longitude += dlon;
+                //debug
+                //println!("longitude: {}", longitude);
             }
         }
     }

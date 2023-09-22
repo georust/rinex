@@ -1439,12 +1439,12 @@ impl std::fmt::Display for Header {
                 if let Some(obs) = &self.obs {
                     if let Some(time_of_first_obs) = obs.time_of_first_obs {
                         //TODO: hifitime does not have a gregorian decomposition method at the moment
-                        let offset = match time_of_first_obs.time_scale {
-                            TimeScale::GPST => Duration::from_seconds(19.0),
-                            TimeScale::GST => Duration::from_seconds(35.0),
-                            TimeScale::BDT => Duration::from_seconds(35.0),
-                            _ => Duration::default(),
-                        };
+                        //let offset = match time_of_first_obs.time_scale {
+                        //    TimeScale::GPST => Duration::from_seconds(19.0),
+                        //    TimeScale::GST => Duration::from_seconds(35.0),
+                        //    TimeScale::BDT => Duration::from_seconds(35.0),
+                        //    _ => Duration::default(),
+                        //};
                         let (y, m, d, hh, mm, ss, nanos) = (time_of_first_obs).to_gregorian_utc();
                         let mut descriptor = format!(
                             "  {:04}    {:02}    {:02}    {:02}    {:02}   {:02}.{:07}     {:x}",
@@ -1686,7 +1686,7 @@ impl Header {
      * Macro to be used when marking Self as Merged file
      */
     fn merge_comment(timestamp: Epoch) -> String {
-        let (y, m, d, hh, mm, ss, ns) = timestamp.to_gregorian_utc();
+        let (y, m, d, hh, mm, ss, _) = timestamp.to_gregorian_utc();
         format!(
             "rustrnx-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
             env!("CARGO_PKG_VERSION"),
@@ -1734,9 +1734,9 @@ impl Merge for Header {
                     self.sampling_interval = rhs.sampling_interval.clone();
                 }
             },
-            Some(mut interval) => {
+            Some(lhs) => {
                 if let Some(rhs) = rhs.sampling_interval {
-                    interval = std::cmp::min(interval, rhs);
+                    self.sampling_interval = Some(std::cmp::min(lhs, rhs));
                 }
             },
         }

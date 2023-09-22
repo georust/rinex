@@ -166,7 +166,6 @@ impl Ephemeris {
         let (clk_dr, clk_drr) = rem.split_at(19);
 
         let mut sv = Sv::default();
-        let mut epoch = Epoch::default();
 
         match version.major {
             1 | 2 => {

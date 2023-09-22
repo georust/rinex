@@ -3,7 +3,7 @@ use rinex_qc_traits::HtmlReport;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use rinex::carrier::Carrier;
+//use rinex::carrier::Carrier;
 use rinex::observation::Snr;
 use rinex::prelude::{Epoch, GroundPosition, Rinex, Sv};
 use rinex::Error;

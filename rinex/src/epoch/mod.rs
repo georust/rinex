@@ -141,7 +141,6 @@ pub(crate) fn parse_in_timescale(
     let mut mm = 0_u8;
     let mut ss = 0_u8;
     let mut ns = 0_u32;
-    let mut epoch = Epoch::default();
     let mut flag = EpochFlag::default();
 
     for (field_index, item) in content.split_ascii_whitespace().enumerate() {
@@ -214,7 +213,9 @@ pub(crate) fn parse_in_timescale(
             if y == 0 {
                 return Err(ParsingError::FormatError);
             }
-            epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns);
+
+            let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns);
+            Ok((epoch, flag))
         },
         _ => {
             // in case provided content is totally invalid,
@@ -222,14 +223,13 @@ pub(crate) fn parse_in_timescale(
             if y == 0 {
                 return Err(ParsingError::FormatError);
             }
-            epoch = Epoch::from_str(&format!(
+            let epoch = Epoch::from_str(&format!(
                 "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09} {}",
                 y, m, d, hh, mm, ss, ns, ts
             ))?;
+            Ok((epoch, flag))
         },
     }
-
-    Ok((epoch, flag))
 }
 
 pub(crate) fn parse_utc(s: &str) -> Result<(Epoch, EpochFlag), ParsingError> {
