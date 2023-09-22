@@ -96,7 +96,7 @@ pub(crate) fn parse_plane(
     content: &str,
     header: &mut Header,
     is_rms_plane: bool,
-) -> Result<(usize, Epoch, i32, TECPlane), Error> {
+) -> Result<(Epoch, i32, TECPlane), Error> {
     let lines = content.lines();
     let mut epoch = Epoch::default();
     let mut plane = TECPlane::with_capacity(128);
@@ -121,10 +121,10 @@ pub(crate) fn parse_plane(
             } else if marker.contains("END OF") && marker.contains("MAP") {
                 let index = content.split_at(6).0;
                 let index = index.trim();
-                let index = u32::from_str_radix(index, 10)
+                let _map_index = u32::from_str_radix(index, 10)
                     .or(Err(Error::MapIndexParsing(index.to_string())))?;
 
-                return Ok((index as usize, epoch, altitude, plane));
+                return Ok((epoch, altitude, plane));
             } else if marker.contains("LAT/LON1/LON2/DLON/H") {
                 // grid definition for next block
                 let (_, rem) = content.split_at(2);
@@ -238,7 +238,7 @@ pub(crate) fn parse_plane(
             }
         }
     }
-    Ok((0, epoch, altitude, plane))
+    Ok((epoch, altitude, plane))
 }
 
 #[cfg(test)]

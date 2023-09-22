@@ -474,24 +474,34 @@ pub fn parse_record(
                         }
                     },
                     Type::IonosphereMaps => {
-                        if let Ok((nth_plane, epoch, altitude, plane)) =
+                        if let Ok((epoch, altitude, plane)) =
                             ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
                         {
-                            ionx_rec.insert((epoch, altitude), plane);
-
                             if ionex_rms_plane {
                                 ionex_rms_plane = false;
-                                //if let Some(e) = ionx_epochs.get(index) {
-                                //    // relate
-                                //    if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
-                                //        // locate
-                                //        *rms = Some(map); // insert
-                                //    }
-                                //}
+                                if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                                    // provide RMS value for the entire plane
+                                    for ((_, rec_tec), (_, tec)) in
+                                        rec_plane.iter_mut().zip(plane.iter())
+                                    {
+                                        rec_tec.rms = tec.rms;
+                                    }
+                                } else {
+                                    // insert RMS values
+                                    ionx_rec.insert((epoch, altitude), plane);
+                                }
                             } else {
-                                // TEC map => insert epoch
-                                // ionx_epochs.push(epoch.clone());
-                                // ionx_rec.insert(epoch, (map, None, None));
+                                if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                                    // provide TEC value for the entire plane
+                                    for ((_, rec_tec), (_, tec)) in
+                                        rec_plane.iter_mut().zip(plane.iter())
+                                    {
+                                        rec_tec.tec = tec.tec;
+                                    }
+                                } else {
+                                    // insert TEC values
+                                    ionx_rec.insert((epoch, altitude), plane);
+                                }
                             }
                         }
                     },
@@ -580,10 +590,31 @@ pub fn parse_record(
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((index, epoch, altitude, plane)) =
+            if let Ok((epoch, altitude, plane)) =
                 ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
             {
-                ionx_rec.insert((epoch, altitude), plane);
+                if ionex_rms_plane {
+                    ionex_rms_plane = false;
+                    if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                        // provide RMS value for the entire plane
+                        for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
+                            rec_tec.rms = tec.rms;
+                        }
+                    } else {
+                        // insert RMS values
+                        ionx_rec.insert((epoch, altitude), plane);
+                    }
+                } else {
+                    if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                        // provide TEC value for the entire plane
+                        for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
+                            rec_tec.tec = tec.tec;
+                        }
+                    } else {
+                        // insert TEC values
+                        ionx_rec.insert((epoch, altitude), plane);
+                    }
+                }
             }
         },
         Type::AntennaData => {

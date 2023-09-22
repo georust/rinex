@@ -75,7 +75,12 @@ mod test {
             rinex.tec().count() > 0,
             "failed to parse both RMS + TEC maps"
         );
-        //assert_eq!(rinex.tec_rms().count(), rinex.tec().count(), "this file contains one RMS map per TEC");
+        assert_eq!(
+            rinex.tec().count(),
+            rinex.tec_rms().count(),
+            "this file contains one RMS map per TEC map"
+        );
+
         assert_eq!(
             rinex.dominant_sample_rate(),
             Some(Duration::from_hours(2.0)),
