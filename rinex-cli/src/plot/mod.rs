@@ -279,14 +279,22 @@ pub fn build_default_polar_plot(title: &str) -> Plot {
  * centered on given locations, in decimal degrees,
  * zoom factor
  */
-pub fn build_world_map(style: MapboxStyle, center: (f64, f64), zoom: u8) -> Plot {
+pub fn build_world_map(
+    title: &str,
+    show_legend: bool,
+    map_style: MapboxStyle,
+    center: (f64, f64),
+    zoom: u8,
+) -> Plot {
     let mut p = Plot::new();
     let layout = Layout::new()
+        .title(Title::new(title).font(Font::default()))
         .drag_mode(DragMode::Zoom)
         .margin(Margin::new().top(0).left(0).bottom(0).right(0))
+        .show_legend(show_legend)
         .mapbox(
             Mapbox::new()
-                .style(style)
+                .style(map_style)
                 .center(Center::new(center.0, center.1))
                 .zoom(zoom),
         );
@@ -377,7 +385,7 @@ pub fn build_chart_epoch_axis(
     let txt: Vec<String> = epochs.iter().map(|e| e.to_string()).collect();
     Scatter::new(epochs.iter().map(|e| e.to_utc_seconds()).collect(), data_y)
         .mode(mode)
-        .web_gl_mode(true)
+        //.web_gl_mode(true)
         .name(name)
         .hover_text_array(txt)
         .hover_info(HoverInfo::All)

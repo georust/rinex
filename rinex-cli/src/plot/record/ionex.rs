@@ -16,58 +16,58 @@ pub fn plot_tec_map(
     plot_ctx: &mut PlotContext,
 ) {
     let _cmap = colorous::TURBO;
-    plot_ctx.add_world_map(MapboxStyle::StamenTerrain, (32.5, -40.0), 1);
+    /*
+     * TEC map visualization
+     * plotly-rs has no means to animate plots at the moment
+     * therefore.. we create one plot for all existing epochs
+     */
+    for (index, epoch) in ctx.primary_data().epoch().enumerate() {
+        let content: Vec<_> = ctx
+            .primary_data()
+            .tec()
+            .filter_map(|(t, lat, lon, h, tec)| {
+                if t == epoch {
+                    Some((lat, lon, h, tec))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-    let first_epoch = ctx
-        .primary_data()
-        .first_epoch()
-        .expect("failed to determine first epoch");
+        plot_ctx.add_world_map(
+            &epoch.to_string(),
+            true,
+            MapboxStyle::StamenTerrain,
+            (32.5, -40.0),
+            1,
+        );
 
-    let first_epoch_content: Vec<_> = ctx
-        .primary_data()
-        .tec()
-        .filter_map(|(t, lat, lon, h, tec)| {
-            if t == first_epoch {
-                Some((lat, lon, h, tec))
-            } else {
-                None
-            }
-        })
-        .collect();
+        let mut lat: Vec<f64> = Vec::new();
+        let mut lon: Vec<f64> = Vec::new();
+        let mut z: Vec<f64> = Vec::new();
+        for (tec_lat, tec_lon, _, tec) in content {
+            lat.push(tec_lat);
+            lon.push(tec_lon);
+            z.push(tec);
+        }
 
-    let mut lat: Vec<f64> = Vec::new();
-    let mut lon: Vec<f64> = Vec::new();
-    let mut z: Vec<f64> = Vec::new();
-    for (tec_lat, tec_lon, _, tec) in first_epoch_content {
-        lat.push(tec_lat);
-        lon.push(tec_lon);
-        z.push(tec);
-        // println!("({}, {}): {}", tec_lat, tec_lon, tec);
+        /* plot the map grid */
+        let grid = ScatterMapbox::new(lat.clone(), lon.clone())
+            .marker(
+                Marker::new()
+                    .size(3)
+                    .symbol(MarkerSymbol::Circle)
+                    .color(NamedColor::Black)
+                    .opacity(0.5),
+            )
+            .name("grid");
+        plot_ctx.add_trace(grid);
+
+        let map = DensityMapbox::new(lat.clone(), lon.clone(), z)
+            .opacity(0.66)
+            .hover_text
+            .zauto(true)
+            .zoom(3);
+        plot_ctx.add_trace(map);
     }
-
-    let grid = ScatterMapbox::new(lat.clone(), lon.clone())
-        .marker(
-            Marker::new()
-                .size(3)
-                .symbol(MarkerSymbol::Circle)
-                .color(NamedColor::Black)
-                .opacity(0.5),
-        )
-        .name("TEC Grid");
-
-    plot_ctx.add_trace(grid);
-
-    let map = DensityMapbox::new(lat.clone(), lon.clone(), z)
-        .opacity(0.66)
-        .zauto(true)
-        .zoom(3);
-    //.color_continuous_scale(
-    //    vec![
-    //        (0, NamedColor::Black),
-    //        (100, NamedColor::White),
-    //    ].into_iter()
-    //        .collect()
-    //)
-    //.radius(5);
-    plot_ctx.add_trace(map);
 }
