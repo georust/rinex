@@ -2,13 +2,18 @@
 use crate::plot::PlotContext;
 use plotly::{
     color::NamedColor,
+    common::Font,
+    common::Title,
     common::{Marker, MarkerSymbol}, //color::Rgba},
     layout::MapboxStyle,
+    // AnimatedDensityMapbox,
     DensityMapbox,
     //scatter_mapbox::Fill,
     ScatterMapbox,
 };
+use rinex::prelude::Epoch;
 use rinex_qc::QcContext;
+use std::collections::HashMap;
 
 pub fn plot_tec_map(
     ctx: &QcContext,
@@ -16,6 +21,8 @@ pub fn plot_tec_map(
     plot_ctx: &mut PlotContext,
 ) {
     let _cmap = colorous::TURBO;
+
+    let hover_text: Vec<String> = ctx.primary_data().epoch().map(|e| e.to_string()).collect();
     /*
      * TEC map visualization
      * plotly-rs has no means to animate plots at the moment
@@ -42,32 +49,35 @@ pub fn plot_tec_map(
             1,
         );
 
-        let mut lat: Vec<f64> = Vec::new();
-        let mut lon: Vec<f64> = Vec::new();
-        let mut z: Vec<f64> = Vec::new();
+        let mut lat: HashMap<String, f64> = HashMap::new();
+        let mut lon: HashMap<String, f64> = HashMap::new();
+        let mut z: HashMap<String, f64> = HashMap::new();
         for (tec_lat, tec_lon, _, tec) in content {
-            lat.push(tec_lat);
-            lon.push(tec_lon);
-            z.push(tec);
+            lat.insert(Epoch::default().to_string(), tec_lat);
+            lon.insert(Epoch::default().to_string(), tec_lon);
+            z.insert(Epoch::default().to_string(), tec);
         }
 
         /* plot the map grid */
-        let grid = ScatterMapbox::new(lat.clone(), lon.clone())
-            .marker(
-                Marker::new()
-                    .size(3)
-                    .symbol(MarkerSymbol::Circle)
-                    .color(NamedColor::Black)
-                    .opacity(0.5),
-            )
-            .name("grid");
-        plot_ctx.add_trace(grid);
+        //let grid = ScatterMapbox::new(lat.clone(), lon.clone())
+        //    .marker(
+        //        Marker::new()
+        //            .size(3)
+        //            .symbol(MarkerSymbol::Circle)
+        //            .color(NamedColor::Black)
+        //            .opacity(0.5),
+        //    )
+        //    .name("grid");
+        //plot_ctx.add_trace(grid);
 
-        let map = DensityMapbox::new(lat.clone(), lon.clone(), z)
-            .opacity(0.66)
-            .hover_text
-            .zauto(true)
-            .zoom(3);
-        plot_ctx.add_trace(map);
+        //let map = AnimatedDensityMapbox::new(lat.clone(), lon.clone(), z)
+        //    .title("TEST")
+        //    .name(epoch.to_string())
+        //    .opacity(0.66)
+        //    .hover_text_array(hover_text.clone())
+        //    .zauto(true)
+        //    //.animation_frame("test")
+        //    .zoom(3);
+        //plot_ctx.add_trace(map);
     }
 }
