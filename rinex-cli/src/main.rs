@@ -21,7 +21,7 @@ use rinex::{
 };
 
 extern crate gnss_rtk as rtk;
-use rtk::prelude::{Solver, SolverOpts, SolverType};
+use rtk::prelude::{Solver, SolverError, SolverOpts, SolverType};
 
 use rinex_qc::*;
 
@@ -682,13 +682,29 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     if let Ok(ref mut solver) = solver {
         // position solver is feasible, with provided context
+        let mut solving = true;
+
         if positioning {
-            info!("entering positioning mode\n");
-            while let Some((t, estimate)) = solver.run(&mut ctx) {
-                trace!("epoch: {}", t);
-                // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);
-                //info!("%%%%%%%%% Position : {:?}, Time: {:?}", position, time);
-                // iteration += 1;
+            match solver.init(&mut ctx) {
+                Err(e) => panic!("failed to initialize gnss solver"),
+                Ok(_) => info!("entering positioning mode"),
+            }
+            while solving {
+                match solver.run(&mut ctx) {
+                    Ok((t, estimate)) => {
+                        let pos = (estimate.dx, estimate.dy, estimate.dz);
+                        trace!("epoch: {} | position error: {:?} | PDOP {} | clock offset: {} | TDOP {}", t, pos, estimate.pdop, estimate.dt, estimate.tdop);
+                    },
+                    Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
+                    Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
+                    Err(SolverError::SolvingError(t)) => {
+                        error!("failed to invert navigation matrix @ {}", t)
+                    },
+                    Err(SolverError::EpochDetermination(_)) => {
+                        solving = false; // abort
+                    },
+                    Err(e) => panic!("fatal error {:?}", e),
+                }
             }
             info!("done");
         }

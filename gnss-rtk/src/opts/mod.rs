@@ -1,10 +1,13 @@
+use crate::model::Modeling;
 use crate::SolverType;
+use hifitime::prelude::TimeScale;
+
 use rinex::prelude::{Constellation, GroundPosition};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct SolverOpts {
-    /// Criteria (for convergence)
-    pub epsilon: f64,
+    /// Time scale
+    pub timescale: TimeScale,
     /// (Position) interpolation filter order.
     /// A minimal order must be respected for correct results.
     /// -  7 when working with broadcast ephemeris
@@ -15,7 +18,7 @@ pub struct SolverOpts {
     /// Whether the solver is working in fixed altitude mode or not
     pub fixed_altitude: Option<f64>,
     /// Position receveir position, if known before hand
-    pub rcvr_position: GroundPosition,
+    pub rcvr_position: Option<GroundPosition>,
     /// constellation to consider,
     pub gnss: Vec<Constellation>,
     /// PR code smoothing filter before moving forward
@@ -31,16 +34,18 @@ pub struct SolverOpts {
     /// A value closer to 0 means we tolerate fast Eclipse exit.
     /// A value closer to 1 is a stringent criteria: eclipse must be totally exited.
     pub min_sv_sunlight_rate: Option<f64>,
+    /// modeling
+    pub modeling: Modeling,
 }
 
 impl SolverOpts {
     pub fn default(solver: SolverType) -> Self {
         match solver {
             SolverType::SPP => Self {
-                epsilon: 5.0_f64,
+                timescale: TimeScale::default(),
                 gnss: vec![Constellation::GPS, Constellation::Galileo],
                 fixed_altitude: None,
-                rcvr_position: GroundPosition::default(),
+                rcvr_position: None,
                 interp_order: 7,
                 positioning: PositioningMode::default(),
                 code_smoothing: false,
@@ -48,19 +53,21 @@ impl SolverOpts {
                 iono: false,
                 tgd: false,
                 min_sv_sunlight_rate: None,
+                modeling: Modeling::default(),
             },
             SolverType::PPP => Self {
-                epsilon: 0.1_f64,
+                timescale: TimeScale::default(),
                 gnss: vec![Constellation::GPS, Constellation::Galileo],
                 fixed_altitude: None,
-                rcvr_position: GroundPosition::default(),
+                rcvr_position: None,
                 interp_order: 11,
                 positioning: PositioningMode::default(),
                 code_smoothing: false,
                 tropo: false,
                 iono: false,
                 tgd: false,
-                min_sv_sunlight_rate: Some(0.3),
+                min_sv_sunlight_rate: Some(0.75),
+                modeling: Modeling::default(),
             },
         }
     }

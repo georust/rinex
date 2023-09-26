@@ -127,6 +127,14 @@ impl Ephemeris {
         self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
+     * Returns TGD field if such field is not empty
+     */
+    pub(crate) fn tgd(&self) -> Option<f64> {
+        //let tgd =
+        self.get_orbit_f64("tgd")
+        //Some(tgd * 299792459.0_f64) // SPEED OF LIGHT
+    }
+    /*
      * Retrieves toe, expressed as an Epoch, if Week + TOE are properly received
      */
     pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {

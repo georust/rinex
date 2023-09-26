@@ -5,31 +5,51 @@ use rinex::prelude::{Duration, Epoch, Sv};
 use rinex_qc::QcContext;
 use std::collections::HashMap;
 
+use hifitime::Unit;
+
 extern crate nyx_space as nyx;
 
+use nalgebra::base::{Matrix4xX, Vector3, Vector4};
 use nyx::md::prelude::{Arc, Cosm};
 
-mod models;
+mod estimate;
+mod model;
 mod opts;
 
 pub mod prelude {
+    pub use crate::estimate::SolverEstimate;
+    pub use crate::model::Modeling;
     pub use crate::opts::PositioningMode;
     pub use crate::opts::SolverOpts;
     pub use crate::Solver;
-    pub use crate::SolverEstimate;
+    pub use crate::SolverError;
     pub use crate::SolverType;
 }
 
+use estimate::SolverEstimate;
+use model::Modeling;
 use opts::SolverOpts;
 
 use log::{debug, trace, warn};
 
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, Error)]
-pub enum Error {
+#[derive(Debug, Clone, Error)]
+pub enum SolverError {
     #[error("provided context is either unsufficient or invalid for any position solving")]
     Unfeasible,
+    #[error("failed to initialize solver - \"{0}\"")]
+    InitializationError(String),
+    #[error("no vehicles elected @{0}")]
+    NoSv(Epoch),
+    #[error("not enough vehicles elected @{0}")]
+    LessThan4Sv(Epoch),
+    #[error("failed to retrieve work epoch (index: {0})")]
+    EpochDetermination(usize),
+    #[error("badop: solver not initialized")]
+    NotInitialized,
+    #[error("failed to invert navigation matrix @{0}")]
+    SolvingError(Epoch),
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -53,19 +73,12 @@ impl std::fmt::Display for SolverType {
 }
 
 impl SolverType {
-    fn from(ctx: &QcContext) -> Result<Self, Error> {
+    fn from(ctx: &QcContext) -> Result<Self, SolverError> {
         if ctx.primary_data().is_observation_rinex() {
-            if ctx.has_sp3() {
-                Ok(Self::PPP)
-            } else {
-                if ctx.has_navigation_data() {
-                    Ok(Self::SPP)
-                } else {
-                    Err(Error::Unfeasible)
-                }
-            }
+            //TODO : multi carrier for selected constellations
+            Ok(Self::SPP)
         } else {
-            Err(Error::Unfeasible)
+            Err(SolverError::Unfeasible)
         }
     }
 }
@@ -82,20 +95,10 @@ pub struct Solver {
     pub solver: SolverType,
     /// Current epoch
     nth_epoch: usize,
-    /// current estimate
-    pub estimate: SolverEstimate,
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct SolverEstimate {
-    /// Position estimate
-    pub pos: (f64, f64, f64),
-    /// Time offset estimate
-    pub clock_offset: Duration,
 }
 
 impl Solver {
-    pub fn from(context: &QcContext) -> Result<Self, Error> {
+    pub fn from(context: &QcContext) -> Result<Self, SolverError> {
         let solver = SolverType::from(context)?;
         Ok(Self {
             cosmic: Cosm::de438(),
@@ -103,10 +106,9 @@ impl Solver {
             initiated: false,
             opts: SolverOpts::default(solver),
             nth_epoch: 0,
-            estimate: SolverEstimate::default(),
         })
     }
-    pub fn init(&mut self, ctx: &mut QcContext) {
+    pub fn init(&mut self, ctx: &mut QcContext) -> Result<(), SolverError> {
         trace!("{} solver initialization..", self.solver);
         //TODO: Preprocessing:
         //      only for ppp solver
@@ -135,32 +137,54 @@ impl Solver {
 
         //initialization
         self.nth_epoch = 0;
-        self.estimate.pos = self.opts.rcvr_position.into();
-        self.initiated = true;
-    }
-    pub fn run(&mut self, ctx: &mut QcContext) -> Option<(Epoch, SolverEstimate)> {
-        if !self.initiated {
-            self.init(ctx);
-            trace!("solver initiated");
-        } else {
-            // move on to next epoch
-            self.nth_epoch += 1;
+        /*
+         * Solving needs a ref. position
+         */
+        if self.opts.rcvr_position.is_none() {
+            // defined in context ?
+            let position = ctx
+                .ground_position()
+                .ok_or(SolverError::InitializationError(String::from(
+                    "Missing ref. position",
+                )))?;
+            self.opts.rcvr_position = Some(position);
         }
 
+        self.initiated = true;
+        Ok(())
+    }
+    pub fn run(&mut self, ctx: &mut QcContext) -> Result<(Epoch, SolverEstimate), SolverError> {
+        if !self.initiated {
+            return Err(SolverError::NotInitialized);
+        }
+
+        let modeling = self.opts.modeling;
+
         // grab work instant
-        let t = ctx.primary_data().epoch().nth(self.nth_epoch)?;
+        let t = ctx
+            .primary_data()
+            .epoch()
+            .nth(self.nth_epoch)
+            .ok_or(SolverError::EpochDetermination(self.nth_epoch))?;
 
         let interp_order = self.opts.interp_order;
 
         /* elect vehicles */
-        let elected_sv = Self::sv_election(ctx, t);
+        let elected_sv = Self::sv_election(ctx, t, &self.opts);
         if elected_sv.is_none() {
             warn!("no vehicles elected @ {}", t);
-            return Some((t, self.estimate));
+            self.nth_epoch += 1;
+            return Err(SolverError::NoSv(t));
         }
 
         let mut elected_sv = elected_sv.unwrap();
         debug!("elected sv : {:?}", elected_sv);
+
+        if elected_sv.len() < 4 {
+            warn!("not enough vehicles elected");
+            self.nth_epoch += 1;
+            return Err(SolverError::LessThan4Sv(t));
+        }
 
         /* determine sv positions */
         /* TODO: SP3 APC corrections: Self::eval_sun_vector3d */
@@ -190,44 +214,69 @@ impl Solver {
         }
 
         /* remove sv in eclipse */
-        if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
-            sv_pos.retain(|sv, (x_km, y_km, z_km)| {
-                let state = self.eclipse_state(*x_km, *y_km, *z_km, t);
-                let eclipsed = match state {
-                    EclipseState::Umbra => true,
-                    EclipseState::Visibilis => false,
-                    EclipseState::Penumbra(r) => {
-                        debug!("{} state: {}", sv, state);
-                        r < min_rate
-                    },
-                };
+        if self.solver == SolverType::PPP {
+            if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
+                sv_pos.retain(|sv, (x_km, y_km, z_km)| {
+                    let state = self.eclipse_state(*x_km, *y_km, *z_km, t);
+                    let eclipsed = match state {
+                        EclipseState::Umbra => true,
+                        EclipseState::Visibilis => false,
+                        EclipseState::Penumbra(r) => {
+                            debug!("{} state: {}", sv, state);
+                            r < min_rate
+                        },
+                    };
 
-                if eclipsed {
-                    debug!("dropping eclipsed {}", sv);
-                }
-                !eclipsed
-            });
+                    if eclipsed {
+                        debug!("dropping eclipsed {}", sv);
+                    }
+                    !eclipsed
+                });
+            }
         }
 
         // 3: t_tx
         let mut t_tx: HashMap<Sv, Epoch> = HashMap::new();
         for sv in &elected_sv {
-            if let Some(sv_t_tx) = Self::sv_transmission_time(ctx, *sv, t) {
+            if let Some(sv_t_tx) = Self::sv_transmission_time(ctx, *sv, t, modeling) {
                 t_tx.insert(*sv, sv_t_tx);
             }
         }
 
-        //TODO
-        // add other models
+        // 4: position @ tx
+        let mut sv_pos: HashMap<Sv, Vector3<f64>> = HashMap::new();
+        for t_tx in t_tx {
+            if modeling.relativistic_clock_corr {
+                // Needs sv_spoeed()
+                // -2 * r.dot(v) / c / c
+            }
+            if modeling.earth_rotation {
+                // dt = || rsat - rcvr0 || /c
+                // rsat = R3 * we * dt * rsat
+                // we = 7.2921151467 E-5
+            }
+        }
 
-        // form matrix
-        // resolve
-        Some((t, self.estimate))
+        // 5: pseudo range
+        let mut pr: HashMap<Sv, f64> = HashMap::new();
+        for (sv, pos) in sv_pos {
+            let pseudorange = (pos[0]).sqrt();
+            pr.insert(sv, pseudorange);
+        }
+
+        // 5: form matrix
+        let g = Matrix4xX::<f64>::zeros(elected_sv.len());
+        let y = Vector4::<f64>::zeros();
+
+        // 6: resolve
+        let estimate = SolverEstimate::new(g, y).ok_or(SolverError::SolvingError(t))?;
+
+        Ok((t, estimate))
     }
     /*
      * Evalutes T_tx transmission time, for given Sv at desired 't'
      */
-    fn sv_transmission_time(ctx: &QcContext, sv: Sv, t: Epoch) -> Option<Epoch> {
+    fn sv_transmission_time(ctx: &QcContext, sv: Sv, t: Epoch, m: Modeling) -> Option<Epoch> {
         let nav = ctx.navigation_data()?;
         // need one pseudo range observation for this SV @ 't'
         let mut pr = ctx
@@ -243,14 +292,24 @@ impl Solver {
             .take(1);
         if let Some(pr) = pr.next() {
             let t_tx = Duration::from_seconds(t.to_duration().to_seconds() - pr / SPEED_OF_LIGHT);
+            let mut e_tx = Epoch::from_duration(t_tx, sv.constellation.timescale()?);
             debug!("t_tx(pr): {}@{} : {}", sv, t, t_tx);
 
-            let mut e_tx = Epoch::from_duration(t_tx, sv.constellation.timescale()?);
-            let dt_sat = nav.sv_clock_bias(sv, e_tx)?;
-            debug!("clock bias: {}@{} : {}", sv, t, dt_sat);
+            if m.sv_clock_bias {
+                let dt_sat = nav.sv_clock_bias(sv, e_tx)?;
+                debug!("clock bias: {}@{} : {}", sv, t, dt_sat);
 
-            e_tx -= dt_sat;
-            debug!("{} : t(obs): {} | t(tx) {}", sv, t, e_tx);
+                e_tx -= dt_sat;
+                debug!("{} : t(obs): {} | t(tx) {}", sv, t, e_tx);
+            }
+
+            if m.sv_total_group_delay {
+                if let Some(nav) = ctx.navigation_data() {
+                    if let Some(tgd) = nav.sv_tgd(sv, t) {
+                        e_tx = e_tx - tgd * Unit::Second;
+                    }
+                }
+            }
 
             Some(e_tx)
         } else {
@@ -293,10 +352,23 @@ impl Solver {
     /*
      * Elects sv for this epoch
      */
-    fn sv_election(ctx: &QcContext, t: Epoch) -> Option<Vec<Sv>> {
+    fn sv_election(ctx: &QcContext, t: Epoch, opts: &SolverOpts) -> Option<Vec<Sv>> {
         ctx.primary_data()
             .sv_epoch()
-            .filter_map(|(epoch, svs)| if epoch == t { Some(svs) } else { None })
+            .filter_map(|(epoch, svs)| {
+                if epoch == t {
+                    //if !opts.gnss.is_empty() {
+                    //    svs.iter_mut()
+                    //        .filter(|sv| opts.gnss.contains(&sv.constellation))
+                    //        .count()
+                    //} else {
+                    // no gnss filter / criteria
+                    Some(svs)
+                    //}
+                } else {
+                    None
+                }
+            })
             .reduce(|svs, _| svs)
     }
 }

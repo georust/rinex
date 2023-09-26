@@ -2178,6 +2178,11 @@ impl Rinex {
             },
         }
     }
+    /// Returns Sv TGD expressed in seconds
+    pub fn sv_tgd(&self, sv: Sv, t: Epoch) -> Option<f64> {
+        let (_, ephemeris) = self.sv_ephemeris(sv, t)?;
+        ephemeris.tgd()
+    }
     /// Returns an Iterator over Sv position vectors,
     /// expressed in km ECEF for all Epochs.
     /// ```
