@@ -27,8 +27,8 @@ impl Cli {
                         .long("fp")
                         .value_name("FILE")
                         .help("Input RINEX file. Serves as primary data.
-In advanced usage, this must be Observation Data.
-Observation, Meteo and IONEX, can only serve as primary data.")
+Must be Observation Data for --rtk.
+Observation, Meteo and IONEX can only serve as primary data.")
                         .action(ArgAction::Append)
                         .required(true))
                 .next_help_heading("General")
@@ -37,8 +37,9 @@ Observation, Meteo and IONEX, can only serve as primary data.")
                         .long("quiet")
                         .action(ArgAction::SetTrue)
                         .help("Disable all terminal output. Also disables auto HTML reports opener."))
-                    .arg(Arg::new("readable")
-                        .short('r')
+                    .arg(Arg::new("pretty")
+                        .short('p')
+                        .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable."))
                     .arg(Arg::new("workspace")
@@ -109,6 +110,7 @@ Useful to determine common Epochs or compare sample rates in between
 						.num_args(1..)
 						.help("Design preprocessing operations, like data filtering or resampling,
 prior further analysis. You can stack as many ops as you need.
+Preprocessing ops apply prior entering both -q and --rtk modes.
 Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."))
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
@@ -250,27 +252,54 @@ The summary report by default is integrated to the global HTML report."))
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
                         .help("Activates QC mode and disables all other features: quickest qc rendition."))
-                .next_help_heading("Position Solver")
-                    .arg(Arg::new("positioning")
-                        .short('p')
-                        .long("positioning")
+                .next_help_heading("RTK (Positioning)")
+                    .arg(Arg::new("rtk")
+                        .short('r')
+                        .long("rtk")
                         .action(ArgAction::SetTrue)
                         .help("Activate GNSS receiver position solver.
 This is only possible if provided context is sufficient.
 Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
-method is deployed.
-This is turned of by default, because it involves quite heavy computations.
+solver is deployed.
+This mode is turned off by default because it involves quite heavy computations.
+Use the RUST_LOG env. variable for verbosity.
 See [spp] for more information. "))
                     .arg(Arg::new("spp")
                         .long("spp")
                         .action(ArgAction::SetTrue)
                         .help("Enables Positioning forced to Single Frequency SPP solver mode.
 Disregards whether the provided context is PPP compatible. 
-NB: we do not account for Relativistic effects in clock bias estimates."))
-                    .arg(Arg::new("positioning-only")
-                        .long("pos-only")
+NB: we do not account for Relativistic effects by default and raw pseudo range are used.
+For indepth customization, refer to the configuration file and online documentation."))
+                    .arg(Arg::new("rtk-only")
+                        .long("rtk-only")
                         .action(ArgAction::SetTrue)
-                        .help("Activates GNSS position solver, disables all other modes: most performant solver.")) 
+                        .help("Activates GNSS position solver, disables all other modes.
+This is the most performant mode to solve a position."))
+                    .arg(Arg::new("rtk-fixed-altitude")
+                        .long("rtk-fixed-alt")
+                        .value_name("ALTITUDE(f64)")
+                        .help("Set rtk solver to fixed altitude mode.
+Problem is simplified by not caring about the Z axis resolution."))
+                    .arg(Arg::new("rtk-static")
+                        .long("rtk-static")
+                        .help("Set rtk solver to static mode.
+Problem is simplified but will not work in case the receiver is not maintained in static position.
+Works well in laboratory conditions.
+Combine --rtk-fixed-alt --rtk-static is most efficient solving scenario."))
+                    .arg(Arg::new("rtk-model")
+                        .long("rtk-model")
+                        .action(ArgAction::Append)
+                        .help("Stack one modelization to account for when solving.
+--model=tgd : account for SV total group delay
+--model=smoothing: smooth pseudo ranges. This is pointless if you requested
+the hatch filter with -P.
+--model=eclipse:f64 : adjust minimal light rate to determine eclipse condition.
+--model=tgd : account for SV total group delay")) 
+                    .arg(Arg::new("kml")
+                        .long("kml")
+                        .help("Form a KML track with resolved positions.
+This turns off the default visualization."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -435,16 +464,16 @@ Refer to README"))
         self.matches.get_flag(flag)
     }
     /// returns true if pretty JSON is requested
-    pub fn readable_json(&self) -> bool {
-        self.get_flag("readable")
+    pub fn pretty(&self) -> bool {
+        self.get_flag("pretty")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
     /// Returns true if position solver is enabled
-    pub fn positioning(&self) -> bool {
-        self.matches.get_flag("positioning") || self.forced_spp() || self.forced_ppp()
+    pub fn rtk(&self) -> bool {
+        self.matches.get_flag("rtk") || self.forced_spp() || self.forced_ppp()
     }
     /// Returns true if position solver forced to SPP
     pub fn forced_spp(&self) -> bool {
@@ -454,8 +483,8 @@ Refer to README"))
     pub fn forced_ppp(&self) -> bool {
         self.matches.get_flag("spp")
     }
-    pub fn positioning_only(&self) -> bool {
-        self.matches.get_flag("positioning-only")
+    pub fn rtk_only(&self) -> bool {
+        self.matches.get_flag("rtk-only")
     }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")

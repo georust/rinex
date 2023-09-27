@@ -6,7 +6,7 @@ use rinex_qc::QcContext;
  * Basic identification operations
  */
 pub fn rinex_identification(ctx: &QcContext, cli: &Cli) {
-    let pretty = cli.readable_json();
+    let pretty = cli.pretty();
     let ops = cli.identification_ops();
 
     identification(&ctx.primary_data(), pretty, ops.clone());

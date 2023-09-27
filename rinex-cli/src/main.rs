@@ -299,7 +299,7 @@ fn create_context(cli: &Cli) -> QcContext {
  * Returns true if Skyplot view if feasible
  */
 fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() || cli.positioning_only() {
+    if cli.quality_check_only() || cli.rtk_only() {
         /*
          * Special modes: no plots allowed
          */
@@ -329,8 +329,8 @@ pub fn main() -> Result<(), rinex::Error> {
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
-    let positioning_only = cli.positioning_only();
-    let positioning = cli.positioning() || positioning_only;
+    let rtk_only = cli.rtk_only();
+    let rtk = cli.rtk() || rtk_only;
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -381,7 +381,7 @@ pub fn main() -> Result<(), rinex::Error> {
             "provided context is compatible with {} position solver",
             solver.solver
         );
-        if !positioning {
+        if !rtk {
             warn!("position solver currently turned off");
         } else {
             if cli.forced_spp() {
@@ -618,14 +618,14 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !positioning_only {
+    if !qc_only && !rtk_only {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
     }
     /*
      * Render Graphs (HTML)
      */
-    if !qc_only && !positioning_only {
+    if !qc_only && !rtk_only {
         let html_path = workspace_path(&ctx).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
@@ -684,10 +684,10 @@ pub fn main() -> Result<(), rinex::Error> {
         // position solver is feasible, with provided context
         let mut solving = true;
 
-        if positioning {
+        if rtk {
             match solver.init(&mut ctx) {
-                Err(e) => panic!("failed to initialize gnss solver"),
-                Ok(_) => info!("entering positioning mode"),
+                Err(e) => panic!("failed to initialize rtk solver"),
+                Ok(_) => info!("entering rtk mode"),
             }
             while solving {
                 match solver.run(&mut ctx) {

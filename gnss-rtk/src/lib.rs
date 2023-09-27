@@ -9,7 +9,7 @@ use hifitime::Unit;
 
 extern crate nyx_space as nyx;
 
-use nalgebra::base::{Matrix4xX, Vector3, Vector4};
+use nalgebra::base::{DVector, Matrix4xX, Vector1, Vector3, Vector4};
 use nyx::md::prelude::{Arc, Cosm};
 
 mod estimate;
@@ -38,6 +38,8 @@ use thiserror::Error;
 pub enum SolverError {
     #[error("provided context is either unsufficient or invalid for any position solving")]
     Unfeasible,
+    #[error("apriori position is not defined - initialization it not complete!")]
+    UndefinedAprioriPosition,
     #[error("failed to initialize solver - \"{0}\"")]
     InitializationError(String),
     #[error("no vehicles elected @{0}")]
@@ -158,18 +160,27 @@ impl Solver {
             return Err(SolverError::NotInitialized);
         }
 
+        let pos0 = self
+            .opts
+            .rcvr_position
+            .ok_or(SolverError::UndefinedAprioriPosition)?;
+
+        let (x0, y0, z0): (f64, f64, f64) = pos0.into();
+
         let modeling = self.opts.modeling;
 
         // grab work instant
-        let t = ctx
-            .primary_data()
-            .epoch()
-            .nth(self.nth_epoch)
-            .ok_or(SolverError::EpochDetermination(self.nth_epoch))?;
+        let t = ctx.primary_data().epoch().nth(self.nth_epoch);
 
+        if t.is_none() {
+            self.nth_epoch += 1;
+            return Err(SolverError::EpochDetermination(self.nth_epoch));
+        }
+
+        let t = t.unwrap();
         let interp_order = self.opts.interp_order;
 
-        /* elect vehicles */
+        /* selection */
         let elected_sv = Self::sv_election(ctx, t, &self.opts);
         if elected_sv.is_none() {
             warn!("no vehicles elected @ {}", t);
@@ -186,9 +197,8 @@ impl Solver {
             return Err(SolverError::LessThan4Sv(t));
         }
 
-        /* determine sv positions */
+        /* SV positions */
         /* TODO: SP3 APC corrections: Self::eval_sun_vector3d */
-
         let mut sv_pos: HashMap<Sv, (f64, f64, f64)> = HashMap::new();
         for sv in &elected_sv {
             if let Some(sp3) = ctx.sp3_data() {
@@ -212,7 +222,6 @@ impl Solver {
                 }
             }
         }
-
         /* remove sv in eclipse */
         if self.solver == SolverType::PPP {
             if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
@@ -234,7 +243,6 @@ impl Solver {
                 });
             }
         }
-
         // 3: t_tx
         let mut t_tx: HashMap<Sv, Epoch> = HashMap::new();
         for sv in &elected_sv {
@@ -242,8 +250,20 @@ impl Solver {
                 t_tx.insert(*sv, sv_t_tx);
             }
         }
+        // 4: retrieve rt pseudorange
+        let pr: Vec<_> = ctx
+            .primary_data()
+            .pseudo_range()
+            .filter_map(|((epoch, _), sv, _, pr)| {
+                if epoch == t && elected_sv.contains(&sv) {
+                    Some((sv, pr))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-        // 4: position @ tx
+        // 5: position @ tx
         let mut sv_pos: HashMap<Sv, Vector3<f64>> = HashMap::new();
         for t_tx in t_tx {
             if modeling.relativistic_clock_corr {
@@ -257,21 +277,52 @@ impl Solver {
             }
         }
 
-        // 5: pseudo range
-        let mut pr: HashMap<Sv, f64> = HashMap::new();
-        for (sv, pos) in sv_pos {
-            let pseudorange = (pos[0]).sqrt();
-            pr.insert(sv, pseudorange);
+        // 6: form matrix
+        let mut y = DVector::<f64>::zeros(elected_sv.len());
+        let mut g = Matrix4xX::<f64>::zeros(elected_sv.len());
+
+        for (index, (sv, pos)) in sv_pos.iter().enumerate() {
+            let rho_0 =
+                ((pos[0] - x0).powi(2) + (pos[1] - y0).powi(2) + (pos[2] - z0).powi(2)).sqrt();
+
+            //TODO
+            //let models = models
+            //    .iter()
+            //    .filter_map(|sv, model| {
+            //        if sv == svnn {
+            //            Some(model)
+            //        } else {
+
+            //        }
+            //    })
+            //    .reduce(|m, _| m)
+            //    .unwrap();
+            let models = 0.0_f64;
+
+            let pr = pr
+                .iter()
+                .filter_map(|(svnn, pr)| if sv == svnn { Some(pr) } else { None })
+                .reduce(|pr, _| pr)
+                .unwrap();
+
+            y[index] = pr - rho_0 - models;
+
+            let (x, y, z) = (pos[0], pos[1], pos[2]);
+
+            g[(index, 0)] = (x0 - x) / rho_0;
+            g[(index, 1)] = (y0 - y) / rho_0;
+            g[(index, 2)] = (z0 - z) / rho_0;
+            g[(index, 3)] = 1.0_f64;
         }
 
-        // 5: form matrix
-        let g = Matrix4xX::<f64>::zeros(elected_sv.len());
-        let y = Vector4::<f64>::zeros();
-
-        // 6: resolve
-        let estimate = SolverEstimate::new(g, y).ok_or(SolverError::SolvingError(t))?;
-
-        Ok((t, estimate))
+        // 7: resolve
+        let estimate = SolverEstimate::new(g, y);
+        if estimate.is_none() {
+            self.nth_epoch += 1;
+            return Err(SolverError::SolvingError(t));
+        } else {
+            Ok((t, estimate.unwrap()))
+        }
     }
     /*
      * Evalutes T_tx transmission time, for given Sv at desired 't'
@@ -293,24 +344,23 @@ impl Solver {
         if let Some(pr) = pr.next() {
             let t_tx = Duration::from_seconds(t.to_duration().to_seconds() - pr / SPEED_OF_LIGHT);
             let mut e_tx = Epoch::from_duration(t_tx, sv.constellation.timescale()?);
-            debug!("t_tx(pr): {}@{} : {}", sv, t, t_tx);
 
             if m.sv_clock_bias {
                 let dt_sat = nav.sv_clock_bias(sv, e_tx)?;
-                debug!("clock bias: {}@{} : {}", sv, t, dt_sat);
-
+                debug!("{}@{} | dt_sat {}", sv, t, dt_sat);
                 e_tx -= dt_sat;
-                debug!("{} : t(obs): {} | t(tx) {}", sv, t, e_tx);
             }
 
             if m.sv_total_group_delay {
                 if let Some(nav) = ctx.navigation_data() {
                     if let Some(tgd) = nav.sv_tgd(sv, t) {
-                        e_tx = e_tx - tgd * Unit::Second;
+                        let tgd = tgd * Unit::Second;
+                        debug!("{}@{} | tgd    {}", sv, t, tgd);
+                        e_tx = e_tx - tgd;
                     }
                 }
             }
-
+            debug!("{}@{} | t_tx    {}", sv, t, e_tx);
             Some(e_tx)
         } else {
             debug!("missing PR measurement");
@@ -353,6 +403,9 @@ impl Solver {
      * Elects sv for this epoch
      */
     fn sv_election(ctx: &QcContext, t: Epoch, opts: &SolverOpts) -> Option<Vec<Sv>> {
+        const max_sv: usize = 5;
+        //TODO: make sure pseudo range exists
+        //TODO: make sure context is consistent with solving strategy : SPP / PPP
         ctx.primary_data()
             .sv_epoch()
             .filter_map(|(epoch, svs)| {
@@ -363,7 +416,7 @@ impl Solver {
                     //        .count()
                     //} else {
                     // no gnss filter / criteria
-                    Some(svs)
+                    Some(svs.into_iter().take(max_sv).collect())
                     //}
                 } else {
                     None
