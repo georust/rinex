@@ -1,4 +1,4 @@
-use nalgebra::base::{DVector, Matrix4xX, Vector4};
+use nalgebra::base::{DVector, MatrixXx4, Vector4};
 /*
  * Solver solution estimate
  * is always expressed as a correction of an 'a priori' position
@@ -25,10 +25,12 @@ impl SolverEstimate {
      * Builds a new SolverEstimate from `g` Nav Matrix,
      * and `y` Nav Vector
      */
-    pub fn new(g: Matrix4xX<f64>, y: DVector<f64>) -> Option<Self> {
+    pub fn new(g: MatrixXx4<f64>, y: DVector<f64>) -> Option<Self> {
         let g_prime = g.transpose();
         let q = (g.clone() * g_prime.clone()).try_inverse()?;
-        let x = q * g_prime.clone() * y;
+        let x = g.pseudo_inverse(1.0E-6).unwrap() * y;
+        //let x = g_prime.clone() * y;
+        //let x = q.clone() * x;
         let pdop = (q[(1, 1)] + q[(2, 2)] + q[(3, 3)]).sqrt();
         let tdop = q[(4, 4)].sqrt();
         Some(Self {

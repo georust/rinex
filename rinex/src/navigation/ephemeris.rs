@@ -392,12 +392,10 @@ impl Ephemeris {
 
         Some((x_k / 1000.0, y_k / 1000.0, z_k / 1000.0))
     }
-    /*
-     * Returns Sv position in km ECEF, based off Self Ephemeris data,
-     * and for given Satellite Vehicle at given Epoch.
-     * Either by solving Kepler equations, or directly if such data is available.
-     */
-    pub(crate) fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
+    /// Returns Sv position in km ECEF, based off Self Ephemeris data,
+    /// and for given Satellite Vehicle at given Epoch.
+    /// Either by solving Kepler equations, or directly if such data is available.
+    pub fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
         let (x_km, y_km, z_km) = (
             self.get_orbit_f64("satPosX"),
             self.get_orbit_f64("satPosY"),

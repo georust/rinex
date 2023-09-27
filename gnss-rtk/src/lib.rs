@@ -9,7 +9,8 @@ use hifitime::Unit;
 
 extern crate nyx_space as nyx;
 
-use nalgebra::base::{DVector, Matrix4xX, Vector1, Vector3, Vector4};
+use nalgebra::base::{DVector, MatrixXx4, Vector1, Vector3, Vector4};
+use nalgebra::vector;
 use nyx::md::prelude::{Arc, Cosm};
 
 mod estimate;
@@ -36,9 +37,9 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
 pub enum SolverError {
-    #[error("provided context is either unsufficient or invalid for any position solving")]
+    #[error("provided context is either not sufficient or invalid")]
     Unfeasible,
-    #[error("apriori position is not defined - initialization it not complete!")]
+    #[error("apriori position is not defined")]
     UndefinedAprioriPosition,
     #[error("failed to initialize solver - \"{0}\"")]
     InitializationError(String),
@@ -127,31 +128,20 @@ impl Solver {
         //     total_dropped,
         //     total
         // );
-
-        // 2: interpolate: if need be
-        //if !ctx.interpolated {
-        //    trace!("orbit interpolation..");
-        //    let order = self.opts.interp_order;
-        //    ctx.orbit_interpolation(order, None);
-        //    //TODO could be nice to have some kind of timing/perf evaluation here
-        //    //     and also total number of required interpolations
-        //}
-
-        //initialization
-        self.nth_epoch = 0;
         /*
          * Solving needs a ref. position
          */
         if self.opts.rcvr_position.is_none() {
             // defined in context ?
-            let position = ctx
-                .ground_position()
-                .ok_or(SolverError::InitializationError(String::from(
-                    "Missing ref. position",
-                )))?;
-            self.opts.rcvr_position = Some(position);
+            let position = ctx.ground_position();
+            if let Some(position) = position {
+                self.opts.rcvr_position = Some(position);
+            } else {
+                return Err(SolverError::UndefinedAprioriPosition);
+            }
         }
 
+        self.nth_epoch = 0;
         self.initiated = true;
         Ok(())
     }
@@ -169,7 +159,7 @@ impl Solver {
 
         let modeling = self.opts.modeling;
 
-        // grab work instant
+        // 0: grab work instant
         let t = ctx.primary_data().epoch().nth(self.nth_epoch);
 
         if t.is_none() {
@@ -180,7 +170,7 @@ impl Solver {
         let t = t.unwrap();
         let interp_order = self.opts.interp_order;
 
-        /* selection */
+        // 1: elect sv
         let elected_sv = Self::sv_election(ctx, t, &self.opts);
         if elected_sv.is_none() {
             warn!("no vehicles elected @ {}", t);
@@ -197,60 +187,8 @@ impl Solver {
             return Err(SolverError::LessThan4Sv(t));
         }
 
-        /* SV positions */
-        /* TODO: SP3 APC corrections: Self::eval_sun_vector3d */
-        let mut sv_pos: HashMap<Sv, (f64, f64, f64)> = HashMap::new();
-        for sv in &elected_sv {
-            if let Some(sp3) = ctx.sp3_data() {
-                if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(*sv, t, interp_order)
-                {
-                    sv_pos.insert(*sv, (x_km, y_km, z_km));
-                } else if let Some(nav) = ctx.navigation_data() {
-                    if let Some((x_km, y_km, z_km)) =
-                        nav.sv_position_interpolate(*sv, t, interp_order)
-                    {
-                        sv_pos.insert(*sv, (x_km, y_km, z_km));
-                    }
-                }
-            } else {
-                if let Some(nav) = ctx.navigation_data() {
-                    if let Some((x_km, y_km, z_km)) =
-                        nav.sv_position_interpolate(*sv, t, interp_order)
-                    {
-                        sv_pos.insert(*sv, (x_km, y_km, z_km));
-                    }
-                }
-            }
-        }
-        /* remove sv in eclipse */
-        if self.solver == SolverType::PPP {
-            if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
-                sv_pos.retain(|sv, (x_km, y_km, z_km)| {
-                    let state = self.eclipse_state(*x_km, *y_km, *z_km, t);
-                    let eclipsed = match state {
-                        EclipseState::Umbra => true,
-                        EclipseState::Visibilis => false,
-                        EclipseState::Penumbra(r) => {
-                            debug!("{} state: {}", sv, state);
-                            r < min_rate
-                        },
-                    };
-
-                    if eclipsed {
-                        debug!("dropping eclipsed {}", sv);
-                    }
-                    !eclipsed
-                });
-            }
-        }
-        // 3: t_tx
-        let mut t_tx: HashMap<Sv, Epoch> = HashMap::new();
-        for sv in &elected_sv {
-            if let Some(sv_t_tx) = Self::sv_transmission_time(ctx, *sv, t, modeling) {
-                t_tx.insert(*sv, sv_t_tx);
-            }
-        }
-        // 4: retrieve rt pseudorange
+        // 2: retrieve pseudorange
+        // TODO: use IONO free combination in PPP
         let pr: Vec<_> = ctx
             .primary_data()
             .pseudo_range()
@@ -262,29 +200,123 @@ impl Solver {
                 }
             })
             .collect();
-
-        // 5: position @ tx
-        let mut sv_pos: HashMap<Sv, Vector3<f64>> = HashMap::new();
-        for t_tx in t_tx {
-            if modeling.relativistic_clock_corr {
-                // Needs sv_spoeed()
-                // -2 * r.dot(v) / c / c
-            }
-            if modeling.earth_rotation {
-                // dt = || rsat - rcvr0 || /c
-                // rsat = R3 * we * dt * rsat
-                // we = 7.2921151467 E-5
+        // 3: t_tx
+        let mut t_tx: HashMap<Sv, Epoch> = HashMap::new();
+        for sv in &elected_sv {
+            // pr for this SV @ this epoch
+            let pr = pr
+                .iter()
+                .filter_map(|(svnn, pr)| if svnn == sv { Some(*pr) } else { None })
+                .reduce(|pr, _| pr);
+            // evaluation
+            if let Some(pr) = pr {
+                if let Some(sv_t_tx) = Self::sv_transmission_time(ctx, *sv, t, pr, modeling) {
+                    t_tx.insert(*sv, sv_t_tx);
+                }
+            } else {
+                debug!("{}@{}: missing pseudorange", t, sv);
             }
         }
-
+        // 4: sv position @ tx
+        let mut sv_pos: HashMap<Sv, Vector3<f64>> = HashMap::new();
+        for (sv, t_tx) in &t_tx {
+            // relativistic clock offset correction
+            let t_tx = match modeling.relativistic_clock_corr {
+                true => {
+                    //TODO
+                    let e = 1.204112719279E-2;
+                    let sqrt_a = 5.153704689026E3;
+                    let sqrt_mu = (3986004.418E8_f64).sqrt();
+                    //let dt = -2.0_f64 * sqrt_a * sqrt_mu / SPEED_OF_LIGHT / SPEED_OF_LIGHT * e * elev.sin();
+                    t_tx //TODO
+                },
+                false => t_tx,
+            };
+            if let Some(sp3) = ctx.sp3_data() {
+                //TODO : SP3 needs APC correction
+                //    which needs Self::eval_sun_vector3D
+                if let Some((x_km, y_km, z_km)) =
+                    sp3.sv_position_interpolate(*sv, *t_tx, interp_order)
+                {
+                    let mut pos = vector![x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3];
+                    if modeling.earth_rotation {
+                        //TODO
+                        // dt = || rsat - rcvr0 || /c
+                        // rsat = R3 * we * dt * rsat
+                        // we = 7.2921151467 E-5
+                    }
+                    // Eclipse filter
+                    if self.solver == SolverType::PPP {
+                        if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
+                            let state = self.eclipse_state(x_km, y_km, z_km, *t_tx);
+                            let eclipsed = match state {
+                                EclipseState::Umbra => true,
+                                EclipseState::Visibilis => false,
+                                EclipseState::Penumbra(r) => {
+                                    debug!("{} state: {}", sv, state);
+                                    r < min_rate
+                                },
+                            };
+                            if eclipsed {
+                                debug!("dropping eclipsed {}", sv);
+                            } else {
+                                sv_pos.insert(*sv, pos);
+                            }
+                        } else {
+                            sv_pos.insert(*sv, pos);
+                        }
+                    } else {
+                        sv_pos.insert(*sv, pos);
+                    }
+                } else {
+                    debug!("{}@{}: sp3 interpolation failed", t, sv);
+                }
+            } else if let Some(nav) = ctx.navigation_data() {
+                if let Some((x_km, y_km, z_km)) =
+                    nav.sv_position_interpolate(*sv, *t_tx, interp_order)
+                {
+                    let mut pos = vector![x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3];
+                    if modeling.earth_rotation {
+                        //TODO
+                        // dt = || rsat - rcvr0 || /c
+                        // rsat = R3 * we * dt * rsat
+                        // we = 7.2921151467 E-5
+                    }
+                    // Eclipse filter
+                    if self.solver == SolverType::PPP {
+                        if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
+                            let state = self.eclipse_state(x_km, y_km, z_km, *t_tx);
+                            let eclipsed = match state {
+                                EclipseState::Umbra => true,
+                                EclipseState::Visibilis => false,
+                                EclipseState::Penumbra(r) => {
+                                    debug!("{} state: {}", sv, state);
+                                    r < min_rate
+                                },
+                            };
+                            if eclipsed {
+                                debug!("dropping eclipsed {}", sv);
+                            } else {
+                                sv_pos.insert(*sv, pos);
+                            }
+                        } else {
+                            sv_pos.insert(*sv, pos);
+                        }
+                    } else {
+                        sv_pos.insert(*sv, pos);
+                    }
+                } else {
+                    debug!("{}@{}: kepler interpolation failed", t, sv);
+                }
+            }
+        }
         // 6: form matrix
         let mut y = DVector::<f64>::zeros(elected_sv.len());
-        let mut g = Matrix4xX::<f64>::zeros(elected_sv.len());
+        let mut g = MatrixXx4::<f64>::zeros(elected_sv.len());
 
         for (index, (sv, pos)) in sv_pos.iter().enumerate() {
             let rho_0 =
                 ((pos[0] - x0).powi(2) + (pos[1] - y0).powi(2) + (pos[2] - z0).powi(2)).sqrt();
-
             //TODO
             //let models = models
             //    .iter()
@@ -316,7 +348,9 @@ impl Solver {
         }
 
         // 7: resolve
+        //trace!("y: {} | g: {}", y, g);
         let estimate = SolverEstimate::new(g, y);
+
         if estimate.is_none() {
             self.nth_epoch += 1;
             return Err(SolverError::SolvingError(t));
@@ -327,45 +361,34 @@ impl Solver {
     /*
      * Evalutes T_tx transmission time, for given Sv at desired 't'
      */
-    fn sv_transmission_time(ctx: &QcContext, sv: Sv, t: Epoch, m: Modeling) -> Option<Epoch> {
+    fn sv_transmission_time(
+        ctx: &QcContext,
+        sv: Sv,
+        t: Epoch,
+        pr: f64,
+        m: Modeling,
+    ) -> Option<Epoch> {
         let nav = ctx.navigation_data()?;
-        // need one pseudo range observation for this SV @ 't'
-        let mut pr = ctx
-            .primary_data()
-            .pseudo_range()
-            .filter_map(|((e, flag), svnn, _, p)| {
-                if e == t && flag.is_ok() && svnn == sv {
-                    Some(p)
-                } else {
-                    None
-                }
-            })
-            .take(1);
-        if let Some(pr) = pr.next() {
-            let t_tx = Duration::from_seconds(t.to_duration().to_seconds() - pr / SPEED_OF_LIGHT);
-            let mut e_tx = Epoch::from_duration(t_tx, sv.constellation.timescale()?);
+        let t_tx = Duration::from_seconds(t.to_duration().to_seconds() - pr / SPEED_OF_LIGHT);
+        let mut e_tx = Epoch::from_duration(t_tx, sv.constellation.timescale()?);
 
-            if m.sv_clock_bias {
-                let dt_sat = nav.sv_clock_bias(sv, e_tx)?;
-                debug!("{}@{} | dt_sat {}", sv, t, dt_sat);
-                e_tx -= dt_sat;
-            }
-
-            if m.sv_total_group_delay {
-                if let Some(nav) = ctx.navigation_data() {
-                    if let Some(tgd) = nav.sv_tgd(sv, t) {
-                        let tgd = tgd * Unit::Second;
-                        debug!("{}@{} | tgd    {}", sv, t, tgd);
-                        e_tx = e_tx - tgd;
-                    }
-                }
-            }
-            debug!("{}@{} | t_tx    {}", sv, t, e_tx);
-            Some(e_tx)
-        } else {
-            debug!("missing PR measurement");
-            None
+        if m.sv_clock_bias {
+            let dt_sat = nav.sv_clock_bias(sv, e_tx)?;
+            debug!("{}@{} | dt_sat {}", sv, t, dt_sat);
+            e_tx -= dt_sat;
         }
+
+        if m.sv_total_group_delay {
+            if let Some(nav) = ctx.navigation_data() {
+                if let Some(tgd) = nav.sv_tgd(sv, t) {
+                    let tgd = tgd * Unit::Second;
+                    debug!("{}@{} | tgd    {}", sv, t, tgd);
+                    e_tx = e_tx - tgd;
+                }
+            }
+        }
+        debug!("{}@{} | t_tx    {}", sv, t, e_tx);
+        Some(e_tx)
     }
     /*
      * Evaluates Sun/Earth vector, <!> expressed in Km <!>
