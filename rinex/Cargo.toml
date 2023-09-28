@@ -23,6 +23,8 @@ qc = ["rinex-qc-traits", "horrorshow"] # rinex Quality Check (mainly OBS RINEX)
 
 # enable everything
 full = [
+    "flate2",
+    "horrorshow",
     "meteo",
     "nav",
     "obs",
