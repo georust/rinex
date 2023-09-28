@@ -37,6 +37,11 @@ When working with RINEX, preprocessing operations may apply.
 If you're working with the attached "cli" application, this is done with `-P`.  
 For example, if the input context is huge, a smoothing or decimation
 
+The solver will output a SolverEstimate object on each resolved Epoch.  
+Refer to this structure's documentation for more information.
+
+Timing DOP and Position DOP are estimated and attached to every single result.
+
 SPP 
 ===
 
