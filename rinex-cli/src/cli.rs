@@ -5,6 +5,7 @@ use rinex_qc::QcOpts;
 use std::fs::ReadDir;
 use std::path::Path;
 use std::str::FromStr;
+use gnss_rtk::prelude::SolverOpts;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -276,26 +277,10 @@ For indepth customization, refer to the configuration file and online documentat
                         .action(ArgAction::SetTrue)
                         .help("Activates GNSS position solver, disables all other modes.
 This is the most performant mode to solve a position."))
-                    .arg(Arg::new("rtk-fixed-altitude")
-                        .long("rtk-fixed-alt")
-                        .value_name("ALTITUDE(f64)")
-                        .help("Set rtk solver to fixed altitude mode.
-Problem is simplified by not caring about the Z axis resolution."))
-                    .arg(Arg::new("rtk-static")
-                        .long("rtk-static")
-                        .help("Set rtk solver to static mode.
-Problem is simplified but will not work in case the receiver is not maintained in static position.
-Works well in laboratory conditions.
-Combine --rtk-fixed-alt --rtk-static is most efficient solving scenario."))
-                    .arg(Arg::new("rtk-model")
-                        .long("rtk-model")
-                        .action(ArgAction::Append)
-                        .help("Stack one modelization to account for when solving.
---model=tgd : account for SV total group delay
---model=smoothing: smooth pseudo ranges. This is pointless if you requested
-the hatch filter with -P.
---model=eclipse:f64 : adjust minimal light rate to determine eclipse condition.
---model=tgd : account for SV total group delay")) 
+					.arg(Arg::new("rtk-config")
+						.long("rtk-cfg")
+						.value_name("FILE")
+						.help("Pass RTK custom configuration."))
                     .arg(Arg::new("kml")
                         .long("kml")
                         .help("Form a KML track with resolved positions.
@@ -485,6 +470,23 @@ Refer to README"))
     }
     pub fn rtk_only(&self) -> bool {
         self.matches.get_flag("rtk-only")
+    }
+    pub fn rtk_config(&self) -> Option<SolverOpts> {
+        if let Some(path) = self.matches.get_one::<String>("rtk-config") {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                let opts = serde_json::from_str(&content);
+                if let Ok(opts) = opts {
+                    info!("rtk config: \"{}\"", path);
+                    return Some(opts);
+                } else {
+                    panic!("oops");
+                }
+            } else {
+                error!("failed to read config file \"{}\"", path);
+                info!("using default parameters");
+            }
+        }
+        None
     }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")

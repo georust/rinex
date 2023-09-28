@@ -343,6 +343,12 @@ pub fn main() -> Result<(), rinex::Error> {
 
     // Position solver
     let mut solver = Solver::from(&ctx);
+    // custom config ? apply it
+    if let Some(cfg) = cli.rtk_config() {
+        if let Ok(ref mut solver) = solver {
+            solver.opts = cfg.clone();
+        }
+    }
 
     // Workspace
     let workspace = workspace_path(&ctx);

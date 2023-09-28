@@ -1,0 +1,5 @@
+{
+	"timescale": "GPST",
+    "interp_order": 6,
+    "max_sv": 8
+}

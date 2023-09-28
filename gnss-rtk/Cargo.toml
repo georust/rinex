@@ -19,3 +19,4 @@ nyx-space = "2.0.0-alpha.2"
 hifitime = { version = "3.8", features = ["serde", "std"] }
 rinex-qc = { path = "../rinex-qc", features = ["serde"] }
 rinex = { path = "../rinex", features = ["serde", "flate2", "sbas", "obs", "nav", "qc", "processing"] }
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }

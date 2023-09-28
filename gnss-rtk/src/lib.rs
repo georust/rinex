@@ -20,7 +20,7 @@ mod opts;
 pub mod prelude {
     pub use crate::estimate::SolverEstimate;
     pub use crate::model::Modeling;
-    pub use crate::opts::PositioningMode;
+    pub use crate::opts::SolverMode;
     pub use crate::opts::SolverOpts;
     pub use crate::Solver;
     pub use crate::SolverError;
@@ -350,9 +350,9 @@ impl Solver {
         // 7: resolve
         //trace!("y: {} | g: {}", y, g);
         let estimate = SolverEstimate::new(g, y);
+        self.nth_epoch += 1;
 
         if estimate.is_none() {
-            self.nth_epoch += 1;
             return Err(SolverError::SolvingError(t));
         } else {
             Ok((t, estimate.unwrap()))
@@ -426,7 +426,6 @@ impl Solver {
      * Elects sv for this epoch
      */
     fn sv_election(ctx: &QcContext, t: Epoch, opts: &SolverOpts) -> Option<Vec<Sv>> {
-        const max_sv: usize = 5;
         //TODO: make sure pseudo range exists
         //TODO: make sure context is consistent with solving strategy : SPP / PPP
         ctx.primary_data()
@@ -439,7 +438,7 @@ impl Solver {
                     //        .count()
                     //} else {
                     // no gnss filter / criteria
-                    Some(svs.into_iter().take(max_sv).collect())
+                    Some(svs.into_iter().take(opts.max_sv).collect())
                     //}
                 } else {
                     None
