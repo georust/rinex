@@ -21,6 +21,17 @@ nav = []
 processing = []
 qc = ["rinex-qc-traits", "horrorshow"] # rinex Quality Check (mainly OBS RINEX) 
 
+# enable everything
+full = [
+    "meteo",
+    "nav",
+    "obs",
+    "processing",
+    "qc",
+    "sbas",
+    "serde",
+]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
