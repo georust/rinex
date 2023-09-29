@@ -27,7 +27,7 @@ horrorshow = "0.8"
 itertools = "0.11.0"
 statrs = "0.16"
 sp3 = { path = "../sp3", features = ["serde"] }
-rinex-qc-traits = { path = "../qc-traits" }
+rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1" }
 rinex = { path = "../rinex", features = ["obs", "nav", "qc", "processing", "serde", "flate2"] }
 
 [dev-dependencies]

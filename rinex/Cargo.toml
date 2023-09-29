@@ -21,6 +21,19 @@ nav = []
 processing = []
 qc = ["rinex-qc-traits", "horrorshow"] # rinex Quality Check (mainly OBS RINEX) 
 
+# enable everything
+full = [
+    "flate2",
+    "horrorshow",
+    "meteo",
+    "nav",
+    "obs",
+    "processing",
+    "qc",
+    "sbas",
+    "serde",
+]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
@@ -47,7 +60,7 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 hifitime = { version = "3.8", features = ["serde", "std"] }
 horrorshow = { version = "0.8", optional = true }
-rinex-qc-traits = { path = "../qc-traits", optional = true }
+rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
 
 [dev-dependencies]
 serde_json = "1"

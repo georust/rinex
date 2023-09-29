@@ -43,6 +43,8 @@ If this feature is not enabled, one must first uncompress .gz files prior parsin
 The `sbas` feature enables one method to select appropriate augmentation system
 based on current location on Earth.
 
+Compile with `full` to support all features.
+
 ## License
 
 Licensed under either of:
