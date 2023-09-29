@@ -156,8 +156,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
     }
 }
 
-/// Builds `Record` entry for `ObservationData`
-/// from given epoch content
+/// Builds `Record` entry for `ObservationData` from given epoch content
 pub(crate) fn parse_epoch(
     header: &Header,
     content: &str,

@@ -177,14 +177,39 @@ mod test {
                                 }
                             }
                         },
-                        "OBS" => {
+                        "CRNX" | "OBS" => {
                             assert!(rinex.header.obs.is_some());
+                            let obs_header = rinex.header.obs.clone().unwrap();
+
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.observation().count() > 0); // all files have content
                                                                       /*
-                                                                       * test interpreted time scale
+                                                                       * test timescale validity
                                                                        */
+                            for ((e, _), _) in rinex.observation() {
+                                let ts = e.time_scale;
+                                if let Some(e0) = obs_header.time_of_first_obs {
+                                    assert!(
+                                        e0.time_scale == ts,
+                                        "interpreted wrong timescale: expecting \"{}\", got \"{}\"",
+                                        e0.time_scale,
+                                        ts
+                                    );
+                                } else {
+                                    match rinex.header.constellation {
+                                        Some(Constellation::Mixed) | None => {}, // can't test
+                                        Some(c) => {
+                                            let timescale = c.to_timescale().unwrap();
+                                            assert!(ts == timescale,
+                                                "interpreted wrong timescale: expecting \"{}\", got \"{}\"",
+                                                timescale,
+                                                ts
+                                            );
+                                        },
+                                    }
+                                }
+                            }
                             /*
                                                         let gf = rinex.observation_gf_combinations();
                                                         let nl = rinex.observation_nl_combinations();
@@ -210,11 +235,6 @@ mod test {
 
                                                         assert_eq!(wl_combinations, mw_combinations);
                             */
-                        },
-                        "CRNX" => {
-                            assert!(rinex.header.obs.is_some());
-                            assert!(rinex.is_observation_rinex());
-                            assert!(rinex.epoch().count() > 0); // all files have content
                         },
                         "MET" => {
                             assert!(rinex.is_meteo_rinex());
