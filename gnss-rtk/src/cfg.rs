@@ -7,6 +7,10 @@ use serde::Deserialize;
 
 use rinex::prelude::{Constellation, GroundPosition};
 
+fn default_timescale() -> TimeScale {
+    TimeScale::GPST
+}
+
 fn default_gnss() -> Vec<Constellation> {
     vec![Constellation::GPS]
 }
@@ -37,13 +41,13 @@ fn default_tropo() -> bool {
 
 #[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-pub struct SolverOpts {
+pub struct RTKConfig {
     /// Time scale
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(default = "default_timescale"))]
     pub timescale: TimeScale,
     /// positioning mode
     #[cfg_attr(feature = "serde", serde(default))]
-    pub positioning: SolverMode,
+    pub mode: SolverMode,
     /// (Position) interpolation filter order.
     /// A minimal order must be respected for correct results.
     /// -  7 when working with broadcast ephemeris
@@ -85,16 +89,16 @@ pub struct SolverOpts {
     pub max_sv: usize,
 }
 
-impl SolverOpts {
+impl RTKConfig {
     pub fn default(solver: SolverType) -> Self {
         match solver {
             SolverType::SPP => Self {
-                timescale: TimeScale::default(),
+                timescale: default_timescale(),
+                mode: SolverMode::default(),
                 gnss: default_gnss(),
                 fixed_altitude: None,
                 rcvr_position: None,
                 interp_order: default_interp(),
-                positioning: SolverMode::default(),
                 code_smoothing: default_smoothing(),
                 tropo: default_tropo(),
                 iono: default_iono(),
@@ -104,12 +108,12 @@ impl SolverOpts {
                 max_sv: default_max_sv(),
             },
             SolverType::PPP => Self {
-                timescale: TimeScale::default(),
+                timescale: default_timescale(),
+                mode: SolverMode::default(),
                 gnss: default_gnss(),
                 fixed_altitude: None,
                 rcvr_position: None,
                 interp_order: 11,
-                positioning: SolverMode::default(),
                 code_smoothing: default_smoothing(),
                 tropo: default_tropo(),
                 iono: default_iono(),

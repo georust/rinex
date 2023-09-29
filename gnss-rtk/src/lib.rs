@@ -13,23 +13,23 @@ use nalgebra::base::{DVector, MatrixXx4, Vector1, Vector3, Vector4};
 use nalgebra::vector;
 use nyx::md::prelude::{Arc, Cosm};
 
+mod cfg;
 mod estimate;
 mod model;
-mod opts;
 
 pub mod prelude {
+    pub use crate::cfg::RTKConfig;
+    pub use crate::cfg::SolverMode;
     pub use crate::estimate::SolverEstimate;
     pub use crate::model::Modeling;
-    pub use crate::opts::SolverMode;
-    pub use crate::opts::SolverOpts;
     pub use crate::Solver;
     pub use crate::SolverError;
     pub use crate::SolverType;
 }
 
+use cfg::RTKConfig;
 use estimate::SolverEstimate;
 use model::Modeling;
-use opts::SolverOpts;
 
 use log::{debug, trace, warn};
 
@@ -91,7 +91,7 @@ pub struct Solver {
     /// Cosmic model
     cosmic: Arc<Cosm>,
     /// Solver parametrization
-    pub opts: SolverOpts,
+    pub cfg: RTKConfig,
     /// Whether this solver is initiated (ready to iterate) or not
     initiated: bool,
     /// Type of solver implemented
@@ -107,7 +107,7 @@ impl Solver {
             cosmic: Cosm::de438(),
             solver,
             initiated: false,
-            opts: SolverOpts::default(solver),
+            cfg: RTKConfig::default(solver),
             nth_epoch: 0,
         })
     }
@@ -131,11 +131,11 @@ impl Solver {
         /*
          * Solving needs a ref. position
          */
-        if self.opts.rcvr_position.is_none() {
+        if self.cfg.rcvr_position.is_none() {
             // defined in context ?
             let position = ctx.ground_position();
             if let Some(position) = position {
-                self.opts.rcvr_position = Some(position);
+                self.cfg.rcvr_position = Some(position);
             } else {
                 return Err(SolverError::UndefinedAprioriPosition);
             }
@@ -151,13 +151,13 @@ impl Solver {
         }
 
         let pos0 = self
-            .opts
+            .cfg
             .rcvr_position
             .ok_or(SolverError::UndefinedAprioriPosition)?;
 
         let (x0, y0, z0): (f64, f64, f64) = pos0.into();
 
-        let modeling = self.opts.modeling;
+        let modeling = self.cfg.modeling;
 
         // 0: grab work instant
         let t = ctx.primary_data().epoch().nth(self.nth_epoch);
@@ -168,10 +168,10 @@ impl Solver {
         }
 
         let t = t.unwrap();
-        let interp_order = self.opts.interp_order;
+        let interp_order = self.cfg.interp_order;
 
         // 1: elect sv
-        let elected_sv = Self::sv_election(ctx, t, &self.opts);
+        let elected_sv = Self::sv_election(ctx, t, &self.cfg);
         if elected_sv.is_none() {
             warn!("no vehicles elected @ {}", t);
             self.nth_epoch += 1;
@@ -247,7 +247,7 @@ impl Solver {
                     }
                     // Eclipse filter
                     if self.solver == SolverType::PPP {
-                        if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
+                        if let Some(min_rate) = self.cfg.min_sv_sunlight_rate {
                             let state = self.eclipse_state(x_km, y_km, z_km, *t_tx);
                             let eclipsed = match state {
                                 EclipseState::Umbra => true,
@@ -284,7 +284,7 @@ impl Solver {
                     }
                     // Eclipse filter
                     if self.solver == SolverType::PPP {
-                        if let Some(min_rate) = self.opts.min_sv_sunlight_rate {
+                        if let Some(min_rate) = self.cfg.min_sv_sunlight_rate {
                             let state = self.eclipse_state(x_km, y_km, z_km, *t_tx);
                             let eclipsed = match state {
                                 EclipseState::Umbra => true,
@@ -425,20 +425,20 @@ impl Solver {
     /*
      * Elects sv for this epoch
      */
-    fn sv_election(ctx: &QcContext, t: Epoch, opts: &SolverOpts) -> Option<Vec<Sv>> {
+    fn sv_election(ctx: &QcContext, t: Epoch, cfg: &RTKConfig) -> Option<Vec<Sv>> {
         //TODO: make sure pseudo range exists
         //TODO: make sure context is consistent with solving strategy : SPP / PPP
         ctx.primary_data()
             .sv_epoch()
             .filter_map(|(epoch, svs)| {
                 if epoch == t {
-                    //if !opts.gnss.is_empty() {
+                    //if !cfg.gnss.is_empty() {
                     //    svs.iter_mut()
-                    //        .filter(|sv| opts.gnss.contains(&sv.constellation))
+                    //        .filter(|sv| cfg.gnss.contains(&sv.constellation))
                     //        .count()
                     //} else {
                     // no gnss filter / criteria
-                    Some(svs.into_iter().take(opts.max_sv).collect())
+                    Some(svs.into_iter().take(cfg.max_sv).collect())
                     //}
                 } else {
                     None

@@ -21,7 +21,7 @@ use rinex::{
 };
 
 extern crate gnss_rtk as rtk;
-use rtk::prelude::{Solver, SolverError, SolverOpts, SolverType};
+use rtk::prelude::{RTKConfig, Solver, SolverError, SolverType};
 
 use rinex_qc::*;
 
@@ -343,11 +343,27 @@ pub fn main() -> Result<(), rinex::Error> {
 
     // Position solver
     let mut solver = Solver::from(&ctx);
-    // custom config ? apply it
-    if let Some(cfg) = cli.rtk_config() {
-        if let Ok(ref mut solver) = solver {
-            solver.opts = cfg.clone();
+    if let Ok(ref mut solver) = solver {
+        info!(
+            "provided context is compatible with {} position solver",
+            solver.solver
+        );
+        // custom config ? apply it
+        if let Some(cfg) = cli.rtk_config() {
+            solver.cfg = cfg.clone();
         }
+        if !rtk {
+            warn!("position solver currently turned off");
+        } else {
+            if cli.forced_spp() {
+                warn!("forced method to spp");
+                solver.solver = SolverType::SPP;
+            }
+            // print config to be used
+            info!("{:#?}", solver.cfg);
+        }
+    } else {
+        warn!("context is not sufficient or not compatible with --rtk");
     }
 
     // Workspace
@@ -378,30 +394,6 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("using reference position {}", pos);
     } else {
         info!("no reference position given or identified");
-    }
-    /*
-     * print more info on possible solver to deploy
-     */
-    if let Ok(ref mut solver) = solver {
-        info!(
-            "provided context is compatible with {} position solver",
-            solver.solver
-        );
-        if !rtk {
-            warn!("position solver currently turned off");
-        } else {
-            if cli.forced_spp() {
-                solver.solver = SolverType::SPP;
-                solver.opts = SolverOpts::default(SolverType::SPP);
-                warn!("position solver restricted to SPP mode");
-            } else if cli.forced_ppp() {
-                solver.solver = SolverType::PPP;
-                solver.opts = SolverOpts::default(SolverType::PPP);
-                warn!("position solver forced to PPP mode");
-            }
-        }
-    } else {
-        info!("context is not sufficient or not compatible with position solver");
     }
     /*
      * Preprocessing

@@ -1,5 +1,5 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use gnss_rtk::prelude::SolverOpts;
+use gnss_rtk::prelude::RTKConfig;
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
@@ -471,12 +471,12 @@ Refer to README"))
     pub fn rtk_only(&self) -> bool {
         self.matches.get_flag("rtk-only")
     }
-    pub fn rtk_config(&self) -> Option<SolverOpts> {
+    pub fn rtk_config(&self) -> Option<RTKConfig> {
         if let Some(path) = self.matches.get_one::<String>("rtk-config") {
             if let Ok(content) = std::fs::read_to_string(path) {
                 let opts = serde_json::from_str(&content);
                 if let Ok(opts) = opts {
-                    info!("rtk config: \"{}\"", path);
+                    info!("loaded rtk config: \"{}\"", path);
                     return Some(opts);
                 } else {
                     panic!("oops");
