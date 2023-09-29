@@ -26,6 +26,7 @@ qc = ["rinex-qc-traits", "horrorshow"] # rinex Quality Check (mainly OBS RINEX)
 full = [
     "flate2",
     "horrorshow",
+    "ionex",
     "meteo",
     "nav",
     "obs",
