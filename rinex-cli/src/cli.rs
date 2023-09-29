@@ -1,11 +1,11 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use gnss_rtk::prelude::SolverOpts;
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
 use std::fs::ReadDir;
 use std::path::Path;
 use std::str::FromStr;
-use gnss_rtk::prelude::SolverOpts;
 
 pub struct Cli {
     /// Arguments passed by user

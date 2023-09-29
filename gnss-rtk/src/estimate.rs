@@ -1,7 +1,7 @@
 use nalgebra::base::{DVector, MatrixXx4, Vector4};
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /*
  * Solver solution estimate

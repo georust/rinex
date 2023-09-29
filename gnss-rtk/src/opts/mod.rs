@@ -39,47 +39,49 @@ fn default_tropo() -> bool {
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct SolverOpts {
     /// Time scale
-    #[serde(default = "TimeScale::default")]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub timescale: TimeScale,
     /// positioning mode
-    #[serde(default = "SolverMode::default")]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub positioning: SolverMode,
     /// (Position) interpolation filter order.
     /// A minimal order must be respected for correct results.
     /// -  7 when working with broadcast ephemeris
     /// - 11 when working with SP3
-    #[serde(default = "default_interp")]
+    #[cfg_attr(feature = "serde", serde(default = "default_interp"))]
     pub interp_order: usize,
     /// Whether the solver is working in fixed altitude mode or not
+    #[cfg_attr(feature = "serde", serde(default))]
     pub fixed_altitude: Option<f64>,
     /// Position receveir position, if known before hand
     pub rcvr_position: Option<GroundPosition>,
     /// constellation to consider,
-    #[serde(default = "default_gnss")]
+    #[cfg_attr(feature = "serde", serde(default = "default_gnss"))]
     pub gnss: Vec<Constellation>,
     /// PR code smoothing filter before moving forward
-    #[serde(default = "default_smoothing")]
+    #[cfg_attr(feature = "serde", serde(default = "default_smoothing"))]
     pub code_smoothing: bool,
     /// true if we're using troposphere modeling
-    #[serde(default = "default_tropo")]
+    #[cfg_attr(feature = "serde", serde(default = "default_tropo"))]
     pub tropo: bool,
     /// true if we're using ionosphere modeling
-    #[serde(default = "default_iono")]
+    #[cfg_attr(feature = "serde", serde(default = "default_iono"))]
     pub iono: bool,
     /// true if we're using total group delay modeling
-    #[serde(default = "default_tgd")]
+    #[cfg_attr(feature = "serde", serde(default = "default_tgd"))]
     pub tgd: bool,
     /// Minimal percentage ]0; 1[ of Sun light to be received by an SV
     /// for not to be considered in Eclipse.
     /// A value closer to 0 means we tolerate fast Eclipse exit.
     /// A value closer to 1 is a stringent criteria: eclipse must be totally exited.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub min_sv_sunlight_rate: Option<f64>,
     /// modeling
-    #[serde(default = "Modeling::default")]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub modeling: Modeling,
     /// max. vehicules supported,
     /// the more the merrier, but heavier computations
-    #[serde(default = "default_max_sv")]
+    #[cfg_attr(feature = "serde", serde(default = "default_max_sv"))]
     pub max_sv: usize,
 }
 
