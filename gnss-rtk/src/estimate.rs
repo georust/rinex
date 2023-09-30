@@ -1,7 +1,10 @@
 use nalgebra::base::{DVector, MatrixXx4, Vector4};
+use nyx_space::cosmic::SPEED_OF_LIGHT;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+use log::trace;
 
 /*
  * Solver solution estimate
@@ -18,10 +21,12 @@ pub struct SolverEstimate {
     pub dz: f64,
     /// Time correction
     pub dt: f64,
-    /// Position Dilution of Precision
+    /// Dilution of Position Precision, horizontal component
+    pub hdop: f64,
+    /// Dilution of Position Precision, vertical component
+    pub vdop: f64,
+    /// Time Dilution of Precision
     pub tdop: f64,
-    /// Time (only) Dilution of Precision
-    pub pdop: f64,
 }
 
 impl SolverEstimate {
@@ -31,19 +36,22 @@ impl SolverEstimate {
      */
     pub fn new(g: MatrixXx4<f64>, y: DVector<f64>) -> Option<Self> {
         let g_prime = g.transpose();
-        let q = (g.clone() * g_prime.clone()).try_inverse()?;
-        let x = g.pseudo_inverse(1.0E-6).unwrap() * y;
-        //let x = g_prime.clone() * y;
-        //let x = q.clone() * x;
-        let pdop = (q[(1, 1)] + q[(2, 2)] + q[(3, 3)]).sqrt();
-        let tdop = q[(4, 4)].sqrt();
+        let q = (g_prime.clone() * g.clone()).try_inverse()?;
+        let x = q * g_prime.clone();
+        let x = x * y;
+
+        let hdop = (q[(0, 0)] + q[(1, 1)]).sqrt();
+        let vdop = q[(2, 2)].sqrt();
+        let tdop = q[(3, 3)].sqrt();
+
         Some(Self {
             dx: x[0],
             dy: x[1],
             dz: x[2],
-            dt: x[3],
+            dt: x[3] / SPEED_OF_LIGHT,
+            hdop,
+            vdop,
             tdop,
-            pdop,
         })
     }
 }

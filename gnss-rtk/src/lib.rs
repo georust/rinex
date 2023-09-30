@@ -348,7 +348,7 @@ impl Solver {
         }
 
         // 7: resolve
-        //trace!("y: {} | g: {}", y, g);
+        trace!("y: {} | g: {}", y, g);
         let estimate = SolverEstimate::new(g, y);
         self.nth_epoch += 1;
 

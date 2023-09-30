@@ -691,7 +691,13 @@ pub fn main() -> Result<(), rinex::Error> {
                 match solver.run(&mut ctx) {
                     Ok((t, estimate)) => {
                         let pos = (estimate.dx, estimate.dy, estimate.dz);
-                        trace!("epoch: {} | position error: {:?} | PDOP {} | clock offset: {} | TDOP {}", t, pos, estimate.pdop, estimate.dt, estimate.tdop);
+                        trace!(
+                            "epoch: {} | position error: {:?} | clock offset: {} | TDOP {}",
+                            t,
+                            pos,
+                            estimate.dt,
+                            estimate.tdop
+                        );
                     },
                     Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
                     Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
