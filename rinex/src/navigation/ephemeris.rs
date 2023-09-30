@@ -525,8 +525,9 @@ fn parse_orbits(
             }
 
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
+            let content = content.trim();
 
-            if content.trim().len() == 0 {
+            if content.len() == 0 {
                 // omitted field
                 key_index += 1;
                 if nb_missing > 0 {
@@ -535,22 +536,26 @@ fn parse_orbits(
                 line = rem.clone();
                 continue;
             }
-
-            if let Some((key, token)) = fields.get(key_index) {
-                //println!(
-                //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
-                //    key,
-                //    key_index,
-                //    token,
-                //    content.trim()
-                //); //DEBUG
-                if !key.contains(&"spare") {
-                    if let Ok(item) = OrbitItem::new(token, content.trim(), constell) {
-                        map.insert(key.to_string(), item);
+            /*
+             * In NAV RINEX, unresolved data fields are either
+             * omitted (handled previously) or put a zeros
+             */
+            if !content.contains(".000000000000E+00") {
+                if let Some((key, token)) = fields.get(key_index) {
+                    //println!(
+                    //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
+                    //    key,
+                    //    key_index,
+                    //    token,
+                    //    content.trim()
+                    //); //DEBUG
+                    if !key.contains(&"spare") {
+                        if let Ok(item) = OrbitItem::new(token, content, constell) {
+                            map.insert(key.to_string(), item);
+                        }
                     }
                 }
             }
-
             key_index += 1;
             line = rem.clone();
         }
