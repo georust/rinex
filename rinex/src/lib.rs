@@ -2161,7 +2161,7 @@ impl Rinex {
         let (a0, a1, a2) = ephemeris.sv_clock();
         match sv.constellation {
             Constellation::Glonass => {
-                //GLONASST not supported
+                //TODO GLONASST not supported
                 //let ts = sv.constellation.timescale()?;
                 //let toe = ephemeris.toe()?;
                 //let dt = (t_tx - toe).to_seconds();
