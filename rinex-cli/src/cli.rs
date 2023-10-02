@@ -479,7 +479,8 @@ Refer to README"))
                     info!("loaded rtk config: \"{}\"", path);
                     return Some(opts);
                 } else {
-                    panic!("oops");
+                    error!("failed to parse config file \"{}\"", path);
+                    info!("using default parameters");
                 }
             } else {
                 error!("failed to read config file \"{}\"", path);

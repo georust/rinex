@@ -88,15 +88,15 @@ impl SolverType {
 
 #[derive(Debug)]
 pub struct Solver {
-    /// Cosmic model
-    cosmic: Arc<Cosm>,
     /// Solver parametrization
     pub cfg: RTKConfig,
-    /// Whether this solver is initiated (ready to iterate) or not
-    initiated: bool,
     /// Type of solver implemented
     pub solver: SolverType,
-    /// Current epoch
+    /// cosmic model
+    cosmic: Arc<Cosm>,
+    /// true if self has been initiated and is ready to compute
+    initiated: bool,
+    /// current epoch
     nth_epoch: usize,
 }
 
@@ -158,6 +158,7 @@ impl Solver {
         let (x0, y0, z0): (f64, f64, f64) = pos0.into();
 
         let modeling = self.cfg.modeling;
+        let interp_order = self.cfg.interp_order;
 
         // 0: grab work instant
         let t = ctx.primary_data().epoch().nth(self.nth_epoch);
@@ -166,57 +167,122 @@ impl Solver {
             self.nth_epoch += 1;
             return Err(SolverError::EpochDetermination(self.nth_epoch));
         }
-
         let t = t.unwrap();
-        let interp_order = self.cfg.interp_order;
 
         // 1: elect sv
-        let elected_sv = Self::sv_election(ctx, t, &self.cfg);
-        if elected_sv.is_none() {
-            warn!("no vehicles elected @ {}", t);
+        let sv = Self::sv_at_epoch(ctx, t);
+        if sv.is_none() {
+            warn!("no vehicles found @ {}", t);
             self.nth_epoch += 1;
             return Err(SolverError::NoSv(t));
         }
 
-        let mut elected_sv = elected_sv.unwrap();
-        debug!("elected sv : {:?}", elected_sv);
+        let mut elected_sv: Vec<Sv> = sv.unwrap().into_iter().take(self.cfg.max_sv).collect();
 
+        trace!("{}: {} candidates", t, elected_sv.len());
+
+        // retrieve associated PR
+        let pr: Vec<_> = ctx
+            .primary_data()
+            .pseudo_range()
+            .filter_map(|((epoch, _), svnn, _, pr)| {
+                if epoch == t && elected_sv.contains(&svnn) {
+                    Some((svnn, pr))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // apply mask filters
+        elected_sv.retain(|sv| {
+            let has_pr = pr
+                .iter()
+                .filter_map(|(svnn, pr)| if svnn == sv { Some(pr) } else { None })
+                .reduce(|pr, _| pr)
+                .is_some();
+
+            if !has_pr {
+                trace!("{}@{} : no pseudo range", sv, t);
+            }
+
+            let mut ppp_ok = !(self.solver == SolverType::PPP);
+            if self.solver == SolverType::PPP {
+                //TODO: verify PPP compliancy
+            }
+            if !ppp_ok {
+                trace!("{}@{} : not ppp compliant", sv, t);
+            }
+
+            let mut elev_ok = self.cfg.min_sv_elev.is_none();
+            if let Some(min_elev) = self.cfg.min_sv_elev {
+                if let Some(sp3) = ctx.sp3_data() {
+                    //TODO/ elev from SP3 ?
+                } else if let Some(nav) = ctx.navigation_data() {
+                    //TODO TODO TODO
+                    // this will not work as context may not be alined in time
+                    // we should already have interpolated at this point
+                    //TODO TODO TODO
+                    let e = nav
+                        .sv_elevation_azimuth(Some(pos0))
+                        .filter_map(|(epoch, (svnn, (e, _)))| {
+                            if epoch == t && svnn == *sv {
+                                Some(e)
+                            } else {
+                                None
+                            }
+                        })
+                        .reduce(|e, _| e);
+                    if let Some(e) = e {
+                        elev_ok = e >= min_elev;
+                    }
+                }
+            }
+            let mut snr_ok = self.cfg.min_sv_snr.is_none();
+            if let Some(min_snr) = self.cfg.min_sv_snr {
+                let snr = ctx
+                    .primary_data()
+                    .snr()
+                    .filter_map(|((epoch, _), svnn, _, snr)| {
+                        if epoch == t && svnn == *sv {
+                            Some(snr)
+                        } else {
+                            None
+                        }
+                    })
+                    .reduce(|snr, _| snr);
+                if let Some(snr) = snr {
+                    snr_ok = snr >= min_snr;
+                }
+            }
+            has_pr && elev_ok && snr_ok & ppp_ok
+        });
+
+        // make sure we still have enough SV
         if elected_sv.len() < 4 {
             warn!("not enough vehicles elected");
             self.nth_epoch += 1;
             return Err(SolverError::LessThan4Sv(t));
         }
 
-        // 2: retrieve pseudorange
-        // TODO: use IONO free combination in PPP
-        let pr: Vec<_> = ctx
-            .primary_data()
-            .pseudo_range()
-            .filter_map(|((epoch, _), sv, _, pr)| {
-                if epoch == t && elected_sv.contains(&sv) {
-                    Some((sv, pr))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        debug!("elected sv : {:?}", elected_sv);
+
         // 3: t_tx
         let mut t_tx: HashMap<Sv, Epoch> = HashMap::new();
         for sv in &elected_sv {
-            // pr for this SV @ this epoch
+            // pr for this SV @ t
             let pr = pr
                 .iter()
                 .filter_map(|(svnn, pr)| if svnn == sv { Some(*pr) } else { None })
                 .reduce(|pr, _| pr);
-            // evaluation
+            // eval
             if let Some(pr) = pr {
                 if let Some(sv_t_tx) = Self::sv_transmission_time(ctx, *sv, t, pr, modeling) {
                     t_tx.insert(*sv, sv_t_tx);
                 }
-            } else {
-                debug!("{}@{}: missing pseudorange", t, sv);
             }
         }
+
         // 4: sv position @ tx
         let mut sv_pos: HashMap<Sv, Vector3<f64>> = HashMap::new();
         for (sv, t_tx) in &t_tx {
@@ -310,6 +376,7 @@ impl Solver {
                 }
             }
         }
+
         // 6: form matrix
         let mut y = DVector::<f64>::zeros(elected_sv.len());
         let mut g = MatrixXx4::<f64>::zeros(elected_sv.len());
@@ -369,8 +436,9 @@ impl Solver {
         m: Modeling,
     ) -> Option<Epoch> {
         let nav = ctx.navigation_data()?;
-        let t_tx = Duration::from_seconds(t.to_duration().to_seconds() - pr / SPEED_OF_LIGHT);
-        let mut e_tx = Epoch::from_duration(t_tx, sv.constellation.timescale()?);
+        let ts = sv.constellation.timescale()?;
+        let seconds_ts = t.to_duration_in_time_scale(ts).to_seconds();
+        let mut e_tx = Epoch::from_duration((seconds_ts - pr / SPEED_OF_LIGHT) * Unit::Second, ts);
 
         if m.sv_clock_bias {
             let dt_sat = nav.sv_clock_bias(sv, e_tx)?;
@@ -423,27 +491,12 @@ impl Solver {
         eclipse_state(&sv_orbit, sun_frame, earth_frame, &self.cosmic)
     }
     /*
-     * Elects sv for this epoch
+     * Returns all Sv at "t"
      */
-    fn sv_election(ctx: &QcContext, t: Epoch, cfg: &RTKConfig) -> Option<Vec<Sv>> {
-        //TODO: make sure pseudo range exists
-        //TODO: make sure context is consistent with solving strategy : SPP / PPP
+    fn sv_at_epoch(ctx: &QcContext, t: Epoch) -> Option<Vec<Sv>> {
         ctx.primary_data()
             .sv_epoch()
-            .filter_map(|(epoch, svs)| {
-                if epoch == t {
-                    //if !cfg.gnss.is_empty() {
-                    //    svs.iter_mut()
-                    //        .filter(|sv| cfg.gnss.contains(&sv.constellation))
-                    //        .count()
-                    //} else {
-                    // no gnss filter / criteria
-                    Some(svs.into_iter().take(cfg.max_sv).collect())
-                    //}
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(epoch, svs)| if epoch == t { Some(svs) } else { None })
             .reduce(|svs, _| svs)
     }
 }
