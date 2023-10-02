@@ -3,18 +3,43 @@
 //! Homepage: <https://github.com/gwbres/rinex>
 use clap::load_yaml;
 use clap::App;
-//use std::str::FromStr;
+use std::str::FromStr;
 
-use rinex::*;
-//use rinex::sv::Sv;
+use thiserror::Error;
+
+use rinex::navigation::{IonMessage, KbModel, KbRegionCode};
+use rinex::observation::ObservationData;
 use rinex::prelude::*;
-//:use rinex::observation::record::ObservationData;
+use rinex::sv;
 
 extern crate ublox;
-use ublox::*;
-use ublox::{CfgPrtUart, UartPortId};
+use ublox::{
+    CfgMsgAllPorts, CfgMsgAllPortsBuilder, CfgPrtUart, CfgPrtUartBuilder, DataBits, InProtoMask,
+    OutProtoMask, PacketRef, Parity, StopBits, UartMode, UartPortId,
+};
+use ublox::{GpsFix, RecStatFlags};
+use ublox::{NavSat, NavTimeUtcFlags};
+use ublox::{NavStatusFlags, NavStatusFlags2};
+
+use log::{debug, error, info, trace, warn};
 
 mod device;
+
+#[derive(Debug, Clone, Error)]
+pub enum Error {
+    #[error("unknown constellation #{0}")]
+    UnknownConstellationId(u8),
+}
+
+fn identify_constellation(id: u8) -> Result<Constellation, Error> {
+    match id {
+        0 => Ok(Constellation::GPS),
+        1 => Ok(Constellation::Galileo),
+        2 => Ok(Constellation::Glonass),
+        3 => Ok(Constellation::BeiDou),
+        _ => Err(Error::UnknownConstellationId(id)),
+    }
+}
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let yaml = load_yaml!("app.yml");
@@ -51,6 +76,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_packet_bytes(),
     )?;
     device.wait_for_ack::<CfgPrtUart>().unwrap();
+
+    /*
+     * HEADER <=> Configuration
+     */
+    //CfgNav5 : model, dynamics..
+    //CfgNav5X : min_svs, aiding, wkn, ppp..
+    //AidIni
 
     /* NEED UBX CRATE UPDATE!!
     device.write_all(
@@ -121,39 +153,178 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     */
 
     // Create header section
-    let _header = header::Header::basic_obs();
+    let mut nav_header = Header::basic_nav();
+    let mut obs_header = Header::basic_obs();
+    // let mut clk_header = Header::basic_clk();
 
-    //TODO header customization
+    //TODO header CLI customization
 
-    let mut _epoch = Epoch::default(); // current epoch
+    // current work structures
+    let mut itow = 0_u32;
+    let mut epoch = Epoch::default();
+    let mut observable = Observable::default();
+    let mut obs_data = ObservationData::default();
+    let mut uptime = Duration::default();
+
+    let mut fix_type = GpsFix::NoFix; // current fix status
+    let mut fix_flags = NavStatusFlags::empty(); // current fix flag
+    let mut nav_status = NavStatusFlags2::Inactive;
 
     loop {
         // main loop
         let _ = device.update(|packet| {
             match packet {
-                PacketRef::NavSat(pkt) => {
-                    for sv in pkt.svs() {
-                        let _gnss_id = sv.gnss_id();
-                        let _sv_id = sv.sv_id();
-                        let _elev = sv.elev();
-                        let _azim = sv.azim();
-                        let _pr_res = sv.pr_res();
-                        let _flags = sv.flags();
-                        //if flags.sv_used() {
-                        //}
-                        //flags.health();
-                        //flags.quality_ind();
-                        //flags.differential_correction_available();
-                        //flags.ephemeris_available();
+                /*
+                 * Configuration frames:
+                 * should be depiceted by HEADER section
+                 */
+                //PacketRef::CfgRate(pkt) => {
+                //    //TODO EPOCH INTERVAL
+                //    let gps_rate = pkt.measure_rate_ms();
+                //    //TODO EPOCH INTERVAL
+                //    let nav_rate = pkt.nav_rate();
+                //    //TODO reference time
+                //    let time = pkt.time_ref();
+                //},
+                PacketRef::CfgNav5(pkt) => {
+                    // Dynamic model
+                    let dyn_model = pkt.dyn_model();
+                },
+                PacketRef::RxmRawx(pkt) => {
+                    let leap_s = pkt.leap_s();
+                    if pkt.rec_stat().intersects(RecStatFlags::CLK_RESET) {
+                        // notify reset + lli
                     }
                 },
-                /* NEED UBX CRATE UPDATE !!
-                PacketRef::NavEoe(pkt) => {
-                    // End of epoch notification
-                    let _itow = pkt.itow();
-                    // ==> push into file
+                PacketRef::MonHw(_pkt) => {
+                    //let jamming = pkt.jam_ind(); //TODO
+                    //antenna problem:
+                    // pkt.a_status();
+                    // pkt.a_power();
                 },
-                */
+                PacketRef::MonGnss(_pkt) => {
+                    //pkt.supported(); // GNSS
+                    //pkt.default(); // GNSS
+                    //pkt.enabled(); //GNSS
+                },
+                PacketRef::MonVer(pkt) => {
+                    //UBX revision
+                    pkt.software_version();
+                    pkt.hardware_version();
+                },
+                /*
+                 * NAVIGATION
+                 */
+                PacketRef::NavSat(pkt) => {
+                    for sv in pkt.svs() {
+                        let gnss = identify_constellation(sv.gnss_id());
+                        if gnss.is_ok() {
+                            let elev = sv.elev();
+                            let azim = sv.azim();
+                            let pr_res = sv.pr_res();
+                            let flags = sv.flags();
+
+                            let sv = Sv {
+                                constellation: gnss.unwrap(),
+                                prn: sv.sv_id(),
+                            };
+
+                            // flags.sv_used()
+                            //flags.health();
+                            //flags.quality_ind();
+                            //flags.differential_correction_available();
+                            //flags.ephemeris_available();
+                        }
+                    }
+                },
+                PacketRef::NavTimeUTC(pkt) => {
+                    if pkt.valid().intersects(NavTimeUtcFlags::VALID_UTC) {
+                        // leap seconds already known
+                        let e = Epoch::maybe_from_gregorian(
+                            pkt.year().into(),
+                            pkt.month().into(),
+                            pkt.day().into(),
+                            pkt.hour().into(),
+                            pkt.min().into(),
+                            pkt.sec().into(),
+                            pkt.nanos() as u32,
+                            TimeScale::UTC,
+                        );
+                        if e.is_ok() {
+                            epoch = e.unwrap();
+                        }
+                    }
+                },
+                PacketRef::NavStatus(pkt) => {
+                    itow = pkt.itow();
+                    fix_type = pkt.fix_type();
+                    fix_flags = pkt.flags();
+                    nav_status = pkt.flags2();
+                    uptime = Duration::from_milliseconds(pkt.uptime_ms() as f64);
+                    trace!("uptime: {}", uptime);
+                },
+                PacketRef::NavEoe(pkt) => {
+                    itow = pkt.itow();
+                },
+                /*
+                 * NAVIGATION : EPHEMERIS
+                 */
+                PacketRef::MgaGpsEph(pkt) => {
+                    let sv = sv!(&format!("G{}", pkt.sv_id()));
+                    //nav_record.insert(epoch, sv);
+                },
+                PacketRef::MgaGloEph(pkt) => {
+                    let sv = sv!(&format!("R{}", pkt.sv_id()));
+                    //nav_record.insert(epoch, sv);
+                },
+                /*
+                 * NAVIGATION: IONOSPHERIC MODELS
+                 */
+                PacketRef::MgaGpsIono(pkt) => {
+                    let kbmodel = KbModel {
+                        alpha: (pkt.alpha0(), pkt.alpha1(), pkt.alpha2(), pkt.alpha3()),
+                        beta: (pkt.beta0(), pkt.beta1(), pkt.beta2(), pkt.beta3()),
+                        region: KbRegionCode::default(), // TODO,
+                    };
+                    let iono = IonMessage::KlobucharModel(kbmodel);
+                },
+                /*
+                 * OBSERVATION: Receiver Clock
+                 */
+                PacketRef::NavClock(pkt) => {
+                    let bias = pkt.clk_b();
+                    let drift = pkt.clk_d();
+                    // pkt.t_acc(); // phase accuracy
+                    // pkt.f_acc(); // frequency accuracy
+                },
+                /*
+                 * Errors, Warnings
+                 */
+                PacketRef::InfTest(pkt) => {
+                    if let Some(msg) = pkt.message() {
+                        trace!("{}", msg);
+                    }
+                },
+                PacketRef::InfDebug(pkt) => {
+                    if let Some(msg) = pkt.message() {
+                        debug!("{}", msg);
+                    }
+                },
+                PacketRef::InfNotice(pkt) => {
+                    if let Some(msg) = pkt.message() {
+                        info!("{}", msg);
+                    }
+                },
+                PacketRef::InfError(pkt) => {
+                    if let Some(msg) = pkt.message() {
+                        error!("{}", msg);
+                    }
+                },
+                PacketRef::InfWarning(pkt) => {
+                    if let Some(msg) = pkt.message() {
+                        warn!("{}", msg);
+                    }
+                },
                 _ => {},
             }
         });
