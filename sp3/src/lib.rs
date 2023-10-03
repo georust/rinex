@@ -320,7 +320,9 @@ impl SP3 {
             let line = line.unwrap();
             let line = line.trim();
             if sp3_comment(line) {
-                comments.push(line[3..].to_string());
+                if line.len() > 4 {
+                    comments.push(line[3..].to_string());
+                }
                 continue;
             }
             if end_of_file(line) {
