@@ -1799,6 +1799,26 @@ impl Rinex {
             })
         }))
     }
+    /// Returns an Iterator over pseudo range observations in valid
+    /// Epochs, with valid LLI flags
+    pub fn pseudo_range_ok(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, &Observable, f64)> + '_> {
+        Box::new(self.observation().flat_map(|((e, flag), (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations.iter().filter_map(|(obs, obsdata)| {
+                    if obs.is_pseudorange_observable() {
+                        if flag.is_ok() {
+                            Some((*e, *sv, obs, obsdata.obs))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+            })
+        }))
+    }
+
     /// Returns an Iterator over fractional pseudo range observations
     pub fn pseudo_range_fract(
         &self,

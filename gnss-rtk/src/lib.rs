@@ -184,8 +184,8 @@ impl Solver {
         // retrieve associated PR
         let pr: Vec<_> = ctx
             .primary_data()
-            .pseudo_range()
-            .filter_map(|((epoch, _), svnn, _, pr)| {
+            .pseudo_range_ok()
+            .filter_map(|(epoch, svnn, _, pr)| {
                 if epoch == t && elected_sv.contains(&svnn) {
                     Some((svnn, pr))
                 } else {
@@ -455,6 +455,7 @@ impl Solver {
                 }
             }
         }
+
         debug!("{}@{} | t_tx    {}", sv, t, e_tx);
         Some(e_tx)
     }

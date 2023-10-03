@@ -1,5 +1,6 @@
-use nalgebra::base::{DVector, MatrixXx4, Vector4};
 use nyx_space::cosmic::SPEED_OF_LIGHT;
+// use nalgebra::linalg::svd::SVD;
+use nalgebra::base::{DVector, MatrixXx4, Vector4};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -35,23 +36,29 @@ impl SolverEstimate {
      * and `y` Nav Vector
      */
     pub fn new(g: MatrixXx4<f64>, y: DVector<f64>) -> Option<Self> {
-        let g_prime = g.transpose();
-        let q = (g_prime.clone() * g.clone()).try_inverse()?;
-        let x = q * g_prime.clone();
-        let x = x * y;
+        let svd = g.svd(true, true);
+        let u = svd.u?;
+        let v = svd.v_t?;
+        let s = svd.singular_values;
+        let s_inv = s.pseudo_inverse(1.0E-8).unwrap();
+        let x = v * u.transpose() * y * s_inv;
+        //let g_prime = g.transpose();
+        //let q = (g_prime.clone() * g.clone()).try_inverse()?;
+        //let x = q * g_prime.clone();
+        //let x = x * y;
 
-        let hdop = (q[(0, 0)] + q[(1, 1)]).sqrt();
-        let vdop = q[(2, 2)].sqrt();
-        let tdop = q[(3, 3)].sqrt();
+        //let hdop = (q[(0, 0)] + q[(1, 1)]).sqrt();
+        //let vdop = q[(2, 2)].sqrt();
+        //let tdop = q[(3, 3)].sqrt();
 
         Some(Self {
             dx: x[0],
             dy: x[1],
             dz: x[2],
             dt: x[3] / SPEED_OF_LIGHT,
-            hdop,
-            vdop,
-            tdop,
+            hdop: 0.0_f64,
+            vdop: 0.0_f64,
+            tdop: 0.0_f64,
         })
     }
 }

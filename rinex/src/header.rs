@@ -935,6 +935,9 @@ impl Header {
                     }
                 }
             } else if marker.contains("GLONASS SLOT / FRQ #") {
+                //TODO
+                // This should be used when dealing with Glonass carriers
+
                 let slots = content.split_at(4).1.trim();
                 for i in 0..num_integer::div_ceil(slots.len(), 7) {
                     let svnn = &slots[i * 7..i * 7 + 4];
@@ -947,6 +950,7 @@ impl Header {
                 }
             } else if marker.contains("GLONASS COD/PHS/BIS") {
                 //TODO
+                // This will help RTK solving against GLONASS SV
             } else if marker.contains("ION ALPHA") {
                 //TODO
                 //0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06          ION ALPHA
