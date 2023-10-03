@@ -10,6 +10,7 @@ pub fn rinex_identification(ctx: &QcContext, cli: &Cli) {
     let ops = cli.identification_ops();
 
     identification(&ctx.primary_data(), pretty, ops.clone());
+
     if let Some(nav) = &ctx.navigation_data() {
         identification(&nav, pretty, ops.clone());
     }
@@ -17,6 +18,7 @@ pub fn rinex_identification(ctx: &QcContext, cli: &Cli) {
 
 fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
     for op in ops {
+        debug!("identification: {}", op);
         if op.eq("header") {
             let content = match pretty {
                 true => serde_json::to_string_pretty(&rnx.header).unwrap(),

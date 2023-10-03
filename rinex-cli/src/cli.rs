@@ -54,11 +54,11 @@ The default workspace is rinex-cli/workspace"))
                         .long("epochs")
                         .action(ArgAction::SetTrue)
                         .help("Enumerate all epochs"))
-                    .arg(Arg::new("constellations")
-                        .long("constellations")
-                        .short('c')
+                    .arg(Arg::new("gnss")
+                        .long("gnss")
+                        .short('g')
                         .action(ArgAction::SetTrue)
-                        .help("Enumerate GNSS constellations"))
+                        .help("Enumerate GNSS constellations present in entire context."))
                     .arg(Arg::new("sv")
                         .long("sv")
                         .action(ArgAction::SetTrue)
@@ -431,7 +431,7 @@ Refer to README"))
             "sv",
             "epochs",
             "header",
-            "constellations",
+            "gnss",
             "observables",
             "ssi-range",
             "ssi-sv-range",

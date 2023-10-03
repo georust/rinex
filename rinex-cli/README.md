@@ -236,10 +236,10 @@ rinex-cli -f OBS/V2/KOSG0010.95O --epochs
 rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv
 ``` 
 
-The `--pretty` option is there to make the datasets more readable (json format): 
+The `--pretty` (`-p`) option is there to make the datasets more readable (json format): 
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O -g --epochs --sv -p
 ``` 
 
 ## Data analysis
