@@ -43,7 +43,6 @@ summon from the "cli" application directly.
 
 - QZNSST is represented as GPST at the moment
 - GLONASST and IRNSST are not supported : calculations (mostly orbits) will not be accurate 
-- Partial SBAS support : some features are not yet available
 - The command line tool does not accept BINEX or other proprietary formats
 - File production is not fully concluded to this day, some formats are still not correctly supported
 (mostly NAV).
