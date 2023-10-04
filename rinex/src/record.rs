@@ -490,18 +490,16 @@ pub fn parse_record(
                                     // insert RMS values
                                     ionx_rec.insert((epoch, altitude), plane);
                                 }
-                            } else {
-                                if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
-                                    // provide TEC value for the entire plane
-                                    for ((_, rec_tec), (_, tec)) in
-                                        rec_plane.iter_mut().zip(plane.iter())
-                                    {
-                                        rec_tec.tec = tec.tec;
-                                    }
-                                } else {
-                                    // insert TEC values
-                                    ionx_rec.insert((epoch, altitude), plane);
+                            } else if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                                // provide TEC value for the entire plane
+                                for ((_, rec_tec), (_, tec)) in
+                                    rec_plane.iter_mut().zip(plane.iter())
+                                {
+                                    rec_tec.tec = tec.tec;
                                 }
+                            } else {
+                                // insert TEC values
+                                ionx_rec.insert((epoch, altitude), plane);
                             }
                         }
                     },
@@ -604,16 +602,14 @@ pub fn parse_record(
                         // insert RMS values
                         ionx_rec.insert((epoch, altitude), plane);
                     }
-                } else {
-                    if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
-                        // provide TEC value for the entire plane
-                        for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
-                            rec_tec.tec = tec.tec;
-                        }
-                    } else {
-                        // insert TEC values
-                        ionx_rec.insert((epoch, altitude), plane);
+                } else if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                    // provide TEC value for the entire plane
+                    for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
+                        rec_tec.tec = tec.tec;
                     }
+                } else {
+                    // insert TEC values
+                    ionx_rec.insert((epoch, altitude), plane);
                 }
             }
         },

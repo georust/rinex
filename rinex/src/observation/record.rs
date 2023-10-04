@@ -306,6 +306,7 @@ fn parse_v2(
         // may fail on omitted X in "XYY",
         // mainly on OLD RINEX with mono constellation
         match header.constellation {
+            Some(Constellation::Mixed) => panic!("bad gnss definition"),
             Some(c) => {
                 if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
                     if let Ok(s) = Sv::from_str(&format!("{}{:02}", c, prn)) {
@@ -315,7 +316,6 @@ fn parse_v2(
                     }
                 }
             },
-            Some(Constellation::Mixed) => panic!("bad gnss description"),
             None => return data,
         }
     }

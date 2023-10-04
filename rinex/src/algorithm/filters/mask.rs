@@ -256,14 +256,14 @@ impl std::str::FromStr for MaskFilter {
                 let float_offset = operand_offset + operand.formatted_len() + 2;
                 Ok(Self {
                     operand,
-                    item: TargetItem::from_elevation(&cleanedup[float_offset..].trim())?,
+                    item: TargetItem::from_elevation(cleanedup[float_offset..].trim())?,
                 })
             } else if content[0..1].eq("a") {
                 // --> Azimuth Mask case
                 let float_offset = operand_offset + operand.formatted_len() + 2;
                 Ok(Self {
                     operand,
-                    item: TargetItem::from_azimuth(&cleanedup[float_offset..].trim())?,
+                    item: TargetItem::from_azimuth(cleanedup[float_offset..].trim())?,
                 })
             } else {
                 // We're only left with SNR mask case
@@ -271,7 +271,7 @@ impl std::str::FromStr for MaskFilter {
                 if content[0..3].eq("snr") {
                     Ok(Self {
                         operand,
-                        item: TargetItem::from_snr(&cleanedup[float_offset..].trim())?,
+                        item: TargetItem::from_snr(cleanedup[float_offset..].trim())?,
                     })
                 } else {
                     Err(Error::InvalidTarget(
@@ -289,7 +289,7 @@ impl std::str::FromStr for MaskFilter {
 
             Ok(Self {
                 operand,
-                item: TargetItem::from_str(&cleanedup[offset..].trim_start())?,
+                item: TargetItem::from_str(cleanedup[offset..].trim_start())?,
             })
         }
     }

@@ -13,7 +13,7 @@ pub enum Error {
     #[error("unknown target \"{0}\"")]
     UnknownTarget(String),
     #[error("type guessing error \"{0}\"")]
-    TypeGuessingError(String),
+    TypeGuessing(String),
     #[error("expecting two epochs when describing a duration")]
     InvalidDuration,
     #[error("bad epoch description")]
@@ -29,9 +29,9 @@ pub enum Error {
     #[error("constellation parsing error")]
     ConstellationParing(#[from] constellation::ParsingError),
     #[error("failed to parse epoch flag")]
-    EpochFlagParsingError(#[from] crate::epoch::flag::Error),
+    EpochFlagParsing(#[from] crate::epoch::flag::Error),
     #[error("failed to parse constellation")]
-    ConstellationParsingError,
+    ConstellationParsing,
     #[error("invalid nav item")]
     InvalidNavItem(#[from] crate::navigation::Error),
     #[error("observable parsing error")]
@@ -236,7 +236,7 @@ impl std::str::FromStr for TargetItem {
          * when operand comes first in description.
          * Otherwise, we muse use other methods
          */
-        let items: Vec<&str> = c.split(",").collect();
+        let items: Vec<&str> = c.split(',').collect();
         /*
          * Epoch and Durations
          */
@@ -309,11 +309,11 @@ impl std::str::FromStr for TargetItem {
                 .map(|s| s.to_string())
                 .collect();
 
-            if matched_orbits.len() > 0 {
+            if !matched_orbits.is_empty() {
                 Ok(Self::OrbitItem(matched_orbits))
             } else {
                 // not a single match
-                Err(Error::TypeGuessingError(c.to_string()))
+                Err(Error::TypeGuessing(c.to_string()))
             }
         }
     }

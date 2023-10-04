@@ -1000,12 +1000,12 @@ impl Header {
                 }
             } else if marker.contains("# OF STATIONS") {
                 // IONEX
-                if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
+                if let Ok(u) = content.trim().parse::<u32>() {
                     ionex = ionex.with_nb_stations(u)
                 }
             } else if marker.contains("# OF SATELLITES") {
                 // IONEX
-                if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
+                if let Ok(u) = content.trim().parse::<u32>() {
                     ionex = ionex.with_nb_satellites(u)
                 }
             /*
@@ -1512,7 +1512,7 @@ impl std::fmt::Display for Header {
                             for (_, observables) in obs.codes.iter() {
                                 write!(f, "{:6}", observables.len())?;
                                 let mut descriptor = String::new();
-                                for i in 0..observables.len() {
+                                for (i, observable) in observables.iter().enumerate() {
                                     if (i % 9) == 0 && i > 0 {
                                         //ADD LABEL
                                         descriptor.push_str("# / TYPES OF OBSERV\n");
@@ -1521,7 +1521,7 @@ impl std::fmt::Display for Header {
                                     }
                                     // <!> this will not work if observable
                                     //     does not fit on 2 characters
-                                    descriptor.push_str(&format!("    {}", observables[i]));
+                                    descriptor.push_str(&format!("    {}", observable));
                                 }
                                 //ADD BLANK on last line
                                 if observables.len() <= 9 {
@@ -1556,7 +1556,7 @@ impl std::fmt::Display for Header {
                             for (constell, codes) in obs.codes.iter() {
                                 let mut line = format!("{:x<4}", constell);
                                 line.push_str(&format!("{:2}", codes.len()));
-                                for i in 0..codes.len() {
+                                for (i, code) in codes.iter().enumerate() {
                                     if (i + 1) % 14 == 0 {
                                         line.push_str(&format!(
                                             "{:<width$}",
@@ -1568,7 +1568,7 @@ impl std::fmt::Display for Header {
                                         line.clear();
                                         line.push_str(&format!("{:<6}", "")); //TAB
                                     }
-                                    line.push_str(&format!(" {}", codes[i]))
+                                    line.push_str(&format!(" {}", code))
                                 }
                                 line.push_str(&format!("{:<width$}", "", width = 60 - line.len()));
                                 line.push_str("SYS / # / OBS TYPES\n");
@@ -1641,10 +1641,10 @@ impl std::fmt::Display for Header {
             for code in &clocks.codes {
                 write!(f, "    {}", code)?;
             }
-            write!(
+            writeln!(
                 f,
-                "{:>width$}\n",
-                "# / TYPES OF DATA\n",
+                "{:>width$}",
+                "# / TYPES OF DATA",
                 width = 80 - 6 - 6 * clocks.codes.len() - 2
             )?;
 
@@ -1660,7 +1660,7 @@ impl std::fmt::Display for Header {
             if let Some(agency) = &clocks.agency {
                 write!(f, "{:<5} ", agency.code)?;
                 write!(f, "{}", agency.name)?;
-                write!(f, "ANALYSIS CENTER\n")?;
+                writeln!(f, "ANALYSIS CENTER")?;
             }
             // possible reference clock information
         }
@@ -1669,41 +1669,41 @@ impl std::fmt::Display for Header {
             //TODO:
             //  EPOCH OF FIRST and LAST MAP
             //   with epoch::format(Ionex)
-            let _ = write!(f, "{:6}           MAP DIMENSION\n", ionex.map_dimension);
+            let _ = writeln!(f, "{:6}           MAP DIMENSION", ionex.map_dimension);
             let h = &ionex.grid.height;
-            let _ = write!(
+            let _ = writeln!(
                 f,
-                "{} {}  {}     HGT1 / HGT2 / DHGT\n",
+                "{} {}  {}     HGT1 / HGT2 / DHGT",
                 h.start, h.end, h.spacing
             );
             let lat = &ionex.grid.latitude;
-            let _ = write!(
+            let _ = writeln!(
                 f,
-                "{} {}  {}     LAT1 / LON2 / DLAT\n",
+                "{} {}  {}     LAT1 / LON2 / DLAT",
                 lat.start, lat.end, lat.spacing
             );
             let lon = &ionex.grid.longitude;
-            let _ = write!(
+            let _ = writeln!(
                 f,
-                "{} {}  {}     LON1 / LON2 / DLON\n",
+                "{} {}  {}     LON1 / LON2 / DLON",
                 lon.start, lon.end, lon.spacing
             );
-            let _ = write!(f, "{}         ELEVATION CUTOFF\n", ionex.elevation_cutoff);
+            let _ = writeln!(f, "{}         ELEVATION CUTOFF", ionex.elevation_cutoff);
             if let Some(func) = &ionex.mapping {
-                let _ = write!(f, "{:?}         MAPPING FUNCTION\n", func);
+                let _ = writeln!(f, "{:?}         MAPPING FUNCTION", func);
             } else {
-                let _ = write!(f, "NONE         MAPPING FUNCTION\n");
+                let _ = writeln!(f, "NONE         MAPPING FUNCTION");
             }
-            let _ = write!(f, "{}               EXPONENT\n", ionex.exponent);
+            let _ = writeln!(f, "{}               EXPONENT", ionex.exponent);
             if let Some(desc) = &ionex.description {
                 for line in 0..desc.len() / 60 {
                     let max = std::cmp::min((line + 1) * 60, desc.len());
-                    let _ = write!(f, "{}                COMMENT\n", &desc[line * 60..max]);
+                    let _ = writeln!(f, "{}                COMMENT", &desc[line * 60..max]);
                 }
             }
         }
         // END OF HEADER
-        write!(f, "{:>74}", "END OF HEADER\n")
+        writeln!(f, "{:>74}", "END OF HEADER")
     }
 }
 

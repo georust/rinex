@@ -91,14 +91,14 @@ impl std::str::FromStr for Version {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.contains(".") {
             true => {
-                let digits: Vec<&str> = s.split(".").collect();
+                let mut digits = s.split('.');
                 Ok(Self {
-                    major: u8::from_str_radix(digits.get(0).unwrap(), 10)?,
-                    minor: u8::from_str_radix(digits.get(1).unwrap(), 10)?,
+                    major: digits.next().unwrap().parse::<u8>()?,
+                    minor: digits.next().unwrap().parse::<u8>()?,
                 })
             },
             false => Ok(Self {
-                major: u8::from_str_radix(s, 10)?,
+                major: s.parse::<u8>()?,
                 minor: 0,
             }),
         }

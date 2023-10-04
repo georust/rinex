@@ -425,17 +425,17 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
                         if let Some(data) = ephemeris.orbits.get(*key) {
                             lines.push_str(&format!("{} ", data.to_string()));
                         } else {
-                            lines.push_str(&format!("                   "));
+                            lines.push_str("                   ");
                         }
                     }
-                    lines.push_str(&format!("\n     "));
+                    lines.push_str("\n     ");
                 } else {
                     // last row
                     for (key, _) in chunk {
                         if let Some(data) = ephemeris.orbits.get(*key) {
                             lines.push_str(&format!("{}", data.to_string()));
                         } else {
-                            lines.push_str(&format!("                   "));
+                            lines.push_str("                   ");
                         }
                     }
                     lines.push_str("\n");
@@ -1125,10 +1125,10 @@ impl Merge for Record {
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         for (rhs_epoch, rhs_frames) in rhs {
-            if let Some(frames) = self.get_mut(&rhs_epoch) {
+            if let Some(frames) = self.get_mut(rhs_epoch) {
                 // this epoch already exists
                 for fr in rhs_frames {
-                    if !frames.contains(&fr) {
+                    if !frames.contains(fr) {
                         frames.push(fr.clone()); // insert new NavFrame
                     }
                 }
@@ -1147,7 +1147,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k < &epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }
@@ -1157,7 +1157,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k >= &epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }
@@ -1184,13 +1184,13 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        filter.contains(&sv)
+                        filter.contains(sv)
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        filter.contains(&sv)
+                        filter.contains(sv)
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        filter.contains(&sv)
+                        filter.contains(sv)
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        filter.contains(&sv)
+                        filter.contains(sv)
                     } else {
                         // non existing
                         false
@@ -1215,7 +1215,7 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
                         false
                     }
                 });
-                frames.len() > 0
+                !frames.is_empty()
             });
         },
         TargetItem::OrbitItem(_filter) => {
@@ -1236,13 +1236,13 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
         TargetItem::NavFrameItem(filter) => {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
-                    if let Some(_) = fr.as_eph() {
+                    if fr.as_eph().is_some() {
                         filter.contains(&FrameClass::Ephemeris)
-                    } else if let Some(_) = fr.as_eop() {
+                    } else if fr.as_eop().is_some() {
                         filter.contains(&FrameClass::EarthOrientation)
-                    } else if let Some(_) = fr.as_ion() {
+                    } else if fr.as_ion().is_some() {
                         filter.contains(&FrameClass::IonosphericModel)
-                    } else if let Some(_) = fr.as_sto() {
+                    } else if fr.as_sto().is_some() {
                         filter.contains(&FrameClass::SystemTimeOffset)
                     } else {
                         false

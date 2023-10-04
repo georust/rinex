@@ -121,7 +121,8 @@ pub(crate) fn parse_plane(
             } else if marker.contains("END OF") && marker.contains("MAP") {
                 let index = content.split_at(6).0;
                 let index = index.trim();
-                let _map_index = u32::from_str_radix(index, 10)
+                let _map_index = index
+                    .parse::<u32>()
                     .or(Err(Error::MapIndexParsing(index.to_string())))?;
 
                 return Ok((epoch, altitude, plane));
@@ -175,13 +176,13 @@ pub(crate) fn parse_plane(
                 epoch = epoch::parse_utc(content)?.0;
             } else if marker.contains("EXPONENT") {
                 // update current scaling
-                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                if let Ok(e) = content.trim().parse::<i8>() {
                     ionex.exponent = e;
                 }
             } else {
                 // parsing TEC values
-                for item in line.split_ascii_whitespace().into_iter() {
-                    if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
+                for item in line.split_ascii_whitespace() {
+                    if let Ok(v) = item.trim().parse::<i32>() {
                         let mut value = v as f64;
                         // current scaling
                         value *= 10.0_f64.powf(ionex.exponent as f64);

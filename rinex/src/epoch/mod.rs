@@ -36,7 +36,7 @@ pub enum ParsingError {
  * Infaillible `Epoch::now()` call.
  */
 pub(crate) fn now() -> Epoch {
-    Epoch::now().unwrap_or(Epoch::from_gregorian_utc_at_midnight(2000, 01, 01))
+    Epoch::now().unwrap_or(Epoch::from_gregorian_utc_at_midnight(2000, 1, 1))
 }
 
 /*

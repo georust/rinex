@@ -18,13 +18,13 @@ pub enum Error {
     #[error("unknown filter type \"{0}\"")]
     UnknownFilterType(String),
     #[error("invalid mask filter")]
-    MaskFilterParsingError(#[from] mask::Error),
+    MaskFilterParsing(#[from] mask::Error),
     #[error("invalid decimation filter")]
-    DecimationFilterParsingError(#[from] decim::Error),
+    DecimationFilterParsing(#[from] decim::Error),
     #[error("invalid smoothing filter")]
-    SmoothingFilterParsingError(#[from] smoothing::Error),
+    SmoothingFilterParsing(#[from] smoothing::Error),
     #[error("invalid filter target")]
-    TargetItemError(#[from] super::target::Error),
+    TargetItem(#[from] super::target::Error),
     #[error("failed to apply filter")]
     FilterError,
 }
@@ -75,7 +75,7 @@ impl From<SmoothingFilter> for Filter {
 impl std::str::FromStr for Filter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let items: Vec<&str> = content.split(":").collect();
+        let items: Vec<&str> = content.split(':').collect();
 
         let identifier = items[0].trim();
         if identifier.eq("decim") {

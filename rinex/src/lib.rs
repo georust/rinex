@@ -587,10 +587,10 @@ impl Rinex {
     pub fn clock_ref_systems(&self) -> Vec<clocks::record::System> {
         let mut map: Vec<clocks::record::System> = Vec::new();
         if let Some(r) = self.record.as_clock() {
-            for (_, dtypes) in r {
-                for (_dtype, systems) in dtypes {
-                    for (system, _) in systems {
-                        if !map.contains(&system) {
+            for dtypes in r.values() {
+                for systems in dtypes.values() {
+                    for system in systems.keys() {
+                        if !map.contains(system) {
                             map.push(system.clone());
                         }
                     }
@@ -606,9 +606,9 @@ impl Rinex {
     pub fn clock_ref_stations(&self) -> Vec<String> {
         let mut ret: Vec<String> = Vec::with_capacity(32);
         if let Some(r) = self.record.as_clock() {
-            for (_, dtypes) in r {
-                for (_, systems) in dtypes {
-                    for (system, _) in systems {
+            for dtypes in r.values() {
+                for systems in dtypes.values() {
+                    for system in systems.keys() {
                         if let clocks::System::Station(station) = system {
                             if !ret.contains(station) {
                                 ret.push(station.clone());
@@ -1270,7 +1270,7 @@ impl Rinex {
                 // grab all vehicles through all epochs,
                 // fold them into a unique list
                 record
-                    .into_iter()
+                    .iter()
                     .flat_map(|(_, frames)| {
                         frames
                             .iter()
@@ -1997,22 +1997,18 @@ impl Rinex {
                                 if carrier == Carrier::L1 {
                                     l1_pr_ph.0 |= observable.is_pseudorange_observable();
                                     l1_pr_ph.1 |= observable.is_phase_observable();
-                                } else {
-                                    if let Some((lx_pr, lx_ph)) = lx_pr_ph.get_mut(&carrier) {
-                                        *lx_pr |= observable.is_pseudorange_observable();
-                                        *lx_ph |= observable.is_phase_observable();
-                                    } else {
-                                        if observable.is_pseudorange_observable() {
-                                            lx_pr_ph.insert(carrier, (true, false));
-                                        } else if observable.is_phase_observable() {
-                                            lx_pr_ph.insert(carrier, (false, true));
-                                        }
-                                    }
+                                } else if let Some((lx_pr, lx_ph)) = lx_pr_ph.get_mut(&carrier) {
+                                    *lx_pr |= observable.is_pseudorange_observable();
+                                    *lx_ph |= observable.is_phase_observable();
+                                } else if observable.is_pseudorange_observable() {
+                                    lx_pr_ph.insert(carrier, (true, false));
+                                } else if observable.is_phase_observable() {
+                                    lx_pr_ph.insert(carrier, (false, true));
                                 }
                             }
                             if l1_pr_ph == (true, true) {
                                 for (carrier, (pr, ph)) in lx_pr_ph {
-                                    if pr == true && ph == true {
+                                    if pr && ph {
                                         list.push((*sv, carrier));
                                     }
                                 }
@@ -2065,7 +2061,7 @@ impl Rinex {
             self.navigation()
                 .map(|(_, frames)| {
                     frames
-                        .into_iter()
+                        .iter()
                         .filter_map(|fr| {
                             if let Some((msg, _, _)) = fr.as_eph() {
                                 Some(msg)
@@ -2127,11 +2123,7 @@ impl Rinex {
         let ephemeris_toe = self.ephemeris().filter_map(|(toc, (_, svnn, eph))| {
             if *svnn == sv {
                 let ts = sv.constellation.timescale()?;
-                if let Some(toe) = eph.toe(ts) {
-                    Some((toc, eph, toe))
-                } else {
-                    None
-                }
+                eph.toe(ts).map(|toe| (toc, eph, toe))
             } else {
                 None
             }
@@ -2784,12 +2776,10 @@ impl Rinex {
     /// ```
     pub fn hail_detected(&self) -> bool {
         if let Some(r) = self.record.as_meteo() {
-            for (_, observables) in r {
+            for observables in r.values() {
                 for (observ, value) in observables {
-                    if *observ == Observable::HailIndicator {
-                        if *value > 0.0 {
-                            return true;
-                        }
+                    if *observ == Observable::HailIndicator && *value > 0.0 {
+                        return true;
                     }
                 }
             }
@@ -3135,17 +3125,15 @@ impl Rinex {
     pub fn tec_rms(&self) -> Box<dyn Iterator<Item = (Epoch, f64, f64, f64, f64)> + '_> {
         Box::new(self.ionex().flat_map(|((e, h), plane)| {
             plane.iter().filter_map(|((lat, lon), tec)| {
-                if let Some(rms) = tec.rms {
-                    Some((
+                tec.rms.map(|rms| {
+                    (
                         *e,
                         *lat as f64 / 1000.0_f64,
                         *lon as f64 / 1000.0_f64,
                         *h as f64 / 100.0_f64,
                         rms,
-                    ))
-                } else {
-                    None
-                }
+                    )
+                })
             })
         }))
     }

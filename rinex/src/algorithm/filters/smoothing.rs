@@ -35,7 +35,7 @@ pub enum Error {
 impl std::str::FromStr for SmoothingFilter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let items: Vec<&str> = content.trim().split(":").collect();
+        let items: Vec<&str> = content.trim().split(':').collect();
         if items[0].trim().eq("hatch") {
             Ok(Self {
                 target: {

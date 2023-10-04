@@ -183,10 +183,10 @@ impl Decompressor {
     ) -> Option<Sv> {
         let epoch = &self.epoch_descriptor;
         let offset: usize = match crx_major {
-            1 => std::cmp::min((32 + 3 * (sv_ptr + 1)).into(), epoch.len()), // overflow protection
-            _ => std::cmp::min((41 + 3 * (sv_ptr + 1)).into(), epoch.len()), // overflow protection
+            1 => std::cmp::min(32 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
+            _ => std::cmp::min(41 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
         };
-        let system = epoch.split_at(offset.into()).0;
+        let system = epoch.split_at(offset).0;
         let (_, svnn) = system.split_at(system.len() - 3); // last 3 XXX
         let svnn = svnn.trim();
         match crx_major > 2 {
@@ -203,7 +203,7 @@ impl Decompressor {
                     },
                     constellation => {
                         // OLD + FIXED: constellation might be omitted.......
-                        if let Ok(prn) = u8::from_str_radix(&svnn[1..].trim(), 10) {
+                        if let Ok(prn) = u8::from_str_radix(svnn[1..].trim(), 10) {
                             Some(Sv {
                                 prn,
                                 constellation: *constellation,
