@@ -56,11 +56,13 @@ pub enum Constellation {
     /// vehicles without much more information
     SBAS,
     /// Australia-NZ Geoscience system
-    AusNz,
+    AusNZ,
     /// Group Based SBAS
     GBAS,
     /// Nigerian SBAS
     NSAS,
+    /// Algerian SBAS 
+    ASAL,
     /// `Mixed` for Mixed constellations
     /// RINEX files description
     Mixed,
@@ -87,7 +89,8 @@ impl Constellation {
             | Constellation::SPAN
             | Constellation::MSAS
             | Constellation::NSAS
-            | Constellation::AusNz
+            | Constellation::ASAL
+            | Constellation::AusNZ
             | Constellation::SBAS => true,
             _ => false,
         }
@@ -136,6 +139,8 @@ impl std::str::FromStr for Constellation {
             Ok(Self::IRNSS)
         } else if s.eq("m") || s.contains("mixed") {
             Ok(Self::Mixed)
+        } else if s.eq("ausnz") {
+            Ok(Self::AusNZ)
         } else if s.eq("egnos") {
             Ok(Self::EGNOS)
         } else if s.eq("waas") {
@@ -148,6 +153,8 @@ impl std::str::FromStr for Constellation {
             Ok(Self::ASBAS)
         } else if s.eq("nsas") {
             Ok(Self::NSAS)
+        } else if s.eq("asal") {
+            Ok(Self::ASAL)
         } else if s.eq("msas") {
             Ok(Self::MSAS)
         } else if s.eq("span") {
@@ -236,6 +243,7 @@ mod tests {
             ("MSAS", Ok(Constellation::MSAS)),
             ("GAGAN", Ok(Constellation::GAGAN)),
             ("BDSBAS", Ok(Constellation::BDSBAS)),
+            ("ASAL", Ok(Constellation::ASAL)),
             ("SDCM", Ok(Constellation::SDCM)),
         ] {
             assert_eq!(
@@ -252,7 +260,7 @@ mod tests {
     }
     #[test]
     fn test_sbas() {
-        for sbas in vec!["WAAS", "KASS", "EGNOS", "ASBAS", "MSAS", "GAGAN"] {
+        for sbas in vec!["WAAS", "KASS", "EGNOS", "ASBAS", "MSAS", "GAGAN", "ASAL"] {
             assert!(Constellation::from_str(sbas).unwrap().is_sbas());
         }
     }

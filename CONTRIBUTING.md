@@ -61,17 +61,19 @@ GNSS Constellations
 ===================
 
 Supported constellations are defined in the Constellation Module.  
+This structure defines both Orbiting and Stationary vehicles.
 
-SBAS (geostationnary) constellations are a special case. 
-We have the ability to identify Geostationaries vehicle in detail, 
-
+On crate feature "sbas", we can determine identify GEO vehicles
+in detail, thanks to the rinex/db/SBAS/sbas.json database.  
+We don't support undeployed Geostationary vehicles (in advance).
 
 Build scripts
 =============
 
-1. Navigation RINEX specs are contained in rinex/db/NAV
-2. rinex/db/sbas/sbas.json defines detailed vehicles
-identity, as define in the L1-CA-PRN Code assigment specifications
+1. Navigation RINEX specs are represented in rinex/db/NAV
+2. Geostationary vehicles identification in rinex/db/sbas/sbas.json,
+is picked up on "sbas" crate feature.
+This follows the L1-CA-PRN Code assignment specifications (see online specs).
 3. rinex/db/SBAS/*.wkt contains geographic definitions for most
 standard SBAS systems. We parse them as Geo::LineStrings to
 define a contour area for a given SBAS system. This gives one method

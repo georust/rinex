@@ -1,0 +1,121 @@
+[
+    {
+        "constellation": "AusNZ",
+        "prn": 122,
+        "id": "INMARSAT 4F1",
+        "launched_year": 2020,
+        "launched_month": 1
+    },
+    {
+        "constellation": "EGNOS",
+        "prn": 123,
+        "id": "ASTRA 5B",
+        "launched_year": 2021,
+        "launched_month": 11
+    },
+    {
+        "constellation": "SDCM",
+        "prn": 125,
+        "id": "Luch-5A",
+        "launched_year": 2021,
+        "launched_month": 12
+    },
+    {
+        "constellation": "EGNOS",
+        "prn": 126,
+        "id": "INMARSAT 4F2",
+        "launched_year": 2023,
+        "launched_month": 4
+    },
+    {
+        "constellation": "GAGAN",
+        "prn": 127,
+        "id": "GSAT-8",
+        "launched_year": 2020,
+        "launched_month": 9
+    },
+    {
+        "constellation": "GAGAN",
+        "prn": 128,
+        "id": "GSAT-10",
+        "launched_year": 2020,
+        "launched_month": 9
+    },
+    {
+        "constellation": "BDSBAS",
+        "prn": 130,
+        "id": "G6",
+        "launched_year": 2020,
+        "launched_month": 10
+    },
+    {
+        "constellation": "BDSBAS",
+        "prn": 130,
+        "id": "G6",
+        "launched_year": 2020,
+        "launched_month": 10
+    },
+    {
+        "constellation": "KASS",
+        "prn": 134,
+        "id": "MEASAT-3D",
+        "launched_year": 2021,
+        "launched_month": 6
+    },
+    {
+        "constellation": "EGNOS",
+        "prn": 136,
+        "id": "SES-5",
+        "launched_year": 2021,
+        "launched_month": 11
+    },
+    {
+        "constellation": "WAAS",
+        "prn": 138,
+        "id": "ANIK-F1R",
+        "launched_year": 2022,
+        "launched_month": 7
+    },
+    {
+        "constellation": "SDCM",
+        "prn": 140,
+        "id": "Luch-5B",
+        "launched_year": 2021,
+        "launched_month": 12
+    },
+    {
+        "constellation": "SDCM",
+        "prn": 141,
+        "id": "Luch-4",
+        "launched_year": 2021,
+        "launched_month": 12
+    },
+    {
+        "constellation": "BDSBAS",
+        "prn": 143,
+        "id": "G3",
+        "launched_year": 2020,
+        "launched_month": 10
+    },
+    {
+        "constellation": "BDSBAS",
+        "prn": 144,
+        "id": "G1",
+        "launched_year": 2020,
+        "launched_month": 10
+    },
+    {
+        "constellation": "NSAS",
+        "prn": 147,
+        "id": "NIGCOMSAT-1R",
+        "launched_year": 2021,
+        "launched_month": 1
+    },
+    {
+        "constellation": "ASAL",
+        "prn": 148,
+        "id": "ALCOMSAT-1",
+        "launched_year": 2020,
+        "launched_month": 1
+    }
+]
