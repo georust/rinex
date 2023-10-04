@@ -55,7 +55,7 @@ impl Sv {
     #[cfg(feature = "sbas")]
     #[cfg_attr(docrs, doc(cfg(feature = "sbas")))]
     /// Returns datetime at which Self was either launched or its serviced was deployed.
-    /// Datetime expressed as [Epoch] at midnight
+    /// This only applies to SBAS vehicles. Datetime expressed as [Epoch] at midnight UTC.
     pub fn launched_date(&self) -> Option<Epoch> {
         let definition = self.sbas_definitions()?;
         Some(Epoch::from_gregorian_utc_at_midnight(
@@ -66,17 +66,40 @@ impl Sv {
     }
 }
 
+#[cfg(not(feature = "sbas"))]
 impl std::str::FromStr for Sv {
     type Err = ParsingError;
     /*
      * Parse SV from "XYY" standardized format.
-     * On "sbas" crate feature, we have the ability to identify
-     * vehicles in detail. For example S23 is Eutelsat 5WB vehicle.
      */
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let constellation = Constellation::from_str(&string[0..1])?;
         let prn = u8::from_str_radix(&string[1..].trim(), 10)?;
         Ok(Sv { constellation, prn })
+    }
+}
+
+#[cfg(feature = "sbas")]
+impl std::str::FromStr for Sv {
+    type Err = ParsingError;
+    /*
+     * Parse SV from "XYY" standardized format.
+     * On "sbas" crate feature, we have the ability to identify
+     * vehicles in detail. For example S23 is Eutelsat 5WB.
+     */
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let constellation = Constellation::from_str(&string[0..1])?;
+        let prn = u8::from_str_radix(&string[1..].trim(), 10)?;
+        let mut ret = Sv::new(constellation, prn);
+        if constellation.is_sbas() {
+            // map the SXX to meaningful SBAS
+            if let Some(sbas) = ret.sbas_definitions() {
+                // this can't fail because the SBAS database only
+                // contains valid Constellations
+                ret.constellation = Constellation::from_str(sbas.constellation).unwrap();
+            }
+        }
+        Ok(ret)
     }
 }
 
@@ -97,7 +120,7 @@ impl std::fmt::UpperHex for Sv {
      */
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(sbas) = self.sbas_definitions() {
-            write!(f, "{}({})", sbas.constellation, sbas.id)
+            write!(f, "{}", sbas.id)
         } else {
             write!(f, "{:x}", self)
         }
@@ -141,10 +164,6 @@ mod test {
             ("R 9", Sv::new(Constellation::Glonass, 9)),
             ("I 3", Sv::new(Constellation::IRNSS, 3)),
             ("I16", Sv::new(Constellation::IRNSS, 16)),
-            ("S22", Sv::new(Constellation::SBAS, 22)),
-            ("S23", Sv::new(Constellation::SBAS, 23)),
-            ("S25", Sv::new(Constellation::SBAS, 25)),
-            ("S36", Sv::new(Constellation::SBAS, 36)),
         ] {
             let sv = Sv::from_str(descriptor);
             assert!(
@@ -160,28 +179,46 @@ mod test {
                 sv, descriptor
             );
         }
-        /*
-         * SBAS vehicles
-         */
-        for descriptor in vec!["S 5", "S 1", "S36", "S24"] {
-            assert!(
-                Sv::from_str(descriptor).is_ok(),
-                "failed to parse SBAS from \"{}\"",
-                descriptor
+    }
+    #[test]
+    #[cfg(not(feature = "sbas"))]
+    fn from_str_without_sbas() {
+        for (desc, parsed, formatted) in vec![
+            ("S 3", Sv::new(Constellation::SBAS, 3), "S03"),
+            ("S33", Sv::new(Constellation::SBAS, 33), "S33"),
+            ("S 5", Sv::new(Constellation::SBAS, 5), "S05"),
+            ("S55", Sv::new(Constellation::SBAS, 55), "S55"),
+        ] {
+            let sv = Sv::from_str(desc);
+            assert_eq!(
+                sv,
+                Ok(parsed),
+                "failed to parse correct sv from \"{}\"",
+                desc
             );
+            assert_eq!(format!("{}", sv.unwrap()), formatted);
         }
     }
     #[test]
     #[cfg(feature = "sbas")]
-    fn upperhex() {
-        for (id, expected) in vec![
-            ("S00", "S00"), // unknown
-            ("S01", "S01"), // unknown
-            ("S23", "EGNOS(ASTRA-5B)"),
-            ("S36", "EGNOS(SES-5)"),
+    fn from_str_with_sbas() {
+        for (desc, parsed, lowerhex, upperhex) in vec![
+            ("S 3", Sv::new(Constellation::SBAS, 3), "S03", "S03"),
+            (
+                "S22",
+                Sv::new(Constellation::AusNZ, 22),
+                "S22",
+                "INMARSAT-4F1",
+            ),
+            ("S23", Sv::new(Constellation::EGNOS, 23), "S23", "ASTRA-5B"),
+            ("S25", Sv::new(Constellation::SDCM, 25), "S25", "Luch-5A"),
+            ("S 5", Sv::new(Constellation::SBAS, 5), "S05", "S05"),
+            ("S48", Sv::new(Constellation::ASAL, 48), "S48", "ALCOMSAT-1"),
         ] {
-            let sv = Sv::from_str(id).unwrap();
-            assert_eq!(format!("{:X}", sv), expected);
+            let sv = Sv::from_str(desc).unwrap();
+            assert_eq!(sv, parsed, "failed to parse correct sv from \"{}\"", desc);
+            assert_eq!(format!("{:x}", sv), lowerhex);
+            assert_eq!(format!("{:X}", sv), upperhex);
         }
     }
     #[test]

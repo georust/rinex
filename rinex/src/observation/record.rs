@@ -283,7 +283,7 @@ fn parse_v2(
     let mut obs_ptr = 0; // observable pointer
     let mut data: BTreeMap<Sv, HashMap<Observable, ObservationData>> = BTreeMap::new();
     let mut inner: HashMap<Observable, ObservationData> = HashMap::with_capacity(5);
-    let mut sv: Sv;
+    let mut sv = Sv::default();
     let mut observables: &Vec<Observable>;
     //println!("SYSTEMS \"{}\"", systems); // DEBUG
 
@@ -297,32 +297,51 @@ fn parse_v2(
     /*
      * identify 1st system
      */
-    let max = std::cmp::min(svnn_size, systems.len()); // covers epoch with a unique vehicle
+    let max = std::cmp::min(svnn_size, systems.len()); // for epochs with a single vehicle
     let system = &systems[0..max];
 
     if let Ok(ssv) = Sv::from_str(system) {
         sv = ssv;
     } else {
-        // mono constellation context
-        if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
-            if let Some(constellation) = header.constellation {
-                sv = Sv { prn, constellation }
-            } else {
-                panic!("faulty RINEX2 constellation /sv definition");
-            }
-        } else {
-            // can't parse 1st vehicle
-            return data;
+        // may fail on omitted X in "XYY",
+        // mainly on OLD RINEX with mono constellation
+        match header.constellation {
+            Some(c) => {
+                if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
+                    if let Ok(s) = Sv::from_str(&format!("{}{:02}", c, prn)) {
+                        sv = s;
+                    } else {
+                        return data;
+                    }
+                }
+            },
+            Some(Constellation::Mixed) => panic!("bad gnss description"),
+            None => return data,
         }
     }
     sv_ptr += svnn_size; // increment pointer
-                         // grab observables for this vehicle
-    if let Some(o) = header_observables.get(&sv.constellation) {
-        observables = &o;
-    } else {
-        // failed to identify observations for this vehicle
-        return data;
-    }
+                         //println!("\"{}\"={}", system, sv); // DEBUG
+
+    // grab observables for this vehicle
+    observables = match sv.constellation.is_sbas() {
+        true => {
+            if let Some(observables) = header_observables.get(&Constellation::SBAS) {
+                observables
+            } else {
+                // failed to identify observations for this vehicle
+                return data;
+            }
+        },
+        false => {
+            if let Some(observables) = header_observables.get(&sv.constellation) {
+                observables
+            } else {
+                // failed to identify observations for this vehicle
+                return data;
+            }
+        },
+    };
+    //println!("{:?}", observables); // DEBUG
 
     for line in lines {
         // browse all lines provided
@@ -405,30 +424,47 @@ fn parse_v2(
             let start = sv_ptr;
             let end = std::cmp::min(sv_ptr + svnn_size, systems.len()); // trimed epoch description
             let system = &systems[start..end];
-            //println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
-            if let Ok(ssv) = Sv::from_str(system) {
-                sv = ssv;
+            if let Ok(s) = Sv::from_str(system) {
+                sv = s;
             } else {
-                // mono constellation context
-                if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
-                    if let Some(constellation) = header.constellation {
-                        sv = Sv { prn, constellation }
-                    } else {
-                        panic!("faulty RINEX2 constellation /sv definition");
-                    }
-                } else {
-                    // can't parse vehicle
-                    return data;
+                // may fail on omitted X in "XYY",
+                // mainly on OLD RINEX with mono constellation
+                match header.constellation {
+                    Some(c) => {
+                        if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
+                            if let Ok(s) = Sv::from_str(&format!("{}{:02}", c, prn)) {
+                                sv = s;
+                            } else {
+                                return data;
+                            }
+                        }
+                    },
+                    _ => unreachable!(),
                 }
             }
+            //println!("\"{}\"={:X}", system, sv); //DEBUG
             sv_ptr += svnn_size; // increment pointer
-                                 // grab observables for this vehicle
-            if let Some(o) = header_observables.get(&sv.constellation) {
-                observables = &o;
-            } else {
-                // failed to identify observations for this vehicle
-                return data;
-            }
+
+            // grab observables for this vehicle
+            observables = match sv.constellation.is_sbas() {
+                true => {
+                    if let Some(observables) = header_observables.get(&Constellation::SBAS) {
+                        observables
+                    } else {
+                        // failed to identify observations for this vehicle
+                        return data;
+                    }
+                },
+                false => {
+                    if let Some(observables) = header_observables.get(&sv.constellation) {
+                        observables
+                    } else {
+                        // failed to identify observations for this vehicle
+                        return data;
+                    }
+                },
+            };
+            //println!("{:?}", observables); // DEBUG
         }
     } // for all lines provided
     data
@@ -538,7 +574,11 @@ fn fmt_epoch_v3(
     lines.push_str("\n");
     for (sv, data) in data.iter() {
         lines.push_str(&format!("{:x}", sv));
-        if let Some(observables) = observables.get(&sv.constellation) {
+        let observables = match sv.constellation.is_sbas() {
+            true => observables.get(&Constellation::SBAS),
+            false => observables.get(&sv.constellation),
+        };
+        if let Some(observables) = observables {
             for observable in observables {
                 if let Some(observation) = data.get(observable) {
                     lines.push_str(&format!("{:14.3}", observation.obs));
@@ -599,7 +639,11 @@ fn fmt_epoch_v2(
     for (sv, observations) in data.iter() {
         // follow list of observables, as described in header section
         // for given constellation
-        if let Some(observables) = observables.get(&sv.constellation) {
+        let observables = match sv.constellation.is_sbas() {
+            true => observables.get(&Constellation::SBAS),
+            false => observables.get(&sv.constellation),
+        };
+        if let Some(observables) = observables {
             for (obs_index, observable) in observables.iter().enumerate() {
                 if obs_index % obs_per_line == 0 {
                     lines.push_str("\n");
