@@ -196,7 +196,7 @@ impl Ephemeris {
 
         let ts = sv
             .constellation
-            .to_timescale()
+            .timescale()
             .ok_or(Error::TimescaleIdentification(sv))?;
         //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
 
@@ -469,15 +469,19 @@ impl Ephemeris {
      */
     pub(crate) fn max_dtoe(c: Constellation) -> Option<Duration> {
         match c {
-            Constellation::GPS | Constellation::QZSS | Constellation::Geo => {
-                Some(Duration::from_seconds(7200.0))
-            },
+            Constellation::GPS | Constellation::QZSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Galileo => Some(Duration::from_seconds(10800.0)),
             Constellation::BeiDou => Some(Duration::from_seconds(21600.0)),
-            Constellation::SBAS(_) => Some(Duration::from_seconds(360.0)),
             Constellation::IRNSS => Some(Duration::from_seconds(86400.0)),
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
-            _ => None,
+            c => {
+                if c.is_sbas() {
+                    //TODO: verify this please
+                    Some(Duration::from_seconds(7200.0))
+                } else {
+                    None
+                }
+            },
         }
     }
 }

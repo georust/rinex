@@ -23,6 +23,17 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         .as_obs()
         .expect("failed to unwrap as observation rinex record");
 
+    /*
+     * 1: make sure constellations are identical
+     */
+    let dut_constell: Vec<_> = dut.constellation().collect();
+    let expected_constell: Vec<_> = model.constellation().collect();
+    assert_eq!(
+        dut_constell, expected_constell,
+        "bad gnss context for file \"{}\"",
+        filename
+    );
+
     for (e_model, (clk_offset_model, vehicles_model)) in rec_model.iter() {
         if let Some((clk_offset_dut, vehicles_dut)) = rec_dut.get(e_model) {
             assert_eq!(

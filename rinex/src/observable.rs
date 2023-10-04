@@ -228,7 +228,7 @@ impl Observable {
                     _ => None, // invalid: not a pseudo range
                 }
             },
-            Constellation::Geo | Constellation::SBAS(_) => {
+            Constellation::SBAS => {
                 match self {
                     Self::PseudoRange(code) => {
                         match code.as_ref() {

@@ -127,19 +127,22 @@ impl OrbitItem {
                             .unwrap_or(health::GalHealth::empty());
                         Ok(OrbitItem::GalHealth(flags))
                     },
-                    Constellation::SBAS(_) | Constellation::Geo => {
-                        let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::GeoHealth::default());
-                        Ok(OrbitItem::GeoHealth(flag))
-                    },
                     Constellation::IRNSS => {
                         let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
                             .unwrap_or(health::IrnssHealth::default());
                         Ok(OrbitItem::IrnssHealth(flag))
                     },
-                    _ => unreachable!(), // MIXED is not feasible here
-                                         // as we use the current vehicle's constellation,
-                                         // which is always defined
+                    c => {
+                        if c.is_sbas() {
+                            let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
+                                .unwrap_or(health::GeoHealth::default());
+                            Ok(OrbitItem::GeoHealth(flag))
+                        } else {
+                            // Constellation::Mixed will not happen here,
+                            // it's always defined in the database
+                            unreachable!("unhandled case!");
+                        }
+                    },
                 }
             }, // "health"
             _ => Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string())),
@@ -342,7 +345,7 @@ mod test {
             (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV1),
             (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV2),
             (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV3),
-            (Constellation::Geo, Version::new(4, 0), NavMsgType::SBAS),
+            (Constellation::SBAS, Version::new(4, 0), NavMsgType::SBAS),
         ] {
             let found = closest_nav_standards(constellation, rev, msg);
             assert!(

@@ -282,7 +282,7 @@ fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
 
     let ts = sv
         .constellation
-        .to_timescale()
+        .timescale()
         .ok_or(Error::TimescaleIdentification(sv))?;
 
     let (epoch, fr): (Epoch, NavFrame) = match frame_class {

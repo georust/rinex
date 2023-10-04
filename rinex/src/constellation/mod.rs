@@ -2,28 +2,22 @@
 use hifitime::TimeScale;
 use thiserror::Error;
 
-mod augmentation;
-pub use augmentation::Augmentation;
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+mod sbas;
+
 #[cfg(feature = "sbas")]
-pub use augmentation::sbas_selection_helper;
+pub use sbas::sbas_selection_helper;
 
 /// Constellation parsing & identification related errors
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum ParsingError {
     #[error("unknown constellation \"{0}\"")]
     Unknown(String),
-    #[error("unrecognized constellation \"{0}\"")]
-    Unrecognized(String),
-    #[error("unknown constellation format \"{0}\"")]
-    Format(String),
 }
 
 /// Describes all known `GNSS` constellations
-/// when manipulating `RINEX`
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Constellation {
@@ -38,14 +32,35 @@ pub enum Constellation {
     QZSS,
     /// `Galileo` european constellation
     Galileo,
-    /// `Geo` : stationnary satellite,
-    /// also serves as SBAS with unknown augmentation system
-    Geo,
-    /// `SBAS`
-    SBAS(Augmentation),
-    /// `IRNSS` constellation,
-    /// now officially renamed "NavIC"
+    /// `IRNSS` constellation, renamed "NavIC"
     IRNSS,
+    /// American augmentation system,
+    WAAS,
+    /// European augmentation system
+    EGNOS,
+    /// Japanese MTSAT Space Based augmentation system
+    MSAS,
+    /// Indian augmentation system
+    GAGAN,
+    /// Chinese augmentation system
+    BDSBAS,
+    /// South Korean augmentation system
+    KASS,
+    /// Russian augmentation system
+    SDCM,
+    /// South African augmentation system
+    ASBAS,
+    /// Autralia / NZ augmentation system
+    SPAN,
+    /// SBAS is used to describe SBAS (augmentation)
+    /// vehicles without much more information
+    SBAS,
+    /// Australia-NZ Geoscience system
+    AusNz,
+    /// Group Based SBAS
+    GBAS,
+    /// Nigerian SBAS
+    NSAS,
     /// `Mixed` for Mixed constellations
     /// RINEX files description
     Mixed,
@@ -53,138 +68,33 @@ pub enum Constellation {
 
 impl std::fmt::Display for Constellation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(self.to_3_letter_code())
+        write!(f, "{:X}", self)
     }
 }
 
 impl Constellation {
-    /*
-     * Identifies GNSS constellation from standard 1 letter code
-     * but can insensitive.
-     * Mostly used in Self::from_str (public method)
-     */
-    pub(crate) fn from_1_letter_code(code: &str) -> Result<Self, ParsingError> {
-        if code.len() != 1 {
-            return Err(ParsingError::Format(code.to_string()));
-        }
-
-        let lower = code.to_lowercase();
-        if lower.eq("g") {
-            Ok(Self::GPS)
-        } else if lower.eq("r") {
-            Ok(Self::Glonass)
-        } else if lower.eq("c") {
-            Ok(Self::BeiDou)
-        } else if lower.eq("e") {
-            Ok(Self::Galileo)
-        } else if lower.eq("j") {
-            Ok(Self::QZSS)
-        } else if lower.eq("s") {
-            Ok(Self::Geo)
-        } else if lower.eq("i") {
-            Ok(Self::IRNSS)
-        } else if lower.eq("m") {
-            Ok(Self::Mixed)
-        } else {
-            Err(ParsingError::Unknown(code.to_string()))
+    /// Returns true if Self is an augmentation system
+    pub fn is_sbas(&self) -> bool {
+        match *self {
+            Constellation::WAAS
+            | Constellation::KASS
+            | Constellation::BDSBAS
+            | Constellation::EGNOS
+            | Constellation::GAGAN
+            | Constellation::MSAS
+            | Constellation::SDCM
+            | Constellation::ASBAS
+            | Constellation::SPAN
+            | Constellation::MSAS
+            | Constellation::NSAS
+            | Constellation::AusNz
+            | Constellation::SBAS => true,
+            _ => false,
         }
     }
-    /*
-     * Identifies Constellation from stanadrd 3 letter code, case insensitive.
-     * Used in public Self::from_str, or some place else in that crate.
-     */
-    pub(crate) fn from_3_letter_code(code: &str) -> Result<Self, ParsingError> {
-        if code.len() != 3 {
-            return Err(ParsingError::Format(code.to_string()));
-        }
-
-        let lower = code.to_lowercase();
-        if lower.eq("gps") {
-            Ok(Self::GPS)
-        } else if lower.eq("glo") {
-            Ok(Self::Glonass)
-        } else if lower.eq("bds") {
-            Ok(Self::BeiDou)
-        } else if lower.eq("gal") {
-            Ok(Self::Galileo)
-        } else if lower.eq("qzs") {
-            Ok(Self::QZSS)
-        } else if lower.eq("sbs") | lower.eq("geo") {
-            Ok(Self::Geo)
-        } else if lower.eq("irn") {
-            Ok(Self::IRNSS)
-        } else {
-            Err(ParsingError::Unknown(code.to_string()))
-        }
+    pub(crate) fn is_mixed(&self) -> bool {
+        *self == Constellation::Mixed
     }
-    /*
-     * Identifies `gnss` constellation from given standard plain name,
-     * like "GPS", or "Galileo". This method is not case sensitive.
-     * Used in public Self::from_str, or some place else in that crate.
-     */
-    pub(crate) fn from_plain_name(code: &str) -> Result<Constellation, ParsingError> {
-        let lower = code.to_lowercase();
-        if lower.contains("gps") {
-            Ok(Self::GPS)
-        } else if lower.contains("glonass") {
-            Ok(Self::Glonass)
-        } else if lower.contains("galileo") {
-            Ok(Self::Galileo)
-        } else if lower.contains("qzss") {
-            Ok(Self::QZSS)
-        } else if lower.contains("beidou") {
-            Ok(Self::BeiDou)
-        } else if lower.contains("sbas") {
-            Ok(Self::Geo)
-        } else if lower.contains("geo") {
-            Ok(Self::Geo)
-        } else if lower.contains("irnss") {
-            Ok(Self::IRNSS)
-        } else if lower.contains("mixed") {
-            Ok(Self::Mixed)
-        } else {
-            Err(ParsingError::Unrecognized(code.to_string()))
-        }
-    }
-    /// Converts self into time scale
-    pub fn to_timescale(&self) -> Option<TimeScale> {
-        match self {
-            Self::GPS | Self::QZSS => Some(TimeScale::GPST),
-            Self::Galileo => Some(TimeScale::GST),
-            Self::BeiDou => Some(TimeScale::BDT),
-            Self::Geo | Self::SBAS(_) => Some(TimeScale::GPST),
-            // this is wrong but we can't do better
-            Self::Glonass | Self::IRNSS => Some(TimeScale::UTC),
-            _ => None,
-        }
-    }
-    /// Converts self to 1 letter code (RINEX standard code)
-    pub(crate) fn to_1_letter_code(&self) -> &str {
-        match self {
-            Self::GPS => "G",
-            Self::Glonass => "R",
-            Self::Galileo => "E",
-            Self::BeiDou => "C",
-            Self::SBAS(_) | Self::Geo => "S",
-            Self::QZSS => "J",
-            Self::IRNSS => "I",
-            Self::Mixed => "M",
-        }
-    }
-    /* Converts self to 3 letter code (RINEX standard code) */
-    pub(crate) fn to_3_letter_code(&self) -> &str {
-        match self {
-            Self::GPS => "GPS",
-            Self::Glonass => "GLO",
-            Self::Galileo => "GAL",
-            Self::BeiDou => "BDS",
-            Self::SBAS(_) | Self::Geo => "GEO",
-            Self::QZSS => "QZS",
-            Self::IRNSS => "IRN",
-            Self::Mixed => "MIX",
-        }
-    }
-
     /// Returns associated time scale. Returns None
     /// if related time scale is not supported.
     pub fn timescale(&self) -> Option<TimeScale> {
@@ -192,29 +102,112 @@ impl Constellation {
             Self::GPS | Self::QZSS => Some(TimeScale::GPST),
             Self::Galileo => Some(TimeScale::GST),
             Self::BeiDou => Some(TimeScale::BDT),
-            Self::Geo | Self::SBAS(_) => Some(TimeScale::GPST), // this is correct ?
-            _ => None,
+            Self::Glonass => Some(TimeScale::UTC),
+            c => {
+                if c.is_sbas() {
+                    Some(TimeScale::GPST)
+                } else {
+                    None
+                }
+            },
         }
     }
 }
 
 impl std::str::FromStr for Constellation {
     type Err = ParsingError;
-    /// Identifies `gnss` constellation from given code.   
-    /// Code should be standard constellation name,
-    /// or official 1/3 letter RINEX code.    
-    /// This method is case insensitive
-    fn from_str(code: &str) -> Result<Self, Self::Err> {
-        if code.len() == 3 {
-            Ok(Self::from_3_letter_code(code)?)
-        } else if code.len() == 1 {
-            Ok(Self::from_1_letter_code(code)?)
-        } else if let Ok(s) = Self::from_plain_name(code) {
-            Ok(s)
-        } else if let Ok(sbas) = Augmentation::from_str(code) {
-            Ok(Self::SBAS(sbas))
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let s = string.trim().to_lowercase();
+        if s.eq("g") || s.contains("gps") {
+            Ok(Self::GPS)
+        } else if s.eq("r") || s.contains("glo") || s.contains("glonass") {
+            Ok(Self::Glonass)
+        } else if s.eq("bdsbas") {
+            Ok(Self::BDSBAS)
+        } else if s.eq("c") || s.contains("bds") || s.contains("beidou") {
+            Ok(Self::BeiDou)
+        } else if s.eq("e") || s.contains("gal") || s.contains("galileo") {
+            Ok(Self::Galileo)
+        } else if s.eq("j") || s.contains("qzss") {
+            Ok(Self::QZSS)
+        } else if s.eq("s") || s.contains("geo") {
+            Ok(Self::SBAS)
+        } else if s.eq("i") || s.contains("irnss") || s.contains("navic") {
+            Ok(Self::IRNSS)
+        } else if s.eq("m") || s.contains("mixed") {
+            Ok(Self::Mixed)
+        } else if s.eq("egnos") {
+            Ok(Self::EGNOS)
+        } else if s.eq("waas") {
+            Ok(Self::WAAS)
+        } else if s.eq("kass") {
+            Ok(Self::KASS)
+        } else if s.eq("gagan") {
+            Ok(Self::GAGAN)
+        } else if s.eq("asbas") {
+            Ok(Self::ASBAS)
+        } else if s.eq("nsas") {
+            Ok(Self::NSAS)
+        } else if s.eq("msas") {
+            Ok(Self::MSAS)
+        } else if s.eq("span") {
+            Ok(Self::SPAN)
+        } else if s.eq("gbas") {
+            Ok(Self::GBAS)
+        } else if s.eq("sdcm") {
+            Ok(Self::SDCM)
         } else {
-            Err(ParsingError::Unknown(code.to_string()))
+            Err(ParsingError::Unknown(string.to_string()))
+        }
+    }
+}
+
+impl std::fmt::LowerHex for Constellation {
+    /*
+     * {:x}: formats Self as single letter standard code
+     */
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::GPS => write!(f, "G"),
+            Self::Glonass => write!(f, "R"),
+            Self::Galileo => write!(f, "E"),
+            Self::BeiDou => write!(f, "C"),
+            Self::QZSS => write!(f, "J"),
+            Self::IRNSS => write!(f, "I"),
+            c => {
+                if c.is_sbas() {
+                    write!(f, "S")
+                } else if c.is_mixed() {
+                    write!(f, "M")
+                } else {
+                    Err(std::fmt::Error)
+                }
+            },
+        }
+    }
+}
+
+impl std::fmt::UpperHex for Constellation {
+    /*
+     * {:X} formats Self as 3 letter standard code
+     */
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::GPS => write!(f, "GPS"),
+            Self::Glonass => write!(f, "GLO"),
+            Self::Galileo => write!(f, "GAL"),
+            Self::BeiDou => write!(f, "BDS"),
+            Self::QZSS => write!(f, "QZS"),
+            Self::IRNSS => write!(f, "IRNSS"),
+            c => {
+                if c.is_sbas() {
+                    write!(f, "GEO")
+                } else if c.is_mixed() {
+                    write!(f, "MIX")
+                } else {
+                    Err(std::fmt::Error)
+                }
+            },
         }
     }
 }
@@ -225,46 +218,43 @@ mod tests {
     use hifitime::TimeScale;
     use std::str::FromStr;
     #[test]
-    fn from_1_letter_code() {
-        let c = Constellation::from_1_letter_code("G");
-        assert_eq!(c.is_ok(), true);
-        assert_eq!(c.unwrap(), Constellation::GPS);
+    fn from_str() {
+        for (desc, expected) in vec![
+            ("G", Ok(Constellation::GPS)),
+            ("GPS", Ok(Constellation::GPS)),
+            ("R", Ok(Constellation::Glonass)),
+            ("GLO", Ok(Constellation::Glonass)),
+            ("J", Ok(Constellation::QZSS)),
+            ("M", Ok(Constellation::Mixed)),
+            ("WAAS", Ok(Constellation::WAAS)),
+            ("KASS", Ok(Constellation::KASS)),
+            ("GBAS", Ok(Constellation::GBAS)),
+            ("NSAS", Ok(Constellation::NSAS)),
+            ("SPAN", Ok(Constellation::SPAN)),
+            ("EGNOS", Ok(Constellation::EGNOS)),
+            ("ASBAS", Ok(Constellation::ASBAS)),
+            ("MSAS", Ok(Constellation::MSAS)),
+            ("GAGAN", Ok(Constellation::GAGAN)),
+            ("BDSBAS", Ok(Constellation::BDSBAS)),
+            ("SDCM", Ok(Constellation::SDCM)),
+        ] {
+            assert_eq!(
+                Constellation::from_str(desc),
+                expected,
+                "failed to parse constellation from \"{}\"",
+                desc
+            );
+        }
 
-        let c = Constellation::from_1_letter_code("R");
-        assert_eq!(c.is_ok(), true);
-        assert_eq!(c.unwrap(), Constellation::Glonass);
-
-        let c = Constellation::from_1_letter_code("M");
-        assert_eq!(c.is_ok(), true);
-        assert_eq!(c.unwrap(), Constellation::Mixed);
-
-        let c = Constellation::from_1_letter_code("J");
-        assert_eq!(c.is_ok(), true);
-        assert_eq!(c.unwrap(), Constellation::QZSS);
-
-        let c = Constellation::from_1_letter_code("X");
-        assert_eq!(c.is_err(), true);
+        for desc in vec!["X", "x", "GPX", "gpx", "unknown", "blah"] {
+            assert!(Constellation::from_str(desc).is_err());
+        }
     }
     #[test]
-    fn from_3_letter_code() {
-        let c = Constellation::from_3_letter_code("GPS");
-        assert_eq!(c.is_ok(), true);
-        assert_eq!(c.unwrap(), Constellation::GPS);
-        let c = Constellation::from_3_letter_code("GLO");
-        assert_eq!(c.is_ok(), true);
-        assert_eq!(c.unwrap(), Constellation::Glonass);
-        let c = Constellation::from_3_letter_code("GPX");
-        assert_eq!(c.is_err(), true);
-        let c = Constellation::from_3_letter_code("X");
-        assert_eq!(c.is_err(), true);
-    }
-    #[test]
-    fn augmentation() {
-        let c = Augmentation::from_str("WAAS");
-        assert_eq!(c.is_ok(), true);
-        assert_eq!(c.unwrap(), Augmentation::WAAS);
-        let c = Augmentation::from_str("WASS");
-        assert_eq!(c.is_err(), true);
+    fn test_sbas() {
+        for sbas in vec!["WAAS", "KASS", "EGNOS", "ASBAS", "MSAS", "GAGAN"] {
+            assert!(Constellation::from_str(sbas).unwrap().is_sbas());
+        }
     }
     #[test]
     fn timescale() {

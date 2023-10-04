@@ -200,7 +200,7 @@ mod test {
                                     match rinex.header.constellation {
                                         Some(Constellation::Mixed) | None => {}, // can't test
                                         Some(c) => {
-                                            let timescale = c.to_timescale().unwrap();
+                                            let timescale = c.timescale().unwrap();
                                             assert!(ts == timescale,
                                                 "interpreted wrong timescale: expecting \"{}\", got \"{}\"",
                                                 timescale,

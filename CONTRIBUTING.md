@@ -57,6 +57,26 @@ Introducing a new RINEX type
 
 When introducing a new Navigation Data, the dictionary will most likely have to be updated (see previous paragraph).
 
+GNSS Constellations
+===================
+
+Supported constellations are defined in the Constellation Module.  
+
+SBAS (geostationnary) constellations are a special case. 
+We have the ability to identify Geostationaries vehicle in detail, 
+
+
+Build scripts
+=============
+
+1. Navigation RINEX specs are contained in rinex/db/NAV
+2. rinex/db/sbas/sbas.json defines detailed vehicles
+identity, as define in the L1-CA-PRN Code assigment specifications
+3. rinex/db/SBAS/*.wkt contains geographic definitions for most
+standard SBAS systems. We parse them as Geo::LineStrings to
+define a contour area for a given SBAS system. This gives one method
+to select a SBAS from given location on Earth
+
 Crate dependencies
 ==================
 

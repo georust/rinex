@@ -1163,7 +1163,7 @@ mod test {
                     .collect();
                 expected.sort();
                 assert_eq!(sorted, expected);
-            } else if *k == Constellation::Geo {
+            } else if *k == Constellation::SBAS {
                 let mut sorted = v.clone();
                 sorted.sort();
                 let mut expected: Vec<Observable> = "C1C C5I D1C D5I L1C L5I S1C S5I"

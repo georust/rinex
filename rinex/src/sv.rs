@@ -38,7 +38,7 @@ impl std::str::FromStr for Sv {
     /// This method tolerates trailing whitespaces
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Sv {
-            constellation: Constellation::from_1_letter_code(&s[0..1])?,
+            constellation: Constellation::from_str(&s[0..1])?,
             prn: u8::from_str_radix(&s[1..].trim(), 10)?,
         })
     }
@@ -47,12 +47,7 @@ impl std::str::FromStr for Sv {
 impl std::fmt::Display for Sv {
     /// Formats self as XYY RINEX three letter code
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            fmt,
-            "{}{:02}",
-            self.constellation.to_1_letter_code(),
-            self.prn
-        )
+        write!(fmt, "{:x}{:02}", self.constellation, self.prn)
     }
 }
 
@@ -75,8 +70,8 @@ mod test {
             ("R 9", Sv::new(Constellation::Glonass, 9)),
             ("I 3", Sv::new(Constellation::IRNSS, 3)),
             ("I16", Sv::new(Constellation::IRNSS, 16)),
-            ("S36", Sv::new(Constellation::Geo, 36)),
-            ("S 6", Sv::new(Constellation::Geo, 6)),
+            ("S36", Sv::new(Constellation::SBAS, 36)),
+            ("S 6", Sv::new(Constellation::SBAS, 6)),
         ] {
             let sv = Sv::from_str(descriptor);
             assert!(sv.is_ok(), "failed to parse sv from \"{}\"", descriptor);

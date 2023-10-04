@@ -808,7 +808,7 @@ impl Header {
                         // in case of OLD RINEX : fixed constellation
                         //  use that information, as it may be omitted in the TIME OF OBS header
                         time_of_first_obs.time_scale = c
-                            .to_timescale()
+                            .timescale()
                             .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
                     },
                 }
@@ -821,7 +821,7 @@ impl Header {
                         // in case of OLD RINEX : fixed constellation
                         //  use that information, as it may be omitted in the TIME OF OBS header
                         time_of_last_obs.time_scale = c
-                            .to_timescale()
+                            .timescale()
                             .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
                     },
                 }
@@ -835,13 +835,13 @@ impl Header {
                         match constellation {
                             Some(Constellation::Mixed) => {
                                 lazy_static! {
-                                    static ref KNOWN_CONSTELLS: Vec<Constellation> = vec![
+                                    static ref KNOWN_CONSTELLS: [Constellation; 6] = [
                                         Constellation::GPS,
                                         Constellation::Glonass,
                                         Constellation::Galileo,
                                         Constellation::BeiDou,
                                         Constellation::QZSS,
-                                        Constellation::Geo,
+                                        Constellation::SBAS,
                                     ];
                                 }
                                 for c in KNOWN_CONSTELLS.iter() {
@@ -873,7 +873,7 @@ impl Header {
                 let (possible_content, content) = content.split_at(6);
                 if possible_content.len() > 0 {
                     let code = &possible_content[..1];
-                    if let Ok(c) = Constellation::from_1_letter_code(code) {
+                    if let Ok(c) = Constellation::from_str(code) {
                         current_constell = Some(c);
                     }
                 }
@@ -1361,7 +1361,8 @@ impl std::fmt::Display for Header {
                     },
                     Some(c) => {
                         write!(f, "{:<20}", "NAVIGATION DATA")?;
-                        write!(f, "{:<20}", c.to_1_letter_code())?;
+                        let constell = format!("{:x}", c);
+                        write!(f, "{:<20}", constell)?;
                         write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?
                     },
                     _ => panic!("constellation must be specified when formatting a NavigationData"),
@@ -1370,7 +1371,8 @@ impl std::fmt::Display for Header {
             Type::ObservationData => match self.constellation {
                 Some(c) => {
                     write!(f, "{:<20}", "OBSERVATION DATA")?;
-                    write!(f, "{:<20}", c.to_1_letter_code())?;
+                    let constell = format!("{:x}", c);
+                    write!(f, "{:<20}", constell)?;
                     write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?
                 },
                 _ => panic!("constellation must be specified when formatting ObservationData"),
@@ -1552,7 +1554,7 @@ impl std::fmt::Display for Header {
                         _ => {
                             // modern revisions
                             for (constell, codes) in obs.codes.iter() {
-                                let mut line = format!("{:<4}", constell.to_1_letter_code());
+                                let mut line = format!("{:x<4}", constell);
                                 line.push_str(&format!("{:2}", codes.len()));
                                 for i in 0..codes.len() {
                                     if (i + 1) % 14 == 0 {

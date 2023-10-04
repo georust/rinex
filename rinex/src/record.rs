@@ -303,7 +303,7 @@ pub fn parse_record(
             },
             Some(constellation) => {
                 obs_ts = constellation
-                    .to_timescale()
+                    .timescale()
                     .ok_or(Error::ObservationDataTimescaleIdentification)?;
             },
         }

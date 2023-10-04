@@ -1039,7 +1039,7 @@ mod test {
                         msg
                     );
                 },
-                Constellation::Geo => {
+                Constellation::SBAS => {
                     assert_eq!(
                         msg,
                         NavMsgType::SBAS,

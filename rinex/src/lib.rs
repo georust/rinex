@@ -59,7 +59,7 @@ use version::Version;
 
 /// Package to include all basic structures
 pub mod prelude {
-    pub use crate::constellation::{Augmentation, Constellation};
+    pub use crate::constellation::Constellation;
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
@@ -419,7 +419,7 @@ impl Rinex {
                                          //NB - _FFU is omitted for files containing navigation data
             let uf = String::from("Z");
             let c: String = match header.constellation {
-                Some(c) => c.to_1_letter_code().to_uppercase(),
+                Some(c) => format!("{:x}", c).to_uppercase(),
                 _ => String::from("X"),
             };
             let t: String = match rtype {
@@ -2188,7 +2188,7 @@ impl Rinex {
                 //Some(Duration::from_seconds(-a0 + a1 * dt))
                 None
             },
-            Constellation::Geo | Constellation::SBAS(_) => {
+            Constellation::SBAS => {
                 let dt = (t_tx - toc).to_seconds();
                 Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
             },

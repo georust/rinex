@@ -104,7 +104,7 @@ impl Compressor {
             if constell_id.is_ascii_digit() {
                 // in old RINEX + mono constell context
                 //   it is possible that constellation ID is omitted..
-                vehicle.insert_str(0, constellation.to_1_letter_code());
+                vehicle.insert_str(0, &format!("{:x}", constellation));
             }
             let sv = Sv::from_str(&vehicle)?;
             //println!("VEHICULE: {}", sv); //DEBUG
