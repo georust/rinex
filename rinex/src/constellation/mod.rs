@@ -61,7 +61,7 @@ pub enum Constellation {
     GBAS,
     /// Nigerian SBAS
     NSAS,
-    /// Algerian SBAS 
+    /// Algerian SBAS
     ASAL,
     /// `Mixed` for Mixed constellations
     /// RINEX files description
@@ -204,7 +204,7 @@ impl std::fmt::UpperHex for Constellation {
             Self::Glonass => write!(f, "GLO"),
             Self::Galileo => write!(f, "GAL"),
             Self::BeiDou => write!(f, "BDS"),
-            Self::QZSS => write!(f, "QZS"),
+            Self::QZSS => write!(f, "QZSS"),
             Self::IRNSS => write!(f, "IRNSS"),
             c => {
                 if c.is_sbas() {

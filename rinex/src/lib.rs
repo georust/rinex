@@ -1195,6 +1195,7 @@ impl Rinex {
  * These methods are used to browse data easily and efficiently.
  * It includes Format dependent extraction methods : one per format.
  */
+use crate::navigation::NavFrame;
 use itertools::Itertools; // .unique()
 use observation::ObservationData;
 
@@ -2029,7 +2030,7 @@ impl Rinex {
 
 #[cfg(feature = "nav")]
 use crate::navigation::{
-    BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NavFrame, NavMsgType, NgModel, StoMessage,
+    BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NavMsgType, NgModel, StoMessage,
 };
 
 //#[cfg(feature = "nav")]

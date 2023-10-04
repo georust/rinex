@@ -482,17 +482,17 @@ impl Header {
                 rinex_type = Type::from_str(type_str.trim())?;
                 if type_str.contains("GLONASS") {
                     // old GLONASS NAV : no constellation field
-                    constellation = Some(Constellation::Glonass)
+                    constellation = Some(Constellation::Glonass);
                 } else if type_str.contains("GPS NAV DATA") {
                     // old GPS NAV: no constellation field
-                    constellation = Some(Constellation::GPS)
+                    constellation = Some(Constellation::GPS);
                 } else if type_str.contains("METEOROLOGICAL DATA") {
                     // these files are not tied to a constellation system,
                     // therefore, do not have this field
                 } else {
                     // regular files
                     if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
-                        constellation = Some(constell)
+                        constellation = Some(constell);
                     }
                 }
                 /*
@@ -515,7 +515,7 @@ impl Header {
                     false => rb.trim().to_string(),
                 };
                 let (date_str, _) = rem.split_at(20);
-                date = date_str.trim().to_string()
+                date = date_str.trim().to_string();
             } else if marker.contains("MARKER NAME") {
                 station = content.split_at(20).0.trim().to_string()
             } else if marker.contains("MARKER NUMBER") {
@@ -523,7 +523,7 @@ impl Header {
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
-                    marker_type = Some(marker)
+                    marker_type = Some(marker);
                 } else {
                     return Err(ParsingError::MarkerType(code.to_string()));
                 }
@@ -533,7 +533,7 @@ impl Header {
                 agency = ag.trim().to_string();
             } else if marker.contains("REC # / TYPE / VERS") {
                 if let Ok(receiver) = Rcvr::from_str(content) {
-                    rcvr = Some(receiver)
+                    rcvr = Some(receiver);
                 }
             } else if marker.contains("SYS / PCVS APPLIED") {
                 let (gnss, rem) = content.split_at(2);

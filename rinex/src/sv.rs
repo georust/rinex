@@ -1,6 +1,6 @@
 //! Satellite vehicle
-use thiserror::Error;
 use super::{constellation, Constellation};
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,6 @@ use hifitime::Epoch;
  * The database is built by build.rs
  */
 #[cfg(feature = "sbas")]
-
 #[cfg(feature = "sbas")]
 use std::str::FromStr;
 
@@ -51,30 +50,31 @@ impl Sv {
      * For that, we use the PRN number (+100 for SBAS)
      */
     fn sbas_definitions(&self) -> Option<&SBASHelper> {
-        let to_find = (self.prn as u16) +100;
-        SBAS_VEHICLES.iter()
-            .filter_map(|e| {
-                if e.prn == to_find {
-                    Some(e)
-                } else {
-                    None
-                }
-            })
+        let to_find = (self.prn as u16) + 100;
+        SBAS_VEHICLES
+            .iter()
+            .filter_map(|e| if e.prn == to_find { Some(e) } else { None })
             .reduce(|e, _| e)
     }
+    /*
+     * Tries to retrieve SBAS detailed ID, from the database
+     */
     #[cfg(feature = "sbas")]
-    // Tries to retrieve SBAS detailed ID, from the database
     pub(crate) fn sbas_identity(&self) -> Option<String> {
         let definition = self.sbas_definitions()?;
         Some(definition.id.to_string())
     }
+    #[cfg(feature = "sbas")]
     #[cfg_attr(docrs, doc(cfg(feature = "sbas")))]
     /// Returns datetime at which Self was either launched or its serviced was deployed.
     /// Datetime expressed as [Epoch] at midnight
     pub fn launched_date(&self) -> Option<Epoch> {
         let definition = self.sbas_definitions()?;
-        Some(Epoch::default())
-        //pub fn from_gregorian_utc_at_midnight(year: i32, month: u8, day: u8) -> Self {
+        Some(Epoch::from_gregorian_utc_at_midnight(
+            definition.launched_year,
+            definition.launched_month,
+            definition.launched_day,
+        ))
     }
 }
 
@@ -86,64 +86,51 @@ impl std::str::FromStr for Sv {
      * vehicles in detail. For example S23 is Eutelsat 5WB vehicle.
      */
     fn from_str(string: &str) -> Result<Self, Self::Err> {
-        let content = string.trim();
-        let constellation = Constellation::from_str(&content[0..1])?;
-        let prn = u8::from_str_radix(&content[1..].trim(), 10)?;
+        let constellation = Constellation::from_str(&string[0..1])?;
+        let prn = u8::from_str_radix(&string[1..].trim(), 10)?;
+        Ok(Sv { constellation, prn })
+    }
+}
 
-        if cfg!(feature = "sbas") && constellation == Constellation::SBAS {
-            // identify in detail, using prebuilt database
-            let found = &SBAS_VEHICLES.iter()
-                .filter_map(|e| {
-                    let sbas_prn = prn as u16 +100;
-                    if e.prn == sbas_prn { 
-                        Some((e.constellation, sbas_prn))
-                    } else {
-                        None
-                    }
-                })
-                .reduce(|e, _| e);
-            if let Some((constell_str, _)) = found {
-                // this can't fail: database only contains valid description
-                let constellation = Constellation::from_str(constell_str)
-                    .unwrap();
-                Ok(Sv {
-                    constellation,
-                    prn,
-                })
-            } else {
-                Ok(Sv {
-                    constellation,
-                    prn,
-                })
-            }
+#[cfg(not(feature = "sbas"))]
+impl std::fmt::UpperHex for Sv {
+    /*
+     * Prints self as XYY standard format
+     */
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:x}", self)
+    }
+}
+
+#[cfg(feature = "sbas")]
+impl std::fmt::UpperHex for Sv {
+    /*
+     * Prints self as XYY standard format or possible SBAS determined identity
+     */
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(id) = self.sbas_identity() {
+            write!(f, "{}", id)
         } else {
-            Ok(Sv {
-                constellation,
-                prn,
-            })
+            write!(f, "{:x}", self)
         }
     }
 }
 
+impl std::fmt::LowerHex for Sv {
+    /*
+     * Prints self as XYY standard format
+     */
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:x}{:02}", self.constellation, self.prn)
+    }
+}
+
 impl std::fmt::Display for Sv {
-    /// Formats self as XYY RINEX three letter code
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.constellation.is_sbas() {
-            /*
-             * in case we have the "sbas" feature, print the real vehicule identity 
-             */
-            if cfg!(feature = "sbas") {
-                if let Some(id) = self.sbas_identity() {
-                    write!(fmt, "{}", id)
-                } else {
-                    write!(fmt, "{:x}{:02}", self.constellation, self.prn)
-                }
-            } else {
-                write!(fmt, "{:x}{:02}", self.constellation, self.prn)
-            }
-        } else {
-            write!(fmt, "{:x}{:02}", self.constellation, self.prn)
-        }
+    /*
+     * Prints self as XYY standard format
+     */
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:x}{:02}", self.constellation, self.prn)
     }
 }
 
@@ -166,9 +153,18 @@ mod test {
             ("R 9", Sv::new(Constellation::Glonass, 9)),
             ("I 3", Sv::new(Constellation::IRNSS, 3)),
             ("I16", Sv::new(Constellation::IRNSS, 16)),
+            ("S22", Sv::new(Constellation::SBAS, 22)),
+            ("S23", Sv::new(Constellation::SBAS, 23)),
+            ("S25", Sv::new(Constellation::SBAS, 25)),
+            ("S36", Sv::new(Constellation::SBAS, 36)),
         ] {
             let sv = Sv::from_str(descriptor);
-            assert!(sv.is_ok(), "failed to parse sv from \"{}\" - {:?}", descriptor, sv.err().unwrap());
+            assert!(
+                sv.is_ok(),
+                "failed to parse sv from \"{}\" - {:?}",
+                descriptor,
+                sv.err().unwrap()
+            );
             let sv = sv.unwrap();
             assert_eq!(
                 sv, expected,
@@ -179,36 +175,40 @@ mod test {
         /*
          * SBAS vehicles
          */
-        for descriptor in vec![
-            "S 5", "S 1", "S36", "S24"
-        ] {
-            assert!(Sv::from_str(descriptor).is_ok(), "failed to parse SBAS from \"{}\"", descriptor);
+        for descriptor in vec!["S 5", "S 1", "S36", "S24"] {
+            assert!(
+                Sv::from_str(descriptor).is_ok(),
+                "failed to parse SBAS from \"{}\"",
+                descriptor
+            );
         }
     }
-    #[cfg(feature = "sbas")]
     #[test]
-    fn sbas_id() {
+    #[cfg(feature = "sbas")]
+    fn upperhex() {
         for (id, expected) in vec![
-            ("S20", "S20"), // unknown
-            ("S23", "ASTRA 5B"),
+            ("S00", "S00"), // unknown
+            ("S01", "S01"), // unknown
+            ("S23", "ASTRA-5B"),
+            ("S36", "SES-5"),
         ] {
-            let sv = Sv::from_str(id)
-                .unwrap();
-            assert_eq!(sv.to_string(), expected);
+            let sv = Sv::from_str(id).unwrap();
+            assert_eq!(format!("{:X}", sv), expected);
         }
     }
-    #[cfg(feature = "sbas")]
     #[test]
+    #[cfg(feature = "sbas")]
     fn sbas_db_sanity() {
         for sbas in SBAS_VEHICLES.iter() {
-            assert!(Constellation::from_str(sbas.constellation).is_ok(),
+            assert!(
+                Constellation::from_str(sbas.constellation).is_ok(),
                 "sbas database should only contain valid constellations: \"{}\"",
                 sbas.constellation,
             );
             let _ = Epoch::from_gregorian_utc_at_midnight(
-                sbas.launched_year, 
+                sbas.launched_year,
                 sbas.launched_month,
-                sbas.launched_day, 
+                sbas.launched_day,
             );
         }
     }

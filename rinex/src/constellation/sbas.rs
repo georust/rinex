@@ -1,7 +1,4 @@
-//! `GNSS` geostationary augmentation systems,
-//! mainly used for high precision positioning
-use strum_macros::EnumString;
-
+//! Geostationary augmentation systems
 use crate::prelude::Constellation;
 
 #[cfg(feature = "serde")]

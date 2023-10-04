@@ -2,14 +2,14 @@
     {
         "constellation": "AusNZ",
         "prn": 122,
-        "id": "INMARSAT 4F1",
+        "id": "INMARSAT-4F1",
         "launched_year": 2020,
         "launched_month": 1
     },
     {
         "constellation": "EGNOS",
         "prn": 123,
-        "id": "ASTRA 5B",
+        "id": "ASTRA-5B",
         "launched_year": 2021,
         "launched_month": 11
     },
@@ -23,7 +23,7 @@
     {
         "constellation": "EGNOS",
         "prn": 126,
-        "id": "INMARSAT 4F2",
+        "id": "INMARSAT-4F2",
         "launched_year": 2023,
         "launched_month": 4
     },

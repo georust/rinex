@@ -991,6 +991,7 @@ mod test {
         }
     }
     #[test]
+    #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
     fn v4_nav_messages() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
@@ -1052,6 +1053,7 @@ mod test {
         }
     }
     #[test]
+    #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
     fn v4_brd400dlr_s2023() {
         let path = PathBuf::new()
@@ -1292,8 +1294,8 @@ mod test {
         }
     }
     #[test]
-    #[cfg(feature = "flate2")]
     #[cfg(feature = "nav")]
+    #[cfg(feature = "flate2")]
     #[ignore]
     fn sv_interp() {
         let path = PathBuf::new()

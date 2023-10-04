@@ -115,7 +115,7 @@ fn report_anomalies<'a>(
         }
         tr {
             th {
-                : "Cycle slip(s)"
+                : "Cycle slips"
             }
             @ if cs.is_empty() {
                 td {
@@ -219,7 +219,7 @@ fn report_epoch_completion(
                     td {
                         @ for ((sv, carrier), count) in complete {
                             b {
-                                : format!("{} {}/L1", sv, carrier)
+                                : format!("{:X} {}/L1", sv, carrier)
                             }
                             p {
                                 : format!("{} ({}%)", count, count * 100 / total)

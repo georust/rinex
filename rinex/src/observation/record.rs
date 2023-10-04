@@ -537,7 +537,7 @@ fn fmt_epoch_v3(
 
     lines.push_str("\n");
     for (sv, data) in data.iter() {
-        lines.push_str(&format!("{}", sv.to_string()));
+        lines.push_str(&format!("{:x}", sv));
         if let Some(observables) = observables.get(&sv.constellation) {
             for observable in observables {
                 if let Some(observation) = data.get(observable) {
@@ -591,7 +591,7 @@ fn fmt_epoch_v2(
             }
             lines.push_str(&format!("\n                                "));
         }
-        lines.push_str(&sv.to_string());
+        lines.push_str(&format!("{:x}", sv));
         index += 1;
     }
     let obs_per_line = 5;

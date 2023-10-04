@@ -3,8 +3,7 @@ use std::io::Write;
 use std::path::Path;
 
 fn build_nav_database() {
-    let outdir = env::var("OUT_DIR")
-        .unwrap();
+    let outdir = env::var("OUT_DIR").unwrap();
     let nav_path = Path::new(&outdir).join("nav_orbits.rs");
     let mut nav_file = std::fs::File::create(&nav_path).unwrap();
 
@@ -101,15 +100,12 @@ pub struct NavHelper<'a> {
         .unwrap();
 }
 
-#[cfg(feature = "sbas")]
 use serde::Deserialize;
 
-#[cfg(feature = "sbas")]
 fn default_launch_month() -> u8 {
     1 // Jan
 }
 
-#[cfg(feature = "sbas")]
 fn default_launch_day() -> u8 {
     1 // 1st day of month
 }
@@ -119,9 +115,8 @@ fn default_launch_day() -> u8 {
  * and "serde" to allow not to describe the launched
  * day or month for example
  */
-#[cfg(feature = "sbas")]
 #[derive(Deserialize)]
-struct SBASDBEntry <'a> {
+struct SBASDBEntry<'a> {
     pub constellation: &'a str,
     pub prn: u16,
     pub id: &'a str,
@@ -132,19 +127,15 @@ struct SBASDBEntry <'a> {
     pub launched_year: i32,
 }
 
-#[cfg(feature = "sbas")]
 fn build_sbas_helper() {
-    let outdir = env::var("OUT_DIR")
-        .unwrap();
+    let outdir = env::var("OUT_DIR").unwrap();
     let path = Path::new(&outdir).join("sbas.rs");
-    let mut fd = std::fs::File::create(path)
-        .unwrap();
-    
-    // read descriptor: parse and dump into a static array
-    let db_content = std::fs::read_to_string("db/SBAS/sbas.json")
-        .unwrap();
+    let mut fd = std::fs::File::create(path).unwrap();
 
-    let sbas_db : Vec<SBASDBEntry> = serde_json::from_str(&db_content).unwrap();
+    // read descriptor: parse and dump into a static array
+    let db_content = std::fs::read_to_string("db/SBAS/sbas.json").unwrap();
+
+    let sbas_db: Vec<SBASDBEntry> = serde_json::from_str(&db_content).unwrap();
 
     let content = "use lazy_static::lazy_static;
 
@@ -166,22 +157,19 @@ lazy_static! {
 
     for e in sbas_db {
         fd.write_all(
-            format!("SBASHelper {{
+            format!(
+                "SBASHelper {{
                 constellation: \"{}\",
                 prn: {},
                 id: \"{}\",
                 launched_year: {},
                 launched_month: {},
                 launched_day: {}
-            }},", 
-            e.constellation,
-            e.prn,
-            e.id,
-            e.launched_year,
-            e.launched_month,
-            e.launched_day,
+            }},",
+                e.constellation, e.prn, e.id, e.launched_year, e.launched_month, e.launched_day,
+            )
+            .as_bytes(),
         )
-        .as_bytes())
         .unwrap()
     }
 

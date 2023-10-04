@@ -81,7 +81,7 @@ pub fn plot_residual_ephemeris(ctx: &QcContext, plot_ctx: &mut PlotContext) {
             }
         }
         let trace =
-            build_chart_epoch_axis(&format!("|{}_err|", sv), Mode::Markers, epochs, residuals)
+            build_chart_epoch_axis(&format!("|{:X}_err|", sv), Mode::Markers, epochs, residuals)
                 .visible({
                     if sv_index < 4 {
                         Visible::True
