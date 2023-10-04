@@ -22,10 +22,12 @@ and we aim towards advanced geodesic and ionospheric analysis.
 - Seamless .gzip decompression with `flate2` compilation feature
 - RINEX V4 full support, that includes modern Navigation messages
 - Meteo RINEX full support
-- IONEX and Clock RINEX partial support, will be concluded soon
+- IONEX (2D) support, partial 3D support
+- Clock RINEX partial support: to be concluded soon
 - File merging, splitting and pre processing
 - Modern constellations like BeiDou, Galileo and IRNSS
 - Supported time scales are GPST, BDT, GST, UTC
+- Supports many SBAS, refer to online documentation
 - Full support of Military codes : if you're working with such signals you can
 at least run a -qc analysis, and possibly the position solver once it is merged 
 - Supports high precision RINEX (scaled phase data with micro cycle precision)
