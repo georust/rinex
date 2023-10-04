@@ -177,8 +177,8 @@ mod test {
         for (id, expected) in vec![
             ("S00", "S00"), // unknown
             ("S01", "S01"), // unknown
-            ("S23", "ASTRA-5B"),
-            ("S36", "SES-5"),
+            ("S23", "EGNOS(ASTRA-5B)"),
+            ("S36", "EGNOS(SES-5)"),
         ] {
             let sv = Sv::from_str(id).unwrap();
             assert_eq!(format!("{:X}", sv), expected);
