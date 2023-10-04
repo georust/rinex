@@ -63,14 +63,32 @@ GNSS Constellations
 Supported constellations are defined in the Constellation Module.  
 This structure defines both Orbiting and Stationary vehicles.
 
-On crate feature "sbas", we can determine identify GEO vehicles
-in detail, thanks to the rinex/db/SBAS/sbas.json database.  
-We don't support undeployed Geostationary vehicles (in advance).
+Adding new SBAS vehicles
+========================
+
+To add a newly launched SBAS vehicles, simply add it to the
+rinex/db/SBAS/sbas.json database.
+
+The only mandatory fields are :
+- the "constellation" field
+- the SBAS "prn" field (which is 100 + prn number)
+- "id": the name of that vehicle, for example "ASTRA-5B"
+- "launched\_year": the year this vehicle was launched
+
+Other optional fields are:
+- "launched\_month": month ths vehicle was launched
+- "launched\_day": day of month this vehicle was launched
+
+We don't support undeployed vehicles (in advance).
 
 Build scripts
 =============
 
-1. Navigation RINEX specs are represented in rinex/db/NAV
+The build script is rinex/build.rs.
+
+It is responsible for building several important but hidden structures.
+
+1. Navigation RINEX specs, described by rinex/db/NAV
 2. Geostationary vehicles identification in rinex/db/sbas/sbas.json,
 is picked up on "sbas" crate feature.
 This follows the L1-CA-PRN Code assignment specifications (see online specs).
