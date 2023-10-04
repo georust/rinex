@@ -163,36 +163,22 @@ impl Ephemeris {
             true => 3,
             false => 4,
         };
-        let date_offset: usize = match version.major < 3 {
-            true => 19,
-            false => 19,
-        };
+
+        let date_offset: usize = 19;
 
         let (svnn, rem) = line.split_at(svnn_offset);
         let (date, rem) = rem.split_at(date_offset);
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
 
-        let mut sv = Sv::default();
-
-        match version.major {
-            1 | 2 => {
-                match constellation {
-                    Constellation::Mixed => {
-                        // not sure that even exists
-                        sv = Sv::from_str(svnn.trim())?
-                    },
-                    _ => {
-                        sv.constellation = constellation;
-                        sv.prn = u8::from_str_radix(svnn.trim(), 10)?;
-                    },
-                }
+        let sv = match Sv::from_str(svnn.trim()) {
+            Ok(sv) => sv,
+            Err(_) => {
+                // parsing failed probably due to omitted constellation (old rev.)
+                Sv::from_str(&format!("{}{:02}", constellation, svnn.trim()))?
             },
-            3 => {
-                sv = Sv::from_str(svnn.trim())?;
-            },
-            _ => unreachable!("V4 is treated in a dedicated method"),
         };
+        //println!("\"{}\"={}", svnn, sv); // DEBUG
 
         let ts = sv
             .constellation
@@ -207,7 +193,12 @@ impl Ephemeris {
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
         // parse orbits :
         //  only Legacy Frames in V2 and V3 (old) RINEX
-        let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
+        // convert to nav database compatible constellation
+        let constellation = match sv.constellation.is_sbas() {
+            true => Constellation::SBAS,
+            false => sv.constellation,
+        };
+        let orbits = parse_orbits(version, NavMsgType::LNAV, constellation, lines)?;
         Ok((
             epoch,
             sv,
@@ -243,7 +234,12 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
+        // convert to nav database compatible constellation
+        let constellation = match sv.constellation.is_sbas() {
+            true => Constellation::SBAS,
+            false => sv.constellation,
+        };
+        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, constellation, lines)?;
         Ok((
             epoch,
             sv,

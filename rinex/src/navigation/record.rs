@@ -230,7 +230,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         // RINEX V3
         if line.len() < 24 {
             return false; // not enough bytes
-                          // to describe an SVN and an Epoch
+                          // to describe an SV and an Epoch
         }
         // 1st entry matches a valid SV description
         let (sv, _) = line.split_at(4);
