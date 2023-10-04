@@ -2,8 +2,8 @@
 use hifitime::TimeScale;
 use thiserror::Error;
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+//#[cfg(feature = "serde")]
+//use serde::{Deserialize, Serialize};
 
 mod sbas;
 
@@ -83,7 +83,6 @@ impl Constellation {
             | Constellation::BDSBAS
             | Constellation::EGNOS
             | Constellation::GAGAN
-            | Constellation::MSAS
             | Constellation::SDCM
             | Constellation::ASBAS
             | Constellation::SPAN

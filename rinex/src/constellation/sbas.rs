@@ -1,8 +1,8 @@
 //! Geostationary augmentation systems
 use crate::prelude::Constellation;
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+//#[cfg(feature = "serde")]
+//use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "sbas")]
 use geo::{point, Contains, LineString};

@@ -24,10 +24,6 @@ use hifitime::Epoch;
  * The database is built by build.rs
  */
 #[cfg(feature = "sbas")]
-#[cfg(feature = "sbas")]
-use std::str::FromStr;
-
-#[cfg(feature = "sbas")]
 include!(concat!(env!("OUT_DIR"), "/sbas.rs"));
 
 /// ̀`Sv` parsing & identification related errors
@@ -49,20 +45,12 @@ impl Sv {
      * Tries to retrieve SBAS detailed definitions for self.
      * For that, we use the PRN number (+100 for SBAS)
      */
-    fn sbas_definitions(&self) -> Option<&SBASHelper> {
+    pub(crate) fn sbas_definitions(&self) -> Option<&SBASHelper> {
         let to_find = (self.prn as u16) + 100;
         SBAS_VEHICLES
             .iter()
             .filter_map(|e| if e.prn == to_find { Some(e) } else { None })
             .reduce(|e, _| e)
-    }
-    /*
-     * Tries to retrieve SBAS detailed ID, from the database
-     */
-    #[cfg(feature = "sbas")]
-    pub(crate) fn sbas_identity(&self) -> Option<String> {
-        let definition = self.sbas_definitions()?;
-        Some(definition.id.to_string())
     }
     #[cfg(feature = "sbas")]
     #[cfg_attr(docrs, doc(cfg(feature = "sbas")))]
@@ -108,8 +96,8 @@ impl std::fmt::UpperHex for Sv {
      * Prints self as XYY standard format or possible SBAS determined identity
      */
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(id) = self.sbas_identity() {
-            write!(f, "{}", id)
+        if let Some(sbas) = self.sbas_definitions() {
+            write!(f, "{}({})", sbas.constellation, sbas.id)
         } else {
             write!(f, "{:x}", self)
         }

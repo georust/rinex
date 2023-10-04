@@ -291,6 +291,7 @@ pub fn build_world_map(
         .title(Title::new(title).font(Font::default()))
         .drag_mode(DragMode::Zoom)
         .margin(Margin::new().top(0).left(0).bottom(0).right(0))
+        .show_legend(show_legend)
         .mapbox(
             Mapbox::new()
                 .style(map_style)

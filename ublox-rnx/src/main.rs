@@ -8,7 +8,8 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use rinex::navigation::{IonMessage, KbModel, KbRegionCode};
-use rinex::observation::ObservationData;
+use rinex::observation::{LliFlags, ObservationData};
+use rinex::prelude::EpochFlag;
 use rinex::prelude::*;
 use rinex::sv;
 
@@ -162,8 +163,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // current work structures
     let mut itow = 0_u32;
     let mut epoch = Epoch::default();
+    let mut epoch_flag = EpochFlag::default();
+
+    // observation
     let mut observable = Observable::default();
+    let mut lli: Option<LliFlags> = None;
     let mut obs_data = ObservationData::default();
+
     let mut uptime = Duration::default();
 
     let mut fix_type = GpsFix::NoFix; // current fix status
@@ -188,13 +194,20 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 //},
                 PacketRef::CfgNav5(pkt) => {
                     // Dynamic model
-                    let dyn_model = pkt.dyn_model();
+                    let _dyn_model = pkt.dyn_model();
                 },
                 PacketRef::RxmRawx(pkt) => {
-                    let leap_s = pkt.leap_s();
+                    let _leap_s = pkt.leap_s();
                     if pkt.rec_stat().intersects(RecStatFlags::CLK_RESET) {
-                        // notify reset + lli
+                        // notify reset event
+                        if let Some(ref mut lli) = lli {
+                            *lli |= LliFlags::LOCK_LOSS;
+                        } else {
+                            lli = Some(LliFlags::LOCK_LOSS);
+                        }
+                        epoch_flag = EpochFlag::CycleSlip;
                     }
+                    obs_data.lli = lli.clone();
                 },
                 PacketRef::MonHw(_pkt) => {
                     //let jamming = pkt.jam_ind(); //TODO
@@ -219,12 +232,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                     for sv in pkt.svs() {
                         let gnss = identify_constellation(sv.gnss_id());
                         if gnss.is_ok() {
-                            let elev = sv.elev();
-                            let azim = sv.azim();
-                            let pr_res = sv.pr_res();
-                            let flags = sv.flags();
+                            let _elev = sv.elev();
+                            let _azim = sv.azim();
+                            let _pr_res = sv.pr_res();
+                            let _flags = sv.flags();
 
-                            let sv = Sv {
+                            let _sv = Sv {
                                 constellation: gnss.unwrap(),
                                 prn: sv.sv_id(),
                             };
@@ -265,16 +278,19 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 PacketRef::NavEoe(pkt) => {
                     itow = pkt.itow();
+                    // reset Epoch
+                    lli = None;
+                    epoch_flag = EpochFlag::default();
                 },
                 /*
                  * NAVIGATION : EPHEMERIS
                  */
                 PacketRef::MgaGpsEph(pkt) => {
-                    let sv = sv!(&format!("G{}", pkt.sv_id()));
+                    let _sv = sv!(&format!("G{}", pkt.sv_id()));
                     //nav_record.insert(epoch, sv);
                 },
                 PacketRef::MgaGloEph(pkt) => {
-                    let sv = sv!(&format!("R{}", pkt.sv_id()));
+                    let _sv = sv!(&format!("R{}", pkt.sv_id()));
                     //nav_record.insert(epoch, sv);
                 },
                 /*
@@ -286,14 +302,14 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                         beta: (pkt.beta0(), pkt.beta1(), pkt.beta2(), pkt.beta3()),
                         region: KbRegionCode::default(), // TODO,
                     };
-                    let iono = IonMessage::KlobucharModel(kbmodel);
+                    let _iono = IonMessage::KlobucharModel(kbmodel);
                 },
                 /*
                  * OBSERVATION: Receiver Clock
                  */
                 PacketRef::NavClock(pkt) => {
-                    let bias = pkt.clk_b();
-                    let drift = pkt.clk_d();
+                    let _bias = pkt.clk_b();
+                    let _drift = pkt.clk_d();
                     // pkt.t_acc(); // phase accuracy
                     // pkt.f_acc(); // frequency accuracy
                 },

@@ -14,14 +14,14 @@ use preprocessing::preprocess;
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
-    observation::{Combine, Dcb, IonoDelay, Mp},
+    observation::{Combine, Dcb, IonoDelay}, //Mp},
     prelude::RinexType,
     prelude::*,
     split::Split,
 };
 
 extern crate gnss_rtk as rtk;
-use rtk::prelude::{RTKConfig, Solver, SolverError, SolverType};
+use rtk::prelude::{Solver, SolverError, SolverType};
 
 use rinex_qc::*;
 

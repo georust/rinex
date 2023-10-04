@@ -1,16 +1,6 @@
 //use itertools::Itertools;
 use crate::plot::PlotContext;
-use plotly::{
-    color::NamedColor,
-    common::Font,
-    common::Title,
-    common::{Marker, MarkerSymbol}, //color::Rgba},
-    layout::MapboxStyle,
-    // AnimatedDensityMapbox,
-    DensityMapbox,
-    //scatter_mapbox::Fill,
-    ScatterMapbox,
-};
+use plotly::layout::MapboxStyle;
 use rinex::prelude::Epoch;
 use rinex_qc::QcContext;
 use std::collections::HashMap;
@@ -28,7 +18,7 @@ pub fn plot_tec_map(
      * plotly-rs has no means to animate plots at the moment
      * therefore.. we create one plot for all existing epochs
      */
-    for (index, epoch) in ctx.primary_data().epoch().enumerate() {
+    for (_index, epoch) in ctx.primary_data().epoch().enumerate() {
         let content: Vec<_> = ctx
             .primary_data()
             .tec()
