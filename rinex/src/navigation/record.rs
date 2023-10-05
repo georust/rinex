@@ -592,8 +592,15 @@ mod test {
     1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
     2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
         let version = Version::new(2, 0);
+        assert!(is_new_epoch(content, version));
+
         let entry = parse_epoch(version, Constellation::Glonass, content);
-        assert_eq!(entry.is_ok(), true);
+        assert_eq!(
+            entry.is_ok(),
+            true,
+            "failed to parse epoch {:?}",
+            entry.err()
+        );
 
         let (epoch, frame) = entry.unwrap();
         assert_eq!(

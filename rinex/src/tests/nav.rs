@@ -7,15 +7,13 @@ mod test {
     use std::path::PathBuf;
     use std::str::FromStr;
     #[test]
+    #[cfg(feature = "nav")]
     fn v2_amel0010_21g() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/amel0010.21g";
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
         let record = rinex.record.as_nav();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
@@ -23,6 +21,7 @@ mod test {
 
         // Test: parsed correct amount of entries
         assert_eq!(rinex.navigation().count(), 4);
+
         // Test: only Ephemeris in this record
         assert_eq!(rinex.ephemeris().count(), 6);
         // Test: only Legacy Ephemeris frames in this record

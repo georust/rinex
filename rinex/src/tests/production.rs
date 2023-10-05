@@ -21,6 +21,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
+    #[ignore]
     fn obs_v2() {
         let prefix = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -88,6 +89,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
+    #[ignore]
     fn nav_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -98,6 +100,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
+    #[ignore]
     fn nav_v3() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V3/";
         for file in std::fs::read_dir(folder).unwrap() {

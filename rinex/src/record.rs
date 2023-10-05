@@ -9,7 +9,7 @@ use super::{
     antex, clocks,
     clocks::{ClockData, ClockDataType},
     hatanaka::{Compressor, Decompressor},
-    header, ionex, is_comment, merge,
+    header, ionex, is_rinex_comment, merge,
     merge::Merge,
     meteo, navigation, observation,
     reader::BufferedReader,
@@ -250,7 +250,7 @@ pub enum Error {
 /// Returns true if given line matches the start   
 /// of a new epoch, inside a RINEX record.
 pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
-    if is_comment!(line) {
+    if is_rinex_comment(line) {
         return false;
     }
     match &header.rinex_type {
@@ -322,7 +322,7 @@ pub fn parse_record(
         // COMMENTS special case
         // --> store
         // ---> append later with epoch.timestamp attached to it
-        if is_comment!(line) {
+        if is_rinex_comment(&line) {
             let comment = line.split_at(60).0.trim_end();
             comment_content.push(comment.to_string());
             continue;

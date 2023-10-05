@@ -1,6 +1,6 @@
 //! RINEX compression module
 use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::is_comment;
+use crate::is_rinex_comment;
 use crate::{Constellation, Observable, Sv};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -217,7 +217,7 @@ impl Compressor {
             // println!("\nWorking from LINE : \"{}\"", line); //DEBUG
 
             // [0] : COMMENTS (special case)
-            if is_comment!(line) {
+            if is_rinex_comment(line) {
                 if line.contains("RINEX FILE SPLICE") {
                     // [0*] SPLICE special comments
                     //      merged RINEX Files

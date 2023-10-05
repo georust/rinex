@@ -1,6 +1,6 @@
 //! RINEX decompression module
 use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::{is_comment, prelude::*};
+use crate::{is_rinex_comment, prelude::*};
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -250,7 +250,7 @@ impl Decompressor {
             //println!("state: {:?}", self.state);
 
             // [0] : COMMENTS (special case)
-            if is_comment!(line) {
+            if is_rinex_comment(line) {
                 //if line.contains("RINEX FILE SPLICE") {
                 // [0*] SPLICE special comments
                 //      merged RINEX Files

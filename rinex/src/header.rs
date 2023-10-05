@@ -20,6 +20,8 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
 
+use crate::{fmt_comment, fmt_rinex};
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -1335,6 +1337,82 @@ impl Header {
     }
 }
 
+fn fmt_rinex_version_type(
+    f: &mut std::fmt::Formatter,
+    rtype: RinexType,
+    version: Version,
+    constell: Option<Constellation>,
+) -> std::fmt::Result {
+    let major = version.major;
+    let minor = version.minor;
+    match rtype {
+        Type::NavigationData => match constell {
+            Some(Constellation::Glonass) => {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!("{:6}.{:02}           G: GLONASS NAV DATA", major, minor),
+                        "RINEX VERSION / TYPE"
+                    )
+                )
+            },
+            Some(c) => {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!(
+                            "{:6}.{:02}           NAVIGATION DATA     {:X<20}",
+                            major, minor, c
+                        ),
+                        "RINEX VERSION / TYPE"
+                    )
+                )
+            },
+            _ => panic!("constellation must be specified when formatting a NavigationData"),
+        },
+        Type::ObservationData => match constell {
+            Some(c) => {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!(
+                            "{:6}.{:02}           OBSERVATION DATA    {:x<20}",
+                            major, minor, c
+                        ),
+                        "RINEX VERSION / TYPE"
+                    )
+                )
+            },
+            _ => panic!("constellation must be specified when formatting ObservationData"),
+        },
+        Type::MeteoData => {
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{:6}.{:02}           METEOROLOGICAL DATA", major, minor),
+                    "RINEX VERSION / TYPE"
+                )
+            )
+        },
+        Type::ClockData => {
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{:6}.{:02}           CLOCK DATA", major, minor),
+                    "RINEX VERSION / TYPE"
+                )
+            )
+        },
+        Type::AntennaData => todo!(),
+        Type::IonosphereMaps => todo!(),
+    }
+}
+
 impl std::fmt::Display for Header {
     /// `Header` formatter, mainly for RINEX file production purposes
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -1345,119 +1423,88 @@ impl std::fmt::Display for Header {
             }
         }
         // RINEX VERSION / TYPE
-        write!(
-            f,
-            "{:6}.{:02}           ",
-            self.version.major, self.version.minor
-        )?;
-        match self.rinex_type {
-            Type::NavigationData => {
-                match self.constellation {
-                    Some(Constellation::Glonass) => {
-                        // Glonass Special case
-                        write!(f, "{:<20}", "G: GLONASS NAV DATA")?;
-                        write!(f, "{:<20}", "")?;
-                        write!(f, "{}", "RINEX VERSION / TYPE\n")?
-                    },
-                    Some(c) => {
-                        write!(f, "{:<20}", "NAVIGATION DATA")?;
-                        let constell = format!("{:x}", c);
-                        write!(f, "{:<20}", constell)?;
-                        write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?
-                    },
-                    _ => panic!("constellation must be specified when formatting a NavigationData"),
-                }
-            },
-            Type::ObservationData => match self.constellation {
-                Some(c) => {
-                    write!(f, "{:<20}", "OBSERVATION DATA")?;
-                    let constell = format!("{:x}", c);
-                    write!(f, "{:<20}", constell)?;
-                    write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?
-                },
-                _ => panic!("constellation must be specified when formatting ObservationData"),
-            },
-            Type::MeteoData => {
-                write!(f, "{:<20}", "METEOROLOGICAL DATA")?;
-                write!(f, "{:<20}", "")?;
-                write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?;
-            },
-            Type::ClockData => {
-                write!(f, "{:<20}", "CLOCK DATA")?;
-                write!(f, "{:<20}", "")?;
-                write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?;
-            },
-            Type::AntennaData => todo!(),
-            Type::IonosphereMaps => todo!(),
-        }
+        fmt_rinex_version_type(f, self.rinex_type, self.version, self.constellation)?;
+
         // COMMENTS
         for comment in self.comments.iter() {
-            write!(f, "{:<60}", comment)?;
-            write!(f, "COMMENT\n")?
+            writeln!(f, "{}", fmt_comment(comment));
         }
+
         // PGM / RUN BY / DATE
-        write!(f, "{:<20}", self.program)?;
-        write!(f, "{:<20}", self.run_by)?;
-        write!(f, "{:<20}", self.date)?; //TODO
-        write!(f, "{}", "PGM / RUN BY / DATE\n")?;
+        writeln!(
+            f,
+            "{}",
+            fmt_rinex(
+                &format!("{:<20}{:<20}{:<20}", self.program, self.run_by, self.date),
+                "PGM / RUN BY / DATE"
+            )
+        )?;
+
         // OBSERVER / AGENCY
-        if self.observer.len() + self.agency.len() > 0 {
-            write!(f, "{:<20}", self.observer)?;
-            write!(f, "{:<40}", self.agency)?;
-            write!(f, "OBSERVER / AGENCY\n")?;
-        }
-        // MARKER NAME
-        if self.station.len() > 0 {
-            write!(f, "{:<20}", self.station)?;
-            write!(f, "{:<40}", " ")?;
-            write!(f, "{}", "MARKER NAME\n")?;
-        }
-        // MARKER NUMBER
-        if self.station_id.len() > 0 {
-            // has been parsed
-            write!(f, "{:<20}", self.station_id)?;
-            write!(f, "{:<40}", " ")?;
-            write!(f, "{}", "MARKER NUMBER\n")?;
-        }
+        writeln!(
+            f,
+            "{}",
+            fmt_rinex(
+                &format!("{:<20}{}", self.observer, self.agency),
+                "OBSERVER /AGENCY"
+            )
+        )?;
+
+        writeln!(f, "{}", fmt_rinex(&self.station, "MARKER NAME"))?;
+        writeln!(f, "{}", fmt_rinex(&self.station_id, "MARKER NUMBER"))?;
+
         // ANT
         if let Some(antenna) = &self.rcvr_antenna {
-            write!(f, "{:<20}", antenna.model)?;
-            write!(f, "{:<40}", antenna.sn)?;
-            write!(f, "{}", "ANT # / TYPE\n")?;
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{:<20}{}", antenna.model, antenna.sn),
+                    "ANT # / TYPE"
+                )
+            )?;
             if let Some(coords) = &antenna.coords {
-                write!(f, "{:14.4}", coords.0)?;
-                write!(f, "{:14.4}", coords.1)?;
-                write!(f, "{:14.4}", coords.2)?;
-                write!(f, "{}", "APPROX POSITION XYZ\n")?
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!("{:14.4}{:14.4}{:14.4}", coords.0, coords.1, coords.2),
+                        "APPROX POSITION XYZ"
+                    )
+                )?;
             }
-            if let Some(h) = &antenna.height {
-                write!(f, "{:14.4}", h)?;
-                if let Some(e) = &antenna.eastern {
-                    write!(f, "{:14.4}", e)?;
-                } else {
-                    write!(f, "{:14.4}", 0.0)?;
-                }
-                if let Some(n) = &antenna.northern {
-                    write!(f, "{:14.4}", n)?;
-                } else {
-                    write!(f, "{:14.4}", 0.0)?;
-                }
-                write!(f, "{:18}", "")?;
-                write!(f, "{}", "ANTENNA: DELTA H/E/N\n")?
-            }
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!(
+                        "{:14.4}{:14.4}{:14.4}",
+                        antenna.height.unwrap_or(0.0),
+                        antenna.eastern.unwrap_or(0.0),
+                        antenna.northern.unwrap_or(0.0)
+                    ),
+                    "ANTENNA: DELTA H/E/N"
+                )
+            )?;
         }
         // RCVR
         if let Some(rcvr) = &self.rcvr {
-            write!(f, "{:<20}", rcvr.sn)?;
-            write!(f, "{:<20}", rcvr.model)?;
-            write!(f, "{:<20}", rcvr.firmware)?;
-            write!(f, "REC # / TYPE / VERS\n")?
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{:<20}{:<20}{}", rcvr.sn, rcvr.model, rcvr.firmware),
+                    "REC # / TYPE / VERS"
+                )
+            )?;
         }
         // INTERVAL
         if let Some(interval) = &self.sampling_interval {
-            write!(f, "{:6}", interval.to_seconds())?;
-            write!(f, "{:<54}", "")?;
-            write!(f, "INTERVAL\n")?
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(&format!("{:6}", interval.to_seconds()), "INTERVAL")
+            )?;
         }
         // List of Observables
         match self.rinex_type {
@@ -1702,8 +1749,7 @@ impl std::fmt::Display for Header {
                 }
             }
         }
-        // END OF HEADER
-        writeln!(f, "{:>74}", "END OF HEADER")
+        writeln!(f, "{}", fmt_rinex("", "END OF HEADER"))
     }
 }
 

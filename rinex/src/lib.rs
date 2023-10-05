@@ -117,6 +117,46 @@ macro_rules! hourly_session {
 #[cfg(docrs)]
 pub use bibliography::Bibliography;
 
+/*
+ * returns true if given line is a comment
+ */
+pub(crate) fn is_rinex_comment(content: &str) -> bool {
+    content.len() > 60 && content.trim_end().ends_with("COMMENT")
+}
+
+/*
+ * macro to format one header line or a comment
+ */
+pub(crate) fn fmt_rinex(content: &str, marker: &str) -> String {
+    if content.len() < 60 {
+        format!("{:<padding$}{}", content, marker, padding = 60)
+    } else {
+        let mut string = String::new();
+        let nb_lines = num_integer::div_ceil(content.len(), 60);
+        for i in 0..nb_lines {
+            let start_off = i * 60;
+            let end_off = std::cmp::min(start_off + 60, content.len());
+            string.push_str(&format!(
+                "{:<padding$}{}",
+                &content[start_off..end_off],
+                marker,
+                padding = 60
+            ));
+            if i < nb_lines - 1 {
+                string.push_str("\n");
+            }
+        }
+        string
+    }
+}
+
+/*
+ * macro to generate comments with standardized formatting
+ */
+pub(crate) fn fmt_comment(content: &str) -> String {
+    fmt_rinex(content, "COMMENT")
+}
+
 #[derive(Clone, Default, Debug, PartialEq)]
 /// `Rinex` describes a `RINEX` file, it comprises a [Header] section,
 /// and a [record::Record] file body.   
@@ -3197,8 +3237,6 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn test_macros() {
-        assert_eq!(is_comment!("This is a comment COMMENT"), true);
-        assert_eq!(is_comment!("This is a comment"), false);
         let _ = sv!("G01");
         let _ = sv!("R03");
         let _ = gnss!("GPS");
@@ -3215,5 +3253,42 @@ mod test {
         assert_eq!(hourly_session!(4), "e");
         assert_eq!(hourly_session!(5), "f");
         assert_eq!(hourly_session!(23), "x");
+    }
+    use crate::{fmt_comment, is_rinex_comment};
+    #[test]
+    fn fmt_comments_singleline() {
+        for desc in vec![
+            "test",
+            "just a basic comment",
+            "just another lengthy comment blahblabblah",
+        ] {
+            let comment = fmt_comment(desc);
+            assert!(
+                comment.len() >= 60,
+                "comments should be at least 60 byte long"
+            );
+            assert_eq!(
+                comment.find("COMMENT"),
+                Some(60),
+                "comment marker should located @ 60"
+            );
+            assert!(is_rinex_comment(&comment), "should be valid comment");
+        }
+    }
+    #[test]
+    fn fmt_wrapped_comments() {
+        for desc in vec![
+            "just trying to form a very lengthy comment that will overflow since it does not fit in a single line",
+            "just trying to form a very very lengthy comment that will overflow since it does fit on three very meaningful lines. Imazdmazdpoakzdpoakzpdokpokddddddddddddddddddaaaaaaaaaaaaaaaaaaaaaaa",
+        ] {
+            let nb_lines = num_integer::div_ceil(desc.len(), 60);
+            let comments = fmt_comment(desc);
+            assert_eq!(comments.lines().count(), nb_lines);
+            for line in comments.lines() {
+                assert!(line.len() >= 60, "comment line should be at least 60 byte long");
+                assert_eq!(line.find("COMMENT"), Some(60), "comment marker should located @ 60");
+                assert!(is_rinex_comment(line), "should be valid comment");
+            }
+        }
     }
 }

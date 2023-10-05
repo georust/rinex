@@ -1,5 +1,6 @@
 //! Satellite vehicle
 use super::{constellation, Constellation};
+use hifitime::Epoch;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
@@ -15,15 +16,9 @@ pub struct Sv {
     pub constellation: Constellation,
 }
 
-#[cfg(feature = "sbas")]
-use hifitime::Epoch;
-
 /*
- * On crate feature "sbas",
- * we have the ability to identify SBAS vehicles in detail.
- * The database is built by build.rs
+ * Database, built by build.rs, for detailed SBAS vehicle identification
  */
-#[cfg(feature = "sbas")]
 include!(concat!(env!("OUT_DIR"), "/sbas.rs"));
 
 /// ̀`Sv` parsing & identification related errors
@@ -40,7 +35,6 @@ impl Sv {
     pub fn new(constellation: Constellation, prn: u8) -> Self {
         Self { prn, constellation }
     }
-    #[cfg(feature = "sbas")]
     /*
      * Tries to retrieve SBAS detailed definitions for self.
      * For that, we use the PRN number (+100 for SBAS)
@@ -52,8 +46,6 @@ impl Sv {
             .filter_map(|e| if e.prn == to_find { Some(e) } else { None })
             .reduce(|e, _| e)
     }
-    #[cfg(feature = "sbas")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sbas")))]
     /// Returns datetime at which Self was either launched or its serviced was deployed.
     /// This only applies to SBAS vehicles. Datetime expressed as [Epoch] at midnight UTC.
     pub fn launched_date(&self) -> Option<Epoch> {
@@ -66,20 +58,6 @@ impl Sv {
     }
 }
 
-#[cfg(not(feature = "sbas"))]
-impl std::str::FromStr for Sv {
-    type Err = ParsingError;
-    /*
-     * Parse SV from "XYY" standardized format.
-     */
-    fn from_str(string: &str) -> Result<Self, Self::Err> {
-        let constellation = Constellation::from_str(&string[0..1])?;
-        let prn = u8::from_str_radix(&string[1..].trim(), 10)?;
-        Ok(Sv { constellation, prn })
-    }
-}
-
-#[cfg(feature = "sbas")]
 impl std::str::FromStr for Sv {
     type Err = ParsingError;
     /*
@@ -103,20 +81,9 @@ impl std::str::FromStr for Sv {
     }
 }
 
-#[cfg(not(feature = "sbas"))]
 impl std::fmt::UpperHex for Sv {
     /*
-     * Prints self as XYY standard format
-     */
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:x}", self)
-    }
-}
-
-#[cfg(feature = "sbas")]
-impl std::fmt::UpperHex for Sv {
-    /*
-     * Prints self as XYY standard format or possible SBAS determined identity
+     * Possibly detailed identity for SBAS vehicles
      */
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(sbas) = self.sbas_definitions() {
@@ -181,26 +148,6 @@ mod test {
         }
     }
     #[test]
-    #[cfg(not(feature = "sbas"))]
-    fn from_str_without_sbas() {
-        for (desc, parsed, formatted) in vec![
-            ("S 3", Sv::new(Constellation::SBAS, 3), "S03"),
-            ("S33", Sv::new(Constellation::SBAS, 33), "S33"),
-            ("S 5", Sv::new(Constellation::SBAS, 5), "S05"),
-            ("S55", Sv::new(Constellation::SBAS, 55), "S55"),
-        ] {
-            let sv = Sv::from_str(desc);
-            assert_eq!(
-                sv,
-                Ok(parsed),
-                "failed to parse correct sv from \"{}\"",
-                desc
-            );
-            assert_eq!(format!("{}", sv.unwrap()), formatted);
-        }
-    }
-    #[test]
-    #[cfg(feature = "sbas")]
     fn from_str_with_sbas() {
         for (desc, parsed, lowerhex, upperhex) in vec![
             ("S 3", Sv::new(Constellation::SBAS, 3), "S03", "S03"),
@@ -222,7 +169,6 @@ mod test {
         }
     }
     #[test]
-    #[cfg(feature = "sbas")]
     fn sbas_db_sanity() {
         for sbas in SBAS_VEHICLES.iter() {
             assert!(

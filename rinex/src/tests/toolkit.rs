@@ -10,6 +10,31 @@ pub fn random_name(size: usize) -> String {
         .map(char::from)
         .collect()
 }
+
+/*
+ * Helper: to create a list of observable
+ */
+pub fn create_observables_list(descriptors: Vec<&str>) -> Vec<Observable> {
+    let mut r: Vec<Observable> = vec![];
+    for desc in descriptors {
+        if desc.starts_with("L") {
+            let obs = Observable::Phase(String::from(desc));
+            r.push(obs.clone());
+        } else if desc.starts_with("P") {
+            let obs = Observable::PseudoRange(String::from(desc));
+            r.push(obs.clone());
+        } else if desc.starts_with("C") {
+            let obs = Observable::PseudoRange(String::from(desc));
+            r.push(obs.clone());
+        } else if desc.starts_with("S") {
+            let obs = Observable::SSI(String::from(desc));
+            r.push(obs.clone());
+        }
+    }
+    r.sort(); // for comparison purposes
+    r
+}
+
 /*
  * OBS RINEX thorough comparison
  */

@@ -36,14 +36,6 @@ macro_rules! filter {
     };
 }
 
-/// Returns `true` if given `Rinex` line is a comment
-#[macro_export]
-macro_rules! is_comment {
-    ($line: expr) => {
-        $line.trim_end().ends_with("COMMENT")
-    };
-}
-
 /// Builds a [crate::GroundPosition] in WGS84
 #[macro_export]
 macro_rules! wgs84 {

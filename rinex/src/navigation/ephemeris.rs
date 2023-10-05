@@ -164,18 +164,18 @@ impl Ephemeris {
             false => 4,
         };
 
-        let date_offset: usize = 19;
-
         let (svnn, rem) = line.split_at(svnn_offset);
-        let (date, rem) = rem.split_at(date_offset);
+        let (date, rem) = rem.split_at(19);
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
 
+        //println!("SVNN \"{}\"", svnn); // DEBUG
         let sv = match Sv::from_str(svnn.trim()) {
             Ok(sv) => sv,
             Err(_) => {
                 // parsing failed probably due to omitted constellation (old rev.)
-                Sv::from_str(&format!("{}{:02}", constellation, svnn.trim()))?
+                let desc = format!("{:x}{:02}", constellation, svnn.trim());
+                Sv::from_str(&desc)?
             },
         };
         //println!("\"{}\"={}", svnn, sv); // DEBUG
@@ -193,12 +193,7 @@ impl Ephemeris {
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
         // parse orbits :
         //  only Legacy Frames in V2 and V3 (old) RINEX
-        // convert to nav database compatible constellation
-        let constellation = match sv.constellation.is_sbas() {
-            true => Constellation::SBAS,
-            false => sv.constellation,
-        };
-        let orbits = parse_orbits(version, NavMsgType::LNAV, constellation, lines)?;
+        let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
         Ok((
             epoch,
             sv,
@@ -234,12 +229,7 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        // convert to nav database compatible constellation
-        let constellation = match sv.constellation.is_sbas() {
-            true => Constellation::SBAS,
-            false => sv.constellation,
-        };
-        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, constellation, lines)?;
+        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
         Ok((
             epoch,
             sv,
@@ -493,6 +483,11 @@ fn parse_orbits(
     constell: Constellation,
     lines: std::str::Lines<'_>,
 ) -> Result<HashMap<String, OrbitItem>, Error> {
+    // convert SBAS constell to compatible "sbas" (undetermined/general constell)
+    let constell = match constell.is_sbas() {
+        true => Constellation::SBAS,
+        false => constell,
+    };
     // Determine closest standards from DB
     // <=> data fields to parse
     let nav_standards = match closest_nav_standards(constell, version, msg) {

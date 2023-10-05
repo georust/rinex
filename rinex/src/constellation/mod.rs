@@ -207,9 +207,9 @@ impl std::fmt::UpperHex for Constellation {
             Self::IRNSS => write!(f, "IRNSS"),
             c => {
                 if c.is_sbas() {
-                    write!(f, "GEO")
+                    write!(f, "SBAS")
                 } else if c.is_mixed() {
-                    write!(f, "MIX")
+                    write!(f, "MIXED")
                 } else {
                     Err(std::fmt::Error)
                 }

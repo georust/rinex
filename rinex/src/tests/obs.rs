@@ -2,32 +2,10 @@
 mod test {
     use crate::observable;
     use crate::sv;
+    use crate::tests::toolkit::create_observables_list;
     use crate::{header::*, observation::*, prelude::*};
     use std::path::Path;
     use std::str::FromStr;
-    /*
-     * Helper: to create a list of observable
-     */
-    fn create_observ_list(descriptors: Vec<&str>) -> Vec<Observable> {
-        let mut r: Vec<Observable> = vec![];
-        for desc in descriptors {
-            if desc.starts_with("L") {
-                let obs = Observable::Phase(String::from(desc));
-                r.push(obs.clone());
-            } else if desc.starts_with("P") {
-                let obs = Observable::PseudoRange(String::from(desc));
-                r.push(obs.clone());
-            } else if desc.starts_with("C") {
-                let obs = Observable::PseudoRange(String::from(desc));
-                r.push(obs.clone());
-            } else if desc.starts_with("S") {
-                let obs = Observable::SSI(String::from(desc));
-                r.push(obs.clone());
-            }
-        }
-        r.sort(); // for comparison purposes
-        r
-    }
     /*
      * General testbench
      * shared accross all Observation files
@@ -98,7 +76,7 @@ mod test {
             Epoch::from_str("2017-01-01T06:09:10 GPST").unwrap(),
         ];
 
-        let observables = create_observ_list(vec!["L1", "L2", "P1", "P2", "C1"]);
+        let observables = create_observables_list(vec!["L1", "L2", "P1", "P2", "C1"]);
 
         testbench(&rinex, 2, 11, Constellation::GPS, epochs, observables);
         let record = rinex.record.as_obs().unwrap();
