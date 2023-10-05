@@ -1,5 +1,6 @@
 //! IONEX module
 use super::Sv;
+use hifitime::Epoch;
 use std::collections::HashMap;
 use strum_macros::EnumString;
 
@@ -41,6 +42,10 @@ pub enum BiasSource {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
+    /// Epoch of first map
+    pub epoch_of_first_map: Epoch,
+    /// Epoch of last map
+    pub epoch_of_last_map: Epoch,
     /// Reference system used for following TEC maps,
     /// cf. [system::RefSystem].
     pub reference: RefSystem,
@@ -76,6 +81,8 @@ pub struct HeaderFields {
 impl Default for HeaderFields {
     fn default() -> Self {
         Self {
+            epoch_of_first_map: Epoch::default(),
+            epoch_of_last_map: Epoch::default(),
             reference: RefSystem::default(),
             exponent: -1,     // very important: allows missing EXPONENT fields
             map_dimension: 2, // 2D map by default
