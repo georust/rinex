@@ -179,7 +179,5 @@ lazy_static! {
 
 fn main() {
     build_nav_database();
-    if cfg!(feature = "sbas") {
-        build_sbas_helper();
-    }
+    build_sbas_helper();
 }

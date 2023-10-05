@@ -90,8 +90,7 @@ It is responsible for building several important but hidden structures.
 
 1. Navigation RINEX specs, described by rinex/db/NAV
 2. Geostationary vehicles identification in rinex/db/sbas/sbas.json,
-is picked up on "sbas" crate feature.
-This follows the L1-CA-PRN Code assignment specifications (see online specs).
+that follows the L1-CA-PRN Code assignment specifications (see online specs).
 3. rinex/db/SBAS/*.wkt contains geographic definitions for most
 standard SBAS systems. We parse them as Geo::LineStrings to
 define a contour area for a given SBAS system. This gives one method
