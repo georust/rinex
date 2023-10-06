@@ -1550,7 +1550,7 @@ impl Header {
                 if (i % 9) == 0 && i > 0 {
                     descriptor.push_str("      "); // TAB
                 }
-                descriptor.push_str(&format!("{:6}", observable));
+                descriptor.push_str(&format!("    {}", observable));
             }
             writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
             for sensor in &meteo.sensors {
