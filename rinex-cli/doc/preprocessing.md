@@ -141,7 +141,22 @@ rinex-cli \
     -P !=BDS GPS,GLO # ineq(BDS) AND eq(GPS,GLO)
 ```
 
-`teqc` like quick GNSS filters also exist:
+Special SBAS filter: if you apply or include "SBAS" in your filter description, 
+like in the following examples, all SBAS are retained (whatever their constellation):
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -P SBAS
+```
+
+"GEO" is another keyword that is accepted to describe SBAS:
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -P GEO
+```
+
+`teqc` like quick GNSS filters are also supported:
 
 - `-G` to remove GPS
 - `-C` to remove BDS
@@ -149,6 +164,7 @@ rinex-cli \
 - `-R` to remove Glonnass
 - `-J` to remove QZSS
 - `-S` to remove SBAS vehicles
+
 
 ## Observables
 
