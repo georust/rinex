@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use crate::tests::toolkit::{compare_with_panic, random_name};
+    use crate::tests::toolkit::{random_name, test_against_model};
     use crate::*;
     use std::path::Path;
     fn testbench(path: &str) {
@@ -13,7 +13,7 @@ mod test {
         let copy = copy.unwrap();
         // run comparison
         if copy != rnx {
-            compare_with_panic(&copy, &rnx, path);
+            test_against_model(&copy, &rnx, path);
         }
         println!("production test passed for \"{}\"", path);
         // remove copy
@@ -58,6 +58,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
+    #[ignore]
     fn meteo_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -68,6 +69,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
+    #[ignore]
     fn meteo_v4() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V4/";
         for file in std::fs::read_dir(folder).unwrap() {

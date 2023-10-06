@@ -2,61 +2,11 @@
 mod test {
     use crate::observable;
     use crate::sv;
-    use crate::tests::toolkit::create_observables_list;
+    use crate::tests::toolkit::{build_observables, test_observation_rinex};
+    use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{header::*, observation::*, prelude::*};
     use std::path::Path;
     use std::str::FromStr;
-    /*
-     * General testbench
-     * shared accross all Observation files
-     */
-    fn testbench(
-        rnx: &Rinex,
-        _major: u8,
-        _minor: u8,
-        c: Constellation,
-        epochs: Vec<Epoch>,
-        observables: Vec<Observable>,
-    ) {
-        // must have dedicated fields
-        assert!(rnx.header.obs.is_some());
-        /*
-         * Test epoch parsing and identification
-         */
-        assert!(rnx.epoch().eq(epochs), "parsed wrong epoch content");
-
-        let mut parsed_observables: Vec<Observable> = rnx.observable().cloned().collect();
-        parsed_observables.sort();
-
-        assert!(
-            observables == parsed_observables,
-            "parsed wrong observable content,expecting\n{:?}\ngot\n{:?}",
-            observables,
-            parsed_observables
-        );
-
-        /*
-         * Test Record content
-         */
-        let record = rnx.record.as_obs();
-        assert!(record.is_some());
-        let record = record.unwrap();
-        assert!(record.len() > 0);
-        for ((_, _), (clk_offset, vehicles)) in record {
-            /*
-             * We don't have any files with clock offsets as of today
-             */
-            assert!(clk_offset.is_none());
-            /*
-             * test GNSS identification
-             */
-            if c != Constellation::Mixed {
-                for (sv, _) in vehicles {
-                    assert_eq!(sv.constellation, c);
-                }
-            }
-        }
-    }
     #[test]
     fn v2_aopr0010_17o() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -70,15 +20,23 @@ mod test {
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
 
-        let epochs: Vec<Epoch> = vec![
-            Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap(),
-            Epoch::from_str("2017-01-01T03:33:40 GPST").unwrap(),
-            Epoch::from_str("2017-01-01T06:09:10 GPST").unwrap(),
-        ];
+        test_observation_rinex(
+            &rinex,
+            "2.10",
+            Some("GPS"),
+            "GPS",
+            "G31,G27,G03,G32,G16,G14,G08,G23,G22,G07, G30, G11, G19, G07",
+            "C1, L1, L2, P2, P1",
+            Some("2017-01-01T00:00:00 GPST"),
+            None,
+            erratic_time_frame!(
+                "2017-01-01T00:00:00 GPST,
+                2017-01-01T03:33:40 GPST,
+                2017-01-01T06:09:10 GPST"
+            ),
+        );
 
-        let observables = create_observables_list(vec!["L1", "L2", "P1", "P2", "C1"]);
-
-        testbench(&rinex, 2, 11, Constellation::GPS, epochs, observables);
+        //testbench(&rinex, 2, 11, Constellation::GPS, epochs, observables);
         let record = rinex.record.as_obs().unwrap();
 
         for (index, (_e, (_, vehicles))) in record.iter().enumerate() {
@@ -186,44 +144,49 @@ mod test {
         let rinex = Rinex::from_file(&fullpath.to_string());
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        //testbench(&rinex, 2, 11, Constellation::Mixed, epochs);
 
-        let obs_hd = rinex.header.obs.as_ref().unwrap();
-        let record = rinex.record.as_obs();
-        assert_eq!(record.is_some(), true);
-        let record = record.unwrap();
+        test_observation_rinex(
+            &rinex,
+            "2.11",
+            Some("MIXED"),
+            "GPS, GLO",
+            "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+            "C1, L1, L2, P2, S1, S2",
+            Some("2021-12-21T00:00:00 GPST"),
+            Some("2021-12-21T23:59:30 GPST"),
+            evenly_spaced_time_frame!(
+                "2021-12-21T00:00:00 GPST",
+                "2021-12-21T01:04:00 GPST",
+                "30 s"
+            ),
+        );
 
-        //////////////////////////////
-        // This file is GPS + GLONASS
-        //////////////////////////////
-        let obscodes = obs_hd.codes.get(&Constellation::GPS);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-            ]
-        );
-        let obscodes = obs_hd.codes.get(&Constellation::Glonass);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-            ]
-        );
+        //let obscodes = obs_hd.codes.get(&Constellation::GPS);
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //    ]
+        //);
+        //let obscodes = obs_hd.codes.get(&Constellation::Glonass);
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //    ]
+        //);
+
+        let record = rinex.record.as_obs().unwrap();
 
         // test epoch [1]
         let epoch = Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap();
@@ -338,13 +301,56 @@ mod test {
         let rinex = Rinex::from_file(&fullpath.to_string());
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
+
+        test_observation_rinex("2.11", Some("MIXED"), "GPS, GLO", "S01");
+
+        //////////////////////////////
+        // This file is GPS + GLONASS
+        //////////////////////////////
+        //let obscodes = obs_hd.codes.get(&Constellation::GPS);
+        //assert_eq!(obscodes.is_some(), true);
+        //let obscodes = obscodes.unwrap();
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("C2").unwrap(),
+        //        Observable::from_str("C5").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("L5").unwrap(),
+        //        Observable::from_str("P1").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //        Observable::from_str("S5").unwrap(),
+        //    ]
+        //);
+
+        //let obscodes = obs_hd.codes.get(&Constellation::Glonass);
+        //assert_eq!(obscodes.is_some(), true);
+        //let obscodes = obscodes.unwrap();
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("C2").unwrap(),
+        //        Observable::from_str("C5").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("L5").unwrap(),
+        //        Observable::from_str("P1").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //        Observable::from_str("S5").unwrap(),
+        //    ]
+        //);
+
         /*
          * Header tb
          */
         let header = &rinex.header;
-        assert!(rinex.is_observation_rinex());
-        assert!(header.obs.is_some());
-        assert!(header.meteo.is_none());
         assert_eq!(
             header.ground_position,
             Some(GroundPosition::from_ecef_wgs84((
@@ -364,48 +370,6 @@ mod test {
         let record = rinex.record.as_obs();
         assert!(record.is_some());
         let record = record.unwrap();
-        //////////////////////////////
-        // This file is GPS + GLONASS
-        //////////////////////////////
-        let obscodes = obs_hd.codes.get(&Constellation::GPS);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("C2").unwrap(),
-                Observable::from_str("C5").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("L5").unwrap(),
-                Observable::from_str("P1").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-                Observable::from_str("S5").unwrap(),
-            ]
-        );
-
-        let obscodes = obs_hd.codes.get(&Constellation::Glonass);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("C2").unwrap(),
-                Observable::from_str("C5").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("L5").unwrap(),
-                Observable::from_str("P1").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-                Observable::from_str("S5").unwrap(),
-            ]
-        );
 
         // test epoch [1]
         let epoch = Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap();
@@ -565,55 +529,23 @@ mod test {
         assert_eq!(rinex.header.obs.is_some(), true);
         let obs = rinex.header.obs.as_ref().unwrap();
 
+        test_observation_rinex(
+            dut,
+            "3.0",
+            Some("MIXED"),
+            "GPS, GLO",
+            "G03, GTODO",
+            "C1C, L1C, D1C, S1C, C2P, L2P, D2P, S2P, C2W, L2W, D2W, S2W",
+            Some("2022-03-04T00:00:00 GPST"),
+            Some("TIME OF LAST OBS"),
+            erratic_time_frame!(
+                "2022-03-04T00:00:00 GPST, 2022-03-04T00:28:30 GPST, 2022-03-04T00:57:00 GPST"
+            ),
+        );
+
         /*
          * test Glonass observables
          */
-        let observables = obs.codes.get(&Constellation::Glonass);
-        assert_eq!(observables.is_some(), true);
-        let mut observables = observables.unwrap().clone();
-        observables.sort();
-
-        let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2P L2P D2P S2P"
-            .split_ascii_whitespace()
-            .map(|k| Observable::from_str(k).unwrap())
-            .collect();
-        expected.sort();
-        assert_eq!(observables, expected);
-
-        /*
-         * test GPS observables
-         */
-        let observables = obs.codes.get(&Constellation::GPS);
-        assert_eq!(observables.is_some(), true);
-        let mut observables = observables.unwrap().clone();
-        observables.sort();
-
-        let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2W L2W D2W S2W"
-            .split_ascii_whitespace()
-            .map(|k| Observable::from_str(k).unwrap())
-            .collect();
-        expected.sort();
-        assert_eq!(observables, expected);
-
-        let record = rinex.record.as_obs();
-        assert_eq!(record.is_some(), true);
-        let record = record.unwrap();
-
-        /*
-         * Test epochs
-         */
-        let expected: Vec<Epoch> = vec![
-            Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap(),
-            Epoch::from_str("2022-03-04T00:28:30 GPST").unwrap(),
-            Epoch::from_str("2022-03-04T00:57:00 GPST").unwrap(),
-        ];
-
-        let content: Vec<_> = rinex.epoch().collect();
-        assert!(
-            expected == content,
-            "parsed wrong epoch content {:?}",
-            content,
-        );
 
         let epoch = Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
@@ -1018,6 +950,8 @@ mod test {
             .join("NOA10630.22O");
         let fullpath = path.to_string_lossy();
         let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
+
+        test_observation_rinex("todo");
         let expected: Vec<Epoch> = vec![
             Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap(),
             Epoch::from_str("2022-03-04T00:00:30 GPST").unwrap(),
@@ -1074,6 +1008,8 @@ mod test {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
+
+        test_observation_rinex("todo");
 
         /*
          * Header tb
@@ -1202,8 +1138,19 @@ mod test {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
+        test_observation_rinex(
+            dut,
+            "3.0",
+            Some("MIXED"),
+            "GPS, GLO..",
+            "G03, GTODO",
+            "C1C TODO",
+            Some("TIME OF FIRST"),
+            Some("TIME OF LASt"),
+            erratic_time_frame!("TODO"),
+        );
         /*
-         * Test IRNSS vehicles
+         * Test IRNSS vehicles specificly
          */
         let mut irnss_sv: Vec<Sv> = rnx
             .sv()

@@ -69,7 +69,7 @@ mod test {
 
             //let model = model.unwrap();
             // run testbench
-            // test_toolkit::compare_with_panic(&rnx, &model, &path);
+            // test_toolkit::test_against_model(&rnx, &model, &path);
         }
     }
     #[test]
@@ -123,7 +123,7 @@ mod test {
             assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
 
             // run testbench
-            // test_toolkit::compare_with_panic(&rnx, &model, &path);
+            // test_toolkit::test_against_model(&rnx, &model, &path);
         }
     }
     /*

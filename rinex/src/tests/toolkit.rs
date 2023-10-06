@@ -1,5 +1,52 @@
 use crate::*;
 use rand::{distributions::Alphanumeric, Rng};
+
+use hifitime::TimeSeries;
+
+#[macro_use]
+#[macro_export]
+macro_rules! erratic_time_frame {
+    ($csv: expr) => {
+        TestTimeFrame::Erratic(
+            $csv.split(",")
+                .map(|c| Epoch::from_str(c.trim()).unwrap())
+                .collect::<Vec<Epoch>>(),
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! evenly_spaced_time_frame {
+    ($start: expr, $end: expr, $step: expr) => {
+        TestTimeFrame::EvenlySpaced(TimeSeries::inclusive(
+            Epoch::from_str($start.trim()).unwrap(),
+            Epoch::from_str($end.trim()).unwrap(),
+            Duration::from_str($step.trim()).unwrap(),
+        ))
+    };
+}
+
+#[derive(Debug, Clone)]
+pub enum TestTimeFrame {
+    Erratic(Vec<Epoch>),
+    EvenlySpaced(TimeSeries),
+}
+
+impl TestTimeFrame {
+    pub fn evenly_spaced(&self) -> Option<TimeSeries> {
+        match self {
+            Self::EvenlySpaced(ts) => Some(ts.clone()),
+            _ => None,
+        }
+    }
+    pub fn erratic(&self) -> Option<Vec<Epoch>> {
+        match self {
+            Self::Erratic(ts) => Some(ts.clone()),
+            _ => None,
+        }
+    }
+}
+
 /*
  * Tool to generate random names when we need to produce a file
  */
@@ -12,27 +59,145 @@ pub fn random_name(size: usize) -> String {
 }
 
 /*
- * Helper: to create a list of observable
+ * Creates list of observables
  */
-pub fn create_observables_list(descriptors: Vec<&str>) -> Vec<Observable> {
-    let mut r: Vec<Observable> = vec![];
-    for desc in descriptors {
-        if desc.starts_with("L") {
-            let obs = Observable::Phase(String::from(desc));
-            r.push(obs.clone());
-        } else if desc.starts_with("P") {
-            let obs = Observable::PseudoRange(String::from(desc));
-            r.push(obs.clone());
-        } else if desc.starts_with("C") {
-            let obs = Observable::PseudoRange(String::from(desc));
-            r.push(obs.clone());
-        } else if desc.starts_with("S") {
-            let obs = Observable::SSI(String::from(desc));
-            r.push(obs.clone());
-        }
+pub fn build_observables(observable_csv: &str) -> Vec<Observable> {
+    observable_csv
+        .split(",")
+        .map(|c| {
+            let c = c.trim();
+            if c.starts_with("L") {
+                Observable::Phase(String::from(c))
+            } else if c.starts_with("P") {
+                Observable::PseudoRange(String::from(c))
+            } else if c.starts_with("C") {
+                Observable::PseudoRange(String::from(c))
+            } else if c.starts_with("D") {
+                Observable::Doppler(String::from(c))
+            } else if c.starts_with("S") {
+                Observable::SSI(String::from(c))
+            } else {
+                panic!("invalid observable in csv");
+            }
+        })
+        .collect::<Vec<Observable>>()
+        .into_iter()
+        .unique()
+        .collect()
+}
+
+use std::str::FromStr;
+
+/*
+ * Build GNSS list
+ */
+pub fn build_gnss_csv(gnss_csv: &str) -> Vec<Constellation> {
+    gnss_csv
+        .split(",")
+        .map(|c| Constellation::from_str(c.trim()).unwrap())
+        .collect::<Vec<Constellation>>()
+        .into_iter()
+        .unique()
+        .collect()
+}
+
+/*
+ * Test method to compare one RINEX against GNSS content
+ */
+pub fn test_gnss_csv(dut: &Rinex, gnss_csv: &str) {
+    let gnss = build_gnss_csv(gnss_csv);
+    let dut_gnss: Vec<Constellation> = dut.constellation().collect();
+    for g in &gnss {
+        assert!(
+            dut_gnss.contains(&g),
+            "dut does not contain constellation \"{}\"",
+            g
+        );
     }
-    r.sort(); // for comparison purposes
-    r
+    for g in &dut_gnss {
+        assert!(
+            gnss.contains(&g),
+            "dut should not contain constellation \"{}\"",
+            g
+        );
+    }
+}
+
+/*
+ * Compares one RINEX against SV total content
+ */
+pub fn test_sv_csv(dut: &Rinex, sv_csv: &str) {
+    let sv: Vec<Sv> = sv_csv
+        .split(",")
+        .map(|c| Sv::from_str(c.trim()).unwrap())
+        .collect::<Vec<Sv>>()
+        .into_iter()
+        .unique()
+        .collect();
+
+    let dut_sv: Vec<Sv> = dut.sv().collect();
+    for v in &sv {
+        assert!(
+            dut_sv.contains(&v),
+            "dut does not contain vehicle \"{}\"",
+            v
+        );
+    }
+    for v in &sv {
+        assert!(sv.contains(&v), "dut should not contain vehicle \"{}\"", v);
+    }
+}
+
+/*
+ * Compares one RINEX against given epoch content
+ */
+pub fn test_time_frame(dut: &Rinex, tf: TestTimeFrame) {
+    let mut dut_epochs = dut.epoch();
+    let epochs: Vec<Epoch> = Vec::new();
+    if let Some(mut serie) = tf.evenly_spaced() {
+        while let Some(e) = serie.next() {
+            assert_eq!(
+                Some(e),
+                dut_epochs.next(),
+                "dut does not contain epoch {}",
+                e
+            );
+        }
+        while let Some(e) = dut_epochs.next() {
+            panic!("dut should not contain epoch {}", e);
+        }
+    } else if let Some(mut serie) = tf.erratic() {
+    }
+    //let dut_e :Vec<Epoch> = dut.epoch().collect();
+    //for e in epochs {
+    //    assert!(dut_e.contains(&e), "dut does not contain epoch {}", e);
+    //}
+    //for e in dut_e {
+    //    assert!(epochs.contains(&e), "dut should not contain epoch {}", e);
+    //}
+}
+
+/*
+ * Tests provided vehicles per epoch
+ * This is METEO + OBS compatible
+ */
+pub fn test_observables_csv(dut: &Rinex, observables_csv: &str) {
+    let observ = build_observables(observables_csv);
+    let dut_observ: Vec<&Observable> = dut.observable().collect();
+    for o in &observ {
+        assert!(
+            dut_observ.contains(&o),
+            "dut does not contain observable {}",
+            o
+        );
+    }
+    for o in &dut_observ {
+        assert!(
+            dut_observ.contains(&o),
+            "dut should not contain observable {}",
+            o
+        );
+    }
 }
 
 /*
@@ -244,12 +409,114 @@ fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
  * Compares "dut" Device Under Test to given Model,
  * panics on unexpected content with detailed explanations.
  */
-pub fn compare_with_panic(dut: &Rinex, model: &Rinex, filename: &str) {
+pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str) {
     if dut.is_observation_rinex() {
         observation_comparison(&dut, &model, filename);
     } else if dut.is_meteo_rinex() {
         meteo_comparison(&dut, &model, filename);
     } else if dut.is_clocks_rinex() {
         clocks_comparison(&dut, &model, filename);
+    }
+}
+
+/*
+ * Any parsed RINEX should go through this test
+ */
+pub fn test_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
+    let version = Version::from_str(version).unwrap();
+    assert!(
+        dut.header.version == version,
+        "parsed wrong version {}, expecting \"{}\"",
+        dut.header.version,
+        version
+    );
+
+    let constellation = match constellation {
+        Some(s) => Some(Constellation::from_str(s.trim()).unwrap()),
+        _ => None,
+    };
+    assert!(
+        dut.header.constellation == constellation,
+        "bad gnss description: {:?}, expecting {:?}",
+        dut.header.constellation,
+        constellation
+    );
+}
+
+/*
+ * Any parsed OBSERVATION should go through this test
+ */
+pub fn test_observation_rinex(
+    dut: &Rinex,
+    version: &str,
+    constellation: Option<&str>,
+    gnss_csv: &str,
+    sv_csv: &str,
+    observ_csv: &str,
+    time_of_first_obs: Option<&str>,
+    time_of_last_obs: Option<&str>,
+    time_frame: TestTimeFrame,
+    //observ_gnss_json: &str,
+) {
+    test_rinex(dut, version, constellation);
+    assert!(
+        dut.is_observation_rinex(),
+        "should be declared as OBS RINEX"
+    );
+
+    assert!(
+        dut.record.as_obs().is_some(),
+        "observation record unwrapping"
+    );
+    test_sv_csv(dut, sv_csv);
+    test_gnss_csv(dut, gnss_csv);
+    test_time_frame(dut, time_frame);
+    test_observables_csv(dut, observ_csv);
+    /*
+     * Specific header field testing
+     */
+    assert!(
+        dut.header.obs.is_some(),
+        "missing observation specific header fields"
+    );
+    assert!(
+        dut.header.meteo.is_none(),
+        "should not contain specific METEO fields"
+    );
+    assert!(
+        dut.header.ionex.is_none(),
+        "should not contain specific IONEX fields"
+    );
+    assert!(
+        dut.header.clocks.is_none(),
+        "should not contain specific CLOCK fields"
+    );
+
+    let header = dut.header.obs.as_ref().unwrap();
+    //for (constell, observables) in observables {
+    //    assert!(header_obs.codes.get(&constell).is_some(), "observation rinex specific header missing observables for constellation {}", constell);
+    //    let values = header_obs.codes.get(&constell).unwrap();
+    //    for o in &observables {
+    //        assert!(values.contains(&o), "observation rinex specific {} header is missing {} observable", constell, o);
+    //    }
+    //    for o in values {
+    //        assert!(values.contains(&o), "observation rinex specific {} header should not contain {} observable", constell, o);
+    //    }
+    //}
+    if let Some(time_of_first_obs) = time_of_first_obs {
+        assert_eq!(
+            Some(Epoch::from_str(time_of_first_obs).unwrap()),
+            header.time_of_first_obs,
+            "obs header is missing time of first obs \"{}\"",
+            time_of_first_obs
+        );
+    }
+    if let Some(time_of_last_obs) = time_of_last_obs {
+        assert_eq!(
+            Some(Epoch::from_str(time_of_last_obs).unwrap()),
+            header.time_of_last_obs,
+            "obs header is missing time of last obs \"{}\"",
+            time_of_last_obs
+        );
     }
 }

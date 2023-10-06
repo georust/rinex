@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use crate::tests::toolkit::*;
+    use crate::tests::toolkit::{random_name, test_against_model};
     use std::path::PathBuf;
     #[test]
     #[ignore]
@@ -49,7 +49,7 @@ mod test {
 
             // compare to CRINEX1 model
             let model = model.unwrap();
-            compare_with_panic(
+            test_against_model(
                 &dut,
                 &model,
                 &format!("compression::crinx1::{}", rnx_path.to_string_lossy()),
