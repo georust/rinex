@@ -66,16 +66,8 @@ pub fn build_observables(observable_csv: &str) -> Vec<Observable> {
         .split(",")
         .map(|c| {
             let c = c.trim();
-            if c.starts_with("L") {
-                Observable::Phase(String::from(c))
-            } else if c.starts_with("P") {
-                Observable::PseudoRange(String::from(c))
-            } else if c.starts_with("C") {
-                Observable::PseudoRange(String::from(c))
-            } else if c.starts_with("D") {
-                Observable::Doppler(String::from(c))
-            } else if c.starts_with("S") {
-                Observable::SSI(String::from(c))
+            if let Ok(observ) = Observable::from_str(c) {
+                observ
             } else {
                 panic!("invalid observable in csv");
             }
@@ -444,7 +436,51 @@ pub fn test_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
 }
 
 /*
- * Any parsed OBSERVATION should go through this test
+ * Any parsed METEO RINEX should go through this test
+ */
+pub fn test_meteo_rinex(
+    dut: &Rinex,
+    version: &str,
+    observables_csv: &str,
+    time_frame: TestTimeFrame,
+) {
+    test_rinex(dut, version, None);
+    assert!(dut.is_meteo_rinex(), "should be declared as METEO RINEX");
+    test_observables_csv(dut, observables_csv);
+    test_time_frame(dut, time_frame);
+    /*
+     * Header specific fields
+     */
+    assert!(
+        dut.header.obs.is_none(),
+        "should not contain specific OBS fields"
+    );
+    assert!(
+        dut.header.meteo.is_some(),
+        "should contain specific METEO fields"
+    );
+    assert!(
+        dut.header.ionex.is_none(),
+        "should not contain specific IONEX fields"
+    );
+    assert!(
+        dut.header.clocks.is_none(),
+        "should not contain specific CLOCK fields"
+    );
+
+    let header = dut.header.meteo.as_ref().unwrap();
+}
+
+/*
+ * Any parsed NAVIGATION RINEX should go through this test
+ */
+pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
+    test_rinex(dut, version, constellation);
+    assert!(dut.is_navigation_rinex(), "should be declared as NAV RINEX");
+}
+
+/*
+ * Any parsed OBSERVATION RINEX should go through this test
  */
 pub fn test_observation_rinex(
     dut: &Rinex,

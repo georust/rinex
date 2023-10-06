@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
+    use crate::tests::toolkit::test_meteo_rinex;
+    use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use std::str::FromStr;
     #[test]
     fn v2_abvi0010_15m() {
@@ -9,25 +11,90 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_meteo_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_some(), true);
-
-        let mut observables: Vec<_> = rinex.observable().collect();
-        observables.sort(); // for comparison
-
-        let mut expected: Vec<&Observable> = vec![
-            &Observable::Temperature,
-            &Observable::Pressure,
-            &Observable::RainIncrement,
-            &Observable::HumidityRate,
-            &Observable::WindSpeed,
-            &Observable::WindDirection,
-            &Observable::HailIndicator,
-        ];
-        expected.sort(); // for comparison
-
-        assert!(observables == expected, "parsed wrong observable content");
+        test_meteo_rinex(
+            &rinex,
+            "2.11",
+            "PR, TD, HR, WS, WD, RI, HI",
+            erratic_time_frame!(
+                "
+                2015-01-01T00:00:00 UTC,
+                2015-01-01T00:01:00 UTC,
+                2015-01-01T00:02:00 UTC,
+                2015-01-01T00:03:00 UTC,
+                2015-01-01T00:04:00 UTC,
+                2015-01-01T00:05:00 UTC,
+                2015-01-01T00:06:00 UTC,
+                2015-01-01T00:07:00 UTC,
+                2015-01-01T00:08:00 UTC,
+                2015-01-01T00:09:00 UTC,
+                2015-01-01T09:00:00 UTC,
+                2015-01-01T09:01:00 UTC,
+                2015-01-01T09:02:00 UTC,
+                2015-01-01T09:03:00 UTC,
+                2015-01-01T09:04:00 UTC,
+                2015-01-01T19:25:00 UTC,
+                2015-01-01T19:26:00 UTC,
+                2015-01-01T19:26:00 UTC,
+                2015-01-01T19:27:00 UTC,
+                2015-01-01T19:28:00 UTC,
+                2015-01-01T19:29:00 UTC,
+                2015-01-01T19:30:00 UTC,
+                2015-01-01T19:31:00 UTC,
+                2015-01-01T19:32:00 UTC,
+                2015-01-01T19:33:00 UTC,
+                2015-01-01T19:34:00 UTC,
+                2015-01-01T19:35:00 UTC,
+                2015-01-01T19:36:00 UTC,
+                2015-01-01T19:37:00 UTC,
+                2015-01-01T19:38:00 UTC,
+                2015-01-01T19:39:00 UTC,
+                2015-01-01T19:40:00 UTC,
+                2015-01-01T19:41:00 UTC,
+                2015-01-01T19:42:00 UTC,
+                2015-01-01T19:43:00 UTC,
+                2015-01-01T19:44:00 UTC,
+                2015-01-01T19:45:00 UTC,
+                2015-01-01T19:46:00 UTC,
+                2015-01-01T19:47:00 UTC,
+                2015-01-01T19:48:00 UTC,
+                2015-01-01T19:49:00 UTC,
+                2015-01-01T19:50:00 UTC,
+                2015-01-01T19:51:00 UTC,
+                2015-01-01T19:52:00 UTC,
+                2015-01-01T19:53:00 UTC,
+                2015-01-01T19:54:00 UTC,
+                2015-01-01T22:55:00 UTC,
+                2015-01-01T22:56:00 UTC,
+                2015-01-01T22:57:00 UTC,
+                2015-01-01T22:58:00 UTC,
+                2015-01-01T22:59:00 UTC,
+                2015-01-01T23:01:00 UTC,
+                2015-01-01T23:01:00 UTC,
+                2015-01-01T23:02:00 UTC,
+                2015-01-01T23:09:00 UTC,
+                2015-01-01T23:10:00 UTC,
+                2015-01-01T23:11:00 UTC,
+                2015-01-01T23:12:00 UTC,
+                2015-01-01T23:13:00 UTC,
+                2015-01-01T23:14:00 UTC,
+                2015-01-01T23:15:00 UTC,
+                2015-01-01T23:16:00 UTC,
+                2015-01-01T23:17:00 UTC,
+                2015-01-01T23:18:00 UTC,
+                2015-01-01T23:19:00 UTC,
+                2015-01-01T23:20:00 UTC,
+                2015-01-01T23:21:00 UTC,
+                2015-01-01T23:52:00 UTC,
+                2015-01-01T23:53:00 UTC,
+                2015-01-01T23:54:00 UTC,
+                2015-01-01T23:55:00 UTC,
+                2015-01-01T23:56:00 UTC,
+                2015-01-01T23:57:00 UTC,
+                2015-01-01T23:58:00 UTC,
+                2015-01-01T23:59:00 UTC,
+            "
+            ),
+        );
 
         let labels = vec![
             "pressure",
@@ -164,9 +231,13 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_meteo_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_some(), true);
+        test_meteo_rinex(
+            &rinex,
+            "4.00",
+            "PR, TD, HR",
+            evenly_spaced_time_frame!("2021-01-07T00:00:00 UTC", "2021-01-07T00:02:00 UTC", "30 s"),
+        );
+
         let record = rinex.record.as_meteo();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();

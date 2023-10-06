@@ -302,7 +302,17 @@ mod test {
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
 
-        test_observation_rinex("2.11", Some("MIXED"), "GPS, GLO", "S01");
+        test_observation_rinex(&rinex, "2.11", Some("MIXED"), "GPS, GLO", 
+            "G07, G08, G10, G13, G15, G16, G18, G21, G23, G26, G27, G30, R01, R02, R03, R08, R09, R15, R16, R17, R18, R19, R24", "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5", Some("2021-01-01T00:00:00 GPST"), Some("2021-01-01T23:59:30 GPST"), 
+            erratic_time_frame!("
+                2021-01-01T00:00:00 GPST,
+                2021-01-01T00:00:30 GPST,
+                2021-01-01T00:10:00 GPST,
+                2021-01-01T00:25:00 GPST,
+                2021-01-01T00:25:30 GPST,
+                2021-01-01T00:26:00 GPST
+            ")
+        );
 
         //////////////////////////////
         // This file is GPS + GLONASS
@@ -530,11 +540,11 @@ mod test {
         let obs = rinex.header.obs.as_ref().unwrap();
 
         test_observation_rinex(
-            dut,
-            "3.0",
+            &rinex,
+            "3.02",
             Some("MIXED"),
             "GPS, GLO",
-            "G03, GTODO",
+            "G03, G01, G04, G09, G17, G19, G21, G22, G31, G32, R01, R02, R08, R09, R10, R17, R23, R24",
             "C1C, L1C, D1C, S1C, C2P, L2P, D2P, S2P, C2W, L2W, D2W, S2W",
             Some("2022-03-04T00:00:00 GPST"),
             Some("TIME OF LAST OBS"),
@@ -546,7 +556,7 @@ mod test {
         /*
          * test Glonass observables
          */
-
+        let record = rinex.record.as_obs().unwrap();
         let epoch = Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
@@ -951,7 +961,24 @@ mod test {
         let fullpath = path.to_string_lossy();
         let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
 
-        test_observation_rinex("todo");
+        test_observation_rinex(
+            &rnx,
+            "3.02",
+            Some("GPS"),
+            "GPS",
+            "G01, G03, G09, G17, G19, G21, G22",
+            "C1C, L1C, D1C, S1C, S2W, L2W, D2W, S2W",
+            Some("2022-03-04T00:00:00 GPST"),
+            Some("2022-03-04T23:59:30 GPST"),
+            erratic_time_frame!(
+                "
+                2022-03-04T00:00:00 GPST,
+                2022-03-04T00:00:30 GPST,
+                2022-03-04T00:01:00 GPST,
+                2022-03-04T00:52:30 GPST"
+            ),
+        );
+
         let expected: Vec<Epoch> = vec![
             Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap(),
             Epoch::from_str("2022-03-04T00:00:30 GPST").unwrap(),
@@ -1009,7 +1036,33 @@ mod test {
             Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
 
-        test_observation_rinex("todo");
+        test_observation_rinex(
+            &rnx,
+            "3.05",
+            Some("MIXED"),
+            "BDS, GAL, GLO, QZSS, GPS, SBAS",
+            "C05, C07, C10, C12, C19, C20, C23, C32, C34, C37,
+             E01, E03, E05, E09, E13, E15, E24, E31,
+             G02, G05, G07, G08, G09, G13, G15, G18, G21, G27, G28, G30,
+             R01, R02, R08, R09, R10, R11, R12, R17, R18, R19,
+             S23, S25, S36",
+            "C2I, C6I, C7I, D2I, D6I, D7I, L2I, L6I, L7I, S2I, S6I, S7I,
+              C1C, C5Q, C6C, C7Q, C8Q, D1C, D5Q, D6C, D7Q, D8Q, L1C, L5Q, L6C,
+              L7Q, L8Q, S1C, S5Q, S7Q, S8Q,
+              C1C, C1W, C2L, C2W, C5Q, D1C, D2L, D2W, D5Q, L1C, L2L, L2W, L5Q,
+              S1C, S1W, S2L, S2W, S5Q,
+              C1C, C2L, C5Q, D1C, D2L, D5Q, L1C, L2L, L5Q, S1C, S2L, S5Q,
+              C1C, C1P, C2C, C2P, C3Q, D1C, D1P, D2C, D2P, D3Q, L1C, L1P, L2C,
+              L2P, L3Q, S1C, S1P, S2C, S2P, S3Q,
+              C1C, C5I, D1C, D5I, L1C, L5I, S1C, S5I",
+            Some("2020-06-25T00:00:00 GPST"),
+            Some("2020-06-25T23:59:30 GPST"),
+            evenly_spaced_time_frame!(
+                "2020-06-25T00:00:00 GPST",
+                "2020-06-25T23:59:30 GPST",
+                "30 s"
+            ),
+        );
 
         /*
          * Header tb
@@ -1139,15 +1192,19 @@ mod test {
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
         test_observation_rinex(
-            dut,
+            &rnx,
             "3.0",
             Some("MIXED"),
-            "GPS, GLO..",
-            "G03, GTODO",
-            "C1C TODO",
-            Some("TIME OF FIRST"),
-            Some("TIME OF LASt"),
-            erratic_time_frame!("TODO"),
+            "GPS, GLO, GAL, BDS, QZSS, SBAS, IRNSS",
+            "C05, C07, C10, C12, C19, C20, C23, C32, C34, C37, E01, E03, E05, E09, E13, E15, E24, E31, G05, G07, G08, G09, G13, G15, G27, G30, I02, I04, I06, R01, R02, R08, R09, R10, R11, R17, R18, R19, S23, S25, S26, S27, S36",
+            "C2I, C6I, C7I, D2I, D6I, D7I, L2I, L6I, L7I, S2I, S6I, S7I, C1C, C5Q, C6C, C7Q, C8Q, D1C, D5Q, D6C, D7Q, D8Q, L1C, L5Q, L6C, L7Q, L8Q, S1C, S5Q, S6C, S7Q, S8Q, C1C, C1W, C2L, C2W, C5Q, D1C, D2L, D2W, D5Q, L1C, L2L, L2W, L5Q, S1C, S1W, S2L, S2W, S5Q, C5A, D5A, L5A, S5A, C1C, C2L, C5Q, D1C, D2L, D5Q, L1C, L2L, L5Q, S1C, S2L, S5Q, C1C, C1P, C2C, C2P, C3Q, D1C, D1P, D2C, D2P, D3Q, L1C, L1P, L2C, L2P, L3Q, S1C, S1P, S2C, S2P, S3Q, C1C, C5I, D1C, D5I, L1C, L5I, S1C, S5I",
+            Some("2020-06-25T00:00:00 GPST"),
+            Some("2020-06-25T23:59:30 GPST"),
+            evenly_spaced_time_frame!(
+                "2020-06-25T00:00:00 GPST",
+                "2020-06-25T23:59:30 GPST",
+                "30 s"
+            )
         );
         /*
          * Test IRNSS vehicles specificly
