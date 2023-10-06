@@ -126,7 +126,7 @@ impl HeaderFields {
     /// Add TIME OF LAST OBS
     pub fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
-        s.time_of_first_obs = Some(epoch);
+        s.time_of_last_obs = Some(epoch);
         s
     }
     /// Insert a data scaling
