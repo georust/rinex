@@ -1193,7 +1193,7 @@ mod test {
                 .unwrap();
         test_observation_rinex(
             &rnx,
-            "3.0",
+            "3.5",
             Some("MIXED"),
             "GPS, GLO, GAL, BDS, QZSS, SBAS, IRNSS",
             "C05, C07, C10, C12, C19, C20, C23, C32, C34, C37, E01, E03, E05, E09, E13, E15, E24, E31, G05, G07, G08, G09, G13, G15, G27, G30, I02, I04, I06, R01, R02, R08, R09, R10, R11, R17, R18, R19, S23, S25, S26, S27, S36",

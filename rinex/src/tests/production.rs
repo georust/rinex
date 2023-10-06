@@ -13,7 +13,7 @@ mod test {
         let copy = copy.unwrap();
         // run comparison
         if copy != rnx {
-            test_against_model(&copy, &rnx, path);
+            test_against_model(&copy, &rnx, path, 1.0E-6);
         }
         println!("production test passed for \"{}\"", path);
         // remove copy
@@ -58,7 +58,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
-    #[ignore]
+    //#[ignore]
     fn meteo_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -69,7 +69,6 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
-    #[ignore]
     fn meteo_v4() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V4/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -111,9 +110,9 @@ mod test {
             testbench(fp.to_str().unwrap());
         }
     }
-    /*
     #[test]
     #[cfg(feature = "flate2")]
+    #[ignore]
     fn nav_v4() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V4/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -121,5 +120,5 @@ mod test {
             let fp = fp.path();
             testbench(fp.to_str().unwrap());
         }
-    }*/
+    }
 }

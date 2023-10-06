@@ -285,7 +285,7 @@ fn parse_v2(
     let mut inner: HashMap<Observable, ObservationData> = HashMap::with_capacity(5);
     let mut sv = Sv::default();
     let mut observables: &Vec<Observable>;
-    //println!("SYSTEMS \"{}\"", systems); // DEBUG
+    //println!("\"{}\"", systems); // DEBUG
 
     // parse first system we're dealing with
     if systems.len() < svnn_size {
@@ -442,7 +442,7 @@ fn parse_v2(
                     _ => unreachable!(),
                 }
             }
-            //println!("\"{}\"={:X}", system, sv); //DEBUG
+            //println!("\"{}\"={}", system, sv); //DEBUG
             sv_ptr += svnn_size; // increment pointer
 
             // grab observables for this vehicle
@@ -487,11 +487,15 @@ fn parse_v3(
         //println!("parse_v3: \"{}\"", line); //DEBUG
         let (sv, line) = line.split_at(svnn_size);
         if let Ok(sv) = Sv::from_str(sv) {
-            //println!("SV: \"{}\"", sv); //DEBUG
-            if let Some(obscodes) = observables.get(&sv.constellation) {
+            let obscodes = match sv.constellation.is_sbas() {
+                true => observables.get(&Constellation::SBAS),
+                false => observables.get(&sv.constellation),
+            };
+            if let Some(obscodes) = obscodes {
                 let nb_obs = line.len() / observable_width;
                 inner.clear();
-                //println!("NB OBS: {}", nb_obs); //DEBUG
+                println!("SV: {}", sv); //DEBUG
+                println!("NB OBS: {}", nb_obs); //DEBUG
                 let mut rem = line;
                 for i in 0..nb_obs {
                     if i == obscodes.len() {
@@ -525,6 +529,25 @@ fn parse_v3(
                         //println!("SSI {:?}", snr);
                         // build content
                         inner.insert(obscodes[i].clone(), ObservationData { obs, lli, snr });
+                    }
+                }
+                if rem.len() >= observable_width - 2 {
+                    let mut snr: Option<Snr> = None;
+                    let mut lli: Option<LliFlags> = None;
+                    let obs = &rem[0..observable_width - 2];
+                    if let Ok(obs) = f64::from_str(obs.trim()) {
+                        if rem.len() > observable_width - 2 {
+                            let lli_str = &rem[observable_width - 2..observable_width - 1];
+                            if let Ok(u) = u8::from_str_radix(lli_str, 10) {
+                                if rem.len() > observable_width - 1 {
+                                    let snr_str = &rem[observable_width - 1..];
+                                    if let Ok(s) = Snr::from_str(snr_str) {
+                                        snr = Some(s);
+                                    }
+                                }
+                            }
+                        }
+                        inner.insert(obscodes[nb_obs].clone(), ObservationData { obs, lli, snr });
                     }
                 }
                 if inner.len() > 0 {

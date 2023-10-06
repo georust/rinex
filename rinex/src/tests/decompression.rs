@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod test {
     use crate::hatanaka::Decompressor;
+    use crate::tests::toolkit::random_name;
+    use crate::tests::toolkit::{build_observables, test_observation_rinex};
+    use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{observable, prelude::*};
     use std::collections::HashMap;
     use std::path::Path;
@@ -24,11 +27,10 @@ mod test {
             assert_eq!(crnx.is_ok(), true);
             let mut rnx = crnx.unwrap();
 
-            assert_eq!(rnx.header.obs.is_some(), true);
-            let obs = rnx.header.obs.as_ref().unwrap();
+            let header = rnx.header.obs.as_ref().unwrap();
 
-            assert_eq!(obs.crinex.is_some(), true);
-            let infos = obs.crinex.as_ref().unwrap();
+            assert_eq!(header.crinex.is_some(), true);
+            let infos = header.crinex.as_ref().unwrap();
 
             if crnx_name.eq("zegv0010.21d") {
                 assert_eq!(infos.version.major, 1);
@@ -38,6 +40,22 @@ mod test {
                     infos.date,
                     Epoch::from_gregorian_utc(2021, 01, 02, 00, 01, 00, 00)
                 );
+
+                test_observation_rinex(
+                    &rnx,
+                    "2.11",
+                    Some("MIXED"),
+                    "GPS, GLO",
+                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+                    "C1, L1, L2, P2, S1, S2",
+                    Some("2021-12-21T00:00:00 GPST"),
+                    Some("2021-12-21T23:59:30 GPST"),
+                    evenly_spaced_time_frame!(
+                        "2021-12-21T00:00:00 GPST",
+                        "2021-12-21T01:04:00 GPST",
+                        "30 s"
+                    ),
+                );
             } else if crnx_name.eq("npaz3550.21d") {
                 assert_eq!(infos.version.major, 1);
                 assert_eq!(infos.version.minor, 0);
@@ -45,6 +63,22 @@ mod test {
                 assert_eq!(
                     infos.date,
                     Epoch::from_gregorian_utc(2021, 12, 28, 00, 18, 00, 00)
+                );
+
+                test_observation_rinex(
+                    &rnx,
+                    "2.11",
+                    Some("MIXED"),
+                    "GPS, GLO",
+                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+                    "C1, L1, L2, P2, S1, S2",
+                    Some("2021-12-21T00:00:00 GPST"),
+                    Some("2021-12-21T23:59:30 GPST"),
+                    evenly_spaced_time_frame!(
+                        "2021-12-21T00:00:00 GPST",
+                        "2021-12-21T01:04:00 GPST",
+                        "30 s"
+                    ),
                 );
             } else if crnx_name.eq("pdel0010.21d") {
                 assert_eq!(infos.version.major, 1);
@@ -54,15 +88,87 @@ mod test {
                     infos.date,
                     Epoch::from_gregorian_utc(2021, 01, 09, 00, 24, 00, 00)
                 );
+
+                test_observation_rinex(
+                    &rnx,
+                    "2.11",
+                    Some("MIXED"),
+                    "GPS, GLO",
+                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+                    "C1, L1, L2, P2, S1, S2",
+                    Some("2021-12-21T00:00:00 GPST"),
+                    Some("2021-12-21T23:59:30 GPST"),
+                    evenly_spaced_time_frame!(
+                        "2021-12-21T00:00:00 GPST",
+                        "2021-12-21T01:04:00 GPST",
+                        "30 s"
+                    ),
+                );
+            } else if crnx_name.eq("wsra0010.21d") {
+                test_observation_rinex(
+                    &rnx,
+                    "2.11",
+                    Some("MIXED"),
+                    "GPS, GLO",
+                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+                    "C1, L1, L2, P2, S1, S2",
+                    Some("2021-12-21T00:00:00 GPST"),
+                    Some("2021-12-21T23:59:30 GPST"),
+                    evenly_spaced_time_frame!(
+                        "2021-12-21T00:00:00 GPST",
+                        "2021-12-21T01:04:00 GPST",
+                        "30 s"
+                    ),
+                );
+            } else if crnx_name.eq("aopr0010.17d") {
+                test_observation_rinex(
+                    &rnx,
+                    "2.11",
+                    Some("MIXED"),
+                    "GPS, GLO",
+                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+                    "C1, L1, L2, P2, S1, S2",
+                    Some("2021-12-21T00:00:00 GPST"),
+                    Some("2021-12-21T23:59:30 GPST"),
+                    evenly_spaced_time_frame!(
+                        "2021-12-21T00:00:00 GPST",
+                        "2021-12-21T01:04:00 GPST",
+                        "30 s"
+                    ),
+                );
+            } else if crnx_name.eq("KOSG0010.95D") {
+                test_observation_rinex(
+                    &rnx,
+                    "2.11",
+                    Some("MIXED"),
+                    "GPS, GLO",
+                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+                    "C1, L1, L2, P2, S1, S2",
+                    Some("2021-12-21T00:00:00 GPST"),
+                    Some("2021-12-21T23:59:30 GPST"),
+                    evenly_spaced_time_frame!(
+                        "2021-12-21T00:00:00 GPST",
+                        "2021-12-21T01:04:00 GPST",
+                        "30 s"
+                    ),
+                );
             }
 
-            // convert to RINEX
+            // decompress and write to file
             rnx.crnx2rnx_mut();
+            let filename = random_name(10);
+            assert!(
+                rnx.to_file(&filename).is_ok(),
+                "failed to dump \"{}\" after decompression",
+                crnx_name
+            );
+
+            // then run comparison with model
 
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
 
-            // parse Model for testbench
+            // parse plain RINEX and run reciprocity
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
             let model = Rinex::from_file(&path);
             assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
@@ -172,30 +278,25 @@ mod test {
             .join("zegv0010.21d");
         let fullpath = path.to_string_lossy();
         let rnx = Rinex::from_file(&fullpath.to_string());
+
         assert!(rnx.is_ok(), "failed to parse CRNX/V1/zegv0010.21d");
         let rnx = rnx.unwrap();
-        let epochs = vec![
-            Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:00:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:01:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:01:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:02:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:02:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:03:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:03:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:04:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:04:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:05:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:05:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:06:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:06:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:07:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:07:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:08:00 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:08:30 GPST").unwrap(),
-            Epoch::from_str("2021-01-01T00:09:00 GPST").unwrap(),
-        ];
-        assert!(rnx.epoch().eq(epochs), "Parsed wrong epoch content",);
+
+        test_observation_rinex(
+            &rnx,
+            "2.10",
+            Some("GPS"),
+            "GPS",
+            "G31,G27,G03,G32,G16,G14,G08,G23,G22,G07, G30, G11, G19, G07",
+            "C1, L1, L2, P2, P1",
+            Some("2017-01-01T00:00:00 GPST"),
+            None,
+            evenly_spaced_time_frame!(
+                "2021-01-01T00:00:00 GPST",
+                "2021-01-01T00:09:00 GPST",
+                "30 s"
+            ),
+        );
 
         let record = rnx.record.as_obs().unwrap();
 
@@ -372,44 +473,22 @@ mod test {
             Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00)
         );
 
-        //assert!(
-        //    rinex.sv_epoch()
-        //        .sorted()
-        //        .eq(
+        test_observation_rinex(
+            &rnx,
+            "2.0TODO",
+            Some("BLAH"),
+            "GPS, Bleh",
+            "G01, TODO",
+            "P1, P2, TODO",
+            Some("FIRST"),
+            Some("LAST"),
+            evenly_spaced_time_frame!(
+                "2021-12-21T00:00:00 GPST",
+                "2021-12-21T00:12:00 GPST",
+                "30 s"
+            ),
+        );
 
-        //        )
-        //    ),
-        //    "sv_epoch() failed",
-        //);
-
-        let epochs: Vec<Epoch> = vec![
-            Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:01:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:01:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:02:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:02:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:03:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:03:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:04:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:04:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:05:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:05:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:06:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:06:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:07:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:07:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:08:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:08:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:09:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:09:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:10:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:10:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:11:00 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:11:30 GPST").unwrap(),
-            Epoch::from_str("2021-12-21T00:12:00 GPST").unwrap(),
-        ];
-        assert!(rnx.epoch().eq(epochs.clone()), "parsed wrong epoch content");
         /*
          * record test
          */
@@ -419,10 +498,8 @@ mod test {
             assert!(clk_offset.is_none());
         }
 
-        for e_index in 0..epochs.len() {
-            let e = epochs.get(e_index).unwrap();
-            let flag = EpochFlag::Ok;
-            let (_, vehicles) = record.get(&(*e, flag)).unwrap();
+        for (e_index, epoch) in rnx.epoch().enumerate() {
+            let (_, vehicles) = record.get(&(epoch, EpochFlag::Ok)).unwrap();
             if e_index == 0 {
                 /*
                  * 1st epoch
@@ -471,7 +548,7 @@ mod test {
                 ];
                 expected.sort();
                 assert_eq!(keys, expected);
-            } else if e_index == epochs.len() - 1 {
+            } else if e_index == rnx.epoch().count() - 1 {
                 /*
                  * last epoch
                  */
@@ -552,6 +629,22 @@ mod test {
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
         assert_eq!(crnx.is_ok(), true);
         let rnx = crnx.unwrap();
+
+        test_observation_rinex(
+            &rnx,
+            "2.0TODO",
+            Some("BLAH"),
+            "GPS, Bleh",
+            "G01, TODO",
+            "P1, P2, TODO",
+            Some("FIRST"),
+            Some("LAST"),
+            evenly_spaced_time_frame!(
+                "2021-12-21T00:00:00 GPST",
+                "2021-12-21T00:12:00 GPST",
+                "30 s"
+            ),
+        );
 
         /*
          * Verify identified observables

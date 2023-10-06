@@ -195,7 +195,7 @@ pub fn test_observables_csv(dut: &Rinex, observables_csv: &str) {
 /*
  * OBS RINEX thorough comparison
  */
-fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
+fn observation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
     let rec_dut = dut
         .record
         .as_obs()
@@ -204,7 +204,6 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         .record
         .as_obs()
         .expect("failed to unwrap as observation rinex record");
-
     /*
      * 1: make sure constellations are identical
      */
@@ -212,7 +211,7 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     let expected_constell: Vec<_> = model.constellation().collect();
     assert_eq!(
         dut_constell, expected_constell,
-        "bad gnss context for file \"{}\"",
+        "mismatch for \"{}\"",
         filename
     );
 
@@ -228,7 +227,7 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                     for (code_model, obs_model) in observables_model {
                         if let Some(obs_dut) = observables_dut.get(code_model) {
                             assert!(
-                                (obs_model.obs - obs_dut.obs).abs() < 1.0E-6,
+                                (obs_model.obs - obs_dut.obs).abs() < epsilon,
                                 "\"{}\" - {:?} - {:?} - \"{}\" expecting {} got {}",
                                 filename,
                                 e_model,
@@ -316,7 +315,7 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
 /*
  * CLOCK Rinex thorough comparison
  */
-fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
+fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
     let rec_dut = dut
         .record
         .as_clock()
@@ -345,7 +344,7 @@ fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
 /*
  * Meteo RINEX thorough comparison
  */
-fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
+fn meteo_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
     let rec_dut = dut
         .record
         .as_meteo()
@@ -401,13 +400,13 @@ fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
  * Compares "dut" Device Under Test to given Model,
  * panics on unexpected content with detailed explanations.
  */
-pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str) {
+pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
     if dut.is_observation_rinex() {
-        observation_comparison(&dut, &model, filename);
+        observation_against_model(&dut, &model, filename, epsilon);
     } else if dut.is_meteo_rinex() {
-        meteo_comparison(&dut, &model, filename);
+        meteo_against_model(&dut, &model, filename, epsilon);
     } else if dut.is_clocks_rinex() {
-        clocks_comparison(&dut, &model, filename);
+        clocks_against_model(&dut, &model, filename, epsilon);
     }
 }
 
@@ -477,6 +476,79 @@ pub fn test_meteo_rinex(
 pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
     test_rinex(dut, version, constellation);
     assert!(dut.is_navigation_rinex(), "should be declared as NAV RINEX");
+    /*
+     * Header specific fields
+     */
+    assert!(
+        dut.header.obs.is_none(),
+        "should not contain specific OBS fields"
+    );
+    assert!(
+        dut.header.meteo.is_none(),
+        "should not contain specific METEO fields"
+    );
+    assert!(
+        dut.header.ionex.is_none(),
+        "should not contain specific IONEX fields"
+    );
+    assert!(
+        dut.header.clocks.is_none(),
+        "should not contain specific CLOCK fields"
+    );
+}
+
+/*
+ * Any parsed CLOCK RINEX should go through this test
+ */
+pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
+    test_rinex(dut, version, constellation);
+    assert!(dut.is_clocks_rinex(), "should be declared as CLK RINEX");
+    /*
+     * Header specific fields
+     */
+    assert!(
+        dut.header.obs.is_none(),
+        "should not contain specific OBS fields"
+    );
+    assert!(
+        dut.header.meteo.is_none(),
+        "should not contain specific METEO fields"
+    );
+    assert!(
+        dut.header.ionex.is_none(),
+        "should not contain specific IONEX fields"
+    );
+    assert!(
+        dut.header.clocks.is_some(),
+        "should contain specific CLOCK fields"
+    );
+}
+
+/*
+ * Any parsed IONEX should go through this test
+ */
+pub fn test_ionex(dut: &Rinex, version: &str, constellation: Option<&str>) {
+    test_rinex(dut, version, constellation);
+    assert!(dut.is_ionex(), "should be declared as IONEX");
+    /*
+     * Header specific fields
+     */
+    assert!(
+        dut.header.obs.is_none(),
+        "should not contain specific OBS fields"
+    );
+    assert!(
+        dut.header.meteo.is_none(),
+        "should not contain specific METEO fields"
+    );
+    assert!(
+        dut.header.ionex.is_some(),
+        "should contain specific IONEX fields"
+    );
+    assert!(
+        dut.header.clocks.is_none(),
+        "should not contain specific CLOCK fields"
+    );
 }
 
 /*
