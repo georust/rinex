@@ -1755,6 +1755,10 @@ impl std::fmt::Display for Header {
         // RINEX Type dependent header
         self.fmt_rinex_dependent(f)?;
 
+        //TODO
+        // things that could be nice to squeeze in:
+        // [+] SBAS contained (detailed vehicles)
+        // [+] RINEX 3 -> 2 observables conversion (see OBS/V2/rovn as an example)
         writeln!(f, "{}", fmt_rinex("", "END OF HEADER"))
     }
 }
