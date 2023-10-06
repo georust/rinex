@@ -1207,16 +1207,36 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
             });
         },
         TargetItem::ConstellationItem(filter) => {
+            let mut broad_sbas_filter = false;
+            for c in &filter {
+                broad_sbas_filter |= *c == Constellation::SBAS;
+            }
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        filter.contains(&sv.constellation)
+                        if broad_sbas_filter {
+                            sv.constellation.is_sbas() || filter.contains(&sv.constellation)
+                        } else {
+                            filter.contains(&sv.constellation)
+                        }
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        filter.contains(&sv.constellation)
+                        if broad_sbas_filter {
+                            sv.constellation.is_sbas() || filter.contains(&sv.constellation)
+                        } else {
+                            filter.contains(&sv.constellation)
+                        }
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        filter.contains(&sv.constellation)
+                        if broad_sbas_filter {
+                            sv.constellation.is_sbas() || filter.contains(&sv.constellation)
+                        } else {
+                            filter.contains(&sv.constellation)
+                        }
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        filter.contains(&sv.constellation)
+                        if broad_sbas_filter {
+                            sv.constellation.is_sbas() || filter.contains(&sv.constellation)
+                        } else {
+                            filter.contains(&sv.constellation)
+                        }
                     } else {
                         // non existing
                         false

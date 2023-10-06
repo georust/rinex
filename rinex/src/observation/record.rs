@@ -864,8 +864,18 @@ impl Mask for Record {
                     self.retain(|_, (clk, _)| clk.is_some());
                 },
                 TargetItem::ConstellationItem(constells) => {
+                    let mut broad_sbas_filter = false;
+                    for c in &constells {
+                        broad_sbas_filter |= *c == Constellation::SBAS;
+                    }
                     self.retain(|_, (_, svs)| {
-                        svs.retain(|sv, _| constells.contains(&sv.constellation));
+                        svs.retain(|sv, _| {
+                            if broad_sbas_filter {
+                                sv.constellation.is_sbas() || constells.contains(&sv.constellation)
+                            } else {
+                                constells.contains(&sv.constellation)
+                            }
+                        });
                         svs.len() > 0
                     });
                 },
