@@ -74,7 +74,7 @@ RINEX formats & applications
 |----------------------------|-------------------|---------------------|----------------------|----------------------|--------------------------| ---------------------|
 | Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :construction: V4 :construction: |  :heavy_check_mark: :chart_with_upwards_trend:  | :construction:       | Orbit parameters, Ionospheric models.. | Epoch iteration |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Phase, Pseudo Range, Doppler, SSI | Epoch iteration |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:  | see OBS Data     | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:  | Phase, Pseudo Range, Doppler, SSI | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Meteo sensors data (Temperature, Moisture..) | Epoch iteration |  
 |  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Clock comparison |  Epoch iteration |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Antenna calibration data | Sorted by `antex::Antenna` |
