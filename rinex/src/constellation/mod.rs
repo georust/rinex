@@ -132,8 +132,6 @@ impl std::str::FromStr for Constellation {
             Ok(Self::Galileo)
         } else if s.eq("j") || s.contains("qzss") {
             Ok(Self::QZSS)
-        } else if s.eq("s") || s.contains("geo") {
-            Ok(Self::SBAS)
         } else if s.eq("i") || s.contains("irnss") || s.contains("navic") {
             Ok(Self::IRNSS)
         } else if s.eq("m") || s.contains("mixed") {
@@ -162,6 +160,8 @@ impl std::str::FromStr for Constellation {
             Ok(Self::GBAS)
         } else if s.eq("sdcm") {
             Ok(Self::SDCM)
+        } else if s.eq("s") || s.contains("geo") || s.contains("sbas") {
+            Ok(Self::SBAS)
         } else {
             Err(ParsingError::Unknown(string.to_string()))
         }
