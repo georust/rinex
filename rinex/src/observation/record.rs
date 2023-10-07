@@ -195,7 +195,7 @@ pub(crate) fn parse_epoch(
 
     let (date, rem) = line.split_at(offset + 3);
     let (n_sat, rem) = rem.split_at(3);
-    let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
+    let n_sat = n_sat.trim().parse::<u16>()?;
     let epoch = epoch::parse_in_timescale(date, ts)?;
 
     // previously identified observables (that we expect)
@@ -258,7 +258,7 @@ pub(crate) fn parse_epoch(
                     return Err(Error::MissingData);
                 }
             }
-            parse_v2(&header, &systems, observables, lines)
+            parse_v2(header, &systems, observables, lines)
         },
         _ => parse_v3(observables, lines),
     };
@@ -383,11 +383,11 @@ fn parse_v2(
                                                                      //println!("OBS \"{}\"", obs); //DEBUG
                 let mut lli: Option<LliFlags> = None;
                 let mut snr: Option<Snr> = None;
-                if let Ok(obs) = f64::from_str(obs.trim()) {
+                if let Ok(obs) = obs.trim().parse::<f64>() {
                     // parse obs
                     if slice.len() > 14 {
                         let lli_str = &slice[14..15];
-                        if let Ok(u) = u8::from_str_radix(lli_str, 10) {
+                        if let Ok(u) = lli_str.parse::<u8>() {
                             lli = LliFlags::from_bits(u);
                         }
                         if slice.len() > 15 {
@@ -535,10 +535,10 @@ fn parse_v3(
                     let mut snr: Option<Snr> = None;
                     let mut lli: Option<LliFlags> = None;
                     let obs = &rem[0..observable_width - 2];
-                    if let Ok(obs) = f64::from_str(obs.trim()) {
+                    if let Ok(obs) = obs.trim().parse::<f64>() {
                         if rem.len() > observable_width - 2 {
                             let lli_str = &rem[observable_width - 2..observable_width - 1];
-                            if let Ok(u) = u8::from_str_radix(lli_str, 10) {
+                            if let Ok(u) = lli_str.parse::<u8>() {
                                 lli = LliFlags::from_bits(u);
                                 if rem.len() > observable_width - 1 {
                                     let snr_str = &rem[observable_width - 1..];
@@ -595,7 +595,7 @@ fn fmt_epoch_v3(
         lines.push_str(&format!("{:13.4}", data));
     }
 
-    lines.push_str("\n");
+    lines.push('\n');
     for (sv, data) in data.iter() {
         lines.push_str(&format!("{:x}", sv));
         let observables = match sv.constellation.is_sbas() {
@@ -614,14 +614,14 @@ fn fmt_epoch_v3(
                     if let Some(flag) = observation.snr {
                         lines.push_str(&format!("{:x}", flag));
                     } else {
-                        lines.push_str(" ");
+                        lines.push(' ');
                     }
                 } else {
-                    lines.push_str(&format!("                "));
+                    lines.push_str("                ");
                 }
             }
         }
-        lines.push_str("\n");
+        lines.push('\n');
     }
     lines
 }
@@ -653,7 +653,7 @@ fn fmt_epoch_v2(
                     lines.push_str(&format!(" {:9.1}", data));
                 }
             }
-            lines.push_str(&format!("\n                                "));
+            lines.push_str("\n                                ");
         }
         lines.push_str(&format!("{:x}", sv));
         index += 1;
@@ -693,7 +693,7 @@ fn fmt_epoch_v2(
             }
         }
     }
-    lines.push_str("\n");
+    lines.push('\n');
     lines
 }
 
@@ -753,7 +753,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k.0 >= epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }
@@ -829,8 +829,8 @@ impl Smooth for Record {
 
                     let phase_data = ph_data.unwrap();
 
-                    if let Some(data) = buffer.get_mut(&sv) {
-                        if let Some((n, prev_result, prev_phase)) = data.get_mut(&pr_observable) {
+                    if let Some(data) = buffer.get_mut(sv) {
+                        if let Some((n, prev_result, prev_phase)) = data.get_mut(pr_observable) {
                             let delta_phase = phase_data - *prev_phase;
                             // implement corrector equation
                             pr_observation.obs = 1.0 / *n * pr_observation.obs
@@ -900,22 +900,22 @@ impl Mask for Record {
                                 constells.contains(&sv.constellation)
                             }
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::SvItem(items) => {
                     self.retain(|_, (_, svs)| {
-                        svs.retain(|sv, _| items.contains(&sv));
-                        svs.len() > 0
+                        svs.retain(|sv, _| items.contains(sv));
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
-                            obs.retain(|code, _| filter.contains(&code));
+                            obs.retain(|code, _| filter.contains(code));
                             obs.len() > 0
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::SnrItem(filter) => {
@@ -929,9 +929,9 @@ impl Mask for Record {
                                     false // no snr: drop out
                                 }
                             });
-                            obs.len() > 0
+                            !obs.is_empty()
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 _ => {},
@@ -950,14 +950,14 @@ impl Mask for Record {
                 },
                 TargetItem::SvItem(items) => {
                     self.retain(|_, (_, svs)| {
-                        svs.retain(|sv, _| !items.contains(&sv));
+                        svs.retain(|sv, _| !items.contains(sv));
                         !svs.is_empty()
                     });
                 },
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
-                            obs.retain(|code, _| !filter.contains(&code));
+                            obs.retain(|code, _| !filter.contains(code));
                             !obs.is_empty()
                         });
                         !svs.is_empty()
@@ -1395,7 +1395,7 @@ impl Combine for Record {
                         if let Some(data) =
                             ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
                         {
-                            if let Some(data) = data.get_mut(&sv) {
+                            if let Some(data) = data.get_mut(sv) {
                                 data.insert(*epoch, gf);
                             } else {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
@@ -1405,7 +1405,7 @@ impl Combine for Record {
                         } else {
                             // new combination
                             let mut inject = true; // insert only if not already combined to some other signal
-                            for ((lhs, rhs), _) in &ret {
+                            for (lhs, rhs) in ret.keys() {
                                 if lhs == lhs_observable {
                                     inject = false;
                                     break;
@@ -1581,7 +1581,7 @@ impl Combine for Record {
                         if let Some(data) =
                             ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
                         {
-                            if let Some(data) = data.get_mut(&sv) {
+                            if let Some(data) = data.get_mut(sv) {
                                 data.insert(*epoch, yp);
                             } else {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
@@ -1697,7 +1697,7 @@ impl Combine for Record {
                         } else {
                             // new combination
                             let mut inject = true; // insert only if not already combined to some other signal
-                            for ((lhs, rhs), _) in &ret {
+                            for (lhs, rhs) in ret.keys() {
                                 if lhs == lhs_observable {
                                     inject = false;
                                     break;
