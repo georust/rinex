@@ -945,22 +945,22 @@ impl Mask for Record {
                 TargetItem::ConstellationItem(constells) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| !constells.contains(&sv.constellation));
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::SvItem(items) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| !items.contains(&sv));
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|code, _| !filter.contains(&code));
-                            obs.len() > 0
+                            !obs.is_empty()
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 _ => {},
@@ -980,7 +980,7 @@ impl Mask for Record {
                             }
                             retain
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::SnrItem(filter) => {
@@ -994,9 +994,9 @@ impl Mask for Record {
                                     false // no snr: drop out
                                 }
                             });
-                            obs.len() > 0
+                            !obs.is_empty()
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 _ => {},
@@ -1016,7 +1016,7 @@ impl Mask for Record {
                             }
                             retain
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::SnrItem(filter) => {
@@ -1030,9 +1030,9 @@ impl Mask for Record {
                                     false // no snr: drop out
                                 }
                             });
-                            obs.len() > 0
+                            !obs.is_empty()
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 _ => {},
@@ -1052,7 +1052,7 @@ impl Mask for Record {
                             }
                             retain
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::SnrItem(filter) => {
@@ -1066,9 +1066,9 @@ impl Mask for Record {
                                     false // no snr: drop out
                                 }
                             });
-                            obs.len() > 0
+                            !obs.is_empty()
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 _ => {},
@@ -1088,7 +1088,7 @@ impl Mask for Record {
                             }
                             retain
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 TargetItem::SnrItem(filter) => {
@@ -1102,9 +1102,9 @@ impl Mask for Record {
                                     false // no snr: drop out
                                 }
                             });
-                            obs.len() > 0
+                            !obs.is_empty()
                         });
-                        svs.len() > 0
+                        !svs.is_empty()
                     });
                 },
                 _ => {},
@@ -1331,7 +1331,7 @@ impl Decimate for Record {
     }
     fn decimate_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.decimate_match_mut(&rhs);
+        s.decimate_match_mut(rhs);
         s
     }
 }
@@ -1485,7 +1485,7 @@ impl Combine for Record {
                         if let Some(data) =
                             ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
                         {
-                            if let Some(data) = data.get_mut(&sv) {
+                            if let Some(data) = data.get_mut(sv) {
                                 data.insert(*epoch, gf);
                             } else {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
@@ -1495,7 +1495,7 @@ impl Combine for Record {
                         } else {
                             // new combination
                             let mut inject = true; // insert only if not already combined to some other signal
-                            for ((lhs, rhs), _) in &ret {
+                            for (lhs, rhs) in ret.keys() {
                                 if lhs == lhs_observable {
                                     inject = false;
                                     break;
@@ -1591,7 +1591,7 @@ impl Combine for Record {
                         } else {
                             // new combination
                             let mut inject = true; // insert only if not already combined to some other signal
-                            for ((lhs, rhs), _) in &ret {
+                            for (lhs, rhs) in ret.keys() {
                                 if lhs == lhs_observable {
                                     inject = false;
                                     break;
@@ -1687,7 +1687,7 @@ impl Combine for Record {
                         if let Some(data) =
                             ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
                         {
-                            if let Some(data) = data.get_mut(&sv) {
+                            if let Some(data) = data.get_mut(sv) {
                                 data.insert(*epoch, gf);
                             } else {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
@@ -1772,7 +1772,7 @@ impl Dcb for Record {
 
                                             if lhs_code == items[0] {
                                                 // code is differenced
-                                                if let Some(data) = vehicles.get_mut(&sv) {
+                                                if let Some(data) = vehicles.get_mut(sv) {
                                                     data.insert(
                                                         *epoch,
                                                         lhs_observation.obs - rhs_observation.obs,
@@ -1790,7 +1790,7 @@ impl Dcb for Record {
                                                 }
                                             } else {
                                                 // code is refered to
-                                                if let Some(data) = vehicles.get_mut(&sv) {
+                                                if let Some(data) = vehicles.get_mut(sv) {
                                                     data.insert(
                                                         *epoch,
                                                         rhs_observation.obs - lhs_observation.obs,
