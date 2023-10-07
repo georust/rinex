@@ -313,8 +313,8 @@ pub fn parse_record(
     //  but others may exist:
     //    in this case we used the previously identified Epoch
     //    and attach other kinds of maps
-    let mut ionex_rms_plane = false;
     let mut ionx_rec = ionex::Record::new();
+    let mut ionex_rms_plane = false;
 
     for l in reader.lines() {
         // iterates one line at a time
@@ -393,8 +393,7 @@ pub fn parse_record(
             // in case of CRINEX -> RINEX < 3 being recovered,
             // we have more than 1 ligne to process
             let new_epoch = is_new_epoch(line, &header);
-
-            ionex_rms_plane |= ionex::record::is_new_rms_plane(line);
+            ionex_rms_plane = ionex::record::is_new_rms_plane(line);
 
             if new_epoch && !first_epoch {
                 match &header.rinex_type {
@@ -478,7 +477,6 @@ pub fn parse_record(
                             ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
                         {
                             if ionex_rms_plane {
-                                ionex_rms_plane = false;
                                 if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
                                     // provide RMS value for the entire plane
                                     for ((_, rec_tec), (_, tec)) in
@@ -592,7 +590,6 @@ pub fn parse_record(
                 ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
             {
                 if ionex_rms_plane {
-                    ionex_rms_plane = false;
                     if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
                         // provide RMS value for the entire plane
                         for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {

@@ -154,8 +154,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     */
 
     // Create header section
-    let mut nav_header = Header::basic_nav();
-    let mut obs_header = Header::basic_obs();
+    let mut _nav_header = Header::basic_nav();
+    let mut _obs_header = Header::basic_obs();
     // let mut clk_header = Header::basic_clk();
 
     //TODO header CLI customization
@@ -166,7 +166,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut epoch_flag = EpochFlag::default();
 
     // observation
-    let mut observable = Observable::default();
+    let mut _observable = Observable::default();
     let mut lli: Option<LliFlags> = None;
     let mut obs_data = ObservationData::default();
 

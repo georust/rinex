@@ -66,7 +66,7 @@ mod test {
             }
         }
 
-        for (index, (epoch, sv, clock)) in sp3.sv_clock().enumerate() {}
+        //for (index, (epoch, sv, clock)) in sp3.sv_clock().enumerate() {}
 
         /*
          * Test file comments

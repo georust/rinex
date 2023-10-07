@@ -175,7 +175,7 @@ mod test {
             let content = epochs.get(index as usize);
             assert!(content.is_some(), "missing epoch {}", epoch);
 
-            let content = content.unwrap();
+            //let content = content.unwrap();
             for (field_index, expected_value) in expected_values.iter().enumerate() {
                 let label = labels[field_index];
                 let value = record_values[field_index].get(index as usize);

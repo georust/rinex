@@ -7,8 +7,9 @@ use std::str::FromStr;
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
+use rinex::prelude::GroundPosition;
+
 use rinex::observation::Snr;
-use rinex::prelude::{Constellation, GroundPosition};
 
 fn default_timescale() -> TimeScale {
     TimeScale::GPST

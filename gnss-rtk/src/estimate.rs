@@ -5,8 +5,6 @@ use nalgebra::base::{DVector, MatrixXx4, Vector4};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use log::trace;
-
 /*
  * Solver solution estimate
  * is always expressed as a correction of an 'a priori' position

@@ -4,7 +4,7 @@ use rand::{distributions::Alphanumeric, Rng};
 
 use hifitime::TimeSeries;
 
-#[macro_use]
+//#[macro_use]
 #[macro_export]
 macro_rules! erratic_time_frame {
     ($csv: expr) => {

@@ -1,7 +1,11 @@
 use nyx_space::cosmic::eclipse::{eclipse_state, EclipseState};
 use nyx_space::cosmic::{Orbit, SPEED_OF_LIGHT};
 use nyx_space::md::prelude::{Bodies, LightTimeCalc};
-use rinex::prelude::{Duration, Epoch, Sv};
+use rinex::prelude::{
+    //Duration,
+    Epoch,
+    Sv,
+};
 use rinex_qc::QcContext;
 use std::collections::HashMap;
 
@@ -9,7 +13,13 @@ use hifitime::Unit;
 
 extern crate nyx_space as nyx;
 
-use nalgebra::base::{DVector, MatrixXx4, Vector1, Vector3, Vector4};
+use nalgebra::base::{
+    DVector,
+    MatrixXx4,
+    //Vector1,
+    Vector3,
+    //Vector4,
+};
 use nalgebra::vector;
 use nyx::md::prelude::{Arc, Cosm};
 

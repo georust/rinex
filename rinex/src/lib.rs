@@ -2017,7 +2017,7 @@ impl Rinex {
                                 {
                                     continue; // not interesting here
                                 }
-                                let carrier_code = &observable.to_string()[1..2];
+                                //let carrier_code = &observable.to_string()[1..2];
                                 let carrier =
                                     Carrier::from_observable(sv.constellation, observable);
                                 if carrier.is_err() {

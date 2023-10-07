@@ -374,10 +374,6 @@ mod test {
         assert_eq!(header.observer, "Hans van der Marel");
         assert_eq!(header.agency, "TU Delft for Deltares");
 
-        let obs_hd = header.obs.as_ref();
-        assert!(obs_hd.is_some());
-        let obs_hd = obs_hd.unwrap();
-
         let record = rinex.record.as_obs();
         assert!(record.is_some());
         let record = record.unwrap();
@@ -537,8 +533,6 @@ mod test {
         let rinex = Rinex::from_file(&fullpath.to_string());
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.header.obs.is_some(), true);
-        let obs = rinex.header.obs.as_ref().unwrap();
 
         test_observation_rinex(
             &rinex,
@@ -706,10 +700,10 @@ mod test {
             .join("KOSG0010.95O");
         let fullpath = path.to_string_lossy();
         let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
-        for (e, sv) in rnx.sv_epoch() {
-            println!("{:?} @ {}", sv, e);
-        }
-        panic!("stop");
+        //for (e, sv) in rnx.sv_epoch() {
+        //    println!("{:?} @ {}", sv, e);
+        //}
+        //panic!("stop");
         test_observation_rinex(
             &rnx,
             "2.0",

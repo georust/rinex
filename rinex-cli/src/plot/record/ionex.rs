@@ -11,8 +11,7 @@ pub fn plot_tec_map(
     plot_ctx: &mut PlotContext,
 ) {
     let _cmap = colorous::TURBO;
-
-    let hover_text: Vec<String> = ctx.primary_data().epoch().map(|e| e.to_string()).collect();
+    //let hover_text: Vec<String> = ctx.primary_data().epoch().map(|e| e.to_string()).collect();
     /*
      * TEC map visualization
      * plotly-rs has no means to animate plots at the moment

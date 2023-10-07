@@ -4,7 +4,7 @@ mod test {
     use crate::tests::toolkit::test_observation_rinex;
     use crate::Merge;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
-    use itertools::Itertools;
+    //use itertools::Itertools;
     use std::path::PathBuf;
     use std::str::FromStr;
     #[test]

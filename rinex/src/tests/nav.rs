@@ -984,7 +984,7 @@ mod test {
             for fr in frames {
                 let fr = fr.as_eph();
                 assert!(fr.is_some(), "only ephemeris frames expected here");
-                let (msg, sv, data) = fr.unwrap();
+                let (msg, _sv, _data) = fr.unwrap();
                 assert!(msg == NavMsgType::LNAV, "only lnav frame expected here");
             }
         }
@@ -999,7 +999,7 @@ mod test {
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
 
-        for (epoch, (msg, sv, ephemeris)) in rinex.ephemeris() {
+        for (_epoch, (msg, sv, _ephemeris)) in rinex.ephemeris() {
             match sv.constellation {
                 Constellation::GPS | Constellation::QZSS => {
                     let expected = vec![NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
@@ -1323,7 +1323,7 @@ mod test {
             for (index, (epoch, sv, (x, y, z))) in rinex.sv_position().enumerate() {
                 let feasible = epoch > tmin && epoch <= tmax;
                 let interpolated = rinex.sv_position_interpolate(sv, epoch, order as usize);
-                let achieved = interpolated.is_some();
+                let _achieved = interpolated.is_some();
                 //DEBUG
                 // println!("tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}", tmin, tmax, epoch, feasible, achieved);
                 //if feasible {
