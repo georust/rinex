@@ -15,7 +15,7 @@ mod test {
                     let entry = entry.unwrap();
                     let path = entry.path();
                     let full_path = &path.to_str().unwrap();
-                    let is_hidden = entry.file_name().to_str().unwrap().starts_with(".");
+                    let is_hidden = entry.file_name().to_str().unwrap().starts_with('.');
                     println!("Parsing file: \"{}\"", full_path);
                     if !is_hidden {
                         // PARSER

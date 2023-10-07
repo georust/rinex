@@ -20,7 +20,7 @@ mod test {
     #[test]
     #[ignore]
     fn v2_cari0010_07m_phys_filter() {
-        let mut rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
+        let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
         let rnx = rnx.filter(filter!("L1C"));
         assert_eq!(rnx.observable().count(), 3);
         let rnx = rnx.filter(filter!("TD"));

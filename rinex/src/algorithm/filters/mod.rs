@@ -118,7 +118,7 @@ mod test {
         /*
          * MASK FILTER description
          */
-        for descriptor in vec![
+        for descriptor in [
             "GPS",
             "=GPS",
             " != GPS",
@@ -141,7 +141,7 @@ mod test {
         /*
          * DECIMATION FILTER description
          */
-        for desc in vec![
+        for desc in [
             "decim:10",
             "decim:10 min",
             "decim:1 hour",
@@ -154,7 +154,7 @@ mod test {
         /*
          * SMOOTHING FILTER description
          */
-        for desc in vec![
+        for desc in [
             "smooth:mov:10 min",
             "smooth:mov:1 hour",
             "smooth:mov:1 hour:l1c",

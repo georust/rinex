@@ -254,7 +254,7 @@ pub(crate) fn fmt_epoch(
             if let Some(sigma) = data.drift_change_dev {
                 lines.push_str(&format!("{:.13E} ", sigma));
             }
-            lines.push_str("\n");
+            lines.push('\n');
         }
     }
     Ok(lines)
@@ -266,22 +266,22 @@ mod test {
     #[test]
     fn test_is_new_epoch() {
         let c = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert_eq!(is_new_epoch(c), true);
+        assert!(is_new_epoch(c));
         let c = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert_eq!(is_new_epoch(c), false);
+        assert!(!is_new_epoch(c));
         let c = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert_eq!(is_new_epoch(c), true);
+        assert!(is_new_epoch(c));
         let c = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert_eq!(is_new_epoch(c), true);
+        assert!(is_new_epoch(c));
         let c = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert_eq!(is_new_epoch(c), true);
+        assert!(is_new_epoch(c));
         let c =
             "CR USNO      1995 07 14 20 59 50.000000  2    0.123456789012E+00  -0.123456789012E-01";
-        assert_eq!(is_new_epoch(c), true);
+        assert!(is_new_epoch(c));
         let c = "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
-        assert_eq!(is_new_epoch(c), true);
+        assert!(is_new_epoch(c));
         let c = "A  G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
-        assert_eq!(is_new_epoch(c), false);
+        assert!(!is_new_epoch(c));
     }
 }
 

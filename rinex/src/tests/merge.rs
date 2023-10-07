@@ -29,7 +29,7 @@ mod test {
             .join("LARM0630.22O");
         let mut r1 = Rinex::from_file(&path1.to_string_lossy()).unwrap();
         let r2 = Rinex::from_file(&path2.to_string_lossy()).unwrap();
-        assert_eq!(r1.merge_mut(&r2).is_err(), true)
+        assert!(r1.merge_mut(&r2).is_err())
     }
     #[test]
     fn merge_nav() {

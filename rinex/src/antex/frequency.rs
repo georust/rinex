@@ -153,7 +153,7 @@ mod test {
     fn test_pattern() {
         let default = Pattern::default();
         assert_eq!(default, Pattern::NonAzimuthDependent(Vec::new()));
-        assert_eq!(default.is_azimuth_dependent(), false);
+        assert!(!default.is_azimuth_dependent());
     }
     #[test]
     fn test_frequency() {

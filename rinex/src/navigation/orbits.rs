@@ -260,7 +260,7 @@ pub(crate) fn closest_nav_standards(
             })
             .collect();
 
-        if items.len() == 0 {
+        if items.is_empty() {
             if minor == 0 {
                 // we're done with this major
                 // -> downgrade to previous major
@@ -304,7 +304,7 @@ mod test {
                     // Like we use it when parsing..
                     let e = OrbitItem::new(value, &content, constellation);
                     assert!(
-                        e.is_ok() == true,
+                        e.is_ok(),
                         "failed to build Orbit Item from (\"{}\", \"{}\", \"{}\")",
                         key,
                         value,
@@ -324,7 +324,7 @@ mod test {
         );
 
         // Test existing (exact match) entries
-        for (constellation, rev, msg) in vec![
+        for (constellation, rev, msg) in [
             (Constellation::GPS, Version::new(1, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(2, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(4, 0), NavMsgType::LNAV),
@@ -372,7 +372,7 @@ mod test {
         }
 
         // Test cases where the nearest revision is used, not that exact revision
-        for (constellation, desired, expected, msg) in vec![
+        for (constellation, desired, expected, msg) in [
             (
                 Constellation::GPS,
                 Version::new(5, 0),
@@ -422,21 +422,21 @@ mod test {
     #[test]
     fn test_db_item() {
         let e = OrbitItem::U8(10);
-        assert_eq!(e.as_u8().is_some(), true);
-        assert_eq!(e.as_u32().is_some(), false);
+        assert!(e.as_u8().is_some());
+        assert!(!e.as_u32().is_some());
         let u = e.as_u8().unwrap();
         assert_eq!(u, 10);
 
         let e = OrbitItem::F64(10.0);
-        assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_u32().is_some(), false);
-        assert_eq!(e.as_f64().is_some(), true);
+        assert!(!e.as_u8().is_some());
+        assert!(!e.as_u32().is_some());
+        assert!(e.as_f64().is_some());
         let u = e.as_f64().unwrap();
         assert_eq!(u, 10.0_f64);
 
         let e = OrbitItem::U32(1);
-        assert_eq!(e.as_u32().is_some(), true);
-        assert_eq!(e.as_f64().is_some(), false);
+        assert!(e.as_u32().is_some());
+        assert!(!e.as_f64().is_some());
         let u = e.as_u32().unwrap();
         assert_eq!(u, 1_u32);
     }

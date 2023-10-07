@@ -57,7 +57,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open device
     let port = serialport::new(port, baud)
         .open()
-        .expect(&format!("failed to open serial port \"{}\"", port));
+        .unwrap_or_else(|_| panic!("failed to open serial port \"{}\"", port));
     let mut device = device::Device::new(port);
 
     // Enable UBX protocol on all ports
@@ -207,7 +207,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         epoch_flag = EpochFlag::CycleSlip;
                     }
-                    obs_data.lli = lli.clone();
+                    obs_data.lli = lli;
                 },
                 PacketRef::MonHw(_pkt) => {
                     //let jamming = pkt.jam_ind(); //TODO
@@ -255,11 +255,11 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // leap seconds already known
                         let e = Epoch::maybe_from_gregorian(
                             pkt.year().into(),
-                            pkt.month().into(),
-                            pkt.day().into(),
-                            pkt.hour().into(),
-                            pkt.min().into(),
-                            pkt.sec().into(),
+                            pkt.month(),
+                            pkt.day(),
+                            pkt.hour(),
+                            pkt.min(),
+                            pkt.sec(),
                             pkt.nanos() as u32,
                             TimeScale::UTC,
                         );

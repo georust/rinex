@@ -12,10 +12,10 @@ mod test {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/amel0010.21g";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         assert_eq!(record.len(), 4);
 
@@ -244,54 +244,52 @@ mod test {
 
                         assert_eq!(ephemeris.get_week(), Some(2138));
                     }
-                } else if *e == Epoch::from_str("2021-01-02T00:00:00").unwrap() {
-                    if sv.prn == 30 {
+                } else if *e == Epoch::from_str("2021-01-02T00:00:00").unwrap() && sv.prn == 30 {
+                    assert_eq!(
+                        ephemeris.sv_clock(),
+                        (-3.621461801230E-04, -6.139089236970E-12, 0.000000000000),
+                        "parsed wrong clock data"
+                    );
+
+                    for (field, data) in vec![
+                        ("iode", Some(8.500000000000E1)),
+                        ("crs", Some(-7.500000000000)),
+                        ("deltaN", Some(5.476656696160E-9)),
+                        ("m0", Some(-1.649762378650)),
+                        ("cuc", Some(-6.072223186490E-7)),
+                        ("e", Some(4.747916595080E-3)),
+                        ("cus", Some(5.392357707020E-6)),
+                        ("sqrta", Some(5.153756387710E+3)),
+                        ("toe", Some(5.184000000000E+5)),
+                        ("cic", Some(7.636845111850E-8)),
+                        ("omega0", Some(2.352085289360E+00)),
+                        ("cis", Some(-2.421438694000E-8)),
+                        ("i0", Some(9.371909002540E-1)),
+                        ("crc", Some(2.614687500000E+2)),
+                        ("omega", Some(-2.846234079630)),
+                        ("omegaDot", Some(-8.435351366240E-9)),
+                        ("idot", Some(-7.000291590240E-11)),
+                        ("l2Codes", Some(1.000000000000)),
+                        ("l2pDataFlag", Some(0.0)),
+                        ("svAccuracy", Some(0.0)),
+                        ("tgd", Some(3.725290298460E-9)),
+                        ("iodc", Some(8.500000000000E1)),
+                        ("t_tm", Some(5.146680000000E5)),
+                    ] {
+                        let value = ephemeris.get_orbit_f64(field);
+                        assert!(value.is_some(), "missing orbit filed \"{}\"", field);
                         assert_eq!(
-                            ephemeris.sv_clock(),
-                            (-3.621461801230E-04, -6.139089236970E-12, 0.000000000000),
-                            "parsed wrong clock data"
+                            value, data,
+                            "parsed wrong \"{}\" value, expecting {:?} got {:?}",
+                            field, data, value
                         );
-
-                        for (field, data) in vec![
-                            ("iode", Some(8.500000000000E1)),
-                            ("crs", Some(-7.500000000000)),
-                            ("deltaN", Some(5.476656696160E-9)),
-                            ("m0", Some(-1.649762378650)),
-                            ("cuc", Some(-6.072223186490E-7)),
-                            ("e", Some(4.747916595080E-3)),
-                            ("cus", Some(5.392357707020E-6)),
-                            ("sqrta", Some(5.153756387710E+3)),
-                            ("toe", Some(5.184000000000E+5)),
-                            ("cic", Some(7.636845111850E-8)),
-                            ("omega0", Some(2.352085289360E+00)),
-                            ("cis", Some(-2.421438694000E-8)),
-                            ("i0", Some(9.371909002540E-1)),
-                            ("crc", Some(2.614687500000E+2)),
-                            ("omega", Some(-2.846234079630)),
-                            ("omegaDot", Some(-8.435351366240E-9)),
-                            ("idot", Some(-7.000291590240E-11)),
-                            ("l2Codes", Some(1.000000000000)),
-                            ("l2pDataFlag", Some(0.0)),
-                            ("svAccuracy", Some(0.0)),
-                            ("tgd", Some(3.725290298460E-9)),
-                            ("iodc", Some(8.500000000000E1)),
-                            ("t_tm", Some(5.146680000000E5)),
-                        ] {
-                            let value = ephemeris.get_orbit_f64(field);
-                            assert!(value.is_some(), "missing orbit filed \"{}\"", field);
-                            assert_eq!(
-                                value, data,
-                                "parsed wrong \"{}\" value, expecting {:?} got {:?}",
-                                field, data, value
-                            );
-                        }
-                        assert!(
-                            ephemeris.get_orbit_f64("fitInt").is_none(),
-                            "parsed fitInt unexpectedly"
-                        );
-
-                        assert_eq!(ephemeris.get_week(), Some(2138));
                     }
+                    assert!(
+                        ephemeris.get_orbit_f64("fitInt").is_none(),
+                        "parsed fitInt unexpectedly"
+                    );
+
+                    assert_eq!(ephemeris.get_week(), Some(2138));
                 }
             }
         }
@@ -301,15 +299,15 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
 
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
+        assert!(rinex.is_navigation_rinex());
+        assert!(rinex.header.obs.is_none());
+        assert!(rinex.header.meteo.is_none());
 
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
 
         let record = record.unwrap();
         assert_eq!(record.len(), 6);
@@ -471,7 +469,7 @@ mod test {
                         },
                         _ => panic!("identified unexpected GAL vehicle \"{}\"", sv.prn),
                     },
-                    _ => panic!("falsely identified \"{}\"", sv.to_string()),
+                    _ => panic!("falsely identified \"{}\"", sv),
                 }
             } //match sv.constellation
         }
@@ -482,14 +480,14 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
+        assert!(rinex.is_navigation_rinex());
+        assert!(rinex.header.obs.is_none());
+        assert!(rinex.header.meteo.is_none());
 
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
 
         // test first epoch
@@ -875,7 +873,7 @@ mod test {
                     } else {
                         panic!("got unexpected system time \"{}\"", sto.system)
                     }
-                } else if let Some(fr) = fr.as_eop() {
+                } else if let Some(_fr) = fr.as_eop() {
                     eop_count += 1; // EOP test
                                     //TODO
                                     // we do not have EOP frame examples at the moment
@@ -944,16 +942,16 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/BRDC00GOP_R_20210010000_01D_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
 
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
+        assert!(rinex.is_navigation_rinex());
+        assert!(rinex.header.obs.is_none());
+        assert!(rinex.header.meteo.is_none());
         assert_eq!(rinex.epoch().count(), 4);
 
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
 
         let record = record.unwrap();
         let mut epochs: Vec<Epoch> = vec![
@@ -996,13 +994,13 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
         for (_epoch, (msg, sv, _ephemeris)) in rinex.ephemeris() {
             match sv.constellation {
                 Constellation::GPS | Constellation::QZSS => {
-                    let expected = vec![NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
+                    let expected = [NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
                     assert!(
                         expected.contains(&msg),
                         "parsed invalid GPS/QZSS V4 message \"{}\"",
@@ -1010,7 +1008,7 @@ mod test {
                     );
                 },
                 Constellation::Galileo => {
-                    let expected = vec![NavMsgType::FNAV, NavMsgType::INAV];
+                    let expected = [NavMsgType::FNAV, NavMsgType::INAV];
                     assert!(
                         expected.contains(&msg),
                         "parsed invalid Galileo V4 message \"{}\"",
@@ -1018,7 +1016,7 @@ mod test {
                     );
                 },
                 Constellation::BeiDou => {
-                    let expected = vec![
+                    let expected = [
                         NavMsgType::D1,
                         NavMsgType::D2,
                         NavMsgType::CNV1,
@@ -1227,31 +1225,31 @@ mod test {
                 }
             } else if *sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::CNVX);
-            } else if *sv == sv!("J04") {
-                if *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap() {
-                    let kb = iondata.as_klobuchar();
-                    assert!(kb.is_some());
-                    let kb = kb.unwrap();
-                    assert_eq!(
-                        kb.alpha,
-                        (
-                            3.259629011154e-08,
-                            -1.490116119385e-08,
-                            -4.172325134277e-07,
-                            -1.788139343262e-07
-                        )
-                    );
-                    assert_eq!(
-                        kb.beta,
-                        (
-                            1.269760000000e+05,
-                            -1.474560000000e+05,
-                            1.310720000000e+05,
-                            2.490368000000e+06
-                        )
-                    );
-                    assert_eq!(kb.region, KbRegionCode::WideArea);
-                }
+            } else if *sv == sv!("J04")
+                && *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
+            {
+                let kb = iondata.as_klobuchar();
+                assert!(kb.is_some());
+                let kb = kb.unwrap();
+                assert_eq!(
+                    kb.alpha,
+                    (
+                        3.259629011154e-08,
+                        -1.490116119385e-08,
+                        -4.172325134277e-07,
+                        -1.788139343262e-07
+                    )
+                );
+                assert_eq!(
+                    kb.beta,
+                    (
+                        1.269760000000e+05,
+                        -1.474560000000e+05,
+                        1.310720000000e+05,
+                        2.490368000000e+06
+                    )
+                );
+                assert_eq!(kb.region, KbRegionCode::WideArea);
             }
         }
         for (epoch, (msg, sv, eop)) in rinex.earth_orientation() {
@@ -1316,7 +1314,7 @@ mod test {
         let dt = rinex.dominant_sample_rate().unwrap();
         let total_epochs = rinex.epoch().count();
 
-        for (order, max_error) in vec![(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
+        for (order, max_error) in [(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
             let tmin = first_epoch + (order / 2) * dt;
             let tmax = last_epoch - (order / 2) * dt;
             println!("running Interp({}) testbench..", order);

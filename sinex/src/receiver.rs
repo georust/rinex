@@ -66,7 +66,7 @@ mod tests {
         let rcvr = Receiver::from_str(
             "MAO0      G @MP0      2015:276:00000 2015:276:86399 JAVAD TRE-G3TH DELTA 3.6.4",
         );
-        assert_eq!(rcvr.is_ok(), true);
+        assert!(rcvr.is_ok());
         let rcvr = rcvr.unwrap();
         assert_eq!(rcvr.station, "MAO0");
         assert_eq!(rcvr.group, "@MP0");

@@ -87,7 +87,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn from_str() {
-        for desc in vec!["hatch", "hatch:C1C", "hatch:c1c,c2p"] {
+        for desc in ["hatch", "hatch:C1C", "hatch:c1c,c2p"] {
             let filter = SmoothingFilter::from_str(desc);
             assert!(
                 filter.is_ok(),
@@ -95,7 +95,7 @@ mod test {
                 desc
             );
         }
-        for desc in vec![
+        for desc in [
             "mov:10 min",
             "mov:1 hour",
             "mov:10 min:clk",

@@ -261,7 +261,7 @@ mod test {
     #[test]
     fn epoch_parse_nav_v2() {
         let e = parse_utc("20 12 31 23 45  0.0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2020);
@@ -279,7 +279,7 @@ mod test {
         );
 
         let e = parse_utc("21  1  1 16 15  0.0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2021);
@@ -299,7 +299,7 @@ mod test {
     #[test]
     fn epoch_parse_nav_v2_nanos() {
         let e = parse_utc("20 12 31 23 45  0.1");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 0);
@@ -312,7 +312,7 @@ mod test {
     #[test]
     fn epoch_parse_nav_v3() {
         let e = parse_utc("2021 01 01 00 00 00 ");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2021);
@@ -329,7 +329,7 @@ mod test {
         );
 
         let e = parse_utc("2021 01 01 09 45 00 ");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2021);
@@ -345,7 +345,7 @@ mod test {
         );
 
         let e = parse_utc("2020 06 25 00 00 00");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2020);
@@ -361,7 +361,7 @@ mod test {
         );
 
         let e = parse_utc("2020 06 25 09 49 04");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2020);
@@ -379,7 +379,7 @@ mod test {
     #[test]
     fn epoch_parse_obs_v2() {
         let e = parse_utc(" 21 12 21  0  0  0.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2021);
@@ -397,7 +397,7 @@ mod test {
         );
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2021);
@@ -414,38 +414,38 @@ mod test {
         );
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  1");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::PowerFailure);
         //assert_eq!(format!("{:o}", e), "21 12 21  0  0 30.0000000  1");
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  2");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::AntennaBeingMoved);
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  3");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::NewSiteOccupation);
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  4");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::HeaderInformationFollows);
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  5");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::ExternalEvent);
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  6");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::CycleSlip);
 
         let e = parse_utc(" 21  1  1  0  0  0.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2021);
@@ -459,7 +459,7 @@ mod test {
         //assert_eq!(format!("{:o}", e), "21  1  1  0  0  0.0000000  0");
 
         let e = parse_utc(" 21  1  1  0  7 30.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2021);
@@ -475,7 +475,7 @@ mod test {
     #[test]
     fn epoch_parse_obs_v3() {
         let e = parse_utc(" 2022 01 09 00 00  0.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2022);
@@ -489,7 +489,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 01 09 00 00  0.0000000  0");
 
         let e = parse_utc(" 2022 01 09 00 13 30.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2022);
@@ -503,7 +503,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 01 09 00 13 30.0000000  0");
 
         let e = parse_utc(" 2022 03 04 00 52 30.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2022);
@@ -517,7 +517,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 03 04 00 52 30.0000000  0");
 
         let e = parse_utc(" 2022 03 04 00 02 30.0000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, flag) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2022);
@@ -533,7 +533,7 @@ mod test {
     #[test]
     fn epoch_parse_obs_v2_nanos() {
         let e = parse_utc(" 21  1  1  0  7 39.1234567  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 39);
@@ -542,7 +542,7 @@ mod test {
     #[test]
     fn epoch_parse_obs_v3_nanos() {
         let e = parse_utc("2022 01 09 00 00  0.1000000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 0);
@@ -550,7 +550,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 01 09 00 00  0.1000000  0");
 
         let e = parse_utc(" 2022 01 09 00 00  0.1234000  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 0);
@@ -558,7 +558,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 01 09 00 00  0.1234000  0");
 
         let e = parse_utc(" 2022 01 09 00 00  8.7654321  0");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 8);
@@ -568,7 +568,7 @@ mod test {
     #[test]
     fn epoch_parse_meteo_v2() {
         let e = parse_utc(" 22  1  4  0  0  0  ");
-        assert_eq!(e.is_ok(), true);
+        assert!(e.is_ok());
         let (e, _) = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2022);

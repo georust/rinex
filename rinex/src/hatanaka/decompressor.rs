@@ -258,8 +258,7 @@ impl Decompressor {
                 //}
                 result // feed content as is
                     .push_str(line);
-                result // \n dropped by .lines()
-                    .push_str("\n");
+                result.push('\n');
                 continue; // move to next line
             }
 
@@ -269,8 +268,7 @@ impl Decompressor {
             if line.starts_with("> ") && !self.first_epoch {
                 result // feed content as is
                     .push_str(line);
-                result // \n dropped by .lines()
-                    .push_str("\n");
+                result.push('\n');
                 continue; // move to next line
             }
 
@@ -368,8 +366,7 @@ impl Decompressor {
                     /*
                      * identify satellite we're dealing with
                      */
-                    if let Some(sv) = self.current_satellite(crx_major, &crx_constell, self.sv_ptr)
-                    {
+                    if let Some(sv) = self.current_satellite(crx_major, crx_constell, self.sv_ptr) {
                         //println!("SV: {:?}", sv); //DEBUG
                         self.sv_ptr += 1; // increment for next time
                                           // vehicles are always described in a single line
@@ -415,7 +412,7 @@ impl Decompressor {
                                 if let Some(pos) = line.find(' ') {
                                     let content = &line[..pos];
                                     //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], content); //DEBUG
-                                    if content.len() == 0 {
+                                    if content.is_empty() {
                                         /*
                                          * missing observation
                                          */
@@ -490,7 +487,7 @@ impl Decompressor {
                           /*
                            * Flags field
                            */
-                        if line.len() > 0 {
+                        if !line.is_empty() {
                             // can parse at least 1 flag
                             self.parse_flags(&sv, line);
                         }
@@ -530,7 +527,7 @@ impl Decompressor {
                                 // old RINEX
                                 if (index + 1).rem_euclid(5) == 0 {
                                     // maximal nb of OBS per line
-                                    result.push_str("\n")
+                                    result.push('\n')
                                 }
                             }
                         }

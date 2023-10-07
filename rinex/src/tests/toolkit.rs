@@ -65,7 +65,7 @@ pub fn random_name(size: usize) -> String {
  */
 pub fn build_observables(observable_csv: &str) -> Vec<Observable> {
     observable_csv
-        .split(",")
+        .split(',')
         .map(|c| {
             let c = c.trim();
             if let Ok(observ) = Observable::from_str(c) {
@@ -87,7 +87,7 @@ use std::str::FromStr;
  */
 pub fn build_gnss_csv(gnss_csv: &str) -> Vec<Constellation> {
     gnss_csv
-        .split(",")
+        .split(',')
         .map(|c| Constellation::from_str(c.trim()).unwrap())
         .collect::<Vec<Constellation>>()
         .into_iter()
@@ -103,14 +103,14 @@ pub fn test_gnss_csv(dut: &Rinex, gnss_csv: &str) {
     let dut_gnss: Vec<Constellation> = dut.constellation().collect();
     for g in &gnss {
         assert!(
-            dut_gnss.contains(&g),
+            dut_gnss.contains(g),
             "dut does not contain constellation \"{}\"",
             g
         );
     }
     for g in &dut_gnss {
         assert!(
-            gnss.contains(&g),
+            gnss.contains(g),
             "dut should not contain constellation \"{:X}\"",
             g
         );
@@ -122,7 +122,7 @@ pub fn test_gnss_csv(dut: &Rinex, gnss_csv: &str) {
  */
 pub fn test_sv_csv(dut: &Rinex, sv_csv: &str) {
     let sv: Vec<Sv> = sv_csv
-        .split(",")
+        .split(',')
         .map(|c| Sv::from_str(c.trim()).unwrap())
         .collect::<Vec<Sv>>()
         .into_iter()
@@ -131,14 +131,10 @@ pub fn test_sv_csv(dut: &Rinex, sv_csv: &str) {
 
     let dut_sv: Vec<Sv> = dut.sv().collect();
     for v in &sv {
-        assert!(
-            dut_sv.contains(&v),
-            "dut does not contain vehicle \"{}\"",
-            v
-        );
+        assert!(dut_sv.contains(v), "dut does not contain vehicle \"{}\"", v);
     }
     for v in &sv {
-        assert!(sv.contains(&v), "dut should not contain vehicle \"{}\"", v);
+        assert!(sv.contains(v), "dut should not contain vehicle \"{}\"", v);
     }
 }
 
@@ -147,9 +143,9 @@ pub fn test_sv_csv(dut: &Rinex, sv_csv: &str) {
  */
 pub fn test_time_frame(dut: &Rinex, tf: TestTimeFrame) {
     let mut dut_epochs = dut.epoch();
-    let epochs: Vec<Epoch> = Vec::new();
+    let _epochs: Vec<Epoch> = Vec::new();
     if let Some(mut serie) = tf.evenly_spaced() {
-        while let Some(e) = serie.next() {
+        for e in serie {
             assert_eq!(
                 Some(e),
                 dut_epochs.next(),
@@ -157,18 +153,18 @@ pub fn test_time_frame(dut: &Rinex, tf: TestTimeFrame) {
                 e
             );
         }
-        while let Some(e) = dut_epochs.next() {
+        for e in dut_epochs.by_ref() {
             panic!("dut should not contain epoch {}", e);
         }
     } else if let Some(serie) = tf.erratic() {
         for e in serie {
             assert!(
-                dut_epochs.find(|epoch| e == *epoch).is_some(),
+                dut_epochs.any(|epoch| e == epoch),
                 "dut does not contain epoch {}",
                 e
             );
         }
-        while let Some(e) = dut_epochs.next() {
+        for e in dut_epochs {
             panic!("dut should not contain epoch {}", e);
         }
     }
@@ -190,7 +186,7 @@ pub fn test_observables_csv(dut: &Rinex, observables_csv: &str) {
     }
     for o in &dut_observ {
         assert!(
-            dut_observ.contains(&o),
+            dut_observ.contains(o),
             "dut should not contain observable {}",
             o
         );
@@ -317,7 +313,7 @@ fn observation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon
 /*
  * CLOCK Rinex thorough comparison
  */
-fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
+fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f64) {
     let rec_dut = dut
         .record
         .as_clock()
@@ -346,7 +342,7 @@ fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64
 /*
  * Navigation RINEX thorough comparison
  */
-fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
+fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f64) {
     let rec_dut = dut.record.as_nav().expect("failed to unwrap rinex record");
     let rec_model = model
         .record
@@ -376,7 +372,6 @@ fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon:
                     //    "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
                     //    filename, e_model, code_model, observation_model, observation_dut
                     //);
-                } else {
                 }
             }
         } else {
@@ -409,7 +404,7 @@ fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon:
 /*
  * Meteo RINEX thorough comparison
  */
-fn meteo_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
+fn meteo_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f64) {
     let rec_dut = dut
         .record
         .as_meteo()
@@ -467,13 +462,13 @@ fn meteo_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64)
  */
 pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
     if dut.is_observation_rinex() {
-        observation_against_model(&dut, &model, filename, epsilon);
+        observation_against_model(dut, model, filename, epsilon);
     } else if dut.is_meteo_rinex() {
-        meteo_against_model(&dut, &model, filename, epsilon);
+        meteo_against_model(dut, model, filename, epsilon);
     } else if dut.is_clocks_rinex() {
-        clocks_against_model(&dut, &model, filename, epsilon);
+        clocks_against_model(dut, model, filename, epsilon);
     } else if dut.is_navigation_rinex() {
-        navigation_against_model(&dut, &model, filename, epsilon);
+        navigation_against_model(dut, model, filename, epsilon);
     }
 }
 
@@ -489,10 +484,7 @@ pub fn test_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
         version
     );
 
-    let constellation = match constellation {
-        Some(s) => Some(Constellation::from_str(s.trim()).unwrap()),
-        _ => None,
-    };
+    let constellation = constellation.map(|s| Constellation::from_str(s.trim()).unwrap());
     assert!(
         dut.header.constellation == constellation,
         "bad gnss description: {:?}, expecting {:?}",
@@ -534,7 +526,7 @@ pub fn test_meteo_rinex(
         "should not contain specific CLOCK fields"
     );
 
-    let header = dut.header.meteo.as_ref().unwrap();
+    let _header = dut.header.meteo.as_ref().unwrap();
 }
 
 /*

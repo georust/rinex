@@ -452,7 +452,7 @@ mod test {
         assert_eq!(target, TargetItem::DurationItem(dt));
 
         // test Matching NAV orbits
-        for descriptor in vec![
+        for descriptor in [
             "iode",
             "crc",
             "crs",
@@ -469,7 +469,7 @@ mod test {
         }
 
         // test non matching NAV orbits
-        for descriptor in vec!["oide", "ble", "blah, oide"] {
+        for descriptor in ["oide", "ble", "blah, oide"] {
             let target = TargetItem::from_str(descriptor);
             assert!(
                 target.is_err(),

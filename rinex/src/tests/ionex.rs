@@ -13,12 +13,8 @@ mod test {
             .join("CKMG0090.21I.gz");
         let fullpath = path.to_string_lossy();
 
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(
-            rinex.is_ok(),
-            true,
-            "failed to parse IONEX/V1CKMG0090.21I.gz"
-        );
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok(), "failed to parse IONEX/V1CKMG0090.21I.gz");
 
         let rinex = rinex.unwrap();
         assert_eq!(
@@ -61,8 +57,8 @@ mod test {
             .join("jplg0010.17i.gz");
         let fullpath = path.to_string_lossy();
 
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(rinex.is_ok(), true, "failed to parse IONEX/jplg0010.17i.gz");
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok(), "failed to parse IONEX/jplg0010.17i.gz");
 
         let rinex = rinex.unwrap();
         assert_eq!(
@@ -98,25 +94,21 @@ mod test {
             .join("CKMG0020.22I.gz");
         let fullpath = path.to_string_lossy();
 
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(
-            rinex.is_ok(),
-            true,
-            "failed to parse IONEX/V1/CKMG0020.22I.gz"
-        );
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok(), "failed to parse IONEX/V1/CKMG0020.22I.gz");
 
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_ionex(), true);
+        assert!(rinex.is_ionex());
         let header = rinex.header.clone();
         assert_eq!(header.version.major, 1);
         assert_eq!(header.version.minor, 0);
-        assert_eq!(header.ionex.is_some(), true);
+        assert!(header.ionex.is_some());
         let header = header.ionex.as_ref().unwrap();
 
         let grid = header.grid.clone();
         assert_eq!(grid.height.start, 350.0);
         assert_eq!(grid.height.end, 350.0);
-        assert_eq!(rinex.is_ionex_2d(), true);
+        assert!(rinex.is_ionex_2d());
         assert_eq!(grid.latitude.start, 87.5);
         assert_eq!(grid.latitude.end, -87.5);
         assert_eq!(grid.latitude.spacing, -2.5);

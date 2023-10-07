@@ -116,7 +116,7 @@ impl QcContext {
     /// Returns reference to SP3 data specifically
     pub fn sp3_data(&self) -> Option<&SP3> {
         if let Some(ref sp3) = self.sp3 {
-            Some(&sp3.data())
+            Some(sp3.data())
         } else {
             None
         }
@@ -204,7 +204,7 @@ impl QcContext {
         /* NB: interpolate Complete Epochs only */
         let complete_epoch: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
         for (e, sv_signals) in complete_epoch {
-            for (sv, carrier) in sv_signals {
+            for (sv, _carrier) in sv_signals {
                 // if orbit already exists: do not interpolate
                 // this will make things much quicker for high quality data products
                 let found = self
@@ -214,17 +214,14 @@ impl QcContext {
                 if let Some((_, _, (x, y, z))) = found {
                     // store as is
                     self.orbits.insert((e, sv), (x, y, z));
-                } else {
-                    if let Some(sp3) = self.sp3_data() {
-                        if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(sv, e, order)
-                        {
-                            self.orbits.insert((e, sv), (x_km, y_km, z_km));
-                        }
-                    } else if let Some(nav) = self.navigation_data() {
-                        if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
-                            self.orbits
-                                .insert((e, sv), (x_m * 1.0E-3, y_m * 1.0E-3, z_m * 1.0E-3));
-                        }
+                } else if let Some(sp3) = self.sp3_data() {
+                    if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(sv, e, order) {
+                        self.orbits.insert((e, sv), (x_km, y_km, z_km));
+                    }
+                } else if let Some(nav) = self.navigation_data() {
+                    if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
+                        self.orbits
+                            .insert((e, sv), (x_m * 1.0E-3, y_m * 1.0E-3, z_m * 1.0E-3));
                     }
                 }
             }

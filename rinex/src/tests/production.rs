@@ -7,9 +7,9 @@ mod test {
         // parse this file
         let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere
         let tmp_path = format!("test-{}.rnx", random_name(5));
-        assert_eq!(rnx.to_file(&tmp_path).is_ok(), true); // test writer
+        assert!(rnx.to_file(&tmp_path).is_ok()); // test writer
         let copy = Rinex::from_file(&tmp_path);
-        assert_eq!(copy.is_ok(), true); // content should be valid
+        assert!(copy.is_ok()); // content should be valid
         let copy = copy.unwrap();
         // run comparison
         if copy != rnx {
@@ -29,7 +29,7 @@ mod test {
             .join("OBS")
             .join("V2");
         // does not work well on very old rinex like V2/KOSG..
-        for file in vec![
+        for file in [
             "AJAC3550.21O",
             "aopr0010.17o",
             "barq071q.19o",
@@ -42,7 +42,7 @@ mod test {
             let path = prefix.to_path_buf().join(file);
 
             let fullpath = path.to_string_lossy();
-            testbench(&fullpath.to_string());
+            testbench(fullpath.as_ref());
         }
     }
     #[test]

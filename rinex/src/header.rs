@@ -848,7 +848,7 @@ impl Header {
                                     ];
                                 }
                                 for c in KNOWN_CONSTELLS.iter() {
-                                    if let Some(codes) = observation.codes.get_mut(&c) {
+                                    if let Some(codes) = observation.codes.get_mut(c) {
                                         codes.push(observable.clone());
                                     } else {
                                         observation.codes.insert(*c, vec![observable.clone()]);
@@ -2030,7 +2030,7 @@ mod test {
     use super::parse_formatted_month;
     #[test]
     fn formatted_month_parser() {
-        for (desc, expected) in vec![("Jan", 1), ("Feb", 2), ("Mar", 3), ("Nov", 11), ("Dec", 12)] {
+        for (desc, expected) in [("Jan", 1), ("Feb", 2), ("Mar", 3), ("Nov", 11), ("Dec", 12)] {
             let month = parse_formatted_month(desc);
             assert!(month.is_ok(), "failed to parse month from \"{}\"", desc);
             let month = month.unwrap();

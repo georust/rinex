@@ -275,7 +275,7 @@ fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingErr
     let ss = u32::from_str(content[16..19].trim())
         .or(Err(ParsingError::EpochSeconds(content[16..19].to_string())))?;
 
-    let ss_fract = f64::from_str(content[20..27].trim()).or(Err(
+    let _ss_fract = f64::from_str(content[20..27].trim()).or(Err(
         ParsingError::EpochMilliSeconds(content[20..27].to_string()),
     ))?;
 

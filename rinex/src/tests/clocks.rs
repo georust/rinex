@@ -1,17 +1,17 @@
 #[cfg(test)]
 mod test {
     use crate::clocks;
-    use crate::clocks::{ClockAnalysisAgency, ClockData, ClockDataType, System};
+    use crate::clocks::{ClockAnalysisAgency, ClockDataType, System};
     use crate::prelude::*;
     #[test]
     fn v3_usno_example() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/USNO1.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_clocks_rinex(), true);
-        assert_eq!(rinex.header.clocks.is_some(), true);
+        assert!(rinex.is_clocks_rinex());
+        assert!(rinex.header.clocks.is_some());
         let clocks = rinex.header.clocks.as_ref().unwrap();
         assert_eq!(
             clocks.codes,
@@ -38,7 +38,7 @@ mod test {
         );
         assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         for (e, data_types) in record.iter() {
             assert_eq!(*e, Epoch::from_gregorian_utc(1994, 07, 14, 20, 59, 00, 00));
@@ -81,10 +81,10 @@ mod test {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/example1.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_clocks_rinex(), true);
-        assert_eq!(rinex.header.clocks.is_some(), true);
+        assert!(rinex.is_clocks_rinex());
+        assert!(rinex.header.clocks.is_some());
         let clocks = rinex.header.clocks.as_ref().unwrap();
         assert_eq!(clocks.codes, vec![ClockDataType::AS, ClockDataType::AR]);
         assert_eq!(
@@ -96,7 +96,7 @@ mod test {
         );
         assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         for (e, data_types) in record.iter() {
             assert_eq!(*e, Epoch::from_gregorian_utc(1994, 07, 14, 20, 59, 00, 00));
@@ -152,10 +152,10 @@ mod test {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/example2.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_clocks_rinex(), true);
-        assert_eq!(rinex.header.clocks.is_some(), true);
+        assert!(rinex.is_clocks_rinex());
+        assert!(rinex.header.clocks.is_some());
         let clocks = rinex.header.clocks.as_ref().unwrap();
         assert_eq!(clocks.codes, vec![ClockDataType::AR, ClockDataType::AS]);
         assert_eq!(
@@ -167,7 +167,7 @@ mod test {
         );
         assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         //let record = record.unwrap();
         /*for (e, data_types) in record.iter() {
             assert_eq!(*e, Epoch::from_gregorian_utc(2017, 03, 11, 00, 00, 00, 00));

@@ -30,12 +30,10 @@ impl std::str::FromStr for TimeSystem {
             Ok(Self::UTC)
         } else if content.eq("TAI") {
             Ok(Self::TAI)
+        } else if let Ok(c) = Constellation::from_str(content) {
+            Ok(Self::GNSS(c))
         } else {
-            if let Ok(c) = Constellation::from_str(content) {
-                Ok(Self::GNSS(c))
-            } else {
-                Err(TimeSystemError::UnknownSystem(content.to_string()))
-            }
+            Err(TimeSystemError::UnknownSystem(content.to_string()))
         }
     }
 }
@@ -160,7 +158,7 @@ impl std::str::FromStr for Solution {
             svn: svn.trim().to_string(),
             prn: prn.trim().to_string(),
             station: {
-                if station.trim().len() > 0 {
+                if !station.trim().is_empty() {
                     Some(station.trim().to_string())
                 } else {
                     None
@@ -170,7 +168,7 @@ impl std::str::FromStr for Solution {
             start_time: parse_datetime(start_time.trim())?,
             end_time: parse_datetime(end_time.trim())?,
             obs: {
-                if obs2.trim().len() > 0 {
+                if !obs2.trim().is_empty() {
                     (obs1.trim().to_string(), Some(obs2.trim().to_string()))
                 } else {
                     (obs1.trim().to_string(), None)
@@ -200,14 +198,14 @@ mod tests {
     #[test]
     fn test_determination_methods() {
         let method = DeterminationMethod::from_str("COMBINED_ANALYSIS");
-        assert_eq!(method.is_ok(), true);
+        assert!(method.is_ok());
         assert_eq!(method.unwrap(), DeterminationMethod::CombinedAnalysis);
     }
     #[test]
     fn test_solution_parser() {
         let solution = Solution::from_str(
             "ISB   G    G   GIEN      C1W  C2W  2011:113:86385 2011:115:00285 ns   0.000000000000000E+00 .000000E+00");
-        assert_eq!(solution.is_ok(), true);
+        assert!(solution.is_ok());
         let solution = solution.unwrap();
         assert_eq!(solution.btype, BiasType::ISB);
         assert_eq!(solution.svn, "G");
@@ -221,7 +219,7 @@ mod tests {
         assert_eq!(solution.stddev, 0.0);
         let solution = Solution::from_str(
             "ISB   E    E   GOUS      C1C  C7Q  2011:113:86385 2011:115:00285 ns   -.101593337222667E+03 .259439E+02");
-        assert_eq!(solution.is_ok(), true);
+        assert!(solution.is_ok());
         let solution = solution.unwrap();
         assert_eq!(solution.btype, BiasType::ISB);
         assert_eq!(solution.svn, "E");
@@ -235,7 +233,7 @@ mod tests {
         assert!((solution.stddev - 0.259439E+02) < 1E-6);
         let solution = Solution::from_str(
             "OSB   G063 G01           C1C       2016:296:00000 2016:333:00000 ns                 10.2472      0.0062");
-        assert_eq!(solution.is_ok(), true);
+        assert!(solution.is_ok());
         let solution = solution.unwrap();
         assert_eq!(solution.btype, BiasType::OSB);
         assert_eq!(solution.svn, "G063");
@@ -249,7 +247,7 @@ mod tests {
     fn test_bia_v1_example1() {
         let file = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/BIA/V1/example-1a.bia";
         let sinex = Sinex::from_file(&file);
-        assert_eq!(sinex.is_ok(), true);
+        assert!(sinex.is_ok());
         let sinex = sinex.unwrap();
         let reference = &sinex.reference;
         assert_eq!(
@@ -287,7 +285,7 @@ mod tests {
 
         let description = &sinex.description;
         let description = description.bias_description();
-        assert_eq!(description.is_some(), true);
+        assert!(description.is_some());
         let description = description.unwrap();
         assert_eq!(description.sampling, Some(300));
         assert_eq!(description.spacing, Some(86400));
@@ -301,7 +299,7 @@ mod tests {
         assert_eq!(description.sat_clock_ref.len(), 2);
 
         let solutions = sinex.record.bias_solutions();
-        assert_eq!(solutions.is_some(), true);
+        assert!(solutions.is_some());
         let solutions = solutions.unwrap();
         assert_eq!(solutions.len(), 50);
     }
@@ -309,7 +307,7 @@ mod tests {
     fn test_bia_v1_example1b() {
         let file = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/BIA/V1/example-1b.bia";
         let sinex = Sinex::from_file(&file);
-        assert_eq!(sinex.is_ok(), true);
+        assert!(sinex.is_ok());
         let sinex = sinex.unwrap();
         assert_eq!(sinex.acknowledgments.len(), 2);
         assert_eq!(
@@ -322,7 +320,7 @@ mod tests {
 
         let description = &sinex.description;
         let description = description.bias_description();
-        assert_eq!(description.is_some(), true);
+        assert!(description.is_some());
         let description = description.unwrap();
         assert_eq!(description.sampling, Some(300));
         assert_eq!(description.spacing, Some(86400));
@@ -336,12 +334,12 @@ mod tests {
         assert_eq!(description.sat_clock_ref.len(), 2);
 
         let solutions = sinex.record.bias_solutions();
-        assert_eq!(solutions.is_some(), true);
+        assert!(solutions.is_some());
         let solutions = solutions.unwrap();
         assert_eq!(solutions.len(), 50);
         for sol in solutions.iter() {
             let obs = &sol.obs;
-            assert_eq!(obs.1.is_some(), true); // all came with OBS1+OBS2
+            assert!(obs.1.is_some()); // all came with OBS1+OBS2
         }
     }
 }

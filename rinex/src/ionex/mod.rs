@@ -116,7 +116,7 @@ impl HeaderFields {
     pub fn with_description(&self, desc: &str) -> Self {
         let mut s = self.clone();
         if let Some(ref mut d) = s.description {
-            d.push_str(" ");
+            d.push(' ');
             d.push_str(desc)
         } else {
             s.description = Some(desc.to_string())
@@ -136,7 +136,7 @@ impl HeaderFields {
     }
     pub fn with_observables(&self, o: &str) -> Self {
         let mut s = self.clone();
-        if o.len() > 0 {
+        if !o.is_empty() {
             s.observables = Some(o.to_string())
         }
         s
@@ -204,14 +204,14 @@ mod test {
     fn test_mapping_func() {
         let content = "COSZ";
         let func = MappingFunction::from_str(content);
-        assert_eq!(func.is_ok(), true);
+        assert!(func.is_ok());
         assert_eq!(func.unwrap(), MappingFunction::CosZ);
         let content = "QFAC";
         let func = MappingFunction::from_str(content);
-        assert_eq!(func.is_ok(), true);
+        assert!(func.is_ok());
         assert_eq!(func.unwrap(), MappingFunction::QFac);
         let content = "DONT";
         let func = MappingFunction::from_str(content);
-        assert_eq!(func.is_err(), true);
+        assert!(func.is_err());
     }
 }

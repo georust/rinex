@@ -98,47 +98,47 @@ mod test {
     fn sbas_helper() {
         // PARIS --> EGNOS
         let sbas = sbas_selection_helper(48.808378, 2.382682);
-        assert_eq!(sbas.is_some(), true);
+        assert!(sbas.is_some());
         assert_eq!(sbas.unwrap(), Constellation::EGNOS);
 
         // ANTARICA --> NONE
         let sbas = sbas_selection_helper(-77.490631, 91.435181);
-        assert_eq!(sbas.is_none(), true);
+        assert!(sbas.is_none());
 
         // LOS ANGELES --> WAAS
         let sbas = sbas_selection_helper(33.981431, -118.193601);
-        assert_eq!(sbas.is_some(), true);
+        assert!(sbas.is_some());
         assert_eq!(sbas.unwrap(), Constellation::WAAS);
 
         // ARGENTINA --> NONE
         let sbas = sbas_selection_helper(-23.216639, -63.170983);
-        assert_eq!(sbas.is_none(), true);
+        assert!(sbas.is_none());
 
         // NIGER --> ASBAS
         let sbas = sbas_selection_helper(10.714217, 17.087263);
-        assert_eq!(sbas.is_some(), true);
+        assert!(sbas.is_some());
         assert_eq!(sbas.unwrap(), Constellation::ASBAS);
 
         // South AFRICA --> None
         let sbas = sbas_selection_helper(-32.473320, 21.112770);
-        assert_eq!(sbas.is_none(), true);
+        assert!(sbas.is_none());
 
         // India --> GAGAN
         let sbas = sbas_selection_helper(19.314290, 76.798953);
-        assert_eq!(sbas.is_some(), true);
+        assert!(sbas.is_some());
         assert_eq!(sbas.unwrap(), Constellation::GAGAN);
 
         // South Indian Ocean --> None
         let sbas = sbas_selection_helper(-29.349172, 72.773447);
-        assert_eq!(sbas.is_none(), true);
+        assert!(sbas.is_none());
 
         // Australia --> SPAN
         let sbas = sbas_selection_helper(-27.579847, 131.334992);
-        assert_eq!(sbas.is_some(), true);
+        assert!(sbas.is_some());
         assert_eq!(sbas.unwrap(), Constellation::SPAN);
         // NZ --> SPAN
         let sbas = sbas_selection_helper(-45.113525, 169.864842);
-        assert_eq!(sbas.is_some(), true);
+        assert!(sbas.is_some());
         assert_eq!(sbas.unwrap(), Constellation::SPAN);
 
         // Central China: BDSBAS

@@ -37,7 +37,7 @@ pub(crate) fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
  */
 pub(crate) fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
-        if !lhs.contains(&item) {
+        if !lhs.contains(item) {
             lhs.push(item.clone());
         }
     }
@@ -51,9 +51,9 @@ pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone 
     rhs: &HashMap<K, Vec<V>>,
 ) {
     for (k, values) in rhs.iter() {
-        if let Some(vvalues) = lhs.get_mut(&k) {
+        if let Some(vvalues) = lhs.get_mut(k) {
             for value in values {
-                if !vvalues.contains(&value) {
+                if !vvalues.contains(value) {
                     vvalues.push(value.clone());
                 }
             }

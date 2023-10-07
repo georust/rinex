@@ -11,7 +11,7 @@ mod test {
             .join("test_resources")
             .join("SP3");
 
-        for file in vec![
+        for file in [
             "EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz",
             "ESA0OPSULT_20232320600_02D_15M_ORB.SP3.gz",
             "COD0MGXFIN_20230500000_01D_05M_ORB.SP3.gz",
@@ -36,7 +36,7 @@ mod test {
             .join("test_resources")
             .join("SP3");
 
-        for file in vec![
+        for file in [
             "co108870.sp3",
             "em108871.sp3",
             //"emr08874.sp3",

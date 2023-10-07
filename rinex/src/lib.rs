@@ -3258,7 +3258,7 @@ mod test {
     use crate::{fmt_comment, is_rinex_comment};
     #[test]
     fn fmt_comments_singleline() {
-        for desc in vec![
+        for desc in [
             "test",
             "just a basic comment",
             "just another lengthy comment blahblabblah",
@@ -3278,10 +3278,8 @@ mod test {
     }
     #[test]
     fn fmt_wrapped_comments() {
-        for desc in vec![
-            "just trying to form a very lengthy comment that will overflow since it does not fit in a single line",
-            "just trying to form a very very lengthy comment that will overflow since it does fit on three very meaningful lines. Imazdmazdpoakzdpoakzpdokpokddddddddddddddddddaaaaaaaaaaaaaaaaaaaaaaa",
-        ] {
+        for desc in ["just trying to form a very lengthy comment that will overflow since it does not fit in a single line",
+            "just trying to form a very very lengthy comment that will overflow since it does fit on three very meaningful lines. Imazdmazdpoakzdpoakzpdokpokddddddddddddddddddaaaaaaaaaaaaaaaaaaaaaaa"] {
             let nb_lines = num_integer::div_ceil(desc.len(), 60);
             let comments = fmt_comment(desc);
             assert_eq!(comments.lines().count(), nb_lines);

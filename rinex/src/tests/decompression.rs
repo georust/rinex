@@ -25,12 +25,12 @@ mod test {
             let path = format!("../test_resources/CRNX/V1/{}", crnx_name);
             let crnx = Rinex::from_file(&path);
 
-            assert_eq!(crnx.is_ok(), true);
+            assert!(crnx.is_ok());
             let mut rnx = crnx.unwrap();
 
             let header = rnx.header.obs.as_ref().unwrap();
 
-            assert_eq!(header.crinex.is_some(), true);
+            assert!(header.crinex.is_some());
             let infos = header.crinex.as_ref().unwrap();
 
             if crnx_name.eq("zegv0010.21d") {
@@ -157,7 +157,7 @@ mod test {
 
             // then run comparison with model
             let obs = rnx.header.obs.as_ref().unwrap();
-            assert_eq!(obs.crinex.is_some(), false);
+            assert!(!obs.crinex.is_some());
 
             // parse plain RINEX and run reciprocity
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
@@ -194,11 +194,11 @@ mod test {
             let path = format!("../test_resources/CRNX/V3/{}", crnx_name);
             let crnx = Rinex::from_file(&path);
 
-            assert_eq!(crnx.is_ok(), true);
+            assert!(crnx.is_ok());
             let mut rnx = crnx.unwrap();
-            assert_eq!(rnx.header.obs.is_some(), true);
+            assert!(rnx.header.obs.is_some());
             let obs = rnx.header.obs.as_ref().unwrap();
-            assert_eq!(obs.crinex.is_some(), true);
+            assert!(obs.crinex.is_some());
             let infos = obs.crinex.as_ref().unwrap();
 
             if crnx_name.eq("ACOR00ESP_R_20213550000_01D_30S_MO.crx") {
@@ -215,7 +215,7 @@ mod test {
             rnx.crnx2rnx_mut();
 
             let obs = rnx.header.obs.as_ref().unwrap();
-            assert_eq!(obs.crinex.is_some(), false);
+            assert!(!obs.crinex.is_some());
 
             // parse Model for testbench
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);
@@ -271,7 +271,7 @@ mod test {
             .join("V1")
             .join("zegv0010.21d");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(&fullpath.to_string());
+        let rnx = Rinex::from_file(fullpath.as_ref());
 
         assert!(rnx.is_ok(), "failed to parse CRNX/V1/zegv0010.21d");
         let rnx = rnx.unwrap();
@@ -301,7 +301,7 @@ mod test {
                 assert_eq!(vehicles.len(), 24);
                 for (sv, observations) in vehicles {
                     if *sv == Sv::new(Constellation::GPS, 07) {
-                        let mut keys: Vec<_> = observations.keys().map(|k| k.clone()).collect();
+                        let mut keys: Vec<_> = observations.keys().cloned().collect();
                         keys.sort();
                         let mut expected: Vec<Observable> = "C1 C2 L1 L2 P1 P2 S1 S2"
                             .split_ascii_whitespace()
@@ -341,8 +341,7 @@ mod test {
                             .unwrap();
                         assert_eq!(s2.obs, 22.286);
                     } else if *sv == Sv::new(Constellation::GPS, 08) {
-                        let mut keys: Vec<Observable> =
-                            observations.keys().map(|k| k.clone()).collect();
+                        let mut keys: Vec<Observable> = observations.keys().cloned().collect();
                         keys.sort();
                         let mut expected: Vec<Observable> = "C1 C2 C5 L1 L2 L5 P1 P2 S1 S2 S5"
                             .split_ascii_whitespace()
@@ -394,8 +393,7 @@ mod test {
                             .unwrap();
                         assert_eq!(s5.obs, 52.161);
                     } else if *sv == Sv::new(Constellation::GPS, 13) {
-                        let mut keys: Vec<Observable> =
-                            observations.keys().map(|k| k.clone()).collect();
+                        let mut keys: Vec<Observable> = observations.keys().cloned().collect();
                         keys.sort();
                         let mut expected: Vec<Observable> = "C1 L1 L2 P1 P2 S1 S2"
                             .split_ascii_whitespace()
@@ -450,13 +448,13 @@ mod test {
             .join("V3")
             .join("ACOR00ESP_R_20213550000_01D_30S_MO.crx");
         let fullpath = path.to_string_lossy();
-        let crnx = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(crnx.is_ok(), true);
+        let crnx = Rinex::from_file(fullpath.as_ref());
+        assert!(crnx.is_ok());
         let rnx = crnx.unwrap();
 
-        assert_eq!(rnx.header.obs.is_some(), true);
+        assert!(rnx.header.obs.is_some());
         let obs = rnx.header.obs.as_ref().unwrap();
-        assert_eq!(obs.crinex.is_some(), true);
+        assert!(obs.crinex.is_some());
         let infos = obs.crinex.as_ref().unwrap();
 
         assert_eq!(infos.version.major, 3);
@@ -499,7 +497,7 @@ mod test {
                  * 1st epoch
                  */
                 assert_eq!(vehicles.len(), 38);
-                let keys: Vec<_> = vehicles.keys().map(|sv| *sv).collect();
+                let keys: Vec<_> = vehicles.keys().copied().collect();
                 let mut expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 07),
@@ -547,7 +545,7 @@ mod test {
                  * last epoch
                  */
                 assert_eq!(vehicles.len(), 38);
-                let keys: Vec<_> = vehicles.keys().map(|sv| *sv).collect();
+                let keys: Vec<_> = vehicles.keys().copied().collect();
                 let mut expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 07),
@@ -592,7 +590,7 @@ mod test {
                 assert_eq!(keys, expected);
                 let c58 = vehicles.get(&Sv::new(Constellation::BeiDou, 58)).unwrap();
 
-                let mut keys: Vec<Observable> = c58.keys().map(|k| k.clone()).collect();
+                let mut keys: Vec<Observable> = c58.keys().cloned().collect();
                 keys.sort();
 
                 let mut expected: Vec<Observable> = "C2I L2I S2I"
@@ -621,13 +619,13 @@ mod test {
     fn v3_mojn00dnk_sig_strength_regression() {
         let crnx =
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
-        assert_eq!(crnx.is_ok(), true);
+        assert!(crnx.is_ok());
         let rnx = crnx.unwrap();
         /*
          * Verify identified observables
          */
         let obs = rnx.header.obs.unwrap().codes.clone();
-        for constell in vec![Constellation::Glonass, Constellation::GPS] {
+        for constell in [Constellation::Glonass, Constellation::GPS] {
             let codes = obs.get(&constell);
             assert!(codes.is_some(), "MOJN00DNK_R_20201770000_01D_30S_MO: missing observable codes for constellation {:?}", constell);
 

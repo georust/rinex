@@ -514,7 +514,7 @@ fn parse_orbits(
         //println!("LINE \"{}\" | NB MISSING {}", line, nb_missing); //DEBUG
 
         loop {
-            if line.len() == 0 {
+            if line.is_empty() {
                 key_index += nb_missing;
                 break;
             }
@@ -522,12 +522,10 @@ fn parse_orbits(
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
             let content = content.trim();
 
-            if content.len() == 0 {
+            if content.is_empty() {
                 // omitted field
                 key_index += 1;
-                if nb_missing > 0 {
-                    nb_missing -= 1;
-                }
+                nb_missing = nb_missing.saturating_sub(1);
                 line = rem.clone();
                 continue;
             }
@@ -544,7 +542,7 @@ fn parse_orbits(
                     //    token,
                     //    content.trim()
                     //); //DEBUG
-                    if !key.contains(&"spare") {
+                    if !key.contains("spare") {
                         if let Ok(item) = OrbitItem::new(token, content, constell) {
                             map.insert(key.to_string(), item);
                         }

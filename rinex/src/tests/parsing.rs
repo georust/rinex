@@ -19,7 +19,7 @@ mod test {
                     let entry = entry.unwrap();
                     let path = entry.path();
                     let full_path = &path.to_str().unwrap();
-                    let is_hidden = entry.file_name().to_str().unwrap().starts_with(".");
+                    let is_hidden = entry.file_name().to_str().unwrap().starts_with('.');
                     if is_hidden {
                         continue; // not a test resource
                     }
@@ -35,9 +35,8 @@ mod test {
                     }
                     println!("Parsing \"{}\"", full_path);
                     let rinex = Rinex::from_file(full_path);
-                    assert_eq!(
+                    assert!(
                         rinex.is_ok(),
-                        true,
                         "error parsing \"{}\": {:?}",
                         full_path,
                         rinex.err().unwrap()
@@ -165,7 +164,7 @@ mod test {
                             /*
                              * Verify STO logical correctness
                              */
-                            for (_, (msg, sv, _)) in rinex.system_time_offset() {
+                            for (_, (msg, _sv, _)) in rinex.system_time_offset() {
                                 match msg {
                                     NavMsgType::LNAV
                                     | NavMsgType::FDMA

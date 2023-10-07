@@ -272,7 +272,7 @@ impl Compressor {
                             self.first_epoch = false;
                         } else {
                             result.push_str(
-                                &self.epoch_diff.compress(&self.epoch_descriptor).trim_end(),
+                                self.epoch_diff.compress(&self.epoch_descriptor).trim_end(),
                             );
                             result.push('\n');
                             /////////////////////////////////////
@@ -293,7 +293,7 @@ impl Compressor {
                     // nb of obs in this line
                     let nb_obs_line = num_integer::div_ceil(line.len(), 17);
                     // identify current satellite using stored epoch description
-                    if let Ok(sv) = self.current_vehicle(&constellation) {
+                    if let Ok(sv) = self.current_vehicle(constellation) {
                         // nb of obs for this constellation
                         let sv_nb_obs = observables[&sv.constellation].len();
                         if self.obs_ptr + nb_obs_line > sv_nb_obs {
@@ -303,9 +303,9 @@ impl Compressor {
                             //println!("SV {} final fields were omitted", sv); //DEBUG
                             for index in self.obs_ptr..sv_nb_obs + 1 {
                                 self.schedule_kernel_init(&sv, index);
-                                result.push_str(" "); // put an empty space on missing observables
-                                                      // this is how RNX2CRX (official) behaves,
-                                                      // if we don't do this we break retro compatibility
+                                result.push(' '); // put an empty space on missing observables
+                                                  // this is how RNX2CRX (official) behaves,
+                                                  // if we don't do this we break retro compatibility
                                 self.flags_descriptor.push_str("  ");
                             }
                             result = self.conclude_vehicle(&result);
@@ -332,7 +332,7 @@ impl Compressor {
                             observables = rem.clone();
                             if let Ok(obsdata) = obsdata.trim().parse::<f64>() {
                                 let obsdata = f64::round(obsdata * 1000.0) as i64;
-                                if flags.trim().len() == 0 {
+                                if flags.trim().is_empty() {
                                     // Both Flags ommited
                                     //println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata); //DEBUG
                                     // data compression
@@ -433,7 +433,7 @@ impl Compressor {
                                                             break;
                                                         }
                                                     }
-                                                    if indexes.len() == 0 {
+                                                    if indexes.is_empty() {
                                                         self.forced_init.remove(&sv);
                                                     }
                                                 } else {
@@ -487,7 +487,7 @@ impl Compressor {
                                         diff.1.init(lli);
                                         diff.2.init(ssi);
                                         self.flags_descriptor.push_str(lli);
-                                        if ssi.len() > 0 {
+                                        if !ssi.is_empty() {
                                             self.flags_descriptor.push_str(ssi);
                                         } else {
                                             // SSI omitted

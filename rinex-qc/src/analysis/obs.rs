@@ -422,10 +422,8 @@ impl QcObsAnalysis {
             total_epochs = r.len();
             for ((epoch, _flag), (_clk, svs)) in r {
                 for (_sv, observables) in svs {
-                    if !observables.is_empty() {
-                        if !epoch_with_obs.contains(&epoch) {
-                            epoch_with_obs.push(*epoch);
-                        }
+                    if !observables.is_empty() && !epoch_with_obs.contains(epoch) {
+                        epoch_with_obs.push(*epoch);
                     }
                 }
             }
@@ -433,7 +431,7 @@ impl QcObsAnalysis {
         // append ssi: drop vehicle differentiation
         let mut ssi: HashMap<Observable, Vec<f64>> = HashMap::new();
         for (_, _, obs, value) in rnx.ssi() {
-            if let Some(values) = ssi.get_mut(&obs) {
+            if let Some(values) = ssi.get_mut(obs) {
                 values.push(value);
             } else {
                 ssi.insert(obs.clone(), vec![value]);
@@ -451,7 +449,7 @@ impl QcObsAnalysis {
         let mut snr: HashMap<Observable, Vec<(Epoch, f64)>> = HashMap::new();
         for ((e, _), _, obs, snr_value) in rnx.snr() {
             let snr_f64: f64 = (snr_value as u8).into();
-            if let Some(values) = snr.get_mut(&obs) {
+            if let Some(values) = snr.get_mut(obs) {
                 values.push((e, snr_f64));
             } else {
                 snr.insert(obs.clone(), vec![(e, snr_f64)]);

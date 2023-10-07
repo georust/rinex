@@ -247,24 +247,15 @@ mod test {
     use super::*;
     #[test]
     fn test_new_tec_map() {
-        assert_eq!(
-            is_new_tec_plane(
-                "1                                                      START OF TEC MAP"
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_tec_plane(
-                "1                                                      START OF RMS MAP"
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_rms_plane(
-                "1                                                      START OF RMS MAP"
-            ),
-            true
-        );
+        assert!(is_new_tec_plane(
+            "1                                                      START OF TEC MAP"
+        ));
+        assert!(!is_new_tec_plane(
+            "1                                                      START OF RMS MAP"
+        ));
+        assert!(is_new_rms_plane(
+            "1                                                      START OF RMS MAP"
+        ));
         // assert_eq!(
         //     is_new_height_map(
         //         "1                                                      START OF HEIGHT MAP"

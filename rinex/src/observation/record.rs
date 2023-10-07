@@ -551,7 +551,7 @@ fn parse_v3(
                         inner.insert(obscodes[nb_obs].clone(), ObservationData { obs, lli, snr });
                     }
                 }
-                if inner.len() > 0 {
+                if !inner.is_empty() {
                     data.insert(sv, inner.clone());
                 }
             } //got some observables to work with
@@ -609,7 +609,7 @@ fn fmt_epoch_v3(
                     if let Some(flag) = observation.lli {
                         lines.push_str(&format!("{}", flag.bits()));
                     } else {
-                        lines.push_str(" ");
+                        lines.push(' ');
                     }
                     if let Some(flag) = observation.snr {
                         lines.push_str(&format!("{:x}", flag));
@@ -670,7 +670,7 @@ fn fmt_epoch_v2(
         if let Some(observables) = observables {
             for (obs_index, observable) in observables.iter().enumerate() {
                 if obs_index % obs_per_line == 0 {
-                    lines.push_str("\n");
+                    lines.push('\n');
                 }
                 if let Some(observation) = observations.get(observable) {
                     let formatted_obs = format!("{:14.3}", observation.obs);
@@ -913,7 +913,7 @@ impl Mask for Record {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|code, _| filter.contains(code));
-                            obs.len() > 0
+                            !obs.is_empty()
                         });
                         !svs.is_empty()
                     });
@@ -1898,54 +1898,33 @@ mod test {
     use super::*;
     #[test]
     fn obs_record_is_new_epoch() {
-        assert_eq!(
-            is_new_epoch(
-                "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
-                Version { major: 2, minor: 0 }
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_epoch(
-                "21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
-                Version { major: 2, minor: 0 }
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_epoch(
-                "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
-                Version { major: 2, minor: 0 }
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_epoch(
-                "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
-                Version { major: 3, minor: 0 }
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_epoch(
-                "> 2022 01 09 00 00 30.0000000  0 40",
-                Version { major: 3, minor: 0 }
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_epoch(
-                "> 2022 01 09 00 00 30.0000000  0 40",
-                Version { major: 2, minor: 0 }
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_epoch(
-                "G01  22331467.880   117352685.28208        48.950    22331469.28",
-                Version { major: 3, minor: 0 }
-            ),
-            false
-        );
+        assert!(is_new_epoch(
+            "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
+            Version { major: 2, minor: 0 }
+        ));
+        assert!(!is_new_epoch(
+            "21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
+            Version { major: 2, minor: 0 }
+        ));
+        assert!(is_new_epoch(
+            "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
+            Version { major: 2, minor: 0 }
+        ));
+        assert!(!is_new_epoch(
+            "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
+            Version { major: 3, minor: 0 }
+        ));
+        assert!(is_new_epoch(
+            "> 2022 01 09 00 00 30.0000000  0 40",
+            Version { major: 3, minor: 0 }
+        ));
+        assert!(!is_new_epoch(
+            "> 2022 01 09 00 00 30.0000000  0 40",
+            Version { major: 2, minor: 0 }
+        ));
+        assert!(!is_new_epoch(
+            "G01  22331467.880   117352685.28208        48.950    22331469.28",
+            Version { major: 3, minor: 0 }
+        ));
     }
 }

@@ -138,7 +138,7 @@ mod test {
     fn test_header() {
         let content = "%=BIA 1.00 PF2 2011:180:59736 PF2 2011:113:86385 2011:114:86385 R 00000024";
         let header = Header::from_str(content);
-        assert_eq!(header.is_ok(), true);
+        assert!(header.is_ok());
         let header = header.unwrap();
         assert_eq!(header.version, "1.00");
         assert_eq!(header.creator_code, "PF2");
@@ -147,7 +147,7 @@ mod test {
         assert_eq!(header.length, 24);
         let content = "%=BIA 1.00 COD 2016:327:30548 IGS 2016:296:00000 2016:333:00000 A 00000194";
         let header = Header::from_str(content);
-        assert_eq!(header.is_ok(), true);
+        assert!(header.is_ok());
         let header = header.unwrap();
         assert_eq!(header.version, "1.00");
         assert_eq!(header.creator_code, "COD");

@@ -1,2 +1,5 @@
 #!/bin/sh
-cargo clippy -- -Dclippy::perf
+cargo clippy \
+    --fix \
+    --allow-dirty \
+    -- -Dclippy::perf

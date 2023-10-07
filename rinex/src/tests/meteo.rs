@@ -10,7 +10,7 @@ mod test {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         test_meteo_rinex(
             &rinex,
@@ -96,7 +96,7 @@ mod test {
             ),
         );
 
-        let labels = vec![
+        let labels = [
             "pressure",
             "temp",
             "moisture",
@@ -218,18 +218,14 @@ mod test {
             0.0,
             "Error: it did not rain on that day"
         );
-        assert_eq!(
-            rinex.hail_detected(),
-            false,
-            "Error: it did not hail on that day"
-        );
+        assert!(!rinex.hail_detected(), "Error: it did not hail on that day");
     }
     #[test]
     fn v4_example1() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V4/example1.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         test_meteo_rinex(
             &rinex,
@@ -239,7 +235,7 @@ mod test {
         );
 
         let record = rinex.record.as_meteo();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         assert_eq!(record.len(), 5);
 

@@ -185,7 +185,7 @@ impl Record {
                 }
             },
             Type::IonosphereMaps => {
-                if let Some(r) = self.as_ionex() {
+                if let Some(_r) = self.as_ionex() {
                     //for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
                     //    let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index);
                     //    let _ = write!(

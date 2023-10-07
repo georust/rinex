@@ -303,7 +303,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn mask_operand() {
-        for (descriptor, opposite_desc) in vec![
+        for (descriptor, opposite_desc) in [
             (">=", "<="),
             (">", "<"),
             ("=", "!="),
@@ -349,7 +349,7 @@ mod test {
     }
     #[test]
     fn mask_elev() {
-        for desc in vec![
+        for desc in [
             "e< 40.0",
             "e != 30",
             " e<40.0",
@@ -368,7 +368,7 @@ mod test {
     }
     #[test]
     fn mask_gnss() {
-        for (descriptor, opposite_desc) in vec![
+        for (descriptor, opposite_desc) in [
             (" = GPS", "!= GPS"),
             ("= GAL,GPS", "!= GAL,GPS"),
             (" =GLO,GAL", "!=  GLO,GAL"),
@@ -412,9 +412,7 @@ mod test {
     }
     #[test]
     fn mask_sv() {
-        for (descriptor, opposite_desc) in
-            vec![(" = G01", "!= G01"), ("= R03,  G31", "!= R03,  G31")]
-        {
+        for (descriptor, opposite_desc) in [(" = G01", "!= G01"), ("= R03,  G31", "!= R03,  G31")] {
             let mask = MaskFilter::from_str(descriptor);
             assert!(
                 mask.is_ok(),

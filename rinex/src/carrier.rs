@@ -719,7 +719,7 @@ mod test {
         assert_eq!(l1.frequency_mhz(), 1575.42_f64);
         assert_eq!(l1.wavelength(), 299792458.0 / 1_575_420_000.0_f64);
 
-        for constell in vec![
+        for constell in [
             Constellation::GPS,
             Constellation::SBAS,
             Constellation::Glonass,

@@ -259,19 +259,19 @@ mod tests {
             );
         }
 
-        for desc in vec!["X", "x", "GPX", "gpx", "unknown", "blah"] {
+        for desc in ["X", "x", "GPX", "gpx", "unknown", "blah"] {
             assert!(Constellation::from_str(desc).is_err());
         }
     }
     #[test]
     fn test_sbas() {
-        for sbas in vec!["WAAS", "KASS", "EGNOS", "ASBAS", "MSAS", "GAGAN", "ASAL"] {
+        for sbas in ["WAAS", "KASS", "EGNOS", "ASBAS", "MSAS", "GAGAN", "ASAL"] {
             assert!(Constellation::from_str(sbas).unwrap().is_sbas());
         }
     }
     #[test]
     fn timescale() {
-        for (gnss, expected) in vec![
+        for (gnss, expected) in [
             (Constellation::GPS, TimeScale::GPST),
             (Constellation::Galileo, TimeScale::GST),
             (Constellation::BeiDou, TimeScale::BDT),

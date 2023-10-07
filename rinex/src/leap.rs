@@ -91,7 +91,7 @@ mod test {
     fn basic_format() {
         let content = "18";
         let leap = Leap::from_str(content);
-        assert_eq!(leap.is_ok(), true);
+        assert!(leap.is_ok());
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
     }
@@ -99,7 +99,7 @@ mod test {
     fn standard_format() {
         let content = "18    18  2185     7";
         let leap = Leap::from_str(content);
-        assert_eq!(leap.is_ok(), true);
+        assert!(leap.is_ok());
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
         assert_eq!(leap.week, Some(2185));
@@ -109,7 +109,7 @@ mod test {
     fn parse_with_timescale() {
         let content = "18    18  2185     7GPS";
         let leap = Leap::from_str(content);
-        assert_eq!(leap.is_ok(), true);
+        assert!(leap.is_ok());
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
         assert_eq!(leap.week, Some(2185));

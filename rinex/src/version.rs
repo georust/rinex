@@ -133,44 +133,44 @@ mod test {
         assert_eq!(version.minor, SUPPORTED_VERSION.minor);
 
         let version = Version::from_str("1");
-        assert_eq!(version.is_ok(), true);
+        assert!(version.is_ok());
         let version = version.unwrap();
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 0);
 
         let version = Version::from_str("1.2");
-        assert_eq!(version.is_ok(), true);
+        assert!(version.is_ok());
         let version = version.unwrap();
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 2);
 
         let version = Version::from_str("3.02");
-        assert_eq!(version.is_ok(), true);
+        assert!(version.is_ok());
         let version = version.unwrap();
         assert_eq!(version.major, 3);
         assert_eq!(version.minor, 2);
 
         let version = Version::from_str("a.b");
-        assert_eq!(version.is_err(), true);
+        assert!(version.is_err());
     }
     #[test]
     fn supported_version() {
         let version = Version::default();
-        assert_eq!(version.is_supported(), true);
+        assert!(version.is_supported());
         let version = SUPPORTED_VERSION;
-        assert_eq!(version.is_supported(), true);
+        assert!(version.is_supported());
     }
     #[test]
     fn non_supported_version() {
         let version = Version::new(5, 0);
-        assert_eq!(version.is_supported(), false);
+        assert!(!version.is_supported());
     }
     #[test]
     fn version_comparison() {
         let v_a = Version::from_str("1.2").unwrap();
         let v_b = Version::from_str("3.02").unwrap();
-        assert_eq!(v_b > v_a, true);
-        assert_eq!(v_b == v_a, false);
+        assert!(v_b > v_a);
+        assert!(v_b != v_a);
     }
     #[test]
     fn version_arithmetics() {
