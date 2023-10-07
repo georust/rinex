@@ -33,10 +33,7 @@ impl std::str::FromStr for Pcv {
 
 impl Pcv {
     pub fn is_relative(&self) -> bool {
-        match self {
-            Self::Relative(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Relative(_))
     }
     pub fn is_absolute(&self) -> bool {
         !self.is_relative()

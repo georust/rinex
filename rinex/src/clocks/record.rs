@@ -195,14 +195,14 @@ pub(crate) fn parse_epoch(
 
     // nb of data fields
     let (n, _) = rem.split_at(4);
-    let n = u8::from_str_radix(n.trim(), 10)?;
+    let n = n.trim().parse::<u8>()?;
 
     // data fields
     let mut data = ClockData::default();
     let items: Vec<&str> = line.split_ascii_whitespace().collect();
-    data.bias = f64::from_str(items[9].trim())?; // bias must pass
+    data.bias = items[9].trim().parse::<f64>()?; // bias must pass
     if n > 1 {
-        if let Ok(f) = f64::from_str(items[10].trim()) {
+        if let Ok(f) = items[10].trim().parse::<f64>() {
             data.bias_dev = Some(f)
         }
     }
@@ -211,8 +211,8 @@ pub(crate) fn parse_epoch(
         if let Some(l) = lines.next() {
             let line = l.clone();
             let items: Vec<&str> = line.split_ascii_whitespace().collect();
-            for i in 0..items.len() {
-                if let Ok(f) = f64::from_str(items[i].trim()) {
+            for (i, item) in items.iter().enumerate() {
+                if let Ok(f) = item.trim().parse::<f64>() {
                     if i == 0 {
                         data.drift = Some(f);
                     } else if i == 1 {
@@ -226,7 +226,6 @@ pub(crate) fn parse_epoch(
             }
         }
     }
-
     Ok((epoch, data_type, system, data))
 }
 
@@ -399,9 +398,9 @@ impl Mask for Record {
                                     true // retain other system types
                                 }
                             });
-                            systems.len() > 0
+                            !systems.is_empty()
                         });
-                        dtypes.len() > 0
+                        !dtypes.is_empty()
                     });
                 },
                 _ => {}, // TargetItem::

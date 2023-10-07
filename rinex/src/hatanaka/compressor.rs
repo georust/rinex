@@ -49,17 +49,16 @@ pub struct Compressor {
 
 fn format_epoch_descriptor(content: &str) -> String {
     let mut result = String::new();
-    result.push_str("&");
+    result.push('&');
     for line in content.lines() {
         result.push_str(line.trim()) // removes all \tab
     }
-    result.push_str("\n");
+    result.push('\n');
     result
 }
 
-impl Compressor {
-    /// Creates a new compression structure
-    pub fn new() -> Self {
+impl Default for Compressor {
+    fn default() -> Self {
         Self {
             first_epoch: true,
             epoch_ptr: 0,
@@ -75,7 +74,9 @@ impl Compressor {
             forced_init: HashMap::new(),
         }
     }
+}
 
+impl Compressor {
     /// Identifies amount of vehicles to be provided in next iterations
     /// by analyzing epoch descriptor
     fn determine_nb_vehicles(&self, content: &str) -> Result<usize, Error> {
@@ -83,7 +84,7 @@ impl Compressor {
             Err(Error::MalformedEpochDescriptor)
         } else {
             let nb = &content[30..32];
-            if let Ok(u) = u16::from_str_radix(nb.trim(), 10) {
+            if let Ok(u) = nb.trim().parse::<u16>() {
                 //println!("Identified {} vehicles", u); //DEBUG
                 Ok(u.into())
             } else {
@@ -106,7 +107,7 @@ impl Compressor {
                 //   it is possible that constellation ID is omitted..
                 vehicle.insert_str(0, &format!("{:x}", constellation));
             }
-            let sv = Sv::from_str(&vehicle)?;
+            let sv = Sv::from_str(vehicle)?;
             //println!("VEHICULE: {}", sv); //DEBUG
             Ok(sv)
         } else {
@@ -120,10 +121,10 @@ impl Compressor {
         //println!(">>> VEHICULE CONCLUDED"); //DEBUG
         // conclude line with lli/ssi flags
         let flags = self.flags_descriptor.trim_end();
-        if flags.len() > 0 {
+        if !flags.is_empty() {
             result.push_str(flags);
         }
-        result.push_str("\n");
+        result.push('\n');
         self.flags_descriptor.clear();
         // move to next vehicle
         self.obs_ptr = 0;
@@ -177,7 +178,7 @@ impl Compressor {
         loop {
             let line: &str = match lines.next() {
                 Some(l) => {
-                    if l.trim().len() == 0 {
+                    if l.trim().is_empty() {
                         // line completely empty
                         // ==> determine if we were expecting content
                         if self.state == State::Body {
@@ -185,14 +186,14 @@ impl Compressor {
                             if self.obs_ptr > 0 {
                                 // previously active
                                 // identify current Sv
-                                if let Ok(sv) = self.current_vehicle(&constellation) {
+                                if let Ok(sv) = self.current_vehicle(constellation) {
                                     // nb of obs for this constellation
                                     let sv_nb_obs = observables[&sv.constellation].len();
                                     let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
                                     //println!("Early empty line - missing {} field(s)", nb_missing); //DEBUG
                                     for i in 0..nb_missing {
-                                        result.push_str(" "); // empty whitespace, on each missing observable
-                                                              // to remain retro compatible with official tools
+                                        result.push(' '); // empty whitespace, on each missing observable
+                                                          // to remain retro compatible with official tools
                                         self.flags_descriptor.push_str("  "); // both missing
                                         self.schedule_kernel_init(&sv, self.obs_ptr + i);
                                     }
@@ -227,7 +228,7 @@ impl Compressor {
                 result // feed content as is
                     .push_str(line);
                 result // \n dropped by .lines()
-                    .push_str("\n");
+                    .push('\n');
                 continue;
             }
 
@@ -251,7 +252,7 @@ impl Compressor {
                     // if we did have clock offset,
                     //  append in a new line
                     //  otherwise append a BLANK
-                    self.epoch_descriptor.push_str("\n");
+                    self.epoch_descriptor.push('\n');
 
                     let nb_lines = num_integer::div_ceil(self.nb_vehicles, 12) as u8;
                     if self.epoch_ptr == nb_lines {
@@ -267,19 +268,19 @@ impl Compressor {
                             //missing clock offset field here
                             //next line should not always be empty
                             /////////////////////////////////////
-                            result.push_str("\n");
+                            result.push('\n');
                             self.first_epoch = false;
                         } else {
                             result.push_str(
                                 &self.epoch_diff.compress(&self.epoch_descriptor).trim_end(),
                             );
-                            result.push_str("\n");
+                            result.push('\n');
                             /////////////////////////////////////
                             //TODO
                             //missing clock offset field here
                             //next line should not always be empty
                             /////////////////////////////////////
-                            result.push_str("\n");
+                            result.push('\n');
                         }
 
                         self.obs_ptr = 0;
@@ -314,7 +315,7 @@ impl Compressor {
                                 self.nb_vehicles = self.determine_nb_vehicles(line)?;
                                 self.epoch_ptr = 1; // we already have a new descriptor
                                 self.epoch_descriptor.push_str(line);
-                                self.epoch_descriptor.push_str("\n");
+                                self.epoch_descriptor.push('\n');
                                 continue; // avoid end of this loop,
                                           // as this vehicle is now concluded
                             }
@@ -329,7 +330,7 @@ impl Compressor {
                             let (data, rem) = observables.split_at(index);
                             let (obsdata, flags) = data.split_at(14);
                             observables = rem.clone();
-                            if let Ok(obsdata) = f64::from_str(obsdata.trim()) {
+                            if let Ok(obsdata) = obsdata.trim().parse::<f64>() {
                                 let obsdata = f64::round(obsdata * 1000.0) as i64;
                                 if flags.trim().len() == 0 {
                                     // Both Flags ommited
@@ -357,7 +358,7 @@ impl Compressor {
                                                             break;
                                                         }
                                                     }
-                                                    if indexes.len() == 0 {
+                                                    if indexes.is_empty() {
                                                         self.forced_init.remove(&sv);
                                                     }
                                                 } else {
@@ -460,17 +461,17 @@ impl Compressor {
                                             diff.1.init(lli);
                                             diff.2.init(ssi);
                                             result.push_str(&format!("3&{} ", obsdata)); //append obs
-                                            if lli.len() > 0 {
+                                            if !lli.is_empty() {
                                                 self.flags_descriptor.push_str(lli);
                                             } else {
-                                                self.flags_descriptor.push_str(" ");
+                                                self.flags_descriptor.push(' ');
                                             }
 
-                                            if ssi.len() > 0 {
+                                            if !ssi.is_empty() {
                                                 self.flags_descriptor.push_str(ssi);
                                             } else {
                                                 // SSI omitted
-                                                self.flags_descriptor.push_str(" ");
+                                                self.flags_descriptor.push(' ');
                                             }
                                             sv_diffs.insert(self.obs_ptr, diff);
                                         }
@@ -491,7 +492,7 @@ impl Compressor {
                                         } else {
                                             // SSI omitted
                                             diff.2.init(" "); // BLANK
-                                            self.flags_descriptor.push_str(" ");
+                                            self.flags_descriptor.push(' ');
                                         }
                                         let mut map: HashMap<usize, (NumDiff, TextDiff, TextDiff)> =
                                             HashMap::new();
@@ -503,9 +504,9 @@ impl Compressor {
                                 //obsdata::f64::from_str()
                                 // when floating point parsing is in failure,
                                 // we know this observable is omitted
-                                result.push_str(" "); // put an empty space on missing observables
-                                                      // this is how RNX2CRX (official) behaves,
-                                                      // if we don't do this we break retro compatibility
+                                result.push(' '); // put an empty space on missing observables
+                                                  // this is how RNX2CRX (official) behaves,
+                                                  // if we don't do this we break retro compatibility
                                 self.flags_descriptor.push_str("  ");
                                 self.schedule_kernel_init(&sv, self.obs_ptr);
                             }

@@ -146,7 +146,7 @@ impl Record {
             Type::ObservationData => {
                 let record = self.as_obs().unwrap();
                 let obs_fields = &header.obs.as_ref().unwrap();
-                let mut compressor = Compressor::new();
+                let mut compressor = Compressor::default();
                 for ((epoch, flag), (clock_offset, data)) in record.iter() {
                     let epoch =
                         observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);

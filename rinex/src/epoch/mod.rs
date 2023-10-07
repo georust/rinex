@@ -146,7 +146,8 @@ pub(crate) fn parse_in_timescale(
     for (field_index, item) in content.split_ascii_whitespace().enumerate() {
         match field_index {
             0 => {
-                y = i32::from_str_radix(item, 10)
+                y = item
+                    .parse::<i32>()
                     .map_err(|_| ParsingError::YearField(item.to_string()))?;
 
                 /* old RINEX problem: YY is sometimes encoded on two digits */
@@ -159,29 +160,37 @@ pub(crate) fn parse_in_timescale(
                 }
             },
             1 => {
-                m = u8::from_str_radix(item, 10)
+                m = item
+                    .parse::<u8>()
                     .map_err(|_| ParsingError::MonthField(item.to_string()))?;
             },
             2 => {
-                d = u8::from_str_radix(item, 10)
+                d = item
+                    .parse::<u8>()
                     .map_err(|_| ParsingError::DayField(item.to_string()))?;
             },
             3 => {
-                hh = u8::from_str_radix(item, 10)
+                hh = item
+                    .parse::<u8>()
                     .map_err(|_| ParsingError::HoursField(item.to_string()))?;
             },
             4 => {
-                mm = u8::from_str_radix(item, 10)
+                mm = item
+                    .parse::<u8>()
                     .map_err(|_| ParsingError::MinutesField(item.to_string()))?;
             },
             5 => {
                 if let Some(dot) = item.find('.') {
                     let is_nav = item.trim().len() < 7;
 
-                    ss = u8::from_str_radix(item[..dot].trim(), 10)
+                    ss = item[..dot]
+                        .trim()
+                        .parse::<u8>()
                         .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
 
-                    ns = u32::from_str_radix(item[dot + 1..].trim(), 10)
+                    ns = item[dot + 1..]
+                        .trim()
+                        .parse::<u32>()
                         .map_err(|_| ParsingError::NanosecondsField(item.to_string()))?;
 
                     if is_nav {
@@ -192,7 +201,9 @@ pub(crate) fn parse_in_timescale(
                         ns *= 100;
                     }
                 } else {
-                    ss = u8::from_str_radix(item.trim(), 10)
+                    ss = item
+                        .trim()
+                        .parse::<u8>()
                         .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
                 }
             },

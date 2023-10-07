@@ -19,10 +19,7 @@ impl Default for Pattern {
 impl Pattern {
     /// Returns true if this phase pattern is azimuth dependent
     pub fn is_azimuth_dependent(&self) -> bool {
-        match self {
-            Self::AzimuthDependent(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::AzimuthDependent(_))
     }
     /// Unwraps pattern values, whether it is
     /// Azimuth dependent or not
