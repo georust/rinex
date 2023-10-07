@@ -352,7 +352,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k <= &epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }
@@ -362,7 +362,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k > &epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }

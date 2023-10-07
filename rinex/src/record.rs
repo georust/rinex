@@ -408,7 +408,7 @@ pub fn parse_record(
                                 .entry(e)
                                 .and_modify(|frames| frames.push(fr.clone()))
                                 .or_insert_with(|| vec![fr.clone()]);
-                            comment_ts = e.clone(); // for comments classification & management
+                            comment_ts = e; // for comments classification & management
                         }
                     },
                     Type::ObservationData => {
@@ -416,13 +416,13 @@ pub fn parse_record(
                             observation::record::parse_epoch(&header, &epoch_content, obs_ts)
                         {
                             obs_rec.insert(e, (ck_offset, map));
-                            comment_ts = e.0.clone(); // for comments classification & management
+                            comment_ts = e.0; // for comments classification & management
                         }
                     },
                     Type::MeteoData => {
                         if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
                             met_rec.insert(e, map);
-                            comment_ts = e.clone(); // for comments classification & management
+                            comment_ts = e; // for comments classification & management
                         }
                     },
                     Type::ClockData => {
@@ -450,7 +450,7 @@ pub fn parse_record(
                                 map.insert(dtype, inner);
                                 clk_rec.insert(epoch, map);
                             }
-                            comment_ts = epoch.clone(); // for comments classification & management
+                            comment_ts = epoch; // for comments classification & management
                         }
                     },
                     Type::AntennaData => {
@@ -535,7 +535,7 @@ pub fn parse_record(
                     .entry(e)
                     .and_modify(|current| current.push(fr.clone()))
                     .or_insert_with(|| vec![fr.clone()]);
-                comment_ts = e.clone(); // for comments classification & management
+                comment_ts = e; // for comments classification & management
             }
         },
         Type::ObservationData => {
@@ -543,13 +543,13 @@ pub fn parse_record(
                 observation::record::parse_epoch(&header, &epoch_content, obs_ts)
             {
                 obs_rec.insert(e, (ck_offset, map));
-                comment_ts = e.0.clone(); // for comments classification + management
+                comment_ts = e.0; // for comments classification + management
             }
         },
         Type::MeteoData => {
             if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
                 met_rec.insert(e, map);
-                comment_ts = e.clone(); // for comments classification + management
+                comment_ts = e; // for comments classification + management
             }
         },
         Type::ClockData => {
@@ -582,7 +582,7 @@ pub fn parse_record(
                     map.insert(dtype, inner);
                     clk_rec.insert(e, map);
                 }
-                comment_ts = e.clone(); // for comments classification & management
+                comment_ts = e; // for comments classification & management
             }
         },
         Type::IonosphereMaps => {

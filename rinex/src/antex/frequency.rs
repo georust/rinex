@@ -124,7 +124,7 @@ impl Frequency {
     }
     pub fn with_carrier(&self, carrier: Carrier) -> Self {
         let mut f = self.clone();
-        f.carrier = carrier.clone();
+        f.carrier = carrier;
         f
     }
     pub fn with_northern_eccentricity(&self, north: f64) -> Self {

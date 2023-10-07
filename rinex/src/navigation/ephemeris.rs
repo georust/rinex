@@ -188,9 +188,9 @@ impl Ephemeris {
 
         let (epoch, _) = epoch::parse_in_timescale(date.trim(), ts)?;
 
-        let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
-        let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
+        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
+        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
+        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
         // parse orbits :
         //  only Legacy Frames in V2 and V3 (old) RINEX
         let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
@@ -226,9 +226,9 @@ impl Ephemeris {
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
-        let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
-        let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
+        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
+        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
+        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
         let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
         Ok((
             epoch,
@@ -320,7 +320,7 @@ impl Ephemeris {
     pub(crate) fn kepler2ecef(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
         // To form t_sv : we need to convert UTC time to GNSS time.
         // Hifitime v4, once released, will help here
-        let mut t_sv = epoch.clone();
+        let mut t_sv = epoch;
 
         match sv.constellation {
             Constellation::GPS | Constellation::QZSS => {
@@ -343,7 +343,7 @@ impl Ephemeris {
 
         let weeks = self.get_week()?;
         let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
-        let toe = t0 + Duration::from_seconds(kepler.toe as f64);
+        let toe = t0 + Duration::from_seconds(kepler.toe);
         let t_k = (t_sv - toe).to_seconds();
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
@@ -515,7 +515,7 @@ fn parse_orbits(
 
         loop {
             if line.len() == 0 {
-                key_index += nb_missing as usize;
+                key_index += nb_missing;
                 break;
             }
 

@@ -81,7 +81,7 @@ pub trait Decimate {
 impl std::str::FromStr for DecimationFilter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let items: Vec<&str> = content.trim().split(":").collect();
+        let items: Vec<&str> = content.trim().split(':').collect();
         if let Ok(dt) = Duration::from_str(items[0].trim()) {
             Ok(Self {
                 target: {

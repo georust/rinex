@@ -62,9 +62,7 @@ impl Type {
 impl std::str::FromStr for Type {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.eq("NAVIGATION DATA") {
-            Ok(Self::NavigationData)
-        } else if s.contains("NAV DATA") {
+        if s.eq("NAVIGATION DATA") || s.contains("NAV DATA") {
             Ok(Self::NavigationData)
         } else if s.eq("OBSERVATION DATA") {
             Ok(Self::ObservationData)

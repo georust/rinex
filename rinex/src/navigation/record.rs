@@ -256,7 +256,7 @@ pub(crate) fn parse_epoch(
     constell: Constellation,
     content: &str,
 ) -> Result<(Epoch, NavFrame), Error> {
-    if content.starts_with(">") {
+    if content.starts_with('>') {
         parse_v4_record_entry(content)
     } else {
         parse_v2_v3_record_entry(version, constell, content)
@@ -433,7 +433,7 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
                     // last row
                     for (key, _) in chunk {
                         if let Some(data) = ephemeris.orbits.get(*key) {
-                            lines.push_str(&format!("{}", data.to_string()));
+                            lines.push_str(&data.to_string());
                         } else {
                             lines.push_str("                   ");
                         }

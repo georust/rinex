@@ -51,13 +51,13 @@ impl std::str::FromStr for MaskOperand {
         let c = content.trim();
         if c.starts_with(">=") {
             Ok(Self::GreaterEquals)
-        } else if c.starts_with(">") {
+        } else if c.starts_with('>') {
             Ok(Self::GreaterThan)
         } else if c.starts_with("<=") {
             Ok(Self::LowerEquals)
-        } else if c.starts_with("<") {
+        } else if c.starts_with('<') {
             Ok(Self::LowerThan)
-        } else if c.starts_with("=") {
+        } else if c.starts_with('=') {
             Ok(Self::Equals)
         } else if c.starts_with("!=") {
             Ok(Self::NotEquals)

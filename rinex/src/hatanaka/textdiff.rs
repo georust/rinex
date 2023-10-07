@@ -43,7 +43,7 @@ impl TextDiff {
 
         if s1_len > s0_len {
             // got new bytes to latch
-            let new_slice = &data[min..s1_len].replace("&", " ");
+            let new_slice = &data[min..s1_len].replace('&', " ");
             self.buffer.push_str(new_slice);
         }
 

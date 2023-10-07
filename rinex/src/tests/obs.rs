@@ -2,7 +2,7 @@
 mod test {
     use crate::observable;
     use crate::sv;
-    use crate::tests::toolkit::{build_observables, test_observation_rinex};
+    use crate::tests::toolkit::test_observation_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{header::*, observation::*, prelude::*};
     use itertools::Itertools;

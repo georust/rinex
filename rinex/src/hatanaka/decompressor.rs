@@ -55,7 +55,7 @@ fn format_epoch(
             }
 
             let (epoch, systems) = content.split_at(32); // grab epoch
-            result.push_str(&epoch.replace("&", " ")); // rework
+            result.push_str(&epoch.replace('&', " ")); // rework
 
             //CRINEX has systems squashed in a single line
             // we just split it to match standard definitions
@@ -99,7 +99,7 @@ fn format_epoch(
                 return Err(Error::FaultyRecoveredEpoch);
             }
             let (epoch, _) = content.split_at(35);
-            result.push_str(&epoch.replace("&", " "));
+            result.push_str(&epoch.replace('&', " "));
             //TODO clock offset
             if let Some(value) = clock_offset {
                 result.push_str(&format!("         {:3.12}", (value as f64) / 1000.0_f64))
@@ -279,12 +279,12 @@ impl Decompressor {
                     if self.first_epoch {
                         match crx_major {
                             1 => {
-                                if !line.starts_with("&") {
+                                if !line.starts_with('&') {
                                     return Err(Error::FaultyCrx1FirstEpoch);
                                 }
                             },
                             3 => {
-                                if !line.starts_with(">") {
+                                if !line.starts_with('>') {
                                     return Err(Error::FaultyCrx3FirstEpoch);
                                 }
                             },
@@ -312,7 +312,7 @@ impl Decompressor {
                      * this line is dedicated to clock offset description
                      */
                     let mut clock_offset: Option<i64> = None;
-                    if line.contains("&") {
+                    if line.contains('&') {
                         // clock offset kernel (re)init
                         let (n, rem) = line.split_at(1);
                         if let Ok(order) = u8::from_str_radix(n, 10) {
@@ -425,7 +425,7 @@ impl Decompressor {
                                          * regular progression
                                          */
                                         if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                            if let Some(marker) = content.find("&") {
+                                            if let Some(marker) = content.find('&') {
                                                 // kernel (re)initialization
                                                 let (order, rem) = content.split_at(marker);
                                                 let order = u8::from_str_radix(order.trim(), 10)?;
@@ -461,7 +461,7 @@ impl Decompressor {
                                      */
                                     //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
                                     if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                        if let Some(marker) = line.find("&") {
+                                        if let Some(marker) = line.find('&') {
                                             // kernel (re)initliaization
                                             let (order, rem) = line.split_at(marker);
                                             let order = u8::from_str_radix(order.trim(), 10)?;

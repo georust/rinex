@@ -89,7 +89,7 @@ impl Into<(u8, u8)> for Version {
 impl std::str::FromStr for Version {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.contains(".") {
+        match s.contains('.') {
             true => {
                 let mut digits = s.split('.');
                 Ok(Self {

@@ -69,7 +69,7 @@ pub(crate) fn parse_epoch(
 
     let codes = &header.meteo.as_ref().unwrap().codes;
     let nb_codes = codes.len();
-    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8).into();
+    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8);
     let mut code_index: usize = 0;
 
     for i in 0..nb_lines {
@@ -214,7 +214,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k >= &epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }

@@ -2,7 +2,7 @@
 mod test {
     use crate::hatanaka::Decompressor;
     use crate::tests::toolkit::random_name;
-    use crate::tests::toolkit::{build_observables, test_observation_rinex};
+    use crate::tests::toolkit::test_observation_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{observable, prelude::*};
     use itertools::Itertools;

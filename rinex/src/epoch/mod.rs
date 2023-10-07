@@ -175,7 +175,7 @@ pub(crate) fn parse_in_timescale(
                     .map_err(|_| ParsingError::MinutesField(item.to_string()))?;
             },
             5 => {
-                if let Some(dot) = item.find(".") {
+                if let Some(dot) = item.find('.') {
                     let is_nav = item.trim().len() < 7;
 
                     ss = u8::from_str_radix(item[..dot].trim(), 10)

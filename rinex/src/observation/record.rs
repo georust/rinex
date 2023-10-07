@@ -189,7 +189,7 @@ pub(crate) fn parse_epoch(
     }
 
     // V > 2 might start with a ">" marker
-    if line.starts_with(">") {
+    if line.starts_with('>') {
         line = line.split_at(1).1.clone();
     }
 
@@ -720,7 +720,7 @@ impl Merge for Record {
                                 *data = *rhs_data; // overwrite
                             } else {
                                 // new observation: insert it
-                                observations.insert(rhs_observable.clone(), rhs_data.clone());
+                                observations.insert(rhs_observable.clone(), *rhs_data);
                             }
                         }
                     } else {
@@ -743,7 +743,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k.0 < epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }
@@ -1768,7 +1768,7 @@ impl Dcb for Record {
 
                                             // determine this code's role in the diff op
                                             // so it remains consistent
-                                            let items: Vec<&str> = op.split("-").collect();
+                                            let items: Vec<&str> = op.split('-').collect();
 
                                             if lhs_code == items[0] {
                                                 // code is differenced

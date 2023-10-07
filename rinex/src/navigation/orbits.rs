@@ -86,30 +86,30 @@ impl OrbitItem {
         match type_desc {
             "u8" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 Ok(OrbitItem::U8(float as u8))
             },
             "i8" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 Ok(OrbitItem::I8(float as i8))
             },
             "u32" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 Ok(OrbitItem::U32(float as u32))
             },
-            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace("D", "e"))?)),
+            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace('D', "e"))?)),
             "gloStatus" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 let unsigned = float as u32;
                 let status = GloStatus::from_bits(unsigned).unwrap_or(GloStatus::empty());
                 Ok(OrbitItem::GloStatus(status))
             },
             "health" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 let unsigned = float as u32;
                 match constellation {
                     Constellation::GPS | Constellation::QZSS => {
@@ -167,7 +167,7 @@ impl OrbitItem {
     /// Unwraps OrbitItem as f64
     pub fn as_f64(&self) -> Option<f64> {
         match self {
-            OrbitItem::F64(f) => Some(f.clone()),
+            OrbitItem::F64(f) => Some(*f),
             _ => None,
         }
     }
@@ -181,14 +181,14 @@ impl OrbitItem {
     /// Unwraps OrbitItem as u8
     pub fn as_u8(&self) -> Option<u8> {
         match self {
-            OrbitItem::U8(u) => Some(u.clone()),
+            OrbitItem::U8(u) => Some(*u),
             _ => None,
         }
     }
     /// Unwraps OrbitItem as i8
     pub fn as_i8(&self) -> Option<i8> {
         match self {
-            OrbitItem::I8(i) => Some(i.clone()),
+            OrbitItem::I8(i) => Some(*i),
             _ => None,
         }
     }
@@ -216,7 +216,7 @@ impl OrbitItem {
     /// Unwraps Self as GAL orbit Health indication
     pub fn as_gal_health(&self) -> Option<health::GalHealth> {
         match self {
-            OrbitItem::GalHealth(h) => Some(h.clone()),
+            OrbitItem::GalHealth(h) => Some(*h),
             _ => None,
         }
     }

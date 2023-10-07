@@ -83,7 +83,7 @@ pub fn sbas_selection_helper(lat: f64, lon: f64) -> Option<Constellation> {
     let point: geo::Point<f64> = point!(x: lon, y: lat,);
     for (sbas, area) in db {
         if area.contains(&point) {
-            return Some(sbas.clone());
+            return Some(sbas);
         }
     }
     None

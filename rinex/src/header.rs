@@ -351,8 +351,8 @@ impl Header {
                     ));
                 }
 
-                let date: Vec<&str> = items[0].split("-").collect();
-                let time: Vec<&str> = items[1].split(":").collect();
+                let date: Vec<&str> = items[0].split('-').collect();
+                let time: Vec<&str> = items[1].split(':').collect();
 
                 let day = date[0].trim();
                 let day = u8::from_str_radix(day, 10).or(Err(ParsingError::DateTimeParsing(
@@ -502,7 +502,7 @@ impl Header {
                  */
                 let vers = vers.trim();
                 version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
-                    format!("RINEX VERSION / TYPE \"{}\"", vers.to_string()),
+                    format!("RINEX VERSION / TYPE \"{}\"", vers),
                 )))?;
 
                 if !version.is_supported() {
@@ -554,7 +554,7 @@ impl Header {
                             program.to_string()
                         }
                     },
-                    constellation: gnss.clone(),
+                    constellation: gnss,
                     url: {
                         let url = url.trim();
                         if url.eq("") {
@@ -583,7 +583,7 @@ impl Header {
                             program.to_string()
                         }
                     },
-                    constellation: gnss.clone(),
+                    constellation: gnss,
                     url: {
                         let url = url.trim();
                         if url.eq("") {
@@ -1329,11 +1329,11 @@ impl Header {
             })?;
         }
 
-        Ok(Epoch::from_str(&format!(
+        Epoch::from_str(&format!(
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:08} {}",
             y, m, d, hh, mm, ss, ns, ts
         ))
-        .map_err(|_| ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string()))?)
+        .map_err(|_| ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string()))
     }
 
     /*
@@ -1608,7 +1608,7 @@ impl Header {
                      * List of observables
                      */
                     let mut descriptor = String::new();
-                    for (_constell, observables) in obs.codes.iter() {
+                    if let Some((_constell, observables)) = obs.codes.iter().next() {
                         descriptor.push_str(&format!("{:6}", observables.len()));
                         for (i, observable) in observables.iter().enumerate() {
                             if (i % 9) == 0 && i > 0 {
@@ -1617,7 +1617,6 @@ impl Header {
                             descriptor.push_str(&format!("{:>6}", observable));
                         }
                         writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
-                        break;
                     }
                 },
                 _ => {},
@@ -1844,7 +1843,7 @@ impl Merge for Header {
             let rhs_constellations: Vec<_> = rhs
                 .dcb_compensations
                 .iter()
-                .map(|dcb| dcb.constellation.clone())
+                .map(|dcb| dcb.constellation)
                 .collect();
             self.dcb_compensations
                 .iter_mut()
@@ -1860,7 +1859,7 @@ impl Merge for Header {
             let rhs_constellations: Vec<_> = rhs
                 .pcv_compensations
                 .iter()
-                .map(|pcv| pcv.constellation.clone())
+                .map(|pcv| pcv.constellation)
                 .collect();
             self.dcb_compensations
                 .iter_mut()

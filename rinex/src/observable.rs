@@ -317,13 +317,13 @@ impl std::str::FromStr for Observable {
             _ => {
                 let len = content.len();
                 if len > 1 && len < 4 {
-                    if content.starts_with("L") {
+                    if content.starts_with('L') {
                         Ok(Self::Phase(content.to_string()))
-                    } else if content.starts_with("C") || content.starts_with("P") {
+                    } else if content.starts_with('C') || content.starts_with('P') {
                         Ok(Self::PseudoRange(content.to_string()))
-                    } else if content.starts_with("S") {
+                    } else if content.starts_with('S') {
                         Ok(Self::SSI(content.to_string()))
-                    } else if content.starts_with("D") {
+                    } else if content.starts_with('D') {
                         Ok(Self::Doppler(content.to_string()))
                     } else {
                         Err(ParsingError::UnknownObservable(content.to_string()))
