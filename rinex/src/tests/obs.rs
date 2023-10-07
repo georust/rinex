@@ -547,7 +547,7 @@ mod test {
             "G03, G01, G04, G09, G17, G19, G21, G22, G31, G32, R01, R02, R08, R09, R10, R17, R23, R24",
             "C1C, L1C, D1C, S1C, C2P, L2P, D2P, S2P, C2W, L2W, D2W, S2W",
             Some("2022-03-04T00:00:00 GPST"),
-            Some("TIME OF LAST OBS"),
+            Some("2022-03-04T23:59:30 GPST"),
             erratic_time_frame!(
                 "2022-03-04T00:00:00 GPST, 2022-03-04T00:28:30 GPST, 2022-03-04T00:57:00 GPST"
             ),
@@ -1040,7 +1040,7 @@ mod test {
             &rnx,
             "3.05",
             Some("MIXED"),
-            "BDS, GAL, GLO, QZSS, GPS, SBAS",
+            "BDS, GAL, GLO, QZSS, GPS, EGNOS, SDCM, BDSBAS",
             "C05, C07, C10, C12, C19, C20, C23, C32, C34, C37,
              E01, E03, E05, E09, E13, E15, E24, E31,
              G02, G05, G07, G08, G09, G13, G15, G18, G21, G27, G28, G30,

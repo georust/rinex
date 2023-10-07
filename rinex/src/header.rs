@@ -872,9 +872,9 @@ impl Header {
                     }
                 }
             } else if marker.contains("SYS / # / OBS TYPES") {
-                let (possible_content, content) = content.split_at(6);
-                if possible_content.len() > 0 {
-                    let code = &possible_content[..1];
+                let (possible_counter, content) = content.split_at(6);
+                if possible_counter.len() > 0 {
+                    let code = &possible_counter[..1];
                     if let Ok(c) = Constellation::from_str(code) {
                         current_constell = Some(c);
                     }

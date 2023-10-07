@@ -384,7 +384,11 @@ impl Decompressor {
                             let mut inner: Vec<(NumDiff, TextDiff, TextDiff)> =
                                 Vec::with_capacity(16);
                             // this protects from malformed Headers or malformed Epoch descriptions
-                            if let Some(codes) = observables.get(&sv.constellation) {
+                            let codes = match sv.constellation.is_sbas() {
+                                true => observables.get(&Constellation::SBAS),
+                                false => observables.get(&sv.constellation),
+                            };
+                            if let Some(codes) = codes {
                                 for _ in codes {
                                     let mut kernels = (
                                         NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
@@ -402,7 +406,11 @@ impl Decompressor {
                          * iterate over entire line
                          */
                         let mut line = line.trim_end();
-                        if let Some(codes) = observables.get(&sv.constellation) {
+                        let codes = match sv.constellation.is_sbas() {
+                            true => observables.get(&Constellation::SBAS),
+                            false => observables.get(&sv.constellation),
+                        };
+                        if let Some(codes) = codes {
                             while obs_ptr < codes.len() {
                                 if let Some(pos) = line.find(' ') {
                                     let content = &line[..pos];

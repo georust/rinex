@@ -491,11 +491,10 @@ fn parse_v3(
                 true => observables.get(&Constellation::SBAS),
                 false => observables.get(&sv.constellation),
             };
+            //println!("SV: {} OBSERVABLES: {:?}", sv, obscodes); // DEBUG
             if let Some(obscodes) = obscodes {
                 let nb_obs = line.len() / observable_width;
                 inner.clear();
-                println!("SV: {}", sv); //DEBUG
-                println!("NB OBS: {}", nb_obs); //DEBUG
                 let mut rem = line;
                 for i in 0..nb_obs {
                     if i == obscodes.len() {

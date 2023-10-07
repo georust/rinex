@@ -1,3 +1,4 @@
+use crate::navigation::FrameClass;
 use crate::*;
 use rand::{distributions::Alphanumeric, Rng};
 
@@ -109,7 +110,7 @@ pub fn test_gnss_csv(dut: &Rinex, gnss_csv: &str) {
     for g in &dut_gnss {
         assert!(
             gnss.contains(&g),
-            "dut should not contain constellation \"{}\"",
+            "dut should not contain constellation \"{:X}\"",
             g
         );
     }
@@ -196,14 +197,11 @@ pub fn test_observables_csv(dut: &Rinex, observables_csv: &str) {
  * OBS RINEX thorough comparison
  */
 fn observation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
-    let rec_dut = dut
-        .record
-        .as_obs()
-        .expect("failed to unwrap as observation rinex record");
+    let rec_dut = dut.record.as_obs().expect("failed to unwrap rinex record");
     let rec_model = model
         .record
         .as_obs()
-        .expect("failed to unwrap as observation rinex record");
+        .expect("failed to unwrap rinex record");
     /*
      * 1: make sure constellations are identical
      */
@@ -319,11 +317,11 @@ fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64
     let rec_dut = dut
         .record
         .as_clock()
-        .expect("failed to unwrap as clock rinex record");
+        .expect("failed to unwrap rinex record");
     let rec_model = model
         .record
         .as_clock()
-        .expect("failed to unwrap as clock rinex record");
+        .expect("failed to unwrap rinex record");
     for (e_model, model_types) in rec_model.iter() {
         if let Some(dut_types) = rec_dut.get(e_model) {
             for (model_data, _model_systems) in model_types.iter() {
@@ -342,17 +340,80 @@ fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64
 }
 
 /*
+ * Navigation RINEX thorough comparison
+ */
+fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
+    let rec_dut = dut.record.as_nav().expect("failed to unwrap rinex record");
+    let rec_model = model
+        .record
+        .as_nav()
+        .expect("failed to unwrap rinex record");
+    for (e_model, model_frames) in rec_model.iter() {
+        if let Some(dut_frames) = rec_dut.get(e_model) {
+            println!("{:?}", dut_frames);
+            for model_frame in model_frames {
+                let mut frametype = FrameClass::default();
+                if model_frame.as_eph().is_some() {
+                    frametype = FrameClass::Ephemeris;
+                } else if model_frame.as_sto().is_some() {
+                    frametype = FrameClass::SystemTimeOffset;
+                } else if model_frame.as_eop().is_some() {
+                    frametype = FrameClass::EarthOrientation;
+                } else if model_frame.as_ion().is_some() {
+                    frametype = FrameClass::IonosphericModel;
+                }
+                if !dut_frames.contains(model_frame) {
+                    panic!(
+                        "\"{}\" - @{} missing {} frame {:?}",
+                        filename, e_model, frametype, model_frame
+                    );
+                    //assert_eq!(
+                    //    observation_model, observation_dut,
+                    //    "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
+                    //    filename, e_model, code_model, observation_model, observation_dut
+                    //);
+                } else {
+                }
+            }
+        } else {
+            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
+        }
+    }
+
+    //for (e_dut, obscodes_dut) in rec_dut.iter() {
+    //    if let Some(obscodes_model) = rec_model.get(e_dut) {
+    //        for (code_dut, observation_dut) in obscodes_dut.iter() {
+    //            if let Some(observation_model) = obscodes_model.get(code_dut) {
+    //                assert_eq!(
+    //                    observation_model, observation_dut,
+    //                    "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
+    //                    filename, e_dut, code_dut, observation_model, observation_dut
+    //                );
+    //            } else {
+    //                panic!(
+    //                    "\"{}\" - {:?} parsed \"{}\" unexpectedly",
+    //                    filename, e_dut, code_dut
+    //                );
+    //            }
+    //        }
+    //    } else {
+    //        panic!("\"{}\" - parsed {:?} unexpectedly", filename, e_dut);
+    //    }
+    //}
+}
+
+/*
  * Meteo RINEX thorough comparison
  */
 fn meteo_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
     let rec_dut = dut
         .record
         .as_meteo()
-        .expect("failed to unwrap as meteo rinex record");
+        .expect("failed to unwrap rinex record");
     let rec_model = model
         .record
         .as_meteo()
-        .expect("failed to unwrap as meteo rinex record");
+        .expect("failed to unwrap rinex record");
     for (e_model, obscodes_model) in rec_model.iter() {
         if let Some(obscodes_dut) = rec_dut.get(e_model) {
             for (code_model, observation_model) in obscodes_model.iter() {
@@ -407,6 +468,8 @@ pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f
         meteo_against_model(&dut, &model, filename, epsilon);
     } else if dut.is_clocks_rinex() {
         clocks_against_model(&dut, &model, filename, epsilon);
+    } else if dut.is_navigation_rinex() {
+        navigation_against_model(&dut, &model, filename, epsilon);
     }
 }
 
