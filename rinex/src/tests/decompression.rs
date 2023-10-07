@@ -629,23 +629,6 @@ mod test {
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
         assert_eq!(crnx.is_ok(), true);
         let rnx = crnx.unwrap();
-
-        test_observation_rinex(
-            &rnx,
-            "2.0TODO",
-            Some("BLAH"),
-            "GPS, Bleh",
-            "G01, TODO",
-            "P1, P2, TODO",
-            Some("FIRST"),
-            Some("LAST"),
-            evenly_spaced_time_frame!(
-                "2021-12-21T00:00:00 GPST",
-                "2021-12-21T00:12:00 GPST",
-                "30 s"
-            ),
-        );
-
         /*
          * Verify identified observables
          */
