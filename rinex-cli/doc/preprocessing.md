@@ -72,18 +72,20 @@ advanced mask filters.
 
 ## Stacked preprocessing ops
 
-A whitespace separates two preprocessing operations.
+A whitespace separates two preprocessing operations (ie., two sets of CSV).
+Therefore it is considered as two separate filters. For example here, we're only left with
+G08 and R03 data.
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P GPS,GLO G08,R03  
+    -P GPS,GLO,BDS G08,R03  
 ```
 
-Therefore, if a filter operation involves a whitespace, it requires to be wrapped
+If one opeation requies a whitespace, it needs to be wrapped
 in between inverted commas. Most common example is the [Epoch](epoch-target) description.
 
-## Epoch target
+## Epoch filter
   
 Any valid Hifitime::Epoch string description is supported.  
 
@@ -105,11 +107,7 @@ rinex-cli \
     -P ">2020-06-12T08:00:00 UTC" "<=2020-06-25T16:00:00 UTC" GPS >G08
 ```
 
-## Duration target
-
-TODO
-
-## Sv target
+## SV filter
 
 A comma separated list of Sv (of any length) is supported.  
 For example, retain _R03_ and _E10_ with the following:
@@ -121,8 +119,8 @@ rinex-cli \
 ```
 
 `Sv` target is the only one amongst CSV arrays that supports more than "=" or "!=" operands.   
-For example we can select PRN above 08 for GPS and below 10 for Galileo constellations (only, others are untouched)
-with this command:
+This is used to filter on SV PRN. 
+For example here we can select PRN above 08 for GPS and below (included) 10 for Galileo:
 
 ```bash
 rinex-cli \
@@ -130,41 +128,66 @@ rinex-cli \
     -P >G08 "<=E10"
 ```
 
-## Constellations
+## Constellations filter
 
-A comma separated list of Constellations is supported.  
-For example, with the following, we are left with data from Glonass and GPS  
+Retain specific constellations. For example we only retain GPS with this:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P !=BDS GPS,GLO # ineq(BDS) AND eq(GPS,GLO)
+    -P GPS
 ```
 
-Special SBAS filter: if you apply or include "SBAS" in your filter description, 
-like in the following examples, all SBAS are retained (whatever their constellation):
+You can stack as many filters as you want, using csv. For example, retain
+BeiDou also:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -P SBAS
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -P GPS,BDS
 ```
 
-"GEO" is another keyword that is accepted to describe SBAS:
+Inequality is also supported. For example: retain everything but Glonass
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -P GEO
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -P !=GLO
 ```
 
-`teqc` like quick GNSS filters are also supported:
+SBAS is a special case. If you use "SBAS", you can retain or discard
+SBAS systems, whatever their actual constellation. For example we
+retain all GPS and any SBAS with this:
 
-- `-G` to remove GPS
-- `-C` to remove BDS
-- `-E` to remove Galileo
-- `-R` to remove Glonnass
-- `-J` to remove QZSS
-- `-S` to remove SBAS vehicles
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -P GPS,SBAS
+```
 
+If you want to retain specific SBAS, you have to name them precisely, we support all of them
+(see Constellation module API). For example, retain GPS, EGNOS and SDCM with this:
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -P GPS,EGNOS,SDCM 
+```
+
+Note that the following `teqc` equivalent filters are also supported.
+
+- `-G` removes GPS (equivalent to `-P !=GPS`)
+- `-C` removes BDS
+- `-E` removes Galileo
+- `-R` removes Glonnass
+- `-J` removes QZSS
+- `-S` removes all SBAS vehicles
+
+If you want to remove specific SBAS constellations, for example EGNOS, you have to use
+`-P`:
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -P !=EGNOS
+```
 
 ## Observables
 

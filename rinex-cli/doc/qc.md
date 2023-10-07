@@ -1,7 +1,7 @@
 Quality Check (QC)
 ==================
 
-RINEX quality check is a special mode, activated with `--qc`.
+RINEX quality check is a special mode. It is activated with `--qc` and is turned off by default.
 
 QC is first developed for Observation files analysis, but this tool  
 will accept other RINEX files, for which it will compute basic statistical analysis. 
