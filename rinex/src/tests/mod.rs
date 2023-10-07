@@ -12,6 +12,7 @@ mod parsing;
 mod production;
 mod sampling;
 mod smoothing;
+mod masking;
 
 #[cfg(feature = "meteo")]
 mod meteo;
