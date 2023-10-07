@@ -1815,7 +1815,7 @@ impl Decimate for Record {
     }
     fn decimate_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.decimate_match_mut(&rhs);
+        s.decimate_match_mut(rhs);
         s
     }
 }

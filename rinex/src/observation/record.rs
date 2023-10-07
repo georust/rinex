@@ -146,7 +146,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
     } else {
         // Modern RINEX
         // OBS::V3 behaves like all::V4
-        match line.chars().nth(0) {
+        match line.chars().next() {
             Some(c) => {
                 c == '>' // epochs always delimited
                          // by this new identifier
@@ -309,7 +309,7 @@ fn parse_v2(
         match header.constellation {
             Some(Constellation::Mixed) => panic!("bad gnss definition"),
             Some(c) => {
-                if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
+                if let Ok(prn) = system.trim().parse::<u8>() {
                     if let Ok(s) = Sv::from_str(&format!("{}{:02}", c, prn)) {
                         sv = s;
                     } else {
@@ -432,7 +432,7 @@ fn parse_v2(
                 // mainly on OLD RINEX with mono constellation
                 match header.constellation {
                     Some(c) => {
-                        if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
+                        if let Ok(prn) = system.trim().parse::<u8>() {
                             if let Ok(s) = Sv::from_str(&format!("{}{:02}", c, prn)) {
                                 sv = s;
                             } else {
