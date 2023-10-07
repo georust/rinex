@@ -539,6 +539,7 @@ fn parse_v3(
                         if rem.len() > observable_width - 2 {
                             let lli_str = &rem[observable_width - 2..observable_width - 1];
                             if let Ok(u) = u8::from_str_radix(lli_str, 10) {
+                                lli = LliFlags::from_bits(u);
                                 if rem.len() > observable_width - 1 {
                                     let snr_str = &rem[observable_width - 1..];
                                     if let Ok(s) = Snr::from_str(snr_str) {
