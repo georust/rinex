@@ -150,7 +150,7 @@ impl Record {
                 for ((epoch, flag), (clock_offset, data)) in record.iter() {
                     let epoch =
                         observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);
-                    if let Some(_) = &obs_fields.crinex {
+                    if obs_fields.crinex.is_some() {
                         let major = header.version.major;
                         let constell = &header.constellation.as_ref().unwrap();
                         for line in epoch.lines() {
@@ -332,7 +332,7 @@ pub fn parse_record(
         if line.contains("EXPONENT") {
             if let Some(ionex) = header.ionex.as_mut() {
                 let content = line.split_at(60).0;
-                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                if let Ok(e) = content.trim().parse::<i8>() {
                     *ionex = ionex.with_exponent(e); // scaling update
                 }
             }
@@ -366,7 +366,7 @@ pub fn parse_record(
                 /*
                  * RINEX
                  */
-                if line.len() == 0 {
+                if line.is_empty() {
                     // we might encounter empty lines
                     // and the following parsers (.lines() iterator)
                     // do not like it
@@ -379,7 +379,7 @@ pub fn parse_record(
             /*
              * RINEX
              */
-            if line.len() == 0 {
+            if line.is_empty() {
                 // we might encounter empty lines
                 // and the following parsers (.lines() iterator)
                 // do not like it
@@ -392,7 +392,7 @@ pub fn parse_record(
         for line in content.lines() {
             // in case of CRINEX -> RINEX < 3 being recovered,
             // we have more than 1 ligne to process
-            let new_epoch = is_new_epoch(line, &header);
+            let new_epoch = is_new_epoch(line, header);
             ionex_rms_plane = ionex::record::is_new_rms_plane(line);
 
             if new_epoch && !first_epoch {
@@ -413,14 +413,14 @@ pub fn parse_record(
                     },
                     Type::ObservationData => {
                         if let Ok((e, ck_offset, map)) =
-                            observation::record::parse_epoch(&header, &epoch_content, obs_ts)
+                            observation::record::parse_epoch(header, &epoch_content, obs_ts)
                         {
                             obs_rec.insert(e, (ck_offset, map));
                             comment_ts = e.0; // for comments classification & management
                         }
                     },
                     Type::MeteoData => {
-                        if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
+                        if let Ok((e, map)) = meteo::record::parse_epoch(header, &epoch_content) {
                             met_rec.insert(e, map);
                             comment_ts = e; // for comments classification & management
                         }
@@ -540,14 +540,14 @@ pub fn parse_record(
         },
         Type::ObservationData => {
             if let Ok((e, ck_offset, map)) =
-                observation::record::parse_epoch(&header, &epoch_content, obs_ts)
+                observation::record::parse_epoch(header, &epoch_content, obs_ts)
             {
                 obs_rec.insert(e, (ck_offset, map));
                 comment_ts = e.0; // for comments classification + management
             }
         },
         Type::MeteoData => {
-            if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
+            if let Ok((e, map)) = meteo::record::parse_epoch(header, &epoch_content) {
                 met_rec.insert(e, map);
                 comment_ts = e; // for comments classification + management
             }
@@ -655,15 +655,15 @@ impl Merge for Record {
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         if let Some(lhs) = self.as_mut_nav() {
             if let Some(rhs) = rhs.as_nav() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_obs() {
             if let Some(rhs) = rhs.as_obs() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_meteo() {
             if let Some(rhs) = rhs.as_meteo() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         /*} else if let Some(lhs) = self.as_mut_ionex() {
         if let Some(rhs) = rhs.as_ionex() {
@@ -671,11 +671,11 @@ impl Merge for Record {
         }*/
         } else if let Some(lhs) = self.as_mut_antex() {
             if let Some(rhs) = rhs.as_antex() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_clock() {
             if let Some(rhs) = rhs.as_clock() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         }
         Ok(())

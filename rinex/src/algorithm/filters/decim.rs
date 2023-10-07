@@ -94,7 +94,7 @@ impl std::str::FromStr for DecimationFilter {
                 },
                 dtype: DecimationType::DecimByInterval(dt),
             })
-        } else if let Ok(r) = u32::from_str_radix(items[0].trim(), 10) {
+        } else if let Ok(r) = items[0].trim().parse::<u32>() {
             Ok(Self {
                 target: {
                     if items.len() > 1 {

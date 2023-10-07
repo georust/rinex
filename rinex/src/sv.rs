@@ -67,7 +67,7 @@ impl std::str::FromStr for Sv {
      */
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let constellation = Constellation::from_str(&string[0..1])?;
-        let prn = u8::from_str_radix(&string[1..].trim(), 10)?;
+        let prn = string[1..].trim().parse::<u8>()?;
         let mut ret = Sv::new(constellation, prn);
         if constellation.is_sbas() {
             // map the SXX to meaningful SBAS

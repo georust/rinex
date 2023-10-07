@@ -4,13 +4,13 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("invalid mask target")]
-    TargetError(#[from] crate::algorithm::target::Error),
+    InvalidTarget(#[from] crate::algorithm::target::Error),
     #[error("missing a mask operand")]
     MissingOperand,
     #[error("invalid mask operand")]
     InvalidOperand,
     #[error("invalid mask target \"{0}\"")]
-    InvalidTarget(String),
+    NonSupportedTarget(String),
     #[error("invalid mask description")]
     InvalidDescriptor,
 }
@@ -274,7 +274,7 @@ impl std::str::FromStr for MaskFilter {
                         item: TargetItem::from_snr(cleanedup[float_offset..].trim())?,
                     })
                 } else {
-                    Err(Error::InvalidTarget(
+                    Err(Error::NonSupportedTarget(
                         cleanedup[..operand_offset].to_string(),
                     ))
                 }

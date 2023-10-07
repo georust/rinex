@@ -1,6 +1,7 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docrs, feature(doc_cfg))]
+#![allow(clippy::type_complexity)]
 
 pub mod antex;
 pub mod carrier;
@@ -143,7 +144,7 @@ pub(crate) fn fmt_rinex(content: &str, marker: &str) -> String {
                 padding = 60
             ));
             if i < nb_lines - 1 {
-                string.push_str("\n");
+                string.push('\n');
             }
         }
         string
@@ -376,12 +377,12 @@ impl Rinex {
     /// IONEX specific filename convention
     fn ionex_filename(&self) -> String {
         let mut ret: String = "ccc".to_string(); // 3 figue Analysis center
-        ret.push_str("e"); // extension or region code "G" for global ionosphere maps
+        ret.push('e'); // extension or region code "G" for global ionosphere maps
         ret.push_str("ddd"); // day of the year of first record
-        ret.push_str("h"); // file sequence number (1,2,...) or hour (A, B.., Z) within day
+        ret.push('h'); // file sequence number (1,2,...) or hour (A, B.., Z) within day
         ret.push_str("yy"); // 2 digit year
-        ret.push_str("I"); // ionex
-                           //ret.to_uppercase(); //TODO
+        ret.push('I'); // ionex
+                       //ret.to_uppercase(); //TODO
         ret
     }
 

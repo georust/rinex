@@ -23,13 +23,13 @@ pub struct SmoothingFilter {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("invalid description \"{0}\"")]
-    InvalidDescriptionError(String),
+    InvalidDescription(String),
     #[error("unknown smoothing filter \"{0}\"")]
     UnknownFilter(String),
     #[error("unknown smoothing target")]
     TargetError(#[from] crate::algorithm::target::Error),
     #[error("failed to parse duration")]
-    DurationParsingError(#[from] hifitime::Errors),
+    DurationParsing(#[from] hifitime::Errors),
 }
 
 impl std::str::FromStr for SmoothingFilter {
@@ -50,7 +50,7 @@ impl std::str::FromStr for SmoothingFilter {
             })
         } else if items[0].trim().eq("mov") {
             if items.len() < 2 {
-                return Err(Error::InvalidDescriptionError(format!("{:?}", items)));
+                return Err(Error::InvalidDescription(format!("{:?}", items)));
             }
             let dt = Duration::from_str(items[1].trim())?;
             Ok(Self {

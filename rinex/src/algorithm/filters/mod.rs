@@ -26,7 +26,7 @@ pub enum Error {
     #[error("invalid filter target")]
     TargetItem(#[from] super::target::Error),
     #[error("failed to apply filter")]
-    FilterError,
+    Filter,
 }
 
 /// Preprocessing filters, to preprocess RINEX data prior further analysis.

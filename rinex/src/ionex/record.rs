@@ -211,8 +211,8 @@ pub(crate) fn parse_plane(
         } else {
             // less than 60 characters
             // parsing TEC values
-            for item in line.split_ascii_whitespace().into_iter() {
-                if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
+            for item in line.split_ascii_whitespace() {
+                if let Ok(v) = item.trim().parse::<i32>() {
                     let mut value = v as f64;
                     // current scaling
                     value *= 10.0_f64.powf(ionex.exponent as f64);

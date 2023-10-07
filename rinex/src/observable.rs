@@ -54,28 +54,16 @@ impl Default for Observable {
 
 impl Observable {
     pub fn is_phase_observable(&self) -> bool {
-        match self {
-            Self::Phase(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Phase(_))
     }
     pub fn is_pseudorange_observable(&self) -> bool {
-        match self {
-            Self::PseudoRange(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::PseudoRange(_))
     }
     pub fn is_doppler_observable(&self) -> bool {
-        match self {
-            Self::Doppler(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Doppler(_))
     }
     pub fn is_ssi_observable(&self) -> bool {
-        match self {
-            Self::SSI(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::SSI(_))
     }
     pub fn code(&self) -> Option<String> {
         match self {

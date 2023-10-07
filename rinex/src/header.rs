@@ -355,7 +355,7 @@ impl Header {
                 let time: Vec<&str> = items[1].split(':').collect();
 
                 let day = date[0].trim();
-                let day = u8::from_str_radix(day, 10).or(Err(ParsingError::DateTimeParsing(
+                let day = day.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
                     String::from("day"),
                     day.to_string(),
                 )))?;
@@ -364,19 +364,19 @@ impl Header {
                 let month = parse_formatted_month(month)?;
 
                 let y = date[2].trim();
-                let mut y = i32::from_str_radix(y, 10).or(Err(ParsingError::DateTimeParsing(
+                let mut y = y.parse::<i32>().or(Err(ParsingError::DateTimeParsing(
                     String::from("year"),
                     y.to_string(),
                 )))?;
 
                 let h = time[0].trim();
-                let h = u8::from_str_radix(h, 10).or(Err(ParsingError::DateTimeParsing(
+                let h = h.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
                     String::from("hour"),
                     h.to_string(),
                 )))?;
 
                 let m = time[1].trim();
-                let m = u8::from_str_radix(m, 10).or(Err(ParsingError::DateTimeParsing(
+                let m = m.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
                     String::from("minute"),
                     m.to_string(),
                 )))?;
@@ -408,13 +408,13 @@ impl Header {
                 if let Ok(mut pcv) = antex::Pcv::from_str(pcv_str.trim()) {
                     if pcv.is_relative() {
                         // try to parse "Relative Type"
-                        if rel_type.trim().len() > 0 {
+                        if !rel_type.trim().is_empty() {
                             pcv = pcv.with_relative_type(rel_type.trim());
                         }
                     }
                     antex = antex.with_pcv(pcv);
                 }
-                if ref_sn.trim().len() > 0 {
+                if !ref_sn.trim().is_empty() {
                     antex = antex.with_serial_number(ref_sn.trim())
                 }
             } else if marker.contains("TYPE / SERIAL NO") {
@@ -604,7 +604,8 @@ impl Header {
 
                     let (factor, rem) = rem.split_at(6);
                     let factor = factor.trim();
-                    let scaling = u16::from_str_radix(factor, 10)
+                    let scaling = factor
+                        .parse::<u16>()
                         .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
                     let (_num, rem) = rem.split_at(3);
@@ -873,7 +874,7 @@ impl Header {
                 }
             } else if marker.contains("SYS / # / OBS TYPES") {
                 let (possible_counter, content) = content.split_at(6);
-                if possible_counter.len() > 0 {
+                if !possible_counter.is_empty() {
                     let code = &possible_counter[..1];
                     if let Ok(c) = Constellation::from_str(code) {
                         current_constell = Some(c);
@@ -886,7 +887,7 @@ impl Header {
                         let obscode =
                             &content[i * 4..std::cmp::min((i + 1) * 4, content.len())].trim();
                         if let Ok(observable) = Observable::from_str(obscode) {
-                            if obscode.len() > 0 {
+                            if !obscode.is_empty() {
                                 if let Some(codes) = observation.codes.get_mut(&constell) {
                                     codes.push(observable);
                                 } else {
@@ -905,8 +906,9 @@ impl Header {
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
                 let n = n.trim();
-                let n =
-                    u8::from_str_radix(n, 10).or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
+                let n = n
+                    .parse::<u8>()
+                    .or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
 
                 let mut rem = r.clone();
                 for _ in 0..n {
@@ -945,7 +947,7 @@ impl Header {
                     let svnn = &slots[i * 7..i * 7 + 4];
                     let chx = &slots[i * 7 + 4..std::cmp::min(i * 7 + 4 + 3, slots.len())];
                     if let Ok(svnn) = Sv::from_str(svnn.trim()) {
-                        if let Ok(chx) = i8::from_str_radix(chx.trim(), 10) {
+                        if let Ok(chx) = chx.trim().parse::<i8>() {
                             glo_channels.insert(svnn, chx);
                         }
                     }
@@ -1014,7 +1016,7 @@ impl Header {
              * Initial TEC map scaling
              */
             } else if marker.contains("EXPONENT") {
-                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                if let Ok(e) = content.trim().parse::<i8>() {
                     ionex = ionex.with_exponent(e);
                 }
 
@@ -1297,32 +1299,46 @@ impl Header {
         let (ns, rem) = rem.split_at(8);
 
         // println!("Y \"{}\" M \"{}\" D \"{}\" HH \"{}\" MM \"{}\" SS \"{}\" NS \"{}\"", y, m, d, hh, mm, ss, ns); // DEBUG
-        let y = u32::from_str_radix(y.trim(), 10)
+        let y = y
+            .trim()
+            .parse::<u32>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("year"), y.to_string()))?;
 
-        let m = u8::from_str_radix(m.trim(), 10)
+        let m = m
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("months"), m.to_string()))?;
 
-        let d = u8::from_str_radix(d.trim(), 10)
+        let d = d
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("days"), d.to_string()))?;
 
-        let hh = u8::from_str_radix(hh.trim(), 10)
+        let hh = hh
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("hours"), hh.to_string()))?;
 
-        let mm = u8::from_str_radix(mm.trim(), 10)
+        let mm = mm
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("minutes"), mm.to_string()))?;
 
-        let ss = u8::from_str_radix(ss.trim(), 10)
+        let ss = ss
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("seconds"), ss.to_string()))?;
 
-        let ns = u32::from_str_radix(ns.trim(), 10)
+        let ns = ns
+            .trim()
+            .parse::<u32>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
 
         /* timescale might be missing in OLD RINEX: we handle that externally */
         let mut ts = TimeScale::TAI;
 
         let rem = rem.trim();
-        if rem.len() > 0 {
+        if !rem.is_empty() {
             // println!("TS \"{}\"", rem); // DBEUGts = TimeScale::from_str(rem.trim()).map_err(|_| {
             ts = TimeScale::from_str(rem.trim()).map_err(|_| {
                 ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
@@ -1645,7 +1661,7 @@ impl std::fmt::Display for Header {
         // start with CRINEX attributes, if need be
         if let Some(obs) = &self.obs {
             if let Some(crinex) = &obs.crinex {
-                write!(f, "{}\n", crinex)?;
+                writeln!(f, "{}", crinex)?;
             }
         }
 
@@ -1812,7 +1828,7 @@ impl Merge for Header {
         match self.sampling_interval {
             None => {
                 if rhs.sampling_interval.is_some() {
-                    self.sampling_interval = rhs.sampling_interval.clone();
+                    self.sampling_interval = rhs.sampling_interval;
                 }
             },
             Some(lhs) => {
@@ -1837,7 +1853,7 @@ impl Merge for Header {
         merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
 
         // DCBS compensation is preserved, only if both A&B both have it
-        if self.dcb_compensations.len() == 0 || rhs.dcb_compensations.len() == 0 {
+        if self.dcb_compensations.is_empty() || rhs.dcb_compensations.is_empty() {
             self.dcb_compensations.clear(); // drop everything
         } else {
             let rhs_constellations: Vec<_> = rhs
@@ -1853,7 +1869,7 @@ impl Merge for Header {
 
         // PCV compensation : same logic
         // only preserve compensations present in both A & B
-        if self.pcv_compensations.len() == 0 || rhs.pcv_compensations.len() == 0 {
+        if self.pcv_compensations.is_empty() || rhs.pcv_compensations.is_empty() {
             self.pcv_compensations.clear(); // drop everything
         } else {
             let rhs_constellations: Vec<_> = rhs
