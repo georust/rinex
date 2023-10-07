@@ -116,19 +116,19 @@ impl From<f64> for Snr {
     }
 }
 
-impl Into<f64> for Snr {
-    fn into(self) -> f64 {
-        match self {
-            Self::DbHz0 => 0.0_f64,
-            Self::DbHz12 => 12.0_f64,
-            Self::DbHz12_17 => 17.0_f64,
-            Self::DbHz18_23 => 23.0_f64,
-            Self::DbHz24_29 => 29.0_f64,
-            Self::DbHz30_35 => 35.0_f64,
-            Self::DbHz36_41 => 41.0_f64,
-            Self::DbHz42_47 => 47.0_f64,
-            Self::DbHz48_53 => 53.0_f64,
-            Self::DbHz54 => 54.0_f64,
+impl From<Snr> for f64 {
+    fn from(val: Snr) -> Self {
+        match val {
+            Snr::DbHz0 => 0.0_f64,
+            Snr::DbHz12 => 12.0_f64,
+            Snr::DbHz12_17 => 17.0_f64,
+            Snr::DbHz18_23 => 23.0_f64,
+            Snr::DbHz24_29 => 29.0_f64,
+            Snr::DbHz30_35 => 35.0_f64,
+            Snr::DbHz36_41 => 41.0_f64,
+            Snr::DbHz42_47 => 47.0_f64,
+            Snr::DbHz48_53 => 53.0_f64,
+            Snr::DbHz54 => 54.0_f64,
         }
     }
 }

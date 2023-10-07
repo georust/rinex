@@ -80,9 +80,9 @@ impl std::ops::SubAssign<u8> for Version {
     }
 }
 
-impl Into<(u8, u8)> for Version {
-    fn into(self) -> (u8, u8) {
-        (self.major, self.minor)
+impl From<Version> for (u8, u8) {
+    fn from(v: Version) -> Self {
+        (v.major, v.minor)
     }
 }
 

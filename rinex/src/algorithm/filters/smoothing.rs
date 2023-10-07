@@ -26,8 +26,8 @@ pub enum Error {
     InvalidDescription(String),
     #[error("unknown smoothing filter \"{0}\"")]
     UnknownFilter(String),
-    #[error("unknown smoothing target")]
-    TargetError(#[from] crate::algorithm::target::Error),
+    #[error("invalid target")]
+    InvalidTarget(#[from] crate::algorithm::target::Error),
     #[error("failed to parse duration")]
     DurationParsing(#[from] hifitime::Errors),
 }

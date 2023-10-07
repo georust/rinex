@@ -43,7 +43,7 @@ impl Sv {
         let to_find = (self.prn as u16) + 100;
         SBAS_VEHICLES
             .iter()
-            .filter_map(|e| if e.prn == to_find { Some(e) } else { None })
+            .filter(|e| e.prn == to_find)
             .reduce(|e, _| e)
     }
     /// Returns datetime at which Self was either launched or its serviced was deployed.

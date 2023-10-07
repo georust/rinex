@@ -81,9 +81,9 @@ impl std::fmt::Display for Crinex {
         let version = self.version.to_string();
         write!(f, "{:<width$}", version, width = 20)?;
         write!(f, "{:<width$}", "COMPACT RINEX FORMAT", width = 20)?;
-        write!(
+        writeln!(
             f,
-            "{value:<width$} CRINEX VERS   / TYPE\n",
+            "{value:<width$} CRINEX VERS   / TYPE",
             value = "",
             width = 19
         )?;

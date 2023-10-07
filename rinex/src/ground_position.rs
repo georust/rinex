@@ -13,9 +13,9 @@ impl From<(f64, f64, f64)> for GroundPosition {
     }
 }
 
-impl Into<(f64, f64, f64)> for GroundPosition {
-    fn into(self) -> (f64, f64, f64) {
-        (self.0, self.1, self.2)
+impl From<GroundPosition> for (f64, f64, f64) {
+    fn from(val: GroundPosition) -> Self {
+        (val.0, val.1, val.2)
     }
 }
 
