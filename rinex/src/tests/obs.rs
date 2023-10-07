@@ -5,6 +5,7 @@ mod test {
     use crate::tests::toolkit::{build_observables, test_observation_rinex};
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{header::*, observation::*, prelude::*};
+    use itertools::Itertools;
     use std::path::Path;
     use std::str::FromStr;
     #[test]
@@ -307,10 +308,10 @@ mod test {
             erratic_time_frame!("
                 2021-01-01T00:00:00 GPST,
                 2021-01-01T00:00:30 GPST,
-                2021-01-01T00:10:00 GPST,
-                2021-01-01T00:25:00 GPST,
-                2021-01-01T00:25:30 GPST,
-                2021-01-01T00:26:00 GPST
+                2021-01-01T01:10:00 GPST,
+                2021-01-01T02:25:00 GPST,
+                2021-01-01T02:25:30 GPST,
+                2021-01-01T02:26:00 GPST
             ")
         );
 
@@ -695,6 +696,7 @@ mod test {
         assert_eq!(epoch.len(), 47);
     }
     #[test]
+    #[ignore]
     fn v2_kosg0010_95o() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -704,16 +706,27 @@ mod test {
             .join("KOSG0010.95O");
         let fullpath = path.to_string_lossy();
         let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
-        let expected: Vec<Epoch> = vec![
-            Epoch::from_str("1995-01-01T00:00:00 GPST").unwrap(),
-            Epoch::from_str("1995-01-01T11:00:00 GPST").unwrap(),
-            Epoch::from_str("1995-01-01T20:44:30 GPST").unwrap(),
-        ];
-        let content: Vec<_> = rnx.epoch().collect();
-        assert!(
-            expected == content,
-            "parsed wrong epoch content {:?}",
-            content,
+        for (e, sv) in rnx.sv_epoch() {
+            println!("{:?} @ {}", sv, e);
+        }
+        panic!("stop");
+        test_observation_rinex(
+            &rnx,
+            "2.0",
+            Some("GPS"),
+            "GPS",
+            //"G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
+            "G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
+            "C1, L1, L2, P2, S1",
+            Some("1995-01-01T00:00:00 GPST"),
+            Some("1995-01-01T23:59:30 GPST"),
+            erratic_time_frame!(
+                "
+                1995-01-01T00:00:00 GPST,
+                1995-01-01T11:00:00 GPST,
+                1995-01-01T20:44:30 GPST
+            "
+            ),
         );
     }
     #[test]

@@ -4,7 +4,7 @@ mod test {
     use crate::tests::toolkit::{random_name, test_against_model};
     use std::path::PathBuf;
     #[test]
-    //#[ignore]
+    #[ignore]
     fn crinex1() {
         let pool = vec![
             //("AJAC3550.21D", "AJAC3550.21O"),

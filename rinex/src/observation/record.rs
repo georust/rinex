@@ -285,6 +285,7 @@ fn parse_v2(
     let mut inner: HashMap<Observable, ObservationData> = HashMap::with_capacity(5);
     let mut sv = Sv::default();
     let mut observables: &Vec<Observable>;
+    //println!("{:?}", header_observables); // DEBUG
     //println!("\"{}\"", systems); // DEBUG
 
     // parse first system we're dealing with

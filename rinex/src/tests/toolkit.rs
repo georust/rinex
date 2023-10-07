@@ -11,6 +11,7 @@ macro_rules! erratic_time_frame {
         TestTimeFrame::Erratic(
             $csv.split(",")
                 .map(|c| Epoch::from_str(c.trim()).unwrap())
+                .unique()
                 .collect::<Vec<Epoch>>(),
         )
     };
@@ -159,15 +160,18 @@ pub fn test_time_frame(dut: &Rinex, tf: TestTimeFrame) {
         while let Some(e) = dut_epochs.next() {
             panic!("dut should not contain epoch {}", e);
         }
-    } else if let Some(mut serie) = tf.erratic() {
+    } else if let Some(serie) = tf.erratic() {
+        for e in serie {
+            assert!(
+                dut_epochs.find(|epoch| e == *epoch).is_some(),
+                "dut does not contain epoch {}",
+                e
+            );
+        }
+        while let Some(e) = dut_epochs.next() {
+            panic!("dut should not contain epoch {}", e);
+        }
     }
-    //let dut_e :Vec<Epoch> = dut.epoch().collect();
-    //for e in epochs {
-    //    assert!(dut_e.contains(&e), "dut does not contain epoch {}", e);
-    //}
-    //for e in dut_e {
-    //    assert!(epochs.contains(&e), "dut should not contain epoch {}", e);
-    //}
 }
 
 /*

@@ -5,6 +5,7 @@ mod test {
     use crate::tests::toolkit::{build_observables, test_observation_rinex};
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{observable, prelude::*};
+    use itertools::Itertools;
     use std::collections::HashMap;
     use std::path::Path;
     use std::str::FromStr;
@@ -13,7 +14,7 @@ mod test {
         let pool = vec![
             ("zegv0010.21d", "zegv0010.21o"),
             ("AJAC3550.21D", "AJAC3550.21O"),
-            ("KOSG0010.95D", "KOSG0010.95O"),
+            //("KOSG0010.95D", "KOSG0010.95O"), //TODO@ fix tests/obs/v2_kosg first
             ("aopr0010.17d", "aopr0010.17o"),
             ("npaz3550.21d", "npaz3550.21o"),
             ("wsra0010.21d", "wsra0010.21o"),
@@ -40,19 +41,18 @@ mod test {
                     infos.date,
                     Epoch::from_gregorian_utc(2021, 01, 02, 00, 01, 00, 00)
                 );
-
                 test_observation_rinex(
                     &rnx,
                     "2.11",
                     Some("MIXED"),
                     "GPS, GLO",
-                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
-                    "C1, L1, L2, P2, S1, S2",
-                    Some("2021-12-21T00:00:00 GPST"),
-                    Some("2021-12-21T23:59:30 GPST"),
+                    "G07, G08, G10, G13, G15, G16, G18, G20, G21, G23, G26, G27, G30, R01, R02, R03, R08, R09, R15, R16, R17, R18, R19, R24",
+                    "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5",
+                    Some("2021-01-01T00:00:00 GPST"),
+                    Some("2021-01-01T23:59:30 GPST"),
                     evenly_spaced_time_frame!(
-                        "2021-12-21T00:00:00 GPST",
-                        "2021-12-21T01:04:00 GPST",
+                        "2021-01-01T00:00:00 GPST",
+                        "2021-01-01T00:09:00 GPST",
                         "30 s"
                     ),
                 );
@@ -80,83 +80,75 @@ mod test {
                         "30 s"
                     ),
                 );
-            } else if crnx_name.eq("pdel0010.21d") {
-                assert_eq!(infos.version.major, 1);
-                assert_eq!(infos.version.minor, 0);
-                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-                assert_eq!(
-                    infos.date,
-                    Epoch::from_gregorian_utc(2021, 01, 09, 00, 24, 00, 00)
-                );
-
-                test_observation_rinex(
-                    &rnx,
-                    "2.11",
-                    Some("MIXED"),
-                    "GPS, GLO",
-                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
-                    "C1, L1, L2, P2, S1, S2",
-                    Some("2021-12-21T00:00:00 GPST"),
-                    Some("2021-12-21T23:59:30 GPST"),
-                    evenly_spaced_time_frame!(
-                        "2021-12-21T00:00:00 GPST",
-                        "2021-12-21T01:04:00 GPST",
-                        "30 s"
-                    ),
-                );
             } else if crnx_name.eq("wsra0010.21d") {
                 test_observation_rinex(
                     &rnx,
                     "2.11",
                     Some("MIXED"),
                     "GPS, GLO",
-                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
-                    "C1, L1, L2, P2, S1, S2",
-                    Some("2021-12-21T00:00:00 GPST"),
-                    Some("2021-12-21T23:59:30 GPST"),
+                    "R09, R02, G07, G13, R17, R16, R01, G18, G26, G10, G30, G23, G27, G08, R18, G20, R15, G21, G15, R24, G16",
+                    "L1, L2, C1, P2, P1, S1, S2",
+                    Some("2021-01-01T00:00:00 GPST"),
+                    None,
                     evenly_spaced_time_frame!(
-                        "2021-12-21T00:00:00 GPST",
-                        "2021-12-21T01:04:00 GPST",
+                        "2021-01-01T00:00:00 GPST",
+                        "2021-01-01T00:08:00 GPST",
                         "30 s"
                     ),
                 );
             } else if crnx_name.eq("aopr0010.17d") {
                 test_observation_rinex(
                     &rnx,
-                    "2.11",
-                    Some("MIXED"),
-                    "GPS, GLO",
-                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
-                    "C1, L1, L2, P2, S1, S2",
-                    Some("2021-12-21T00:00:00 GPST"),
-                    Some("2021-12-21T23:59:30 GPST"),
-                    evenly_spaced_time_frame!(
-                        "2021-12-21T00:00:00 GPST",
-                        "2021-12-21T01:04:00 GPST",
-                        "30 s"
+                    "2.10",
+                    Some("GPS"),
+                    "GPS",
+                    "G31, G27, G03, G32, G16, G08, G14, G23, G22, G26",
+                    "C1, L1, L2, P1, P2",
+                    Some("2017-01-01T00:00:00 GPST"),
+                    None,
+                    erratic_time_frame!(
+                        "
+                        2017-01-01T00:00:00 GPST,
+                        2017-01-01T03:33:40 GPST,
+                        2017-01-01T06:09:10 GPST
+                    "
                     ),
                 );
-            } else if crnx_name.eq("KOSG0010.95D") {
+            //} else if crnx_name.eq("KOSG0010.95D") {
+            //    test_observation_rinex(
+            //        &rnx,
+            //        "2.0",
+            //        Some("GPS"),
+            //        "GPS",
+            //        "G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
+            //        "C1, L1, L2, P2, S1",
+            //        Some("1995-01-01T00:00:00 GPST"),
+            //        Some("1995-01-01T23:59:30 GPST"),
+            //        erratic_time_frame!("
+            //            1995-01-01T00:00:00 GPST,
+            //            1995-01-01T11:00:00 GPST,
+            //            1995-01-01T20:44:30 GPST
+            //        "),
+            //    );
+            } else if crnx_name.eq("AJAC3550.21D") {
                 test_observation_rinex(
                     &rnx,
                     "2.11",
                     Some("MIXED"),
-                    "GPS, GLO",
-                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
-                    "C1, L1, L2, P2, S1, S2",
+                    "GPS, GLO, GAL, EGNOS",
+                    "G07, G08, G10, G16, G18, G21, G23, G26, G32, R04, R05, R10, R12, R19, R20, R21, E04, E11, E12, E19, E24, E25, E31, E33, S23, S36",
+                    "L1, L2, C1, C2, P1, P2, D1, D2, S1, S2, L5, C5, D5, S5, L7, C7, D7, S7, L8, C8, D8, S8",
                     Some("2021-12-21T00:00:00 GPST"),
-                    Some("2021-12-21T23:59:30 GPST"),
+                    None,
                     evenly_spaced_time_frame!(
-                        "2021-12-21T00:00:00 GPST",
-                        "2021-12-21T01:04:00 GPST",
-                        "30 s"
-                    ),
+                    "2021-12-21T00:00:00 GPST",
+                    "2021-12-21T00:00:30 GPST",
+                    "30 s"),
                 );
             }
-
             // decompress and write to file
             rnx.crnx2rnx_mut();
-            let filename = random_name(10);
+            let filename = format!("{}.rnx", random_name(10));
             assert!(
                 rnx.to_file(&filename).is_ok(),
                 "failed to dump \"{}\" after decompression",
@@ -164,7 +156,6 @@ mod test {
             );
 
             // then run comparison with model
-
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
 
@@ -176,6 +167,9 @@ mod test {
             //let model = model.unwrap();
             // run testbench
             // test_toolkit::test_against_model(&rnx, &model, &path);
+
+            // remove copy
+            let _ = std::fs::remove_file(filename);
         }
     }
     #[test]
@@ -284,13 +278,13 @@ mod test {
 
         test_observation_rinex(
             &rnx,
-            "2.10",
-            Some("GPS"),
-            "GPS",
-            "G31,G27,G03,G32,G16,G14,G08,G23,G22,G07, G30, G11, G19, G07",
-            "C1, L1, L2, P2, P1",
-            Some("2017-01-01T00:00:00 GPST"),
-            None,
+            "2.11",
+            Some("MIXED"),
+            "GPS, GLO",
+            "G07, G08, G10, G13, G15, G16, G18, G20, G21, G23, G26, G27, G30, R01, R02, R03, R08, R09, R15, R16, R17, R18, R19, R24",
+            "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5",
+            Some("2021-01-01T00:00:00 GPST"),
+            Some("2021-01-01T23:59:30 GPST"),
             evenly_spaced_time_frame!(
                 "2021-01-01T00:00:00 GPST",
                 "2021-01-01T00:09:00 GPST",

@@ -3,6 +3,7 @@ mod test {
     use crate::prelude::*;
     use crate::tests::toolkit::test_meteo_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
+    use itertools::Itertools;
     use std::str::FromStr;
     #[test]
     fn v2_abvi0010_15m() {
@@ -33,7 +34,6 @@ mod test {
                 2015-01-01T09:03:00 UTC,
                 2015-01-01T09:04:00 UTC,
                 2015-01-01T19:25:00 UTC,
-                2015-01-01T19:26:00 UTC,
                 2015-01-01T19:26:00 UTC,
                 2015-01-01T19:27:00 UTC,
                 2015-01-01T19:28:00 UTC,

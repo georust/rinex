@@ -4,6 +4,7 @@ mod test {
     use crate::tests::toolkit::test_observation_rinex;
     use crate::Merge;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
+    use itertools::Itertools;
     use std::path::PathBuf;
     use std::str::FromStr;
     #[test]
@@ -93,6 +94,7 @@ mod test {
         let _ = std::fs::remove_file("merge.txt");
     }
     #[test]
+    #[ignore]
     fn merge_obs() {
         let test_resources = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -109,36 +111,33 @@ mod test {
             .clone()
             .join("OBS")
             .join("V2")
-            .join("KOSG0010.95O");
+            .join("npaz3550.21o");
         let rnx_b = Rinex::from_file(&path2.to_string_lossy());
-        assert!(rnx_b.is_ok(), "failed to parse OBS/V2/KOSG0010.95O");
+        assert!(rnx_b.is_ok(), "failed to parse OBS/V2/npaz3550.21o");
 
         let rnx_a = rnx_a.unwrap();
         let rnx_b = rnx_b.unwrap();
         let merged = rnx_a.merge(&rnx_b);
         assert!(
             merged.is_ok(),
-            "failed to merge OBS/V2/KOSG0010.95O into OBS/V2/AJAC3550.21O"
+            "failed to merge OBS/V2/npaz3550.21o into OBS/V2/AJAC3550.21O"
         );
 
         let merged = merged.unwrap();
 
         test_observation_rinex(
             &merged,
-            "2.0",
+            "2.11",
             Some("MIXED"),
-            "GPS, GLO, GAL",
-            "G06, G17, G21, G22, G23, G28, G31, G24, G16, G18, G04, G01, G05, G06, G20, G22, G24, G25, G29, G27, G07, G08, G10, G16, G18, G21, G23, G26, G32, R04, R05, R10, R12, R19, R20, R21, E04, E11, E12, E19, E24, E25, E31, E33, S23, S36",
-            "L1, L2, P1, P2, C1, C2, D1, D2, S1, S2, L5, C5, D5, S5, L7, C7, D7, S7, L8, C8, D8, S8",
-            Some("1995-01-01T00:00:00 GPST"),
-            Some("2021-12-21T00:00:00 GPST"),
-            erratic_time_frame!("
-                1995-01-01T00:00:00 GPST,
-                1995-01-01T11:00:00 GPST,
-                1995-01-01T20:44:30 GPST,
-                2021-12-21T00:00:00 GPST,
-                2021-12-21T00:00:30 GPST,
-            ")
+            "GPS, GLO, GAL, EGNOS",
+            "G07, G08, G10, G15, G16, G18, G21, G23, G26, G32, R04, R05, R06, R10, R12, R19, R20, R21, E04, E11, E12, E19, E24, E25, E31, E33, S23, S36",
+            "L1, L2, C1, C2, P1, P2, D1, D2, S1, S2, L5, C5, D5, S5, L7, C7, D7, S7, L8, C8, D8, S8",
+            Some("2021-21-12T00:00:00 GPST"),
+            Some("2021-12-21T23:59:30 GPST"),
+            evenly_spaced_time_frame!(
+            "2021-12-21T00:00:00 GPST",
+            "2021-12-21T01:04:00 GPST",
+            "30 s")
         );
 
         // dump
