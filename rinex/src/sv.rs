@@ -1,6 +1,7 @@
 //! Satellite vehicle
 use super::{constellation, Constellation};
 use hifitime::Epoch;
+use hifitime::TimeScale;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
@@ -34,6 +35,10 @@ impl Sv {
     /// Creates a new `Sv`
     pub fn new(constellation: Constellation, prn: u8) -> Self {
         Self { prn, constellation }
+    }
+    /// Returns timescale associated to this SV
+    pub fn timescale(&self) -> Option<TimeScale> {
+        self.constellation.timescale()
     }
     /*
      * Tries to retrieve SBAS detailed definitions for self.

@@ -692,9 +692,13 @@ pub fn main() -> Result<(), rinex::Error> {
                     Ok((t, estimate)) => {
                         let pos = (estimate.dx, estimate.dy, estimate.dz);
                         trace!(
-                            "epoch: {} | position error: {:?} | clock offset: {} | TDOP {}",
+                            "epoch: {} \n
+position error: {:?} | HDOP {} | VDOP {} \n
+clock offset: {} | TDOP {}",
                             t,
                             pos,
+                            estimate.hdop,
+                            estimate.vdop,
                             estimate.dt,
                             estimate.tdop
                         );

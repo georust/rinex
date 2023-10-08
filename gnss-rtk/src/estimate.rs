@@ -34,29 +34,30 @@ impl SolverEstimate {
      * and `y` Nav Vector
      */
     pub fn new(g: MatrixXx4<f64>, y: DVector<f64>) -> Option<Self> {
-        let svd = g.svd(true, true);
+        let svd = g.clone().svd(true, true);
         let u = svd.u?;
         let v = svd.v_t?;
         let s = svd.singular_values;
         let s_inv = s.pseudo_inverse(1.0E-8).unwrap();
         let x = v * u.transpose() * y * s_inv;
-        //let g_prime = g.transpose();
-        //let q = (g_prime.clone() * g.clone()).try_inverse()?;
+
+        let g_prime = g.clone().transpose();
+        let q = (g_prime.clone() * g.clone()).try_inverse()?;
         //let x = q * g_prime.clone();
         //let x = x * y;
 
-        //let hdop = (q[(0, 0)] + q[(1, 1)]).sqrt();
-        //let vdop = q[(2, 2)].sqrt();
-        //let tdop = q[(3, 3)].sqrt();
+        let hdop = (q[(0, 0)] + q[(1, 1)]).sqrt();
+        let vdop = q[(2, 2)].sqrt();
+        let tdop = q[(3, 3)].sqrt();
 
         Some(Self {
             dx: x[0],
             dy: x[1],
             dz: x[2],
             dt: x[3] / SPEED_OF_LIGHT,
-            hdop: 0.0_f64,
-            vdop: 0.0_f64,
-            tdop: 0.0_f64,
+            hdop,
+            vdop,
+            tdop,
         })
     }
 }

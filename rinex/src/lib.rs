@@ -1110,7 +1110,7 @@ impl Rinex {
     /// ```
     pub fn dominant_sample_rate(&self) -> Option<Duration> {
         self.sampling_histogram()
-            .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
+            .max_by(|(_, pop_i), (_, pop_j)| pop_i.cmp(pop_j))
             .map(|dominant| dominant.0)
     }
     /// Histogram analysis on Epoch interval. Although
@@ -2157,37 +2157,48 @@ impl Rinex {
             })
         }))
     }
-    /// Select Ephemeris data for given Sv at desired Epoch "t"
-    /// using closest TOE in time
-    pub fn sv_ephemeris(&self, sv: Sv, t: Epoch) -> Option<(Epoch, Ephemeris)> {
-        /* ephemeris data for this sv */
-        let ephemeris_toe = self.ephemeris().filter_map(|(toc, (_, svnn, eph))| {
-            if *svnn == sv {
-                let ts = sv.constellation.timescale()?;
-                eph.toe(ts).map(|toe| (toc, eph, toe))
-            } else {
-                None
-            }
-        });
-        let max_dtoe = Ephemeris::max_dtoe(sv.constellation)?;
-        // search for ephemeris with closest toe
-        let mut ret: Option<(Epoch, Ephemeris, Duration)> = None;
-
-        for (toc, ephemeris, toe) in ephemeris_toe {
-            let dt = t - toe;
-            if dt <= max_dtoe {
-                // allowed
-                if let Some((ref mut ttoc, ref mut ep, ref mut ddt)) = ret.as_mut() {
-                    *ep = ephemeris.clone();
-                    *ddt = dt;
-                    *ttoc = *toc;
+    /// Ephemeris selection method. Use this method to select Ephemeris
+    /// to be used in "sv" navigation at "t" instant. Returns (toe and ephemeris frame).
+    pub fn sv_ephemeris(&self, sv: Sv, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
+        /*
+         * minimize self.ephemeris with closest toe to t
+         *  with toe <= t
+         *   and t < toe + max dtoe
+         *  TODO
+         *   <o ideally some more advanced fields like
+         *      health, iode should also be taken into account
+         */
+        self.ephemeris()
+            .filter_map(|(toc, (msg, svnn, eph))| {
+                if *svnn == sv {
+                    let ts = svnn.timescale()?;
+                    let toe: Option<Epoch> = match msg {
+                        NavMsgType::CNAV => {
+                            /* in CNAV : toc is toe directly */
+                            // TODO Some(toc.in_time_scale(ts))
+                            None
+                        },
+                        _ => {
+                            /* determine toe */
+                            eph.toe(ts)
+                        },
+                    };
+                    let toe = toe?;
+                    let dt = t - toe;
+                    let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
+                    // <o
+                    //     only positive dt: toe is older than request
+                    //     dt < maxdtoe: t is within validity window
+                    if toe <= t && dt < max_dtoe {
+                        Some((toe, eph))
+                    } else {
+                        None
+                    }
                 } else {
-                    ret = Some((*toc, ephemeris.clone(), dt));
+                    None
                 }
-            }
-        }
-        let (toc, ephemeris, _) = ret?;
-        Some((toc, ephemeris))
+            })
+            .min_by_key(|(toe_i, _)| (t - *toe_i).abs())
     }
     /// Returns an Iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)
@@ -2207,35 +2218,6 @@ impl Rinex {
             self.ephemeris()
                 .map(|(e, (_, sv, data))| (*e, *sv, data.sv_clock())),
         )
-    }
-    /// Returns Sv clock bias, at desired t_tx that should be expressed
-    /// in correct timescale.
-    pub fn sv_clock_bias(&self, sv: Sv, t_tx: Epoch) -> Option<Duration> {
-        let (toc, ephemeris) = self.sv_ephemeris(sv, t_tx)?;
-        let (a0, a1, a2) = ephemeris.sv_clock();
-        match sv.constellation {
-            Constellation::Glonass => {
-                //TODO GLONASST not supported
-                //let ts = sv.constellation.timescale()?;
-                //let toe = ephemeris.toe()?;
-                //let dt = (t_tx - toe).to_seconds();
-                //Some(Duration::from_seconds(-a0 + a1 * dt))
-                None
-            },
-            Constellation::SBAS => {
-                let dt = (t_tx - toc).to_seconds();
-                Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
-            },
-            _ => {
-                let dt = (t_tx - toc).to_seconds();
-                Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
-            },
-        }
-    }
-    /// Returns Sv TGD expressed in seconds
-    pub fn sv_tgd(&self, sv: Sv, t: Epoch) -> Option<f64> {
-        let (_, ephemeris) = self.sv_ephemeris(sv, t)?;
-        ephemeris.tgd()
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed in km ECEF for all Epochs.

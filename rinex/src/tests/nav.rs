@@ -4,6 +4,7 @@ mod test {
     use crate::prelude::*;
     use crate::sv;
     use itertools::*;
+    use std::path::Path;
     use std::path::PathBuf;
     use std::str::FromStr;
     #[test]
@@ -1379,6 +1380,59 @@ mod test {
                     sv,
                     index,
                     total_epochs,
+                );
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "nav")]
+    fn sv_toe_ephemeris() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V3")
+            .join("AMEL00NLD_R_20210010000_01D_MN.rnx");
+        let rinex = Rinex::from_file(&path.to_string_lossy().to_string());
+        assert!(rinex.is_ok());
+        let rinex = rinex.unwrap();
+        for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
+            let e0 = Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap();
+            let e1 = Epoch::from_str("2021-01-01T05:00:00 BDT").unwrap();
+            let e2 = Epoch::from_str("2021-01-01T10:10:00 GST").unwrap();
+            let e3 = Epoch::from_str("2021-01-01T15:40:00 GST").unwrap();
+
+            let ts = sv.timescale();
+            assert!(ts.is_some(), "timescale should be determined");
+            let ts = ts.unwrap();
+
+            if let Some(toe) = ephemeris.toe(ts) {
+                let mut expected_sv = Sv::default();
+                let mut expected_toe = Epoch::default();
+                if *toc == e0 {
+                    expected_toe = Epoch::from_str("2021-01-01T00:00:33 BDT").unwrap();
+                    expected_sv = sv!("C05");
+                } else if *toc == e1 {
+                    expected_toe = Epoch::from_str("2021-01-01T05:00:33 BDT").unwrap();
+                    expected_sv = sv!("C21");
+                } else if *toc == e2 {
+                    expected_toe = Epoch::from_str("2021-01-01T10:10:19 GST").unwrap();
+                    expected_sv = sv!("E01");
+                } else if *toc == e3 {
+                    expected_toe = Epoch::from_str("2021-01-01T15:40:19 GST").unwrap();
+                    expected_sv = sv!("E03");
+                } else {
+                    panic!("unhandled toc {}", toc);
+                }
+                assert_eq!(*sv, expected_sv, "wrong sv");
+                assert_eq!(toe, expected_toe, "wrong toe evaluated");
+                /*
+                 * Rinex.sv_ephemeris(@ toe) should return exact ephemeris
+                 */
+                assert_eq!(
+                    rinex.sv_ephemeris(expected_sv, toe),
+                    Some((expected_toe, ephemeris)),
+                    "sv_ephemeris(sv,t) @ toe should strictly identical ephemeris"
                 );
             }
         }

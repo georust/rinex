@@ -53,8 +53,31 @@ mod test {
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.navigation().count() > 0); // all files have content
                                                                      /*
-                                                                      * Verify interpreted time scale, for all Sv
+                                                                      * For all Epoch: ephemeris selection
+                                                                      * must return given ephemeris
                                                                       */
+                            for (toc, (_, sv, eph)) in rinex.ephemeris() {
+                                if let Some(ts) = sv.timescale() {
+                                    if let Some(toe) = eph.toe(ts) {
+                                        let seleph = rinex.sv_ephemeris(*sv, toe);
+                                        assert!(
+                                            seleph.is_some(),
+                                            "ephemeris selection @ toe should always be feasible"
+                                        );
+                                        let (seltoe, seleph) = seleph.unwrap();
+                                        assert_eq!(seltoe, toe, "toe should be identical");
+                                        assert!(
+                                            (seleph.clock_bias - eph.clock_bias).abs() < 1.0E-6,
+                                            "ephemeris selection for t_oc should return exact ephemeris");
+                                        assert!(
+                                            (seleph.clock_drift - eph.clock_drift).abs() < 1.0E-6,
+                                            "ephemeris selection for t_oc should return exact ephemeris");
+                                    }
+                                }
+                            }
+                            /*
+                             * Verify interpreted time scale, for all Sv
+                             */
                             //for (e, (_, sv, _)) in rinex.ephemeris() {
                             //    /* verify toc correctness */
                             //    match sv.constellation {

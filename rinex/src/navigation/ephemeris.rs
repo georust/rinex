@@ -1,7 +1,7 @@
 use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::{epoch, prelude::*, sv, version::Version};
 
-use hifitime::GPST_REF_EPOCH;
+use hifitime::{Unit, GPST_REF_EPOCH};
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
@@ -129,22 +129,40 @@ impl Ephemeris {
     /*
      * Returns TGD field if such field is not empty
      */
-    pub(crate) fn tgd(&self) -> Option<f64> {
-        //let tgd =
+    pub fn tgd(&self) -> Option<f64> {
         self.get_orbit_f64("tgd")
-        //Some(tgd * 299792459.0_f64) // SPEED OF LIGHT
     }
     /*
-     * Retrieves toe, expressed as an Epoch, if Week + TOE are properly received
+     * Helper to apply a clock correction to provided time (expressed as Epoch)
+     */
+    pub fn sv_clock_corr(sv: Sv, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
+        let (a0, a1, a2) = clock_bias;
+        match sv.constellation {
+            Constellation::Glonass => {
+                todo!("sv_clock_corr not supported for glonass @ the moment");
+            },
+            _ => {
+                let dt = (t - toe).to_seconds();
+                Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
+            },
+        }
+    }
+    /*
+     * Retrieves and express TOE as an hifitime Epoch
      */
     pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
-        let week = self.get_week()?;
-        let toe_f64 = self.get_orbit_f64("toe")?;
-        Some(Epoch::from_time_of_week(
-            week,
-            toe_f64.round() as u64 * 1_000_000_000,
-            ts,
-        ))
+        /* toe week counter */
+        let mut week = self.get_week()?;
+        if ts == TimeScale::GST {
+            /* Galileo vehicles stream week counter referenced to GPST.. */
+            week -= 1024;
+        }
+
+        // "toe" field is seconds within current week to obtain toe
+        let secs_dur = self.get_orbit_f64("toe")?;
+        let week_dur = (week * 7) as f64 * Unit::Day;
+
+        Some(Epoch::from_duration(week_dur + secs_dur * Unit::Second, ts))
     }
     /*
      * Parses ephemeris from given line iterator
@@ -311,40 +329,39 @@ impl Ephemeris {
         s
     }
     /*
-    * Manual calculations of satellite position vector, in km ECEF.
-    * `t_sv`: orbit epoch as parsed in RINEX.
-    * TODO: this is currently only verified in GPST
-            need to verify GST/BDT/IRNSST support
-    * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
-    */
-    pub(crate) fn kepler2ecef(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        // To form t_sv : we need to convert UTC time to GNSS time.
-        // Hifitime v4, once released, will help here
-        let mut t_sv = epoch;
+     * Kepler equation solver at desired instant "t" for given "sv"
+     * based off Self. Self must be correctly selected in navigation
+     * record.
+     * "t" does not have to expressed in correct timescale prior this calculation
+     * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
+     */
+    pub(crate) fn kepler2ecef(&self, sv: &Sv, t: Epoch) -> Option<(f64, f64, f64)> {
+        let mut t = t;
+
+        /*
+         * if "t" is not expressed in the correct constellation,
+         * take that into account
+         */
+        t.time_scale = sv.timescale()?;
 
         match sv.constellation {
             Constellation::GPS | Constellation::QZSS => {
-                t_sv.time_scale = TimeScale::GPST;
-                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
+                t -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
             },
             Constellation::Galileo => {
-                t_sv.time_scale = TimeScale::GST;
-                t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
+                t -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
             },
             Constellation::BeiDou => {
-                t_sv.time_scale = TimeScale::BDT;
-                t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
+                t -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
             },
             _ => {}, // either not needed, or most probably not truly supported
         }
 
+        let toe = self.toe(t.time_scale)?;
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
-        let weeks = self.get_week()?;
-        let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
-        let toe = t0 + Duration::from_seconds(kepler.toe);
-        let t_k = (t_sv - toe).to_seconds();
+        let t_k = (t - toe).to_seconds();
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
         let n = n0 + perturbations.dn;
