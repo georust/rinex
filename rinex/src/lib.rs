@@ -2169,12 +2169,12 @@ impl Rinex {
          *      health, iode should also be taken into account
          */
         self.ephemeris()
-            .filter_map(|(toc, (msg, svnn, eph))| {
+            .filter_map(|(_toc, (msg, svnn, eph))| {
                 if *svnn == sv {
                     let ts = svnn.timescale()?;
                     let toe: Option<Epoch> = match msg {
                         NavMsgType::CNAV => {
-                            /* in CNAV : toc is toe directly */
+                            /* in CNAV : specs says toc is toe actually */
                             // TODO Some(toc.in_time_scale(ts))
                             None
                         },
@@ -2183,6 +2183,9 @@ impl Rinex {
                             eph.toe(ts)
                         },
                     };
+                    //TODO : this fails at this point
+                    //       on both GLONASS and SBAS
+                    //       therfore, kills rtk with these two constellations
                     let toe = toe?;
                     let dt = t - toe;
                     let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;

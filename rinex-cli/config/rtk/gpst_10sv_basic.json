@@ -1,9 +1,9 @@
 {
 	"timescale": "GPST",
-    "interp_order": 5,
-    "max_sv": 4,
+    "interp_order": 11,
+    "max_sv": 10,
     "modeling": {
         "sv_clock_bias": true,
-        "sv_total_group_delay": false
+        "sv_total_group_delay": true
     }
 }

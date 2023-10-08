@@ -21,7 +21,7 @@ use rinex::{
 };
 
 extern crate gnss_rtk as rtk;
-use rtk::prelude::{Solver, SolverError, SolverType};
+use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
 
 use rinex_qc::*;
 
@@ -29,8 +29,8 @@ use cli::Cli;
 use identification::rinex_identification;
 use plot::PlotContext;
 
-extern crate pretty_env_logger;
-use pretty_env_logger::env_logger::Builder;
+//extern crate pretty_env_logger;
+use env_logger::{Builder, Target};
 
 #[macro_use]
 extern crate log;
@@ -318,6 +318,7 @@ fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
 pub fn main() -> Result<(), rinex::Error> {
     let mut builder = Builder::from_default_env();
     builder
+        .target(Target::Stdout)
         .format_timestamp_secs()
         .format_module_path(false)
         .init();
@@ -681,6 +682,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if let Ok(ref mut solver) = solver {
         // position solver is feasible, with provided context
         let mut solving = true;
+        let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
 
         if rtk {
             match solver.init(&mut ctx) {
@@ -690,18 +692,21 @@ pub fn main() -> Result<(), rinex::Error> {
             while solving {
                 match solver.run(&mut ctx) {
                     Ok((t, estimate)) => {
-                        let pos = (estimate.dx, estimate.dy, estimate.dz);
                         trace!(
-                            "epoch: {} \n
-position error: {:?} | HDOP {} | VDOP {} \n
-clock offset: {} | TDOP {}",
+                            "epoch: {}
+position error: {:.6E}, {:.6E}, {:.6E}
+HDOP {:.5E} | VDOP {:.5E}
+clock offset: {:.6E} | TDOP {:.5E}",
                             t,
-                            pos,
+                            estimate.dx,
+                            estimate.dy,
+                            estimate.dz,
                             estimate.hdop,
                             estimate.vdop,
                             estimate.dt,
                             estimate.tdop
                         );
+                        results.insert(t, estimate);
                     },
                     Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
                     Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),

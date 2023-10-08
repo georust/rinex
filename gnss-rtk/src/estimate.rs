@@ -34,17 +34,17 @@ impl SolverEstimate {
      * and `y` Nav Vector
      */
     pub fn new(g: MatrixXx4<f64>, y: DVector<f64>) -> Option<Self> {
-        let svd = g.clone().svd(true, true);
-        let u = svd.u?;
-        let v = svd.v_t?;
-        let s = svd.singular_values;
-        let s_inv = s.pseudo_inverse(1.0E-8).unwrap();
-        let x = v * u.transpose() * y * s_inv;
+        //let svd = g.clone().svd(true, true);
+        //let u = svd.u?;
+        //let v = svd.v_t?;
+        //let s = svd.singular_values;
+        //let s_inv = s.pseudo_inverse(1.0E-8).unwrap();
+        //let x = v * u.transpose() * y * s_inv;
 
         let g_prime = g.clone().transpose();
         let q = (g_prime.clone() * g.clone()).try_inverse()?;
-        //let x = q * g_prime.clone();
-        //let x = x * y;
+        let x = q * g_prime.clone();
+        let x = x * y;
 
         let hdop = (q[(0, 0)] + q[(1, 1)]).sqrt();
         let vdop = q[(2, 2)].sqrt();

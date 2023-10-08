@@ -18,7 +18,7 @@ use nalgebra::base::{
     DVector,
     MatrixXx4,
     //Vector1,
-    Vector3,
+    //Vector3,
     //Vector4,
 };
 use nyx::md::prelude::{Arc, Cosm};
@@ -163,9 +163,6 @@ impl Solver {
         if self.solver == SolverType::PPP && self.cfg.min_sv_sunlight_rate.is_some() {
             warn!("eclipse filter is not meaningful when using spp strategy");
         }
-        if ctx.sp3_data().is_some() {
-            warn!("sp3 data is not used by solver at the moment");
-        }
 
         self.nth_epoch = 0;
         self.initiated = true;
@@ -205,7 +202,7 @@ impl Solver {
 
         let mut elected_sv: Vec<Sv> = sv.unwrap().into_iter().take(self.cfg.max_sv).collect();
 
-        trace!("{}: {} candidates", t, elected_sv.len());
+        trace!("{:?}: {} candidates", t, elected_sv.len());
 
         // retrieve associated PR
         let pr: Vec<_> = ctx
@@ -255,13 +252,13 @@ impl Solver {
             }
 
             if !has_pr {
-                trace!("{}: {} no pseudo range", t, sv);
+                trace!("{:?}: {} no pseudo range", t, sv);
             }
             if !ppp_ok {
-                trace!("{}: {} not ppp compliant", t, sv);
+                trace!("{:?}: {} not ppp compliant", t, sv);
             }
             if !snr_ok {
-                trace!("{}: {} snr below criteria", t, sv);
+                trace!("{:?}: {} snr below criteria", t, sv);
             }
 
             has_pr && snr_ok & ppp_ok
@@ -269,12 +266,12 @@ impl Solver {
 
         // make sure we still have enough SV
         if elected_sv.len() < 4 {
-            debug!("{}: not enough vehicles elected", t);
+            debug!("{:?}: not enough vehicles elected", t);
             self.nth_epoch += 1;
             return Err(SolverError::LessThan4Sv(t));
         }
 
-        debug!("{}: {} elected sv", t, elected_sv.len());
+        debug!("{:?}: {} elected sv", t, elected_sv.len());
 
         let mut sv_data: HashMap<Sv, (f64, f64, f64, f64, Duration)> = HashMap::new();
 
@@ -293,7 +290,7 @@ impl Solver {
 
             let ephemeris = nav.sv_ephemeris(*sv, t);
             if ephemeris.is_none() {
-                error!("{} : {} no valid ephemeris", t, sv);
+                error!("{:?} : {} no valid ephemeris", t, sv);
                 continue;
             }
 
@@ -335,7 +332,7 @@ impl Solver {
             };
 
             if pos.is_none() {
-                trace!("{} : {} interpolation failed", t, sv);
+                trace!("{:?} : {} interpolation failed", t, sv);
                 continue;
             }
 
@@ -348,7 +345,7 @@ impl Solver {
                     pos0.into(),
                 );
                 if e < min_elev {
-                    trace!("{} : {} elev below mask", t, sv);
+                    trace!("{:?} : {} elev below mask", t, sv);
                     continue;
                 }
             }
@@ -359,13 +356,10 @@ impl Solver {
                 let eclipsed = match state {
                     EclipseState::Umbra => true,
                     EclipseState::Visibilis => false,
-                    EclipseState::Penumbra(r) => {
-                        debug!("{} state: {}", sv, state);
-                        r < min_rate
-                    },
+                    EclipseState::Penumbra(r) => r < min_rate,
                 };
                 if eclipsed {
-                    debug!("dropping eclipsed {}", sv);
+                    debug!("{:?} : dropping eclipsed {}", t, sv);
                 } else {
                     sv_data.insert(*sv, (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, pr, dt_sat));
                 }
@@ -379,7 +373,7 @@ impl Solver {
         let mut g = MatrixXx4::<f64>::zeros(elected_sv.len());
 
         if sv_data.iter().count() < 4 {
-            error!("{}: not enough sv to resolve", t);
+            error!("{:?} : not enough sv to resolve", t);
             self.nth_epoch += 1;
             return Err(SolverError::LessThan4Sv(t));
         }
@@ -390,8 +384,6 @@ impl Solver {
             let (sv_x, sv_y, sv_z) = (data.0, data.1, data.2);
 
             let rho = ((sv_x - x0).powi(2) + (sv_y - y0).powi(2) + (sv_z - z0).powi(2)).sqrt();
-
-            debug!("{}: {} rho: {}", t, sv, rho);
 
             //TODO
             let mut models = -SPEED_OF_LIGHT * dt_sat;
@@ -416,7 +408,7 @@ impl Solver {
         }
 
         // 7: resolve
-        trace!("y: {} | g: {}", y, g);
+        //trace!("y: {} | g: {}", y, g);
         let estimate = SolverEstimate::new(g, y);
         self.nth_epoch += 1;
 
@@ -439,28 +431,38 @@ impl Solver {
         clock_bias: (f64, f64, f64),
         ts: TimeScale,
     ) -> (Epoch, Duration) {
-        // TODO: t.to_duration() simplement ?
-        let seconds_ts = t.to_duration_in_time_scale(t.time_scale).to_seconds();
+        let seconds_ts = t.to_duration().to_seconds();
 
         let dt_tx = seconds_ts - pr / SPEED_OF_LIGHT;
-        let mut e_tx = Epoch::from_duration(dt_tx * Unit::Second, ts);
+        let mut e_tx = Epoch::from_duration(dt_tx * Unit::Second, t.time_scale);
         let mut dt_sat = Duration::default();
 
         if m.sv_clock_bias {
             dt_sat = Ephemeris::sv_clock_corr(sv, clock_bias, t, toe);
-            debug!("{}: {} dt_sat {}", t, sv, dt_sat);
+            debug!("{:?}: {} dt_sat  {}", t, sv, dt_sat);
             e_tx -= dt_sat;
         }
 
         if m.sv_total_group_delay {
             if let Some(tgd) = eph.tgd() {
                 let tgd = tgd * Unit::Second;
-                debug!("{}: {} tgd    {}", t, sv, tgd);
+                debug!("{:?}: {} tgd      {}", t, sv, tgd);
                 e_tx -= tgd;
             }
         }
 
-        debug!("{}: {} t_tx    {:?}", t, sv, e_tx);
+        debug!("{:?}: {} t_tx      {:?}", t, sv, e_tx);
+
+        /*
+         * physical verification on result
+         */
+        let dt = (t - e_tx).to_seconds();
+        assert!(dt > 0.0, "t_tx can't physically be after t_rx..!");
+        assert!(
+            dt < 1.0,
+            "|t - t_tx| < 1s is physically impossible (signal propagation..)"
+        );
+
         (e_tx, dt_sat)
     }
     /*
