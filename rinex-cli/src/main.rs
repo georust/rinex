@@ -14,14 +14,14 @@ use preprocessing::preprocess;
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
-    observation::{Combine, Dcb, IonoDelay, Mp},
+    observation::{Combine, Dcb, IonoDelay}, //Mp},
     prelude::RinexType,
     prelude::*,
     split::Split,
 };
 
 extern crate gnss_rtk as rtk;
-use rtk::prelude::{Solver, SolverOpts, SolverType};
+use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
 
 use rinex_qc::*;
 
@@ -29,8 +29,8 @@ use cli::Cli;
 use identification::rinex_identification;
 use plot::PlotContext;
 
-extern crate pretty_env_logger;
-use pretty_env_logger::env_logger::Builder;
+//extern crate pretty_env_logger;
+use env_logger::{Builder, Target};
 
 #[macro_use]
 extern crate log;
@@ -299,7 +299,7 @@ fn create_context(cli: &Cli) -> QcContext {
  * Returns true if Skyplot view if feasible
  */
 fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() || cli.positioning_only() {
+    if cli.quality_check_only() || cli.rtk_only() {
         /*
          * Special modes: no plots allowed
          */
@@ -318,6 +318,7 @@ fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
 pub fn main() -> Result<(), rinex::Error> {
     let mut builder = Builder::from_default_env();
     builder
+        .target(Target::Stdout)
         .format_timestamp_secs()
         .format_module_path(false)
         .init();
@@ -329,8 +330,8 @@ pub fn main() -> Result<(), rinex::Error> {
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
-    let positioning_only = cli.positioning_only();
-    let positioning = cli.positioning() || positioning_only;
+    let rtk_only = cli.rtk_only();
+    let rtk = cli.rtk() || rtk_only;
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -343,11 +344,42 @@ pub fn main() -> Result<(), rinex::Error> {
 
     // Position solver
     let mut solver = Solver::from(&ctx);
+    if let Ok(ref mut solver) = solver {
+        info!(
+            "provided context is compatible with {} position solver",
+            solver.solver
+        );
+        // custom config ? apply it
+        if let Some(cfg) = cli.rtk_config() {
+            solver.cfg = cfg.clone();
+        }
+        if !rtk {
+            warn!("position solver currently turned off");
+        } else {
+            if cli.forced_spp() {
+                warn!("forced method to spp");
+                solver.solver = SolverType::SPP;
+            }
+            // print config to be used
+            info!("{:#?}", solver.cfg);
+        }
+    } else {
+        warn!("context is not sufficient or not compatible with --rtk");
+    }
 
     // Workspace
     let workspace = workspace_path(&ctx);
     info!("workspace is \"{}\"", workspace.to_string_lossy());
     create_workspace(workspace.clone());
+
+    /*
+     * Print more info on special primary data cases
+     */
+    if ctx.primary_data().is_meteo_rinex() {
+        info!("meteo special primary data");
+    } else if ctx.primary_data().is_ionex() {
+        info!("ionex special primary data");
+    }
 
     /*
      * Emphasize which reference position is to be used.
@@ -363,30 +395,6 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("using reference position {}", pos);
     } else {
         info!("no reference position given or identified");
-    }
-    /*
-     * print more info on possible solver to deploy
-     */
-    if let Ok(ref mut solver) = solver {
-        info!(
-            "provided context is compatible with {} position solver",
-            solver.solver
-        );
-        if !positioning {
-            warn!("position solver currently turned off");
-        } else {
-            if cli.forced_spp() {
-                solver.solver = SolverType::SPP;
-                solver.opts = SolverOpts::default(SolverType::SPP);
-                warn!("position solver restricted to SPP mode");
-            } else if cli.forced_ppp() {
-                solver.solver = SolverType::PPP;
-                solver.opts = SolverOpts::default(SolverType::PPP);
-                warn!("position solver forced to PPP mode");
-            }
-        }
-    } else {
-        info!("context is not sufficient for any position solving method");
     }
     /*
      * Preprocessing
@@ -609,14 +617,14 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !positioning_only {
+    if !qc_only && !rtk_only {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
     }
     /*
      * Render Graphs (HTML)
      */
-    if !qc_only && !positioning_only {
+    if !qc_only && !rtk_only {
         let html_path = workspace_path(&ctx).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
@@ -673,13 +681,43 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     if let Ok(ref mut solver) = solver {
         // position solver is feasible, with provided context
-        if positioning {
-            info!("entering positioning mode\n");
-            while let Some((t, estimate)) = solver.run(&mut ctx) {
-                trace!("epoch: {}", t);
-                // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);
-                //info!("%%%%%%%%% Position : {:?}, Time: {:?}", position, time);
-                // iteration += 1;
+        let mut solving = true;
+        let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
+
+        if rtk {
+            match solver.init(&mut ctx) {
+                Err(e) => panic!("failed to initialize rtk solver"),
+                Ok(_) => info!("entering rtk mode"),
+            }
+            while solving {
+                match solver.run(&mut ctx) {
+                    Ok((t, estimate)) => {
+                        trace!(
+                            "epoch: {}
+position error: {:.6E}, {:.6E}, {:.6E}
+HDOP {:.5E} | VDOP {:.5E}
+clock offset: {:.6E} | TDOP {:.5E}",
+                            t,
+                            estimate.dx,
+                            estimate.dy,
+                            estimate.dz,
+                            estimate.hdop,
+                            estimate.vdop,
+                            estimate.dt,
+                            estimate.tdop
+                        );
+                        results.insert(t, estimate);
+                    },
+                    Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
+                    Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
+                    Err(SolverError::SolvingError(t)) => {
+                        error!("failed to invert navigation matrix @ {}", t)
+                    },
+                    Err(SolverError::EpochDetermination(_)) => {
+                        solving = false; // abort
+                    },
+                    Err(e) => panic!("fatal error {:?}", e),
+                }
             }
             info!("done");
         }

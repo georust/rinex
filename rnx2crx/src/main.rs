@@ -32,11 +32,9 @@ fn main() -> Result<(), Error> {
                     crx.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
                 }
             }
-        } else {
-            if let Some(obs) = &mut rinex.header.obs {
-                if let Some(crx) = &mut obs.crinex {
-                    crx.date = Epoch::from_gregorian_utc_at_midnight(y, m, d);
-                }
+        } else if let Some(obs) = &mut rinex.header.obs {
+            if let Some(crx) = &mut obs.crinex {
+                crx.date = Epoch::from_gregorian_utc_at_midnight(y, m, d);
             }
         }
     } else if let Some((hh, mm, ss)) = cli.time() {
@@ -54,9 +52,9 @@ fn main() -> Result<(), Error> {
         Some(path) => path.clone(),
         _ => {
             // deduce from input
-            match input_path.strip_suffix("o") {
+            match input_path.strip_suffix('o') {
                 Some(prefix) => prefix.to_owned() + "d",
-                _ => match input_path.strip_suffix("O") {
+                _ => match input_path.strip_suffix('O') {
                     Some(prefix) => prefix.to_owned() + "D",
                     _ => match input_path.strip_suffix("rnx") {
                         Some(prefix) => prefix.to_owned() + "crx",

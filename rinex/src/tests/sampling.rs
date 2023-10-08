@@ -15,15 +15,11 @@ mod sampling {
             .join("AJAC3550.21O");
 
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert!(
-            rinex.is_ok(),
-            "failed to parse \"{}\"",
-            fullpath.to_string()
-        );
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok(), "failed to parse \"{}\"", fullpath);
         let rinex = rinex.unwrap();
 
-        let expected = vec![(Duration::from_seconds(30.0), 1 as usize)];
+        let expected = vec![(Duration::from_seconds(30.0), 1_usize)];
 
         let histogram: Vec<_> = rinex.sampling_histogram().sorted().collect();
 

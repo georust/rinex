@@ -7,8 +7,9 @@ use serde::Serialize;
 
 use super::{
     antex, clocks,
+    clocks::{ClockData, ClockDataType},
     hatanaka::{Compressor, Decompressor},
-    header, ionex, is_comment, merge,
+    header, ionex, is_rinex_comment, merge,
     merge::Merge,
     meteo, navigation, observation,
     reader::BufferedReader,
@@ -145,11 +146,11 @@ impl Record {
             Type::ObservationData => {
                 let record = self.as_obs().unwrap();
                 let obs_fields = &header.obs.as_ref().unwrap();
-                let mut compressor = Compressor::new();
+                let mut compressor = Compressor::default();
                 for ((epoch, flag), (clock_offset, data)) in record.iter() {
                     let epoch =
                         observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);
-                    if let Some(_) = &obs_fields.crinex {
+                    if obs_fields.crinex.is_some() {
                         let major = header.version.major;
                         let constell = &header.constellation.as_ref().unwrap();
                         for line in epoch.lines() {
@@ -184,38 +185,38 @@ impl Record {
                 }
             },
             Type::IonosphereMaps => {
-                if let Some(r) = self.as_ionex() {
-                    for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
-                        let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index);
-                        let _ = write!(
-                            writer,
-                            "{}                        EPOCH OF CURRENT MAP",
-                            epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-                        );
-                        let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index);
-                    }
-                    /*
-                     * not efficient browsing, but matches provided examples and common formatting.
-                     * RMS and Height maps are passed after TEC maps.
-                     */
-                    for (index, (epoch, (_, _map, _))) in r.iter().enumerate() {
-                        let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index);
-                        let _ = write!(
-                            writer,
-                            "{}                        EPOCH OF CURRENT MAP",
-                            epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-                        );
-                        let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index);
-                    }
-                    for (index, (epoch, (_, _, _map))) in r.iter().enumerate() {
-                        let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index);
-                        let _ = write!(
-                            writer,
-                            "{}                        EPOCH OF CURRENT MAP",
-                            epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-                        );
-                        let _ = write!(writer, "{:6}                                                      END OF HEIGHT MAP", index);
-                    }
+                if let Some(_r) = self.as_ionex() {
+                    //for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
+                    //    let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index);
+                    //    let _ = write!(
+                    //        writer,
+                    //        "{}                        EPOCH OF CURRENT MAP",
+                    //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
+                    //    );
+                    //    let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index);
+                    //}
+                    // /*
+                    //  * not efficient browsing, but matches provided examples and common formatting.
+                    //  * RMS and Height maps are passed after TEC maps.
+                    //  */
+                    //for (index, (epoch, (_, _map, _))) in r.iter().enumerate() {
+                    //    let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index);
+                    //    let _ = write!(
+                    //        writer,
+                    //        "{}                        EPOCH OF CURRENT MAP",
+                    //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
+                    //    );
+                    //    let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index);
+                    //}
+                    //for (index, (epoch, (_, _, _map))) in r.iter().enumerate() {
+                    //    let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index);
+                    //    let _ = write!(
+                    //        writer,
+                    //        "{}                        EPOCH OF CURRENT MAP",
+                    //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
+                    //    );
+                    //    let _ = write!(writer, "{:6}                                                      END OF HEIGHT MAP", index);
+                    //}
                 }
             },
             _ => panic!("record type not supported yet"),
@@ -249,13 +250,15 @@ pub enum Error {
 /// Returns true if given line matches the start   
 /// of a new epoch, inside a RINEX record.
 pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
-    if is_comment!(line) {
+    if is_rinex_comment(line) {
         return false;
     }
     match &header.rinex_type {
         Type::AntennaData => antex::record::is_new_epoch(line),
         Type::ClockData => clocks::record::is_new_epoch(line),
-        Type::IonosphereMaps => ionex::record::is_new_map(line),
+        Type::IonosphereMaps => {
+            ionex::record::is_new_tec_plane(line) || ionex::record::is_new_rms_plane(line)
+        },
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version),
         Type::ObservationData => observation::record::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
@@ -300,7 +303,7 @@ pub fn parse_record(
             },
             Some(constellation) => {
                 obs_ts = constellation
-                    .to_timescale()
+                    .timescale()
                     .ok_or(Error::ObservationDataTimescaleIdentification)?;
             },
         }
@@ -310,12 +313,8 @@ pub fn parse_record(
     //  but others may exist:
     //    in this case we used the previously identified Epoch
     //    and attach other kinds of maps
-    let mut ionx_rms = false;
-    let mut ionx_height = false;
     let mut ionx_rec = ionex::Record::new();
-    // we need to store encountered epochs, to relate RMS and H maps
-    //    that might be provided in a separate sequence
-    let mut ionx_epochs: Vec<Epoch> = Vec::with_capacity(128);
+    let mut ionex_rms_plane = false;
 
     for l in reader.lines() {
         // iterates one line at a time
@@ -323,7 +322,7 @@ pub fn parse_record(
         // COMMENTS special case
         // --> store
         // ---> append later with epoch.timestamp attached to it
-        if is_comment!(line) {
+        if is_rinex_comment(&line) {
             let comment = line.split_at(60).0.trim_end();
             comment_content.push(comment.to_string());
             continue;
@@ -333,7 +332,7 @@ pub fn parse_record(
         if line.contains("EXPONENT") {
             if let Some(ionex) = header.ionex.as_mut() {
                 let content = line.split_at(60).0;
-                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                if let Ok(e) = content.trim().parse::<i8>() {
                     *ionex = ionex.with_exponent(e); // scaling update
                 }
             }
@@ -367,7 +366,7 @@ pub fn parse_record(
                 /*
                  * RINEX
                  */
-                if line.len() == 0 {
+                if line.is_empty() {
                     // we might encounter empty lines
                     // and the following parsers (.lines() iterator)
                     // do not like it
@@ -380,7 +379,7 @@ pub fn parse_record(
             /*
              * RINEX
              */
-            if line.len() == 0 {
+            if line.is_empty() {
                 // we might encounter empty lines
                 // and the following parsers (.lines() iterator)
                 // do not like it
@@ -393,9 +392,8 @@ pub fn parse_record(
         for line in content.lines() {
             // in case of CRINEX -> RINEX < 3 being recovered,
             // we have more than 1 ligne to process
-            let new_epoch = is_new_epoch(line, &header);
-            ionx_rms |= ionex::record::is_new_rms_map(line);
-            ionx_height |= ionex::record::is_new_height_map(line);
+            let new_epoch = is_new_epoch(line, header);
+            ionex_rms_plane = ionex::record::is_new_rms_plane(line);
 
             if new_epoch && !first_epoch {
                 match &header.rinex_type {
@@ -410,21 +408,21 @@ pub fn parse_record(
                                 .entry(e)
                                 .and_modify(|frames| frames.push(fr.clone()))
                                 .or_insert_with(|| vec![fr.clone()]);
-                            comment_ts = e.clone(); // for comments classification & management
+                            comment_ts = e; // for comments classification & management
                         }
                     },
                     Type::ObservationData => {
                         if let Ok((e, ck_offset, map)) =
-                            observation::record::parse_epoch(&header, &epoch_content, obs_ts)
+                            observation::record::parse_epoch(header, &epoch_content, obs_ts)
                         {
                             obs_rec.insert(e, (ck_offset, map));
-                            comment_ts = e.0.clone(); // for comments classification & management
+                            comment_ts = e.0; // for comments classification & management
                         }
                     },
                     Type::MeteoData => {
-                        if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
+                        if let Ok((e, map)) = meteo::record::parse_epoch(header, &epoch_content) {
                             met_rec.insert(e, map);
-                            comment_ts = e.clone(); // for comments classification & management
+                            comment_ts = e; // for comments classification & management
                         }
                     },
                     Type::ClockData => {
@@ -436,24 +434,23 @@ pub fn parse_record(
                                     d.insert(system, data);
                                 } else {
                                     // --> new system entry for this `epoch`
-                                    let mut inner: HashMap<clocks::System, clocks::Data> =
+                                    let mut inner: HashMap<clocks::System, ClockData> =
                                         HashMap::new();
                                     inner.insert(system, data);
                                     e.insert(dtype, inner);
                                 }
                             } else {
                                 // --> new epoch entry
-                                let mut inner: HashMap<clocks::System, clocks::Data> =
-                                    HashMap::new();
+                                let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
                                 inner.insert(system, data);
                                 let mut map: HashMap<
-                                    clocks::DataType,
-                                    HashMap<clocks::System, clocks::Data>,
+                                    ClockDataType,
+                                    HashMap<clocks::System, ClockData>,
                                 > = HashMap::new();
                                 map.insert(dtype, inner);
                                 clk_rec.insert(epoch, map);
                             }
-                            comment_ts = epoch.clone(); // for comments classification & management
+                            comment_ts = epoch; // for comments classification & management
                         }
                     },
                     Type::AntennaData => {
@@ -476,31 +473,31 @@ pub fn parse_record(
                         }
                     },
                     Type::IonosphereMaps => {
-                        if let Ok((index, epoch, map)) =
-                            ionex::record::parse_map(header, &epoch_content)
+                        if let Ok((epoch, altitude, plane)) =
+                            ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
                         {
-                            if ionx_rms {
-                                ionx_rms = false;
-                                if let Some(e) = ionx_epochs.get(index) {
-                                    // relate
-                                    if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
-                                        // locate
-                                        *rms = Some(map); // insert
+                            if ionex_rms_plane {
+                                if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                                    // provide RMS value for the entire plane
+                                    for ((_, rec_tec), (_, tec)) in
+                                        rec_plane.iter_mut().zip(plane.iter())
+                                    {
+                                        rec_tec.rms = tec.rms;
                                     }
+                                } else {
+                                    // insert RMS values
+                                    ionx_rec.insert((epoch, altitude), plane);
                                 }
-                            } else if ionx_height {
-                                ionx_height = false;
-                                if let Some(e) = ionx_epochs.get(index) {
-                                    // relate
-                                    if let Some((_, _, h)) = ionx_rec.get_mut(e) {
-                                        // locate
-                                        *h = Some(map); // insert
-                                    }
+                            } else if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                                // provide TEC value for the entire plane
+                                for ((_, rec_tec), (_, tec)) in
+                                    rec_plane.iter_mut().zip(plane.iter())
+                                {
+                                    rec_tec.tec = tec.tec;
                                 }
                             } else {
-                                // TEC map => insert epoch
-                                ionx_epochs.push(epoch.clone());
-                                ionx_rec.insert(epoch, (map, None, None));
+                                // insert TEC values
+                                ionx_rec.insert((epoch, altitude), plane);
                             }
                         }
                     },
@@ -538,21 +535,21 @@ pub fn parse_record(
                     .entry(e)
                     .and_modify(|current| current.push(fr.clone()))
                     .or_insert_with(|| vec![fr.clone()]);
-                comment_ts = e.clone(); // for comments classification & management
+                comment_ts = e; // for comments classification & management
             }
         },
         Type::ObservationData => {
             if let Ok((e, ck_offset, map)) =
-                observation::record::parse_epoch(&header, &epoch_content, obs_ts)
+                observation::record::parse_epoch(header, &epoch_content, obs_ts)
             {
                 obs_rec.insert(e, (ck_offset, map));
-                comment_ts = e.0.clone(); // for comments classification + management
+                comment_ts = e.0; // for comments classification + management
             }
         },
         Type::MeteoData => {
-            if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
+            if let Ok((e, map)) = meteo::record::parse_epoch(header, &epoch_content) {
                 met_rec.insert(e, map);
-                comment_ts = e.clone(); // for comments classification + management
+                comment_ts = e; // for comments classification + management
             }
         },
         Type::ClockData => {
@@ -569,46 +566,47 @@ pub fn parse_record(
                     } else {
                         // --> new system entry for this `epoch`
                         let mut map: HashMap<
-                            clocks::DataType,
-                            HashMap<clocks::System, clocks::Data>,
+                            ClockDataType,
+                            HashMap<clocks::System, clocks::ClockData>,
                         > = HashMap::new();
-                        let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
+                        let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
                         inner.insert(system, data);
                         map.insert(dtype, inner);
                     }
                 } else {
                     // --> new epoch entry
-                    let mut map: HashMap<clocks::DataType, HashMap<clocks::System, clocks::Data>> =
+                    let mut map: HashMap<ClockDataType, HashMap<clocks::System, ClockData>> =
                         HashMap::new();
-                    let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
+                    let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
                     inner.insert(system, data);
                     map.insert(dtype, inner);
                     clk_rec.insert(e, map);
                 }
-                comment_ts = e.clone(); // for comments classification & management
+                comment_ts = e; // for comments classification & management
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((index, epoch, map)) = ionex::record::parse_map(header, &epoch_content) {
-                if ionx_rms {
-                    if let Some(e) = ionx_epochs.get(index) {
-                        // relate
-                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
-                            // locate
-                            *rms = Some(map); // insert
+            if let Ok((epoch, altitude, plane)) =
+                ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
+            {
+                if ionex_rms_plane {
+                    if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                        // provide RMS value for the entire plane
+                        for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
+                            rec_tec.rms = tec.rms;
                         }
+                    } else {
+                        // insert RMS values
+                        ionx_rec.insert((epoch, altitude), plane);
                     }
-                } else if ionx_height {
-                    if let Some(e) = ionx_epochs.get(index) {
-                        // relate
-                        if let Some((_, _, h)) = ionx_rec.get_mut(e) {
-                            // locate
-                            *h = Some(map); // insert
-                        }
+                } else if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
+                    // provide TEC value for the entire plane
+                    for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
+                        rec_tec.tec = tec.tec;
                     }
                 } else {
-                    // introduce TEC+epoch
-                    ionx_rec.insert(epoch, (map, None, None));
+                    // insert TEC values
+                    ionx_rec.insert((epoch, altitude), plane);
                 }
             }
         },
@@ -657,15 +655,15 @@ impl Merge for Record {
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         if let Some(lhs) = self.as_mut_nav() {
             if let Some(rhs) = rhs.as_nav() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_obs() {
             if let Some(rhs) = rhs.as_obs() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_meteo() {
             if let Some(rhs) = rhs.as_meteo() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         /*} else if let Some(lhs) = self.as_mut_ionex() {
         if let Some(rhs) = rhs.as_ionex() {
@@ -673,11 +671,11 @@ impl Merge for Record {
         }*/
         } else if let Some(lhs) = self.as_mut_antex() {
             if let Some(rhs) = rhs.as_antex() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_clock() {
             if let Some(rhs) = rhs.as_clock() {
-                lhs.merge_mut(&rhs)?;
+                lhs.merge_mut(rhs)?;
             }
         }
         Ok(())

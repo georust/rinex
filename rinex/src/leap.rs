@@ -59,7 +59,7 @@ impl std::str::FromStr for Leap {
         match items.len() > 2 {
             false => {
                 // [1] simple format: basic
-                ls.leap = u32::from_str_radix(items[0].trim(), 10)?
+                ls.leap = items[0].trim().parse::<u32>()?;
             },
             true => {
                 // [2] complex format: advanced infos
@@ -68,10 +68,10 @@ impl std::str::FromStr for Leap {
                 let (week, rem) = rem.split_at(5);
                 let (day, rem) = rem.split_at(5);
                 let system = rem.trim();
-                ls.leap = u32::from_str_radix(leap.trim(), 10)?;
-                ls.delta_tls = Some(u32::from_str_radix(tls.trim(), 10)?);
-                ls.week = Some(u32::from_str_radix(week.trim(), 10)?);
-                ls.day = Some(u32::from_str_radix(day.trim(), 10)?);
+                ls.leap = leap.trim().parse::<u32>()?;
+                ls.delta_tls = Some(tls.trim().parse::<u32>()?);
+                ls.week = Some(week.trim().parse::<u32>()?);
+                ls.day = Some(day.trim().parse::<u32>()?);
                 if system.eq("") {
                     ls.timescale = None
                 } else {
@@ -91,7 +91,7 @@ mod test {
     fn basic_format() {
         let content = "18";
         let leap = Leap::from_str(content);
-        assert_eq!(leap.is_ok(), true);
+        assert!(leap.is_ok());
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
     }
@@ -99,7 +99,7 @@ mod test {
     fn standard_format() {
         let content = "18    18  2185     7";
         let leap = Leap::from_str(content);
-        assert_eq!(leap.is_ok(), true);
+        assert!(leap.is_ok());
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
         assert_eq!(leap.week, Some(2185));
@@ -109,7 +109,7 @@ mod test {
     fn parse_with_timescale() {
         let content = "18    18  2185     7GPS";
         let leap = Leap::from_str(content);
-        assert_eq!(leap.is_ok(), true);
+        assert!(leap.is_ok());
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
         assert_eq!(leap.week, Some(2185));

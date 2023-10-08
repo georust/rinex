@@ -4,25 +4,25 @@ mod test {
     use crate::prelude::*;
     use crate::sv;
     use itertools::*;
+    use std::path::Path;
     use std::path::PathBuf;
     use std::str::FromStr;
     #[test]
+    #[cfg(feature = "nav")]
     fn v2_amel0010_21g() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/amel0010.21g";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         assert_eq!(record.len(), 4);
 
         // Test: parsed correct amount of entries
         assert_eq!(rinex.navigation().count(), 4);
+
         // Test: only Ephemeris in this record
         assert_eq!(rinex.ephemeris().count(), 6);
         // Test: only Legacy Ephemeris frames in this record
@@ -245,54 +245,52 @@ mod test {
 
                         assert_eq!(ephemeris.get_week(), Some(2138));
                     }
-                } else if *e == Epoch::from_str("2021-01-02T00:00:00").unwrap() {
-                    if sv.prn == 30 {
+                } else if *e == Epoch::from_str("2021-01-02T00:00:00").unwrap() && sv.prn == 30 {
+                    assert_eq!(
+                        ephemeris.sv_clock(),
+                        (-3.621461801230E-04, -6.139089236970E-12, 0.000000000000),
+                        "parsed wrong clock data"
+                    );
+
+                    for (field, data) in vec![
+                        ("iode", Some(8.500000000000E1)),
+                        ("crs", Some(-7.500000000000)),
+                        ("deltaN", Some(5.476656696160E-9)),
+                        ("m0", Some(-1.649762378650)),
+                        ("cuc", Some(-6.072223186490E-7)),
+                        ("e", Some(4.747916595080E-3)),
+                        ("cus", Some(5.392357707020E-6)),
+                        ("sqrta", Some(5.153756387710E+3)),
+                        ("toe", Some(5.184000000000E+5)),
+                        ("cic", Some(7.636845111850E-8)),
+                        ("omega0", Some(2.352085289360E+00)),
+                        ("cis", Some(-2.421438694000E-8)),
+                        ("i0", Some(9.371909002540E-1)),
+                        ("crc", Some(2.614687500000E+2)),
+                        ("omega", Some(-2.846234079630)),
+                        ("omegaDot", Some(-8.435351366240E-9)),
+                        ("idot", Some(-7.000291590240E-11)),
+                        ("l2Codes", Some(1.000000000000)),
+                        ("l2pDataFlag", Some(0.0)),
+                        ("svAccuracy", Some(0.0)),
+                        ("tgd", Some(3.725290298460E-9)),
+                        ("iodc", Some(8.500000000000E1)),
+                        ("t_tm", Some(5.146680000000E5)),
+                    ] {
+                        let value = ephemeris.get_orbit_f64(field);
+                        assert!(value.is_some(), "missing orbit filed \"{}\"", field);
                         assert_eq!(
-                            ephemeris.sv_clock(),
-                            (-3.621461801230E-04, -6.139089236970E-12, 0.000000000000),
-                            "parsed wrong clock data"
+                            value, data,
+                            "parsed wrong \"{}\" value, expecting {:?} got {:?}",
+                            field, data, value
                         );
-
-                        for (field, data) in vec![
-                            ("iode", Some(8.500000000000E1)),
-                            ("crs", Some(-7.500000000000)),
-                            ("deltaN", Some(5.476656696160E-9)),
-                            ("m0", Some(-1.649762378650)),
-                            ("cuc", Some(-6.072223186490E-7)),
-                            ("e", Some(4.747916595080E-3)),
-                            ("cus", Some(5.392357707020E-6)),
-                            ("sqrta", Some(5.153756387710E+3)),
-                            ("toe", Some(5.184000000000E+5)),
-                            ("cic", Some(7.636845111850E-8)),
-                            ("omega0", Some(2.352085289360E+00)),
-                            ("cis", Some(-2.421438694000E-8)),
-                            ("i0", Some(9.371909002540E-1)),
-                            ("crc", Some(2.614687500000E+2)),
-                            ("omega", Some(-2.846234079630)),
-                            ("omegaDot", Some(-8.435351366240E-9)),
-                            ("idot", Some(-7.000291590240E-11)),
-                            ("l2Codes", Some(1.000000000000)),
-                            ("l2pDataFlag", Some(0.0)),
-                            ("svAccuracy", Some(0.0)),
-                            ("tgd", Some(3.725290298460E-9)),
-                            ("iodc", Some(8.500000000000E1)),
-                            ("t_tm", Some(5.146680000000E5)),
-                        ] {
-                            let value = ephemeris.get_orbit_f64(field);
-                            assert!(value.is_some(), "missing orbit filed \"{}\"", field);
-                            assert_eq!(
-                                value, data,
-                                "parsed wrong \"{}\" value, expecting {:?} got {:?}",
-                                field, data, value
-                            );
-                        }
-                        assert!(
-                            ephemeris.get_orbit_f64("fitInt").is_none(),
-                            "parsed fitInt unexpectedly"
-                        );
-
-                        assert_eq!(ephemeris.get_week(), Some(2138));
                     }
+                    assert!(
+                        ephemeris.get_orbit_f64("fitInt").is_none(),
+                        "parsed fitInt unexpectedly"
+                    );
+
+                    assert_eq!(ephemeris.get_week(), Some(2138));
                 }
             }
         }
@@ -302,15 +300,15 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
 
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
+        assert!(rinex.is_navigation_rinex());
+        assert!(rinex.header.obs.is_none());
+        assert!(rinex.header.meteo.is_none());
 
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
 
         let record = record.unwrap();
         assert_eq!(record.len(), 6);
@@ -472,7 +470,7 @@ mod test {
                         },
                         _ => panic!("identified unexpected GAL vehicle \"{}\"", sv.prn),
                     },
-                    _ => panic!("falsely identified \"{}\"", sv.to_string()),
+                    _ => panic!("falsely identified \"{}\"", sv),
                 }
             } //match sv.constellation
         }
@@ -483,14 +481,14 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
+        assert!(rinex.is_navigation_rinex());
+        assert!(rinex.header.obs.is_none());
+        assert!(rinex.header.meteo.is_none());
 
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
 
         // test first epoch
@@ -876,7 +874,7 @@ mod test {
                     } else {
                         panic!("got unexpected system time \"{}\"", sto.system)
                     }
-                } else if let Some(fr) = fr.as_eop() {
+                } else if let Some(_fr) = fr.as_eop() {
                     eop_count += 1; // EOP test
                                     //TODO
                                     // we do not have EOP frame examples at the moment
@@ -945,16 +943,16 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/BRDC00GOP_R_20210010000_01D_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
 
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_navigation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_none(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
+        assert!(rinex.is_navigation_rinex());
+        assert!(rinex.header.obs.is_none());
+        assert!(rinex.header.meteo.is_none());
         assert_eq!(rinex.epoch().count(), 4);
 
         let record = rinex.record.as_nav();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
 
         let record = record.unwrap();
         let mut epochs: Vec<Epoch> = vec![
@@ -985,24 +983,25 @@ mod test {
             for fr in frames {
                 let fr = fr.as_eph();
                 assert!(fr.is_some(), "only ephemeris frames expected here");
-                let (msg, sv, data) = fr.unwrap();
+                let (msg, _sv, _data) = fr.unwrap();
                 assert!(msg == NavMsgType::LNAV, "only lnav frame expected here");
             }
         }
     }
     #[test]
+    #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
     fn v4_nav_messages() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
-        for (epoch, (msg, sv, ephemeris)) in rinex.ephemeris() {
+        for (_epoch, (msg, sv, _ephemeris)) in rinex.ephemeris() {
             match sv.constellation {
                 Constellation::GPS | Constellation::QZSS => {
-                    let expected = vec![NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
+                    let expected = [NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
                     assert!(
                         expected.contains(&msg),
                         "parsed invalid GPS/QZSS V4 message \"{}\"",
@@ -1010,7 +1009,7 @@ mod test {
                     );
                 },
                 Constellation::Galileo => {
-                    let expected = vec![NavMsgType::FNAV, NavMsgType::INAV];
+                    let expected = [NavMsgType::FNAV, NavMsgType::INAV];
                     assert!(
                         expected.contains(&msg),
                         "parsed invalid Galileo V4 message \"{}\"",
@@ -1018,7 +1017,7 @@ mod test {
                     );
                 },
                 Constellation::BeiDou => {
-                    let expected = vec![
+                    let expected = [
                         NavMsgType::D1,
                         NavMsgType::D2,
                         NavMsgType::CNV1,
@@ -1039,7 +1038,7 @@ mod test {
                         msg
                     );
                 },
-                Constellation::Geo => {
+                Constellation::SBAS => {
                     assert_eq!(
                         msg,
                         NavMsgType::SBAS,
@@ -1052,6 +1051,7 @@ mod test {
         }
     }
     #[test]
+    #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
     fn v4_brd400dlr_s2023() {
         let path = PathBuf::new()
@@ -1226,31 +1226,31 @@ mod test {
                 }
             } else if *sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::CNVX);
-            } else if *sv == sv!("J04") {
-                if *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap() {
-                    let kb = iondata.as_klobuchar();
-                    assert!(kb.is_some());
-                    let kb = kb.unwrap();
-                    assert_eq!(
-                        kb.alpha,
-                        (
-                            3.259629011154e-08,
-                            -1.490116119385e-08,
-                            -4.172325134277e-07,
-                            -1.788139343262e-07
-                        )
-                    );
-                    assert_eq!(
-                        kb.beta,
-                        (
-                            1.269760000000e+05,
-                            -1.474560000000e+05,
-                            1.310720000000e+05,
-                            2.490368000000e+06
-                        )
-                    );
-                    assert_eq!(kb.region, KbRegionCode::WideArea);
-                }
+            } else if *sv == sv!("J04")
+                && *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
+            {
+                let kb = iondata.as_klobuchar();
+                assert!(kb.is_some());
+                let kb = kb.unwrap();
+                assert_eq!(
+                    kb.alpha,
+                    (
+                        3.259629011154e-08,
+                        -1.490116119385e-08,
+                        -4.172325134277e-07,
+                        -1.788139343262e-07
+                    )
+                );
+                assert_eq!(
+                    kb.beta,
+                    (
+                        1.269760000000e+05,
+                        -1.474560000000e+05,
+                        1.310720000000e+05,
+                        2.490368000000e+06
+                    )
+                );
+                assert_eq!(kb.region, KbRegionCode::WideArea);
             }
         }
         for (epoch, (msg, sv, eop)) in rinex.earth_orientation() {
@@ -1292,8 +1292,8 @@ mod test {
         }
     }
     #[test]
-    #[cfg(feature = "flate2")]
     #[cfg(feature = "nav")]
+    #[cfg(feature = "flate2")]
     #[ignore]
     fn sv_interp() {
         let path = PathBuf::new()
@@ -1315,7 +1315,7 @@ mod test {
         let dt = rinex.dominant_sample_rate().unwrap();
         let total_epochs = rinex.epoch().count();
 
-        for (order, max_error) in vec![(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
+        for (order, max_error) in [(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
             let tmin = first_epoch + (order / 2) * dt;
             let tmax = last_epoch - (order / 2) * dt;
             println!("running Interp({}) testbench..", order);
@@ -1324,20 +1324,23 @@ mod test {
                 let interpolated = rinex.sv_position_interpolate(sv, epoch, order as usize);
                 let achieved = interpolated.is_some();
                 //DEBUG
-                // println!("tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}", tmin, tmax, epoch, feasible, achieved);
-                //if feasible {
-                //    assert!(
-                //        achieved == feasible,
-                //        "interpolation should have been feasible @ epoch {}",
-                //        epoch,
-                //    );
-                //} else {
-                //    assert!(
-                //        achieved == feasible,
-                //        "interpolation should not have been feasible @ epoch {}",
-                //        epoch,
-                //    );
-                //}
+                println!(
+                    "tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}",
+                    tmin, tmax, epoch, feasible, achieved
+                );
+                if feasible {
+                    assert!(
+                        achieved == feasible,
+                        "interpolation should have been feasible @ epoch {}",
+                        epoch,
+                    );
+                } else {
+                    assert!(
+                        achieved == feasible,
+                        "interpolation should not have been feasible @ epoch {}",
+                        epoch,
+                    );
+                }
                 if !feasible {
                     continue;
                 }
@@ -1380,6 +1383,59 @@ mod test {
                     sv,
                     index,
                     total_epochs,
+                );
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "nav")]
+    fn sv_toe_ephemeris() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V3")
+            .join("AMEL00NLD_R_20210010000_01D_MN.rnx");
+        let rinex = Rinex::from_file(&path.to_string_lossy().to_string());
+        assert!(rinex.is_ok());
+        let rinex = rinex.unwrap();
+        for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
+            let e0 = Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap();
+            let e1 = Epoch::from_str("2021-01-01T05:00:00 BDT").unwrap();
+            let e2 = Epoch::from_str("2021-01-01T10:10:00 GST").unwrap();
+            let e3 = Epoch::from_str("2021-01-01T15:40:00 GST").unwrap();
+
+            let ts = sv.timescale();
+            assert!(ts.is_some(), "timescale should be determined");
+            let ts = ts.unwrap();
+
+            if let Some(toe) = ephemeris.toe(ts) {
+                let mut expected_sv = Sv::default();
+                let mut expected_toe = Epoch::default();
+                if *toc == e0 {
+                    expected_toe = Epoch::from_str("2021-01-01T00:00:33 BDT").unwrap();
+                    expected_sv = sv!("C05");
+                } else if *toc == e1 {
+                    expected_toe = Epoch::from_str("2021-01-01T05:00:33 BDT").unwrap();
+                    expected_sv = sv!("C21");
+                } else if *toc == e2 {
+                    expected_toe = Epoch::from_str("2021-01-01T10:10:19 GST").unwrap();
+                    expected_sv = sv!("E01");
+                } else if *toc == e3 {
+                    expected_toe = Epoch::from_str("2021-01-01T15:40:19 GST").unwrap();
+                    expected_sv = sv!("E03");
+                } else {
+                    panic!("unhandled toc {}", toc);
+                }
+                assert_eq!(*sv, expected_sv, "wrong sv");
+                assert_eq!(toe, expected_toe, "wrong toe evaluated");
+                /*
+                 * Rinex.sv_ephemeris(@ toe) should return exact ephemeris
+                 */
+                assert_eq!(
+                    rinex.sv_ephemeris(expected_sv, toe),
+                    Some((expected_toe, ephemeris)),
+                    "sv_ephemeris(sv,t) @ toe should strictly identical ephemeris"
                 );
             }
         }

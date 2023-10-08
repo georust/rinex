@@ -13,7 +13,7 @@ impl QcSvAnalysis {
     pub fn new(primary: &Rinex, _opts: &QcOpts) -> Self {
         let sv = primary.sv();
         Self {
-            sv: { sv.map(|sv| sv.to_string()).collect() },
+            sv: { sv.map(|sv| format!("{:X}", sv)).collect() },
         }
     }
 }

@@ -1,16 +1,16 @@
 //! RINEX Clock files parser & analysis
 use hifitime::TimeScale;
 pub mod record;
-pub use record::{Data, DataType, Error, Record, System};
+pub use record::{ClockData, ClockDataType, Error, Record, System};
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Types of observation in this file
-    pub codes: Vec<record::DataType>,
+    pub codes: Vec<ClockDataType>,
     /// Clock Data analysis production center
-    pub agency: Option<Agency>,
+    pub agency: Option<ClockAnalysisAgency>,
     /// Reference station
     pub station: Option<Station>,
     /// Reference clock descriptor
@@ -40,7 +40,7 @@ impl HeaderFields {
         s
     }
     /// Set production agency
-    pub fn with_agency(&self, agency: Agency) -> Self {
+    pub fn with_agency(&self, agency: ClockAnalysisAgency) -> Self {
         let mut s = self.clone();
         s.agency = Some(agency);
         s
@@ -57,10 +57,10 @@ pub struct Station {
     pub id: String,
 }
 
-/// Describes a clock analysis center / agency
+/// Describes a clock analysis agency
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Agency {
+pub struct ClockAnalysisAgency {
     /// IGS AC 3 letter code
     pub code: String,
     /// agency name

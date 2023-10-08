@@ -1,4 +1,5 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use gnss_rtk::prelude::RTKConfig;
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
@@ -27,8 +28,8 @@ impl Cli {
                         .long("fp")
                         .value_name("FILE")
                         .help("Input RINEX file. Serves as primary data.
-In advanced usage, this must be Observation Data.
-Observation, Meteo and IONEX, can only serve as primary data.")
+Must be Observation Data for --rtk.
+Observation, Meteo and IONEX can only serve as primary data.")
                         .action(ArgAction::Append)
                         .required(true))
                 .next_help_heading("General")
@@ -37,8 +38,9 @@ Observation, Meteo and IONEX, can only serve as primary data.")
                         .long("quiet")
                         .action(ArgAction::SetTrue)
                         .help("Disable all terminal output. Also disables auto HTML reports opener."))
-                    .arg(Arg::new("readable")
-                        .short('r')
+                    .arg(Arg::new("pretty")
+                        .short('p')
+                        .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable."))
                     .arg(Arg::new("workspace")
@@ -48,15 +50,19 @@ Observation, Meteo and IONEX, can only serve as primary data.")
                         .help("Customize workspace location (folder does not have to exist).
 The default workspace is rinex-cli/workspace"))
                 .next_help_heading("Data identification")
+                    .arg(Arg::new("full-id")
+                        .short('i')
+                        .action(ArgAction::SetTrue)
+                        .help("Turn all identifications ON"))
                     .arg(Arg::new("epochs")
                         .long("epochs")
                         .action(ArgAction::SetTrue)
                         .help("Enumerate all epochs"))
-                    .arg(Arg::new("constellations")
-                        .long("constellations")
-                        .short('c')
+                    .arg(Arg::new("gnss")
+                        .long("gnss")
+                        .short('g')
                         .action(ArgAction::SetTrue)
-                        .help("Enumerate GNSS constellations"))
+                        .help("Enumerate GNSS constellations present in entire context."))
                     .arg(Arg::new("sv")
                         .long("sv")
                         .action(ArgAction::SetTrue)
@@ -109,6 +115,7 @@ Useful to determine common Epochs or compare sample rates in between
 						.num_args(1..)
 						.help("Design preprocessing operations, like data filtering or resampling,
 prior further analysis. You can stack as many ops as you need.
+Preprocessing ops apply prior entering both -q and --rtk modes.
 Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."))
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
@@ -250,27 +257,38 @@ The summary report by default is integrated to the global HTML report."))
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
                         .help("Activates QC mode and disables all other features: quickest qc rendition."))
-                .next_help_heading("Position Solver")
-                    .arg(Arg::new("positioning")
-                        .short('p')
-                        .long("positioning")
+                .next_help_heading("RTK (Positioning)")
+                    .arg(Arg::new("rtk")
+                        .long("rtk")
                         .action(ArgAction::SetTrue)
                         .help("Activate GNSS receiver position solver.
 This is only possible if provided context is sufficient.
 Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
-method is deployed.
-This is turned of by default, because it involves quite heavy computations.
+solver is deployed.
+This mode is turned off by default because it involves quite heavy computations.
+Use the RUST_LOG env. variable for verbosity.
 See [spp] for more information. "))
                     .arg(Arg::new("spp")
                         .long("spp")
                         .action(ArgAction::SetTrue)
                         .help("Enables Positioning forced to Single Frequency SPP solver mode.
 Disregards whether the provided context is PPP compatible. 
-NB: we do not account for Relativistic effects in clock bias estimates."))
-                    .arg(Arg::new("positioning-only")
-                        .long("pos-only")
+NB: we do not account for Relativistic effects by default and raw pseudo range are used.
+For indepth customization, refer to the configuration file and online documentation."))
+                    .arg(Arg::new("rtk-only")
+                        .long("rtk-only")
+                        .short('r')
                         .action(ArgAction::SetTrue)
-                        .help("Activates GNSS position solver, disables all other modes: most performant solver.")) 
+                        .help("Activates GNSS position solver, disables all other modes.
+This is the most performant mode to solve a position."))
+					.arg(Arg::new("rtk-config")
+						.long("rtk-cfg")
+						.value_name("FILE")
+						.help("Pass RTK custom configuration."))
+                    .arg(Arg::new("kml")
+                        .long("kml")
+                        .help("Form a KML track with resolved positions.
+This turns off the default visualization."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -394,6 +412,7 @@ Refer to README"))
             | self.matches.get_flag("orbits")
             | self.matches.get_flag("nav-msg")
             | self.matches.get_flag("anomalies")
+            | self.matches.get_flag("full-id")
     }
     /// Returns true if Sv accross epoch display is requested
     pub fn sv_epoch(&self) -> bool {
@@ -413,38 +432,52 @@ Refer to README"))
     }
     /// Returns list of requested data to extract
     pub fn identification_ops(&self) -> Vec<&str> {
-        let flags = vec![
-            "sv",
-            "epochs",
-            "header",
-            "constellations",
-            "observables",
-            "ssi-range",
-            "ssi-sv-range",
-            "orbits",
-            "nav-msg",
-            "anomalies",
-        ];
-        flags
-            .iter()
-            .filter(|x| self.matches.get_flag(x))
-            .map(|x| *x)
-            .collect()
+        if self.matches.get_flag("full-id") {
+            vec![
+                "sv",
+                "epochs",
+                "gnss",
+                "observables",
+                "ssi-range",
+                "ssi-sv-range",
+                "orbits",
+                "nav-msg",
+                "anomalies",
+            ]
+        } else {
+            let flags = vec![
+                "sv",
+                "header",
+                "epochs",
+                "gnss",
+                "observables",
+                "ssi-range",
+                "ssi-sv-range",
+                "orbits",
+                "nav-msg",
+                "anomalies",
+            ];
+            flags
+                .iter()
+                .filter(|x| self.matches.get_flag(x))
+                .map(|x| *x)
+                .collect()
+        }
     }
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
     }
     /// returns true if pretty JSON is requested
-    pub fn readable_json(&self) -> bool {
-        self.get_flag("readable")
+    pub fn pretty(&self) -> bool {
+        self.get_flag("pretty")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
     /// Returns true if position solver is enabled
-    pub fn positioning(&self) -> bool {
-        self.matches.get_flag("positioning") || self.forced_spp() || self.forced_ppp()
+    pub fn rtk(&self) -> bool {
+        self.matches.get_flag("rtk") || self.forced_spp() || self.forced_ppp()
     }
     /// Returns true if position solver forced to SPP
     pub fn forced_spp(&self) -> bool {
@@ -454,8 +487,26 @@ Refer to README"))
     pub fn forced_ppp(&self) -> bool {
         self.matches.get_flag("spp")
     }
-    pub fn positioning_only(&self) -> bool {
-        self.matches.get_flag("positioning-only")
+    pub fn rtk_only(&self) -> bool {
+        self.matches.get_flag("rtk-only")
+    }
+    pub fn rtk_config(&self) -> Option<RTKConfig> {
+        if let Some(path) = self.matches.get_one::<String>("rtk-config") {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                let opts = serde_json::from_str(&content);
+                if let Ok(opts) = opts {
+                    info!("loaded rtk config: \"{}\"", path);
+                    return Some(opts);
+                } else {
+                    error!("failed to parse config file \"{}\"", path);
+                    info!("using default parameters");
+                }
+            } else {
+                error!("failed to read config file \"{}\"", path);
+                info!("using default parameters");
+            }
+        }
+        None
     }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")

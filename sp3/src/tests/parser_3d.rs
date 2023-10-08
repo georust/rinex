@@ -79,7 +79,6 @@ mod test {
             }
         }
 
-        let mut clk: Vec<_> = sp3.sv_clock().collect();
         for (epoch, sv, clock) in sp3.sv_clock() {
             assert_eq!(epoch, Epoch::from_str("2019-10-27T00:00:00 GPST").unwrap());
             if sv == sv!("C01") {

@@ -113,7 +113,7 @@ pub fn plot_observation(ctx: &QcContext, plot_context: &mut PlotContext) {
                 let data_y: Vec<f64> = data.iter().map(|(_cs, _e, y)| *y).collect();
 
                 let trace = build_chart_epoch_axis(
-                    &format!("{}({})", sv, observable),
+                    &format!("{:X}({})", sv, observable),
                     Mode::Markers,
                     data_x,
                     data_y,
@@ -142,7 +142,7 @@ pub fn plot_observation(ctx: &QcContext, plot_context: &mut PlotContext) {
                         let epochs: Vec<Epoch> = data.iter().map(|(e, _)| *e).collect();
                         let elev: Vec<f64> = data.iter().map(|(_, f)| *f).collect();
                         let trace = build_chart_epoch_axis(
-                            &format!("Elev({})", sv),
+                            &format!("Elev({:X})", sv),
                             Mode::LinesMarkers,
                             epochs,
                             elev,

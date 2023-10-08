@@ -37,14 +37,14 @@ impl std::str::FromStr for Sensor {
         let (observable, _) = rem.split_at(2);
         Ok(Self {
             model: {
-                if model.trim().len() > 0 {
+                if !model.trim().is_empty() {
                     Some(model.trim().to_string())
                 } else {
                     None
                 }
             },
             sensor_type: {
-                if s_type.trim().len() > 0 {
+                if !s_type.trim().is_empty() {
                     Some(s_type.trim().to_string())
                 } else {
                     None
@@ -82,14 +82,14 @@ impl std::fmt::Display for Sensor {
         } else {
             write!(f, "{:11}", "")?
         }
-        write!(f, "{} SENSOR MOD/TYPE/ACC\n", self.observable)?;
+        writeln!(f, "{} SENSOR MOD/TYPE/ACC", self.observable)?;
 
         if let Some((x, y, z, h)) = self.position {
             write!(f, "{:14.4}", x)?;
             write!(f, "{:14.4}", y)?;
             write!(f, "{:14.4}", z)?;
             write!(f, "{:14.4}", h)?;
-            write!(f, " {} SENSOR POS XYZ/H\n", self.observable)?
+            writeln!(f, " {} SENSOR POS XYZ/H", self.observable)?
         }
         Ok(())
     }
@@ -164,7 +164,7 @@ mod test {
     #[test]
     fn from_str() {
         let s = Sensor::from_str("                                                  0.0    PR ");
-        assert_eq!(s.is_ok(), true);
+        assert!(s.is_ok());
         let s = s.unwrap();
         assert_eq!(s.model, None);
         assert_eq!(s.sensor_type, None);
@@ -174,10 +174,10 @@ mod test {
         let s = Sensor::from_str(
             "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC",
         );
-        assert_eq!(s.is_ok(), true);
+        assert!(s.is_ok());
         let s = Sensor::from_str(
             "                                                  0.0    PR SENSOR MOD/TYPE/ACC",
         );
-        assert_eq!(s.is_ok(), true);
+        assert!(s.is_ok());
     }
 }

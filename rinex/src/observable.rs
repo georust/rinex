@@ -54,28 +54,16 @@ impl Default for Observable {
 
 impl Observable {
     pub fn is_phase_observable(&self) -> bool {
-        match self {
-            Self::Phase(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Phase(_))
     }
     pub fn is_pseudorange_observable(&self) -> bool {
-        match self {
-            Self::PseudoRange(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::PseudoRange(_))
     }
     pub fn is_doppler_observable(&self) -> bool {
-        match self {
-            Self::Doppler(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Doppler(_))
     }
     pub fn is_ssi_observable(&self) -> bool {
-        match self {
-            Self::SSI(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::SSI(_))
     }
     pub fn code(&self) -> Option<String> {
         match self {
@@ -228,7 +216,7 @@ impl Observable {
                     _ => None, // invalid: not a pseudo range
                 }
             },
-            Constellation::Geo | Constellation::SBAS(_) => {
+            Constellation::SBAS => {
                 match self {
                     Self::PseudoRange(code) => {
                         match code.as_ref() {
@@ -317,13 +305,13 @@ impl std::str::FromStr for Observable {
             _ => {
                 let len = content.len();
                 if len > 1 && len < 4 {
-                    if content.starts_with("L") {
+                    if content.starts_with('L') {
                         Ok(Self::Phase(content.to_string()))
-                    } else if content.starts_with("C") || content.starts_with("P") {
+                    } else if content.starts_with('C') || content.starts_with('P') {
                         Ok(Self::PseudoRange(content.to_string()))
-                    } else if content.starts_with("S") {
+                    } else if content.starts_with('S') {
                         Ok(Self::SSI(content.to_string()))
-                    } else if content.starts_with("D") {
+                    } else if content.starts_with('D') {
                         Ok(Self::Doppler(content.to_string()))
                     } else {
                         Err(ParsingError::UnknownObservable(content.to_string()))

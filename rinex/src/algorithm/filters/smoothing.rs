@@ -23,19 +23,19 @@ pub struct SmoothingFilter {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("invalid description \"{0}\"")]
-    InvalidDescriptionError(String),
+    InvalidDescription(String),
     #[error("unknown smoothing filter \"{0}\"")]
     UnknownFilter(String),
-    #[error("unknown smoothing target")]
-    TargetError(#[from] crate::algorithm::target::Error),
+    #[error("invalid target")]
+    InvalidTarget(#[from] crate::algorithm::target::Error),
     #[error("failed to parse duration")]
-    DurationParsingError(#[from] hifitime::Errors),
+    DurationParsing(#[from] hifitime::Errors),
 }
 
 impl std::str::FromStr for SmoothingFilter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let items: Vec<&str> = content.trim().split(":").collect();
+        let items: Vec<&str> = content.trim().split(':').collect();
         if items[0].trim().eq("hatch") {
             Ok(Self {
                 target: {
@@ -50,7 +50,7 @@ impl std::str::FromStr for SmoothingFilter {
             })
         } else if items[0].trim().eq("mov") {
             if items.len() < 2 {
-                return Err(Error::InvalidDescriptionError(format!("{:?}", items)));
+                return Err(Error::InvalidDescription(format!("{:?}", items)));
             }
             let dt = Duration::from_str(items[1].trim())?;
             Ok(Self {
@@ -87,7 +87,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn from_str() {
-        for desc in vec!["hatch", "hatch:C1C", "hatch:c1c,c2p"] {
+        for desc in ["hatch", "hatch:C1C", "hatch:c1c,c2p"] {
             let filter = SmoothingFilter::from_str(desc);
             assert!(
                 filter.is_ok(),
@@ -95,7 +95,7 @@ mod test {
                 desc
             );
         }
-        for desc in vec![
+        for desc in [
             "mov:10 min",
             "mov:1 hour",
             "mov:10 min:clk",

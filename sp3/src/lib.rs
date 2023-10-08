@@ -275,7 +275,7 @@ fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingErr
     let ss = u32::from_str(content[16..19].trim())
         .or(Err(ParsingError::EpochSeconds(content[16..19].to_string())))?;
 
-    let ss_fract = f64::from_str(content[20..27].trim()).or(Err(
+    let _ss_fract = f64::from_str(content[20..27].trim()).or(Err(
         ParsingError::EpochMilliSeconds(content[20..27].to_string()),
     ))?;
 
@@ -320,7 +320,9 @@ impl SP3 {
             let line = line.unwrap();
             let line = line.trim();
             if sp3_comment(line) {
-                comments.push(line[3..].to_string());
+                if line.len() > 4 {
+                    comments.push(line[3..].to_string());
+                }
                 continue;
             }
             if end_of_file(line) {

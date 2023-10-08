@@ -1,25 +1,30 @@
 #[cfg(test)]
 mod test {
     use crate::clocks;
-    use crate::clocks::record::{DataType, System};
+    use crate::clocks::{ClockAnalysisAgency, ClockDataType, System};
     use crate::prelude::*;
     #[test]
     fn v3_usno_example() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/USNO1.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_clocks_rinex(), true);
-        assert_eq!(rinex.header.clocks.is_some(), true);
+        assert!(rinex.is_clocks_rinex());
+        assert!(rinex.header.clocks.is_some());
         let clocks = rinex.header.clocks.as_ref().unwrap();
         assert_eq!(
             clocks.codes,
-            vec![DataType::AS, DataType::AR, DataType::CR, DataType::DR]
+            vec![
+                ClockDataType::AS,
+                ClockDataType::AR,
+                ClockDataType::CR,
+                ClockDataType::DR
+            ]
         );
         assert_eq!(
             clocks.agency,
-            Some(clocks::Agency {
+            Some(ClockAnalysisAgency {
                 code: String::from("USN"),
                 name: String::from("USNO USING GIPSY/OASIS-II"),
             })
@@ -33,21 +38,21 @@ mod test {
         );
         assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         for (e, data_types) in record.iter() {
             assert_eq!(*e, Epoch::from_gregorian_utc(1994, 07, 14, 20, 59, 00, 00));
             for (data_type, systems) in data_types.iter() {
                 assert_eq!(systems.len(), 1);
-                if *data_type == DataType::AR {
+                if *data_type == ClockDataType::AR {
                     for (system, data) in systems.iter() {
                         assert_eq!(*system, System::Station("AREQ".to_string()));
                         assert_eq!(data.bias, -0.123456789012);
-                        assert_eq!(data.bias_sigma, Some(-1.23456789012E+0));
-                        assert_eq!(data.rate, Some(-12.3456789012));
-                        assert_eq!(data.rate_sigma, Some(-123.456789012));
+                        assert_eq!(data.bias_dev, Some(-1.23456789012E+0));
+                        assert_eq!(data.drift, Some(-12.3456789012));
+                        assert_eq!(data.drift_dev, Some(-123.456789012));
                     }
-                } else if *data_type == DataType::AS {
+                } else if *data_type == ClockDataType::AS {
                     for (system, _) in systems.iter() {
                         assert_eq!(
                             *system,
@@ -57,11 +62,11 @@ mod test {
                             })
                         );
                     }
-                } else if *data_type == DataType::CR {
+                } else if *data_type == ClockDataType::CR {
                     for (system, _) in systems.iter() {
                         assert_eq!(*system, System::Station("USNO".to_string()));
                     }
-                } else if *data_type == DataType::DR {
+                } else if *data_type == ClockDataType::DR {
                     for (system, _) in systems.iter() {
                         assert_eq!(*system, System::Station("USNO".to_string()));
                     }
@@ -76,27 +81,27 @@ mod test {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/example1.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_clocks_rinex(), true);
-        assert_eq!(rinex.header.clocks.is_some(), true);
+        assert!(rinex.is_clocks_rinex());
+        assert!(rinex.header.clocks.is_some());
         let clocks = rinex.header.clocks.as_ref().unwrap();
-        assert_eq!(clocks.codes, vec![DataType::AS, DataType::AR]);
+        assert_eq!(clocks.codes, vec![ClockDataType::AS, ClockDataType::AR]);
         assert_eq!(
             clocks.agency,
-            Some(clocks::Agency {
+            Some(ClockAnalysisAgency {
                 code: String::from("USN"),
                 name: String::from("USNO USING GIPSY/OASIS-II"),
             })
         );
         assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         for (e, data_types) in record.iter() {
             assert_eq!(*e, Epoch::from_gregorian_utc(1994, 07, 14, 20, 59, 00, 00));
             for (data_type, systems) in data_types.iter() {
-                if *data_type == DataType::AR {
+                if *data_type == ClockDataType::AR {
                     assert_eq!(systems.len(), 4);
                     for (system, data) in systems.iter() {
                         let areq_usa = System::Station("AREQ00USA".to_string());
@@ -105,25 +110,25 @@ mod test {
                         let hark = System::Station("HARK".to_string());
                         if *system == areq_usa {
                             assert_eq!(data.bias, -0.123456789012);
-                            assert_eq!(data.bias_sigma, Some(-0.123456789012E+01));
-                            assert_eq!(data.rate, Some(-0.123456789012E+02));
-                            assert_eq!(data.rate_sigma, Some(-0.123456789012E+03));
+                            assert_eq!(data.bias_dev, Some(-0.123456789012E+01));
+                            assert_eq!(data.drift, Some(-0.123456789012E+02));
+                            assert_eq!(data.drift_dev, Some(-0.123456789012E+03));
                         } else if *system == gold {
                             assert_eq!(data.bias, -0.123456789012E-01);
-                            assert_eq!(data.bias_sigma, Some(-0.123456789012E-02));
-                            assert_eq!(data.rate, Some(-0.123456789012E-03));
-                            assert_eq!(data.rate_sigma, Some(-0.123456789012E-04));
+                            assert_eq!(data.bias_dev, Some(-0.123456789012E-02));
+                            assert_eq!(data.drift, Some(-0.123456789012E-03));
+                            assert_eq!(data.drift_dev, Some(-0.123456789012E-04));
                         } else if *system == tidb {
                             assert_eq!(data.bias, 0.123456789012E+00);
-                            assert_eq!(data.bias_sigma, Some(0.123456789012E+00));
+                            assert_eq!(data.bias_dev, Some(0.123456789012E+00));
                         } else if *system == hark {
                             assert_eq!(data.bias, 0.123456789012E+00);
-                            assert_eq!(data.bias_sigma, Some(0.123456789012E+00));
+                            assert_eq!(data.bias_dev, Some(0.123456789012E+00));
                         } else {
                             panic!("falsely identified system \"{}\"", *system);
                         }
                     }
-                } else if *data_type == DataType::AS {
+                } else if *data_type == ClockDataType::AS {
                     assert_eq!(systems.len(), 1);
                     for (system, data) in systems.iter() {
                         assert_eq!(
@@ -134,7 +139,7 @@ mod test {
                             })
                         );
                         assert_eq!(data.bias, -0.123456789012E+00);
-                        assert_eq!(data.bias_sigma, Some(-0.123456789012E-01));
+                        assert_eq!(data.bias_dev, Some(-0.123456789012E-01));
                     }
                 } else {
                     panic!("identified unexpected data type \"{}\"", data_type);
@@ -147,29 +152,29 @@ mod test {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/example2.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_clocks_rinex(), true);
-        assert_eq!(rinex.header.clocks.is_some(), true);
+        assert!(rinex.is_clocks_rinex());
+        assert!(rinex.header.clocks.is_some());
         let clocks = rinex.header.clocks.as_ref().unwrap();
-        assert_eq!(clocks.codes, vec![DataType::AR, DataType::AS]);
+        assert_eq!(clocks.codes, vec![ClockDataType::AR, ClockDataType::AS]);
         assert_eq!(
             clocks.agency,
-            Some(clocks::Agency {
+            Some(ClockAnalysisAgency {
                 code: String::from("IGS"),
                 name: String::from("IGSACC @ GA and MIT"),
             })
         );
         assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         //let record = record.unwrap();
         /*for (e, data_types) in record.iter() {
             assert_eq!(*e, Epoch::from_gregorian_utc(2017, 03, 11, 00, 00, 00, 00));
             for (data_type, systems) in data_types.iter() {
-                if *data_type == DataType::AR {
+                if *data_type == ClockDataType::AR {
                     assert_eq!(systems.len(), 4);
-                } else if *data_type == DataType::AS {
+                } else if *data_type == ClockDataType::AS {
                     assert_eq!(systems.len(), 2);
                 } else {
                     panic!("identified unexpected data type \"{}\"", data_type);

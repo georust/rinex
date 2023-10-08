@@ -69,13 +69,13 @@ pub(crate) fn parse_epoch(
 
     let codes = &header.meteo.as_ref().unwrap().codes;
     let nb_codes = codes.len();
-    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8).into();
+    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8);
     let mut code_index: usize = 0;
 
     for i in 0..nb_lines {
         for _ in 0..8 {
             let code = &codes[code_index];
-            let obs: Option<f64> = match f64::from_str(&line[offset..offset + 7].trim()) {
+            let obs: Option<f64> = match f64::from_str(line[offset..offset + 7].trim()) {
                 Ok(f) => Some(f),
                 Err(_) => None,
             };
@@ -126,13 +126,13 @@ pub(crate) fn fmt_epoch(
         if let Some(data) = data.get(obscode) {
             lines.push_str(&format!("{:7.1}", data));
         } else {
-            lines.push_str(&format!("       "));
+            lines.push_str("       ");
         }
         if (index % 8) == 0 {
-            lines.push_str("\n");
+            lines.push('\n');
         }
     }
-    lines.push_str("\n");
+    lines.push('\n');
     Ok(lines)
 }
 
@@ -142,35 +142,35 @@ mod test {
     #[test]
     fn test_new_epoch() {
         let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert_eq!(
-            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
-            true
-        );
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
         let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert_eq!(
-            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
-            true
-        );
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
         let content = " 22  1  4  9 55  0  997.9   -6.4   54.2    2.9  342.0    0.0    0.0";
-        assert_eq!(
-            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
-            true
-        );
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
         let content = " 22  1  4 10  0  0  997.9   -6.3   55.4    3.4  337.0    0.0    0.0";
-        assert_eq!(
-            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
-            true
-        );
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
         let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
-        assert_eq!(
-            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
-            true
-        );
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
         let content = " 2021  1  7  0  0  0  993.3   23.0   90.0";
-        assert_eq!(
-            is_new_epoch(content, version::Version { major: 4, minor: 0 }),
-            true
-        );
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 4, minor: 0 }
+        ));
     }
 }
 
@@ -204,7 +204,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k < &epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }
@@ -214,7 +214,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k >= &epoch {
-                    Some((k.clone(), v.clone()))
+                    Some((*k, v.clone()))
                 } else {
                     None
                 }
@@ -244,7 +244,7 @@ impl Mask for Record {
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
                         data.retain(|code, _| filter.contains(code));
-                        data.len() > 0
+                        !data.is_empty()
                     });
                 },
                 _ => {},
@@ -254,7 +254,7 @@ impl Mask for Record {
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
                         data.retain(|code, _| !filter.contains(code));
-                        data.len() > 0
+                        !data.is_empty()
                     });
                 },
                 _ => {},
@@ -338,7 +338,7 @@ impl Decimate for Record {
     }
     fn decimate_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.decimate_match_mut(&rhs);
+        s.decimate_match_mut(rhs);
         s
     }
 }

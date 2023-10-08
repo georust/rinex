@@ -67,7 +67,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             .collect();
 
         let trace = build_chart_epoch_axis(
-            &format!("{}(clk)", sv),
+            &format!("{:X}(clk)", sv),
             Mode::LinesMarkers,
             sv_epochs.clone(),
             sv_clock,
@@ -86,7 +86,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         plot_ctx.add_trace(trace);
 
         let trace = build_chart_epoch_axis(
-            &format!("{}(drift)", sv),
+            &format!("{:X}(drift)", sv),
             Mode::LinesMarkers,
             sv_epochs.clone(),
             sv_drift,
@@ -134,7 +134,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 )
                 .collect();
             let trace =
-                build_chart_epoch_axis(&format!("{}(sp3_clk)", sv), Mode::Markers, epochs, data)
+                build_chart_epoch_axis(&format!("{:X}(sp3_clk)", sv), Mode::Markers, epochs, data)
                     .visible({
                         if sv_index == 0 {
                             // Clock data differs too much: plot only one to begin with
@@ -182,7 +182,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             )
             .collect();
         let trace =
-            build_chart_epoch_axis(&format!("{}(x)", sv), Mode::Markers, epochs.clone(), x_km)
+            build_chart_epoch_axis(&format!("{:X}(x)", sv), Mode::Markers, epochs.clone(), x_km)
                 .visible({
                     if sv_index == 0 {
                         Visible::True
@@ -206,7 +206,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             .collect();
 
         let trace =
-            build_chart_epoch_axis(&format!("{}(y)", sv), Mode::Markers, epochs.clone(), y_km)
+            build_chart_epoch_axis(&format!("{:X}(y)", sv), Mode::Markers, epochs.clone(), y_km)
                 .y_axis("y2")
                 .visible({
                     if sv_index == 0 {
@@ -245,7 +245,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 )
                 .collect();
             let trace = build_chart_epoch_axis(
-                &format!("{}(sp3_x)", sv),
+                &format!("{:X}(sp3_x)", sv),
                 Mode::LinesMarkers,
                 epochs.clone(),
                 x,
@@ -271,7 +271,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 )
                 .collect();
             let trace = build_chart_epoch_axis(
-                &format!("{}(sp3_y)", sv),
+                &format!("{:X}(sp3_y)", sv),
                 Mode::LinesMarkers,
                 epochs.clone(),
                 y,
@@ -317,7 +317,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 },
             )
             .collect();
-        let trace = build_chart_epoch_axis(&format!("{}(z)", sv), Mode::Markers, epochs, z_km)
+        let trace = build_chart_epoch_axis(&format!("{:X}(z)", sv), Mode::Markers, epochs, z_km)
             .visible({
                 if sv_index == 0 {
                     Visible::True
@@ -354,15 +354,19 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                     },
                 )
                 .collect();
-            let trace =
-                build_chart_epoch_axis(&format!("{}(sp3_z)", sv), Mode::LinesMarkers, epochs, z_km)
-                    .visible({
-                        if sv_index == 0 {
-                            Visible::True
-                        } else {
-                            Visible::LegendOnly
-                        }
-                    });
+            let trace = build_chart_epoch_axis(
+                &format!("{:X}(sp3_z)", sv),
+                Mode::LinesMarkers,
+                epochs,
+                z_km,
+            )
+            .visible({
+                if sv_index == 0 {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            });
             plot_ctx.add_trace(trace);
         }
     }

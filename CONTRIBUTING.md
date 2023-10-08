@@ -34,11 +34,11 @@ from an `Observable`.
 - `src/hatanaka/mod.rs`: the Hatanaka module contains the RINEX Compressor and Decompressor 
 - `src/antex/antenna.rs`: defines the index structure of ANTEX format
 
-NAV RINEX
-=========
+Navigation Data
+===============
 
-Orbit instantaneous parameters, broadcasted by GNSS vehicles, are presented in different
-forms depending on the RINEX revision and the GNSS constellation.
+Orbit broadcasted parameters are presented in different form depending on the RINEX revisions
+and also may differ in their nature depending on which constellation we're talking about.
 
 To solve that problem, we use a dictionary, in the form of `src/db/NAV/orbits.json`,
 which describes all fields per RINEX revision and GNSS constellation.
@@ -56,3 +56,60 @@ Introducing a new RINEX type
 `src/meteo/mod.rs` is the easiest format and can serve as a guideline to follow.
 
 When introducing a new Navigation Data, the dictionary will most likely have to be updated (see previous paragraph).
+
+GNSS Constellations
+===================
+
+Supported constellations are defined in the Constellation Module.  
+This structure defines both Orbiting and Stationary vehicles.
+
+Adding new SBAS vehicles
+========================
+
+To add a newly launched SBAS vehicles, simply add it to the
+rinex/db/SBAS/sbas.json database.
+
+The only mandatory fields are :
+- the "constellation" field
+- the SBAS "prn" field (which is 100 + prn number)
+- "id": the name of that vehicle, for example "ASTRA-5B"
+- "launched\_year": the year this vehicle was launched
+
+Other optional fields are:
+- "launched\_month": month ths vehicle was launched
+- "launched\_day": day of month this vehicle was launched
+
+We don't support undeployed vehicles (in advance).
+
+Build scripts
+=============
+
+The build script is rinex/build.rs.
+
+It is responsible for building several important but hidden structures.
+
+1. Navigation RINEX specs, described by rinex/db/NAV
+2. Geostationary vehicles identification in rinex/db/sbas/sbas.json,
+that follows the L1-CA-PRN Code assignment specifications (see online specs).
+3. rinex/db/SBAS/*.wkt contains geographic definitions for most
+standard SBAS systems. We parse them as Geo::LineStrings to
+define a contour area for a given SBAS system. This gives one method
+to select a SBAS from given location on Earth
+
+Crate dependencies
+==================
+
+- `qc-traits` and `sinex` are core libraries.
+- `rinex` is the central dependency to most other libraries or applications.
+- tiny applications like `rnx2crx`, `crx2rnx` and `ublox-rnx` only depend on the rinex crate
+- `sp3` is a library that only depends on `rinex` 
+- `gnss-rtk` is a library that depends on `rinex`, `sp3` and `rinex-qc`
+- `cli` is an application that exposes `rinex-qc`, `gnss-rtk`, `sp3` and `rinex`
+
+External key dependencies:
+
+- `Hifitime` (timing lib) is used by all libraries
+- `Nyx-space` (navigation lib) is used by `gnss-rtk`
+- `Ublox-rs` (UBX protocol) is used by `ublox-rnx`
+
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/dependencies.png">

@@ -13,9 +13,9 @@ fn main() -> Result<(), rinex::Error> {
         Some(path) => path.clone(),
         _ => {
             // deduce from input path
-            match input_path.strip_suffix("d") {
+            match input_path.strip_suffix('d') {
                 Some(prefix) => prefix.to_owned() + "o",
-                _ => match input_path.strip_suffix("D") {
+                _ => match input_path.strip_suffix('D') {
                     Some(prefix) => prefix.to_owned() + "O",
                     _ => match input_path.strip_suffix("crx") {
                         Some(prefix) => prefix.to_owned() + "rnx",

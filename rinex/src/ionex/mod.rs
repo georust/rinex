@@ -1,10 +1,11 @@
 //! IONEX module
 use super::Sv;
+use hifitime::Epoch;
 use std::collections::HashMap;
 use strum_macros::EnumString;
 
 pub mod record;
-pub use record::{Map, Record};
+pub use record::{Record, TECPlane, TEC};
 
 pub mod grid;
 pub use grid::{Grid, GridLinspace};
@@ -41,6 +42,10 @@ pub enum BiasSource {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
+    /// Epoch of first map
+    pub epoch_of_first_map: Epoch,
+    /// Epoch of last map
+    pub epoch_of_last_map: Epoch,
     /// Reference system used for following TEC maps,
     /// cf. [system::RefSystem].
     pub reference: RefSystem,
@@ -76,6 +81,8 @@ pub struct HeaderFields {
 impl Default for HeaderFields {
     fn default() -> Self {
         Self {
+            epoch_of_first_map: Epoch::default(),
+            epoch_of_last_map: Epoch::default(),
             reference: RefSystem::default(),
             exponent: -1,     // very important: allows missing EXPONENT fields
             map_dimension: 2, // 2D map by default
@@ -109,7 +116,7 @@ impl HeaderFields {
     pub fn with_description(&self, desc: &str) -> Self {
         let mut s = self.clone();
         if let Some(ref mut d) = s.description {
-            d.push_str(" ");
+            d.push(' ');
             d.push_str(desc)
         } else {
             s.description = Some(desc.to_string())
@@ -129,7 +136,7 @@ impl HeaderFields {
     }
     pub fn with_observables(&self, o: &str) -> Self {
         let mut s = self.clone();
-        if o.len() > 0 {
+        if !o.is_empty() {
             s.observables = Some(o.to_string())
         }
         s
@@ -197,14 +204,14 @@ mod test {
     fn test_mapping_func() {
         let content = "COSZ";
         let func = MappingFunction::from_str(content);
-        assert_eq!(func.is_ok(), true);
+        assert!(func.is_ok());
         assert_eq!(func.unwrap(), MappingFunction::CosZ);
         let content = "QFAC";
         let func = MappingFunction::from_str(content);
-        assert_eq!(func.is_ok(), true);
+        assert!(func.is_ok());
         assert_eq!(func.unwrap(), MappingFunction::QFac);
         let content = "DONT";
         let func = MappingFunction::from_str(content);
-        assert_eq!(func.is_err(), true);
+        assert!(func.is_err());
     }
 }

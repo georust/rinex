@@ -87,15 +87,13 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn version() {
-        for (desc, expected) in vec![("c", Version::C), ("d", Version::D)] {
-            assert!(
-                Version::from_str(desc).is_ok(),
-                "failed to parse Version from \"{}\"",
-                desc
-            );
+        for (desc, expected) in [("c", Version::C), ("d", Version::D)] {
+            let version = Version::from_str(desc);
+            assert!(version.is_ok(), "failed to parse Version from \"{}\"", desc);
+            assert_eq!(version.unwrap(), expected);
         }
 
-        for (vers, expected) in vec![(Version::C, 3), (Version::D, 4)] {
+        for (vers, expected) in [(Version::C, 3), (Version::D, 4)] {
             let version: u8 = vers.into();
             assert_eq!(version, expected, "convertion to integer failed");
         }

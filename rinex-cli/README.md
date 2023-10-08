@@ -108,12 +108,13 @@ if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
 - other advanced operations are documented in the [processing](doc/processing.md) suite
 
-## Positioning
+## Positioning (RTK)
 
-`rinex-cli` integrates a position solver that will resolve the user location 
-the best it can, from the provided RINEX context. This mode in requested with `-p`.
+`rinex-cli` integrates a position solver that will resolve the radio receiver location 
+the best it can, by post processing the provided RINEX context. 
+This mode in requested with `-r` or `--rtk` and is turned off by default.
 
-To learn how to operate the solver, refer to [the dedicated page](doc/positioning.md).
+To learn how to operate the solver, refer to [the dedicated page](doc/rtk.md).
 
 ## Getting started
 
@@ -236,10 +237,10 @@ rinex-cli -f OBS/V2/KOSG0010.95O --epochs
 rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv
 ``` 
 
-The `--pretty` option is there to make the datasets more readable (json format): 
+The `--pretty` (`-p`) option is there to make the datasets more readable (json format): 
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O -g --epochs --sv -p
 ``` 
 
 ## Data analysis

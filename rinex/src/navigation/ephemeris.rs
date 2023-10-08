@@ -1,7 +1,7 @@
 use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::{epoch, prelude::*, sv, version::Version};
 
-use hifitime::GPST_REF_EPOCH;
+use hifitime::Unit;
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
@@ -127,16 +127,42 @@ impl Ephemeris {
         self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
-     * Retrieves toe, expressed as an Epoch, if Week + TOE are properly received
+     * Returns TGD field if such field is not empty
+     */
+    pub fn tgd(&self) -> Option<f64> {
+        self.get_orbit_f64("tgd")
+    }
+    /*
+     * Helper to apply a clock correction to provided time (expressed as Epoch)
+     */
+    pub fn sv_clock_corr(sv: Sv, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
+        let (a0, a1, a2) = clock_bias;
+        match sv.constellation {
+            Constellation::Glonass => {
+                todo!("sv_clock_corr not supported for glonass @ the moment");
+            },
+            _ => {
+                let dt = (t - toe).to_seconds();
+                Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
+            },
+        }
+    }
+    /*
+     * Retrieves and express TOE as an hifitime Epoch
      */
     pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
-        let week = self.get_week()?;
-        let toe_f64 = self.get_orbit_f64("toe")?;
-        Some(Epoch::from_time_of_week(
-            week,
-            toe_f64.round() as u64 * 1_000_000_000,
-            ts,
-        ))
+        /* toe week counter */
+        let mut week = self.get_week()?;
+        if ts == TimeScale::GST {
+            /* Galileo vehicles stream week counter referenced to GPST.. */
+            week -= 1024;
+        }
+
+        // "toe" field is seconds within current week to obtain toe
+        let secs_dur = self.get_orbit_f64("toe")?;
+        let week_dur = (week * 7) as f64 * Unit::Day;
+
+        Some(Epoch::from_duration(week_dur + secs_dur * Unit::Second, ts))
     }
     /*
      * Parses ephemeris from given line iterator
@@ -155,49 +181,34 @@ impl Ephemeris {
             true => 3,
             false => 4,
         };
-        let date_offset: usize = match version.major < 3 {
-            true => 19,
-            false => 19,
-        };
 
         let (svnn, rem) = line.split_at(svnn_offset);
-        let (date, rem) = rem.split_at(date_offset);
+        let (date, rem) = rem.split_at(19);
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
 
-        let mut sv = Sv::default();
-        let mut epoch = Epoch::default();
-
-        match version.major {
-            1 | 2 => {
-                match constellation {
-                    Constellation::Mixed => {
-                        // not sure that even exists
-                        sv = Sv::from_str(svnn.trim())?
-                    },
-                    _ => {
-                        sv.constellation = constellation;
-                        sv.prn = u8::from_str_radix(svnn.trim(), 10)?;
-                    },
-                }
+        //println!("SVNN \"{}\"", svnn); // DEBUG
+        let sv = match Sv::from_str(svnn.trim()) {
+            Ok(sv) => sv,
+            Err(_) => {
+                // parsing failed probably due to omitted constellation (old rev.)
+                let desc = format!("{:x}{:02}", constellation, svnn.trim());
+                Sv::from_str(&desc)?
             },
-            3 => {
-                sv = Sv::from_str(svnn.trim())?;
-            },
-            _ => unreachable!("V4 is treated in a dedicated method"),
         };
+        //println!("\"{}\"={}", svnn, sv); // DEBUG
 
         let ts = sv
             .constellation
-            .to_timescale()
+            .timescale()
             .ok_or(Error::TimescaleIdentification(sv))?;
         //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
 
         let (epoch, _) = epoch::parse_in_timescale(date.trim(), ts)?;
 
-        let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
-        let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
+        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
+        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
+        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
         // parse orbits :
         //  only Legacy Frames in V2 and V3 (old) RINEX
         let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
@@ -233,9 +244,9 @@ impl Ephemeris {
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
-        let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
-        let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
+        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
+        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
+        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
         let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
         Ok((
             epoch,
@@ -318,40 +329,39 @@ impl Ephemeris {
         s
     }
     /*
-    * Manual calculations of satellite position vector, in km ECEF.
-    * `t_sv`: orbit epoch as parsed in RINEX.
-    * TODO: this is currently only verified in GPST
-            need to verify GST/BDT/IRNSST support
-    * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
-    */
-    pub(crate) fn kepler2ecef(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        // To form t_sv : we need to convert UTC time to GNSS time.
-        // Hifitime v4, once released, will help here
-        let mut t_sv = epoch.clone();
+     * Kepler equation solver at desired instant "t" for given "sv"
+     * based off Self. Self must be correctly selected in navigation
+     * record.
+     * "t" does not have to expressed in correct timescale prior this calculation
+     * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
+     */
+    pub(crate) fn kepler2ecef(&self, sv: &Sv, t: Epoch) -> Option<(f64, f64, f64)> {
+        let mut t = t;
+
+        /*
+         * if "t" is not expressed in the correct constellation,
+         * take that into account
+         */
+        t.time_scale = sv.timescale()?;
 
         match sv.constellation {
             Constellation::GPS | Constellation::QZSS => {
-                t_sv.time_scale = TimeScale::GPST;
-                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
+                t -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
             },
             Constellation::Galileo => {
-                t_sv.time_scale = TimeScale::GST;
-                t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
+                t -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
             },
             Constellation::BeiDou => {
-                t_sv.time_scale = TimeScale::BDT;
-                t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
+                t -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
             },
             _ => {}, // either not needed, or most probably not truly supported
         }
 
+        let toe = self.toe(t.time_scale)?;
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
-        let weeks = self.get_week()?;
-        let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
-        let toe = t0 + Duration::from_seconds(kepler.toe as f64);
-        let t_k = (t_sv - toe).to_seconds();
+        let t_k = (t - toe).to_seconds();
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
         let n = n0 + perturbations.dn;
@@ -385,12 +395,10 @@ impl Ephemeris {
 
         Some((x_k / 1000.0, y_k / 1000.0, z_k / 1000.0))
     }
-    /*
-     * Returns Sv position in km ECEF, based off Self Ephemeris data,
-     * and for given Satellite Vehicle at given Epoch.
-     * Either by solving Kepler equations, or directly if such data is available.
-     */
-    pub(crate) fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
+    /// Returns Sv position in km ECEF, based off Self Ephemeris data,
+    /// and for given Satellite Vehicle at given Epoch.
+    /// Either by solving Kepler equations, or directly if such data is available.
+    pub fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
         let (x_km, y_km, z_km) = (
             self.get_orbit_f64("satPosX"),
             self.get_orbit_f64("satPosY"),
@@ -407,27 +415,21 @@ impl Ephemeris {
             _ => self.kepler2ecef(sv, epoch),
         }
     }
-    /*
-     * Computes elev, azim angles both in degrees
-     */
-    pub(crate) fn sv_elev_azim(
-        &self,
-        sv: &Sv,
-        epoch: Epoch,
-        reference: GroundPosition,
-    ) -> Option<(f64, f64)> {
-        let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
-        let (ref_x, ref_y, ref_z) = reference.to_ecef_wgs84();
+    /// Helper method to calculate elevation and azimuth angles, both in degrees,
+    /// between a reference position (in meter ECEF WGS84) and a resolved
+    /// SV position in the sky, expressed in meter ECEF WFS84.
+    pub fn elevation_azimuth(
+        sv_position: (f64, f64, f64),
+        reference_position: (f64, f64, f64),
+    ) -> (f64, f64) {
+        let (sv_x, sv_y, sv_z) = sv_position;
         // convert ref position to radians(lat, lon)
+        let (ref_x, ref_y, ref_z) = reference_position;
         let (ref_lat, ref_lon, _) =
             map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
 
         // ||sv - ref_pos|| pseudo range
-        let a_i = (
-            sv_x * 1000.0 - ref_x,
-            sv_y * 1000.0 - ref_y,
-            sv_z * 1000.0 - ref_z,
-        );
+        let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
         let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm);
 
@@ -456,7 +458,22 @@ impl Ephemeris {
         if az < 0.0 {
             az += 360.0;
         }
-        Some((el, az))
+        (el, az)
+    }
+    /*
+     * Resolves a position and computes elev, azim angles both in degrees
+     */
+    pub(crate) fn sv_elev_azim(
+        &self,
+        sv: &Sv,
+        epoch: Epoch,
+        reference: GroundPosition,
+    ) -> Option<(f64, f64)> {
+        let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
+        Some(Self::elevation_azimuth(
+            (sv_x * 1.0E3, sv_y * 1.0E3, sv_z * 1.0E3),
+            reference.to_ecef_wgs84(),
+        ))
     }
     /*
      * Returns max time difference between an Epoch and
@@ -464,15 +481,19 @@ impl Ephemeris {
      */
     pub(crate) fn max_dtoe(c: Constellation) -> Option<Duration> {
         match c {
-            Constellation::GPS | Constellation::QZSS | Constellation::Geo => {
-                Some(Duration::from_seconds(7200.0))
-            },
+            Constellation::GPS | Constellation::QZSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Galileo => Some(Duration::from_seconds(10800.0)),
             Constellation::BeiDou => Some(Duration::from_seconds(21600.0)),
-            Constellation::SBAS(_) => Some(Duration::from_seconds(360.0)),
             Constellation::IRNSS => Some(Duration::from_seconds(86400.0)),
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
-            _ => None,
+            c => {
+                if c.is_sbas() {
+                    //TODO: verify this please
+                    Some(Duration::from_seconds(7200.0))
+                } else {
+                    None
+                }
+            },
         }
     }
 }
@@ -488,6 +509,11 @@ fn parse_orbits(
     constell: Constellation,
     lines: std::str::Lines<'_>,
 ) -> Result<HashMap<String, OrbitItem>, Error> {
+    // convert SBAS constell to compatible "sbas" (undetermined/general constell)
+    let constell = match constell.is_sbas() {
+        true => Constellation::SBAS,
+        false => constell,
+    };
     // Determine closest standards from DB
     // <=> data fields to parse
     let nav_standards = match closest_nav_standards(constell, version, msg) {
@@ -514,38 +540,41 @@ fn parse_orbits(
         //println!("LINE \"{}\" | NB MISSING {}", line, nb_missing); //DEBUG
 
         loop {
-            if line.len() == 0 {
-                key_index += nb_missing as usize;
+            if line.is_empty() {
+                key_index += nb_missing;
                 break;
             }
 
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
+            let content = content.trim();
 
-            if content.trim().len() == 0 {
+            if content.is_empty() {
                 // omitted field
                 key_index += 1;
-                if nb_missing > 0 {
-                    nb_missing -= 1;
-                }
+                nb_missing = nb_missing.saturating_sub(1);
                 line = rem.clone();
                 continue;
             }
-
-            if let Some((key, token)) = fields.get(key_index) {
-                //println!(
-                //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
-                //    key,
-                //    key_index,
-                //    token,
-                //    content.trim()
-                //); //DEBUG
-                if !key.contains(&"spare") {
-                    if let Ok(item) = OrbitItem::new(token, content.trim(), constell) {
-                        map.insert(key.to_string(), item);
+            /*
+             * In NAV RINEX, unresolved data fields are either
+             * omitted (handled previously) or put a zeros
+             */
+            if !content.contains(".000000000000E+00") {
+                if let Some((key, token)) = fields.get(key_index) {
+                    //println!(
+                    //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
+                    //    key,
+                    //    key_index,
+                    //    token,
+                    //    content.trim()
+                    //); //DEBUG
+                    if !key.contains("spare") {
+                        if let Ok(item) = OrbitItem::new(token, content, constell) {
+                            map.insert(key.to_string(), item);
+                        }
                     }
                 }
             }
-
             key_index += 1;
             line = rem.clone();
         }

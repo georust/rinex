@@ -19,10 +19,7 @@ impl Default for Pattern {
 impl Pattern {
     /// Returns true if this phase pattern is azimuth dependent
     pub fn is_azimuth_dependent(&self) -> bool {
-        match self {
-            Self::AzimuthDependent(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::AzimuthDependent(_))
     }
     /// Unwraps pattern values, whether it is
     /// Azimuth dependent or not
@@ -124,7 +121,7 @@ impl Frequency {
     }
     pub fn with_carrier(&self, carrier: Carrier) -> Self {
         let mut f = self.clone();
-        f.carrier = carrier.clone();
+        f.carrier = carrier;
         f
     }
     pub fn with_northern_eccentricity(&self, north: f64) -> Self {
@@ -156,7 +153,7 @@ mod test {
     fn test_pattern() {
         let default = Pattern::default();
         assert_eq!(default, Pattern::NonAzimuthDependent(Vec::new()));
-        assert_eq!(default.is_azimuth_dependent(), false);
+        assert!(!default.is_azimuth_dependent());
     }
     #[test]
     fn test_frequency() {

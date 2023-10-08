@@ -33,7 +33,7 @@ impl Cli {
         }
     }
     pub fn input_path(&self) -> &str {
-        &self.matches.get_one::<String>("filepath").unwrap()
+        self.matches.get_one::<String>("filepath").unwrap()
     }
     pub fn output_path(&self) -> Option<&String> {
         self.matches.get_one::<String>("output")

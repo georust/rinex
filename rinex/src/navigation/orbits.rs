@@ -86,30 +86,30 @@ impl OrbitItem {
         match type_desc {
             "u8" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 Ok(OrbitItem::U8(float as u8))
             },
             "i8" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 Ok(OrbitItem::I8(float as i8))
             },
             "u32" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 Ok(OrbitItem::U32(float as u32))
             },
-            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace("D", "e"))?)),
+            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace('D', "e"))?)),
             "gloStatus" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 let unsigned = float as u32;
                 let status = GloStatus::from_bits(unsigned).unwrap_or(GloStatus::empty());
                 Ok(OrbitItem::GloStatus(status))
             },
             "health" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace("D", "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))?;
                 let unsigned = float as u32;
                 match constellation {
                     Constellation::GPS | Constellation::QZSS => {
@@ -127,19 +127,22 @@ impl OrbitItem {
                             .unwrap_or(health::GalHealth::empty());
                         Ok(OrbitItem::GalHealth(flags))
                     },
-                    Constellation::SBAS(_) | Constellation::Geo => {
-                        let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::GeoHealth::default());
-                        Ok(OrbitItem::GeoHealth(flag))
-                    },
                     Constellation::IRNSS => {
                         let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
                             .unwrap_or(health::IrnssHealth::default());
                         Ok(OrbitItem::IrnssHealth(flag))
                     },
-                    _ => unreachable!(), // MIXED is not feasible here
-                                         // as we use the current vehicle's constellation,
-                                         // which is always defined
+                    c => {
+                        if c.is_sbas() {
+                            let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
+                                .unwrap_or(health::GeoHealth::default());
+                            Ok(OrbitItem::GeoHealth(flag))
+                        } else {
+                            // Constellation::Mixed will not happen here,
+                            // it's always defined in the database
+                            unreachable!("unhandled case!");
+                        }
+                    },
                 }
             }, // "health"
             _ => Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string())),
@@ -164,7 +167,7 @@ impl OrbitItem {
     /// Unwraps OrbitItem as f64
     pub fn as_f64(&self) -> Option<f64> {
         match self {
-            OrbitItem::F64(f) => Some(f.clone()),
+            OrbitItem::F64(f) => Some(*f),
             _ => None,
         }
     }
@@ -178,14 +181,14 @@ impl OrbitItem {
     /// Unwraps OrbitItem as u8
     pub fn as_u8(&self) -> Option<u8> {
         match self {
-            OrbitItem::U8(u) => Some(u.clone()),
+            OrbitItem::U8(u) => Some(*u),
             _ => None,
         }
     }
     /// Unwraps OrbitItem as i8
     pub fn as_i8(&self) -> Option<i8> {
         match self {
-            OrbitItem::I8(i) => Some(i.clone()),
+            OrbitItem::I8(i) => Some(*i),
             _ => None,
         }
     }
@@ -213,7 +216,7 @@ impl OrbitItem {
     /// Unwraps Self as GAL orbit Health indication
     pub fn as_gal_health(&self) -> Option<health::GalHealth> {
         match self {
-            OrbitItem::GalHealth(h) => Some(h.clone()),
+            OrbitItem::GalHealth(h) => Some(*h),
             _ => None,
         }
     }
@@ -257,7 +260,7 @@ pub(crate) fn closest_nav_standards(
             })
             .collect();
 
-        if items.len() == 0 {
+        if items.is_empty() {
             if minor == 0 {
                 // we're done with this major
                 // -> downgrade to previous major
@@ -301,7 +304,7 @@ mod test {
                     // Like we use it when parsing..
                     let e = OrbitItem::new(value, &content, constellation);
                     assert!(
-                        e.is_ok() == true,
+                        e.is_ok(),
                         "failed to build Orbit Item from (\"{}\", \"{}\", \"{}\")",
                         key,
                         value,
@@ -321,7 +324,7 @@ mod test {
         );
 
         // Test existing (exact match) entries
-        for (constellation, rev, msg) in vec![
+        for (constellation, rev, msg) in [
             (Constellation::GPS, Version::new(1, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(2, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(4, 0), NavMsgType::LNAV),
@@ -342,7 +345,7 @@ mod test {
             (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV1),
             (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV2),
             (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV3),
-            (Constellation::Geo, Version::new(4, 0), NavMsgType::SBAS),
+            (Constellation::SBAS, Version::new(4, 0), NavMsgType::SBAS),
         ] {
             let found = closest_nav_standards(constellation, rev, msg);
             assert!(
@@ -369,7 +372,7 @@ mod test {
         }
 
         // Test cases where the nearest revision is used, not that exact revision
-        for (constellation, desired, expected, msg) in vec![
+        for (constellation, desired, expected, msg) in [
             (
                 Constellation::GPS,
                 Version::new(5, 0),
@@ -419,21 +422,21 @@ mod test {
     #[test]
     fn test_db_item() {
         let e = OrbitItem::U8(10);
-        assert_eq!(e.as_u8().is_some(), true);
-        assert_eq!(e.as_u32().is_some(), false);
+        assert!(e.as_u8().is_some());
+        assert!(!e.as_u32().is_some());
         let u = e.as_u8().unwrap();
         assert_eq!(u, 10);
 
         let e = OrbitItem::F64(10.0);
-        assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_u32().is_some(), false);
-        assert_eq!(e.as_f64().is_some(), true);
+        assert!(!e.as_u8().is_some());
+        assert!(!e.as_u32().is_some());
+        assert!(e.as_f64().is_some());
         let u = e.as_f64().unwrap();
         assert_eq!(u, 10.0_f64);
 
         let e = OrbitItem::U32(1);
-        assert_eq!(e.as_u32().is_some(), true);
-        assert_eq!(e.as_f64().is_some(), false);
+        assert!(e.as_u32().is_some());
+        assert!(!e.as_f64().is_some());
         let u = e.as_u32().unwrap();
         assert_eq!(u, 1_u32);
     }

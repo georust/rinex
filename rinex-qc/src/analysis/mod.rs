@@ -33,7 +33,7 @@ pub struct QcAnalysis {
 impl QcAnalysis {
     /// Creates a new Analysis Report from given RINEX context.  
     /// primary : primary file
-    pub fn new(primary: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
+    pub fn new(primary: &Rinex, _nav: &Option<Rinex>, opts: &QcOpts) -> Self {
         Self {
             sv: QcSvAnalysis::new(primary, opts),
             sampling: QcSamplingAnalysis::new(primary, opts),

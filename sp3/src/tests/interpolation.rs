@@ -2,10 +2,10 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use rinex::prelude::Sv;
-    use rinex::sv;
+    //use rinex::prelude::Sv;
+    //use rinex::sv;
     use std::path::PathBuf;
-    use std::str::FromStr;
+    //use std::str::FromStr;
     /*
      * Theoretical maximal error of a Lagrangian interpolation
      * over a given Dataset for specified interpolation order
@@ -43,7 +43,7 @@ mod test {
         let total_epochs = sp3.epoch().count();
 
         //TODO: replace with max_error()
-        for (order, max_error) in vec![(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
+        for (order, max_error) in [(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
             let tmin = first_epoch + (order / 2) * dt;
             let tmax = last_epoch - (order / 2) * dt;
             println!("running Interp({}) testbench..", order);

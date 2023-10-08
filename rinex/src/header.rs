@@ -3,6 +3,7 @@
 use super::*;
 use crate::{
     antex, clocks,
+    clocks::{ClockAnalysisAgency, ClockDataType},
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
@@ -18,6 +19,8 @@ use std::io::prelude::*;
 use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
+
+use crate::{fmt_comment, fmt_rinex};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -348,11 +351,11 @@ impl Header {
                     ));
                 }
 
-                let date: Vec<&str> = items[0].split("-").collect();
-                let time: Vec<&str> = items[1].split(":").collect();
+                let date: Vec<&str> = items[0].split('-').collect();
+                let time: Vec<&str> = items[1].split(':').collect();
 
                 let day = date[0].trim();
-                let day = u8::from_str_radix(day, 10).or(Err(ParsingError::DateTimeParsing(
+                let day = day.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
                     String::from("day"),
                     day.to_string(),
                 )))?;
@@ -361,19 +364,19 @@ impl Header {
                 let month = parse_formatted_month(month)?;
 
                 let y = date[2].trim();
-                let mut y = i32::from_str_radix(y, 10).or(Err(ParsingError::DateTimeParsing(
+                let mut y = y.parse::<i32>().or(Err(ParsingError::DateTimeParsing(
                     String::from("year"),
                     y.to_string(),
                 )))?;
 
                 let h = time[0].trim();
-                let h = u8::from_str_radix(h, 10).or(Err(ParsingError::DateTimeParsing(
+                let h = h.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
                     String::from("hour"),
                     h.to_string(),
                 )))?;
 
                 let m = time[1].trim();
-                let m = u8::from_str_radix(m, 10).or(Err(ParsingError::DateTimeParsing(
+                let m = m.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
                     String::from("minute"),
                     m.to_string(),
                 )))?;
@@ -405,13 +408,13 @@ impl Header {
                 if let Ok(mut pcv) = antex::Pcv::from_str(pcv_str.trim()) {
                     if pcv.is_relative() {
                         // try to parse "Relative Type"
-                        if rel_type.trim().len() > 0 {
+                        if !rel_type.trim().is_empty() {
                             pcv = pcv.with_relative_type(rel_type.trim());
                         }
                     }
                     antex = antex.with_pcv(pcv);
                 }
-                if ref_sn.trim().len() > 0 {
+                if !ref_sn.trim().is_empty() {
                     antex = antex.with_serial_number(ref_sn.trim())
                 }
             } else if marker.contains("TYPE / SERIAL NO") {
@@ -481,17 +484,17 @@ impl Header {
                 rinex_type = Type::from_str(type_str.trim())?;
                 if type_str.contains("GLONASS") {
                     // old GLONASS NAV : no constellation field
-                    constellation = Some(Constellation::Glonass)
+                    constellation = Some(Constellation::Glonass);
                 } else if type_str.contains("GPS NAV DATA") {
                     // old GPS NAV: no constellation field
-                    constellation = Some(Constellation::GPS)
+                    constellation = Some(Constellation::GPS);
                 } else if type_str.contains("METEOROLOGICAL DATA") {
                     // these files are not tied to a constellation system,
                     // therefore, do not have this field
                 } else {
                     // regular files
                     if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
-                        constellation = Some(constell)
+                        constellation = Some(constell);
                     }
                 }
                 /*
@@ -499,7 +502,7 @@ impl Header {
                  */
                 let vers = vers.trim();
                 version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
-                    format!("RINEX VERSION / TYPE \"{}\"", vers.to_string()),
+                    format!("RINEX VERSION / TYPE \"{}\"", vers),
                 )))?;
 
                 if !version.is_supported() {
@@ -514,7 +517,7 @@ impl Header {
                     false => rb.trim().to_string(),
                 };
                 let (date_str, _) = rem.split_at(20);
-                date = date_str.trim().to_string()
+                date = date_str.trim().to_string();
             } else if marker.contains("MARKER NAME") {
                 station = content.split_at(20).0.trim().to_string()
             } else if marker.contains("MARKER NUMBER") {
@@ -522,9 +525,7 @@ impl Header {
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
-                    marker_type = Some(marker)
-                } else {
-                    return Err(ParsingError::MarkerType(code.to_string()));
+                    marker_type = Some(marker);
                 }
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
@@ -532,7 +533,7 @@ impl Header {
                 agency = ag.trim().to_string();
             } else if marker.contains("REC # / TYPE / VERS") {
                 if let Ok(receiver) = Rcvr::from_str(content) {
-                    rcvr = Some(receiver)
+                    rcvr = Some(receiver);
                 }
             } else if marker.contains("SYS / PCVS APPLIED") {
                 let (gnss, rem) = content.split_at(2);
@@ -551,7 +552,7 @@ impl Header {
                             program.to_string()
                         }
                     },
-                    constellation: gnss.clone(),
+                    constellation: gnss,
                     url: {
                         let url = url.trim();
                         if url.eq("") {
@@ -580,7 +581,7 @@ impl Header {
                             program.to_string()
                         }
                     },
-                    constellation: gnss.clone(),
+                    constellation: gnss,
                     url: {
                         let url = url.trim();
                         if url.eq("") {
@@ -601,7 +602,8 @@ impl Header {
 
                     let (factor, rem) = rem.split_at(6);
                     let factor = factor.trim();
-                    let scaling = u16::from_str_radix(factor, 10)
+                    let scaling = factor
+                        .parse::<u16>()
                         .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
                     let (_num, rem) = rem.split_at(3);
@@ -800,10 +802,30 @@ impl Header {
                 // <o repeated for each satellite system
                 // <o blank field when no corrections applied
             } else if marker.contains("TIME OF FIRST OBS") {
-                let time_of_first_obs = Self::parse_time_of_obs(content)?;
+                let mut time_of_first_obs = Self::parse_time_of_obs(content)?;
+                match constellation {
+                    Some(Constellation::Mixed) | None => {},
+                    Some(c) => {
+                        // in case of OLD RINEX : fixed constellation
+                        //  use that information, as it may be omitted in the TIME OF OBS header
+                        time_of_first_obs.time_scale = c
+                            .timescale()
+                            .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
+                    },
+                }
                 observation = observation.with_time_of_first_obs(time_of_first_obs);
             } else if marker.contains("TIME OF LAST OBS") {
-                let time_of_last_obs = Self::parse_time_of_obs(content)?;
+                let mut time_of_last_obs = Self::parse_time_of_obs(content)?;
+                match constellation {
+                    Some(Constellation::Mixed) | None => {},
+                    Some(c) => {
+                        // in case of OLD RINEX : fixed constellation
+                        //  use that information, as it may be omitted in the TIME OF OBS header
+                        time_of_last_obs.time_scale = c
+                            .timescale()
+                            .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
+                    },
+                }
                 observation = observation.with_time_of_last_obs(time_of_last_obs);
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
@@ -814,17 +836,17 @@ impl Header {
                         match constellation {
                             Some(Constellation::Mixed) => {
                                 lazy_static! {
-                                    static ref KNOWN_CONSTELLS: Vec<Constellation> = vec![
+                                    static ref KNOWN_CONSTELLS: [Constellation; 6] = [
                                         Constellation::GPS,
                                         Constellation::Glonass,
                                         Constellation::Galileo,
                                         Constellation::BeiDou,
                                         Constellation::QZSS,
-                                        Constellation::Geo,
+                                        Constellation::SBAS,
                                     ];
                                 }
                                 for c in KNOWN_CONSTELLS.iter() {
-                                    if let Some(codes) = observation.codes.get_mut(&c) {
+                                    if let Some(codes) = observation.codes.get_mut(c) {
                                         codes.push(observable.clone());
                                     } else {
                                         observation.codes.insert(*c, vec![observable.clone()]);
@@ -849,10 +871,10 @@ impl Header {
                     }
                 }
             } else if marker.contains("SYS / # / OBS TYPES") {
-                let (possible_content, content) = content.split_at(6);
-                if possible_content.len() > 0 {
-                    let code = &possible_content[..1];
-                    if let Ok(c) = Constellation::from_1_letter_code(code) {
+                let (possible_counter, content) = content.split_at(6);
+                if !possible_counter.is_empty() {
+                    let code = &possible_counter[..1];
+                    if let Ok(c) = Constellation::from_str(code) {
                         current_constell = Some(c);
                     }
                 }
@@ -863,7 +885,7 @@ impl Header {
                         let obscode =
                             &content[i * 4..std::cmp::min((i + 1) * 4, content.len())].trim();
                         if let Ok(observable) = Observable::from_str(obscode) {
-                            if obscode.len() > 0 {
+                            if !obscode.is_empty() {
                                 if let Some(codes) = observation.codes.get_mut(&constell) {
                                     codes.push(observable);
                                 } else {
@@ -875,20 +897,21 @@ impl Header {
                 }
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
-                clocks = clocks.with_agency(clocks::Agency {
+                clocks = clocks.with_agency(ClockAnalysisAgency {
                     code: code.trim().to_string(),
                     name: agency.trim().to_string(),
                 });
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
                 let n = n.trim();
-                let n =
-                    u8::from_str_radix(n, 10).or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
+                let n = n
+                    .parse::<u8>()
+                    .or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
 
                 let mut rem = r.clone();
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
-                    if let Ok(c) = clocks::DataType::from_str(code.trim()) {
+                    if let Ok(c) = ClockDataType::from_str(code.trim()) {
                         clocks.codes.push(c);
                     }
                     rem = r.clone()
@@ -914,18 +937,22 @@ impl Header {
                     }
                 }
             } else if marker.contains("GLONASS SLOT / FRQ #") {
+                //TODO
+                // This should be used when dealing with Glonass carriers
+
                 let slots = content.split_at(4).1.trim();
                 for i in 0..num_integer::div_ceil(slots.len(), 7) {
                     let svnn = &slots[i * 7..i * 7 + 4];
                     let chx = &slots[i * 7 + 4..std::cmp::min(i * 7 + 4 + 3, slots.len())];
                     if let Ok(svnn) = Sv::from_str(svnn.trim()) {
-                        if let Ok(chx) = i8::from_str_radix(chx.trim(), 10) {
+                        if let Ok(chx) = chx.trim().parse::<i8>() {
                             glo_channels.insert(svnn, chx);
                         }
                     }
                 }
             } else if marker.contains("GLONASS COD/PHS/BIS") {
                 //TODO
+                // This will help RTK solving against GLONASS SV
             } else if marker.contains("ION ALPHA") {
                 //TODO
                 //0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06          ION ALPHA
@@ -975,19 +1002,19 @@ impl Header {
                 }
             } else if marker.contains("# OF STATIONS") {
                 // IONEX
-                if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
+                if let Ok(u) = content.trim().parse::<u32>() {
                     ionex = ionex.with_nb_stations(u)
                 }
             } else if marker.contains("# OF SATELLITES") {
                 // IONEX
-                if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
+                if let Ok(u) = content.trim().parse::<u32>() {
                     ionex = ionex.with_nb_satellites(u)
                 }
             /*
              * Initial TEC map scaling
              */
             } else if marker.contains("EXPONENT") {
-                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                if let Ok(e) = content.trim().parse::<i8>() {
                     ionex = ionex.with_exponent(e);
                 }
 
@@ -1157,411 +1184,6 @@ impl Header {
         })
     }
 
-    /// Combines self and rhs header into a new header.
-    /// Self's attribute are always preferred.
-    /// Behavior:
-    ///  - self's attributes are always preferred (in case of unique attributes)
-    ///  - observables are concatenated
-    /// This fails if :
-    ///  - RINEX types do not match
-    ///  - IONEX: map dimensions do not match and grid definitions do not strictly match
-    pub fn merge(&self, header: &Self) -> Result<Self, merge::Error> {
-        if self.rinex_type != header.rinex_type {
-            return Err(merge::Error::FileTypeMismatch);
-        }
-        if self.rinex_type == Type::IonosphereMaps {
-            if let Some(i0) = &self.ionex {
-                if let Some(i1) = &header.ionex {
-                    if i0.map_dimension != i1.map_dimension {
-                        panic!("can only merge ionex files with identical map dimensions")
-                    }
-                }
-            }
-        }
-        Ok(Self {
-            version: {
-                // retains oldest rev
-                if self.version < header.version {
-                    self.version.clone()
-                } else {
-                    header.version.clone()
-                }
-            },
-            rinex_type: self.rinex_type.clone(),
-            comments: {
-                self.comments.clone() //TODO: append rhs too!
-            },
-            leap: {
-                if let Some(leap) = self.leap {
-                    Some(leap.clone())
-                } else if let Some(leap) = header.leap {
-                    Some(leap.clone())
-                } else {
-                    None
-                }
-            },
-            glo_channels: {
-                let mut channels = self.glo_channels.clone();
-                for (svnn, channel) in &header.glo_channels {
-                    channels.insert(*svnn, *channel);
-                }
-                channels
-            },
-            run_by: self.run_by.clone(),
-            program: self.program.clone(),
-            observer: self.observer.clone(),
-            date: self.date.clone(),
-            station: self.station.clone(),
-            station_id: self.station_id.clone(),
-            station_url: self.station_url.clone(),
-            agency: self.agency.clone(),
-            license: self.license.clone(),
-            doi: self.doi.clone(),
-            dcb_compensations: {
-                /*
-                 * DCBs compensations are marked, only if
-                 * both compensated for in A & B.
-                 * In this case, resulting data, for a given constellation,
-                 * is still 100% compensated for.
-                 */
-                if self.dcb_compensations.len() == 0 || header.dcb_compensations.len() == 0 {
-                    Vec::new() // drop everything
-                } else {
-                    let rhs_constellations: Vec<_> = header
-                        .dcb_compensations
-                        .iter()
-                        .map(|dcb| dcb.constellation.clone())
-                        .collect();
-                    let dcbs: Vec<DcbCompensation> = self
-                        .dcb_compensations
-                        .clone()
-                        .iter()
-                        .filter(|dcb| rhs_constellations.contains(&dcb.constellation))
-                        .map(|dcb| dcb.clone())
-                        .collect();
-                    dcbs
-                }
-            },
-            pcv_compensations: {
-                /*
-                 * Same logic as .dcb_compensations
-                 */
-                if self.pcv_compensations.len() == 0 || header.pcv_compensations.len() == 0 {
-                    Vec::new() // drop everything
-                } else {
-                    let rhs_constellations: Vec<_> = header
-                        .pcv_compensations
-                        .iter()
-                        .map(|pcv| pcv.constellation.clone())
-                        .collect();
-                    let pcvs: Vec<PcvCompensation> = self
-                        .pcv_compensations
-                        .clone()
-                        .iter()
-                        .filter(|pcv| rhs_constellations.contains(&pcv.constellation))
-                        .map(|pcv| pcv.clone())
-                        .collect();
-                    pcvs
-                }
-            },
-            marker_type: {
-                if let Some(mtype) = &self.marker_type {
-                    Some(mtype.clone())
-                } else if let Some(mtype) = &header.marker_type {
-                    Some(mtype.clone())
-                } else {
-                    None
-                }
-            },
-            gps_utc_delta: {
-                if let Some(d) = self.gps_utc_delta {
-                    Some(d)
-                } else if let Some(d) = header.gps_utc_delta {
-                    Some(d)
-                } else {
-                    None
-                }
-            },
-            data_scaling: {
-                if let Some(d) = self.data_scaling {
-                    Some(d)
-                } else if let Some(d) = header.data_scaling {
-                    Some(d)
-                } else {
-                    None
-                }
-            },
-            constellation: {
-                if let Some(c0) = self.constellation {
-                    if let Some(c1) = header.constellation {
-                        if c0 != c1 {
-                            Some(Constellation::Mixed)
-                        } else {
-                            Some(c0.clone())
-                        }
-                    } else {
-                        Some(c0.clone())
-                    }
-                } else if let Some(constellation) = header.constellation {
-                    Some(constellation.clone())
-                } else {
-                    None
-                }
-            },
-            rcvr: {
-                if let Some(rcvr) = &self.rcvr {
-                    Some(rcvr.clone())
-                } else if let Some(rcvr) = &header.rcvr {
-                    Some(rcvr.clone())
-                } else {
-                    None
-                }
-            },
-            rcvr_antenna: {
-                if let Some(a) = &self.rcvr_antenna {
-                    Some(a.clone())
-                } else if let Some(a) = &header.rcvr_antenna {
-                    Some(a.clone())
-                } else {
-                    None
-                }
-            },
-            sv_antenna: {
-                if let Some(a) = &self.sv_antenna {
-                    Some(a.clone())
-                } else if let Some(a) = &header.sv_antenna {
-                    Some(a.clone())
-                } else {
-                    None
-                }
-            },
-            wavelengths: {
-                if let Some(wv) = &self.wavelengths {
-                    Some(wv.clone())
-                } else if let Some(wv) = &header.wavelengths {
-                    Some(wv.clone())
-                } else {
-                    None
-                }
-            },
-            sampling_interval: {
-                if let Some(interval) = self.sampling_interval {
-                    Some(interval.clone())
-                } else if let Some(interval) = header.sampling_interval {
-                    Some(interval.clone())
-                } else {
-                    None
-                }
-            },
-            ground_position: {
-                if let Some(pos) = &self.ground_position {
-                    Some(pos.clone())
-                } else if let Some(pos) = &header.ground_position {
-                    Some(pos.clone())
-                } else {
-                    None
-                }
-            },
-            obs: {
-                if let Some(d0) = &self.obs {
-                    if let Some(d1) = &header.obs {
-                        Some(observation::HeaderFields {
-                            time_of_first_obs: std::cmp::min(
-                                d0.time_of_first_obs,
-                                d1.time_of_first_obs,
-                            ),
-                            time_of_last_obs: std::cmp::max(
-                                d0.time_of_last_obs,
-                                d1.time_of_last_obs,
-                            ),
-                            crinex: d0.crinex.clone(),
-                            codes: {
-                                let mut map = d0.codes.clone();
-                                for (constellation, obscodes) in d1.codes.iter() {
-                                    if let Some(codes) = map.get_mut(&constellation) {
-                                        for obs in obscodes {
-                                            if !codes.contains(&obs) {
-                                                codes.push(obs.clone());
-                                            }
-                                        }
-                                    } else {
-                                        map.insert(constellation.clone(), obscodes.clone());
-                                    }
-                                }
-                                map
-                            },
-                            clock_offset_applied: d0.clock_offset_applied
-                                && d1.clock_offset_applied,
-                            scalings: HashMap::new(), //TODO
-                        })
-                    } else {
-                        Some(d0.clone())
-                    }
-                } else if let Some(data) = &header.obs {
-                    Some(data.clone())
-                } else {
-                    None
-                }
-            },
-            meteo: {
-                if let Some(m0) = &self.meteo {
-                    if let Some(m1) = &header.meteo {
-                        Some(meteo::HeaderFields {
-                            sensors: {
-                                let mut sensors = m0.sensors.clone();
-                                for sens in m1.sensors.iter() {
-                                    if !sensors.contains(&sens) {
-                                        sensors.push(sens.clone())
-                                    }
-                                }
-                                sensors
-                            },
-                            codes: {
-                                let mut observables = m0.codes.clone();
-                                for obs in m1.codes.iter() {
-                                    if !observables.contains(&obs) {
-                                        observables.push(obs.clone())
-                                    }
-                                }
-                                observables
-                            },
-                        })
-                    } else {
-                        Some(m0.clone())
-                    }
-                } else if let Some(meteo) = &header.meteo {
-                    Some(meteo.clone())
-                } else {
-                    None
-                }
-            },
-            clocks: {
-                if let Some(d0) = &self.clocks {
-                    if let Some(d1) = &header.clocks {
-                        Some(clocks::HeaderFields {
-                            codes: {
-                                let mut codes = d0.codes.clone();
-                                for code in d1.codes.iter() {
-                                    if !codes.contains(&code) {
-                                        codes.push(code.clone())
-                                    }
-                                }
-                                codes
-                            },
-                            agency: {
-                                if let Some(agency) = &d0.agency {
-                                    Some(agency.clone())
-                                } else if let Some(agency) = &d1.agency {
-                                    Some(agency.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            station: {
-                                if let Some(station) = &d0.station {
-                                    Some(station.clone())
-                                } else if let Some(station) = &d1.station {
-                                    Some(station.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            clock_ref: {
-                                if let Some(clk) = &d0.clock_ref {
-                                    Some(clk.clone())
-                                } else if let Some(clk) = &d1.clock_ref {
-                                    Some(clk.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            timescale: {
-                                if let Some(ts) = &d0.timescale {
-                                    Some(ts.clone())
-                                } else if let Some(ts) = &d1.timescale {
-                                    Some(ts.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                        })
-                    } else {
-                        Some(d0.clone())
-                    }
-                } else if let Some(d1) = &header.clocks {
-                    Some(d1.clone())
-                } else {
-                    None
-                }
-            },
-            antex: {
-                if let Some(d0) = &self.antex {
-                    Some(d0.clone())
-                } else if let Some(data) = &header.antex {
-                    Some(data.clone())
-                } else {
-                    None
-                }
-            },
-            ionex: {
-                if let Some(d0) = &self.ionex {
-                    if let Some(d1) = &header.ionex {
-                        Some(ionex::HeaderFields {
-                            reference: d0.reference.clone(),
-                            description: {
-                                if let Some(description) = &d0.description {
-                                    Some(description.clone())
-                                } else if let Some(description) = &d1.description {
-                                    Some(description.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            exponent: std::cmp::min(d0.exponent, d1.exponent), // TODO: this is not correct,
-                            mapping: {
-                                if let Some(map) = &d0.mapping {
-                                    Some(map.clone())
-                                } else if let Some(map) = &d1.mapping {
-                                    Some(map.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            map_dimension: d0.map_dimension,
-                            base_radius: d0.base_radius,
-                            grid: d0.grid.clone(),
-                            elevation_cutoff: d0.elevation_cutoff,
-                            observables: {
-                                if let Some(obs) = &d0.observables {
-                                    Some(obs.clone())
-                                } else if let Some(obs) = &d1.observables {
-                                    Some(obs.clone())
-                                } else {
-                                    None
-                                }
-                            },
-                            nb_stations: std::cmp::max(d0.nb_stations, d1.nb_stations),
-                            nb_satellites: std::cmp::max(d0.nb_satellites, d1.nb_satellites),
-                            dcbs: {
-                                let mut dcbs = d0.dcbs.clone();
-                                for (b, dcb) in &d1.dcbs {
-                                    dcbs.insert(b.clone(), *dcb);
-                                }
-                                dcbs
-                            },
-                        })
-                    } else {
-                        Some(d0.clone())
-                    }
-                } else if let Some(d1) = &header.ionex {
-                    Some(d1.clone())
-                } else {
-                    None
-                }
-            },
-        })
-    }
-
     /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex(&self) -> bool {
         if let Some(obs) = &self.obs {
@@ -1675,43 +1297,359 @@ impl Header {
         let (ns, rem) = rem.split_at(8);
 
         // println!("Y \"{}\" M \"{}\" D \"{}\" HH \"{}\" MM \"{}\" SS \"{}\" NS \"{}\"", y, m, d, hh, mm, ss, ns); // DEBUG
-        let y = u32::from_str_radix(y.trim(), 10)
+        let y = y
+            .trim()
+            .parse::<u32>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("year"), y.to_string()))?;
 
-        let m = u8::from_str_radix(m.trim(), 10)
+        let m = m
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("months"), m.to_string()))?;
 
-        let d = u8::from_str_radix(d.trim(), 10)
+        let d = d
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("days"), d.to_string()))?;
 
-        let hh = u8::from_str_radix(hh.trim(), 10)
+        let hh = hh
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("hours"), hh.to_string()))?;
 
-        let mm = u8::from_str_radix(mm.trim(), 10)
+        let mm = mm
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("minutes"), mm.to_string()))?;
 
-        let ss = u8::from_str_radix(ss.trim(), 10)
+        let ss = ss
+            .trim()
+            .parse::<u8>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("seconds"), ss.to_string()))?;
 
-        let ns = u32::from_str_radix(ns.trim(), 10)
+        let ns = ns
+            .trim()
+            .parse::<u32>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
 
         /* timescale might be missing in OLD RINEX: we handle that externally */
         let mut ts = TimeScale::TAI;
 
         let rem = rem.trim();
-        if rem.len() > 0 {
-            // println!("TS \"{}\"", rem); // DBEUG
+        if !rem.is_empty() {
+            // println!("TS \"{}\"", rem); // DBEUGts = TimeScale::from_str(rem.trim()).map_err(|_| {
             ts = TimeScale::from_str(rem.trim()).map_err(|_| {
                 ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
             })?;
         }
 
-        Ok(Epoch::from_str(&format!(
+        Epoch::from_str(&format!(
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:08} {}",
             y, m, d, hh, mm, ss, ns, ts
         ))
-        .map_err(|_| ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string()))?)
+        .map_err(|_| ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string()))
+    }
+
+    /*
+     * Format VERSION/TYPE field
+     */
+    pub(crate) fn fmt_rinex_version_type(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let major = self.version.major;
+        let minor = self.version.minor;
+        match self.rinex_type {
+            Type::NavigationData => match self.constellation {
+                Some(Constellation::Glonass) => {
+                    writeln!(
+                        f,
+                        "{}",
+                        fmt_rinex(
+                            &format!("{:6}.{:02}           G: GLONASS NAV DATA", major, minor),
+                            "RINEX VERSION / TYPE"
+                        )
+                    )
+                },
+                Some(c) => {
+                    writeln!(
+                        f,
+                        "{}",
+                        fmt_rinex(
+                            &format!(
+                                "{:6}.{:02}           NAVIGATION DATA     {:X<20}",
+                                major, minor, c
+                            ),
+                            "RINEX VERSION / TYPE"
+                        )
+                    )
+                },
+                _ => panic!("constellation must be specified when formatting a NavigationData"),
+            },
+            Type::ObservationData => match self.constellation {
+                Some(c) => {
+                    writeln!(
+                        f,
+                        "{}",
+                        fmt_rinex(
+                            &format!(
+                                "{:6}.{:02}           OBSERVATION DATA    {:x<20}",
+                                major, minor, c
+                            ),
+                            "RINEX VERSION / TYPE"
+                        )
+                    )
+                },
+                _ => panic!("constellation must be specified when formatting ObservationData"),
+            },
+            Type::MeteoData => {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!("{:6}.{:02}           METEOROLOGICAL DATA", major, minor),
+                        "RINEX VERSION / TYPE"
+                    )
+                )
+            },
+            Type::ClockData => {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!("{:6}.{:02}           CLOCK DATA", major, minor),
+                        "RINEX VERSION / TYPE"
+                    )
+                )
+            },
+            Type::AntennaData => todo!(),
+            Type::IonosphereMaps => todo!(),
+        }
+    }
+    /*
+     * Format rinex type dependent stuff
+     */
+    pub(crate) fn fmt_rinex_dependent(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.rinex_type {
+            Type::ObservationData => self.fmt_observation_rinex(f),
+            Type::MeteoData => self.fmt_meteo_rinex(f),
+            Type::NavigationData => Ok(()),
+            Type::ClockData => self.fmt_clock_rinex(f),
+            Type::IonosphereMaps => self.fmt_ionex(f),
+            Type::AntennaData => Ok(()),
+        }
+    }
+    /*
+     * Clock Data fields formatting
+     */
+    fn fmt_clock_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(clocks) = &self.clocks {
+            // Types of data: observables equivalent
+            let mut descriptor = String::new();
+            descriptor.push_str(&format!("{:6}", clocks.codes.len()));
+            for (i, observable) in clocks.codes.iter().enumerate() {
+                if (i % 9) == 0 && i > 0 {
+                    descriptor.push_str("      "); // TAB
+                }
+                descriptor.push_str(&format!("{:6}", observable));
+            }
+            writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF DATA"))?;
+
+            // possible timescale
+            if let Some(ts) = clocks.timescale {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(&format!("   {:x}", ts), "TIME SYSTEM ID")
+                )?;
+            }
+
+            // possible agency
+            if let Some(agency) = &clocks.agency {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!("{:<5} {}", agency.code, agency.name),
+                        "ANALYSIS CENTER"
+                    )
+                )?;
+            }
+        }
+        Ok(())
+    }
+    /*
+     * IONEX fields formatting
+     */
+    fn fmt_ionex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(ionex) = &self.ionex {
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(&format!("{:6}", ionex.map_dimension), "MAP DIMENSION")
+            )?;
+            // h grid
+            let (start, end, spacing) = (
+                ionex.grid.height.start,
+                ionex.grid.height.end,
+                ionex.grid.height.spacing,
+            );
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{} {} {}", start, end, spacing),
+                    "HGT1 / HGT2 / DHGT"
+                )
+            )?;
+            // lat grid
+            let (start, end, spacing) = (
+                ionex.grid.latitude.start,
+                ionex.grid.latitude.end,
+                ionex.grid.latitude.spacing,
+            );
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{} {} {}", start, end, spacing),
+                    "LAT1 / LAT2 / DLAT"
+                )
+            )?;
+            // lon grid
+            let (start, end, spacing) = (
+                ionex.grid.longitude.start,
+                ionex.grid.longitude.end,
+                ionex.grid.longitude.spacing,
+            );
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{} {} {}", start, end, spacing),
+                    "LON1 / LON2 / DLON"
+                )
+            )?;
+            // elevation cutoff
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(&format!("{}", ionex.elevation_cutoff), "ELEVATION CUTOFF")
+            )?;
+            // mapping func
+            if let Some(func) = &ionex.mapping {
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(&format!("{:?}", func), "MAPPING FUNCTION")
+                )?;
+            } else {
+                writeln!(f, "{}", fmt_rinex("NONE", "MAPPING FUNCTION"))?;
+            }
+            // time of first map
+            writeln!(f, "{}", fmt_rinex("TODO", "EPOCH OF FIRST MAP"))?;
+            // time of last map
+            writeln!(f, "{}", fmt_rinex("TODO", "EPOCH OF LAST MAP"))?;
+        }
+        Ok(())
+    }
+    /*
+     * Meteo Data fields formatting
+     */
+    fn fmt_meteo_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(meteo) = &self.meteo {
+            /*
+             * List of observables
+             */
+            let mut descriptor = String::new();
+            descriptor.push_str(&format!("{:6}", meteo.codes.len()));
+            for (i, observable) in meteo.codes.iter().enumerate() {
+                if (i % 9) == 0 && i > 0 {
+                    descriptor.push_str("      "); // TAB
+                }
+                descriptor.push_str(&format!("    {}", observable));
+            }
+            writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
+            for sensor in &meteo.sensors {
+                write!(f, "{}", sensor)?;
+            }
+        }
+        Ok(())
+    }
+    /*
+     * Observation Data fields formatting
+     */
+    fn fmt_observation_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(obs) = &self.obs {
+            if let Some(e) = obs.time_of_first_obs {
+                //TODO: hifitime does not have a gregorian decomposition method at the moment
+                //let offset = match time_of_first_obs.time_scale {
+                //    TimeScale::GPST => Duration::from_seconds(19.0),
+                //    TimeScale::GST => Duration::from_seconds(35.0),
+                //    TimeScale::BDT => Duration::from_seconds(35.0),
+                //    _ => Duration::default(),
+                //};
+                let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!(
+                            "  {:04}    {:02}    {:02}    {:02}    {:02}   {:02}.{:07}     {:x}",
+                            y, m, d, hh, mm, ss, nanos, e.time_scale
+                        ),
+                        "TIME OF FIRST OBS"
+                    )
+                )?;
+            }
+            if let Some(e) = obs.time_of_last_obs {
+                let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!(
+                            "  {:04}    {:02}    {:02}    {:02}    {:02}   {:02}.{:07}     {:x}",
+                            y, m, d, hh, mm, ss, nanos, e.time_scale
+                        ),
+                        "TIME OF LAST OBS"
+                    )
+                )?;
+            }
+            /*
+             * Form the observables list
+             */
+            match self.version.major {
+                1 | 2 => {
+                    /*
+                     * List of observables
+                     */
+                    let mut descriptor = String::new();
+                    if let Some((_constell, observables)) = obs.codes.iter().next() {
+                        descriptor.push_str(&format!("{:6}", observables.len()));
+                        for (i, observable) in observables.iter().enumerate() {
+                            if (i % 9) == 0 && i > 0 {
+                                descriptor.push_str("      "); // TAB
+                            }
+                            descriptor.push_str(&format!("{:>6}", observable));
+                        }
+                        writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
+                    }
+                },
+                _ => {},
+            }
+            // must take place after list of observables:
+            //  TODO scaling factor
+            //  TODO DCBS compensations
+            //  TODO PCVs compensations
+        }
+        Ok(())
+    }
+    /*
+     * Format all comments
+     */
+    pub(crate) fn fmt_comments(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for comment in self.comments.iter() {
+            writeln!(f, "{}", fmt_comment(comment))?;
+        }
+        Ok(())
     }
 }
 
@@ -1721,269 +1659,90 @@ impl std::fmt::Display for Header {
         // start with CRINEX attributes, if need be
         if let Some(obs) = &self.obs {
             if let Some(crinex) = &obs.crinex {
-                write!(f, "{}\n", crinex)?;
+                writeln!(f, "{}", crinex)?;
             }
         }
-        // RINEX VERSION / TYPE
-        write!(
-            f,
-            "{:6}.{:02}           ",
-            self.version.major, self.version.minor
-        )?;
-        match self.rinex_type {
-            Type::NavigationData => {
-                match self.constellation {
-                    Some(Constellation::Glonass) => {
-                        // Glonass Special case
-                        write!(f, "{:<20}", "G: GLONASS NAV DATA")?;
-                        write!(f, "{:<20}", "")?;
-                        write!(f, "{}", "RINEX VERSION / TYPE\n")?
-                    },
-                    Some(c) => {
-                        write!(f, "{:<20}", "NAVIGATION DATA")?;
-                        write!(f, "{:<20}", c.to_1_letter_code())?;
-                        write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?
-                    },
-                    _ => panic!("constellation must be specified when formatting a NavigationData"),
-                }
-            },
-            Type::ObservationData => match self.constellation {
-                Some(c) => {
-                    write!(f, "{:<20}", "OBSERVATION DATA")?;
-                    write!(f, "{:<20}", c.to_1_letter_code())?;
-                    write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?
-                },
-                _ => panic!("constellation must be specified when formatting ObservationData"),
-            },
-            Type::MeteoData => {
-                write!(f, "{:<20}", "METEOROLOGICAL DATA")?;
-                write!(f, "{:<20}", "")?;
-                write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?;
-            },
-            Type::ClockData => {
-                write!(f, "{:<20}", "CLOCK DATA")?;
-                write!(f, "{:<20}", "")?;
-                write!(f, "{:<20}", "RINEX VERSION / TYPE\n")?;
-            },
-            Type::AntennaData => todo!(),
-            Type::IonosphereMaps => todo!(),
-        }
-        // COMMENTS
-        for comment in self.comments.iter() {
-            write!(f, "{:<60}", comment)?;
-            write!(f, "COMMENT\n")?
-        }
+
+        self.fmt_rinex_version_type(f)?;
+        self.fmt_comments(f)?;
+
         // PGM / RUN BY / DATE
-        write!(f, "{:<20}", self.program)?;
-        write!(f, "{:<20}", self.run_by)?;
-        write!(f, "{:<20}", self.date)?; //TODO
-        write!(f, "{}", "PGM / RUN BY / DATE\n")?;
+        writeln!(
+            f,
+            "{}",
+            fmt_rinex(
+                &format!("{:<20}{:<20}{:<20}", self.program, self.run_by, self.date),
+                "PGM / RUN BY / DATE"
+            )
+        )?;
+
         // OBSERVER / AGENCY
-        if self.observer.len() + self.agency.len() > 0 {
-            write!(f, "{:<20}", self.observer)?;
-            write!(f, "{:<40}", self.agency)?;
-            write!(f, "OBSERVER / AGENCY\n")?;
-        }
-        // MARKER NAME
-        if self.station.len() > 0 {
-            write!(f, "{:<20}", self.station)?;
-            write!(f, "{:<40}", " ")?;
-            write!(f, "{}", "MARKER NAME\n")?;
-        }
-        // MARKER NUMBER
-        if self.station_id.len() > 0 {
-            // has been parsed
-            write!(f, "{:<20}", self.station_id)?;
-            write!(f, "{:<40}", " ")?;
-            write!(f, "{}", "MARKER NUMBER\n")?;
-        }
+        writeln!(
+            f,
+            "{}",
+            fmt_rinex(
+                &format!("{:<20}{}", self.observer, self.agency),
+                "OBSERVER /AGENCY"
+            )
+        )?;
+
+        writeln!(f, "{}", fmt_rinex(&self.station, "MARKER NAME"))?;
+        writeln!(f, "{}", fmt_rinex(&self.station_id, "MARKER NUMBER"))?;
+
         // ANT
         if let Some(antenna) = &self.rcvr_antenna {
-            write!(f, "{:<20}", antenna.model)?;
-            write!(f, "{:<40}", antenna.sn)?;
-            write!(f, "{}", "ANT # / TYPE\n")?;
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{:<20}{}", antenna.model, antenna.sn),
+                    "ANT # / TYPE"
+                )
+            )?;
             if let Some(coords) = &antenna.coords {
-                write!(f, "{:14.4}", coords.0)?;
-                write!(f, "{:14.4}", coords.1)?;
-                write!(f, "{:14.4}", coords.2)?;
-                write!(f, "{}", "APPROX POSITION XYZ\n")?
+                writeln!(
+                    f,
+                    "{}",
+                    fmt_rinex(
+                        &format!("{:14.4}{:14.4}{:14.4}", coords.0, coords.1, coords.2),
+                        "APPROX POSITION XYZ"
+                    )
+                )?;
             }
-            if let Some(h) = &antenna.height {
-                write!(f, "{:14.4}", h)?;
-                if let Some(e) = &antenna.eastern {
-                    write!(f, "{:14.4}", e)?;
-                } else {
-                    write!(f, "{:14.4}", 0.0)?;
-                }
-                if let Some(n) = &antenna.northern {
-                    write!(f, "{:14.4}", n)?;
-                } else {
-                    write!(f, "{:14.4}", 0.0)?;
-                }
-                write!(f, "{:18}", "")?;
-                write!(f, "{}", "ANTENNA: DELTA H/E/N\n")?
-            }
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!(
+                        "{:14.4}{:14.4}{:14.4}",
+                        antenna.height.unwrap_or(0.0),
+                        antenna.eastern.unwrap_or(0.0),
+                        antenna.northern.unwrap_or(0.0)
+                    ),
+                    "ANTENNA: DELTA H/E/N"
+                )
+            )?;
         }
         // RCVR
         if let Some(rcvr) = &self.rcvr {
-            write!(f, "{:<20}", rcvr.sn)?;
-            write!(f, "{:<20}", rcvr.model)?;
-            write!(f, "{:<20}", rcvr.firmware)?;
-            write!(f, "REC # / TYPE / VERS\n")?
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(
+                    &format!("{:<20}{:<20}{}", rcvr.sn, rcvr.model, rcvr.firmware),
+                    "REC # / TYPE / VERS"
+                )
+            )?;
         }
         // INTERVAL
         if let Some(interval) = &self.sampling_interval {
-            write!(f, "{:6}", interval.to_seconds())?;
-            write!(f, "{:<54}", "")?;
-            write!(f, "INTERVAL\n")?
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(&format!("{:6}", interval.to_seconds()), "INTERVAL")
+            )?;
         }
-        // List of Observables
-        match self.rinex_type {
-            Type::ObservationData => {
-                if let Some(obs) = &self.obs {
-                    if let Some(time_of_first_obs) = obs.time_of_first_obs {
-                        //TODO: hifitime does not have a gregorian decomposition method at the moment
-                        let offset = match time_of_first_obs.time_scale {
-                            TimeScale::GPST => Duration::from_seconds(19.0),
-                            TimeScale::GST => Duration::from_seconds(35.0),
-                            TimeScale::BDT => Duration::from_seconds(35.0),
-                            _ => Duration::default(),
-                        };
-                        let (y, m, d, hh, mm, ss, nanos) = (time_of_first_obs).to_gregorian_utc();
-                        let mut descriptor = format!(
-                            "  {:04}    {:02}    {:02}    {:02}    {:02}   {:02}.{:07}     {:x}",
-                            y, m, d, hh, mm, ss, nanos, time_of_first_obs.time_scale
-                        );
-                        descriptor.push_str(&format!(
-                            "{:<width$}",
-                            "",
-                            width = 60 - descriptor.len()
-                        ));
-                        descriptor.push_str("TIME OF FIRST OBS\n");
-                        write!(f, "{}", descriptor)?;
-                    }
-                    if let Some(time_of_last_obs) = obs.time_of_last_obs {
-                        //TODO: hifitime does not have a gregorian decomposition method at the moment
-                        let offset = match time_of_last_obs.time_scale {
-                            TimeScale::GPST => Duration::from_seconds(19.0),
-                            TimeScale::GST => Duration::from_seconds(35.0),
-                            TimeScale::BDT => Duration::from_seconds(35.0),
-                            _ => Duration::default(),
-                        };
-                        let (y, m, d, hh, mm, ss, nanos) =
-                            (time_of_last_obs + offset).to_gregorian_utc();
-                        let mut descriptor = format!(
-                            "  {:04}    {:02}    {:02}  {:02}   {:02}  {:02}.{:08}   {:x}",
-                            y, m, d, hh, mm, ss, nanos, time_of_last_obs.time_scale
-                        );
-                        descriptor.push_str(&format!(
-                            "{:<width$}",
-                            "",
-                            width = 60 - descriptor.len()
-                        ));
-                        descriptor.push_str("TIME OF LAST OBS\n");
-                        write!(f, "{}", descriptor)?;
-                    }
-                    match self.version.major {
-                        1 | 2 => {
-                            // old revisions
-                            for (_, observables) in obs.codes.iter() {
-                                write!(f, "{:6}", observables.len())?;
-                                let mut descriptor = String::new();
-                                for i in 0..observables.len() {
-                                    if (i % 9) == 0 && i > 0 {
-                                        //ADD LABEL
-                                        descriptor.push_str("# / TYPES OF OBSERV\n");
-                                        descriptor.push_str(&format!("{:<6}", ""));
-                                        //TAB
-                                    }
-                                    // <!> this will not work if observable
-                                    //     does not fit on 2 characters
-                                    descriptor.push_str(&format!("    {}", observables[i]));
-                                }
-                                //ADD BLANK on last line
-                                if observables.len() <= 9 {
-                                    // fits on one line
-                                    descriptor.push_str(&format!(
-                                        "{:<width$}",
-                                        "",
-                                        width = 80 - descriptor.len()
-                                    ));
-                                } else {
-                                    let nb_lines = observables.len() / 9;
-                                    let blanking = 80 - (descriptor.len() - 80 * nb_lines); //98 = 80 + # / TYPESOFOBSERV
-                                    descriptor.push_str(&format!(
-                                        "{:<width$}",
-                                        "",
-                                        width = blanking
-                                    ));
-                                }
-                                //ADD LABEL
-                                descriptor.push_str("# / TYPES OF OBSERV\n");
-                                write!(f, "{}", descriptor)?;
-                                // NOTE ON THIS BREAK
-                                //      header contains obs.codes[] copied for every possible constellation system
-                                //      because we have no means to known which ones are to be encountered
-                                //      in this great/magnificent RINEX2 format.
-                                //      On the other hand, we're expected to only declare a single #/TYPESOFOBSERV label
-                                break;
-                            }
-                        },
-                        _ => {
-                            // modern revisions
-                            for (constell, codes) in obs.codes.iter() {
-                                let mut line = format!("{:<4}", constell.to_1_letter_code());
-                                line.push_str(&format!("{:2}", codes.len()));
-                                for i in 0..codes.len() {
-                                    if (i + 1) % 14 == 0 {
-                                        line.push_str(&format!(
-                                            "{:<width$}",
-                                            "",
-                                            width = 60 - line.len()
-                                        ));
-                                        line.push_str("SYS / # / OBS TYPES\n");
-                                        write!(f, "{}", line)?;
-                                        line.clear();
-                                        line.push_str(&format!("{:<6}", "")); //TAB
-                                    }
-                                    line.push_str(&format!(" {}", codes[i]))
-                                }
-                                line.push_str(&format!("{:<width$}", "", width = 60 - line.len()));
-                                line.push_str("SYS / # / OBS TYPES\n");
-                                write!(f, "{}", line)?
-                            }
-                        },
-                    }
-                }
-            }, //ObservationData observables description
-            Type::MeteoData => {
-                if let Some(obs) = &self.meteo {
-                    write!(f, "{:6}", obs.codes.len())?;
-                    let mut description = String::new();
-                    for i in 0..obs.codes.len() {
-                        if (i % 9) == 0 && i > 0 {
-                            description.push_str("# / TYPES OF OBSERV\n");
-                            write!(f, "{}", description)?;
-                            description.clear();
-                            description.push_str(&format!("{:<6}", "")); //TAB
-                        }
-                        description.push_str(&format!("    {}", obs.codes[i]));
-                    }
-                    description.push_str(&format!(
-                        "{:<width$}",
-                        "",
-                        width = 54 - description.len()
-                    ));
-                    description.push_str("# / TYPES OF OBSERV\n");
-                    write!(f, "{}", description)?
-                }
-            }, //MeteoData observables description
-            _ => {},
-        }
-        // Must take place after list of Observables:
-        //TODO: scale factor, if any
-        //TODO: DCBS compensation, if any
-        //TODO: PCVs compensation, if any
+
         // LEAP
         if let Some(leap) = &self.leap {
             let mut line = String::new();
@@ -2005,83 +1764,35 @@ impl std::fmt::Display for Header {
             ));
             write!(f, "{}", line)?
         }
-        // Custom Meteo fields
-        if let Some(meteo) = &self.meteo {
-            let sensors = &meteo.sensors;
-            for sensor in sensors {
-                write!(f, "{}", sensor)?
-            }
-        }
-        // Custom Clock fields
-        if let Some(clocks) = &self.clocks {
-            // Types of data: is the equivalent of Observation codes
-            write!(f, "{:6}", clocks.codes.len())?;
-            for code in &clocks.codes {
-                write!(f, "    {}", code)?;
-            }
-            write!(
-                f,
-                "{:>width$}\n",
-                "# / TYPES OF DATA\n",
-                width = 80 - 6 - 6 * clocks.codes.len() - 2
-            )?;
 
-            // possible timescale
-            if let Some(ts) = clocks.timescale {
-                write!(
-                    f,
-                    "   {:x}                                                     TIME SYSTEM ID\n",
-                    ts
-                )?;
-            }
-            // possible reference agency
-            if let Some(agency) = &clocks.agency {
-                write!(f, "{:<5} ", agency.code)?;
-                write!(f, "{}", agency.name)?;
-                write!(f, "ANALYSIS CENTER\n")?;
-            }
-            // possible reference clock information
-        }
-        // Custom IONEX fields
-        if let Some(ionex) = &self.ionex {
-            //TODO:
-            //  EPOCH OF FIRST and LAST MAP
-            //   with epoch::format(Ionex)
-            let _ = write!(f, "{:6}           MAP DIMENSION\n", ionex.map_dimension);
-            let h = &ionex.grid.height;
-            let _ = write!(
-                f,
-                "{} {}  {}     HGT1 / HGT2 / DHGT\n",
-                h.start, h.end, h.spacing
-            );
-            let lat = &ionex.grid.latitude;
-            let _ = write!(
-                f,
-                "{} {}  {}     LAT1 / LON2 / DLAT\n",
-                lat.start, lat.end, lat.spacing
-            );
-            let lon = &ionex.grid.longitude;
-            let _ = write!(
-                f,
-                "{} {}  {}     LON1 / LON2 / DLON\n",
-                lon.start, lon.end, lon.spacing
-            );
-            let _ = write!(f, "{}         ELEVATION CUTOFF\n", ionex.elevation_cutoff);
-            if let Some(func) = &ionex.mapping {
-                let _ = write!(f, "{:?}         MAPPING FUNCTION\n", func);
-            } else {
-                let _ = write!(f, "NONE         MAPPING FUNCTION\n");
-            }
-            let _ = write!(f, "{}               EXPONENT\n", ionex.exponent);
-            if let Some(desc) = &ionex.description {
-                for line in 0..desc.len() / 60 {
-                    let max = std::cmp::min((line + 1) * 60, desc.len());
-                    let _ = write!(f, "{}                COMMENT\n", &desc[line * 60..max]);
-                }
-            }
-        }
-        // END OF HEADER
-        write!(f, "{:>74}", "END OF HEADER\n")
+        // RINEX Type dependent header
+        self.fmt_rinex_dependent(f)?;
+
+        //TODO
+        // things that could be nice to squeeze in:
+        // [+] SBAS contained (detailed vehicles)
+        // [+] RINEX 3 -> 2 observables conversion (see OBS/V2/rovn as an example)
+        writeln!(f, "{}", fmt_rinex("", "END OF HEADER"))
+    }
+}
+
+impl Header {
+    /*
+     * Macro to be used when marking Self as Merged file
+     */
+    fn merge_comment(timestamp: Epoch) -> String {
+        let (y, m, d, hh, mm, ss, _) = timestamp.to_gregorian_utc();
+        format!(
+            "rustrnx-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
+            env!("CARGO_PKG_VERSION"),
+            y,
+            m,
+            d,
+            hh,
+            mm,
+            ss,
+            timestamp.time_scale
+        )
     }
 }
 
@@ -2111,9 +1822,22 @@ impl Merge for Header {
         let (a_rev, b_rev) = (self.version, rhs.version);
         self.version = std::cmp::min(a_rev, b_rev);
 
+        // sampling interval special case
+        match self.sampling_interval {
+            None => {
+                if rhs.sampling_interval.is_some() {
+                    self.sampling_interval = rhs.sampling_interval;
+                }
+            },
+            Some(lhs) => {
+                if let Some(rhs) = rhs.sampling_interval {
+                    self.sampling_interval = Some(std::cmp::min(lhs, rhs));
+                }
+            },
+        }
+
         merge::merge_mut_vec(&mut self.comments, &rhs.comments);
         merge::merge_mut_option(&mut self.marker_type, &rhs.marker_type);
-        merge::merge_mut_option(&mut self.sampling_interval, &rhs.sampling_interval);
         merge::merge_mut_option(&mut self.license, &rhs.license);
         merge::merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
         merge::merge_mut_option(&mut self.doi, &rhs.doi);
@@ -2124,6 +1848,41 @@ impl Merge for Header {
         merge::merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
         merge::merge_mut_option(&mut self.ground_position, &rhs.ground_position);
         merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
+        merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
+
+        // DCBS compensation is preserved, only if both A&B both have it
+        if self.dcb_compensations.is_empty() || rhs.dcb_compensations.is_empty() {
+            self.dcb_compensations.clear(); // drop everything
+        } else {
+            let rhs_constellations: Vec<_> = rhs
+                .dcb_compensations
+                .iter()
+                .map(|dcb| dcb.constellation)
+                .collect();
+            self.dcb_compensations
+                .iter_mut()
+                .filter(|dcb| rhs_constellations.contains(&dcb.constellation))
+                .count();
+        }
+
+        // PCV compensation : same logic
+        // only preserve compensations present in both A & B
+        if self.pcv_compensations.is_empty() || rhs.pcv_compensations.is_empty() {
+            self.pcv_compensations.clear(); // drop everything
+        } else {
+            let rhs_constellations: Vec<_> = rhs
+                .pcv_compensations
+                .iter()
+                .map(|pcv| pcv.constellation)
+                .collect();
+            self.dcb_compensations
+                .iter_mut()
+                .filter(|pcv| rhs_constellations.contains(&pcv.constellation))
+                .count();
+        }
+
+        //TODO :
+        //merge::merge_mut(&mut self.glo_channels, &rhs.glo_channels);
 
         // RINEX specific operation
         if let Some(lhs) = &mut self.antex {
@@ -2151,6 +1910,7 @@ impl Merge for Header {
             if let Some(rhs) = &rhs.obs {
                 merge::merge_mut_option(&mut lhs.crinex, &rhs.crinex);
                 merge::merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
+                // TODO: manage that
                 lhs.clock_offset_applied |= rhs.clock_offset_applied;
             }
         }
@@ -2174,6 +1934,10 @@ impl Merge for Header {
                 if lhs.base_radius != rhs.base_radius {
                     return Err(merge::Error::IonexBaseRadiusMismatch);
                 }
+
+                //TODO: this is not enough, need to take into account and rescale..
+                lhs.exponent = std::cmp::min(lhs.exponent, rhs.exponent);
+
                 merge::merge_mut_option(&mut lhs.description, &rhs.description);
                 merge::merge_mut_option(&mut lhs.mapping, &rhs.mapping);
                 if lhs.elevation_cutoff == 0.0 {
@@ -2188,6 +1952,10 @@ impl Merge for Header {
                 }
             }
         }
+        // add special comment
+        let now = Epoch::now()?;
+        let merge_comment = Self::merge_comment(now);
+        self.comments.push(merge_comment);
         Ok(())
     }
 }
@@ -2260,7 +2028,7 @@ mod test {
     use super::parse_formatted_month;
     #[test]
     fn formatted_month_parser() {
-        for (desc, expected) in vec![("Jan", 1), ("Feb", 2), ("Mar", 3), ("Nov", 11), ("Dec", 12)] {
+        for (desc, expected) in [("Jan", 1), ("Feb", 2), ("Mar", 3), ("Nov", 11), ("Dec", 12)] {
             let month = parse_formatted_month(desc);
             assert!(month.is_ok(), "failed to parse month from \"{}\"", desc);
             let month = month.unwrap();

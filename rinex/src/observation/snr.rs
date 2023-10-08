@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Error {
     InvalidSnrCode,
 }
@@ -83,14 +83,53 @@ impl FromStr for Snr {
             "7" => Ok(Snr::DbHz42_47),
             "8" => Ok(Snr::DbHz48_53),
             "9" => Ok(Snr::DbHz54),
+            "bad" => Ok(Snr::DbHz18_23),
+            "weak" => Ok(Snr::DbHz24_29),
+            "strong" => Ok(Snr::DbHz30_35),
+            "excellent" => Ok(Snr::DbHz48_53),
             _ => Err(Error::InvalidSnrCode),
         }
     }
 }
 
 impl From<f64> for Snr {
-    fn from(f: f64) -> Self {
-        Self::from(f as u8)
+    fn from(f_db: f64) -> Self {
+        if f_db < 12.0 {
+            Self::DbHz12
+        } else if f_db <= 17.0 {
+            Self::DbHz12_17
+        } else if f_db <= 23.0 {
+            Self::DbHz18_23
+        } else if f_db <= 29.0 {
+            Self::DbHz24_29
+        } else if f_db <= 35.0 {
+            Self::DbHz30_35
+        } else if f_db <= 41.0 {
+            Self::DbHz36_41
+        } else if f_db <= 47.0 {
+            Self::DbHz42_47
+        } else if f_db <= 53.0 {
+            Self::DbHz48_53
+        } else {
+            Self::DbHz54
+        }
+    }
+}
+
+impl From<Snr> for f64 {
+    fn from(val: Snr) -> Self {
+        match val {
+            Snr::DbHz0 => 0.0_f64,
+            Snr::DbHz12 => 12.0_f64,
+            Snr::DbHz12_17 => 17.0_f64,
+            Snr::DbHz18_23 => 23.0_f64,
+            Snr::DbHz24_29 => 29.0_f64,
+            Snr::DbHz30_35 => 35.0_f64,
+            Snr::DbHz36_41 => 41.0_f64,
+            Snr::DbHz42_47 => 47.0_f64,
+            Snr::DbHz48_53 => 53.0_f64,
+            Snr::DbHz54 => 54.0_f64,
+        }
     }
 }
 
@@ -121,14 +160,6 @@ impl From<u8> for Snr {
 }
 
 impl Snr {
-    pub fn new(quality: &str) -> Self {
-        match quality.trim() {
-            "excellent" => Self::DbHz42_47,
-            "strong" => Self::DbHz30_35,
-            "weak" => Self::DbHz24_29,
-            _ => Self::DbHz18_23,
-        }
-    }
     /// Returns true if self describes a bad signal level
     pub fn bad(self) -> bool {
         self <= Snr::DbHz18_23
@@ -150,6 +181,7 @@ impl Snr {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::str::FromStr;
     #[test]
     fn observation_snr() {
         let snr = Snr::from_str("0").unwrap();
@@ -176,9 +208,14 @@ mod test {
         assert_eq!(snr, Snr::DbHz12);
         assert!(snr.bad());
 
-        assert_eq!(Snr::new("excellent"), Snr::DbHz42_47);
-        assert_eq!(Snr::new("strong"), Snr::DbHz30_35);
-        assert_eq!(Snr::new("weak"), Snr::DbHz24_29);
-        assert_eq!(Snr::new("bad"), Snr::DbHz18_23);
+        assert_eq!(Snr::from_str("excellent"), Ok(Snr::DbHz48_53));
+        assert_eq!(Snr::from_str("strong"), Ok(Snr::DbHz30_35));
+        assert_eq!(Snr::from_str("weak"), Ok(Snr::DbHz24_29));
+        assert_eq!(Snr::from_str("bad"), Ok(Snr::DbHz18_23));
+
+        assert!(Snr::from_str("bad").unwrap().bad());
+        assert!(Snr::from_str("weak").unwrap().weak());
+        assert!(Snr::from_str("strong").unwrap().strong());
+        assert!(Snr::from_str("excellent").unwrap().excellent());
     }
 }

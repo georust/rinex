@@ -1,6 +1,6 @@
 //! RINEX decompression module
 use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::{is_comment, prelude::*};
+use crate::{is_rinex_comment, prelude::*};
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -55,7 +55,7 @@ fn format_epoch(
             }
 
             let (epoch, systems) = content.split_at(32); // grab epoch
-            result.push_str(&epoch.replace("&", " ")); // rework
+            result.push_str(&epoch.replace('&', " ")); // rework
 
             //CRINEX has systems squashed in a single line
             // we just split it to match standard definitions
@@ -99,7 +99,7 @@ fn format_epoch(
                 return Err(Error::FaultyRecoveredEpoch);
             }
             let (epoch, _) = content.split_at(35);
-            result.push_str(&epoch.replace("&", " "));
+            result.push_str(&epoch.replace('&', " "));
             //TODO clock offset
             if let Some(value) = clock_offset {
                 result.push_str(&format!("         {:3.12}", (value as f64) / 1000.0_f64))
@@ -183,10 +183,10 @@ impl Decompressor {
     ) -> Option<Sv> {
         let epoch = &self.epoch_descriptor;
         let offset: usize = match crx_major {
-            1 => std::cmp::min((32 + 3 * (sv_ptr + 1)).into(), epoch.len()), // overflow protection
-            _ => std::cmp::min((41 + 3 * (sv_ptr + 1)).into(), epoch.len()), // overflow protection
+            1 => std::cmp::min(32 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
+            _ => std::cmp::min(41 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
         };
-        let system = epoch.split_at(offset.into()).0;
+        let system = epoch.split_at(offset).0;
         let (_, svnn) = system.split_at(system.len() - 3); // last 3 XXX
         let svnn = svnn.trim();
         match crx_major > 2 {
@@ -203,7 +203,7 @@ impl Decompressor {
                     },
                     constellation => {
                         // OLD + FIXED: constellation might be omitted.......
-                        if let Ok(prn) = u8::from_str_radix(&svnn[1..].trim(), 10) {
+                        if let Ok(prn) = u8::from_str_radix(svnn[1..].trim(), 10) {
                             Some(Sv {
                                 prn,
                                 constellation: *constellation,
@@ -250,7 +250,7 @@ impl Decompressor {
             //println!("state: {:?}", self.state);
 
             // [0] : COMMENTS (special case)
-            if is_comment!(line) {
+            if is_rinex_comment(line) {
                 //if line.contains("RINEX FILE SPLICE") {
                 // [0*] SPLICE special comments
                 //      merged RINEX Files
@@ -258,8 +258,7 @@ impl Decompressor {
                 //}
                 result // feed content as is
                     .push_str(line);
-                result // \n dropped by .lines()
-                    .push_str("\n");
+                result.push('\n');
                 continue; // move to next line
             }
 
@@ -269,8 +268,7 @@ impl Decompressor {
             if line.starts_with("> ") && !self.first_epoch {
                 result // feed content as is
                     .push_str(line);
-                result // \n dropped by .lines()
-                    .push_str("\n");
+                result.push('\n');
                 continue; // move to next line
             }
 
@@ -279,12 +277,12 @@ impl Decompressor {
                     if self.first_epoch {
                         match crx_major {
                             1 => {
-                                if !line.starts_with("&") {
+                                if !line.starts_with('&') {
                                     return Err(Error::FaultyCrx1FirstEpoch);
                                 }
                             },
                             3 => {
-                                if !line.starts_with(">") {
+                                if !line.starts_with('>') {
                                     return Err(Error::FaultyCrx3FirstEpoch);
                                 }
                             },
@@ -312,7 +310,7 @@ impl Decompressor {
                      * this line is dedicated to clock offset description
                      */
                     let mut clock_offset: Option<i64> = None;
-                    if line.contains("&") {
+                    if line.contains('&') {
                         // clock offset kernel (re)init
                         let (n, rem) = line.split_at(1);
                         if let Ok(order) = u8::from_str_radix(n, 10) {
@@ -368,8 +366,7 @@ impl Decompressor {
                     /*
                      * identify satellite we're dealing with
                      */
-                    if let Some(sv) = self.current_satellite(crx_major, &crx_constell, self.sv_ptr)
-                    {
+                    if let Some(sv) = self.current_satellite(crx_major, crx_constell, self.sv_ptr) {
                         //println!("SV: {:?}", sv); //DEBUG
                         self.sv_ptr += 1; // increment for next time
                                           // vehicles are always described in a single line
@@ -384,7 +381,11 @@ impl Decompressor {
                             let mut inner: Vec<(NumDiff, TextDiff, TextDiff)> =
                                 Vec::with_capacity(16);
                             // this protects from malformed Headers or malformed Epoch descriptions
-                            if let Some(codes) = observables.get(&sv.constellation) {
+                            let codes = match sv.constellation.is_sbas() {
+                                true => observables.get(&Constellation::SBAS),
+                                false => observables.get(&sv.constellation),
+                            };
+                            if let Some(codes) = codes {
                                 for _ in codes {
                                     let mut kernels = (
                                         NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
@@ -402,12 +403,16 @@ impl Decompressor {
                          * iterate over entire line
                          */
                         let mut line = line.trim_end();
-                        if let Some(codes) = observables.get(&sv.constellation) {
+                        let codes = match sv.constellation.is_sbas() {
+                            true => observables.get(&Constellation::SBAS),
+                            false => observables.get(&sv.constellation),
+                        };
+                        if let Some(codes) = codes {
                             while obs_ptr < codes.len() {
                                 if let Some(pos) = line.find(' ') {
                                     let content = &line[..pos];
                                     //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], content); //DEBUG
-                                    if content.len() == 0 {
+                                    if content.is_empty() {
                                         /*
                                          * missing observation
                                          */
@@ -417,7 +422,7 @@ impl Decompressor {
                                          * regular progression
                                          */
                                         if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                            if let Some(marker) = content.find("&") {
+                                            if let Some(marker) = content.find('&') {
                                                 // kernel (re)initialization
                                                 let (order, rem) = content.split_at(marker);
                                                 let order = u8::from_str_radix(order.trim(), 10)?;
@@ -453,7 +458,7 @@ impl Decompressor {
                                      */
                                     //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
                                     if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                        if let Some(marker) = line.find("&") {
+                                        if let Some(marker) = line.find('&') {
                                             // kernel (re)initliaization
                                             let (order, rem) = line.split_at(marker);
                                             let order = u8::from_str_radix(order.trim(), 10)?;
@@ -482,7 +487,7 @@ impl Decompressor {
                           /*
                            * Flags field
                            */
-                        if line.len() > 0 {
+                        if !line.is_empty() {
                             // can parse at least 1 flag
                             self.parse_flags(&sv, line);
                         }
@@ -522,7 +527,7 @@ impl Decompressor {
                                 // old RINEX
                                 if (index + 1).rem_euclid(5) == 0 {
                                     // maximal nb of OBS per line
-                                    result.push_str("\n")
+                                    result.push('\n')
                                 }
                             }
                         }

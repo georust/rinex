@@ -80,25 +80,25 @@ impl std::ops::SubAssign<u8> for Version {
     }
 }
 
-impl Into<(u8, u8)> for Version {
-    fn into(self) -> (u8, u8) {
-        (self.major, self.minor)
+impl From<Version> for (u8, u8) {
+    fn from(v: Version) -> Self {
+        (v.major, v.minor)
     }
 }
 
 impl std::str::FromStr for Version {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.contains(".") {
+        match s.contains('.') {
             true => {
-                let digits: Vec<&str> = s.split(".").collect();
+                let mut digits = s.split('.');
                 Ok(Self {
-                    major: u8::from_str_radix(digits.get(0).unwrap(), 10)?,
-                    minor: u8::from_str_radix(digits.get(1).unwrap(), 10)?,
+                    major: digits.next().unwrap().parse::<u8>()?,
+                    minor: digits.next().unwrap().parse::<u8>()?,
                 })
             },
             false => Ok(Self {
-                major: u8::from_str_radix(s, 10)?,
+                major: s.parse::<u8>()?,
                 minor: 0,
             }),
         }
@@ -133,44 +133,44 @@ mod test {
         assert_eq!(version.minor, SUPPORTED_VERSION.minor);
 
         let version = Version::from_str("1");
-        assert_eq!(version.is_ok(), true);
+        assert!(version.is_ok());
         let version = version.unwrap();
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 0);
 
         let version = Version::from_str("1.2");
-        assert_eq!(version.is_ok(), true);
+        assert!(version.is_ok());
         let version = version.unwrap();
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 2);
 
         let version = Version::from_str("3.02");
-        assert_eq!(version.is_ok(), true);
+        assert!(version.is_ok());
         let version = version.unwrap();
         assert_eq!(version.major, 3);
         assert_eq!(version.minor, 2);
 
         let version = Version::from_str("a.b");
-        assert_eq!(version.is_err(), true);
+        assert!(version.is_err());
     }
     #[test]
     fn supported_version() {
         let version = Version::default();
-        assert_eq!(version.is_supported(), true);
+        assert!(version.is_supported());
         let version = SUPPORTED_VERSION;
-        assert_eq!(version.is_supported(), true);
+        assert!(version.is_supported());
     }
     #[test]
     fn non_supported_version() {
         let version = Version::new(5, 0);
-        assert_eq!(version.is_supported(), false);
+        assert!(!version.is_supported());
     }
     #[test]
     fn version_comparison() {
         let v_a = Version::from_str("1.2").unwrap();
         let v_b = Version::from_str("3.02").unwrap();
-        assert_eq!(v_b > v_a, true);
-        assert_eq!(v_b == v_a, false);
+        assert!(v_b > v_a);
+        assert!(v_b != v_a);
     }
     #[test]
     fn version_arithmetics() {

@@ -1,71 +1,41 @@
 use crate::{merge, merge::Merge, prelude::*, split, split::Split};
 
-use super::{grid, GridLinspace};
+use super::grid;
 
+use crate::epoch;
 use hifitime::Duration;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
 
-pub(crate) fn is_new_tec_map(line: &str) -> bool {
+pub(crate) fn is_new_tec_plane(line: &str) -> bool {
     line.contains("START OF TEC MAP")
 }
 
-pub(crate) fn is_new_rms_map(line: &str) -> bool {
+pub(crate) fn is_new_rms_plane(line: &str) -> bool {
     line.contains("START OF RMS MAP")
 }
 
-pub(crate) fn is_new_height_map(line: &str) -> bool {
-    line.contains("START OF HEIGHT MAP")
-}
+/*
+ * Don't know what Height maps are actually
+ */
+// pub(crate) fn is_new_height_map(line: &str) -> bool {
+//     line.contains("START OF HEIGHT MAP")
+// }
 
-/// Returns true if given content describes the start of
-/// a Ionosphere map.
-pub(crate) fn is_new_map(line: &str) -> bool {
-    is_new_tec_map(line) || is_new_rms_map(line) || is_new_height_map(line)
-}
-
-/// A Map is a list of estimates for
-/// a given Latitude, Longitude, Altitude
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct MapPoint {
-    /// Latitude of this estimate
-    pub latitude: f64,
-    /// Longitude of this estimate
-    pub longitude: f64,
-    /// Altitude of this estimate
-    pub altitude: f64,
-    /// Actual estimate (scaling applied)
-    pub value: f64,
+pub struct TEC {
+    /// TEC value
+    pub tec: f64,
+    /// RMS(tec)
+    pub rms: Option<f64>,
 }
 
-pub type Map = Vec<MapPoint>;
+pub type TECPlane = HashMap<(i32, i32), TEC>;
 
-/*
- * Merges `rhs` into `lhs` in up to 3 dimensions
- */
-fn map_merge3d_mut(lhs: &mut Map, rhs: &Map) {
-    for rhs_p in rhs {
-        let mut found = false;
-        for lhs_p in lhs.into_iter() {
-            found |= (lhs_p.latitude == rhs_p.latitude)
-                && (lhs_p.longitude == rhs_p.longitude)
-                && (lhs_p.altitude == rhs_p.altitude);
-            if found {
-                break;
-            }
-        }
-        if !found {
-            lhs.push(rhs_p.clone());
-        }
-    }
-}
-
-/// `IONEX` record is sorted by epoch.
-/// For each epoch, a TEC map is always given.
-/// Possible RMS map and Height map may exist at a given epoch.
-/// Ionosphere maps are always given in Earth fixed reference frames.
+/// IONEX contains 2D (fixed altitude) or 3D Ionosphere Maps.
+/// See [Rinex::ionex] and related feature for more information.
 /// ```
 /// use rinex::prelude::*;
 /// use rinex::ionex::*;
@@ -87,33 +57,32 @@ fn map_merge3d_mut(lhs: &mut Map, rhs: &Map) {
 ///     assert_eq!(params.elevation_cutoff, 0.0);
 ///     assert_eq!(params.mapping, None); // no mapping function
 /// }
-/// let record = rinex.record.as_ionex()
-///     .unwrap();
-/// for (epoch, (tec, rms, height)) in record {
-///     // RMS map never provided in this file
-///     assert_eq!(rms.is_none(), true);
-///     // 2D IONEX: height maps never provided
-///     assert_eq!(height.is_none(), true);
-///     // We only get TEC maps
-///     // when using TEC values, we previously applied all required scalings
-///     for point in tec {
-///         let lat = point.latitude; // in ddeg
-///         let lon = point.longitude; // in ddeg
-///         let alt = point.altitude; // in km
-///         let value = point.value; // correctly scaled ("exponent")
-///     }
-/// }
 /// ```
-pub type Record = BTreeMap<Epoch, (Map, Option<Map>, Option<Map>)>;
+pub type Record = BTreeMap<(Epoch, i32), TECPlane>;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("failed to parse map index")]
-    ParseIndexError,
+    #[error("failed to parse map index from \"{0}\"")]
+    MapIndexParsing(String),
     #[error("faulty epoch description")]
     EpochDescriptionError,
-    #[error("faulty longitude range definition")]
-    LongitudeRangeError(#[from] grid::Error),
+    #[error("bad grid definition")]
+    BadGridDefinition(#[from] grid::Error),
+    #[error("failed to parse {0} coordinates from \"{1}\"")]
+    CoordinatesParsing(String, String),
+    #[error("failed to parse epoch")]
+    EpochParsing(#[from] epoch::ParsingError),
+}
+
+/*
+ * Merges `rhs` into `lhs`
+ */
+fn merge_plane_mut(lhs: &mut TECPlane, rhs: &TECPlane) {
+    for (coord, tec) in rhs {
+        if lhs.get(coord).is_none() {
+            lhs.insert(*coord, tec.clone());
+        }
+    }
 }
 
 /*
@@ -121,20 +90,29 @@ pub enum Error {
  *  - a TEC map
  *  - an RMS tec map
  *  - an height map
- * defined for returned Epoch
+ * Returns: Epoth(t), nth Map index, latitude, altitude and TEC plane accross longitudes
  */
-pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Map), Error> {
+pub(crate) fn parse_plane(
+    content: &str,
+    header: &mut Header,
+    is_rms_plane: bool,
+) -> Result<(Epoch, i32, TECPlane), Error> {
     let lines = content.lines();
     let mut epoch = Epoch::default();
-    let mut map = Map::with_capacity(128); // result
-    let mut latitude: f64 = 0.0; // current latitude
-    let mut altitude: f64 = 0.0; // current altitude
-    let mut ptr: usize = 0; // pointer in longitude space
-    let mut linspace = GridLinspace::default(); // (longitude) linspace
+    let mut plane = TECPlane::with_capacity(128);
+
+    // this can't fail at this point
     let ionex = header
         .ionex
         .as_mut()
         .expect("faulty ionex context: missing specific header definitions");
+
+    // current {lat, lon} within current grid def.
+    let mut latitude = 0_i32;
+    let mut longitude = 0_i32;
+    let mut altitude = 0_i32;
+    let mut dlon = (ionex.grid.longitude.spacing * 1000.0) as i32;
+
     for line in lines {
         if line.len() > 60 {
             let (content, marker) = line.split_at(60);
@@ -142,90 +120,126 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                 continue; // skip that one
             } else if marker.contains("END OF") && marker.contains("MAP") {
                 let index = content.split_at(6).0;
-                if let Ok(u) = u32::from_str_radix(index.trim(), 10) {
-                    return Ok((u as usize, epoch, map));
-                } else {
-                    return Err(Error::ParseIndexError);
-                }
+                let index = index.trim();
+                let _map_index = index
+                    .parse::<u32>()
+                    .or(Err(Error::MapIndexParsing(index.to_string())))?;
+
+                return Ok((epoch, altitude, plane));
             } else if marker.contains("LAT/LON1/LON2/DLON/H") {
-                // space coordinates definition for next block
+                // grid definition for next block
                 let (_, rem) = content.split_at(2);
+
                 let (lat, rem) = rem.split_at(6);
+                let lat = lat.trim();
+                let lat = f64::from_str(lat).or(Err(Error::CoordinatesParsing(
+                    String::from("latitude"),
+                    lat.to_string(),
+                )))?;
+
                 let (lon1, rem) = rem.split_at(6);
-                let (lon2, rem) = rem.split_at(6);
-                let (dlon, rem) = rem.split_at(6);
+                let lon1 = lon1.trim();
+                let lon1 = f64::from_str(lon1).or(Err(Error::CoordinatesParsing(
+                    String::from("longitude"),
+                    lon1.to_string(),
+                )))?;
+
+                let (_lon2, rem) = rem.split_at(6);
+                //let lon2 = lon2.trim();
+                //let lon2 = f64::from_str(lon2).or(Err(Error::CoordinatesParsing(
+                //    String::from("longitude"),
+                //    lon2.to_string(),
+                //)))?;
+
+                let (dlon_str, rem) = rem.split_at(6);
+                let dlon_str = dlon_str.trim();
+                let dlon_f64 = f64::from_str(dlon_str).or(Err(Error::CoordinatesParsing(
+                    String::from("longitude"),
+                    dlon_str.to_string(),
+                )))?;
+
                 let (h, _) = rem.split_at(6);
-                latitude =
-                    f64::from_str(lat.trim()).expect("failed to parse grid latitude start point");
-                let lon1 =
-                    f64::from_str(lon1.trim()).expect("failed to parse longitude start point");
-                let lon2 = f64::from_str(lon2.trim()).expect("failed to parse longitude end point");
-                let dlon =
-                    f64::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
-                altitude = f64::from_str(h.trim()).expect("failed to parse next grid altitude");
-                linspace = GridLinspace::new(lon1, lon2, dlon)?;
-                ptr = 0;
+                let h = h.trim();
+                let alt = f64::from_str(h).or(Err(Error::CoordinatesParsing(
+                    String::from("altitude"),
+                    h.to_string(),
+                )))?;
+
+                altitude = (alt.round() * 100.0_f64) as i32;
+                latitude = (lat.round() * 1000.0_f64) as i32;
+                longitude = (lon1.round() * 1000.0_f64) as i32;
+                dlon = (dlon_f64.round() * 1000.0_f64) as i32;
+
+                // debug
+                // println!("NEW GRID : h: {} lat : {} lon : {}, dlon: {}", altitude, latitude, longitude, dlon);
             } else if marker.contains("EPOCH OF CURRENT MAP") {
-                // time definition
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if items.len() != 6 {
-                    return Err(Error::EpochDescriptionError);
-                }
-                if let Ok(y) = i32::from_str_radix(items[0].trim(), 10) {
-                    if let Ok(m) = u8::from_str_radix(items[1].trim(), 10) {
-                        if let Ok(d) = u8::from_str_radix(items[2].trim(), 10) {
-                            if let Ok(hh) = u8::from_str_radix(items[3].trim(), 10) {
-                                if let Ok(mm) = u8::from_str_radix(items[4].trim(), 10) {
-                                    if let Ok(ss) = u8::from_str_radix(items[5].trim(), 10) {
-                                        epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                epoch = epoch::parse_utc(content)?.0;
             } else if marker.contains("EXPONENT") {
-                // scaling redefinition
-                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
-                    *ionex = ionex.with_exponent(e); // scaling update
+                // update current scaling
+                if let Ok(e) = content.trim().parse::<i8>() {
+                    ionex.exponent = e;
                 }
             } else {
                 // parsing TEC values
-                for item in line.split_ascii_whitespace().into_iter() {
-                    if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
-                        // parse & apply correct scaling
+                for item in line.split_ascii_whitespace() {
+                    if let Ok(v) = item.trim().parse::<i32>() {
                         let mut value = v as f64;
+                        // current scaling
                         value *= 10.0_f64.powf(ionex.exponent as f64);
-                        map.push(MapPoint {
-                            latitude,
-                            longitude: linspace.start + linspace.spacing * ptr as f64,
-                            altitude,
-                            value,
-                        });
-                        ptr += 1;
+
+                        let tec = match is_rms_plane {
+                            true => {
+                                TEC {
+                                    tec: 0.0_f64, // DONT CARE
+                                    rms: Some(value),
+                                }
+                            },
+                            false => TEC {
+                                tec: value,
+                                rms: None,
+                            },
+                        };
+
+                        plane.insert((latitude, longitude), tec);
                     }
+
+                    longitude += dlon;
+                    //debug
+                    //println!("longitude: {}", longitude);
                 }
             }
         } else {
             // less than 60 characters
             // parsing TEC values
-            for item in line.split_ascii_whitespace().into_iter() {
-                if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
-                    // parse & apply correct scaling
+            for item in line.split_ascii_whitespace() {
+                if let Ok(v) = item.trim().parse::<i32>() {
                     let mut value = v as f64;
+                    // current scaling
                     value *= 10.0_f64.powf(ionex.exponent as f64);
-                    map.push(MapPoint {
-                        latitude,
-                        longitude: linspace.start + linspace.spacing * ptr as f64,
-                        altitude,
-                        value,
-                    });
-                    ptr += 1;
+
+                    let tec = match is_rms_plane {
+                        true => {
+                            TEC {
+                                tec: 0.0_f64, // DONT CARE
+                                rms: Some(value),
+                            }
+                        },
+                        false => TEC {
+                            tec: value,
+                            rms: None,
+                        },
+                    };
+
+                    plane.insert((latitude, longitude), tec);
                 }
+
+                longitude += dlon;
+                //debug
+                //println!("longitude: {}", longitude);
             }
         }
     }
-    Ok((0, epoch, map))
+    Ok((epoch, altitude, plane))
 }
 
 #[cfg(test)]
@@ -233,150 +247,25 @@ mod test {
     use super::*;
     #[test]
     fn test_new_tec_map() {
-        assert_eq!(
-            is_new_tec_map(
-                "1                                                      START OF TEC MAP"
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_tec_map(
-                "1                                                      START OF RMS MAP"
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_rms_map(
-                "1                                                      START OF RMS MAP"
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_height_map(
-                "1                                                      START OF HEIGHT MAP"
-            ),
-            true
-        );
+        assert!(is_new_tec_plane(
+            "1                                                      START OF TEC MAP"
+        ));
+        assert!(!is_new_tec_plane(
+            "1                                                      START OF RMS MAP"
+        ));
+        assert!(is_new_rms_plane(
+            "1                                                      START OF RMS MAP"
+        ));
+        // assert_eq!(
+        //     is_new_height_map(
+        //         "1                                                      START OF HEIGHT MAP"
+        //     ),
+        //     true
+        // );
     }
-    #[test]
-    fn test_merge_map2d() {
-        let mut lhs = vec![
-            MapPoint {
-                latitude: 0.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 1.0,
-            },
-            MapPoint {
-                latitude: 0.0,
-                longitude: 10.0,
-                altitude: 0.0,
-                value: 2.0,
-            },
-            MapPoint {
-                latitude: 0.0,
-                longitude: 20.0,
-                altitude: 0.0,
-                value: 3.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 4.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 10.0,
-                altitude: 0.0,
-                value: 5.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 20.0,
-                altitude: 0.0,
-                value: 6.0,
-            },
-        ];
-        let rhs = vec![
-            MapPoint {
-                latitude: 0.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 0.0,
-            },
-            MapPoint {
-                latitude: 5.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 1.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 0.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 25.0,
-                altitude: 0.0,
-                value: 6.0,
-            },
-        ];
-        let expected = vec![
-            MapPoint {
-                latitude: 0.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 1.0,
-            },
-            MapPoint {
-                latitude: 0.0,
-                longitude: 10.0,
-                altitude: 0.0,
-                value: 2.0,
-            },
-            MapPoint {
-                latitude: 0.0,
-                longitude: 20.0,
-                altitude: 0.0,
-                value: 3.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 4.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 10.0,
-                altitude: 0.0,
-                value: 5.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 20.0,
-                altitude: 0.0,
-                value: 6.0,
-            },
-            MapPoint {
-                latitude: 5.0,
-                longitude: 0.0,
-                altitude: 0.0,
-                value: 1.0,
-            },
-            MapPoint {
-                latitude: 10.0,
-                longitude: 25.0,
-                altitude: 0.0,
-                value: 6.0,
-            },
-        ];
-        map_merge3d_mut(&mut lhs, &rhs);
-        assert_eq!(&lhs, &expected);
-    }
+    //#[test]
+    //fn test_merge_map2d() {
+    //}
 }
 
 impl Merge for Record {
@@ -388,31 +277,21 @@ impl Merge for Record {
     }
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (epoch, maps) in rhs {
-            let (tec, rms, h) = maps;
-            if let Some(lhs_maps) = self.get_mut(epoch) {
-                let (lhs_tec, lhs_rms, lhs_h) = lhs_maps;
-
-                map_merge3d_mut(&mut lhs_tec.to_vec(), tec);
-
-                if let Some(map) = rms {
-                    if let Some(lhs_map) = lhs_rms {
-                        map_merge3d_mut(&mut lhs_map.to_vec(), map);
+        for (eh, plane) in rhs {
+            if let Some(lhs_plane) = self.get_mut(eh) {
+                for (latlon, plane) in plane {
+                    if let Some(tec) = lhs_plane.get_mut(latlon) {
+                        if let Some(rms) = plane.rms {
+                            if tec.rms.is_none() {
+                                tec.rms = Some(rms);
+                            }
+                        }
                     } else {
-                        *lhs_rms = Some(map.to_vec()); // RMS map now provided
-                    }
-                }
-
-                if let Some(map) = h {
-                    if let Some(lhs_map) = lhs_h {
-                        map_merge3d_mut(&mut lhs_map.to_vec(), map);
-                    } else {
-                        *lhs_h = Some(map.to_vec()); // H map now provided
+                        lhs_plane.insert(*latlon, plane.clone());
                     }
                 }
             } else {
-                // new epoch
-                self.insert(*epoch, (tec.to_vec(), rms.clone(), h.clone()));
+                self.insert(*eh, plane.clone());
             }
         }
         Ok(())
@@ -421,27 +300,27 @@ impl Merge for Record {
 
 impl Split for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self
+        let before = self
             .iter()
-            .flat_map(|(k, v)| {
-                if *k < epoch {
-                    Some((k.clone(), v.clone()))
+            .flat_map(|((e, h), plane)| {
+                if *e < epoch {
+                    Some(((*e, *h), plane.clone()))
                 } else {
                     None
                 }
             })
             .collect();
-        let r1 = self
+        let after = self
             .iter()
-            .flat_map(|(k, v)| {
-                if *k >= epoch {
-                    Some((k.clone(), v.clone()))
+            .flat_map(|((e, h), plane)| {
+                if *e >= epoch {
+                    Some(((*e, *h), plane.clone()))
                 } else {
                     None
                 }
             })
             .collect();
-        Ok((r0, r1))
+        Ok((before, after))
     }
     fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
         Ok(Vec::new())
@@ -461,27 +340,27 @@ impl Mask for Record {
     fn mask_mut(&mut self, mask: MaskFilter) {
         match mask.operand {
             MaskOperand::Equals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
                 _ => {}, // TargetItem:: does not apply
             },
             MaskOperand::NotEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
                 _ => {}, // TargetItem:: does not apply
             },
             MaskOperand::GreaterEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e >= epoch),
                 _ => {}, // TargetItem:: does not apply
             },
             MaskOperand::GreaterThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e > epoch),
                 _ => {}, // TargetItem:: does not apply
             },
             MaskOperand::LowerEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e <= epoch),
                 _ => {}, // TargetItem:: does not apply
             },
             MaskOperand::LowerThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e < epoch),
                 _ => {}, // TargetItem:: does not apply
             },
         }

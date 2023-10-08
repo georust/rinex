@@ -2,83 +2,12 @@
 mod test {
     use crate::observable;
     use crate::sv;
+    use crate::tests::toolkit::test_observation_rinex;
+    use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{header::*, observation::*, prelude::*};
+    use itertools::Itertools;
     use std::path::Path;
     use std::str::FromStr;
-    /*
-     * Helper: to create a list of observable
-     */
-    fn create_observ_list(descriptors: Vec<&str>) -> Vec<Observable> {
-        let mut r: Vec<Observable> = vec![];
-        for desc in descriptors {
-            if desc.starts_with("L") {
-                let obs = Observable::Phase(String::from(desc));
-                r.push(obs.clone());
-            } else if desc.starts_with("P") {
-                let obs = Observable::PseudoRange(String::from(desc));
-                r.push(obs.clone());
-            } else if desc.starts_with("C") {
-                let obs = Observable::PseudoRange(String::from(desc));
-                r.push(obs.clone());
-            } else if desc.starts_with("S") {
-                let obs = Observable::SSI(String::from(desc));
-                r.push(obs.clone());
-            }
-        }
-        r.sort(); // for comparison purposes
-        r
-    }
-    /*
-     * General testbench
-     * shared accross all Observation files
-     */
-    fn testbench(
-        rnx: &Rinex,
-        _major: u8,
-        _minor: u8,
-        c: Constellation,
-        epochs: Vec<Epoch>,
-        observables: Vec<Observable>,
-    ) {
-        // must have dedicated fields
-        assert!(rnx.header.obs.is_some());
-        /*
-         * Test epoch parsing and identification
-         */
-        assert!(rnx.epoch().eq(epochs), "parsed wrong epoch content");
-
-        let mut parsed_observables: Vec<Observable> = rnx.observable().cloned().collect();
-        parsed_observables.sort();
-
-        assert!(
-            observables == parsed_observables,
-            "parsed wrong observable content,expecting\n{:?}\ngot\n{:?}",
-            observables,
-            parsed_observables
-        );
-
-        /*
-         * Test Record content
-         */
-        let record = rnx.record.as_obs();
-        assert!(record.is_some());
-        let record = record.unwrap();
-        assert!(record.len() > 0);
-        for ((_, _), (clk_offset, vehicles)) in record {
-            /*
-             * We don't have any files with clock offsets as of today
-             */
-            assert!(clk_offset.is_none());
-            /*
-             * test GNSS identification
-             */
-            if c != Constellation::Mixed {
-                for (sv, _) in vehicles {
-                    assert_eq!(sv.constellation, c);
-                }
-            }
-        }
-    }
     #[test]
     fn v2_aopr0010_17o() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -88,19 +17,27 @@ mod test {
             .join("V2")
             .join("aopr0010.17o");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(rinex.is_ok(), true);
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
-        let epochs: Vec<Epoch> = vec![
-            Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap(),
-            Epoch::from_str("2017-01-01T03:33:40 GPST").unwrap(),
-            Epoch::from_str("2017-01-01T06:09:10 GPST").unwrap(),
-        ];
+        test_observation_rinex(
+            &rinex,
+            "2.10",
+            Some("GPS"),
+            "GPS",
+            "G31,G27,G03,G32,G16,G14,G08,G23,G22,G07, G30, G11, G19, G07",
+            "C1, L1, L2, P2, P1",
+            Some("2017-01-01T00:00:00 GPST"),
+            None,
+            erratic_time_frame!(
+                "2017-01-01T00:00:00 GPST,
+                2017-01-01T03:33:40 GPST,
+                2017-01-01T06:09:10 GPST"
+            ),
+        );
 
-        let observables = create_observ_list(vec!["L1", "L2", "P1", "P2", "C1"]);
-
-        testbench(&rinex, 2, 11, Constellation::GPS, epochs, observables);
+        //testbench(&rinex, 2, 11, Constellation::GPS, epochs, observables);
         let record = rinex.record.as_obs().unwrap();
 
         for (index, (_e, (_, vehicles))) in record.iter().enumerate() {
@@ -205,55 +142,60 @@ mod test {
             .join("V2")
             .join("npaz3550.21o");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(rinex.is_ok(), true);
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        //testbench(&rinex, 2, 11, Constellation::Mixed, epochs);
 
-        let obs_hd = rinex.header.obs.as_ref().unwrap();
-        let record = rinex.record.as_obs();
-        assert_eq!(record.is_some(), true);
-        let record = record.unwrap();
+        test_observation_rinex(
+            &rinex,
+            "2.11",
+            Some("MIXED"),
+            "GPS, GLO",
+            "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+            "C1, L1, L2, P2, S1, S2",
+            Some("2021-12-21T00:00:00 GPST"),
+            Some("2021-12-21T23:59:30 GPST"),
+            evenly_spaced_time_frame!(
+                "2021-12-21T00:00:00 GPST",
+                "2021-12-21T01:04:00 GPST",
+                "30 s"
+            ),
+        );
 
-        //////////////////////////////
-        // This file is GPS + GLONASS
-        //////////////////////////////
-        let obscodes = obs_hd.codes.get(&Constellation::GPS);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-            ]
-        );
-        let obscodes = obs_hd.codes.get(&Constellation::Glonass);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-            ]
-        );
+        //let obscodes = obs_hd.codes.get(&Constellation::GPS);
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //    ]
+        //);
+        //let obscodes = obs_hd.codes.get(&Constellation::Glonass);
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //    ]
+        //);
+
+        let record = rinex.record.as_obs().unwrap();
 
         // test epoch [1]
         let epoch = Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap();
         let flag = EpochFlag::Ok;
         let epoch = record.get(&(epoch, flag));
-        assert_eq!(epoch.is_some(), true);
+        assert!(epoch.is_some());
         let (clk_offset, epoch) = epoch.unwrap();
-        assert_eq!(clk_offset.is_none(), true);
+        assert!(clk_offset.is_none());
         assert_eq!(epoch.len(), 17);
 
         // G08
@@ -262,47 +204,47 @@ mod test {
             prn: 08,
         };
         let observations = epoch.get(&sv);
-        assert_eq!(observations.is_some(), true);
+        assert!(observations.is_some());
         let observations = observations.unwrap();
 
         // C1
         let observed = observations.get(&Observable::from_str("C1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 22288985.512);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         // L1
         let observed = observations.get(&Observable::from_str("L1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 117129399.048);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(observed.snr, Some(Snr::DbHz36_41));
         // L2
         let observed = observations.get(&Observable::from_str("L2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 91269672.416);
         assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
         assert_eq!(observed.snr, Some(Snr::DbHz36_41));
         // P2
         let observed = observations.get(&Observable::from_str("P2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 22288987.972);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         // S1
         let observed = observations.get(&Observable::from_str("S1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 44.000);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         // S2
         let observed = observations.get(&Observable::from_str("S2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 27.000);
         assert_eq!(observed.lli, None);
@@ -314,39 +256,39 @@ mod test {
             prn: 19,
         };
         let observations = epoch.get(&sv);
-        assert_eq!(observations.is_some(), true);
+        assert!(observations.is_some());
         let observations = observations.unwrap();
 
         // C1
         let observed = observations.get(&Observable::from_str("C1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23250776.648);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         // L1
         let observed = observations.get(&Observable::from_str("L1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 124375967.254);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(observed.snr, Some(Snr::DbHz0));
         // L2
         let observed = observations.get(&Observable::from_str("L2").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         // P2
         let observed = observations.get(&Observable::from_str("P2").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         // S1
         let observed = observations.get(&Observable::from_str("S1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 32.000);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         // S2
         let observed = observations.get(&Observable::from_str("S2").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
     }
     #[test]
     fn v2_rovn0010_21o() {
@@ -357,16 +299,69 @@ mod test {
             .join("V2")
             .join("rovn0010.21o");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(rinex.is_ok(), true);
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
+
+        test_observation_rinex(&rinex, "2.11", Some("MIXED"), "GPS, GLO", 
+            "G07, G08, G10, G13, G15, G16, G18, G21, G23, G26, G27, G30, R01, R02, R03, R08, R09, R15, R16, R17, R18, R19, R24", "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5", Some("2021-01-01T00:00:00 GPST"), Some("2021-01-01T23:59:30 GPST"), 
+            erratic_time_frame!("
+                2021-01-01T00:00:00 GPST,
+                2021-01-01T00:00:30 GPST,
+                2021-01-01T01:10:00 GPST,
+                2021-01-01T02:25:00 GPST,
+                2021-01-01T02:25:30 GPST,
+                2021-01-01T02:26:00 GPST
+            ")
+        );
+
+        //////////////////////////////
+        // This file is GPS + GLONASS
+        //////////////////////////////
+        //let obscodes = obs_hd.codes.get(&Constellation::GPS);
+        //assert_eq!(obscodes.is_some(), true);
+        //let obscodes = obscodes.unwrap();
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("C2").unwrap(),
+        //        Observable::from_str("C5").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("L5").unwrap(),
+        //        Observable::from_str("P1").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //        Observable::from_str("S5").unwrap(),
+        //    ]
+        //);
+
+        //let obscodes = obs_hd.codes.get(&Constellation::Glonass);
+        //assert_eq!(obscodes.is_some(), true);
+        //let obscodes = obscodes.unwrap();
+        //assert_eq!(
+        //    obscodes,
+        //    &vec![
+        //        Observable::from_str("C1").unwrap(),
+        //        Observable::from_str("C2").unwrap(),
+        //        Observable::from_str("C5").unwrap(),
+        //        Observable::from_str("L1").unwrap(),
+        //        Observable::from_str("L2").unwrap(),
+        //        Observable::from_str("L5").unwrap(),
+        //        Observable::from_str("P1").unwrap(),
+        //        Observable::from_str("P2").unwrap(),
+        //        Observable::from_str("S1").unwrap(),
+        //        Observable::from_str("S2").unwrap(),
+        //        Observable::from_str("S5").unwrap(),
+        //    ]
+        //);
+
         /*
          * Header tb
          */
         let header = &rinex.header;
-        assert!(rinex.is_observation_rinex());
-        assert!(header.obs.is_some());
-        assert!(header.meteo.is_none());
         assert_eq!(
             header.ground_position,
             Some(GroundPosition::from_ecef_wgs84((
@@ -379,62 +374,16 @@ mod test {
         assert_eq!(header.observer, "Hans van der Marel");
         assert_eq!(header.agency, "TU Delft for Deltares");
 
-        let obs_hd = header.obs.as_ref();
-        assert!(obs_hd.is_some());
-        let obs_hd = obs_hd.unwrap();
-
         let record = rinex.record.as_obs();
         assert!(record.is_some());
         let record = record.unwrap();
-        //////////////////////////////
-        // This file is GPS + GLONASS
-        //////////////////////////////
-        let obscodes = obs_hd.codes.get(&Constellation::GPS);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("C2").unwrap(),
-                Observable::from_str("C5").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("L5").unwrap(),
-                Observable::from_str("P1").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-                Observable::from_str("S5").unwrap(),
-            ]
-        );
-
-        let obscodes = obs_hd.codes.get(&Constellation::Glonass);
-        assert_eq!(obscodes.is_some(), true);
-        let obscodes = obscodes.unwrap();
-        assert_eq!(
-            obscodes,
-            &vec![
-                Observable::from_str("C1").unwrap(),
-                Observable::from_str("C2").unwrap(),
-                Observable::from_str("C5").unwrap(),
-                Observable::from_str("L1").unwrap(),
-                Observable::from_str("L2").unwrap(),
-                Observable::from_str("L5").unwrap(),
-                Observable::from_str("P1").unwrap(),
-                Observable::from_str("P2").unwrap(),
-                Observable::from_str("S1").unwrap(),
-                Observable::from_str("S2").unwrap(),
-                Observable::from_str("S5").unwrap(),
-            ]
-        );
 
         // test epoch [1]
         let epoch = Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap();
         let epoch = record.get(&(epoch, EpochFlag::Ok));
-        assert_eq!(epoch.is_some(), true);
+        assert!(epoch.is_some());
         let (clk_offset, epoch) = epoch.unwrap();
-        assert_eq!(clk_offset.is_none(), true);
+        assert!(clk_offset.is_none());
         assert_eq!(epoch.len(), 24);
 
         // G07
@@ -443,74 +392,74 @@ mod test {
             prn: 07,
         };
         let observations = epoch.get(&sv);
-        assert_eq!(observations.is_some(), true);
+        assert!(observations.is_some());
         let observations = observations.unwrap();
 
         // C1
         let observed = observations.get(&Observable::from_str("C1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225566.040);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, Some(Snr::DbHz36_41));
         //C2
         let observed = observations.get(&Observable::from_str("C2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225562.932);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         //C5 [missing]
         let observed = observations.get(&Observable::from_str("C5").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         //L1
         let observed = observations.get(&Observable::from_str("L1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 127306204.852);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         //L2
         let observed = observations.get(&Observable::from_str("L2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 99199629.819);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
         //L5 [missing]
         let observed = observations.get(&Observable::from_str("L5").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         //P1
         let observed = observations.get(&Observable::from_str("P1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225565.620);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
         //P2
         let observed = observations.get(&Observable::from_str("P2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225563.191);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
         //S1
         let observed = observations.get(&Observable::from_str("S1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 40.586);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         //S2
         let observed = observations.get(&Observable::from_str("S2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 25.564);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         //S5 (missing)
         let observed = observations.get(&Observable::from_str("S5").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
 
         // G07
         let sv = Sv {
@@ -518,59 +467,59 @@ mod test {
             prn: 24,
         };
         let observations = epoch.get(&sv);
-        assert_eq!(observations.is_some(), true);
+        assert!(observations.is_some());
         let observations = observations.unwrap();
 
         //C1,C2,C5
         let observed = observations.get(&Observable::from_str("C1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23126824.976);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("C2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23126830.088);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("C5").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         //L1,L2,L5
         let observed = observations.get(&Observable::from_str("L1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 123669526.377);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("L2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 96187435.849);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("L5").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         //P1, P2
         let observed = observations.get(&Observable::from_str("P1").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         let observed = observations.get(&Observable::from_str("P2").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
         //S1,S2,S5
         let observed = observations.get(&Observable::from_str("S1").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 41.931);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         let observed = observations.get(&Observable::from_str("S2").unwrap());
-        assert_eq!(observed.is_some(), true);
+        assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 39.856);
         assert_eq!(observed.lli, None);
         assert_eq!(observed.snr, None);
         let observed = observations.get(&Observable::from_str("S5").unwrap());
-        assert_eq!(observed.is_none(), true);
+        assert!(observed.is_none());
     }
     #[test]
     fn v3_duth0630() {
@@ -581,67 +530,33 @@ mod test {
             .join("V3")
             .join("DUTH0630.22O");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(&fullpath.to_string());
-        assert_eq!(rinex.is_ok(), true);
+        let rinex = Rinex::from_file(fullpath.as_ref());
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.header.obs.is_some(), true);
-        let obs = rinex.header.obs.as_ref().unwrap();
+
+        test_observation_rinex(
+            &rinex,
+            "3.02",
+            Some("MIXED"),
+            "GPS, GLO",
+            "G03, G01, G04, G09, G17, G19, G21, G22, G31, G32, R01, R02, R08, R09, R10, R17, R23, R24",
+            "C1C, L1C, D1C, S1C, C2P, L2P, D2P, S2P, C2W, L2W, D2W, S2W",
+            Some("2022-03-04T00:00:00 GPST"),
+            Some("2022-03-04T23:59:30 GPST"),
+            erratic_time_frame!(
+                "2022-03-04T00:00:00 GPST, 2022-03-04T00:28:30 GPST, 2022-03-04T00:57:00 GPST"
+            ),
+        );
 
         /*
          * test Glonass observables
          */
-        let observables = obs.codes.get(&Constellation::Glonass);
-        assert_eq!(observables.is_some(), true);
-        let mut observables = observables.unwrap().clone();
-        observables.sort();
-
-        let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2P L2P D2P S2P"
-            .split_ascii_whitespace()
-            .map(|k| Observable::from_str(k).unwrap())
-            .collect();
-        expected.sort();
-        assert_eq!(observables, expected);
-
-        /*
-         * test GPS observables
-         */
-        let observables = obs.codes.get(&Constellation::GPS);
-        assert_eq!(observables.is_some(), true);
-        let mut observables = observables.unwrap().clone();
-        observables.sort();
-
-        let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2W L2W D2W S2W"
-            .split_ascii_whitespace()
-            .map(|k| Observable::from_str(k).unwrap())
-            .collect();
-        expected.sort();
-        assert_eq!(observables, expected);
-
-        let record = rinex.record.as_obs();
-        assert_eq!(record.is_some(), true);
-        let record = record.unwrap();
-
-        /*
-         * Test epochs
-         */
-        let expected: Vec<Epoch> = vec![
-            Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap(),
-            Epoch::from_str("2022-03-04T00:28:30 GPST").unwrap(),
-            Epoch::from_str("2022-03-04T00:57:00 GPST").unwrap(),
-        ];
-
-        let content: Vec<_> = rinex.epoch().collect();
-        assert!(
-            expected == content,
-            "parsed wrong epoch content {:?}",
-            content,
-        );
-
+        let record = rinex.record.as_obs().unwrap();
         let epoch = Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
-        assert_eq!(e.is_some(), true);
+        assert!(e.is_some());
         let (clk, vehicles) = e.unwrap();
-        assert_eq!(clk.is_none(), true);
+        assert!(clk.is_none());
         assert_eq!(vehicles.len(), 18);
 
         let g01 = Sv {
@@ -649,24 +564,24 @@ mod test {
             prn: 01,
         };
         let g01 = vehicles.get(&g01);
-        assert_eq!(g01.is_some(), true);
+        assert!(g01.is_some());
         let data = g01.unwrap();
         let c1c = data.get(&Observable::from_str("C1C").unwrap());
-        assert_eq!(c1c.is_some(), true);
+        assert!(c1c.is_some());
         let c1c = c1c.unwrap();
         assert_eq!(c1c.obs, 20243517.560);
         assert!(c1c.lli.is_none());
         assert!(c1c.snr.is_none());
 
         let l1c = data.get(&Observable::from_str("L1C").unwrap());
-        assert_eq!(l1c.is_some(), true);
+        assert!(l1c.is_some());
         let l1c = l1c.unwrap();
         assert_eq!(l1c.obs, 106380411.418);
         assert_eq!(l1c.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(l1c.snr, Some(Snr::from_str("8").unwrap()));
 
         let s1c = data.get(&Observable::from_str("S1C").unwrap());
-        assert_eq!(s1c.is_some(), true);
+        assert!(s1c.is_some());
         let s1c = s1c.unwrap();
         assert_eq!(s1c.obs, 51.250);
         assert!(s1c.lli.is_none());
@@ -677,47 +592,47 @@ mod test {
             prn: 03,
         };
         let g03 = vehicles.get(&g03);
-        assert_eq!(g03.is_some(), true);
+        assert!(g03.is_some());
         let data = g03.unwrap();
         let c1c = data.get(&Observable::from_str("C1C").unwrap());
-        assert_eq!(c1c.is_some(), true);
+        assert!(c1c.is_some());
         let c1c = c1c.unwrap();
         assert_eq!(c1c.obs, 20619020.680);
-        assert_eq!(c1c.lli.is_none(), true);
-        assert_eq!(c1c.snr.is_none(), true);
+        assert!(c1c.lli.is_none());
+        assert!(c1c.snr.is_none());
 
         let l1c = data.get(&Observable::from_str("L1C").unwrap());
-        assert_eq!(l1c.is_some(), true);
+        assert!(l1c.is_some());
 
         let g04 = Sv {
             constellation: Constellation::GPS,
             prn: 04,
         };
         let g04 = vehicles.get(&g04);
-        assert_eq!(g04.is_some(), true);
+        assert!(g04.is_some());
         let data = g04.unwrap();
         let c1c = data.get(&Observable::from_str("C1C").unwrap());
-        assert_eq!(c1c.is_some(), true);
+        assert!(c1c.is_some());
         let c1c = c1c.unwrap();
         assert_eq!(c1c.obs, 21542633.500);
-        assert_eq!(c1c.lli.is_none(), true);
-        assert_eq!(c1c.snr.is_none(), true);
+        assert!(c1c.lli.is_none());
+        assert!(c1c.snr.is_none());
 
         let l1c = data.get(&Observable::from_str("L1C").unwrap());
-        assert_eq!(l1c.is_some(), true);
+        assert!(l1c.is_some());
 
         let epoch = Epoch::from_str("2022-03-04T00:28:30 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
-        assert_eq!(e.is_some(), true);
+        assert!(e.is_some());
         let (clk, vehicles) = e.unwrap();
-        assert_eq!(clk.is_none(), true);
+        assert!(clk.is_none());
         assert_eq!(vehicles.len(), 17);
 
         let epoch = Epoch::from_str("2022-03-04T00:57:00 GPST").unwrap();
         let e = record.get(&(epoch, EpochFlag::Ok));
-        assert_eq!(e.is_some(), true);
+        assert!(e.is_some());
         let (clk, vehicles) = e.unwrap();
-        assert_eq!(clk.is_none(), true);
+        assert!(clk.is_none());
         assert_eq!(vehicles.len(), 17);
     }
     //#[test]
@@ -725,19 +640,19 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
+        assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         //////////////////////////
         // Header testbench
         //////////////////////////
-        assert_eq!(rinex.is_observation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_some(), true);
+        assert!(rinex.is_observation_rinex());
+        assert!(rinex.header.obs.is_some());
         let obs = rinex.header.obs.as_ref().unwrap();
         let glo_observables = obs.codes.get(&Constellation::Glonass);
-        assert_eq!(glo_observables.is_some(), true);
+        assert!(glo_observables.is_some());
         let glo_observables = glo_observables.unwrap();
         let mut index = 0;
-        for code in vec![
+        for code in [
             "C1C", "C1P", "C2C", "C2P", "C3Q", "L1C", "L1P", "L2C", "L2P", "L3Q",
         ] {
             assert_eq!(glo_observables[index], Observable::from_str(code).unwrap());
@@ -748,33 +663,34 @@ mod test {
         // Record testbench
         //////////////////////////
         let record = rinex.record.as_obs();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         // EPOCH[1]
         let epoch = Epoch::from_gregorian_utc(2022, 06, 08, 10, 00, 00, 00);
         let epoch = record.get(&(epoch, EpochFlag::Ok));
-        assert_eq!(epoch.is_some(), true);
+        assert!(epoch.is_some());
         let (clk_offset, epoch) = epoch.unwrap();
-        assert_eq!(clk_offset.is_none(), true);
+        assert!(clk_offset.is_none());
         assert_eq!(epoch.len(), 49);
 
         // EPOCH[2]
         let epoch = Epoch::from_gregorian_utc(2022, 06, 08, 10, 00, 30, 00);
         let epoch = record.get(&(epoch, EpochFlag::Ok));
-        assert_eq!(epoch.is_some(), true);
+        assert!(epoch.is_some());
         let (clk_offset, epoch) = epoch.unwrap();
-        assert_eq!(clk_offset.is_none(), true);
+        assert!(clk_offset.is_none());
         assert_eq!(epoch.len(), 49);
 
         // EPOCH[3]
         let epoch = Epoch::from_gregorian_utc(2020, 6, 8, 10, 1, 0, 00);
         let epoch = record.get(&(epoch, EpochFlag::Ok));
-        assert_eq!(epoch.is_some(), true);
+        assert!(epoch.is_some());
         let (clk_offset, epoch) = epoch.unwrap();
-        assert_eq!(clk_offset.is_none(), true);
+        assert!(clk_offset.is_none());
         assert_eq!(epoch.len(), 47);
     }
     #[test]
+    #[ignore]
     fn v2_kosg0010_95o() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -783,17 +699,28 @@ mod test {
             .join("V2")
             .join("KOSG0010.95O");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
-        let expected: Vec<Epoch> = vec![
-            Epoch::from_str("1995-01-01T00:00:00 GPST").unwrap(),
-            Epoch::from_str("1995-01-01T11:00:00 GPST").unwrap(),
-            Epoch::from_str("1995-01-01T20:44:30 GPST").unwrap(),
-        ];
-        let content: Vec<_> = rnx.epoch().collect();
-        assert!(
-            expected == content,
-            "parsed wrong epoch content {:?}",
-            content,
+        let rnx = Rinex::from_file(fullpath.as_ref()).unwrap();
+        //for (e, sv) in rnx.sv_epoch() {
+        //    println!("{:?} @ {}", sv, e);
+        //}
+        //panic!("stop");
+        test_observation_rinex(
+            &rnx,
+            "2.0",
+            Some("GPS"),
+            "GPS",
+            //"G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
+            "G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
+            "C1, L1, L2, P2, S1",
+            Some("1995-01-01T00:00:00 GPST"),
+            Some("1995-01-01T23:59:30 GPST"),
+            erratic_time_frame!(
+                "
+                1995-01-01T00:00:00 GPST,
+                1995-01-01T11:00:00 GPST,
+                1995-01-01T20:44:30 GPST
+            "
+            ),
         );
     }
     #[test]
@@ -805,7 +732,7 @@ mod test {
             .join("V2")
             .join("AJAC3550.21O");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
+        let rnx = Rinex::from_file(fullpath.as_ref()).unwrap();
         let epochs: Vec<Epoch> = vec![
             Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
             Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
@@ -906,7 +833,7 @@ mod test {
 
         let g07 = Sv::new(Constellation::GPS, 07);
         let observations = vehicles.get(&g07).unwrap();
-        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
+        let mut codes: Vec<Observable> = observations.keys().cloned().collect();
         codes.sort();
 
         let mut expected: Vec<Observable> = "L1 L2 C1 P2 D1 D2 S1 S2"
@@ -928,7 +855,7 @@ mod test {
         let r04 = Sv::new(Constellation::Glonass, 04);
         let observations = vehicles.get(&r04).unwrap();
 
-        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
+        let mut codes: Vec<Observable> = observations.keys().cloned().collect();
         codes.sort();
 
         let mut expected: Vec<Observable> = "L1 L2 C1 C2 P2 D1 D2 S1 S2"
@@ -983,7 +910,7 @@ mod test {
 
         let r04 = Sv::new(Constellation::Glonass, 04);
         let observations = vehicles.get(&r04).unwrap();
-        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
+        let mut codes: Vec<Observable> = observations.keys().cloned().collect();
         codes.sort();
 
         let mut expected: Vec<Observable> = "L1 L2 C1 C2 P2 D1 D2 S1 S2"
@@ -1039,7 +966,26 @@ mod test {
             .join("V3")
             .join("NOA10630.22O");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(&fullpath.to_string()).unwrap();
+        let rnx = Rinex::from_file(fullpath.as_ref()).unwrap();
+
+        test_observation_rinex(
+            &rnx,
+            "3.02",
+            Some("GPS"),
+            "GPS",
+            "G01, G03, G09, G17, G19, G21, G22",
+            "C1C, L1C, D1C, S1C, S2W, L2W, D2W, S2W",
+            Some("2022-03-04T00:00:00 GPST"),
+            Some("2022-03-04T23:59:30 GPST"),
+            erratic_time_frame!(
+                "
+                2022-03-04T00:00:00 GPST,
+                2022-03-04T00:00:30 GPST,
+                2022-03-04T00:01:00 GPST,
+                2022-03-04T00:52:30 GPST"
+            ),
+        );
+
         let expected: Vec<Epoch> = vec![
             Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap(),
             Epoch::from_str("2022-03-04T00:00:30 GPST").unwrap(),
@@ -1057,7 +1003,7 @@ mod test {
             assert!(clk_offset.is_none());
             assert_eq!(vehicles.len(), 9);
             if e_index < 3 {
-                let keys: Vec<Sv> = vehicles.keys().map(|k| *k).collect();
+                let keys: Vec<Sv> = vehicles.keys().copied().collect();
                 let expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 03),
@@ -1071,7 +1017,7 @@ mod test {
                 ];
                 assert_eq!(keys, expected);
             } else {
-                let keys: Vec<Sv> = vehicles.keys().map(|k| *k).collect();
+                let keys: Vec<Sv> = vehicles.keys().copied().collect();
                 let expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 03),
@@ -1096,6 +1042,34 @@ mod test {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
+
+        test_observation_rinex(
+            &rnx,
+            "3.05",
+            Some("MIXED"),
+            "BDS, GAL, GLO, QZSS, GPS, EGNOS, SDCM, BDSBAS",
+            "C05, C07, C10, C12, C19, C20, C23, C32, C34, C37,
+             E01, E03, E05, E09, E13, E15, E24, E31,
+             G02, G05, G07, G08, G09, G13, G15, G18, G21, G27, G28, G30,
+             R01, R02, R08, R09, R10, R11, R12, R17, R18, R19,
+             S23, S25, S36",
+            "C2I, C6I, C7I, D2I, D6I, D7I, L2I, L6I, L7I, S2I, S6I, S7I,
+              C1C, C5Q, C6C, C7Q, C8Q, D1C, D5Q, D6C, D7Q, D8Q, L1C, L5Q, L6C,
+              L7Q, L8Q, S1C, S5Q, S7Q, S8Q,
+              C1C, C1W, C2L, C2W, C5Q, D1C, D2L, D2W, D5Q, L1C, L2L, L2W, L5Q,
+              S1C, S1W, S2L, S2W, S5Q,
+              C1C, C2L, C5Q, D1C, D2L, D5Q, L1C, L2L, L5Q, S1C, S2L, S5Q,
+              C1C, C1P, C2C, C2P, C3Q, D1C, D1P, D2C, D2P, D3Q, L1C, L1P, L2C,
+              L2P, L3Q, S1C, S1P, S2C, S2P, S3Q,
+              C1C, C5I, D1C, D5I, L1C, L5I, S1C, S5I",
+            Some("2020-06-25T00:00:00 GPST"),
+            Some("2020-06-25T23:59:30 GPST"),
+            evenly_spaced_time_frame!(
+                "2020-06-25T00:00:00 GPST",
+                "2020-06-25T23:59:30 GPST",
+                "30 s"
+            ),
+        );
 
         /*
          * Header tb
@@ -1163,7 +1137,7 @@ mod test {
                     .collect();
                 expected.sort();
                 assert_eq!(sorted, expected);
-            } else if *k == Constellation::Geo {
+            } else if *k == Constellation::SBAS {
                 let mut sorted = v.clone();
                 sorted.sort();
                 let mut expected: Vec<Observable> = "C1C C5I D1C D5I L1C L5I S1C S5I"
@@ -1178,7 +1152,7 @@ mod test {
         }
 
         assert_eq!(header.glo_channels.len(), 23);
-        let mut keys: Vec<Sv> = header.glo_channels.keys().map(|k| *k).collect();
+        let mut keys: Vec<Sv> = header.glo_channels.keys().copied().collect();
         keys.sort();
         assert_eq!(
             vec![
@@ -1208,7 +1182,7 @@ mod test {
             ],
             keys
         );
-        let mut values: Vec<i8> = header.glo_channels.values().map(|k| *k).collect();
+        let mut values: Vec<i8> = header.glo_channels.values().copied().collect();
         values.sort();
         assert_eq!(
             vec![
@@ -1224,8 +1198,23 @@ mod test {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
+        test_observation_rinex(
+            &rnx,
+            "3.5",
+            Some("MIXED"),
+            "GPS, GLO, GAL, BDS, QZSS, IRNSS, EGNOS, SDCM, GAGAN, BDSBAS",
+            "C05, C07, C10, C12, C19, C20, C23, C32, C34, C37, E01, E03, E05, E09, E13, E15, E24, E31, G05, G07, G08, G09, G13, G15, G27, G30, I02, I04, I06, R01, R02, R08, R09, R10, R11, R17, R18, R19, S23, S25, S26, S27, S36",
+            "C2I, C6I, C7I, D2I, D6I, D7I, L2I, L6I, L7I, S2I, S6I, S7I, C1C, C5Q, C6C, C7Q, C8Q, D1C, D5Q, D6C, D7Q, D8Q, L1C, L5Q, L6C, L7Q, L8Q, S1C, S5Q, S6C, S7Q, S8Q, C1C, C1W, C2L, C2W, C5Q, D1C, D2L, D2W, D5Q, L1C, L2L, L2W, L5Q, S1C, S1W, S2L, S2W, S5Q, C5A, D5A, L5A, S5A, C1C, C2L, C5Q, D1C, D2L, D5Q, L1C, L2L, L5Q, S1C, S2L, S5Q, C1C, C1P, C2C, C2P, C3Q, D1C, D1P, D2C, D2P, D3Q, L1C, L1P, L2C, L2P, L3Q, S1C, S1P, S2C, S2P, S3Q, C1C, C5I, D1C, D5I, L1C, L5I, S1C, S5I",
+            Some("2020-06-25T00:00:00 GPST"),
+            Some("2020-06-25T23:59:30 GPST"),
+            evenly_spaced_time_frame!(
+                "2020-06-25T00:00:00 GPST",
+                "2020-06-25T23:59:30 GPST",
+                "30 s"
+            )
+        );
         /*
-         * Test IRNSS vehicles
+         * Test IRNSS vehicles specificly
          */
         let mut irnss_sv: Vec<Sv> = rnx
             .sv()

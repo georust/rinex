@@ -11,7 +11,7 @@ pub enum ParseDateTimeError {
 
 pub fn parse_datetime(content: &str) -> Result<chrono::NaiveDateTime, ParseDateTimeError> {
     let ym = &content[0..8]; // "YYYY:DDD"
-    let dt = chrono::NaiveDate::parse_from_str(&ym, "%Y:%j")?;
+    let dt = chrono::NaiveDate::parse_from_str(ym, "%Y:%j")?;
     let secs = &content[9..];
     let secs = f32::from_str(secs)?;
     let h = secs / 3600.0;
@@ -26,8 +26,8 @@ mod test {
     #[test]
     fn test_parsing() {
         let datetime = parse_datetime("2022:021:20823");
-        assert_eq!(datetime.is_ok(), true);
+        assert!(datetime.is_ok());
         let datetime = parse_datetime("2022:009:00000");
-        assert_eq!(datetime.is_ok(), true);
+        assert!(datetime.is_ok());
     }
 }

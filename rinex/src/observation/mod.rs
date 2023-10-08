@@ -81,9 +81,9 @@ impl std::fmt::Display for Crinex {
         let version = self.version.to_string();
         write!(f, "{:<width$}", version, width = 20)?;
         write!(f, "{:<width$}", "COMPACT RINEX FORMAT", width = 20)?;
-        write!(
+        writeln!(
             f,
-            "{value:<width$} CRINEX VERS   / TYPE\n",
+            "{value:<width$} CRINEX VERS   / TYPE",
             value = "",
             width = 19
         )?;
@@ -126,7 +126,7 @@ impl HeaderFields {
     /// Add TIME OF LAST OBS
     pub fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
-        s.time_of_first_obs = Some(epoch);
+        s.time_of_last_obs = Some(epoch);
         s
     }
     /// Insert a data scaling

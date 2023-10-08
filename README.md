@@ -22,10 +22,12 @@ and we aim towards advanced geodesic and ionospheric analysis.
 - Seamless .gzip decompression with `flate2` compilation feature
 - RINEX V4 full support, that includes modern Navigation messages
 - Meteo RINEX full support
-- IONEX and Clock RINEX partial support, will be concluded soon
+- IONEX (2D) support, partial 3D support
+- Clock RINEX partial support: to be concluded soon
 - File merging, splitting and pre processing
 - Modern constellations like BeiDou, Galileo and IRNSS
 - Supported time scales are GPST, BDT, GST, UTC
+- Supports many SBAS, refer to online documentation
 - Full support of Military codes : if you're working with such signals you can
 at least run a -qc analysis, and possibly the position solver once it is merged 
 - Supports high precision RINEX (scaled phase data with micro cycle precision)
@@ -41,7 +43,6 @@ summon from the "cli" application directly.
 
 - QZNSST is represented as GPST at the moment
 - GLONASST and IRNSST are not supported : calculations (mostly orbits) will not be accurate 
-- Partial SBAS support : some features are not yet available
 - The command line tool does not accept BINEX or other proprietary formats
 - File production is not fully concluded to this day, some formats are still not correctly supported
 (mostly NAV).
@@ -73,7 +74,7 @@ RINEX formats & applications
 |----------------------------|-------------------|---------------------|----------------------|----------------------|--------------------------| ---------------------|
 | Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :construction: V4 :construction: |  :heavy_check_mark: :chart_with_upwards_trend:  | :construction:       | Orbit parameters, Ionospheric models.. | Epoch iteration |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Phase, Pseudo Range, Doppler, SSI | Epoch iteration |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:  | see OBS Data     | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:  | Phase, Pseudo Range, Doppler, SSI | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Meteo sensors data (Temperature, Moisture..) | Epoch iteration |  
 |  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Clock comparison |  Epoch iteration |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Antenna calibration data | Sorted by `antex::Antenna` |

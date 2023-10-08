@@ -55,7 +55,7 @@ pub fn skyplot(ctx: &QcContext, plot_context: &mut PlotContext) {
                 }
             })
             .connect_gaps(false)
-            .name(svnn.to_string());
+            .name(format!("{:X}", svnn));
         plot_context.add_trace(trace);
     }
 }

@@ -43,7 +43,7 @@ impl TextDiff {
 
         if s1_len > s0_len {
             // got new bytes to latch
-            let new_slice = &data[min..s1_len].replace("&", " ");
+            let new_slice = &data[min..s1_len].replace('&', " ");
             self.buffer.push_str(new_slice);
         }
 
@@ -63,7 +63,7 @@ impl TextDiff {
                 if c != &inner[i] {
                     result.push_str(&c.to_string());
                 } else {
-                    result.push_str(" ");
+                    result.push(' ');
                 }
             }
         }
@@ -71,8 +71,8 @@ impl TextDiff {
         for i in inner.len()..data.len() {
             if let Some(c) = to_compress.get(i) {
                 if c.is_ascii_whitespace() {
-                    self.buffer.push_str("&");
-                    result.push_str("&");
+                    self.buffer.push('&');
+                    result.push('&');
                 } else {
                     self.buffer.push_str(&c.to_string());
                     result.push_str(&c.to_string());

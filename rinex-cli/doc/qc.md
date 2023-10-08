@@ -1,7 +1,7 @@
 Quality Check (QC)
 ==================
 
-RINEX quality check is a special mode, activated with `--qc`.
+RINEX quality check is a special mode. It is activated with `--qc` and is turned off by default.
 
 QC is first developed for Observation files analysis, but this tool  
 will accept other RINEX files, for which it will compute basic statistical analysis. 
@@ -85,7 +85,7 @@ Run this configuration for the most basic QC:
 rinex-cli \
     -P GPS,GLO \
     --qc-only \
-    --qc-cfg rinex-cli/config/gnss_snr30db.json \
+    --qc-cfg rinex-cli/config/qc/gnss_snr30db.json \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```
 
@@ -134,7 +134,7 @@ To this one :
 ./target/release/rinex-cli \
     --fp test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     -P G08,G15,G16,R23,C19,C09 \
-    --qc --qc-cfg rinex-cli/config/sv_manual_gap.json
+    --qc --qc-cfg rinex-cli/config/qc/sv_manual_gap.json
 ```
 
 ### SNR parametrization
@@ -157,7 +157,7 @@ the go out of sight more rapidly, due to the stringent elevation criteria :
 rinex-cli \
     -P gps,glo \
     -P G08,G15,G16,R23,C19,C09 \
-    --qc --qc-cfg rinex-cli/config/sv_manual_gap_ev35.json
+    --qc --qc-cfg rinex-cli/config/qc/sv_manual_gap_ev35.json
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --nav test_resources/OBS/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
 ```

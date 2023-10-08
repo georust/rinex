@@ -19,7 +19,7 @@ mod test {
                     let entry = entry.unwrap();
                     let path = entry.path();
                     let full_path = &path.to_str().unwrap();
-                    let is_hidden = entry.file_name().to_str().unwrap().starts_with(".");
+                    let is_hidden = entry.file_name().to_str().unwrap().starts_with('.');
                     if is_hidden {
                         continue; // not a test resource
                     }
@@ -35,9 +35,8 @@ mod test {
                     }
                     println!("Parsing \"{}\"", full_path);
                     let rinex = Rinex::from_file(full_path);
-                    assert_eq!(
+                    assert!(
                         rinex.is_ok(),
-                        true,
                         "error parsing \"{}\": {:?}",
                         full_path,
                         rinex.err().unwrap()
@@ -54,8 +53,31 @@ mod test {
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.navigation().count() > 0); // all files have content
                                                                      /*
-                                                                      * Verify interpreted time scale, for all Sv
+                                                                      * For all Epoch: ephemeris selection
+                                                                      * must return given ephemeris
                                                                       */
+                            for (toc, (_, sv, eph)) in rinex.ephemeris() {
+                                if let Some(ts) = sv.timescale() {
+                                    if let Some(toe) = eph.toe(ts) {
+                                        let seleph = rinex.sv_ephemeris(*sv, toe);
+                                        assert!(
+                                            seleph.is_some(),
+                                            "ephemeris selection @ toe should always be feasible"
+                                        );
+                                        let (seltoe, seleph) = seleph.unwrap();
+                                        assert_eq!(seltoe, toe, "toe should be identical");
+                                        assert!(
+                                            (seleph.clock_bias - eph.clock_bias).abs() < 1.0E-6,
+                                            "ephemeris selection for t_oc should return exact ephemeris");
+                                        assert!(
+                                            (seleph.clock_drift - eph.clock_drift).abs() < 1.0E-6,
+                                            "ephemeris selection for t_oc should return exact ephemeris");
+                                    }
+                                }
+                            }
+                            /*
+                             * Verify interpreted time scale, for all Sv
+                             */
                             //for (e, (_, sv, _)) in rinex.ephemeris() {
                             //    /* verify toc correctness */
                             //    match sv.constellation {
@@ -165,7 +187,7 @@ mod test {
                             /*
                              * Verify STO logical correctness
                              */
-                            for (_, (msg, sv, _)) in rinex.system_time_offset() {
+                            for (_, (msg, _sv, _)) in rinex.system_time_offset() {
                                 match msg {
                                     NavMsgType::LNAV
                                     | NavMsgType::FDMA
@@ -177,14 +199,39 @@ mod test {
                                 }
                             }
                         },
-                        "OBS" => {
+                        "CRNX" | "OBS" => {
                             assert!(rinex.header.obs.is_some());
+                            let obs_header = rinex.header.obs.clone().unwrap();
+
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.observation().count() > 0); // all files have content
                                                                       /*
-                                                                       * test interpreted time scale
+                                                                       * test timescale validity
                                                                        */
+                            for ((e, _), _) in rinex.observation() {
+                                let ts = e.time_scale;
+                                if let Some(e0) = obs_header.time_of_first_obs {
+                                    assert!(
+                                        e0.time_scale == ts,
+                                        "interpreted wrong timescale: expecting \"{}\", got \"{}\"",
+                                        e0.time_scale,
+                                        ts
+                                    );
+                                } else {
+                                    match rinex.header.constellation {
+                                        Some(Constellation::Mixed) | None => {}, // can't test
+                                        Some(c) => {
+                                            let timescale = c.timescale().unwrap();
+                                            assert!(ts == timescale,
+                                                "interpreted wrong timescale: expecting \"{}\", got \"{}\"",
+                                                timescale,
+                                                ts
+                                            );
+                                        },
+                                    }
+                                }
+                            }
                             /*
                                                         let gf = rinex.observation_gf_combinations();
                                                         let nl = rinex.observation_nl_combinations();
@@ -210,11 +257,6 @@ mod test {
 
                                                         assert_eq!(wl_combinations, mw_combinations);
                             */
-                        },
-                        "CRNX" => {
-                            assert!(rinex.header.obs.is_some());
-                            assert!(rinex.is_observation_rinex());
-                            assert!(rinex.epoch().count() > 0); // all files have content
                         },
                         "MET" => {
                             assert!(rinex.is_meteo_rinex());
@@ -243,8 +285,7 @@ mod test {
                         "IONEX" => {
                             assert!(rinex.is_ionex());
                             assert!(rinex.epoch().count() > 0); // all files have content
-                            let record = rinex.record.as_ionex().unwrap();
-                            for (e, _) in record {
+                            for e in rinex.epoch() {
                                 assert!(
                                     e.time_scale == TimeScale::UTC,
                                     "wrong {} timescale for a IONEX",

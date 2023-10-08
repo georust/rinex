@@ -33,10 +33,7 @@ impl std::str::FromStr for Pcv {
 
 impl Pcv {
     pub fn is_relative(&self) -> bool {
-        match self {
-            Self::Relative(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Relative(_))
     }
     pub fn is_absolute(&self) -> bool {
         !self.is_relative()
@@ -58,7 +55,7 @@ mod test {
     fn test_pcv() {
         assert_eq!(Pcv::default(), Pcv::Absolute);
         assert!(Pcv::Absolute.is_absolute());
-        assert_eq!(Pcv::Relative(String::from("AOAD/M_T")).is_absolute(), false);
+        assert!(!Pcv::Relative(String::from("AOAD/M_T")).is_absolute());
 
         let pcv = Pcv::from_str("A");
         assert!(pcv.is_ok());

@@ -637,9 +637,14 @@ impl Carrier {
             Constellation::Glonass => Self::from_glo_observable(observable),
             Constellation::Galileo => Self::from_gal_observable(observable),
             Constellation::QZSS => Self::from_qzss_observable(observable),
-            Constellation::Geo | Constellation::SBAS(_) => Self::from_geo_observable(observable),
             Constellation::IRNSS => Self::from_irnss_observable(observable),
-            _ => todo!("from_\"{}:{}\"_observable()", constellation, observable),
+            c => {
+                if c.is_sbas() {
+                    Self::from_geo_observable(observable)
+                } else {
+                    unreachable!("observable for {}", constellation);
+                }
+            },
         }
     }
 
@@ -668,7 +673,7 @@ impl Carrier {
                 8 => Ok(Self::E5),
                 _ => Ok(Self::E1),
             },
-            Constellation::SBAS(_) | Constellation::Geo => match sv.prn {
+            Constellation::SBAS => match sv.prn {
                 1 => Ok(Self::L1),
                 5 => Ok(Self::L5),
                 _ => Ok(Self::L1),
@@ -695,10 +700,7 @@ impl Carrier {
                 9 => Ok(Self::S),
                 _ => Ok(Self::L1),
             },
-            _ => panic!(
-                "non supported conversion from {}",
-                sv.constellation.to_3_letter_code()
-            ),
+            _ => panic!("non supported conversion from {:?}", sv.constellation),
         }
     }
 }
@@ -717,9 +719,9 @@ mod test {
         assert_eq!(l1.frequency_mhz(), 1575.42_f64);
         assert_eq!(l1.wavelength(), 299792458.0 / 1_575_420_000.0_f64);
 
-        for constell in vec![
+        for constell in [
             Constellation::GPS,
-            Constellation::Geo,
+            Constellation::SBAS,
             Constellation::Glonass,
             Constellation::Galileo,
             Constellation::BeiDou,
@@ -746,9 +748,9 @@ mod test {
                     assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L5),);
                 }
             /*
-             * Geo
+             * SBAS
              */
-            } else if constell == Constellation::Geo {
+            } else if constell == Constellation::SBAS {
                 let codes = vec!["C1", "L1C", "D1", "S1", "S1C", "D1C"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();

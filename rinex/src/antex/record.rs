@@ -181,16 +181,16 @@ mod test {
     #[test]
     fn test_new_epoch() {
         let content = "                                                           START OF ANTENNA";
-        assert_eq!(is_new_epoch(content), true);
+        assert!(is_new_epoch(content));
         let content =
             "TROSAR25.R4      LEIT727259                                 TYPE / SERIAL NO";
-        assert_eq!(is_new_epoch(content), false);
+        assert!(!is_new_epoch(content));
         let content =
             "    26                                                      # OF FREQUENCIES";
-        assert_eq!(is_new_epoch(content), false);
+        assert!(!is_new_epoch(content));
         let content =
             "   G01                                                      START OF FREQUENCY";
-        assert_eq!(is_new_epoch(content), false);
+        assert!(!is_new_epoch(content));
     }
 }
 

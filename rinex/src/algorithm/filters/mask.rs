@@ -4,13 +4,13 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("invalid mask target")]
-    TargetError(#[from] crate::algorithm::target::Error),
+    InvalidTarget(#[from] crate::algorithm::target::Error),
     #[error("missing a mask operand")]
     MissingOperand,
     #[error("invalid mask operand")]
     InvalidOperand,
     #[error("invalid mask target \"{0}\"")]
-    InvalidTarget(String),
+    NonSupportedTarget(String),
     #[error("invalid mask description")]
     InvalidDescriptor,
 }
@@ -51,13 +51,13 @@ impl std::str::FromStr for MaskOperand {
         let c = content.trim();
         if c.starts_with(">=") {
             Ok(Self::GreaterEquals)
-        } else if c.starts_with(">") {
+        } else if c.starts_with('>') {
             Ok(Self::GreaterThan)
         } else if c.starts_with("<=") {
             Ok(Self::LowerEquals)
-        } else if c.starts_with("<") {
+        } else if c.starts_with('<') {
             Ok(Self::LowerThan)
-        } else if c.starts_with("=") {
+        } else if c.starts_with('=') {
             Ok(Self::Equals)
         } else if c.starts_with("!=") {
             Ok(Self::NotEquals)
@@ -256,14 +256,14 @@ impl std::str::FromStr for MaskFilter {
                 let float_offset = operand_offset + operand.formatted_len() + 2;
                 Ok(Self {
                     operand,
-                    item: TargetItem::from_elevation(&cleanedup[float_offset..].trim())?,
+                    item: TargetItem::from_elevation(cleanedup[float_offset..].trim())?,
                 })
             } else if content[0..1].eq("a") {
                 // --> Azimuth Mask case
                 let float_offset = operand_offset + operand.formatted_len() + 2;
                 Ok(Self {
                     operand,
-                    item: TargetItem::from_azimuth(&cleanedup[float_offset..].trim())?,
+                    item: TargetItem::from_azimuth(cleanedup[float_offset..].trim())?,
                 })
             } else {
                 // We're only left with SNR mask case
@@ -271,10 +271,10 @@ impl std::str::FromStr for MaskFilter {
                 if content[0..3].eq("snr") {
                     Ok(Self {
                         operand,
-                        item: TargetItem::from_snr(&cleanedup[float_offset..].trim())?,
+                        item: TargetItem::from_snr(cleanedup[float_offset..].trim())?,
                     })
                 } else {
-                    Err(Error::InvalidTarget(
+                    Err(Error::NonSupportedTarget(
                         cleanedup[..operand_offset].to_string(),
                     ))
                 }
@@ -289,7 +289,7 @@ impl std::str::FromStr for MaskFilter {
 
             Ok(Self {
                 operand,
-                item: TargetItem::from_str(&cleanedup[offset..].trim_start())?,
+                item: TargetItem::from_str(cleanedup[offset..].trim_start())?,
             })
         }
     }
@@ -303,7 +303,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn mask_operand() {
-        for (descriptor, opposite_desc) in vec![
+        for (descriptor, opposite_desc) in [
             (">=", "<="),
             (">", "<"),
             ("=", "!="),
@@ -349,7 +349,7 @@ mod test {
     }
     #[test]
     fn mask_elev() {
-        for desc in vec![
+        for desc in [
             "e< 40.0",
             "e != 30",
             " e<40.0",
@@ -368,7 +368,7 @@ mod test {
     }
     #[test]
     fn mask_gnss() {
-        for (descriptor, opposite_desc) in vec![
+        for (descriptor, opposite_desc) in [
             (" = GPS", "!= GPS"),
             ("= GAL,GPS", "!= GAL,GPS"),
             (" =GLO,GAL", "!=  GLO,GAL"),
@@ -412,9 +412,7 @@ mod test {
     }
     #[test]
     fn mask_sv() {
-        for (descriptor, opposite_desc) in
-            vec![(" = G01", "!= G01"), ("= R03,  G31", "!= R03,  G31")]
-        {
+        for (descriptor, opposite_desc) in [(" = G01", "!= G01"), ("= R03,  G31", "!= R03,  G31")] {
             let mask = MaskFilter::from_str(descriptor);
             assert!(
                 mask.is_ok(),

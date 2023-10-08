@@ -100,10 +100,25 @@ joint `--nav` and `--sp3` context yourself.
 
 ## IONEX analysis
 
-To analyze a IONEX file, a primary file of this type should be passed
-to `--fp` (or `-f`). In this case, you get a world map visualization
-of the provided TEC map. Unfortunately we can only visualize the TEC map
-at a single epoch, because we cannot animate the world map at the moment.
-Therefore, it makes sense to zoom in on the Epoch you're interested in,
-with the proper `-P` preprocessor command. Refer to related section.
+IONEX is one of those files that can only serve as primary files. 
+Thefore all IONEX files should be passed with `--fp` (`-f`). 
 
+We can then plot the TEC map. Unfortunately we have no means to animate the plot
+at the moment, so we create a TEC visualization for every single Epochs.
+Usually IONEX files comprise 12 to 24 Epochs, so it's not that much but the HTML
+graphs might come heavy.
+
+We recommend zooming on the time frame you're interested in, for example with something like this
+
+```bash
+./target/release/rinex-cli \
+    -f CKMG0090.21I.gz --epochs
+
+["2021-01-09T00:00:00 UTC","2021-01-09T01:00:00 UTC", ..., "2021-01-10T00:00:00 UTC"]
+
+./target/release/rinex-cli \
+    -f CKMG0090.21I.gz \
+    -P ">=2021-01-09T19:00:00 UTC"
+```
+
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/tec.png">

@@ -85,8 +85,7 @@ impl QcReport {
                 }
             },
             QcClassification::Physics => {
-                let mut observables: Vec<_> =
-                    ctx.primary_data().observable().map(|o| o.clone()).collect();
+                let mut observables: Vec<_> = ctx.primary_data().observable().cloned().collect();
                 observables.sort(); // improves report rendering
                 for obsv in observables {
                     filter_targets.push(TargetItem::from(obsv));
@@ -103,14 +102,13 @@ impl QcReport {
             let subset = ctx.primary_data().filter(mask.clone().into());
 
             // also apply to possible NAV augmentation
-            let nav_subset = if let Some(nav) = &ctx.navigation_data() {
-                Some(nav.filter(mask.clone().into()))
-            } else {
-                None
-            };
+            let nav_subset = ctx
+                .navigation_data()
+                .as_ref()
+                .map(|nav| nav.filter(mask.clone().into()));
 
             // perform analysis on these subsets
-            analysis.push(QcAnalysis::new(&subset, &nav_subset, &opts));
+            analysis.push(QcAnalysis::new(&subset, &nav_subset, opts));
         }
         analysis
     }

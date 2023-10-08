@@ -18,11 +18,11 @@ use header::{is_valid_header, Header};
 use reference::Reference;
 
 fn is_comment(line: &str) -> bool {
-    line.starts_with("*")
+    line.starts_with('*')
 }
 
 fn section_start(line: &str) -> Option<String> {
-    if line.starts_with("+") {
+    if line.starts_with('+') {
         Some(line[1..].to_string())
     } else {
         None
@@ -30,7 +30,7 @@ fn section_start(line: &str) -> Option<String> {
 }
 
 fn section_end(line: &str) -> Option<String> {
-    if line.starts_with("-") {
+    if line.starts_with('-') {
         Some(line[1..].to_string())
     } else {
         None
