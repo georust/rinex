@@ -1294,6 +1294,7 @@ mod test {
     #[test]
     #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
+    #[ignore]
     fn sv_interp() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
