@@ -25,9 +25,11 @@ Current limitations
 Several limitations exit to this day and must be kept in mind.
 
 - Glonass and SBAS vehicles cannot be pushed into the pool of eligible vehicles.
-Until further notice, one must combine -R and -S to the rtk mode
+Until further notice, one must combine -R and -S to the rtk mode.
 
-- We only support GPST, GST and BDT. QZSST is expressed as GPST, and I'm not 100% sure this
+- We've only tested the solver against mixed GPS, Galileo and BeiDou vehicles
+
+- We only support GPST, GST and BDT. QZSST is expressed as GPST and I'm not 100% sure this
 is correct. 
 
 - The estimated clock offset is expressed against the timescale for which the Observation file is referenced to.
