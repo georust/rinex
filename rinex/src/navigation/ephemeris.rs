@@ -415,27 +415,21 @@ impl Ephemeris {
             _ => self.kepler2ecef(sv, epoch),
         }
     }
-    /*
-     * Computes elev, azim angles both in degrees
-     */
-    pub(crate) fn sv_elev_azim(
-        &self,
-        sv: &Sv,
-        epoch: Epoch,
-        reference: GroundPosition,
-    ) -> Option<(f64, f64)> {
-        let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
-        let (ref_x, ref_y, ref_z) = reference.to_ecef_wgs84();
+    /// Helper method to calculate elevation and azimuth angles, both in degrees,
+    /// between a reference position (in meter ECEF WGS84) and a resolved
+    /// SV position in the sky, expressed in meter ECEF WFS84.
+    pub fn elevation_azimuth(
+        sv_position: (f64, f64, f64),
+        reference_position: (f64, f64, f64),
+    ) -> (f64, f64) {
+        let (sv_x, sv_y, sv_z) = sv_position;
         // convert ref position to radians(lat, lon)
+        let (ref_x, ref_y, ref_z) = reference_position;
         let (ref_lat, ref_lon, _) =
             map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
 
         // ||sv - ref_pos|| pseudo range
-        let a_i = (
-            sv_x * 1000.0 - ref_x,
-            sv_y * 1000.0 - ref_y,
-            sv_z * 1000.0 - ref_z,
-        );
+        let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
         let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm);
 
@@ -464,7 +458,22 @@ impl Ephemeris {
         if az < 0.0 {
             az += 360.0;
         }
-        Some((el, az))
+        (el, az)
+    }
+    /*
+     * Resolves a position and computes elev, azim angles both in degrees
+     */
+    pub(crate) fn sv_elev_azim(
+        &self,
+        sv: &Sv,
+        epoch: Epoch,
+        reference: GroundPosition,
+    ) -> Option<(f64, f64)> {
+        let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
+        Some(Self::elevation_azimuth(
+            (sv_x * 1.0E3, sv_y * 1.0E3, sv_z * 1.0E3),
+            reference.to_ecef_wgs84(),
+        ))
     }
     /*
      * Returns max time difference between an Epoch and

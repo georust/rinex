@@ -1,6 +1,6 @@
 use nyx_space::cosmic::SPEED_OF_LIGHT;
 // use nalgebra::linalg::svd::SVD;
-use nalgebra::base::{DVector, MatrixXx4, Vector4};
+use nalgebra::base::{DVector, MatrixXx4};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

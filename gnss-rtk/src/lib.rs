@@ -21,7 +21,6 @@ use nalgebra::base::{
     Vector3,
     //Vector4,
 };
-use nalgebra::vector;
 use nyx::md::prelude::{Arc, Cosm};
 
 mod cfg;
@@ -237,32 +236,6 @@ impl Solver {
                 //TODO: verify PPP compliancy
             }
 
-            //let mut elev_ok = self.cfg.min_sv_elev.is_none();
-            //if let Some(min_elev) = self.cfg.min_sv_elev {
-            //    //TODO
-            //    //<o   Elev from SP3 ???
-            //    //TODO
-            //    if let Some(nav) = ctx.navigation_data() {
-            //        //TODO TODO TODO
-            //        // this will not work as context may not be alined in time
-            //        // we should already have interpolated at this point
-            //        //TODO TODO TODO
-            //        let e = nav
-            //            .sv_elevation_azimuth(Some(pos0))
-            //            .filter_map(|(epoch, (svnn, (e, _)))| {
-            //                if epoch == t && svnn == *sv {
-            //                    Some(e)
-            //                } else {
-            //                    None
-            //                }
-            //            })
-            //            .reduce(|e, _| e);
-            //        if let Some(e) = e {
-            //            elev_ok = e >= min_elev;
-            //        }
-            //    }
-            //}
-
             let mut snr_ok = self.cfg.min_sv_snr.is_none();
             if let Some(min_snr) = self.cfg.min_sv_snr {
                 let snr = ctx
@@ -318,15 +291,11 @@ impl Solver {
 
             let nav = ctx.navigation_data().unwrap(); // can't fail at this point ?
 
-            let sp3 = ctx.sp3_data().unwrap(); // TODO not good
-
             let ephemeris = nav.sv_ephemeris(*sv, t);
             if ephemeris.is_none() {
                 error!("{} : {} no valid ephemeris", t, sv);
                 continue;
             }
-
-            let mut t_tx = Epoch::default();
 
             let (toe, eph) = ephemeris.unwrap();
             let clock_bias = eph.sv_clock();
@@ -348,14 +317,41 @@ impl Solver {
                 //let dt = -2.0_f64 * sqrt_a * sqrt_mu / SPEED_OF_LIGHT / SPEED_OF_LIGHT * e * elev.sin();
             }
 
-            //TODO SP3 possibly missing
-            let pos = sp3.sv_position_interpolate(*sv, t_tx, interp_order);
+            // interpolate
+            let pos: Option<(f64, f64, f64)> = match ctx.sp3_data() {
+                Some(sp3) => {
+                    /*
+                     * SP3 always prefered
+                     */
+                    let pos = sp3.sv_position_interpolate(*sv, t_tx, interp_order);
+                    if let Some(pos) = pos {
+                        Some(pos)
+                    } else {
+                        /* try to fall back to ephemeris nav */
+                        nav.sv_position_interpolate(*sv, t_tx, interp_order)
+                    }
+                },
+                _ => nav.sv_position_interpolate(*sv, t_tx, interp_order),
+            };
+
             if pos.is_none() {
                 trace!("{} : {} interpolation failed", t, sv);
                 continue;
             }
 
             let (x_km, y_km, z_km) = pos.unwrap();
+
+            // Elevation filter
+            if let Some(min_elev) = self.cfg.min_sv_elev {
+                let (e, _) = Ephemeris::elevation_azimuth(
+                    (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3),
+                    pos0.into(),
+                );
+                if e < min_elev {
+                    trace!("{} : {} elev below mask", t, sv);
+                    continue;
+                }
+            }
 
             // Eclipse filter
             if let Some(min_rate) = self.cfg.min_sv_sunlight_rate {
