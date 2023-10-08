@@ -110,8 +110,9 @@ if you know how to operate the preprocessing toolkit
 
 ## Positioning (RTK)
 
-`rinex-cli` integrates a position solver that will resolve the user location 
-the best it can, from the provided RINEX context. This mode in requested with `-r` or `--rtk`
+`rinex-cli` integrates a position solver that will resolve the radio receiver location 
+the best it can, by post processing the provided RINEX context. 
+This mode in requested with `-r` or `--rtk` and is turned off by default.
 
 To learn how to operate the solver, refer to [the dedicated page](doc/rtk.md).
 

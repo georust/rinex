@@ -259,7 +259,6 @@ The summary report by default is integrated to the global HTML report."))
                         .help("Activates QC mode and disables all other features: quickest qc rendition."))
                 .next_help_heading("RTK (Positioning)")
                     .arg(Arg::new("rtk")
-                        .short('r')
                         .long("rtk")
                         .action(ArgAction::SetTrue)
                         .help("Activate GNSS receiver position solver.
@@ -278,6 +277,7 @@ NB: we do not account for Relativistic effects by default and raw pseudo range a
 For indepth customization, refer to the configuration file and online documentation."))
                     .arg(Arg::new("rtk-only")
                         .long("rtk-only")
+                        .short('r')
                         .action(ArgAction::SetTrue)
                         .help("Activates GNSS position solver, disables all other modes.
 This is the most performant mode to solve a position."))
