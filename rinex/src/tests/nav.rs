@@ -1294,7 +1294,6 @@ mod test {
     #[test]
     #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
-    #[ignore]
     fn sv_interp() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -1322,22 +1321,25 @@ mod test {
             for (index, (epoch, sv, (x, y, z))) in rinex.sv_position().enumerate() {
                 let feasible = epoch > tmin && epoch <= tmax;
                 let interpolated = rinex.sv_position_interpolate(sv, epoch, order as usize);
-                let _achieved = interpolated.is_some();
+                let achieved = interpolated.is_some();
                 //DEBUG
-                // println!("tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}", tmin, tmax, epoch, feasible, achieved);
-                //if feasible {
-                //    assert!(
-                //        achieved == feasible,
-                //        "interpolation should have been feasible @ epoch {}",
-                //        epoch,
-                //    );
-                //} else {
-                //    assert!(
-                //        achieved == feasible,
-                //        "interpolation should not have been feasible @ epoch {}",
-                //        epoch,
-                //    );
-                //}
+                println!(
+                    "tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}",
+                    tmin, tmax, epoch, feasible, achieved
+                );
+                if feasible {
+                    assert!(
+                        achieved == feasible,
+                        "interpolation should have been feasible @ epoch {}",
+                        epoch,
+                    );
+                } else {
+                    assert!(
+                        achieved == feasible,
+                        "interpolation should not have been feasible @ epoch {}",
+                        epoch,
+                    );
+                }
                 if !feasible {
                     continue;
                 }

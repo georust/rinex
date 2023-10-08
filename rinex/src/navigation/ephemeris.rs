@@ -1,7 +1,7 @@
 use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::{epoch, prelude::*, sv, version::Version};
 
-use hifitime::{Unit, GPST_REF_EPOCH};
+use hifitime::Unit;
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;

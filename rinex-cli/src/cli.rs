@@ -50,6 +50,10 @@ Observation, Meteo and IONEX can only serve as primary data.")
                         .help("Customize workspace location (folder does not have to exist).
 The default workspace is rinex-cli/workspace"))
                 .next_help_heading("Data identification")
+                    .arg(Arg::new("full-id")
+                        .short('i')
+                        .action(ArgAction::SetTrue)
+                        .help("Turn all identifications ON"))
                     .arg(Arg::new("epochs")
                         .long("epochs")
                         .action(ArgAction::SetTrue)
@@ -408,6 +412,7 @@ Refer to README"))
             | self.matches.get_flag("orbits")
             | self.matches.get_flag("nav-msg")
             | self.matches.get_flag("anomalies")
+            | self.matches.get_flag("full-id")
     }
     /// Returns true if Sv accross epoch display is requested
     pub fn sv_epoch(&self) -> bool {
@@ -427,23 +432,37 @@ Refer to README"))
     }
     /// Returns list of requested data to extract
     pub fn identification_ops(&self) -> Vec<&str> {
-        let flags = vec![
-            "sv",
-            "epochs",
-            "header",
-            "gnss",
-            "observables",
-            "ssi-range",
-            "ssi-sv-range",
-            "orbits",
-            "nav-msg",
-            "anomalies",
-        ];
-        flags
-            .iter()
-            .filter(|x| self.matches.get_flag(x))
-            .map(|x| *x)
-            .collect()
+        if self.matches.get_flag("full-id") {
+            vec![
+                "sv",
+                "epochs",
+                "gnss",
+                "observables",
+                "ssi-range",
+                "ssi-sv-range",
+                "orbits",
+                "nav-msg",
+                "anomalies",
+            ]
+        } else {
+            let flags = vec![
+                "sv",
+                "header",
+                "epochs",
+                "gnss",
+                "observables",
+                "ssi-range",
+                "ssi-sv-range",
+                "orbits",
+                "nav-msg",
+                "anomalies",
+            ];
+            flags
+                .iter()
+                .filter(|x| self.matches.get_flag(x))
+                .map(|x| *x)
+                .collect()
+        }
     }
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)

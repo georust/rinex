@@ -32,3 +32,5 @@ ndarray = "0.15"
 colorous = "1.0"
 horrorshow = "0.8"
 nyx-space = "2.0.0-alpha.2" 
+hifitime = { version = "3.8", features = ["serde", "std"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }

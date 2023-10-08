@@ -526,8 +526,6 @@ impl Header {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
                     marker_type = Some(marker);
-                } else {
-                    return Err(ParsingError::MarkerType(code.to_string()));
                 }
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
