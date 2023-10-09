@@ -3,6 +3,7 @@ use rinex::observation::Snr;
 use rinex::prelude::RnxContext;
 use rinex::*;
 
+use itertools::Itertools;
 use serde::Serialize;
 
 /*
@@ -74,7 +75,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
             println!("[{}]: {}", path, content);
         } else if op.eq("sv") {
             let mut csv = String::new();
-            for (i, sv) in rnx.sv().enumerate() {
+            for (i, sv) in rnx.sv().sorted().enumerate() {
                 if i == rnx.sv().count() - 1 {
                     csv.push_str(&format!("{}\n", sv.to_string()));
                 } else {
@@ -91,7 +92,8 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
             //};
             println!("[{}]: {:?}", path, data);
         } else if op.eq("gnss") {
-            let data: Vec<_> = rnx.constellation().collect();
+            let mut data: Vec<_> = rnx.constellation().collect();
+            data.sort();
             let content = match pretty {
                 true => serde_json::to_string_pretty(&data).unwrap(),
                 false => serde_json::to_string(&data).unwrap(),
