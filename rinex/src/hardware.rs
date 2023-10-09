@@ -1,5 +1,5 @@
 //! Hardware: receiver, antenna informations
-use super::prelude::Sv;
+use gnss::prelude::SV;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -201,7 +201,7 @@ impl HtmlReport for Rcvr {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SvAntenna {
     /// vehicle this antenna is attached to
-    pub sv: Sv,
+    pub sv: SV,
     /// antenna model description
     pub model: String,
     /// "YYYY-XXXA" year of vehicle launch
@@ -211,7 +211,7 @@ pub struct SvAntenna {
 }
 
 impl SvAntenna {
-    pub fn with_sv(&self, sv: Sv) -> Self {
+    pub fn with_sv(&self, sv: SV) -> Self {
         let mut s = self.clone();
         s.sv = sv;
         s

@@ -16,8 +16,8 @@ use plotly::{
 
 mod record;
 use rand::Rng;
+use rinex::prelude::RnxContext;
 use rinex::prelude::*;
-use rinex_qc::QcContext;
 
 mod context;
 pub use context::PlotContext;
@@ -391,7 +391,7 @@ pub fn build_chart_epoch_axis(
         .hover_info(HoverInfo::All)
 }
 
-pub fn plot_record(ctx: &QcContext, plot_ctx: &mut PlotContext) {
+pub fn plot_record(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     /*
      * primary analysis
      */

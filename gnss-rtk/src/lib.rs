@@ -5,14 +5,16 @@ use rinex::navigation::Ephemeris;
 use rinex::prelude::{
     //Duration,
     Epoch,
-    Sv,
+    RnxContext,
 };
-use rinex_qc::QcContext;
 use std::collections::HashMap;
 
 use hifitime::{Duration, TimeScale, Unit};
 
+extern crate gnss_rs as gnss;
 extern crate nyx_space as nyx;
+
+use gnss::prelude::SV;
 
 use nalgebra::base::{
     DVector,
@@ -32,6 +34,7 @@ pub mod prelude {
     pub use crate::cfg::SolverMode;
     pub use crate::estimate::SolverEstimate;
     pub use crate::model::Modeling;
+    pub use crate::RTKContext;
     pub use crate::Solver;
     pub use crate::SolverError;
     pub use crate::SolverType;
@@ -65,6 +68,15 @@ pub enum SolverError {
     SolvingError(Epoch),
 }
 
+/// RTKContext is dedicated to differential positioning
+#[derive(Default, Debug, Clone)]
+pub struct RTKContext {
+    /// Base station context
+    pub base: RnxContext,
+    /// Rover context
+    pub rover: RnxContext,
+}
+
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub enum SolverType {
     /// SPP : code based and approximated models
@@ -86,7 +98,7 @@ impl std::fmt::Display for SolverType {
 }
 
 impl SolverType {
-    fn from(ctx: &QcContext) -> Result<Self, SolverError> {
+    fn from(ctx: &RnxContext) -> Result<Self, SolverError> {
         if ctx.primary_data().is_observation_rinex() {
             //TODO : multi carrier for selected constellations
             Ok(Self::SPP)
@@ -111,7 +123,7 @@ pub struct Solver {
 }
 
 impl Solver {
-    pub fn from(context: &QcContext) -> Result<Self, SolverError> {
+    pub fn from(context: &RnxContext) -> Result<Self, SolverError> {
         let solver = SolverType::from(context)?;
         Ok(Self {
             cosmic: Cosm::de438(),
@@ -121,7 +133,7 @@ impl Solver {
             nth_epoch: 0,
         })
     }
-    pub fn init(&mut self, ctx: &mut QcContext) -> Result<(), SolverError> {
+    pub fn init(&mut self, ctx: &mut RnxContext) -> Result<(), SolverError> {
         trace!("{} solver initialization..", self.solver);
         //TODO: Preprocessing:
         //      only for ppp solver
@@ -168,7 +180,7 @@ impl Solver {
         self.initiated = true;
         Ok(())
     }
-    pub fn run(&mut self, ctx: &mut QcContext) -> Result<(Epoch, SolverEstimate), SolverError> {
+    pub fn run(&mut self, ctx: &mut RnxContext) -> Result<(Epoch, SolverEstimate), SolverError> {
         if !self.initiated {
             return Err(SolverError::NotInitialized);
         }
@@ -200,7 +212,7 @@ impl Solver {
             return Err(SolverError::NoSv(t));
         }
 
-        let mut elected_sv: Vec<Sv> = sv.unwrap().into_iter().take(self.cfg.max_sv).collect();
+        let mut elected_sv: Vec<SV> = sv.unwrap().into_iter().take(self.cfg.max_sv).collect();
 
         trace!("{:?}: {} candidates", t, elected_sv.len());
 
@@ -273,7 +285,7 @@ impl Solver {
 
         debug!("{:?}: {} elected sv", t, elected_sv.len());
 
-        let mut sv_data: HashMap<Sv, (f64, f64, f64, f64, Duration)> = HashMap::new();
+        let mut sv_data: HashMap<SV, (f64, f64, f64, f64, Duration)> = HashMap::new();
 
         // 3: sv position evaluation
         for sv in &elected_sv {
@@ -297,7 +309,7 @@ impl Solver {
             let (toe, eph) = ephemeris.unwrap();
             let clock_bias = eph.sv_clock();
             let (t_tx, dt_sat) =
-                Self::sv_transmission_time(t, *sv, toe, pr, eph, modeling, clock_bias, ts);
+                Self::sv_transmission_time(t, *sv, toe, pr, eph, modeling, clock_bias);
 
             if modeling.earth_rotation {
                 //TODO
@@ -419,17 +431,16 @@ impl Solver {
         }
     }
     /*
-     * Evalutes Sv position
+     * Evalutes SV position
      */
     fn sv_transmission_time(
         t: Epoch,
-        sv: Sv,
+        sv: SV,
         toe: Epoch,
         pr: f64,
         eph: &Ephemeris,
         m: Modeling,
         clock_bias: (f64, f64, f64),
-        ts: TimeScale,
     ) -> (Epoch, Duration) {
         let seconds_ts = t.to_duration().to_seconds();
 
@@ -470,7 +481,7 @@ impl Solver {
      * for all SV NAV Epochs in provided context
      */
     #[allow(dead_code)]
-    fn eval_sun_vector3d(&mut self, ctx: &QcContext, t: Epoch) -> (f64, f64, f64) {
+    fn eval_sun_vector3d(&mut self, ctx: &RnxContext, t: Epoch) -> (f64, f64, f64) {
         let sun_body = Bodies::Sun;
         let eme_j2000 = self.cosmic.frame("EME2000");
         let orbit =
@@ -498,9 +509,9 @@ impl Solver {
         eclipse_state(&sv_orbit, sun_frame, earth_frame, &self.cosmic)
     }
     /*
-     * Returns all Sv at "t"
+     * Returns all SV at "t"
      */
-    fn sv_at_epoch(ctx: &QcContext, t: Epoch) -> Option<Vec<Sv>> {
+    fn sv_at_epoch(ctx: &RnxContext, t: Epoch) -> Option<Vec<SV>> {
         ctx.primary_data()
             .sv_epoch()
             .filter_map(|(epoch, svs)| if epoch == t { Some(svs) } else { None })

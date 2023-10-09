@@ -121,15 +121,15 @@ pub fn test_gnss_csv(dut: &Rinex, gnss_csv: &str) {
  * Compares one RINEX against SV total content
  */
 pub fn test_sv_csv(dut: &Rinex, sv_csv: &str) {
-    let sv: Vec<Sv> = sv_csv
+    let sv: Vec<SV> = sv_csv
         .split(',')
-        .map(|c| Sv::from_str(c.trim()).unwrap())
-        .collect::<Vec<Sv>>()
+        .map(|c| SV::from_str(c.trim()).unwrap())
+        .collect::<Vec<SV>>()
         .into_iter()
         .unique()
         .collect();
 
-    let dut_sv: Vec<Sv> = dut.sv().collect();
+    let dut_sv: Vec<SV> = dut.sv().collect();
     for v in &sv {
         assert!(dut_sv.contains(v), "dut does not contain vehicle \"{}\"", v);
     }

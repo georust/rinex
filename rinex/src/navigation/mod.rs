@@ -16,9 +16,10 @@ pub use orbits::OrbitItem;
 pub use record::{NavFrame, NavMsgType, Record};
 pub use stomessage::StoMessage;
 
-use crate::prelude::Sv;
-use crate::{epoch, sv};
+use crate::epoch;
 use thiserror::Error;
+
+use gnss::prelude::SV;
 
 /// Navigation Record Parsing Error
 #[derive(Error, Debug)]
@@ -34,7 +35,7 @@ pub enum Error {
     #[error("unknown nav message type")]
     UnknownNavMsgType,
     #[error("sv parsing error")]
-    SvParsing(#[from] sv::ParsingError),
+    SvParsing(#[from] gnss::sv::ParsingError),
     #[error("failed to parse orbit field")]
     ParseOrbitError(#[from] orbits::OrbitItemError),
     #[error("failed to parse sv::prn")]
@@ -54,7 +55,7 @@ pub enum Error {
     #[error("failed to parse STO message")]
     StoMessageError(#[from] stomessage::Error),
     #[error("failed to identify timescale for {0}")]
-    TimescaleIdentification(Sv),
+    TimescaleIdentification(SV),
 }
 
 /*

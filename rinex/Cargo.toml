@@ -45,11 +45,13 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 [dependencies]
+log = "0.4"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2.15"
 regex = "1"
 thiserror = "1"
+walkdir = "2.4.0"
 bitflags = { version = "2.3", features = ["serde"] } 
 lazy_static = "1.4"
 map_3d = "0.1.5"
@@ -63,7 +65,9 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 horrorshow = { version = "0.8", optional = true }
+gnss-rs = { path = "../gnss-rs", version = "=1", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
+sp3 = { path = "../sp3", version = "=1.0.5" }
 
 [dev-dependencies]
 serde_json = "1"

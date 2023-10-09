@@ -4,12 +4,12 @@ use plotly::{
     ScatterPolar,
 };
 use rinex::prelude::Epoch;
-use rinex_qc::QcContext;
+use rinex::prelude::RnxContext;
 
 /*
  * Skyplot view
  */
-pub fn skyplot(ctx: &QcContext, plot_context: &mut PlotContext) {
+pub fn skyplot(ctx: &RnxContext, plot_context: &mut PlotContext) {
     plot_context.add_polar2d_plot("Skyplot");
 
     // grab NAV context

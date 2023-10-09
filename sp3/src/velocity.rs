@@ -1,23 +1,23 @@
 //! Velocity entry parsing
 use crate::ParsingError;
-use crate::{Epoch, Sv, Vector3D};
+use crate::{Epoch, Vector3D, SV};
 use std::collections::BTreeMap;
 
 /*
  * SV velocities prediction estimates
  */
-pub type VelocityRecord = BTreeMap<Epoch, BTreeMap<Sv, Vector3D>>;
+pub type VelocityRecord = BTreeMap<Epoch, BTreeMap<SV, Vector3D>>;
 /*
  * Clock rate of change record content
  */
-pub type ClockRateRecord = BTreeMap<Epoch, BTreeMap<Sv, f64>>;
+pub type ClockRateRecord = BTreeMap<Epoch, BTreeMap<SV, f64>>;
 
 pub(crate) fn velocity_entry(content: &str) -> bool {
     content.starts_with('V')
 }
 
 pub(crate) struct VelocityEntry {
-    sv: Sv,
+    sv: SV,
     velocity: (f64, f64, f64),
     clock: Option<f64>,
 }
@@ -27,7 +27,7 @@ impl std::str::FromStr for VelocityEntry {
     fn from_str(line: &str) -> Result<Self, Self::Err> {
         let mut clock: Option<f64> = None;
         let sv =
-            Sv::from_str(line[1..4].trim()).or(Err(ParsingError::Sv(line[1..4].to_string())))?;
+            SV::from_str(line[1..4].trim()).or(Err(ParsingError::SV(line[1..4].to_string())))?;
         let x = f64::from_str(line[4..18].trim())
             .or(Err(ParsingError::Coordinates(line[4..18].to_string())))?;
         let y = f64::from_str(line[18..32].trim())
@@ -52,7 +52,7 @@ impl std::str::FromStr for VelocityEntry {
 }
 
 impl VelocityEntry {
-    pub fn to_parts(&self) -> (Sv, (f64, f64, f64), Option<f64>) {
+    pub fn to_parts(&self) -> (SV, (f64, f64, f64), Option<f64>) {
         (self.sv, self.velocity, self.clock)
     }
 }

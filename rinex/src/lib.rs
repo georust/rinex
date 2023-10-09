@@ -3,10 +3,11 @@
 #![cfg_attr(docrs, feature(doc_cfg))]
 #![allow(clippy::type_complexity)]
 
+extern crate gnss_rs as gnss;
+
 pub mod antex;
 pub mod carrier;
 pub mod clocks;
-pub mod constellation;
 pub mod epoch;
 pub mod gnss_time;
 pub mod hardware;
@@ -19,11 +20,11 @@ pub mod navigation;
 pub mod observation;
 pub mod record;
 pub mod split;
-pub mod sv;
 pub mod types;
 pub mod version;
 
 mod bibliography;
+mod context;
 mod ground_position;
 mod leap;
 mod observable;
@@ -60,14 +61,15 @@ use version::Version;
 
 /// Package to include all basic structures
 pub mod prelude {
-    pub use crate::constellation::Constellation;
+    pub use crate::context::RnxContext;
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;
-    pub use crate::sv::Sv;
     pub use crate::types::Type as RinexType;
     pub use crate::Rinex;
+    pub use gnss::prelude::Constellation;
+    pub use gnss::prelude::SV;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
@@ -624,7 +626,7 @@ impl Rinex {
     }
 
     /// List [clocks::record::System] (reference systems) contained in this CLK RINEX.   
-    /// Reference systems can either be an Sv or a ground station.
+    /// Reference systems can either be an SV or a ground station.
     pub fn clock_ref_systems(&self) -> Vec<clocks::record::System> {
         let mut map: Vec<clocks::record::System> = Vec::new();
         if let Some(r) = self.record.as_clock() {
@@ -643,7 +645,7 @@ impl Rinex {
     }
 
     /// List Reference Ground Stations only, used in this CLK RINEX.  
-    /// To list reference Sv, simply use [Rinex::sv].
+    /// To list reference SV, simply use [Rinex::sv].
     pub fn clock_ref_stations(&self) -> Vec<String> {
         let mut ret: Vec<String> = Vec::with_capacity(32);
         if let Some(r) = self.record.as_clock() {
@@ -693,7 +695,7 @@ impl Rinex {
     }
     /// Aligns Phase observations at origin
     pub fn observation_phase_align_origin_mut(&mut self) {
-        let mut init_phases: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+        let mut init_phases: HashMap<SV, HashMap<Observable, f64>> = HashMap::new();
         if let Some(r) = self.record.as_mut_obs() {
             for (_, (_, vehicles)) in r.iter_mut() {
                 for (sv, observations) in vehicles.iter_mut() {
@@ -753,7 +755,7 @@ impl Rinex {
         /// algorithm, which we use in case of old receiver data / old RINEX
         /// to cancel geometric and atmospheric biases.
         /// See [high_order_phase_difference]
-        fn high_order_phase_difference_step(&self) -> Result<BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
+        fn high_order_phase_difference_step(&self) -> Result<BTreeMap<Epoch, HashMap<SV, HashMap<String, f64>>> {
             let mut ret: BTreeMap<Epoch, HashMap<String, f64>> = BTreeMap::new();
         }
 
@@ -765,7 +767,7 @@ impl Rinex {
         /// only one carrier signal was sampled.
         /// Final order is determined from the epoch interval
         /// (the smallest the better), the phase data quality and so on.
-        fn high_order_phase_difference(&self, order: usize) -> Result<BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
+        fn high_order_phase_difference(&self, order: usize) -> Result<BTreeMap<Epoch, HashMap<SV, HashMap<String, f64>>> {
             let mut ret: BTreeMap<Epoch, HashMap<String, f64>> = BTreeMap::new();
             if let Some(rec) = self.record.as_obs() {
                 for (epoch, (_, vehicles)) in rec {
@@ -794,11 +796,11 @@ impl Rinex {
         /// We can only compute such information if pseudo range was evaluted
         /// on at least two seperate carrier frequencies, for a given space vehicle at a certain epoch.
         /// Does not produce anything if self is not an Observation RINEX.
-        pub fn iono_free_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
+        pub fn iono_free_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<SV, f64>> {
             let pr = self.observation_pseudo_ranges();
-            let mut results : BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
+            let mut results : BTreeMap<Epoch, BTreeMap<SV, f64>> = BTreeMap::new();
             for (e, sv) in pr.iter() {
-                let mut map :BTreeMap<Sv, f64> = BTreeMap::new();
+                let mut map :BTreeMap<SV, f64> = BTreeMap::new();
                 for (sv, obs) in sv.iter() {
                     let mut result :Option<f64> = None;
                     let mut retained : Vec<(String, f64)> = Vec::new();
@@ -848,11 +850,11 @@ impl Rinex {
         /// We can only compute such information if carrier phase was evaluted
         /// on at least two seperate carrier frequencies, for a given space vehicle at a certain epoch.
         /// Does not produce anything if self is not an Observation RINEX.
-        pub fn iono_free_observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
+        pub fn iono_free_observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<SV, f64>> {
             let pr = self.observation_pseudoranges();
-            let mut results : BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
+            let mut results : BTreeMap<Epoch, BTreeMap<SV, f64>> = BTreeMap::new();
             for (e, sv) in pr.iter() {
-                let mut map :BTreeMap<Sv, f64> = BTreeMap::new();
+                let mut map :BTreeMap<SV, f64> = BTreeMap::new();
                 for (sv, obs) in sv.iter() {
                     let mut result :Option<f64> = None;
                     let mut retained : Vec<(String, f64)> = Vec::new();
@@ -915,13 +917,13 @@ impl Rinex {
         /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
         ///     .unwrap();
         /// // Retain G07 + G08 vehicles
-        /// // to perform further calculations on these vehicles data (GPS + Svnn filter)
+        /// // to perform further calculations on these vehicles data (GPS + SVnn filter)
         /// let filter = vec![
-        ///     Sv {
+        ///     SV {
         ///         constellation: Constellation::GPS,
         ///         prn: 7,
         ///     },
-        ///     Sv {
+        ///     SV {
         ///         constellation: Constellation::GPS,
         ///         prn: 8,
         ///     },
@@ -949,9 +951,9 @@ impl Rinex {
         /// ```
         pub fn observation_pseudodistances(
             &self,
-            sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>,
-        ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> {
-            let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> =
+            sv_clk_offsets: BTreeMap<Epoch, BTreeMap<SV, f64>>,
+        ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<SV, Vec<(String, f64)>>> {
+            let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<SV, Vec<(String, f64)>>> =
                 BTreeMap::new();
             if let Some(r) = self.record.as_obs() {
                 for ((e, flag), (clk, sv)) in r {
@@ -959,7 +961,7 @@ impl Rinex {
                         // got related distant epoch
                         if let Some(clk) = clk {
                             // got local clock offset
-                            let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
+                            let mut map: BTreeMap<SV, Vec<(String, f64)>> = BTreeMap::new();
                             for (sv, obs) in sv.iter() {
                                 if let Some(sv_offset) = distant_e.get(sv) {
                                     // got related distant offset
@@ -1260,7 +1262,7 @@ impl Rinex {
         }
     }
 
-    /// Returns a unique [`Sv`] iterator, to navigate
+    /// Returns a unique [`SV`] iterator, to navigate
     /// all Satellite Vehicles encountered and identified.
     /// This will panic if invoked on ATX, Meteo or IONEX records.
     /// In case of Clock RINEX, the returns the list of vehicles
@@ -1284,7 +1286,7 @@ impl Rinex {
     ///     sv!("G28"), sv!("G30"), sv!("G31"),
     ///     sv!("G32")]);
     /// ```
-    pub fn sv(&self) -> Box<dyn Iterator<Item = Sv> + '_> {
+    pub fn sv(&self) -> Box<dyn Iterator<Item = SV> + '_> {
         if let Some(record) = self.record.as_obs() {
             Box::new(
                 // grab all vehicles identified through all Epochs
@@ -1292,7 +1294,7 @@ impl Rinex {
                 record
                     .iter()
                     .map(|((_, _), (_clk, entries))| {
-                        let sv: Vec<Sv> = entries.keys().cloned().collect();
+                        let sv: Vec<SV> = entries.keys().cloned().collect();
                         sv
                     })
                     .fold(vec![], |mut list, new_items| {
@@ -1317,13 +1319,13 @@ impl Rinex {
                             .iter()
                             .filter_map(|fr| {
                                 if let Some((_, sv, _)) = fr.as_eph() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else if let Some((_, sv, _)) = fr.as_eop() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else if let Some((_, sv, _)) = fr.as_ion() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else if let Some((_, sv, _)) = fr.as_sto() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else {
                                     None
                                 }
@@ -1354,7 +1356,7 @@ impl Rinex {
         //        for (_, systems) in dtypes {
         //            for (system, _) in systems {
         //                match system {
-        //                    clocks::System::Sv(sv) => {
+        //                    clocks::System::SV(sv) => {
         //                        if !map.contains(sv) {
         //                            map.push(*sv);
         //                        }
@@ -1369,7 +1371,7 @@ impl Rinex {
         //map
     }
 
-    /// List all [`Sv`] per epoch of appearance.
+    /// List all [`SV`] per epoch of appearance.
     /// ```
     /// use rinex::prelude::*;
     /// use std::str::FromStr;
@@ -1381,21 +1383,21 @@ impl Rinex {
     /// if let Some((epoch, vehicles)) = data.nth(0) {
     ///     assert_eq!(epoch, Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap());
     ///     let expected = vec![
-    ///         Sv::new(Constellation::GPS, 03),
-    ///         Sv::new(Constellation::GPS, 08),
-    ///         Sv::new(Constellation::GPS, 14),
-    ///         Sv::new(Constellation::GPS, 16),
-    ///         Sv::new(Constellation::GPS, 22),
-    ///         Sv::new(Constellation::GPS, 23),
-    ///         Sv::new(Constellation::GPS, 26),
-    ///         Sv::new(Constellation::GPS, 27),
-    ///         Sv::new(Constellation::GPS, 31),
-    ///         Sv::new(Constellation::GPS, 32),
+    ///         SV::new(Constellation::GPS, 03),
+    ///         SV::new(Constellation::GPS, 08),
+    ///         SV::new(Constellation::GPS, 14),
+    ///         SV::new(Constellation::GPS, 16),
+    ///         SV::new(Constellation::GPS, 22),
+    ///         SV::new(Constellation::GPS, 23),
+    ///         SV::new(Constellation::GPS, 26),
+    ///         SV::new(Constellation::GPS, 27),
+    ///         SV::new(Constellation::GPS, 31),
+    ///         SV::new(Constellation::GPS, 32),
     ///     ];
     ///     assert_eq!(*vehicles, expected);
     /// }
     /// ```
-    pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
+    pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<SV>)> + '_> {
         if let Some(record) = self.record.as_obs() {
             Box::new(
                 // grab all vehicles identified through all Epochs
@@ -1415,13 +1417,13 @@ impl Rinex {
                             .iter()
                             .filter_map(|fr| {
                                 if let Some((_, sv, _)) = fr.as_eph() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else if let Some((_, sv, _)) = fr.as_eop() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else if let Some((_, sv, _)) = fr.as_ion() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else if let Some((_, sv, _)) = fr.as_sto() {
-                                    Some(*sv)
+                                    Some(sv)
                                 } else {
                                     None
                                 }
@@ -1555,7 +1557,10 @@ impl Rinex {
     /// prefer the iteration method of the type of data you're interested in.
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::{observable, sv}; // macros
+    /// use gnss_rs::prelude::SV;
+    /// // macros
+    /// use gnss_rs::sv;
+    /// use rinex::observable;
     /// use std::str::FromStr; // observable!, sv!
     ///
     /// let rnx = Rinex::from_file("../test_resources/CRNX/V3/KUNZ00CZE.crx")
@@ -1589,7 +1594,7 @@ impl Rinex {
                     &(Epoch, EpochFlag),
                     &(
                         Option<f64>,
-                        BTreeMap<Sv, HashMap<Observable, ObservationData>>,
+                        BTreeMap<SV, HashMap<Observable, ObservationData>>,
                     ),
                 ),
             > + '_,
@@ -1783,7 +1788,7 @@ impl Rinex {
     /// ```
     pub fn carrier_phase(
         &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(observable, obsdata)| {
@@ -1828,7 +1833,7 @@ impl Rinex {
     /// ```
     pub fn pseudo_range(
         &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
@@ -1843,7 +1848,7 @@ impl Rinex {
     }
     /// Returns an Iterator over pseudo range observations in valid
     /// Epochs, with valid LLI flags
-    pub fn pseudo_range_ok(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, &Observable, f64)> + '_> {
+    pub fn pseudo_range_ok(&self) -> Box<dyn Iterator<Item = (Epoch, SV, &Observable, f64)> + '_> {
         Box::new(self.observation().flat_map(|((e, flag), (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
@@ -1864,7 +1869,7 @@ impl Rinex {
     /// Returns an Iterator over fractional pseudo range observations
     pub fn pseudo_range_fract(
         &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
         Box::new(self.pseudo_range().filter_map(|(e, sv, observable, pr)| {
             if let Some(t) = observable.code_length(sv.constellation) {
                 let c = 299792458_f64; // speed of light
@@ -1875,7 +1880,7 @@ impl Rinex {
         }))
     }
     /// Returns an iterator over doppler shifts. A positive doppler
-    /// means Sv is moving towards receiver.
+    /// means SV is moving towards receiver.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::observable;
@@ -1895,7 +1900,7 @@ impl Rinex {
     /// ```
     pub fn doppler(
         &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
@@ -1926,7 +1931,7 @@ impl Rinex {
     ///         }
     ///     });
     /// ```
-    pub fn ssi(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+    pub fn ssi(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
@@ -1960,7 +1965,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, Snr)> + '_> {
+    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, Snr)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations
@@ -1987,7 +1992,7 @@ impl Rinex {
     /// ```
     pub fn lli(
         &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, LliFlags)> + '_> {
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, LliFlags)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations
@@ -2003,12 +2008,12 @@ impl Rinex {
     pub fn complete_epoch(
         &self,
         min_snr: Option<Snr>,
-    ) -> Box<dyn Iterator<Item = (Epoch, Vec<(Sv, Carrier)>)> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, Vec<(SV, Carrier)>)> + '_> {
         Box::new(
             self.observation()
                 .filter_map(move |((e, flag), (_, vehicles))| {
                     if flag.is_ok() {
-                        let mut list: Vec<(Sv, Carrier)> = Vec::new();
+                        let mut list: Vec<(SV, Carrier)> = Vec::new();
                         for (sv, observables) in vehicles {
                             let mut l1_pr_ph = (false, false);
                             let mut lx_pr_ph: HashMap<Carrier, (bool, bool)> = HashMap::new();
@@ -2146,7 +2151,7 @@ impl Rinex {
     /// ```
     pub fn ephemeris(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &Ephemeris))> + '_> {
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &Ephemeris))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
             frames.iter().filter_map(move |fr| {
                 if let Some((msg, sv, eph)) = fr.as_eph() {
@@ -2159,7 +2164,7 @@ impl Rinex {
     }
     /// Ephemeris selection method. Use this method to select Ephemeris
     /// to be used in "sv" navigation at "t" instant. Returns (toe and ephemeris frame).
-    pub fn sv_ephemeris(&self, sv: Sv, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
+    pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
         /*
          * minimize self.ephemeris with closest toe to t
          *  with toe <= t
@@ -2170,7 +2175,7 @@ impl Rinex {
          */
         self.ephemeris()
             .filter_map(|(_toc, (msg, svnn, eph))| {
-                if *svnn == sv {
+                if svnn == sv {
                     let ts = svnn.timescale()?;
                     let toe: Option<Epoch> = match msg {
                         NavMsgType::CNAV => {
@@ -2203,7 +2208,7 @@ impl Rinex {
             })
             .min_by_key(|(toe_i, _)| (t - *toe_i).abs())
     }
-    /// Returns an Iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
+    /// Returns an Iterator over SV (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)
     /// ```
     /// use rinex::prelude::*;
@@ -2216,13 +2221,13 @@ impl Rinex {
     ///     // clock drift rate [s.s⁻²]
     /// }
     /// ```
-    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
+    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         Box::new(
             self.ephemeris()
-                .map(|(e, (_, sv, data))| (*e, *sv, data.sv_clock())),
+                .map(|(e, (_, sv, data))| (*e, sv, data.sv_clock())),
         )
     }
-    /// Returns an Iterator over Sv position vectors,
+    /// Returns an Iterator over SV position vectors,
     /// expressed in km ECEF for all Epochs.
     /// ```
     /// use rinex::prelude::*;
@@ -2238,10 +2243,10 @@ impl Rinex {
     ///     // z: z(t) [km ECEF]
     /// }
     /// ```
-    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
+    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
             if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
-                Some((*e, *sv, (x, y, z)))
+                Some((*e, sv, (x, y, z)))
             } else {
                 // non feasible calculations.
                 // most likely due to missing Keplerian parameters,
@@ -2262,7 +2267,7 @@ impl Rinex {
     /// of interpolatable Epochs. See [Bibliography::Japhet2021].
     pub fn sv_position_interpolate(
         &self,
-        sv: Sv,
+        sv: SV,
         t: Epoch,
         order: usize,
     ) -> Option<(f64, f64, f64)> {
@@ -2342,7 +2347,7 @@ impl Rinex {
 
         Some(polynomials)
     }
-    /// Returns an Iterator over Sv position vectors,
+    /// Returns an Iterator over SV position vectors,
     /// expressed as geodetic coordinates, with latitude and longitude
     /// in decimal degrees.
     /// ```
@@ -2359,13 +2364,13 @@ impl Rinex {
     ///     // alt: [m ECEF]
     /// }
     /// ```
-    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
+    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         Box::new(self.sv_position().map(|(e, sv, (x, y, z))| {
             let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
             (e, sv, (lat, lon, alt))
         }))
     }
-    /// Returns Iterator over Sv speed vectors, expressed in km/s ECEF.
+    /// Returns Iterator over SV speed vectors, expressed in km/s ECEF.
     /// ```
     /// use rinex::prelude::*;
     ///
@@ -2379,7 +2384,7 @@ impl Rinex {
     /// //    // sv_z : km/s
     /// //}
     /// ```
-    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
+    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         todo!("sv_speed");
         //Box::new(
         //    self.sv_position()
@@ -2387,7 +2392,7 @@ impl Rinex {
         //        .skip(1)
         //)
     }
-    /// Returns an Iterator over Sv elevation and azimuth angles,
+    /// Returns an Iterator over SV elevation and azimuth angles,
     /// both expressed in degrees.
     /// A reference ground position must be known:
     ///   - either it is defined in [Header]
@@ -2410,7 +2415,7 @@ impl Rinex {
     pub fn sv_elevation_azimuth(
         &self,
         ref_position: Option<GroundPosition>,
-    ) -> Box<dyn Iterator<Item = (Epoch, (Sv, (f64, f64)))> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, (SV, (f64, f64)))> + '_> {
         let ground_position = match ref_position {
             Some(pos) => pos, // user value superceeds, in case it is passed
             _ => {
@@ -2428,7 +2433,7 @@ impl Rinex {
                 .filter_map(move |(epoch, (_, sv, ephemeris))| {
                     if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position)
                     {
-                        Some((*epoch, (*sv, (elev, azim))))
+                        Some((*epoch, (sv, (elev, azim))))
                     } else {
                         None // calculations may not be feasible,
                              // mainly when mandatory ephemeris broadcasts are missing
@@ -2439,7 +2444,7 @@ impl Rinex {
     /// Returns [`IonMessage`] frames Iterator
     pub fn ionosphere_models(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &IonMessage))> + '_> {
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &IonMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
             frames.iter().filter_map(move |fr| {
                 if let Some((msg, sv, ion)) = fr.as_ion() {
@@ -2514,7 +2519,7 @@ impl Rinex {
     /// ```
     pub fn system_time_offset(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &StoMessage))> + '_> {
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &StoMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
             frames.iter().filter_map(move |fr| {
                 if let Some((msg, sv, sto)) = fr.as_sto() {
@@ -2539,7 +2544,7 @@ impl Rinex {
     /// ```
     pub fn earth_orientation(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &EopMessage))> + '_> {
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &EopMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
             frames.iter().filter_map(move |fr| {
                 if let Some((msg, sv, eop)) = fr.as_eop() {
@@ -2937,7 +2942,7 @@ use observation::Dcb;
 
 #[cfg(feature = "obs")]
 impl Dcb for Rinex {
-    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
             r.dcb()
         } else {
@@ -2951,12 +2956,12 @@ impl Dcb for Rinex {
 //
 //#[cfg(feature = "obs")]
 //impl Mp for Rinex {
-//    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+//    fn mp(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
 //        /*
 //         * Determine mean value of all observed Phase and Pseudo Range
-//         * observations, for all Sv
+//         * observations, for all SV
 //         */
-//        let mut mean: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+//        let mut mean: HashMap<SV, HashMap<Observable, f64>> = HashMap::new();
 //        /*
 //         * Associate a Phase code to all PR codes
 //         */
@@ -3037,7 +3042,7 @@ use observation::Combine;
 impl Combine for Rinex {
     fn geo_free(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
             r.geo_free()
         } else {
@@ -3046,7 +3051,7 @@ impl Combine for Rinex {
     }
     fn wide_lane(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
             r.wide_lane()
         } else {
@@ -3055,7 +3060,7 @@ impl Combine for Rinex {
     }
     fn narrow_lane(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
             r.narrow_lane()
         } else {
@@ -3064,7 +3069,7 @@ impl Combine for Rinex {
     }
     fn melbourne_wubbena(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
             r.melbourne_wubbena()
         } else {
@@ -3082,7 +3087,7 @@ impl IonoDelay for Rinex {
     fn iono_delay(
         &self,
         max_dt: Duration,
-    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+    ) -> HashMap<Observable, HashMap<SV, BTreeMap<Epoch, f64>>> {
         if let Some(r) = self.record.as_obs() {
             r.iono_delay(max_dt)
         } else {
@@ -3223,9 +3228,6 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn test_macros() {
-        let _ = sv!("G01");
-        let _ = sv!("R03");
-        let _ = gnss!("GPS");
         let _ = observable!("L1C");
         let _ = filter!("GPS");
         let _ = filter!("G08, G09");

@@ -1,7 +1,8 @@
-use crate::{constellation, Constellation};
 use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
+
+use gnss::prelude::Constellation;
 
 /// Reference System parsing error
 #[derive(Error, Debug)]
@@ -9,7 +10,7 @@ pub enum Error {
     #[error("unknown reference system")]
     UnknownRefSystem,
     #[error("constellation parsing error")]
-    ConstellationParsing(#[from] constellation::ParsingError),
+    ConstellationParsing(#[from] gnss::constellation::ParsingError),
 }
 
 /// RefSystem "Reference System" describes either reference GNSS

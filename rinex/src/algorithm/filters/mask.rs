@@ -115,7 +115,7 @@ impl std::ops::Not for MaskOperand {
 /// // Whereas Equality masks ("=", "!=") apply to any data subsets.
 /// let equals = filter!("=GPS,GLO");
 ///
-/// // One exception exist for "Sv" items, for example with this:
+/// // One exception exist for "SV" items, for example with this:
 /// let greater_than = filter!("> G08,R03");
 ///
 /// // will retain PRN > 08 for GPS Constellation
@@ -434,9 +434,9 @@ mod test {
             MaskFilter {
                 operand: MaskOperand::Equals,
                 item: TargetItem::SvItem(vec![
-                    Sv::from_str("G08").unwrap(),
-                    Sv::from_str("G09").unwrap(),
-                    Sv::from_str("R03").unwrap(),
+                    SV::from_str("G08").unwrap(),
+                    SV::from_str("G09").unwrap(),
+                    SV::from_str("R03").unwrap(),
                 ]),
             }
         );
@@ -448,7 +448,7 @@ mod test {
             mask,
             MaskFilter {
                 operand: MaskOperand::NotEquals,
-                item: TargetItem::SvItem(vec![Sv::from_str("G31").unwrap(),]),
+                item: TargetItem::SvItem(vec![SV::from_str("G31").unwrap(),]),
             }
         );
         let m2 = MaskFilter::from_str("!=G31").unwrap();

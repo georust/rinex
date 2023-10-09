@@ -1,12 +1,12 @@
 use crate::plot::PlotContext;
 use itertools::Itertools;
 use plotly::Histogram; //.sorted()
-use rinex_qc::QcContext;
+use rinex::prelude::RnxContext;
 
 /*
  * Sampling histogram
  */
-pub fn histogram(ctx: &QcContext, plot_ctx: &mut PlotContext) {
+pub fn histogram(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     plot_ctx.add_cartesian2d_plot("Sampling Histogram", "Count");
     let durations: Vec<_> = ctx
         .primary_data()

@@ -1,7 +1,7 @@
 //use thiserror::Error;
 //use strum_macros::EnumString;
 use crate::bias;
-use rinex::constellation::Constellation;
+use gnss::prelude::Constellation;
 use std::collections::HashMap;
 //use crate::datetime::{parse_datetime, ParseDateTimeError};
 

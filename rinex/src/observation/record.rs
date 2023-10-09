@@ -4,8 +4,8 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::{
-    constellation, epoch, merge, merge::Merge, prelude::*, split, split::Split, sv, types::Type,
-    version::Version, Carrier, Observable,
+    epoch, merge, merge::Merge, prelude::*, split, split::Split, types::Type, version::Version,
+    Carrier, Observable,
 };
 
 use super::Snr;
@@ -16,9 +16,9 @@ pub enum Error {
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::ParsingError),
     #[error("constellation parsing error")]
-    ConstellationParsing(#[from] constellation::ParsingError),
+    ConstellationParsing(#[from] gnss::constellation::ParsingError),
     #[error("sv parsing error")]
-    SvParsing(#[from] sv::ParsingError),
+    SvParsing(#[from] gnss::sv::ParsingError),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse float number")]
@@ -125,13 +125,13 @@ impl ObservationData {
     }
 }
 
-/// Observation Record content, sorted by [`Epoch`], per [`Sv`] and per
+/// Observation Record content, sorted by [`Epoch`], per [`SV`] and per
 /// [`Observable`].
 pub type Record = BTreeMap<
     (Epoch, EpochFlag),
     (
         Option<f64>,
-        BTreeMap<Sv, HashMap<Observable, ObservationData>>,
+        BTreeMap<SV, HashMap<Observable, ObservationData>>,
     ),
 >;
 
@@ -165,7 +165,7 @@ pub(crate) fn parse_epoch(
     (
         (Epoch, EpochFlag),
         Option<f64>,
-        BTreeMap<sv::Sv, HashMap<Observable, ObservationData>>,
+        BTreeMap<SV, HashMap<Observable, ObservationData>>,
     ),
     Error,
 > {
@@ -275,15 +275,15 @@ fn parse_v2(
     systems: &str,
     header_observables: &HashMap<Constellation, Vec<Observable>>,
     lines: std::str::Lines<'_>,
-) -> BTreeMap<Sv, HashMap<Observable, ObservationData>> {
+) -> BTreeMap<SV, HashMap<Observable, ObservationData>> {
     let svnn_size = 3; // SVNN standard
     let nb_max_observables = 5; // in a single line
     let observable_width = 16; // data + 2 flags + 1 whitespace
     let mut sv_ptr = 0; // svnn pointer
     let mut obs_ptr = 0; // observable pointer
-    let mut data: BTreeMap<Sv, HashMap<Observable, ObservationData>> = BTreeMap::new();
+    let mut data: BTreeMap<SV, HashMap<Observable, ObservationData>> = BTreeMap::new();
     let mut inner: HashMap<Observable, ObservationData> = HashMap::with_capacity(5);
-    let mut sv = Sv::default();
+    let mut sv = SV::default();
     let mut observables: &Vec<Observable>;
     //println!("{:?}", header_observables); // DEBUG
     //println!("\"{}\"", systems); // DEBUG
@@ -301,7 +301,7 @@ fn parse_v2(
     let max = std::cmp::min(svnn_size, systems.len()); // for epochs with a single vehicle
     let system = &systems[0..max];
 
-    if let Ok(ssv) = Sv::from_str(system) {
+    if let Ok(ssv) = SV::from_str(system) {
         sv = ssv;
     } else {
         // may fail on omitted X in "XYY",
@@ -310,7 +310,7 @@ fn parse_v2(
             Some(Constellation::Mixed) => panic!("bad gnss definition"),
             Some(c) => {
                 if let Ok(prn) = system.trim().parse::<u8>() {
-                    if let Ok(s) = Sv::from_str(&format!("{}{:02}", c, prn)) {
+                    if let Ok(s) = SV::from_str(&format!("{}{:02}", c, prn)) {
                         sv = s;
                     } else {
                         return data;
@@ -425,7 +425,7 @@ fn parse_v2(
             let start = sv_ptr;
             let end = std::cmp::min(sv_ptr + svnn_size, systems.len()); // trimed epoch description
             let system = &systems[start..end];
-            if let Ok(s) = Sv::from_str(system) {
+            if let Ok(s) = SV::from_str(system) {
                 sv = s;
             } else {
                 // may fail on omitted X in "XYY",
@@ -433,7 +433,7 @@ fn parse_v2(
                 match header.constellation {
                     Some(c) => {
                         if let Ok(prn) = system.trim().parse::<u8>() {
-                            if let Ok(s) = Sv::from_str(&format!("{}{:02}", c, prn)) {
+                            if let Ok(s) = SV::from_str(&format!("{}{:02}", c, prn)) {
                                 sv = s;
                             } else {
                                 return data;
@@ -478,16 +478,16 @@ fn parse_v2(
 fn parse_v3(
     observables: &HashMap<Constellation, Vec<Observable>>,
     lines: std::str::Lines<'_>,
-) -> BTreeMap<Sv, HashMap<Observable, ObservationData>> {
+) -> BTreeMap<SV, HashMap<Observable, ObservationData>> {
     let svnn_size = 3; // SVNN standard
     let observable_width = 16; // data + 2 flags
-    let mut data: BTreeMap<Sv, HashMap<Observable, ObservationData>> = BTreeMap::new();
+    let mut data: BTreeMap<SV, HashMap<Observable, ObservationData>> = BTreeMap::new();
     let mut inner: HashMap<Observable, ObservationData> = HashMap::with_capacity(5);
     for line in lines {
         // browse all lines
         //println!("parse_v3: \"{}\"", line); //DEBUG
         let (sv, line) = line.split_at(svnn_size);
-        if let Ok(sv) = Sv::from_str(sv) {
+        if let Ok(sv) = SV::from_str(sv) {
             let obscodes = match sv.constellation.is_sbas() {
                 true => observables.get(&Constellation::SBAS),
                 false => observables.get(&sv.constellation),
@@ -555,7 +555,7 @@ fn parse_v3(
                     data.insert(sv, inner.clone());
                 }
             } //got some observables to work with
-        } // Sv::from_str failed()
+        } // SV::from_str failed()
     } //browse all lines
     data
 }
@@ -565,7 +565,7 @@ pub(crate) fn fmt_epoch(
     epoch: Epoch,
     flag: EpochFlag,
     clock_offset: &Option<f64>,
-    data: &BTreeMap<Sv, HashMap<Observable, ObservationData>>,
+    data: &BTreeMap<SV, HashMap<Observable, ObservationData>>,
     header: &Header,
 ) -> String {
     if header.version.major < 3 {
@@ -579,7 +579,7 @@ fn fmt_epoch_v3(
     epoch: Epoch,
     flag: EpochFlag,
     clock_offset: &Option<f64>,
-    data: &BTreeMap<Sv, HashMap<Observable, ObservationData>>,
+    data: &BTreeMap<SV, HashMap<Observable, ObservationData>>,
     header: &Header,
 ) -> String {
     let mut lines = String::with_capacity(128);
@@ -630,7 +630,7 @@ fn fmt_epoch_v2(
     epoch: Epoch,
     flag: EpochFlag,
     clock_offset: &Option<f64>,
-    data: &BTreeMap<Sv, HashMap<Observable, ObservationData>>,
+    data: &BTreeMap<SV, HashMap<Observable, ObservationData>>,
     header: &Header,
 ) -> String {
     let mut lines = String::with_capacity(128);
@@ -724,7 +724,7 @@ impl Merge for Record {
                             }
                         }
                     } else {
-                        // new Sv: insert it
+                        // new SV: insert it
                         vehicles.insert(*rhs_vehicle, rhs_observations.clone());
                     }
                 }
@@ -796,7 +796,7 @@ impl Smooth for Record {
         // buffer:
         // stores n index, previously associated phase point and previous result
         // for every observable we're computing
-        let mut buffer: HashMap<Sv, HashMap<Observable, (f64, f64, f64)>> = HashMap::new();
+        let mut buffer: HashMap<SV, HashMap<Observable, (f64, f64, f64)>> = HashMap::new();
         // for each pseudo range observation for all epochs,
         // the operation is only feasible if an associated phase_point exists
         //   Ex: C1C with L1C, not L1W
@@ -1145,7 +1145,7 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
         },
         TargetItem::SvItem(svs) => {
             /*
-             * Remove Sv observations where it should now be missing
+             * Remove SV observations where it should now be missing
              */
             for (epoch, (_, vehicles)) in record.iter_mut() {
                 if subset.get(epoch).is_none() {
@@ -1343,10 +1343,10 @@ use crate::observation::Combine;
 impl Combine for Record {
     fn melbourne_wubbena(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<
             (Observable, Observable),
-            BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+            BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,
         > = HashMap::new();
         for (epoch, (_, vehicles)) in self {
             for (sv, observations) in vehicles {
@@ -1418,7 +1418,7 @@ impl Combine for Record {
                             if inject {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
                                 bmap.insert(*epoch, gf);
-                                let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                let mut map: BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>> =
                                     BTreeMap::new();
                                 map.insert(*sv, bmap);
                                 ret.insert((lhs_observable.clone(), ref_observable), map);
@@ -1433,10 +1433,10 @@ impl Combine for Record {
 
     fn narrow_lane(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<
             (Observable, Observable),
-            BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+            BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,
         > = HashMap::new();
         for (epoch, (_, vehicles)) in self {
             for (sv, observations) in vehicles {
@@ -1508,7 +1508,7 @@ impl Combine for Record {
                             if inject {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
                                 bmap.insert(*epoch, gf);
-                                let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                let mut map: BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>> =
                                     BTreeMap::new();
                                 map.insert(*sv, bmap);
                                 ret.insert((lhs_observable.clone(), ref_observable), map);
@@ -1523,10 +1523,10 @@ impl Combine for Record {
 
     fn wide_lane(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<
             (Observable, Observable),
-            BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+            BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,
         > = HashMap::new();
         for (epoch, (_, vehicles)) in self {
             for (sv, observations) in vehicles {
@@ -1604,7 +1604,7 @@ impl Combine for Record {
                             if inject {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
                                 bmap.insert(*epoch, yp);
-                                let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                let mut map: BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>> =
                                     BTreeMap::new();
                                 map.insert(*sv, bmap);
                                 ret.insert((lhs_observable.clone(), ref_observable), map);
@@ -1619,10 +1619,10 @@ impl Combine for Record {
 
     fn geo_free(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<
             (Observable, Observable),
-            BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+            BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,
         > = HashMap::new();
         for (epoch, (_, vehicles)) in self {
             for (sv, observations) in vehicles {
@@ -1710,7 +1710,7 @@ impl Combine for Record {
                             if inject {
                                 let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
                                 bmap.insert(*epoch, gf);
-                                let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                let mut map: BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>> =
                                     BTreeMap::new();
                                 map.insert(*sv, bmap);
                                 ret.insert((lhs_observable.clone(), ref_observable), map);
@@ -1732,8 +1732,8 @@ use crate::{
 
 #[cfg(feature = "obs")]
 impl Dcb for Record {
-    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut ret: HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
+    fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        let mut ret: HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
         for (epoch, (_, vehicles)) in self {
             for (sv, observations) in vehicles {
@@ -1817,7 +1817,7 @@ impl Dcb for Record {
                                             lhs_observation.obs - rhs_observation.obs,
                                         );
                                         let mut map: BTreeMap<
-                                            Sv,
+                                            SV,
                                             BTreeMap<(Epoch, EpochFlag), f64>,
                                         > = BTreeMap::new();
                                         map.insert(*sv, bmap);
@@ -1842,10 +1842,10 @@ impl IonoDelay for Record {
     fn iono_delay(
         &self,
         max_dt: Duration,
-    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+    ) -> HashMap<Observable, HashMap<SV, BTreeMap<Epoch, f64>>> {
         let gf = self.geo_free();
-        let mut ret: HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
-        let mut prev_data: HashMap<(Observable, Observable), HashMap<Sv, (Epoch, f64)>> =
+        let mut ret: HashMap<Observable, HashMap<SV, BTreeMap<Epoch, f64>>> = HashMap::new();
+        let mut prev_data: HashMap<(Observable, Observable), HashMap<SV, (Epoch, f64)>> =
             HashMap::new();
         for (combination, vehicles) in gf {
             let (_lhs_observable, ref_observable) = combination.clone();
@@ -1871,7 +1871,7 @@ impl IonoDelay for Record {
                                 } else {
                                     let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
                                     bmap.insert(epoch, dy);
-                                    let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                    let mut map: HashMap<SV, BTreeMap<Epoch, f64>> = HashMap::new();
                                     map.insert(sv, bmap);
                                     ret.insert(ref_observable.clone(), map);
                                 }
@@ -1882,7 +1882,7 @@ impl IonoDelay for Record {
                             prev.insert(sv, (epoch, data));
                         }
                     } else {
-                        let mut map: HashMap<Sv, (Epoch, f64)> = HashMap::new();
+                        let mut map: HashMap<SV, (Epoch, f64)> = HashMap::new();
                         map.insert(sv, (epoch, data));
                         prev_data.insert(combination.clone(), map);
                     }

@@ -2,11 +2,11 @@
 use crate::plot::PlotContext;
 use plotly::layout::MapboxStyle;
 use rinex::prelude::Epoch;
-use rinex_qc::QcContext;
+use rinex::prelude::RnxContext;
 use std::collections::HashMap;
 
 pub fn plot_tec_map(
-    ctx: &QcContext,
+    ctx: &RnxContext,
     _borders: ((f64, f64), (f64, f64)),
     plot_ctx: &mut PlotContext,
 ) {

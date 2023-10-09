@@ -20,4 +20,5 @@ chrono = "0.4"
 thiserror = "1"
 strum = { version = "0.25", features = ["derive"] }
 strum_macros = "0.25"
+gnss-rs = { path = "../gnss-rs", version = "=1", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.14.1", features = ["serde"] }

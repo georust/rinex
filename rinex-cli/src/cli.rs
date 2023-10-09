@@ -27,11 +27,17 @@ impl Cli {
                         .short('f')
                         .long("fp")
                         .value_name("FILE")
+                        .action(ArgAction::Append)
+                        .required_unless_present("directory")
                         .help("Input RINEX file. Serves as primary data.
 Must be Observation Data for --rtk.
-Observation, Meteo and IONEX can only serve as primary data.")
-                        .action(ArgAction::Append)
-                        .required(true))
+Observation, Meteo and IONEX can only serve as primary data."))
+                    .arg(Arg::new("directory")
+                        .short('d')
+                        .long("dir")
+                        .value_name("DIRECTORY")
+                        .required_unless_present("filepath")
+                        .help("Load directory recursively"))
                 .next_help_heading("General")
                     .arg(Arg::new("quiet")
                         .short('q')
@@ -320,7 +326,11 @@ Refer to README"))
     }
     /// Returns input filepaths
     pub fn input_path(&self) -> &str {
-        self.matches.get_one::<String>("filepath").unwrap() // mandatory flag
+        if let Some(fp) = self.matches.get_one::<String>("filepath") {
+            fp
+        } else {
+            self.matches.get_one::<String>("directory").unwrap()
+        }
     }
     /// Returns output filepaths
     pub fn output_path(&self) -> Option<&String> {

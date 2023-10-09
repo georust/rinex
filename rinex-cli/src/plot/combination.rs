@@ -10,7 +10,7 @@ pub fn plot_gnss_recombination(
     plot_context: &mut PlotContext,
     plot_title: &str,
     y_title: &str,
-    data: &HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
+    data: &HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
     // add a plot
     plot_context.add_cartesian2d_plot(plot_title, y_title);
@@ -49,7 +49,7 @@ pub fn plot_gnss_dcb(
     plot_context: &mut PlotContext,
     plot_title: &str,
     y_title: &str,
-    data: &HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
+    data: &HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
     // add a plot
     plot_context.add_cartesian2d_plot(plot_title, y_title);
@@ -79,7 +79,7 @@ pub fn plot_gnss_dcb(
  */
 pub fn plot_iono_detector(
     plot_context: &mut PlotContext,
-    data: &HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>,
+    data: &HashMap<Observable, HashMap<SV, BTreeMap<Epoch, f64>>>,
 ) {
     // add a plot
     plot_context.add_cartesian2d_plot(

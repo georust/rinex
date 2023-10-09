@@ -1,29 +1,45 @@
 use crate::Cli;
-use hifitime::Epoch;
 use rinex::observation::Snr;
+use rinex::prelude::RnxContext;
 use rinex::*;
-use rinex_qc::QcContext;
+
+use serde::Serialize;
 
 /*
  * Basic identification operations
  */
-pub fn rinex_identification(ctx: &QcContext, cli: &Cli) {
+pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
     let pretty = cli.pretty();
     let ops = cli.identification_ops();
 
     identification(
         &ctx.primary_data(),
-        &ctx.primary_path().to_string_lossy().to_string(),
+        &format!(
+            "{:?}",
+            ctx.primary_paths()
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect::<Vec<String>>()
+        ),
         pretty,
         ops.clone(),
     );
 
     if let Some(nav) = &ctx.navigation_data() {
-        identification(&nav, "Navigation Context blob", pretty, ops.clone());
+        identification(
+            &nav,
+            &format!(
+                "{:?}",
+                ctx.primary_paths()
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<String>>()
+            ),
+            pretty,
+            ops.clone(),
+        );
     }
 }
-
-use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
 struct EpochReport {

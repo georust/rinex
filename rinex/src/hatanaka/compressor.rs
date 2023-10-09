@@ -1,7 +1,7 @@
 //! RINEX compression module
 use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
 use crate::is_rinex_comment;
-use crate::{Constellation, Observable, Sv};
+use crate::{Constellation, Observable, SV};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -42,9 +42,9 @@ pub struct Compressor {
     /// Clock offset differentiator
     clock_diff: NumDiff,
     /// Vehicle differentiators
-    sv_diff: HashMap<Sv, HashMap<usize, (NumDiff, TextDiff, TextDiff)>>,
+    sv_diff: HashMap<SV, HashMap<usize, (NumDiff, TextDiff, TextDiff)>>,
     /// Pending kernel re-initialization
-    forced_init: HashMap<Sv, Vec<usize>>,
+    forced_init: HashMap<SV, Vec<usize>>,
 }
 
 fn format_epoch_descriptor(content: &str) -> String {
@@ -94,7 +94,7 @@ impl Compressor {
     }
 
     /// Identifies vehicle from previously stored epoch descriptor
-    fn current_vehicle(&self, constellation: &Constellation) -> Result<Sv, Error> {
+    fn current_vehicle(&self, constellation: &Constellation) -> Result<SV, Error> {
         let sv_size = 3;
         let epoch_size = 32;
         let vehicle_offset = self.vehicle_ptr * sv_size;
@@ -107,7 +107,7 @@ impl Compressor {
                 //   it is possible that constellation ID is omitted..
                 vehicle.insert_str(0, &format!("{:x}", constellation));
             }
-            let sv = Sv::from_str(vehicle)?;
+            let sv = SV::from_str(vehicle)?;
             //println!("VEHICULE: {}", sv); //DEBUG
             Ok(sv)
         } else {
@@ -148,15 +148,15 @@ impl Compressor {
     /// Schedule given kernel for reinitizalition
     /// due to omitted data field.
     /// We only do so if kernel was previously initialized
-    fn schedule_kernel_init(&mut self, sv: &Sv, index: usize) {
-        if let Some(indexes) = self.sv_diff.get(sv) {
+    fn schedule_kernel_init(&mut self, sv: SV, index: usize) {
+        if let Some(indexes) = self.sv_diff.get(&sv) {
             if indexes.contains_key(&index) {
-                if let Some(indexes) = self.forced_init.get_mut(sv) {
+                if let Some(indexes) = self.forced_init.get_mut(&sv) {
                     if !indexes.contains(&index) {
                         indexes.push(index);
                     }
                 } else {
-                    self.forced_init.insert(*sv, vec![index]);
+                    self.forced_init.insert(sv, vec![index]);
                 }
                 //DEBUG
                 //println!("PENDING: {:?}", self.forced_init);
@@ -185,7 +185,7 @@ impl Compressor {
                             // previously active
                             if self.obs_ptr > 0 {
                                 // previously active
-                                // identify current Sv
+                                // identify current SV
                                 if let Ok(sv) = self.current_vehicle(constellation) {
                                     // nb of obs for this constellation
                                     let sv_nb_obs = observables[&sv.constellation].len();
@@ -195,7 +195,7 @@ impl Compressor {
                                         result.push(' '); // empty whitespace, on each missing observable
                                                           // to remain retro compatible with official tools
                                         self.flags_descriptor.push_str("  "); // both missing
-                                        self.schedule_kernel_init(&sv, self.obs_ptr + i);
+                                        self.schedule_kernel_init(sv, self.obs_ptr + i);
                                     }
                                     self.obs_ptr += nb_missing;
                                     if self.obs_ptr == sv_nb_obs {
@@ -302,7 +302,7 @@ impl Compressor {
                             // ==> handle this case
                             //println!("SV {} final fields were omitted", sv); //DEBUG
                             for index in self.obs_ptr..sv_nb_obs + 1 {
-                                self.schedule_kernel_init(&sv, index);
+                                self.schedule_kernel_init(sv, index);
                                 result.push(' '); // put an empty space on missing observables
                                                   // this is how RNX2CRX (official) behaves,
                                                   // if we don't do this we break retro compatibility
@@ -508,7 +508,7 @@ impl Compressor {
                                                   // this is how RNX2CRX (official) behaves,
                                                   // if we don't do this we break retro compatibility
                                 self.flags_descriptor.push_str("  ");
-                                self.schedule_kernel_init(&sv, self.obs_ptr);
+                                self.schedule_kernel_init(sv, self.obs_ptr);
                             }
                             self.obs_ptr += 1;
                             //println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); //DEBUG

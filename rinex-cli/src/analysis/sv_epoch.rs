@@ -2,13 +2,13 @@ use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use ndarray::Array;
 use plotly::common::{Marker, Mode, Title, Visible};
 use plotly::layout::Axis;
+use rinex::prelude::RnxContext;
 use rinex::prelude::*;
-use rinex_qc::QcContext;
 
 /*
  * Sv per epoch analysis
  */
-pub fn sv_epoch(ctx: &QcContext, plot_ctx: &mut PlotContext) {
+pub fn sv_epoch(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     plot_ctx.add_cartesian2d_plot("Sv per Epoch", "Sv(PRN#)");
     /*
      * plot customization

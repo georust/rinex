@@ -7,11 +7,10 @@ use rinex_qc_traits::HtmlReport;
 mod opts;
 pub use opts::{QcClassification, QcOpts};
 
-mod context;
-pub use context::{QcContext, QcExtraData, QcPrimaryData};
-
 mod analysis;
 use analysis::QcAnalysis;
+
+use rinex::prelude::RnxContext;
 
 /*
  * Methods used when reporting lenghty vectors or data subsets in a table.
@@ -60,7 +59,7 @@ use rinex::preprocessing::{MaskFilter, MaskOperand, Preprocessing, TargetItem};
 pub struct QcReport {}
 
 impl QcReport {
-    fn build_analysis(ctx: &QcContext, opts: &QcOpts) -> Vec<QcAnalysis> {
+    fn build_analysis(ctx: &RnxContext, opts: &QcOpts) -> Vec<QcAnalysis> {
         // build analysis to perform
         let mut analysis: Vec<QcAnalysis> = Vec::new();
         /*
@@ -79,7 +78,7 @@ impl QcReport {
                     filter_targets.push(TargetItem::from(gnss));
                 }
             },
-            QcClassification::Sv => {
+            QcClassification::SV => {
                 for sv in ctx.primary_data().sv() {
                     filter_targets.push(TargetItem::from(sv));
                 }
@@ -114,7 +113,7 @@ impl QcReport {
     }
     /// Generates a Quality Check Report from provided Context and parametrization,
     /// in html format.
-    pub fn html(context: &QcContext, opts: QcOpts) -> String {
+    pub fn html(context: &RnxContext, opts: QcOpts) -> String {
         let analysis = Self::build_analysis(context, &opts);
         format!(
             "{}",
@@ -126,7 +125,10 @@ impl QcReport {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        title: context.primary.path.file_name().unwrap().to_str().unwrap_or("Unknown");
+                        title:
+                            format!("{:?}", context.primary.paths.iter()
+                                .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+                                .collect::<Vec<String>>());
                     }
                     body {
                         div(id="version") {
@@ -197,7 +199,7 @@ impl QcReport {
                                             th {
                                                 : format!("{} analysis", context.primary_data().constellation().nth(i).unwrap())
                                             }
-                                        } else if opts.classification == QcClassification::Sv {
+                                        } else if opts.classification == QcClassification::SV {
                                             th {
                                                 : format!("{} analysis", context.primary_data().sv().nth(i).unwrap())
                                             }

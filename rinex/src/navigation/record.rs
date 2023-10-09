@@ -130,76 +130,76 @@ impl std::str::FromStr for NavMsgType {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum NavFrame {
-    /// Ephemeris for given [`Sv`]
-    Eph(NavMsgType, Sv, Ephemeris),
+    /// Ephemeris for given [`SV`]
+    Eph(NavMsgType, SV, Ephemeris),
     /// Earth Orientation Parameters
-    Eop(NavMsgType, Sv, EopMessage),
+    Eop(NavMsgType, SV, EopMessage),
     /// Ionospheric Model
-    Ion(NavMsgType, Sv, IonMessage),
+    Ion(NavMsgType, SV, IonMessage),
     /// System Time Offset
-    Sto(NavMsgType, Sv, StoMessage),
+    Sto(NavMsgType, SV, StoMessage),
 }
 
 impl Default for NavFrame {
     fn default() -> Self {
-        Self::Eph(NavMsgType::default(), Sv::default(), Ephemeris::default())
+        Self::Eph(NavMsgType::default(), SV::default(), Ephemeris::default())
     }
 }
 
 impl NavFrame {
-    /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`Ephemeris`])
-    pub fn as_eph(&self) -> Option<(NavMsgType, &Sv, &Ephemeris)> {
+    /// Unwraps self, if possible, as ([`NavMsgType`], [`SV`], [`Ephemeris`])
+    pub fn as_eph(&self) -> Option<(NavMsgType, SV, &Ephemeris)> {
         match self {
-            Self::Eph(msg, sv, eph) => Some((*msg, sv, eph)),
+            Self::Eph(msg, sv, eph) => Some((*msg, *sv, eph)),
             _ => None,
         }
     }
-    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`Ephemeris`])
-    pub fn as_mut_eph(&mut self) -> Option<(NavMsgType, &mut Sv, &mut Ephemeris)> {
+    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`SV`], [`Ephemeris`])
+    pub fn as_mut_eph(&mut self) -> Option<(NavMsgType, SV, &mut Ephemeris)> {
         match self {
-            Self::Eph(msg, sv, eph) => Some((*msg, sv, eph)),
+            Self::Eph(msg, sv, eph) => Some((*msg, *sv, eph)),
             _ => None,
         }
     }
-    /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`IonMessage`])
-    pub fn as_ion(&self) -> Option<(NavMsgType, &Sv, &IonMessage)> {
+    /// Unwraps self, if possible, as ([`NavMsgType`], [`SV`], [`IonMessage`])
+    pub fn as_ion(&self) -> Option<(NavMsgType, SV, &IonMessage)> {
         match self {
-            Self::Ion(msg, sv, fr) => Some((*msg, sv, fr)),
+            Self::Ion(msg, sv, fr) => Some((*msg, *sv, fr)),
             _ => None,
         }
     }
-    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`IonMessage`])
-    pub fn as_mut_ion(&mut self) -> Option<(NavMsgType, &mut Sv, &mut IonMessage)> {
+    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`SV`], [`IonMessage`])
+    pub fn as_mut_ion(&mut self) -> Option<(NavMsgType, SV, &mut IonMessage)> {
         match self {
-            Self::Ion(msg, sv, fr) => Some((*msg, sv, fr)),
+            Self::Ion(msg, sv, fr) => Some((*msg, *sv, fr)),
             _ => None,
         }
     }
-    /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`EopMessage`])
-    pub fn as_eop(&self) -> Option<(NavMsgType, &Sv, &EopMessage)> {
+    /// Unwraps self, if possible, as ([`NavMsgType`], [`SV`], [`EopMessage`])
+    pub fn as_eop(&self) -> Option<(NavMsgType, SV, &EopMessage)> {
         match self {
-            Self::Eop(msg, sv, fr) => Some((*msg, sv, fr)),
+            Self::Eop(msg, sv, fr) => Some((*msg, *sv, fr)),
             _ => None,
         }
     }
-    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`EopMessage`])
-    pub fn as_mut_eop(&mut self) -> Option<(NavMsgType, &mut Sv, &mut EopMessage)> {
+    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`SV`], [`EopMessage`])
+    pub fn as_mut_eop(&mut self) -> Option<(NavMsgType, SV, &mut EopMessage)> {
         match self {
-            Self::Eop(msg, sv, fr) => Some((*msg, sv, fr)),
+            Self::Eop(msg, sv, fr) => Some((*msg, *sv, fr)),
             _ => None,
         }
     }
-    /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`StoMessage`])
-    pub fn as_sto(&self) -> Option<(NavMsgType, &Sv, &StoMessage)> {
+    /// Unwraps self, if possible, as ([`NavMsgType`], [`SV`], [`StoMessage`])
+    pub fn as_sto(&self) -> Option<(NavMsgType, SV, &StoMessage)> {
         match self {
-            Self::Sto(msg, sv, fr) => Some((*msg, sv, fr)),
+            Self::Sto(msg, sv, fr) => Some((*msg, *sv, fr)),
             _ => None,
         }
     }
-    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`StoMessage`])
-    pub fn as_mut_sto(&mut self) -> Option<(NavMsgType, &mut Sv, &mut StoMessage)> {
+    /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`SV`], [`StoMessage`])
+    pub fn as_mut_sto(&mut self) -> Option<(NavMsgType, SV, &mut StoMessage)> {
         match self {
-            Self::Sto(msg, sv, fr) => Some((*msg, sv, fr)),
+            Self::Sto(msg, sv, fr) => Some((*msg, *sv, fr)),
             _ => None,
         }
     }
@@ -234,7 +234,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         }
         // 1st entry matches a valid SV description
         let (sv, _) = line.split_at(4);
-        if Sv::from_str(sv).is_err() {
+        if SV::from_str(sv).is_err() {
             return false;
         }
         // rest matches a valid epoch descriptor
@@ -277,7 +277,7 @@ fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
 
     // parse marker: defines which frame type will follow
     let frame_class = FrameClass::from_str(frame_class.trim())?;
-    let sv = Sv::from_str(svnn.trim())?;
+    let sv = SV::from_str(svnn.trim())?;
     let msg_type = NavMsgType::from_str(rem.trim())?;
 
     let ts = sv
@@ -610,7 +610,7 @@ mod test {
         assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
-            &Sv {
+            SV {
                 constellation: Constellation::Glonass,
                 prn: 1,
             }
@@ -709,7 +709,7 @@ mod test {
         assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
-            &Sv {
+            SV {
                 constellation: Constellation::BeiDou,
                 prn: 5,
             }
@@ -872,7 +872,7 @@ mod test {
         assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
-            &Sv {
+            SV {
                 constellation: Constellation::Galileo,
                 prn: 1,
             }
@@ -1029,7 +1029,7 @@ mod test {
         assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
-            &Sv {
+            SV {
                 constellation: Constellation::Glonass,
                 prn: 7,
             }
@@ -1186,13 +1186,13 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        filter.contains(sv)
+                        filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        filter.contains(sv)
+                        filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        filter.contains(sv)
+                        filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        filter.contains(sv)
+                        filter.contains(&sv)
                     } else {
                         // non existing
                         false
@@ -1303,13 +1303,13 @@ fn mask_mut_ineq(rec: &mut Record, target: TargetItem) {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        !filter.contains(sv)
+                        !filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        !filter.contains(sv)
+                        !filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        !filter.contains(sv)
+                        !filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        !filter.contains(sv)
+                        !filter.contains(&sv)
                     } else {
                         // non existing
                         false
@@ -1642,13 +1642,13 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
                     // for specified targets, this should now be removed
                     frames.retain(|fr| {
                         if let Some((_, sv, _)) = fr.as_eph() {
-                            svs.contains(sv)
+                            svs.contains(&sv)
                         } else if let Some((_, sv, _)) = fr.as_ion() {
-                            svs.contains(sv)
+                            svs.contains(&sv)
                         } else if let Some((_, sv, _)) = fr.as_sto() {
-                            svs.contains(sv)
+                            svs.contains(&sv)
                         } else if let Some((_, sv, _)) = fr.as_eop() {
-                            svs.contains(sv)
+                            svs.contains(&sv)
                         } else {
                             false // all cases already covered
                         }

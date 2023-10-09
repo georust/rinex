@@ -1,7 +1,7 @@
 use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
+use rinex::prelude::RnxContext;
 use rinex::{observation::*, prelude::*};
-use rinex_qc::QcContext;
 use std::collections::HashMap;
 
 fn observable_to_physics(observable: &Observable) -> String {
@@ -19,7 +19,7 @@ fn observable_to_physics(observable: &Observable) -> String {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(ctx: &QcContext, plot_context: &mut PlotContext) {
+pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
     let record = ctx.primary_data().record.as_obs().unwrap(); // cannot fail
 
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
@@ -30,7 +30,7 @@ pub fn plot_observation(ctx: &QcContext, plot_context: &mut PlotContext) {
     //      bool: loss of lock - CS emphasis
     //      x: sampling timestamp,
     //      y: observation (raw),
-    let mut dataset: HashMap<String, HashMap<String, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
+    let mut dataset: HashMap<String, HashMap<String, HashMap<SV, Vec<(bool, Epoch, f64)>>>> =
         HashMap::new();
 
     for ((epoch, _flag), (clock_offset, vehicles)) in record {
@@ -56,14 +56,14 @@ pub fn plot_observation(ctx: &QcContext, plot_context: &mut PlotContext) {
                             data.insert(*sv, vec![(cycle_slip, *epoch, y)]);
                         }
                     } else {
-                        let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
+                        let mut map: HashMap<SV, Vec<(bool, Epoch, f64)>> = HashMap::new();
                         map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
                         data.insert(observable_code, map);
                     }
                 } else {
-                    let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
+                    let mut map: HashMap<SV, Vec<(bool, Epoch, f64)>> = HashMap::new();
                     map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
-                    let mut mmap: HashMap<String, HashMap<Sv, Vec<(bool, Epoch, f64)>>> =
+                    let mut mmap: HashMap<String, HashMap<SV, Vec<(bool, Epoch, f64)>>> =
                         HashMap::new();
                     mmap.insert(observable_code, map);
                     dataset.insert(physics.to_string(), mmap);
@@ -130,7 +130,7 @@ pub fn plot_observation(ctx: &QcContext, plot_context: &mut PlotContext) {
                 plot_context.add_trace(trace);
 
                 if index == 0 && physics == "Signal Strength" {
-                    // 1st Carrier encountered: plot Sv only once
+                    // 1st Carrier encountered: plot SV only once
                     // we also only augment the SSI plot when NAV context is provided
                     if let Some(nav) = &ctx.navigation_data() {
                         // grab elevation angle

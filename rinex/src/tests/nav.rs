@@ -2,7 +2,8 @@
 mod test {
     use crate::navigation::*;
     use crate::prelude::*;
-    use crate::sv;
+    use gnss_rs::prelude::SV;
+    use gnss_rs::sv;
     use itertools::*;
     use std::path::Path;
     use std::path::PathBuf;
@@ -39,9 +40,9 @@ mod test {
         assert!(rinex.epoch().eq(epochs), "parsed wrong epoch content");
 
         let prn: Vec<u8> = vec![1, 2, 7, 3, 4, 5];
-        let mut vehicles: Vec<Sv> = prn
+        let mut vehicles: Vec<SV> = prn
             .iter()
-            .map(|prn| Sv {
+            .map(|prn| SV {
                 constellation: Constellation::Glonass,
                 prn: *prn,
             })
@@ -970,11 +971,11 @@ mod test {
             rinex.epoch().collect::<Vec<Epoch>>(),
         );
 
-        let mut vehicles: Vec<Sv> = vec![
-            Sv::from_str("E03").unwrap(),
-            Sv::from_str("C01").unwrap(),
-            Sv::from_str("R10").unwrap(),
-            Sv::from_str("S36").unwrap(),
+        let mut vehicles: Vec<SV> = vec![
+            SV::from_str("E03").unwrap(),
+            SV::from_str("C01").unwrap(),
+            SV::from_str("R10").unwrap(),
+            SV::from_str("S36").unwrap(),
         ];
         vehicles.sort(); // for comparison purposes
         assert!(rinex.sv().sorted().eq(vehicles), "parsed wrong sv content");
@@ -1069,7 +1070,7 @@ mod test {
         );
         let rinex = rinex.unwrap();
         for (epoch, (msg, sv, data)) in rinex.ephemeris() {
-            if *sv == sv!("G01") {
+            if sv == sv!("G01") {
                 assert!(
                     (msg == NavMsgType::LNAV) || (msg == NavMsgType::CNAV),
                     "parsed bad ephemeris message {} for G01 {}",
@@ -1096,7 +1097,7 @@ mod test {
                         (2.034264325630e-04, -3.819167204711e-12, 0.000000000000e+00)
                     );
                 }
-            } else if *sv == sv!("C19") {
+            } else if sv == sv!("C19") {
                 assert!(
                     (msg == NavMsgType::D1)
                         || (msg == NavMsgType::CNV1)
@@ -1124,7 +1125,7 @@ mod test {
                         );
                     }
                 }
-            } else if *sv == sv!("J04") {
+            } else if sv == sv!("J04") {
                 assert!(
                     (msg == NavMsgType::LNAV)
                         || (msg == NavMsgType::CNAV)
@@ -1146,7 +1147,7 @@ mod test {
                         );
                     }
                 }
-            } else if *sv == sv!("I09") {
+            } else if sv == sv!("I09") {
                 assert!(
                     msg == NavMsgType::LNAV,
                     "parsed bad ephemeris message {} for I09 {}",
@@ -1159,7 +1160,7 @@ mod test {
                         (7.255990058184e-04, 1.716671249596e-11, 0.000000000000e+00)
                     );
                 }
-            } else if *sv == sv!("R10") {
+            } else if sv == sv!("R10") {
                 assert!(
                     msg == NavMsgType::FDMA,
                     "parsed bad ephemeris message {} for I09 {}",
@@ -1175,7 +1176,7 @@ mod test {
             }
         }
         for (epoch, (msg, sv, iondata)) in rinex.ionosphere_models() {
-            if *sv == sv!("G21") {
+            if sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::LNAV);
                 if *epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
                     let kb = iondata.as_klobuchar();
@@ -1224,9 +1225,9 @@ mod test {
                     );
                     assert_eq!(kb.region, KbRegionCode::WideArea);
                 }
-            } else if *sv == sv!("G21") {
+            } else if sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::CNVX);
-            } else if *sv == sv!("J04")
+            } else if sv == sv!("J04")
                 && *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
             {
                 let kb = iondata.as_klobuchar();
@@ -1254,7 +1255,7 @@ mod test {
             }
         }
         for (epoch, (msg, sv, eop)) in rinex.earth_orientation() {
-            if *sv == sv!("J04") {
+            if sv == sv!("J04") {
                 assert_eq!(msg, NavMsgType::CNVX);
                 if *epoch == Epoch::from_str("2023-03-12T06:00:00 UTC").unwrap() {
                     assert_eq!(
@@ -1271,7 +1272,7 @@ mod test {
                         (-1.924991607666e-02, -7.354915142059e-04, 0.000000000000e+00)
                     );
                 }
-            } else if *sv == sv!("C30") {
+            } else if sv == sv!("C30") {
                 assert_eq!(msg, NavMsgType::CNVX);
                 if *epoch == Epoch::from_str("2023-03-12T11:00:00 UTC").unwrap() {
                     assert_eq!(
@@ -1410,7 +1411,7 @@ mod test {
             let ts = ts.unwrap();
 
             if let Some(toe) = ephemeris.toe(ts) {
-                let mut expected_sv = Sv::default();
+                let mut expected_sv = SV::default();
                 let mut expected_toe = Epoch::default();
                 if *toc == e0 {
                     expected_toe = Epoch::from_str("2021-01-01T00:00:33 BDT").unwrap();
@@ -1427,7 +1428,7 @@ mod test {
                 } else {
                     panic!("unhandled toc {}", toc);
                 }
-                assert_eq!(*sv, expected_sv, "wrong sv");
+                assert_eq!(sv, expected_sv, "wrong sv");
                 assert_eq!(toe, expected_toe, "wrong toe evaluated");
                 /*
                  * Rinex.sv_ephemeris(@ toe) should return exact ephemeris

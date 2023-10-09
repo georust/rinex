@@ -300,7 +300,7 @@ mod test {
             if index == 0 {
                 assert_eq!(vehicles.len(), 24);
                 for (sv, observations) in vehicles {
-                    if *sv == Sv::new(Constellation::GPS, 07) {
+                    if *sv == SV::new(Constellation::GPS, 07) {
                         let mut keys: Vec<_> = observations.keys().cloned().collect();
                         keys.sort();
                         let mut expected: Vec<Observable> = "C1 C2 L1 L2 P1 P2 S1 S2"
@@ -340,7 +340,7 @@ mod test {
                             .get(&Observable::from_str("S2").unwrap())
                             .unwrap();
                         assert_eq!(s2.obs, 22.286);
-                    } else if *sv == Sv::new(Constellation::GPS, 08) {
+                    } else if *sv == SV::new(Constellation::GPS, 08) {
                         let mut keys: Vec<Observable> = observations.keys().cloned().collect();
                         keys.sort();
                         let mut expected: Vec<Observable> = "C1 C2 C5 L1 L2 L5 P1 P2 S1 S2 S5"
@@ -392,7 +392,7 @@ mod test {
                             .get(&Observable::from_str("S5").unwrap())
                             .unwrap();
                         assert_eq!(s5.obs, 52.161);
-                    } else if *sv == Sv::new(Constellation::GPS, 13) {
+                    } else if *sv == SV::new(Constellation::GPS, 13) {
                         let mut keys: Vec<Observable> = observations.keys().cloned().collect();
                         keys.sort();
                         let mut expected: Vec<Observable> = "C1 L1 L2 P1 P2 S1 S2"
@@ -498,45 +498,45 @@ mod test {
                  */
                 assert_eq!(vehicles.len(), 38);
                 let keys: Vec<_> = vehicles.keys().copied().collect();
-                let mut expected: Vec<Sv> = vec![
-                    Sv::new(Constellation::GPS, 01),
-                    Sv::new(Constellation::GPS, 07),
-                    Sv::new(Constellation::GPS, 08),
-                    Sv::new(Constellation::GPS, 10),
-                    Sv::new(Constellation::GPS, 16),
-                    Sv::new(Constellation::GPS, 18),
-                    Sv::new(Constellation::GPS, 21),
-                    Sv::new(Constellation::GPS, 23),
-                    Sv::new(Constellation::GPS, 26),
-                    Sv::new(Constellation::GPS, 30),
-                    Sv::new(Constellation::Glonass, 04),
-                    Sv::new(Constellation::Glonass, 05),
-                    Sv::new(Constellation::Glonass, 10),
-                    Sv::new(Constellation::Glonass, 12),
-                    Sv::new(Constellation::Glonass, 20),
-                    Sv::new(Constellation::Glonass, 21),
-                    Sv::new(Constellation::Galileo, 02),
-                    Sv::new(Constellation::Galileo, 11),
-                    Sv::new(Constellation::Galileo, 12),
-                    Sv::new(Constellation::Galileo, 24),
-                    Sv::new(Constellation::Galileo, 25),
-                    Sv::new(Constellation::Galileo, 31),
-                    Sv::new(Constellation::Galileo, 33),
-                    Sv::new(Constellation::Galileo, 36),
-                    Sv::new(Constellation::BeiDou, 05),
-                    Sv::new(Constellation::BeiDou, 11),
-                    Sv::new(Constellation::BeiDou, 14),
-                    Sv::new(Constellation::BeiDou, 21),
-                    Sv::new(Constellation::BeiDou, 22),
-                    Sv::new(Constellation::BeiDou, 23),
-                    Sv::new(Constellation::BeiDou, 25),
-                    Sv::new(Constellation::BeiDou, 28),
-                    Sv::new(Constellation::BeiDou, 34),
-                    Sv::new(Constellation::BeiDou, 37),
-                    Sv::new(Constellation::BeiDou, 42),
-                    Sv::new(Constellation::BeiDou, 43),
-                    Sv::new(Constellation::BeiDou, 44),
-                    Sv::new(Constellation::BeiDou, 58),
+                let mut expected: Vec<SV> = vec![
+                    SV::new(Constellation::GPS, 01),
+                    SV::new(Constellation::GPS, 07),
+                    SV::new(Constellation::GPS, 08),
+                    SV::new(Constellation::GPS, 10),
+                    SV::new(Constellation::GPS, 16),
+                    SV::new(Constellation::GPS, 18),
+                    SV::new(Constellation::GPS, 21),
+                    SV::new(Constellation::GPS, 23),
+                    SV::new(Constellation::GPS, 26),
+                    SV::new(Constellation::GPS, 30),
+                    SV::new(Constellation::Glonass, 04),
+                    SV::new(Constellation::Glonass, 05),
+                    SV::new(Constellation::Glonass, 10),
+                    SV::new(Constellation::Glonass, 12),
+                    SV::new(Constellation::Glonass, 20),
+                    SV::new(Constellation::Glonass, 21),
+                    SV::new(Constellation::Galileo, 02),
+                    SV::new(Constellation::Galileo, 11),
+                    SV::new(Constellation::Galileo, 12),
+                    SV::new(Constellation::Galileo, 24),
+                    SV::new(Constellation::Galileo, 25),
+                    SV::new(Constellation::Galileo, 31),
+                    SV::new(Constellation::Galileo, 33),
+                    SV::new(Constellation::Galileo, 36),
+                    SV::new(Constellation::BeiDou, 05),
+                    SV::new(Constellation::BeiDou, 11),
+                    SV::new(Constellation::BeiDou, 14),
+                    SV::new(Constellation::BeiDou, 21),
+                    SV::new(Constellation::BeiDou, 22),
+                    SV::new(Constellation::BeiDou, 23),
+                    SV::new(Constellation::BeiDou, 25),
+                    SV::new(Constellation::BeiDou, 28),
+                    SV::new(Constellation::BeiDou, 34),
+                    SV::new(Constellation::BeiDou, 37),
+                    SV::new(Constellation::BeiDou, 42),
+                    SV::new(Constellation::BeiDou, 43),
+                    SV::new(Constellation::BeiDou, 44),
+                    SV::new(Constellation::BeiDou, 58),
                 ];
                 expected.sort();
                 assert_eq!(keys, expected);
@@ -546,49 +546,49 @@ mod test {
                  */
                 assert_eq!(vehicles.len(), 38);
                 let keys: Vec<_> = vehicles.keys().copied().collect();
-                let mut expected: Vec<Sv> = vec![
-                    Sv::new(Constellation::GPS, 01),
-                    Sv::new(Constellation::GPS, 07),
-                    Sv::new(Constellation::GPS, 08),
-                    Sv::new(Constellation::GPS, 10),
-                    Sv::new(Constellation::GPS, 16),
-                    Sv::new(Constellation::GPS, 18),
-                    Sv::new(Constellation::GPS, 21),
-                    Sv::new(Constellation::GPS, 23),
-                    Sv::new(Constellation::GPS, 26),
-                    Sv::new(Constellation::GPS, 30),
-                    Sv::new(Constellation::Glonass, 04),
-                    Sv::new(Constellation::Glonass, 05),
-                    Sv::new(Constellation::Glonass, 10),
-                    Sv::new(Constellation::Glonass, 12),
-                    Sv::new(Constellation::Glonass, 20),
-                    Sv::new(Constellation::Glonass, 21),
-                    Sv::new(Constellation::Galileo, 02),
-                    Sv::new(Constellation::Galileo, 11),
-                    Sv::new(Constellation::Galileo, 12),
-                    Sv::new(Constellation::Galileo, 24),
-                    Sv::new(Constellation::Galileo, 25),
-                    Sv::new(Constellation::Galileo, 31),
-                    Sv::new(Constellation::Galileo, 33),
-                    Sv::new(Constellation::Galileo, 36),
-                    Sv::new(Constellation::BeiDou, 05),
-                    Sv::new(Constellation::BeiDou, 11),
-                    Sv::new(Constellation::BeiDou, 14),
-                    Sv::new(Constellation::BeiDou, 21),
-                    Sv::new(Constellation::BeiDou, 22),
-                    Sv::new(Constellation::BeiDou, 23),
-                    Sv::new(Constellation::BeiDou, 25),
-                    Sv::new(Constellation::BeiDou, 28),
-                    Sv::new(Constellation::BeiDou, 34),
-                    Sv::new(Constellation::BeiDou, 37),
-                    Sv::new(Constellation::BeiDou, 42),
-                    Sv::new(Constellation::BeiDou, 43),
-                    Sv::new(Constellation::BeiDou, 44),
-                    Sv::new(Constellation::BeiDou, 58),
+                let mut expected: Vec<SV> = vec![
+                    SV::new(Constellation::GPS, 01),
+                    SV::new(Constellation::GPS, 07),
+                    SV::new(Constellation::GPS, 08),
+                    SV::new(Constellation::GPS, 10),
+                    SV::new(Constellation::GPS, 16),
+                    SV::new(Constellation::GPS, 18),
+                    SV::new(Constellation::GPS, 21),
+                    SV::new(Constellation::GPS, 23),
+                    SV::new(Constellation::GPS, 26),
+                    SV::new(Constellation::GPS, 30),
+                    SV::new(Constellation::Glonass, 04),
+                    SV::new(Constellation::Glonass, 05),
+                    SV::new(Constellation::Glonass, 10),
+                    SV::new(Constellation::Glonass, 12),
+                    SV::new(Constellation::Glonass, 20),
+                    SV::new(Constellation::Glonass, 21),
+                    SV::new(Constellation::Galileo, 02),
+                    SV::new(Constellation::Galileo, 11),
+                    SV::new(Constellation::Galileo, 12),
+                    SV::new(Constellation::Galileo, 24),
+                    SV::new(Constellation::Galileo, 25),
+                    SV::new(Constellation::Galileo, 31),
+                    SV::new(Constellation::Galileo, 33),
+                    SV::new(Constellation::Galileo, 36),
+                    SV::new(Constellation::BeiDou, 05),
+                    SV::new(Constellation::BeiDou, 11),
+                    SV::new(Constellation::BeiDou, 14),
+                    SV::new(Constellation::BeiDou, 21),
+                    SV::new(Constellation::BeiDou, 22),
+                    SV::new(Constellation::BeiDou, 23),
+                    SV::new(Constellation::BeiDou, 25),
+                    SV::new(Constellation::BeiDou, 28),
+                    SV::new(Constellation::BeiDou, 34),
+                    SV::new(Constellation::BeiDou, 37),
+                    SV::new(Constellation::BeiDou, 42),
+                    SV::new(Constellation::BeiDou, 43),
+                    SV::new(Constellation::BeiDou, 44),
+                    SV::new(Constellation::BeiDou, 58),
                 ];
                 expected.sort();
                 assert_eq!(keys, expected);
-                let c58 = vehicles.get(&Sv::new(Constellation::BeiDou, 58)).unwrap();
+                let c58 = vehicles.get(&SV::new(Constellation::BeiDou, 58)).unwrap();
 
                 let mut keys: Vec<Observable> = c58.keys().cloned().collect();
                 keys.sort();

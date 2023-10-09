@@ -3,12 +3,15 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use std::str::FromStr;
 
+extern crate gnss_rs as gnss;
+use gnss::prelude::SV;
+
 use crate::{pretty_array, QcOpts};
 
 //use rinex::carrier;
 use rinex::carrier::Carrier;
 use rinex::observation::Snr;
-use rinex::prelude::{Epoch, EpochFlag, Observable, Rinex, Sv};
+use rinex::prelude::{Epoch, EpochFlag, Observable, Rinex};
 use rinex::preprocessing::Derivative;
 
 use rinex_qc_traits::HtmlReport;
@@ -60,16 +63,16 @@ fn report_clock_drift(data: &Vec<(Epoch, f64)>) -> Box<dyn RenderBox + '_> {
                         : "Mean Clock drift [s/s]"
                     }
                 }
-                @ for (epoch, drift) in data {
-                    tr {
-                        td {
-                            : epoch.to_string()
-                        }
-                        td {
-                            : format!("{:e}", drift)
-                        }
-                    }
-                }
+                //@ for (epoch, drift) in data {
+                //    tr {
+                //        td {
+                //            : epoch.to_string()
+                //        }
+                //        td {
+                //            : format!("{:e}", drift)
+                //        }
+                //    }
+                //}
             }
         }
     }
@@ -174,14 +177,14 @@ fn report_anomalies<'a>(
 
 /*
  * Epoch Epoch completion,
- * defined as at least 1 Sv with PR + PH observed on both L1 and
+ * defined as at least 1 SV with PR + PH observed on both L1 and
  * "rhs" signal,
  * also SNR condition for both signals above current mask
  */
 fn report_epoch_completion(
     total: usize,
     total_with_obs: usize,
-    complete: &HashMap<(Sv, Carrier), usize>,
+    complete: &HashMap<(SV, Carrier), usize>,
 ) -> Box<dyn RenderBox + '_> {
     box_html! {
         table(class="table is-bordered") {
@@ -353,8 +356,8 @@ pub struct QcObsAnalysis {
     total_epochs: usize,
     /// Epochs with at least 1 observation
     total_with_obs: usize,
-    /// Complete epoch counter with respect to given signal (other than L1) per Sv
-    complete_epochs: HashMap<(Sv, Carrier), usize>,
+    /// Complete epoch counter with respect to given signal (other than L1) per SV
+    complete_epochs: HashMap<(SV, Carrier), usize>,
     /// Min. & Max. SNR (signal @ epoch)
     snr_stats: HashMap<Observable, ((Epoch, f64), (Epoch, f64))>,
     /// SSI statistical analysis (mean, stddev)
@@ -406,7 +409,7 @@ impl QcObsAnalysis {
             .collect();
 
         let mut total_epochs = rnx.epoch().count();
-        let mut complete_epochs: HashMap<(Sv, Carrier), usize> = HashMap::new();
+        let mut complete_epochs: HashMap<(SV, Carrier), usize> = HashMap::new();
         for (_, complete) in rnx.complete_epoch(Some(Snr::from(opts.min_snr_db))) {
             for (sv, carrier) in complete {
                 if let Some(counter) = complete_epochs.get_mut(&(sv, carrier)) {

@@ -157,7 +157,7 @@ use std::collections::BTreeMap;
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Combine {
     /// Perform Geometry Free signal recombination on all phase
-    /// and pseudo range observations, for each individual Sv
+    /// and pseudo range observations, for each individual SV
     /// and individual Epoch.   
     /// Geometry Free (Gf) recombination cancels out geometric
     /// biases and leaves frequency dependent terms out,
@@ -176,7 +176,7 @@ pub trait Combine {
     ///     // and RHS observable is compared to it.
     ///     // For example "L2C-L1C" : L1C is the reference observable
     ///     for (sv, epochs) in data {
-    ///         // applied to all possible Sv
+    ///         // applied to all possible SV
     ///         for ((epoch, _flag), value) in epochs {
     ///             // value: actual recombination result
     ///         }
@@ -185,25 +185,25 @@ pub trait Combine {
     /// ```
     fn geo_free(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Wide Lane recombination.   
     /// See [Self::geo_free] for API example.
     fn wide_lane(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Narrow Lane recombination.   
     /// See [Self::geo_free] for API example.
     fn narrow_lane(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Melbourne-Wübbena recombination.   
     /// See [`Self::geo_free`] for API example.
     fn melbourne_wubbena(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
 /// GNSS code bias estimation trait.
@@ -212,7 +212,7 @@ pub trait Combine {
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Dcb {
     /// Returns Differential Code Bias estimates, sorted per (unique)
-    /// signals combinations and for each individual Sv.
+    /// signals combinations and for each individual SV.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::observation::*; // .dcb()
@@ -221,7 +221,7 @@ pub trait Dcb {
     ///    .unwrap();
     /// let dcb = rinex.dcb();
     /// ```
-    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+    fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
 /// Multipath biases estimation.
@@ -230,8 +230,8 @@ pub trait Dcb {
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Mp {
     /// Returns Multipath bias estimates,
-    /// sorted per (unique) signal combinations and for each individual Sv.
-    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+    /// sorted per (unique) signal combinations and for each individual SV.
+    fn mp(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
 /// Ionospheric Delay estimation trait.
@@ -251,7 +251,7 @@ pub trait IonoDelay {
     fn iono_delay(
         &self,
         max_dt: Duration,
-    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>;
+    ) -> HashMap<Observable, HashMap<SV, BTreeMap<Epoch, f64>>>;
 }
 
 #[cfg(test)]

@@ -60,8 +60,8 @@ pub enum QcClassification {
     /// Report per GNSS system
     #[default]
     GNSS,
-    /// Report per Sv
-    Sv,
+    /// Report per SV
+    SV,
     /// Report per Physics (Observable, Orbit..)
     Physics,
 }
@@ -70,7 +70,7 @@ impl std::fmt::Display for QcClassification {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             QcClassification::GNSS => f.write_str("GNSS Constellations"),
-            QcClassification::Sv => f.write_str("Satellite Vehicles"),
+            QcClassification::SV => f.write_str("Satellite Vehicles"),
             QcClassification::Physics => f.write_str("Physics"),
         }
     }
@@ -218,7 +218,7 @@ mod test {
 
         let content = r#"
 			{
-				"classification": "Sv"
+				"classification": "SV"
 			}"#;
         let _opts: QcOpts = serde_json::from_str(content).unwrap();
 

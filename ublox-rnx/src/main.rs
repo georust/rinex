@@ -11,7 +11,11 @@ use rinex::navigation::{IonMessage, KbModel, KbRegionCode};
 use rinex::observation::{LliFlags, ObservationData};
 use rinex::prelude::EpochFlag;
 use rinex::prelude::*;
-use rinex::sv;
+
+extern crate gnss_rs as gnss;
+
+use gnss::prelude::SV;
+use gnss::sv;
 
 extern crate ublox;
 use ublox::{
@@ -237,7 +241,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let _pr_res = sv.pr_res();
                             let _flags = sv.flags();
 
-                            let _sv = Sv {
+                            let _sv = SV {
                                 constellation: gnss.unwrap(),
                                 prn: sv.sv_id(),
                             };

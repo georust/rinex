@@ -31,7 +31,7 @@ pub struct Decompressor {
     sv_ptr: usize,
     nb_sv: usize, // sv_ptr range
     /// Vehicle differentiators
-    sv_diff: HashMap<Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
+    sv_diff: HashMap<SV, Vec<(NumDiff, TextDiff, TextDiff)>>,
 }
 
 /// Reworks given content to match RINEX specifications
@@ -158,9 +158,9 @@ impl Decompressor {
         }
     }
 
-    fn parse_flags(&mut self, sv: &Sv, content: &str) {
+    fn parse_flags(&mut self, sv: SV, content: &str) {
         //println!("FLAGS: \"{}\"", content); // DEBUG
-        if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
+        if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
             for index in 0..content.len() {
                 if let Some(sv_obs) = sv_diff.get_mut(index / 2) {
                     if index % 2 == 0 {
@@ -180,7 +180,7 @@ impl Decompressor {
         crx_major: u8,
         crx_constellation: &Constellation,
         sv_ptr: usize,
-    ) -> Option<Sv> {
+    ) -> Option<SV> {
         let epoch = &self.epoch_descriptor;
         let offset: usize = match crx_major {
             1 => std::cmp::min(32 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
@@ -195,7 +195,7 @@ impl Decompressor {
                 match crx_constellation {
                     Constellation::Mixed => {
                         // OLD and MIXED is fine
-                        if let Ok(sv) = Sv::from_str(svnn) {
+                        if let Ok(sv) = SV::from_str(svnn) {
                             Some(sv)
                         } else {
                             None
@@ -204,7 +204,7 @@ impl Decompressor {
                     constellation => {
                         // OLD + FIXED: constellation might be omitted.......
                         if let Ok(prn) = u8::from_str_radix(svnn[1..].trim(), 10) {
-                            Some(Sv {
+                            Some(SV {
                                 prn,
                                 constellation: *constellation,
                             })
@@ -216,7 +216,7 @@ impl Decompressor {
             },
             true => {
                 // MODERN
-                if let Ok(sv) = Sv::from_str(svnn) {
+                if let Ok(sv) = SV::from_str(svnn) {
                     Some(sv)
                 } else {
                     None
@@ -489,7 +489,7 @@ impl Decompressor {
                            */
                         if !line.is_empty() {
                             // can parse at least 1 flag
-                            self.parse_flags(&sv, line);
+                            self.parse_flags(sv, line);
                         }
                         /*
                          * group previously parsed observations,

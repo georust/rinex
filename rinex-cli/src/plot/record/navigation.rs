@@ -1,11 +1,11 @@
 //! Navigation record plotting
 use crate::plot::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
+use rinex::prelude::RnxContext;
 use rinex::prelude::*;
-use rinex_qc::QcContext;
 use sp3::SP3;
 
-pub fn plot_navigation(ctx: &QcContext, plot_context: &mut PlotContext) {
+pub fn plot_navigation(ctx: &RnxContext, plot_context: &mut PlotContext) {
     if ctx.primary_data().is_navigation_rinex() {
         plot_nav_data(&ctx.primary_data(), ctx.sp3_data(), plot_context);
     } else if let Some(nav) = &ctx.navigation_data() {

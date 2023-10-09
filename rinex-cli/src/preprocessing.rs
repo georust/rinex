@@ -2,10 +2,10 @@ use log::error;
 use std::str::FromStr;
 
 use crate::Cli;
+use rinex::prelude::RnxContext;
 use rinex::preprocessing::*;
-use rinex_qc::QcContext;
 
-pub fn preprocess(ctx: &mut QcContext, cli: &Cli) {
+pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
     // GNSS filters
     let mut gnss_filters: Vec<&str> = Vec::new();
 
