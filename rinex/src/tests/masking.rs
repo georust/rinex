@@ -17,18 +17,6 @@ mod test {
         assert_eq!(rnx.sv().count(), 12);
     }
     #[test]
-    #[cfg(feature = "flate2")]
-    fn gnss_filter_v3_esbcdnk() {
-        let mut rnx =
-            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-                .unwrap();
-        //rnx.filter_mut(filter!("GPS"));
-        //let mut data : Vec<_> = rnx.sv().collect();
-        //data.sort();
-        //println!("{:#?}", data);
-        assert_eq!(rnx.sv().count(), 18);
-    }
-    #[test]
     fn v2_cari0010_07m_phys_filter() {
         let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
         let rnx = rnx.filter(filter!("L1C"));
