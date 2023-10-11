@@ -5,11 +5,6 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-mod sbas;
-
-#[cfg(feature = "sbas")]
-pub use sbas::sbas_selection_helper;
-
 /// Constellation parsing & identification related errors
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum ParsingError {

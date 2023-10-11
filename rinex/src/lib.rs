@@ -1268,8 +1268,10 @@ impl Rinex {
     /// In case of Clock RINEX, the returns the list of vehicles
     /// used as reference.
     /// ```
+    /// extern crate gnss_rs as gnss;
     /// use rinex::prelude::*;
-    /// use rinex::sv; // sv!
+    /// use gnss_rs::prelude::*;
+    /// use gnss_rs::sv; // sv!
     /// use std::str::FromStr; // sv!
     ///
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")

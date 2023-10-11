@@ -67,9 +67,10 @@ Adding new SBAS vehicles
 ========================
 
 To add a newly launched SBAS vehicles, simply add it to the
-rinex/db/SBAS/sbas.json database.
+gnss-rs/data/sbas.json database.
 
-The only mandatory fields are :
+This database is auto integrated to this library to provide
+detailed SBAS supports. The only mandatory fields (in the databse) are:
 - the "constellation" field
 - the SBAS "prn" field (which is 100 + prn number)
 - "id": the name of that vehicle, for example "ASTRA-5B"
@@ -81,8 +82,10 @@ Other optional fields are:
 
 We don't support undeployed vehicles (in advance).
 
-Build scripts
-=============
+Modify or add Navigation Frames
+===============================
+
+Navigation frames are desc
 
 The build script is rinex/build.rs.
 

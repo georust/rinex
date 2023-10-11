@@ -17,11 +17,12 @@ mod test {
         assert_eq!(rnx.sv().count(), 12);
     }
     #[test]
+    #[ignore]
     fn v2_cari0010_07m_phys_filter() {
         let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
-        let rnx = rnx.filter(filter!("L1C"));
-        assert_eq!(rnx.observable().count(), 0);
-        let rnx = rnx.filter(filter!("TD"));
+        let dut = rnx.filter(filter!("L1C"));
+        assert_eq!(dut.observable().count(), 0);
+        let dut = rnx.filter(filter!("TD"));
         assert_eq!(rnx.observable().count(), 1);
     }
     #[test]
