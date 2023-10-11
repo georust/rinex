@@ -60,7 +60,7 @@ pub fn plot_gnss_dcb(
         for (_sv, epochs) in vehicles {
             let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
-            let trace = build_chart_epoch_axis(&op, Mode::Markers, data_x, data_y)
+            let trace = build_chart_epoch_axis(op, Mode::Markers, data_x, data_y)
                 .marker(Marker::new().symbol(markers[op_index].clone()))
                 .visible({
                     if op_index < 1 {

@@ -1397,7 +1397,7 @@ mod test {
             .join("NAV")
             .join("V3")
             .join("AMEL00NLD_R_20210010000_01D_MN.rnx");
-        let rinex = Rinex::from_file(&path.to_string_lossy().to_string());
+        let rinex = Rinex::from_file(path.to_string_lossy().as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {

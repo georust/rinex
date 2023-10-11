@@ -50,7 +50,7 @@ pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
 
                 if let Some(data) = dataset.get_mut(&physics) {
                     if let Some(data) = data.get_mut(&observable_code) {
-                        if let Some(data) = data.get_mut(&sv) {
+                        if let Some(data) = data.get_mut(sv) {
                             data.push((cycle_slip, *epoch, y));
                         } else {
                             data.insert(*sv, vec![(cycle_slip, *epoch, y)]);
@@ -72,7 +72,7 @@ pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
         }
     }
 
-    if clk_offset.len() > 0 {
+    if !clk_offset.is_empty() {
         plot_context.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
         let data_x: Vec<Epoch> = clk_offset.iter().map(|(k, _)| *k).collect();
         let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();

@@ -22,12 +22,12 @@ mod test {
         let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
         let dut = rnx.filter(filter!("L1C"));
         assert_eq!(dut.observable().count(), 0);
-        let dut = rnx.filter(filter!("TD"));
+        let _dut = rnx.filter(filter!("TD"));
         assert_eq!(rnx.observable().count(), 1);
     }
     #[test]
     fn v2_clar0020_00m_phys_filter() {
-        let mut rnx = Rinex::from_file("../test_resources/MET/V2/clar0020.00m").unwrap();
+        let rnx = Rinex::from_file("../test_resources/MET/V2/clar0020.00m").unwrap();
         let dut = rnx.filter(filter!("L1C"));
         assert_eq!(dut.observable().count(), 0);
         let dut = rnx.filter(filter!("PR"));

@@ -14,7 +14,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
     let ops = cli.identification_ops();
 
     identification(
-        &ctx.primary_data(),
+        ctx.primary_data(),
         &format!(
             "{:?}",
             ctx.primary_paths()
@@ -28,7 +28,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
 
     if let Some(nav) = &ctx.navigation_data() {
         identification(
-            &nav,
+            nav,
             &format!(
                 "{:?}",
                 ctx.primary_paths()
@@ -77,9 +77,9 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
             let mut csv = String::new();
             for (i, sv) in rnx.sv().sorted().enumerate() {
                 if i == rnx.sv().count() - 1 {
-                    csv.push_str(&format!("{}\n", sv.to_string()));
+                    csv.push_str(&format!("{}\n", sv));
                 } else {
-                    csv.push_str(&format!("{}, ", sv.to_string()));
+                    csv.push_str(&format!("{}, ", sv));
                 }
             }
             println!("[{}]: {}", path, csv);

@@ -144,7 +144,7 @@ pub fn test_sv_csv(dut: &Rinex, sv_csv: &str) {
 pub fn test_time_frame(dut: &Rinex, tf: TestTimeFrame) {
     let mut dut_epochs = dut.epoch();
     let _epochs: Vec<Epoch> = Vec::new();
-    if let Some(mut serie) = tf.evenly_spaced() {
+    if let Some(serie) = tf.evenly_spaced() {
         for e in serie {
             assert_eq!(
                 Some(e),

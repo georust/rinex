@@ -7,7 +7,7 @@ use sp3::SP3;
 
 pub fn plot_navigation(ctx: &RnxContext, plot_context: &mut PlotContext) {
     if ctx.primary_data().is_navigation_rinex() {
-        plot_nav_data(&ctx.primary_data(), ctx.sp3_data(), plot_context);
+        plot_nav_data(ctx.primary_data(), ctx.sp3_data(), plot_context);
     } else if let Some(nav) = &ctx.navigation_data() {
         plot_nav_data(nav, ctx.sp3_data(), plot_context);
     }

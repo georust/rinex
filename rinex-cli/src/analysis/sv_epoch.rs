@@ -29,7 +29,7 @@ pub fn sv_epoch(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let constellations: Vec<_> = ctx.primary_data().constellation().collect();
     let mut nb_markers = constellations.len();
 
-    if let Some(ref nav) = ctx.navigation_data() {
+    if let Some(nav) = ctx.navigation_data() {
         nb_markers += nav.constellation().count();
     }
 

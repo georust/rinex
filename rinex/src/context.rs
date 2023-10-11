@@ -11,7 +11,6 @@ use sp3::Merge as SP3Merge;
 
 use gnss::prelude::SV;
 
-use crate::carrier::Carrier;
 use crate::observation::Snr;
 use crate::prelude::{Epoch, GroundPosition, Rinex};
 
@@ -80,7 +79,7 @@ impl RnxContext {
             /* recursive builder */
             Self::from_directory(path)
         } else {
-            Self::from_observation_file(&path.to_string_lossy().to_string())
+            Self::from_observation_file(path.to_string_lossy().as_ref())
         }
     }
     /// Builds Rinex Context from a single (Observation) File
@@ -218,7 +217,7 @@ impl RnxContext {
     /// Returns reference to SP3 data specifically
     pub fn sp3_data(&self) -> Option<&SP3> {
         if let Some(ref sp3) = self.sp3 {
-            Some(&sp3.data())
+            Some(sp3.data())
         } else {
             None
         }

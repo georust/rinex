@@ -1,7 +1,6 @@
 //#![feature(test)]
 use rinex::{
     hatanaka::{numdiff::NumDiff, textdiff::TextDiff},
-    observation::*,
     prelude::*,
     //processing::*,
     reader::BufferedReader,
@@ -9,11 +8,9 @@ use rinex::{
 };
 
 extern crate criterion;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, *};
+use criterion::{criterion_group, criterion_main, Criterion};
 
-use std::collections::HashMap;
 use std::io::BufRead;
-use std::str::FromStr;
 
 /*struct CpuProfiler;
 
@@ -41,7 +38,7 @@ fn parse_file(fp: &str) {
 
 fn text_decompression(textdiff: &mut TextDiff, data: &[&str]) {
     for data in data {
-        let r = textdiff.decompress(data);
+        let _r = textdiff.decompress(data);
     }
 }
 
@@ -52,7 +49,7 @@ fn num_decompression(numdiff: &mut NumDiff, index_reinit: usize, data: &[i64]) {
         if index % index_reinit == 0 {
             numdiff.init(3, *data).unwrap();
         } else {
-            let r = numdiff.decompress(*data);
+            let _r = numdiff.decompress(*data);
         }
     }
 }
@@ -77,7 +74,7 @@ fn browse_skip_header_section(reader: &mut BufferedReader) {
 fn record_parsing(path: &str, header: &mut Header) {
     let mut reader = BufferedReader::new(path).unwrap();
     browse_skip_header_section(&mut reader);
-    let record = parse_record(&mut reader, header);
+    let _record = parse_record(&mut reader, header);
 }
 
 fn decompression_benchmark(c: &mut Criterion) {

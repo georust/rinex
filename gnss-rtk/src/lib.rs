@@ -9,7 +9,7 @@ use rinex::prelude::{
 };
 use std::collections::HashMap;
 
-use hifitime::{Duration, TimeScale, Unit};
+use hifitime::{Duration, Unit};
 
 extern crate gnss_rs as gnss;
 extern crate nyx_space as nyx;
@@ -240,7 +240,7 @@ impl Solver {
                 .reduce(|pr, _| pr)
                 .is_some();
 
-            let mut ppp_ok = !(self.solver == SolverType::PPP);
+            let ppp_ok = !(self.solver == SolverType::PPP);
             if self.solver == SolverType::PPP {
                 //TODO: verify PPP compliancy
             }
@@ -296,7 +296,7 @@ impl Solver {
                 .reduce(|pr, _| pr)
                 .unwrap(); // can't fail at this point
 
-            let ts = sv.timescale().unwrap(); // can't fail at this point ?
+            let _ts = sv.timescale().unwrap(); // can't fail at this point ?
 
             let nav = ctx.navigation_data().unwrap(); // can't fail at this point ?
 
@@ -320,9 +320,9 @@ impl Solver {
 
             if modeling.relativistic_clock_corr {
                 //TODO
-                let e = 1.204112719279E-2;
-                let sqrt_a = 5.153704689026E3;
-                let sqrt_mu = (3986004.418E8_f64).sqrt();
+                let _e = 1.204112719279E-2;
+                let _sqrt_a = 5.153704689026E3;
+                let _sqrt_mu = (3986004.418E8_f64).sqrt();
                 //let dt = -2.0_f64 * sqrt_a * sqrt_mu / SPEED_OF_LIGHT / SPEED_OF_LIGHT * e * elev.sin();
             }
 
@@ -384,13 +384,13 @@ impl Solver {
         let mut y = DVector::<f64>::zeros(elected_sv.len());
         let mut g = MatrixXx4::<f64>::zeros(elected_sv.len());
 
-        if sv_data.iter().count() < 4 {
+        if sv_data.len() < 4 {
             error!("{:?} : not enough sv to resolve", t);
             self.nth_epoch += 1;
             return Err(SolverError::LessThan4Sv(t));
         }
 
-        for (index, (sv, data)) in sv_data.iter().enumerate() {
+        for (index, (_sv, data)) in sv_data.iter().enumerate() {
             let pr = data.3;
             let dt_sat = data.4.to_seconds();
             let (sv_x, sv_y, sv_z) = (data.0, data.1, data.2);
@@ -398,7 +398,7 @@ impl Solver {
             let rho = ((sv_x - x0).powi(2) + (sv_y - y0).powi(2) + (sv_z - z0).powi(2)).sqrt();
 
             //TODO
-            let mut models = -SPEED_OF_LIGHT * dt_sat;
+            let models = -SPEED_OF_LIGHT * dt_sat;
             //let models = models
             //    .iter()
             //    .filter_map(|sv, model| {
@@ -425,7 +425,7 @@ impl Solver {
         self.nth_epoch += 1;
 
         if estimate.is_none() {
-            return Err(SolverError::SolvingError(t));
+            Err(SolverError::SolvingError(t))
         } else {
             Ok((t, estimate.unwrap()))
         }
@@ -481,7 +481,7 @@ impl Solver {
      * for all SV NAV Epochs in provided context
      */
     #[allow(dead_code)]
-    fn eval_sun_vector3d(&mut self, ctx: &RnxContext, t: Epoch) -> (f64, f64, f64) {
+    fn eval_sun_vector3d(&mut self, _ctx: &RnxContext, t: Epoch) -> (f64, f64, f64) {
         let sun_body = Bodies::Sun;
         let eme_j2000 = self.cosmic.frame("EME2000");
         let orbit =

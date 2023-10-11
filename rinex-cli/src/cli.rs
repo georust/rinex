@@ -477,7 +477,7 @@ Refer to README"))
                 "anomalies",
             ]
         } else {
-            let flags = vec![
+            let flags = [
                 "sv",
                 "header",
                 "epochs",
@@ -492,7 +492,7 @@ Refer to README"))
             flags
                 .iter()
                 .filter(|x| self.matches.get_flag(x))
-                .map(|x| *x)
+                .copied()
                 .collect()
         }
     }
@@ -547,9 +547,7 @@ Refer to README"))
      * Returns possible file path to merge
      */
     pub fn merge_path(&self) -> Option<&Path> {
-        self.matches
-            .get_one::<String>("merge")
-            .and_then(|s| Some(Path::new(s)))
+        self.matches.get_one::<String>("merge").map(Path::new)
     }
     /// Returns optionnal RINEX file to "merge"
     pub fn to_merge(&self) -> Option<Rinex> {
@@ -632,7 +630,7 @@ Refer to README"))
     /// Returns Ground Position possibly specified by user
     pub fn manual_position(&self) -> Option<GroundPosition> {
         if let Some(args) = self.manual_ecef() {
-            let content: Vec<&str> = args.split(",").collect();
+            let content: Vec<&str> = args.split(',').collect();
             if content.len() != 3 {
                 panic!("expecting \"x, y, z\" description");
             }
@@ -650,7 +648,7 @@ Refer to README"))
                 error!("pos(x) should be f64 ECEF [m]");
             }
         } else if let Some(args) = self.manual_geodetic() {
-            let content: Vec<&str> = args.split(",").collect();
+            let content: Vec<&str> = args.split(',').collect();
             if content.len() != 3 {
                 panic!("expecting \"lat, lon, alt\" description");
             }

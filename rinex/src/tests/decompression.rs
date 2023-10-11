@@ -157,7 +157,7 @@ mod test {
 
             // then run comparison with model
             let obs = rnx.header.obs.as_ref().unwrap();
-            assert!(!obs.crinex.is_some());
+            assert!(obs.crinex.is_none());
 
             // parse plain RINEX and run reciprocity
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
@@ -215,7 +215,7 @@ mod test {
             rnx.crnx2rnx_mut();
 
             let obs = rnx.header.obs.as_ref().unwrap();
-            assert!(!obs.crinex.is_some());
+            assert!(obs.crinex.is_none());
 
             // parse Model for testbench
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);

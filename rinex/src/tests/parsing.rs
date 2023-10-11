@@ -56,7 +56,7 @@ mod test {
                                                                       * For all Epoch: ephemeris selection
                                                                       * must return given ephemeris
                                                                       */
-                            for (toc, (_, sv, eph)) in rinex.ephemeris() {
+                            for (_toc, (_, sv, eph)) in rinex.ephemeris() {
                                 if let Some(ts) = sv.timescale() {
                                     if let Some(toe) = eph.toe(ts) {
                                         let seleph = rinex.sv_ephemeris(sv, toe);

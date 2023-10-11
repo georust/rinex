@@ -56,7 +56,7 @@ fn workspace_path(ctx: &RnxContext) -> PathBuf {
      * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
      * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
      */
-    let primary_stem: Vec<&str> = primary_stem.split(".").collect();
+    let primary_stem: Vec<&str> = primary_stem.split('.').collect();
 
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("workspace")
@@ -68,10 +68,12 @@ fn workspace_path(ctx: &RnxContext) -> PathBuf {
  * get generated and saved.
  */
 pub fn create_workspace(path: PathBuf) {
-    std::fs::create_dir_all(&path).expect(&format!(
-        "failed to create Workspace \"{}\": permission denied!",
-        path.to_string_lossy()
-    ));
+    std::fs::create_dir_all(&path).unwrap_or_else(|_| {
+        panic!(
+            "failed to create Workspace \"{}\": permission denied!",
+            path.to_string_lossy()
+        )
+    });
 }
 
 use walkdir::WalkDir;
@@ -111,10 +113,8 @@ fn build_context(cli: &Cli) -> RnxContext {
         let fullpath = path.to_string_lossy().to_string();
         if path.is_dir() {
             load_recursive_augmentation("nav", &mut ctx, &fullpath, 5);
-        } else {
-            if ctx.load(&fullpath).is_err() {
-                warn!("failed to load --nav \"{}\"", fullpath);
-            }
+        } else if ctx.load(&fullpath).is_err() {
+            warn!("failed to load --nav \"{}\"", fullpath);
         }
     }
     for path in cli.atx_paths() {
@@ -122,10 +122,8 @@ fn build_context(cli: &Cli) -> RnxContext {
         let fullpath = path.to_string_lossy().to_string();
         if path.is_dir() {
             load_recursive_augmentation("atx", &mut ctx, &fullpath, 5);
-        } else {
-            if ctx.load(&fullpath).is_err() {
-                warn!("failed to load --atx \"{}\"", fullpath);
-            }
+        } else if ctx.load(&fullpath).is_err() {
+            warn!("failed to load --atx \"{}\"", fullpath);
         }
     }
     for path in cli.sp3_paths() {
@@ -133,10 +131,8 @@ fn build_context(cli: &Cli) -> RnxContext {
         let fullpath = path.to_string_lossy().to_string();
         if path.is_dir() {
             load_recursive_augmentation("sp3", &mut ctx, &fullpath, 5);
-        } else {
-            if ctx.load(&fullpath).is_err() {
-                warn!("failed to load --sp3 \"{}\"", fullpath);
-            }
+        } else if ctx.load(&fullpath).is_err() {
+            warn!("failed to load --sp3 \"{}\"", fullpath);
         }
     }
     ctx
@@ -426,7 +422,7 @@ pub fn main() -> Result<(), rinex::Error> {
 
         rnx_a
             .to_file(&path)
-            .expect(&format!("failed to generate splitted file \"{}\"", path));
+            .unwrap_or_else(|_| panic!("failed to generate splitted file \"{}\"", path));
 
         let file_suffix = rnx_b
             .first_epoch()
@@ -442,7 +438,7 @@ pub fn main() -> Result<(), rinex::Error> {
 
         rnx_b
             .to_file(&path)
-            .expect(&format!("failed to generate splitted file \"{}\"", path));
+            .unwrap_or_else(|_| panic!("failed to generate splitted file \"{}\"", path));
 
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
@@ -478,12 +474,12 @@ pub fn main() -> Result<(), rinex::Error> {
         let html_path = html_path.to_str().unwrap();
 
         let mut html_fd = std::fs::File::create(html_path)
-            .expect(&format!("failed to create \"{}\"", &html_path));
+            .unwrap_or_else(|_| panic!("failed to create \"{}\"", &html_path));
         write!(html_fd, "{}", plot_ctx.to_html()).expect("failed to render graphs");
 
         info!("graphs rendered in $WORKSPACE/graphs.html");
         if !quiet {
-            open_with_web_browser(&html_path);
+            open_with_web_browser(html_path);
         }
     }
     /*
@@ -516,10 +512,12 @@ pub fn main() -> Result<(), rinex::Error> {
         let html_report = QcReport::html(&ctx, qc_opts);
 
         let report_path = workspace.join("report.html");
-        let mut report_fd = std::fs::File::create(&report_path).expect(&format!(
-            "failed to create report \"{}\" : permission denied",
-            report_path.to_string_lossy()
-        ));
+        let mut report_fd = std::fs::File::create(&report_path).unwrap_or_else(|_| {
+            panic!(
+                "failed to create report \"{}\" : permission denied",
+                report_path.to_string_lossy()
+            )
+        });
 
         write!(report_fd, "{}", html_report).expect("failed to generate QC summary report");
 
