@@ -1,4 +1,5 @@
 //! Geostationary augmentation systems
+#[cfg(feature = "sbas")]
 use crate::prelude::Constellation;
 
 //#[cfg(feature = "serde")]
