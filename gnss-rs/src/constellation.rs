@@ -187,15 +187,21 @@ impl std::fmt::UpperHex for Constellation {
             Self::BeiDou => write!(f, "BDS"),
             Self::QZSS => write!(f, "QZSS"),
             Self::IRNSS => write!(f, "IRNSS"),
-            c => {
-                if c.is_sbas() {
-                    write!(f, "SBAS")
-                } else if c.is_mixed() {
-                    write!(f, "MIXED")
-                } else {
-                    Err(std::fmt::Error)
-                }
-            },
+            Self::WAAS => write!(f, "WAAS"),
+            Self::AusNZ => write!(f, "AUSNZ"),
+            Self::EGNOS => write!(f, "EGNOS"),
+            Self::KASS => write!(f, "KASS"),
+            Self::GAGAN => write!(f, "GAGAN"),
+            Self::GBAS => write!(f, "GBAS"),
+            Self::NSAS => write!(f, "NSAS"),
+            Self::MSAS => write!(f, "MSAS"),
+            Self::SPAN => write!(f, "SPAN"),
+            Self::SDCM => write!(f, "SDCM"),
+            Self::BDSBAS => write!(f, "BDSBAS"),
+            Self::ASBAS => write!(f, "ASBAS"),
+            Self::ASAL => write!(f, "ASAL"),
+            Self::Mixed => write!(f, "MIXED"),
+            _ => Err(std::fmt::Error),
         }
     }
 }
