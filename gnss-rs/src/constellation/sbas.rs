@@ -27,8 +27,7 @@ where
     T: WktFloat + Default + FromStr,
 {
     let mut res = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    res.push("db");
-    res.push("SBAS");
+    res.push("data");
     res.push(name);
     let content = std::fs::read_to_string(res).unwrap();
     let wkt = Wkt::from_str(&content).unwrap();
@@ -41,7 +40,7 @@ where
 #[cfg(feature = "sbas")]
 fn load_database() -> Vec<(Constellation, geo::Polygon)> {
     let mut db: Vec<(Constellation, geo::Polygon)> = Vec::new();
-    let db_path = env!("CARGO_MANIFEST_DIR").to_owned() + "/db/SBAS/";
+    let db_path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/";
     let db_path = std::path::PathBuf::from(db_path);
     for entry in std::fs::read_dir(db_path).unwrap() {
         let entry = entry.unwrap();
