@@ -109,8 +109,7 @@ impl std::str::FromStr for SV {
             if let Some(sbas) = SV::sbas_definitions(prn) {
                 // this can't fail because the SBAS database only
                 // contains valid Constellations
-                ret.constellation = Constellation::from_str(sbas.constellation)
-                    .unwrap();
+                ret.constellation = Constellation::from_str(sbas.constellation).unwrap();
             }
         }
         Ok(ret)

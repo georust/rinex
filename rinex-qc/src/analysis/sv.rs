@@ -11,14 +11,8 @@ pub struct QcSvAnalysis {
 
 impl QcSvAnalysis {
     pub fn new(primary: &Rinex, _opts: &QcOpts) -> Self {
-        let sv : Vec<_> = primary.sv()
-            .map(|sv| {
-                format!("{:X}", sv)
-            })
-            .collect();
-        Self {
-            sv 
-        }
+        let sv: Vec<_> = primary.sv().map(|sv| format!("{:X}", sv)).collect();
+        Self { sv }
     }
 }
 
