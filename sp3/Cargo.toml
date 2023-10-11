@@ -1,6 +1,6 @@
 [package]
 name = "sp3"
-version = "1.0.5"
+version = "1.0.6"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "IGS SP3 file parser"

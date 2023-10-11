@@ -26,10 +26,10 @@ strum_macros = "0.25"
 horrorshow = "0.8"
 itertools = "0.11.0"
 statrs = "0.16"
-sp3 = { path = "../sp3", features = ["serde"] }
+sp3 = { path = "../sp3", version = "=1.0.6", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1" }
 gnss-rs = { path = "../gnss-rs", version = "=2", features = ["serde"] }
-rinex = { path = "../rinex", version = "=0.14.1", features = ["full"] }
+rinex = { path = "../rinex", version = "=0.15.0", features = ["full"] }
 
 [dev-dependencies]
 serde_json = "1"
