@@ -115,23 +115,7 @@ impl std::str::FromStr for Constellation {
     type Err = ParsingError;
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let s = string.trim().to_lowercase();
-        if s.eq("g") || s.contains("gps") {
-            Ok(Self::GPS)
-        } else if s.eq("r") || s.contains("glo") || s.contains("glonass") {
-            Ok(Self::Glonass)
-        } else if s.eq("bdsbas") {
-            Ok(Self::BDSBAS)
-        } else if s.eq("c") || s.contains("bds") || s.contains("beidou") {
-            Ok(Self::BeiDou)
-        } else if s.eq("e") || s.contains("gal") || s.contains("galileo") {
-            Ok(Self::Galileo)
-        } else if s.eq("j") || s.contains("qzss") {
-            Ok(Self::QZSS)
-        } else if s.eq("i") || s.contains("irnss") || s.contains("navic") {
-            Ok(Self::IRNSS)
-        } else if s.eq("m") || s.contains("mixed") {
-            Ok(Self::Mixed)
-        } else if s.eq("ausnz") {
+        if s.eq("ausnz") {
             Ok(Self::AusNZ)
         } else if s.eq("egnos") {
             Ok(Self::EGNOS)
@@ -155,6 +139,22 @@ impl std::str::FromStr for Constellation {
             Ok(Self::GBAS)
         } else if s.eq("sdcm") {
             Ok(Self::SDCM)
+        } else if s.eq("bdsbas") {
+            Ok(Self::BDSBAS)
+        } else if s.eq("g") || s.contains("gps") {
+            Ok(Self::GPS)
+        } else if s.eq("r") || s.contains("glo") || s.contains("glonass") {
+            Ok(Self::Glonass)
+        } else if s.eq("c") || s.contains("bds") || s.contains("beidou") {
+            Ok(Self::BeiDou)
+        } else if s.eq("e") || s.contains("gal") || s.contains("galileo") {
+            Ok(Self::Galileo)
+        } else if s.eq("j") || s.contains("qzss") {
+            Ok(Self::QZSS)
+        } else if s.eq("i") || s.contains("irnss") || s.contains("navic") {
+            Ok(Self::IRNSS)
+        } else if s.eq("m") || s.contains("mixed") {
+            Ok(Self::Mixed)
         } else if s.eq("s") || s.contains("geo") || s.contains("sbas") {
             Ok(Self::SBAS)
         } else {

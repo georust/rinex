@@ -72,10 +72,10 @@ impl SV {
     }
     /*
      * Tries to retrieve SBAS detailed definitions for self.
-     * For that, we use the PRN number (+100 for SBAS)
+     * For that, we use the PRN number, add +100 (SBAS def.) as identify
      */
-    pub(crate) fn sbas_definitions(&self) -> Option<&SBASHelper> {
-        let to_find = (self.prn as u16) + 100;
+    pub(crate) fn sbas_definitions(prn: u8) -> Option<&'static SBASHelper<'static>> {
+        let to_find = (prn as u16) + 100;
         SBAS_VEHICLES
             .iter()
             .filter_map(|e| if e.prn == to_find { Some(e) } else { None })
@@ -84,7 +84,7 @@ impl SV {
     /// Returns datetime at which Self was either launched or its serviced was deployed.
     /// This only applies to SBAS vehicles. Datetime expressed as [Epoch] at midnight UTC.
     pub fn launched_date(&self) -> Option<Epoch> {
-        let definition = self.sbas_definitions()?;
+        let definition = SV::sbas_definitions(self.prn)?;
         Some(Epoch::from_gregorian_utc_at_midnight(
             definition.launched_year,
             definition.launched_month,
@@ -106,10 +106,11 @@ impl std::str::FromStr for SV {
         let mut ret = SV::new(constellation, prn);
         if constellation.is_sbas() {
             // map the SXX to meaningful SBAS
-            if let Some(sbas) = ret.sbas_definitions() {
+            if let Some(sbas) = SV::sbas_definitions(prn) {
                 // this can't fail because the SBAS database only
                 // contains valid Constellations
-                ret.constellation = Constellation::from_str(sbas.constellation).unwrap();
+                ret.constellation = Constellation::from_str(sbas.constellation)
+                    .unwrap();
             }
         }
         Ok(ret)
@@ -121,8 +122,12 @@ impl std::fmt::UpperHex for SV {
      * Possibly detailed identity for SBAS vehicles
      */
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(sbas) = self.sbas_definitions() {
-            write!(f, "{}", sbas.id)
+        if self.constellation.is_sbas() {
+            if let Some(sbas) = SV::sbas_definitions(self.prn) {
+                write!(f, "{}", sbas.id)
+            } else {
+                write!(f, "{:x}", self)
+            }
         } else {
             write!(f, "{:x}", self)
         }
@@ -201,6 +206,7 @@ mod test {
             assert_eq!(sv, parsed, "failed to parse correct sv from \"{}\"", desc);
             assert_eq!(format!("{:x}", sv), lowerhex);
             assert_eq!(format!("{:X}", sv), upperhex);
+            assert_eq!(sv.is_sbas(), "should be sbas");
         }
     }
     #[test]
