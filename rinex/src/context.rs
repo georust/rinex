@@ -1,7 +1,6 @@
 //! Post and differential processing contexts
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
 use rinex_qc_traits::HtmlReport;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -303,7 +302,7 @@ impl RnxContext {
     //     }
     // }
     /// Performs SV Orbit interpolation
-    pub fn orbit_interpolation(&mut self, order: usize, min_snr: Option<Snr>) {
+    pub fn orbit_interpolation(&mut self, _order: usize, _min_snr: Option<Snr>) {
         // /* NB: interpolate Complete Epochs only */
         //let complete_epoch: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
         //for (e, sv_signals) in complete_epoch {

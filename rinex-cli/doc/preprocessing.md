@@ -10,25 +10,17 @@ Several algorithms are known:
 * `smooth` for [smoothing filters](#smoothing-filters)
 * `interp` for [interpolation filters](#interpolation-filters)
 
-A preprocessing algorithm is described with a string and passed with `-P`,
-
-for example:
-
-```bash
-rinex-cli \
-    -P G08,G09,G10
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-```
-  
-Any amount of preprocessing algorithm can be stacked:
+Preprocessing operations and algorithms are summoned with `-P`.
+You can request as many ops as you want, for example :
 
 ```bash
 rinex-cli \
+    -P GPS -P ">G08" \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P L1C G08,G09,G10
 ```
 
-In any case, invalid descriptors will not crash the app but only generate an error trace.
+Faulty preprocessor description will not cause the application to crash, 
+they simply do not apply (check the logs).
 
 All supported preprocessing operations can either apply to the entire data set
 or only to a specified data subset, see [this paragraph](#advanced-data-subsets) for more information.
@@ -70,41 +62,28 @@ rinex-cli \
 Refer to the MaskFilter API in the RINEX official documentation for more
 advanced mask filters.
 
-## Stacked preprocessing ops
-
-A whitespace separates two preprocessing operations (ie., two sets of CSV).
-Therefore it is considered as two separate filters. For example here, we're only left with
-G08 and R03 data.
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P GPS,GLO,BDS G08,R03  
-```
-
-If one opeation requies a whitespace, it needs to be wrapped
-in between inverted commas. Most common example is the [Epoch](epoch-target) description.
-
 ## Epoch filter
   
 Any valid Hifitime::Epoch string description is supported.  
 
 For example, this mask will strip the record to a unique _Epoch_
-because _Equals()_ operand is implied:
+because _Equals()_ operand is implied. We need inverted commas to represent
+the correct datetime (UTC):
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P "2020-06-25T04:00:00 UTC" GPS >G08 # notice the \" due to whitespace requirement
+    -P "2020-06-25T04:00:00 UTC" -P ">G08"
 ```
 
-Use two epoch masks to zoom in on 
-the ]2020-06-12 08:00:00 ; 2020-06-12 10:00:00] time window:
+Define a time window with something like this:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P ">2020-06-12T08:00:00 UTC" "<=2020-06-25T16:00:00 UTC" GPS >G08
+    -P ">2020-06-12T08:00:00 UTC" \
+    -P "<=2020-06-25T16:00:00 UTC" \
+    -P ">G08"
 ```
 
 ## SV filter
@@ -125,7 +104,7 @@ For example here we can select PRN above 08 for GPS and below (included) 10 for 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P >G08 "<=E10"
+    -P ">G08" "<=E10"
 ```
 
 ## Constellations filter
@@ -138,8 +117,7 @@ rinex-cli \
     -P GPS
 ```
 
-You can stack as many filters as you want, using csv. For example, retain
-BeiDou also:
+Use CSV to describe several constellations at once:
 
 ```bash
 rinex-cli \
@@ -155,7 +133,7 @@ rinex-cli \
     -P !=GLO
 ```
 
-SBAS is a special case. If you use "SBAS", you can retain or discard
+SBAS is a special case. If you use simply "SBAS", you can retain or discard
 SBAS systems, whatever their actual constellation. For example we
 retain all GPS and any SBAS with this:
 
@@ -192,30 +170,30 @@ rinex-cli \
 ## Observables
 
 A comma separated list of Observables is supported.  
-For example, with the following, we are only left with phase observations,
-against L1 and L2 carriers. As always, most commands are case insensitive,
-to help the user form them easily:
+
+Here for example, we retain phase observables on both L1 and L2 frequencies,
+notice this is once again case insensitive:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P "L1C,l2c"
+    -P L1C,l2c
 ```
 
 ## Navigation frames
 
-A comma separated list of Navigation Frames is supported.  
-For example, with the following, we are only left with Ephemerides
+It is possible to retain only certain types of Navigation Broadcast frames. 
 
 ```bash
 rinex-cli \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P eph
+    -P eph,ion
 ```
 
 ## Navigation Messages
 
 A comma separated list of Navigation Messages is supported.  
+
 For example, with the following, we are only left with legacy messages
 
 ```bash
@@ -251,21 +229,6 @@ rinex-cli \
 
 Use the prefix "a" for an Azimuth angle mask (follow the Elevation Mask procedure).
 
-## Orbit fields
-
-When parsing NAV RINEX, focus or discard orbits you're not interested by
-using official orbit fields as the filter payload.
-
-For example, with the following we only retain "iode" and "crs" fields, because _Eq()_ is implied:
-
-```bash
-rinex-cli \
-    --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P "iode,CRS" \
-```
-
-Notice once again that this is case unsensitive.
-
 ## Decimation filter
 
 One preprocessing algorithm is record _decimation_ to reduce
@@ -281,63 +244,49 @@ we now have 2 minutes in between two data points.
 ```bash
 ./target/release/rinex-cli \
     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P decim:4 ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
+    -P decim:4 \
+    -P ">2020-06-25T08:00:00 UTC" \
+    -P "<=2020-06-25T10:00:00 UTC"
 ```
 
 ### Decimate to match a duration
 
 Decimate this record to increase the epoch interval (reduce the sample rate)
-to it matches 10 minutes:
+to it matches 10 minutes. In this example, this will apply to only a specific time frame:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P "decim:10 min" \ # whitespace once again
-        ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
+    -P "decim:10 min" \ # whitespace, to describe a valid duration
+    -P ">2020-06-25T08:00:00 UTC" \
+    -P "<=2020-06-25T10:00:00 UTC"
 ```
 
-### Advanced: data subsets
+### Advanced RINEX context
 
-Algorithms apply to the entire record by default, but you can also specify
-to apply it only a subset of the RINEX record.  
-This is done by adding `:X` after any preprocessing algorithm (like decimation for example)
-where X is a valid data Mask as previously defined.
+Algorithms like decimation, interpolation and smoothing either
+apply to an entire set or a speficic subset.
 
-For example, here we extract L1C and L2C phase data
-on GPS constellation (PRN >= 08), but we reduce the L1C observation
-quantity by 4:
+In this example, we load both Observations and Navigation frames,
+and retain only Phase L1 + L2 observables from the observations, and decimate
+them by 4:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P GPS ">=G08" L1C,L2C "decim:4:L1C"
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    -P L1C,L2C \
+    -P decim:4:L1C
 ```
 
-With the following command line, we retain L1C L2C observations
-only for Vehicle >08 <25 of the american constellation.
-Entire set is decimated by 2 (reduces record quantity by 50%).  
-L1C observations are decimated by another factor of (total reduction is 75%)
-only for these observations.
-
+The Hatch smoothing algorithm is a special case, considering it only applies to
+Code Pseudo Range, it can obviously only apply to Observation frames,
+and only such observations:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P GPS ">=G08" L1C,L2C decim:2  decim:2:L1C
-```
-
-## Advanced: Hatch Smoothing Filter
-
-If you are working on Pseudo Range observations but want to reduce
-the noise they come with, the Hatch filter algorithm is a standard solution to that problem.  
-The hatch smoothing filter is requested with `smooth:hatch` and can be applied either
-to all Pseudo Range observations or specific observations.
-
-For example, compare the smoothed L1C observations to noisy L2C observations,
-after the following command
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'L1C,L2C' 'smooth:hatch:l1c'
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    -P L1C,L2C \
+    -P smooth:hatch:c1c 
 ```

@@ -119,6 +119,7 @@ Useful to determine common Epochs or compare sample rates in between
 					.arg(Arg::new("preprocessing")
 						.short('P')
 						.num_args(1..)
+                        .action(ArgAction::Append)
 						.help("Design preprocessing operations, like data filtering or resampling,
 prior further analysis. You can stack as many ops as you need.
 Preprocessing ops apply prior entering both -q and --rtk modes.
@@ -330,6 +331,27 @@ Refer to README"))
             fp
         } else {
             self.matches.get_one::<String>("directory").unwrap()
+        }
+    }
+    pub fn navigation_paths(&self) -> Vec<&String> {
+        if let Some(paths) = self.matches.get_many::<String>("nav") {
+            paths.collect()
+        } else {
+            Vec::new()
+        }
+    }
+    pub fn sp3_paths(&self) -> Vec<&String> {
+        if let Some(paths) = self.matches.get_many::<String>("sp3") {
+            paths.collect()
+        } else {
+            Vec::new()
+        }
+    }
+    pub fn atx_paths(&self) -> Vec<&String> {
+        if let Some(paths) = self.matches.get_many::<String>("atx") {
+            paths.collect()
+        } else {
+            Vec::new()
         }
     }
     /// Returns output filepaths

@@ -1,6 +1,5 @@
 //! Carrier channels and associated methods
 use crate::{Constellation, Observable};
-use std::str::FromStr;
 use thiserror::Error;
 
 use gnss::prelude::SV;
