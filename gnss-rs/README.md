@@ -15,7 +15,7 @@ gnss-rs = "2"
 
 Import "gnss-rs": 
 
-```toml
+```rust
 extern crate gnss_rs as gnss;
 ```
 
