@@ -72,7 +72,8 @@ impl SV {
     }
     /*
      * Tries to retrieve SBAS detailed definitions for self.
-     * For that, we use the PRN number, add +100 (SBAS def.) as identify
+     * For that, we use the PRN number, add +100 (SBAS def.) and use it
+     * as an identifier
      */
     pub(crate) fn sbas_definitions(prn: u8) -> Option<&'static SBASHelper<'static>> {
         let to_find = (prn as u16) + 100;
