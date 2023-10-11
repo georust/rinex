@@ -7,14 +7,34 @@ GNSS Constellations and Space Vehicles (SV) support in Rust
 
 ## Getting started
 
+Add "gnss" to your Cargo.toml
+
+```toml
+gnss-rs = "2"
+```
+
+Import "gnss-rs": 
+
+```toml
+extern crate gnss_rs as gnss;
+```
+
+## Space Vehicles
+
 ```rust
-use hifitime::TimeScale;
 extern crate gnss_rs as gnss;
 
-let sv = SV::from_str("G23");
-assert_eq!(sv, sv!("G23"));
+use hifitime::TimeScale;
+use gnss::sv;
+use gnss::prelude::*;
+use std::str::FromStr;
+
+let sv = SV::new(Constellation::GPS, 1);
 assert_eq!(sv.constellation, Constellation::GPS);
-assert_eq!(sv.timescale(), Some(TimesScale::GPST));
+assert_eq!(sv.prn, 1);
+assert_eq!(sv.timescale(), Some(TimeScale::GPST));
+assert_eq!(sv, sv!("G01"));
+assert_eq!(sv.launched_date(), None);
 ```
 
 ## SBAS support
@@ -22,12 +42,18 @@ assert_eq!(sv.timescale(), Some(TimesScale::GPST));
 We support SBAS (geostationary augmentations) systems. 
 
 ```rust
-use hifitime::TimeScale;
 extern crate gnss_rs as gnss;
 
-let sv = SV::from_str("S23");
-assert_eq!(sv, sv!("S23"));
+use gnss::sv;
+use gnss::prelude::*;
+use std::str::FromStr;
+use hifitime::{Epoch, TimeScale};
+
+let sv = sv!("S23");
 assert_eq!(sv.constellation, Constellation::EGNOS);
+let launched_date = Epoch::from_str("2021-11-01T00:00:00 UTC")
+    .unwrap();
+assert_eq!(sv.launched_date(), Some(launched_date));
 ```
 
 ## License

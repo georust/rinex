@@ -32,9 +32,41 @@ pub enum ParsingError {
 
 impl SV {
     /// Builds a new SV
+    /// ```
+    /// extern crate gnss_rs as gnss;
+    ///
+    /// use hifitime::{TimeScale, Epoch};
+    /// use gnss::sv;
+    /// use gnss::prelude::*;
+    /// use std::str::FromStr;
+    ///
+    /// let sv = SV::new(Constellation::GPS, 1);
+    /// assert_eq!(sv.constellation, Constellation::GPS);
+    /// assert_eq!(sv.prn, 1);
+    /// assert_eq!(sv, sv!("G01"));
+    /// assert_eq!(sv.launched_date(), None);
+    ///
+    /// let launched_date = Epoch::from_str("2021-11-01T00:00:00 UTC")
+    ///     .unwrap();
+    /// assert_eq!(
+    ///     sv!("S23").launched_date(),
+    ///     Some(launched_date));
+    /// ```
     pub fn new(constellation: Constellation, prn: u8) -> Self {
         Self { prn, constellation }
     }
+    /// Returns the Timescale of which this SV is a part of.
+    /// ```
+    /// extern crate gnss_rs as gnss;
+    ///
+    /// use hifitime::TimeScale;
+    /// use gnss::sv;
+    /// use gnss::prelude::*;
+    /// use std::str::FromStr;
+    ///
+    /// assert_eq!(sv!("G01").timescale(), Some(TimeScale::GPST));
+    /// assert_eq!(sv!("E13").timescale(), Some(TimeScale::GST));
+    /// ```
     pub fn timescale(&self) -> Option<TimeScale> {
         self.constellation.timescale()
     }
@@ -151,7 +183,7 @@ mod test {
         }
     }
     #[test]
-    fn from_str_with_sbas() {
+    fn sbas_from_str() {
         for (desc, parsed, lowerhex, upperhex) in vec![
             ("S 3", SV::new(Constellation::SBAS, 3), "S03", "S03"),
             (
