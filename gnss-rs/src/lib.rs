@@ -1,3 +1,6 @@
+#![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
+#![doc = include_str!("../README.md")]
+
 #[macro_use]
 mod macros;
 

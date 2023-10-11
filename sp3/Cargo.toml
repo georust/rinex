@@ -24,7 +24,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [dependencies]
 thiserror = "1"
 hifitime = "3.8.4"
-gnss-rs = { path = "../gnss-rs", version = "=1", features = ["serde"] }
+gnss-rs = { path = "../gnss-rs", version = "=2", features = ["serde"] }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 

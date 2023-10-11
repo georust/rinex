@@ -18,6 +18,6 @@ nalgebra = "=0.32"
 nyx-space = "2.0.0-alpha.2" 
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 rinex-qc = { path = "../rinex-qc", version = "=0.1.4", features = ["serde"] }
-gnss-rs = { path = "../gnss-rs", version = "=1", features = ["serde"] }
+gnss-rs = { path = "../gnss-rs", version = "=2", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.14.1", features = ["serde", "flate2", "sbas", "obs", "nav", "qc", "processing"] }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }

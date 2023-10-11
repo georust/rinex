@@ -20,6 +20,6 @@ thiserror = "1"
 serde_json = "1.0"
 serialport = "4.2.0"
 ublox = "0.4.4"
-gnss-rs = { path = "../gnss-rs", version = "=1", features = ["serde"] }
+gnss-rs = { path = "../gnss-rs", version = "=2", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.14.1", features = ["serde", "nav", "obs"] }
 clap = { version = "3.2.22", features = ["yaml"] }
