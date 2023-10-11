@@ -197,11 +197,11 @@ impl QcReport {
                                     thead {
                                         @ if opts.classification == QcClassification::GNSS {
                                             th {
-                                                : format!("{} analysis", context.primary_data().constellation().nth(i).unwrap())
+                                                : format!("{:X} analysis", context.primary_data().constellation().nth(i).unwrap())
                                             }
                                         } else if opts.classification == QcClassification::SV {
                                             th {
-                                                : format!("{} analysis", context.primary_data().sv().nth(i).unwrap())
+                                                : format!("{:X} analysis", context.primary_data().sv().nth(i).unwrap())
                                             }
 
                                         } else if opts.classification == QcClassification::Physics {

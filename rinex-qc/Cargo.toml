@@ -28,7 +28,7 @@ itertools = "0.11.0"
 statrs = "0.16"
 sp3 = { path = "../sp3", version = "=1.0.6", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1" }
-gnss-rs = { path = "../gnss-rs", version = "=2", features = ["serde"] }
+gnss-rs = { path = "../gnss-rs", version = "=2.1", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["full"] }
 
 [dev-dependencies]
