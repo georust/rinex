@@ -206,7 +206,7 @@ mod test {
             assert_eq!(sv, parsed, "failed to parse correct sv from \"{}\"", desc);
             assert_eq!(format!("{:x}", sv), lowerhex);
             assert_eq!(format!("{:X}", sv), upperhex);
-            assert_eq!(sv.is_sbas(), "should be sbas");
+            assert!(sv.constellation.is_sbas(), "should be sbas");
         }
     }
     #[test]
