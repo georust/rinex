@@ -115,50 +115,37 @@ impl std::str::FromStr for Constellation {
     type Err = ParsingError;
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let s = string.trim().to_lowercase();
-        if s.eq("ausnz") {
-            Ok(Self::AusNZ)
-        } else if s.eq("egnos") {
-            Ok(Self::EGNOS)
-        } else if s.eq("waas") {
-            Ok(Self::WAAS)
-        } else if s.eq("kass") {
-            Ok(Self::KASS)
-        } else if s.eq("gagan") {
-            Ok(Self::GAGAN)
-        } else if s.eq("asbas") {
-            Ok(Self::ASBAS)
-        } else if s.eq("nsas") {
-            Ok(Self::NSAS)
-        } else if s.eq("asal") {
-            Ok(Self::ASAL)
-        } else if s.eq("msas") {
-            Ok(Self::MSAS)
-        } else if s.eq("span") {
-            Ok(Self::SPAN)
-        } else if s.eq("gbas") {
-            Ok(Self::GBAS)
-        } else if s.eq("sdcm") {
-            Ok(Self::SDCM)
-        } else if s.eq("bdsbas") {
-            Ok(Self::BDSBAS)
-        } else if s.eq("g") || s.contains("gps") {
-            Ok(Self::GPS)
-        } else if s.eq("r") || s.contains("glo") || s.contains("glonass") {
-            Ok(Self::Glonass)
-        } else if s.eq("c") || s.contains("bds") || s.contains("beidou") {
-            Ok(Self::BeiDou)
-        } else if s.eq("e") || s.contains("gal") || s.contains("galileo") {
-            Ok(Self::Galileo)
-        } else if s.eq("j") || s.contains("qzss") {
-            Ok(Self::QZSS)
-        } else if s.eq("i") || s.contains("irnss") || s.contains("navic") {
-            Ok(Self::IRNSS)
-        } else if s.eq("m") || s.contains("mixed") {
-            Ok(Self::Mixed)
-        } else if s.eq("s") || s.contains("geo") || s.contains("sbas") {
-            Ok(Self::SBAS)
-        } else {
-            Err(ParsingError::Unknown(string.to_string()))
+        match s.as_str() {
+            "g" | "gps" => Ok(Self::GPS),
+            "c" | "bds" => Ok(Self::BeiDou),
+            "e" | "gal" => Ok(Self::Galileo),
+            "r" | "glo" => Ok(Self::Glonass),
+            "j" | "qzss" => Ok(Self::QZSS),
+            "i" | "irnss" => Ok(Self::IRNSS),
+            "s" | "sbas" => Ok(Self::SBAS),
+            "m" | "mixed" => Ok(Self::Mixed),
+            "ausnz" => Ok(Self::AusNZ),
+            "egnos" => Ok(Self::EGNOS),
+            "waas" => Ok(Self::WAAS),
+            "kass" => Ok(Self::KASS),
+            "gagan" => Ok(Self::GAGAN),
+            "asbas" => Ok(Self::ASBAS),
+            "nsas" => Ok(Self::NSAS),
+            "asal" => Ok(Self::ASAL),
+            "msas" => Ok(Self::MSAS),
+            "span" => Ok(Self::SPAN),
+            "gbas" => Ok(Self::GBAS),
+            "sdcm" => Ok(Self::SDCM),
+            "bdsbas" => Ok(Self::BDSBAS),
+            _ if s.contains("gps") => Ok(Self::GPS),
+            _ if s.contains("glonass") => Ok(Self::Glonass),
+            _ if s.contains("beidou") => Ok(Self::BeiDou),
+            _ if s.contains("galileo") => Ok(Self::Galileo),
+            _ if s.contains("qzss") => Ok(Self::QZSS),
+            _ if s.contains("sbas") | s.contains("geo") => Ok(Self::SBAS),
+            _ if s.contains("irnss") | s.contains("navic") => Ok(Self::IRNSS),
+            _ if s.contains("mix") => Ok(Self::Mixed),
+            _ => Err(ParsingError::Unknown(string.to_string())),
         }
     }
 }
