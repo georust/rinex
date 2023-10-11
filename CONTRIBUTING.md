@@ -21,12 +21,10 @@ depending on which type of RINEX we're talking about.
 For complex RINEX formats like Navigation Data, that module will contain all possible inner types.
 
 Other important structures :
+- SV and Constellation support is provided by the GNSS lib (gnss-rs)
 - `src/epoch/mod.rs`: the Epoch module basically provides
 hifitime::Epoch parsing methods, because RINEX describes date in non standard formats.
 Also, the `Flag` structure is used to mark Observations (valid or invalid).
-- `src/constellation.rs` defines GNSS constellations
-- `src/constellation/augmentation.rs` : preliminary SBAS support
-- `src/sv.rs` defines a Satellite vehicle, which is associated to a constellation
 - `src/observable.rs`: defines possible observations like raw phase
 - `src/carrier.rs`: defines carrier signals in terms of frequency and bandwidth.
 It also contains utilities to identify which GNSS signals we're dealing with,
