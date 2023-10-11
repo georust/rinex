@@ -27,11 +27,17 @@ impl Cli {
                         .short('f')
                         .long("fp")
                         .value_name("FILE")
+                        .action(ArgAction::Append)
+                        .required_unless_present("directory")
                         .help("Input RINEX file. Serves as primary data.
 Must be Observation Data for --rtk.
-Observation, Meteo and IONEX can only serve as primary data.")
-                        .action(ArgAction::Append)
-                        .required(true))
+Observation, Meteo and IONEX can only serve as primary data."))
+                    .arg(Arg::new("directory")
+                        .short('d')
+                        .long("dir")
+                        .value_name("DIRECTORY")
+                        .required_unless_present("filepath")
+                        .help("Load directory recursively"))
                 .next_help_heading("General")
                     .arg(Arg::new("quiet")
                         .short('q')
@@ -113,6 +119,7 @@ Useful to determine common Epochs or compare sample rates in between
 					.arg(Arg::new("preprocessing")
 						.short('P')
 						.num_args(1..)
+                        .action(ArgAction::Append)
 						.help("Design preprocessing operations, like data filtering or resampling,
 prior further analysis. You can stack as many ops as you need.
 Preprocessing ops apply prior entering both -q and --rtk modes.
@@ -320,7 +327,32 @@ Refer to README"))
     }
     /// Returns input filepaths
     pub fn input_path(&self) -> &str {
-        self.matches.get_one::<String>("filepath").unwrap() // mandatory flag
+        if let Some(fp) = self.matches.get_one::<String>("filepath") {
+            fp
+        } else {
+            self.matches.get_one::<String>("directory").unwrap()
+        }
+    }
+    pub fn navigation_paths(&self) -> Vec<&String> {
+        if let Some(paths) = self.matches.get_many::<String>("nav") {
+            paths.collect()
+        } else {
+            Vec::new()
+        }
+    }
+    pub fn sp3_paths(&self) -> Vec<&String> {
+        if let Some(paths) = self.matches.get_many::<String>("sp3") {
+            paths.collect()
+        } else {
+            Vec::new()
+        }
+    }
+    pub fn atx_paths(&self) -> Vec<&String> {
+        if let Some(paths) = self.matches.get_many::<String>("atx") {
+            paths.collect()
+        } else {
+            Vec::new()
+        }
     }
     /// Returns output filepaths
     pub fn output_path(&self) -> Option<&String> {
@@ -445,7 +477,7 @@ Refer to README"))
                 "anomalies",
             ]
         } else {
-            let flags = vec![
+            let flags = [
                 "sv",
                 "header",
                 "epochs",
@@ -460,7 +492,7 @@ Refer to README"))
             flags
                 .iter()
                 .filter(|x| self.matches.get_flag(x))
-                .map(|x| *x)
+                .copied()
                 .collect()
         }
     }
@@ -515,9 +547,7 @@ Refer to README"))
      * Returns possible file path to merge
      */
     pub fn merge_path(&self) -> Option<&Path> {
-        self.matches
-            .get_one::<String>("merge")
-            .and_then(|s| Some(Path::new(s)))
+        self.matches.get_one::<String>("merge").map(Path::new)
     }
     /// Returns optionnal RINEX file to "merge"
     pub fn to_merge(&self) -> Option<Rinex> {
@@ -600,7 +630,7 @@ Refer to README"))
     /// Returns Ground Position possibly specified by user
     pub fn manual_position(&self) -> Option<GroundPosition> {
         if let Some(args) = self.manual_ecef() {
-            let content: Vec<&str> = args.split(",").collect();
+            let content: Vec<&str> = args.split(',').collect();
             if content.len() != 3 {
                 panic!("expecting \"x, y, z\" description");
             }
@@ -618,7 +648,7 @@ Refer to README"))
                 error!("pos(x) should be f64 ECEF [m]");
             }
         } else if let Some(args) = self.manual_geodetic() {
-            let content: Vec<&str> = args.split(",").collect();
+            let content: Vec<&str> = args.split(',').collect();
             if content.len() != 3 {
                 panic!("expecting \"lat, lon, alt\" description");
             }

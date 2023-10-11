@@ -24,8 +24,12 @@ what data context you should provide for the analysis you want to perform.
 In any case: 
 
 - `--fp` (`-f`) only accepts one file at the moment
-- `--nav`, `--sp3` and similar context enhancer,
-accept both directories and individual files.
+- `-d` the smart recursive loader, allows loading entire datasets,
+with Observation RINEX as primary data.
+- `--nav`, `--sp3` `--atx` accept both single files (as many as you want)
+or directories, but they need to match that specific data type and they will serve
+as Observation RINEX augmentation.
+- `-d` or `-f` (at least once) is the only required command line argument.
 
 To load several files, use the command line flag once per file, for example :
 
@@ -47,33 +51,52 @@ This also applies to directories, for example :
     --nav /tmp/NAV_DIR2
 ```
 
-When loading a specific data type, we expect the directory to only contain this type of data.  
-For example when loading --nav, we only Navigation data. Other types of data will not be loaded.
-
-Directories loading is recursive. that means rinex-cli works particularly well if you sort your data
-on file types and constellations. For example :
+With the following hierarchy, you can load Navigation and SP3 frames easily : 
 
 ```
-POOL/2023/100/OBS/
 POOL/2023/100/SP3/
 POOL/2023/100/NAV/
-POOL/2023/101/OBS/
+POOL/2023/100/NAV/GPS/
+POOL/2023/100/NAV/BEIDOU/
 POOL/2023/101/SP3/
 POOL/2023/101/NAV/
 ```
 
-Or even better: 
+`--nav` POOL/2023/100/NAV is recursive but it can only load Navigation frames.
+It will not crash, but other residues are not accepted 
+
+## Loading Daily or Weekly data sets 
+
+`-d` is the ultimate file loader. It works well if you sort your data as daily or weekly data.
+It allows loading complex RINEX blob for several days or weeks at once by
+recursively browsing directories, with a maximal depth of 5.
+
+It is dedicated to QC or RTK solving, therefore Observations are considered as primary datasets
+to be enhanced with broadcast data.
+
+Take the following hierarchy for example :
 
 ```
-POOL/2023/100/OBS/
-POOL/2023/100/SP3/
-POOL/2023/100/NAV/GPS/
-POOL/2023/100/NAV/BEIDOU/
-POOL/2023/100/NAV/GALILEO/
-POOL/2023/101/SP3/GPS/
-POOL/2023/101/SP3/BEIDOU/
-POOL/2023/101/SP3/GALILEO/
+POOL/2023/100/OBS_100.txt
+POOL/2023/100/FOLDER1/OBS_100.rnx.gz
+POOL/2023/100/NAV/*
+POOL/2023/100/SP3/*
+POOL/2023/256/OBS_256.txt
+POOL/2023/256/NAV1.txt
+POOL/2023/256/SP3/*
+POOL/2023/256/NAV2.txt
 ```
+
+Running `rinex-cli -d POOL/2023/100` loads the entire Day 100 data.  
+OBS_100.txt is the first encountered Observation data : this run is nammed after it.    
+OBS_100.rnx.gz is also identified and will be stacked to the previously loaded Observations.    
+100/NAV/* and 100/SP3/* are loaded entirely and will permit RTK or advanced QC.
+
+Running `rinex-cli -d POOL/2023/256` gives the same thing for Day 256,
+expect that the run will be named OBS_256.
+
+Running `rinex-cli -d POOL/2023` will generate a run named OBS_100 that comprise
+both Day 100 and Day 256 contexts.
 
 ## File naming conventions
 

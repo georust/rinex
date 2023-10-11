@@ -5,7 +5,7 @@ mod test {
     use std::str::FromStr;
     fn testbench(filter_name: &str, expected: Vec<(&str, &str, Vec<f64>)>, rinex: &Rinex) {
         for (sv, code, dataset) in expected {
-            let sv_to_test = Sv::from_str(sv).unwrap();
+            let sv_to_test = SV::from_str(sv).unwrap();
             let code_to_test = code.to_string();
             let record = rinex.record.as_obs().unwrap();
             for (index, ((epoch, _), (_, svs))) in record.iter().enumerate() {

@@ -1,12 +1,12 @@
-use crate::constellation;
 use crate::navigation;
 use crate::navigation::{orbits::NAV_ORBITS, FrameClass, NavMsgType};
 use crate::observable;
 use crate::observable::Observable;
 use crate::prelude::*;
-use crate::sv;
 use std::str::FromStr;
 use thiserror::Error;
+
+use gnss::prelude::{Constellation, SV};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -25,9 +25,9 @@ pub enum Error {
     #[error("bad snr description")]
     InvalidSNRDescription,
     #[error("sv parsing error")]
-    SvParing(#[from] sv::ParsingError),
+    SvParing(#[from] gnss::sv::ParsingError),
     #[error("constellation parsing error")]
-    ConstellationParing(#[from] constellation::ParsingError),
+    ConstellationParing(#[from] gnss::constellation::ParsingError),
     #[error("failed to parse epoch flag")]
     EpochFlagParsing(#[from] crate::epoch::flag::Error),
     #[error("failed to parse constellation")]
@@ -57,7 +57,7 @@ pub enum TargetItem {
     /// Azimuth Angle Item
     AzimuthItem(f64),
     /// List of Sv Item
-    SvItem(Vec<Sv>),
+    SvItem(Vec<SV>),
     /// List of Constellation Item
     ConstellationItem(Vec<Constellation>),
     /// List of Observable Item
@@ -147,10 +147,10 @@ impl std::ops::BitOr for TargetItem {
     }
 }
 
-pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::ParsingError> {
-    let mut ret: Vec<Sv> = Vec::with_capacity(items.len());
+pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<SV>, gnss::sv::ParsingError> {
+    let mut ret: Vec<SV> = Vec::with_capacity(items.len());
     for item in items {
-        let sv = Sv::from_str(item.trim())?;
+        let sv = SV::from_str(item.trim())?;
         ret.push(sv);
     }
     Ok(ret)
@@ -158,7 +158,7 @@ pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::ParsingErro
 
 pub(crate) fn parse_gnss_list(
     items: Vec<&str>,
-) -> Result<Vec<Constellation>, constellation::ParsingError> {
+) -> Result<Vec<Constellation>, gnss::constellation::ParsingError> {
     let mut ret: Vec<Constellation> = Vec::with_capacity(items.len());
     for item in items {
         let c = Constellation::from_str(item.trim())?;
@@ -253,9 +253,9 @@ impl std::str::FromStr for TargetItem {
                 Err(Error::InvalidDuration)
             }
         /*
-         * Sv
+         * SV
          */
-        } else if let Ok(_sv) = Sv::from_str(items[0].trim()) {
+        } else if let Ok(_sv) = SV::from_str(items[0].trim()) {
             //TODO improve this:
             // do not test 1st entry only but all possible content
             Ok(Self::SvItem(parse_sv_list(items)?))
@@ -337,14 +337,14 @@ impl From<EpochFlag> for TargetItem {
     }
 }
 
-impl From<Sv> for TargetItem {
-    fn from(sv: Sv) -> Self {
+impl From<SV> for TargetItem {
+    fn from(sv: SV) -> Self {
         Self::SvItem(vec![sv])
     }
 }
 
-impl From<Vec<Sv>> for TargetItem {
-    fn from(sv: Vec<Sv>) -> Self {
+impl From<Vec<SV>> for TargetItem {
+    fn from(sv: Vec<SV>) -> Self {
         Self::SvItem(sv.clone())
     }
 }
@@ -436,9 +436,9 @@ mod test {
         assert_eq!(
             TargetItem::from_str("g08,g09,R03").unwrap(),
             TargetItem::SvItem(vec![
-                Sv::from_str("G08").unwrap(),
-                Sv::from_str("G09").unwrap(),
-                Sv::from_str("R03").unwrap()
+                SV::from_str("G08").unwrap(),
+                SV::from_str("G09").unwrap(),
+                SV::from_str("R03").unwrap()
             ])
         );
 

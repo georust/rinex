@@ -16,7 +16,6 @@ We share similarities with `teqc` which will prove convenient
 to advanced "teqc" users.  Among them:
 
 * Quick GNSS filters (`-G`, `-R`, ...) still exist
-* In augmented mode, `-no_orbit X` is feasible if you know how to operate the [preprocessor](doc/preprocessing.md)
 * Similar position analysis and reporting
 * Similar signals analysis and reporting
 

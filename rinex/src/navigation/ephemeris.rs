@@ -1,10 +1,12 @@
 use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
-use crate::{epoch, prelude::*, sv, version::Version};
+use crate::{epoch, prelude::*, version::Version};
 
 use hifitime::Unit;
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
+
+use gnss::prelude::SV;
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -20,9 +22,9 @@ pub enum Error {
     #[error("failed to parse epoch")]
     EpochParsingError(#[from] epoch::ParsingError),
     #[error("sv parsing error")]
-    SvParsing(#[from] sv::ParsingError),
+    SvParsing(#[from] gnss::sv::ParsingError),
     #[error("failed to identify timescale for sv \"{0}\"")]
-    TimescaleIdentification(Sv),
+    TimescaleIdentification(SV),
 }
 
 /// Ephermeris NAV frame type
@@ -100,7 +102,7 @@ pub struct Perturbations {
 }
 
 impl Ephemeris {
-    /// Retrieve all Sv clock biases (error, drift, drift rate).
+    /// Retrieve all SV clock biases (error, drift, drift rate).
     pub fn sv_clock(&self) -> (f64, f64, f64) {
         (self.clock_bias, self.clock_drift, self.clock_drift_rate)
     }
@@ -135,7 +137,7 @@ impl Ephemeris {
     /*
      * Helper to apply a clock correction to provided time (expressed as Epoch)
      */
-    pub fn sv_clock_corr(sv: Sv, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
+    pub fn sv_clock_corr(sv: SV, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
         let (a0, a1, a2) = clock_bias;
         match sv.constellation {
             Constellation::Glonass => {
@@ -171,7 +173,7 @@ impl Ephemeris {
         version: Version,
         constellation: Constellation,
         mut lines: std::str::Lines<'_>,
-    ) -> Result<(Epoch, Sv, Self), Error> {
+    ) -> Result<(Epoch, SV, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::MissingData),
@@ -188,12 +190,12 @@ impl Ephemeris {
         let (clk_dr, clk_drr) = rem.split_at(19);
 
         //println!("SVNN \"{}\"", svnn); // DEBUG
-        let sv = match Sv::from_str(svnn.trim()) {
+        let sv = match SV::from_str(svnn.trim()) {
             Ok(sv) => sv,
             Err(_) => {
                 // parsing failed probably due to omitted constellation (old rev.)
                 let desc = format!("{:x}{:02}", constellation, svnn.trim());
-                Sv::from_str(&desc)?
+                SV::from_str(&desc)?
             },
         };
         //println!("\"{}\"={}", svnn, sv); // DEBUG
@@ -231,14 +233,14 @@ impl Ephemeris {
         msg: NavMsgType,
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,
-    ) -> Result<(Epoch, Sv, Self), Error> {
+    ) -> Result<(Epoch, SV, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::MissingData),
         };
 
         let (svnn, rem) = line.split_at(4);
-        let sv = Sv::from_str(svnn.trim())?;
+        let sv = SV::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
         let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
@@ -335,7 +337,7 @@ impl Ephemeris {
      * "t" does not have to expressed in correct timescale prior this calculation
      * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
      */
-    pub(crate) fn kepler2ecef(&self, sv: &Sv, t: Epoch) -> Option<(f64, f64, f64)> {
+    pub(crate) fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let mut t = t;
 
         /*
@@ -395,10 +397,10 @@ impl Ephemeris {
 
         Some((x_k / 1000.0, y_k / 1000.0, z_k / 1000.0))
     }
-    /// Returns Sv position in km ECEF, based off Self Ephemeris data,
+    /// Returns SV position in km ECEF, based off Self Ephemeris data,
     /// and for given Satellite Vehicle at given Epoch.
     /// Either by solving Kepler equations, or directly if such data is available.
-    pub fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
+    pub fn sv_position(&self, sv: SV, epoch: Epoch) -> Option<(f64, f64, f64)> {
         let (x_km, y_km, z_km) = (
             self.get_orbit_f64("satPosX"),
             self.get_orbit_f64("satPosY"),
@@ -465,7 +467,7 @@ impl Ephemeris {
      */
     pub(crate) fn sv_elev_azim(
         &self,
-        sv: &Sv,
+        sv: SV,
         epoch: Epoch,
         reference: GroundPosition,
     ) -> Option<(f64, f64)> {
@@ -863,7 +865,7 @@ mod test {
     struct Helper {
         #[serde(with = "epoch_serde")]
         epoch: Epoch,
-        sv: Sv,
+        sv: SV,
         azi: f64,
         elev: f64,
         week: u32,
@@ -1102,7 +1104,7 @@ mod test {
             );
 
             // solver
-            let ecef = ephemeris.sv_position(&helper.sv, helper.epoch);
+            let ecef = ephemeris.sv_position(helper.sv, helper.epoch);
             assert!(
                 ecef.is_some(),
                 "kepler2ecef should be feasible with provided context"
@@ -1117,7 +1119,7 @@ mod test {
             assert!(y_err < 1E-6, "kepler2ecef: y_err too large: {}", y_err);
             assert!(z_err < 1E-6, "kepler2ecef: z_err too large: {}", z_err);
 
-            let el_az = ephemeris.sv_elev_azim(&helper.sv, helper.epoch, helper.ref_pos);
+            let el_az = ephemeris.sv_elev_azim(helper.sv, helper.epoch, helper.ref_pos);
             assert!(
                 el_az.is_some(),
                 "sv_elev_azim: should have been feasible in this context!"

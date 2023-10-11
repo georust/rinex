@@ -1,10 +1,13 @@
 #[cfg(test)]
 mod test {
+    use crate::filter;
     use crate::observable;
-    use crate::sv;
+    use crate::preprocessing::*;
     use crate::tests::toolkit::test_observation_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{header::*, observation::*, prelude::*};
+    use gnss_rs::prelude::SV;
+    use gnss_rs::sv;
     use itertools::Itertools;
     use std::path::Path;
     use std::str::FromStr;
@@ -46,23 +49,23 @@ mod test {
                 assert_eq!(
                     keys,
                     vec![
-                        &Sv::new(Constellation::GPS, 03),
-                        &Sv::new(Constellation::GPS, 08),
-                        &Sv::new(Constellation::GPS, 14),
-                        &Sv::new(Constellation::GPS, 16),
-                        &Sv::new(Constellation::GPS, 22),
-                        &Sv::new(Constellation::GPS, 23),
-                        &Sv::new(Constellation::GPS, 26),
-                        &Sv::new(Constellation::GPS, 27),
-                        &Sv::new(Constellation::GPS, 31),
-                        &Sv::new(Constellation::GPS, 32),
+                        &SV::new(Constellation::GPS, 03),
+                        &SV::new(Constellation::GPS, 08),
+                        &SV::new(Constellation::GPS, 14),
+                        &SV::new(Constellation::GPS, 16),
+                        &SV::new(Constellation::GPS, 22),
+                        &SV::new(Constellation::GPS, 23),
+                        &SV::new(Constellation::GPS, 26),
+                        &SV::new(Constellation::GPS, 27),
+                        &SV::new(Constellation::GPS, 31),
+                        &SV::new(Constellation::GPS, 32),
                     ]
                 );
 
                 /*
                  * Test G03
                  */
-                let sv = Sv::new(Constellation::GPS, 03);
+                let sv = SV::new(Constellation::GPS, 03);
                 let observations = vehicles.get(&sv).unwrap();
                 let l1 = observations
                     .get(&Observable::from_str("L1").unwrap())
@@ -102,32 +105,32 @@ mod test {
                 assert_eq!(
                     keys,
                     vec![
-                        &Sv::new(Constellation::GPS, 01),
-                        &Sv::new(Constellation::GPS, 07),
-                        &Sv::new(Constellation::GPS, 08),
-                        &Sv::new(Constellation::GPS, 09),
-                        &Sv::new(Constellation::GPS, 11),
-                        &Sv::new(Constellation::GPS, 16),
-                        &Sv::new(Constellation::GPS, 23),
-                        &Sv::new(Constellation::GPS, 27),
-                        &Sv::new(Constellation::GPS, 30),
+                        &SV::new(Constellation::GPS, 01),
+                        &SV::new(Constellation::GPS, 07),
+                        &SV::new(Constellation::GPS, 08),
+                        &SV::new(Constellation::GPS, 09),
+                        &SV::new(Constellation::GPS, 11),
+                        &SV::new(Constellation::GPS, 16),
+                        &SV::new(Constellation::GPS, 23),
+                        &SV::new(Constellation::GPS, 27),
+                        &SV::new(Constellation::GPS, 30),
                     ]
                 );
             } else if index == 2 {
                 assert_eq!(
                     keys,
                     vec![
-                        &Sv::new(Constellation::GPS, 01),
-                        &Sv::new(Constellation::GPS, 03),
-                        &Sv::new(Constellation::GPS, 06),
-                        &Sv::new(Constellation::GPS, 07),
-                        &Sv::new(Constellation::GPS, 08),
-                        &Sv::new(Constellation::GPS, 11),
-                        &Sv::new(Constellation::GPS, 17),
-                        &Sv::new(Constellation::GPS, 19),
-                        &Sv::new(Constellation::GPS, 22),
-                        &Sv::new(Constellation::GPS, 28),
-                        &Sv::new(Constellation::GPS, 30),
+                        &SV::new(Constellation::GPS, 01),
+                        &SV::new(Constellation::GPS, 03),
+                        &SV::new(Constellation::GPS, 06),
+                        &SV::new(Constellation::GPS, 07),
+                        &SV::new(Constellation::GPS, 08),
+                        &SV::new(Constellation::GPS, 11),
+                        &SV::new(Constellation::GPS, 17),
+                        &SV::new(Constellation::GPS, 19),
+                        &SV::new(Constellation::GPS, 22),
+                        &SV::new(Constellation::GPS, 28),
+                        &SV::new(Constellation::GPS, 30),
                     ]
                 );
             }
@@ -199,7 +202,7 @@ mod test {
         assert_eq!(epoch.len(), 17);
 
         // G08
-        let sv = Sv {
+        let sv = SV {
             constellation: Constellation::GPS,
             prn: 08,
         };
@@ -251,7 +254,7 @@ mod test {
         assert_eq!(observed.snr, None);
 
         //R19
-        let sv = Sv {
+        let sv = SV {
             constellation: Constellation::Glonass,
             prn: 19,
         };
@@ -387,7 +390,7 @@ mod test {
         assert_eq!(epoch.len(), 24);
 
         // G07
-        let sv = Sv {
+        let sv = SV {
             constellation: Constellation::GPS,
             prn: 07,
         };
@@ -462,7 +465,7 @@ mod test {
         assert!(observed.is_none());
 
         // G07
-        let sv = Sv {
+        let sv = SV {
             constellation: Constellation::Glonass,
             prn: 24,
         };
@@ -559,7 +562,7 @@ mod test {
         assert!(clk.is_none());
         assert_eq!(vehicles.len(), 18);
 
-        let g01 = Sv {
+        let g01 = SV {
             constellation: Constellation::GPS,
             prn: 01,
         };
@@ -587,7 +590,7 @@ mod test {
         assert!(s1c.lli.is_none());
         assert!(s1c.snr.is_none());
 
-        let g03 = Sv {
+        let g03 = SV {
             constellation: Constellation::GPS,
             prn: 03,
         };
@@ -604,7 +607,7 @@ mod test {
         let l1c = data.get(&Observable::from_str("L1C").unwrap());
         assert!(l1c.is_some());
 
-        let g04 = Sv {
+        let g04 = SV {
             constellation: Constellation::GPS,
             prn: 04,
         };
@@ -831,7 +834,7 @@ mod test {
         assert!(clk_offset.is_none());
         assert_eq!(vehicles.len(), 26);
 
-        let g07 = Sv::new(Constellation::GPS, 07);
+        let g07 = SV::new(Constellation::GPS, 07);
         let observations = vehicles.get(&g07).unwrap();
         let mut codes: Vec<Observable> = observations.keys().cloned().collect();
         codes.sort();
@@ -852,7 +855,7 @@ mod test {
             .unwrap();
         assert_eq!(s2.obs, 35.300);
 
-        let r04 = Sv::new(Constellation::Glonass, 04);
+        let r04 = SV::new(Constellation::Glonass, 04);
         let observations = vehicles.get(&r04).unwrap();
 
         let mut codes: Vec<Observable> = observations.keys().cloned().collect();
@@ -908,7 +911,7 @@ mod test {
         assert!(clk_offset.is_none());
         assert_eq!(vehicles.len(), 26);
 
-        let r04 = Sv::new(Constellation::Glonass, 04);
+        let r04 = SV::new(Constellation::Glonass, 04);
         let observations = vehicles.get(&r04).unwrap();
         let mut codes: Vec<Observable> = observations.keys().cloned().collect();
         codes.sort();
@@ -1003,31 +1006,31 @@ mod test {
             assert!(clk_offset.is_none());
             assert_eq!(vehicles.len(), 9);
             if e_index < 3 {
-                let keys: Vec<Sv> = vehicles.keys().copied().collect();
-                let expected: Vec<Sv> = vec![
-                    Sv::new(Constellation::GPS, 01),
-                    Sv::new(Constellation::GPS, 03),
-                    Sv::new(Constellation::GPS, 04),
-                    Sv::new(Constellation::GPS, 09),
-                    Sv::new(Constellation::GPS, 17),
-                    Sv::new(Constellation::GPS, 19),
-                    Sv::new(Constellation::GPS, 21),
-                    Sv::new(Constellation::GPS, 22),
-                    Sv::new(Constellation::GPS, 31),
+                let keys: Vec<SV> = vehicles.keys().copied().collect();
+                let expected: Vec<SV> = vec![
+                    SV::new(Constellation::GPS, 01),
+                    SV::new(Constellation::GPS, 03),
+                    SV::new(Constellation::GPS, 04),
+                    SV::new(Constellation::GPS, 09),
+                    SV::new(Constellation::GPS, 17),
+                    SV::new(Constellation::GPS, 19),
+                    SV::new(Constellation::GPS, 21),
+                    SV::new(Constellation::GPS, 22),
+                    SV::new(Constellation::GPS, 31),
                 ];
                 assert_eq!(keys, expected);
             } else {
-                let keys: Vec<Sv> = vehicles.keys().copied().collect();
-                let expected: Vec<Sv> = vec![
-                    Sv::new(Constellation::GPS, 01),
-                    Sv::new(Constellation::GPS, 03),
-                    Sv::new(Constellation::GPS, 04),
-                    Sv::new(Constellation::GPS, 06),
-                    Sv::new(Constellation::GPS, 09),
-                    Sv::new(Constellation::GPS, 17),
-                    Sv::new(Constellation::GPS, 19),
-                    Sv::new(Constellation::GPS, 21),
-                    Sv::new(Constellation::GPS, 31),
+                let keys: Vec<SV> = vehicles.keys().copied().collect();
+                let expected: Vec<SV> = vec![
+                    SV::new(Constellation::GPS, 01),
+                    SV::new(Constellation::GPS, 03),
+                    SV::new(Constellation::GPS, 04),
+                    SV::new(Constellation::GPS, 06),
+                    SV::new(Constellation::GPS, 09),
+                    SV::new(Constellation::GPS, 17),
+                    SV::new(Constellation::GPS, 19),
+                    SV::new(Constellation::GPS, 21),
+                    SV::new(Constellation::GPS, 31),
                 ];
                 assert_eq!(keys, expected);
             }
@@ -1037,6 +1040,7 @@ mod test {
         }
     }
     #[cfg(feature = "flate2")]
+    #[cfg(feature = "processing")]
     #[test]
     fn v3_esbc00dnk_r_2020() {
         let rnx =
@@ -1074,10 +1078,21 @@ mod test {
         /*
          * Header tb
          */
-        let header = rnx.header;
+        let header = rnx.header.clone();
         assert_eq!(header.station, "ESBC00DNK");
         assert_eq!(header.station_id, "10118M001");
         assert_eq!(header.marker_type, Some(MarkerType::Geodetic));
+
+        /*
+         * Test preprocessing
+         */
+        let dut = rnx.filter(filter!("GPS"));
+        assert_eq!(dut.constellation().count(), 1);
+        assert_eq!(dut.sv().count(), 31);
+
+        let dut = rnx.filter(filter!("SBAS"));
+        assert_eq!(dut.constellation().count(), 3);
+        assert_eq!(dut.sv().count(), 5);
 
         /*
          * Observation specific
@@ -1152,33 +1167,33 @@ mod test {
         }
 
         assert_eq!(header.glo_channels.len(), 23);
-        let mut keys: Vec<Sv> = header.glo_channels.keys().copied().collect();
+        let mut keys: Vec<SV> = header.glo_channels.keys().copied().collect();
         keys.sort();
         assert_eq!(
             vec![
-                Sv::from_str("R01").unwrap(),
-                Sv::from_str("R02").unwrap(),
-                Sv::from_str("R03").unwrap(),
-                Sv::from_str("R04").unwrap(),
-                Sv::from_str("R05").unwrap(),
-                Sv::from_str("R06").unwrap(),
-                Sv::from_str("R07").unwrap(),
-                Sv::from_str("R08").unwrap(),
-                Sv::from_str("R09").unwrap(),
-                Sv::from_str("R10").unwrap(),
-                Sv::from_str("R11").unwrap(),
-                Sv::from_str("R12").unwrap(),
-                Sv::from_str("R13").unwrap(),
-                Sv::from_str("R14").unwrap(),
-                Sv::from_str("R15").unwrap(),
-                Sv::from_str("R16").unwrap(),
-                Sv::from_str("R17").unwrap(),
-                Sv::from_str("R18").unwrap(),
-                Sv::from_str("R19").unwrap(),
-                Sv::from_str("R20").unwrap(),
-                Sv::from_str("R21").unwrap(),
-                Sv::from_str("R23").unwrap(),
-                Sv::from_str("R24").unwrap(),
+                SV::from_str("R01").unwrap(),
+                SV::from_str("R02").unwrap(),
+                SV::from_str("R03").unwrap(),
+                SV::from_str("R04").unwrap(),
+                SV::from_str("R05").unwrap(),
+                SV::from_str("R06").unwrap(),
+                SV::from_str("R07").unwrap(),
+                SV::from_str("R08").unwrap(),
+                SV::from_str("R09").unwrap(),
+                SV::from_str("R10").unwrap(),
+                SV::from_str("R11").unwrap(),
+                SV::from_str("R12").unwrap(),
+                SV::from_str("R13").unwrap(),
+                SV::from_str("R14").unwrap(),
+                SV::from_str("R15").unwrap(),
+                SV::from_str("R16").unwrap(),
+                SV::from_str("R17").unwrap(),
+                SV::from_str("R18").unwrap(),
+                SV::from_str("R19").unwrap(),
+                SV::from_str("R20").unwrap(),
+                SV::from_str("R21").unwrap(),
+                SV::from_str("R23").unwrap(),
+                SV::from_str("R24").unwrap(),
             ],
             keys
         );
@@ -1216,7 +1231,7 @@ mod test {
         /*
          * Test IRNSS vehicles specificly
          */
-        let mut irnss_sv: Vec<Sv> = rnx
+        let mut irnss_sv: Vec<SV> = rnx
             .sv()
             .filter_map(|sv| {
                 if sv.constellation == Constellation::IRNSS {
@@ -1251,23 +1266,23 @@ mod test {
 
             // MIN
             let min = record.min();
-            let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let g01 = min.get(&SV::from_str("G01").unwrap()).unwrap();
             let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
             assert_eq!(*s1c, 49.5);
 
             // MAX
             let max = record.max();
-            let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let g01 = max.get(&SV::from_str("G01").unwrap()).unwrap();
             let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
             assert_eq!(*s1c, 51.250);
 
             // MEAN
             let mean = record.mean();
-            let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let g01 = mean.get(&SV::from_str("G01").unwrap()).unwrap();
             let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
             assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
 
-            let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
+            let g06 = mean.get(&SV::from_str("G06").unwrap()).unwrap();
             let s1c = g06.get(&Observable::from_str("S1C").unwrap()).unwrap();
             assert_eq!(*s1c, 43.0);
 
@@ -1275,7 +1290,7 @@ mod test {
             let stdvar = record.stdvar();
             let mean = (51.25_f64 + 50.75_f64 + 49.5_f64)/3.0_f64;
             let expected = ((51.25_f64 - mean).powf(2.0_f64) + (50.75_f64 - mean).powf(2.0_f64) + (49.5_f64 - mean).powf(2.0_f64)) / 3.0f64;
-            let g01 = stdvar.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let g01 = stdvar.get(&SV::from_str("G01").unwrap()).unwrap();
             let s1c =  g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
             assert_eq!(*s1c, expected);
         }

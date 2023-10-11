@@ -1,41 +1,46 @@
+//! Post and differential processing contexts
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
 use rinex_qc_traits::HtmlReport;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
+use walkdir::WalkDir;
 
-//use rinex::carrier::Carrier;
-use rinex::observation::Snr;
-use rinex::prelude::{Epoch, GroundPosition, Rinex, Sv};
-use rinex::Error;
+use crate::{merge, merge::Merge};
+
+use sp3::Merge as SP3Merge;
+
+use gnss::prelude::SV;
+
+use crate::observation::Snr;
+use crate::prelude::{Epoch, GroundPosition, Rinex};
+
 use sp3::prelude::SP3;
 
-#[derive(Default, Debug, Clone)]
-pub struct QcPrimaryData {
-    /// Source path
-    pub path: PathBuf,
-    /// Data
-    pub data: Rinex,
+use log::{error, trace};
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("parsing error")]
+    RinexError(#[from] crate::Error),
+    #[error("invalid file type")]
+    InvalidType,
+    #[error("non supported file type")]
+    NonSupportedType,
+    #[error("failed to extend rinex context")]
+    RinexMergeError(#[from] merge::Error),
+    #[error("failed to extend sp3 context")]
+    SP3MergeError(#[from] sp3::MergeError),
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct QcExtraData<T> {
+pub struct RnxData<T> {
     /// Source paths
     pub paths: Vec<PathBuf>,
     /// Data
     pub data: T,
 }
 
-impl QcPrimaryData {
-    /// Parses Self from local file
-    pub fn from_file(path: &str) -> Result<Self, Error> {
-        Ok(Self {
-            path: Path::new(path).to_path_buf(),
-            data: Rinex::from_file(path)?,
-        })
-    }
-}
-
-impl<T> QcExtraData<T> {
+impl<T> RnxData<T> {
     /// Returns reference to Inner Data
     pub fn data(&self) -> &T {
         &self.data
@@ -51,28 +56,121 @@ impl<T> QcExtraData<T> {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct QcContext {
+pub struct RnxContext {
     /// Primary RINEX Data
-    pub primary: QcPrimaryData,
+    pub primary: RnxData<Rinex>,
     /// Optionnal NAV RINEX Data
-    pub nav: Option<QcExtraData<Rinex>>,
+    pub nav: Option<RnxData<Rinex>>,
     /// Optionnal ATX RINEX Data
-    pub atx: Option<QcExtraData<Rinex>>,
+    pub atx: Option<RnxData<Rinex>>,
     /// Optionnal SP3 Orbit Data
-    pub sp3: Option<QcExtraData<SP3>>,
+    pub sp3: Option<RnxData<SP3>>,
     /// true if orbits have been interpolated
     pub interpolated: bool,
-    // Interpolated orbits
-    pub orbits: HashMap<(Epoch, Sv), (f64, f64, f64)>,
 }
 
-impl QcContext {
-    pub fn new(path: Path) -> Result<Self, Error> {
-
+impl RnxContext {
+    /// Form a Rinex Context, either from a base directory
+    /// or a single file. Two loading scenarios are supported:
+    /// Example 1: single file, must be Observation RINEX
+    /// Example 2: recursive.
+    pub fn new(path: PathBuf) -> Result<Self, Error> {
+        if path.is_dir() {
+            /* recursive builder */
+            Self::from_directory(path)
+        } else {
+            Self::from_observation_file(path.to_string_lossy().as_ref())
+        }
+    }
+    /// Builds Rinex Context from a single (Observation) File
+    fn from_observation_file(path: &str) -> Result<Self, Error> {
+        Ok(Self {
+            primary: {
+                let data = Rinex::from_file(path)?;
+                if !data.is_observation_rinex() {
+                    return Err(Error::InvalidType);
+                }
+                RnxData {
+                    data,
+                    paths: vec![Path::new(path).to_path_buf()],
+                }
+            },
+            nav: None,
+            atx: None,
+            sp3: None,
+            interpolated: false,
+        })
+    }
+    /// Builds Self by recursive browsing
+    fn from_directory(path: PathBuf) -> Result<Self, Error> {
+        let mut ret = RnxContext::default();
+        let walkdir = WalkDir::new(&path.to_string_lossy().to_string()).max_depth(5);
+        for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+            if !entry.path().is_dir() {
+                let fullpath = entry.path().to_string_lossy().to_string();
+                match ret.load(&fullpath) {
+                    Ok(_) => trace!(
+                        "loaded \"{}\"",
+                        entry.path().file_name().unwrap().to_string_lossy()
+                    ),
+                    Err(e) => error!("failed to load \"{}\", {:?}", fullpath, e),
+                }
+            }
+        }
+        Ok(ret)
+    }
+    /// Loads given file into Context
+    pub fn load(&mut self, path: &str) -> Result<(), Error> {
+        if let Ok(rnx) = Rinex::from_file(path) {
+            let path = Path::new(path);
+            if rnx.is_observation_rinex() {
+                self.primary.data.merge_mut(&rnx)?;
+                self.primary.paths.push(path.to_path_buf());
+            } else if rnx.is_navigation_rinex() {
+                if let Some(nav) = &mut self.nav {
+                    /* extend existing blob */
+                    nav.data.merge_mut(&rnx)?;
+                    nav.paths.push(path.to_path_buf());
+                } else {
+                    self.nav = Some(RnxData {
+                        data: rnx.clone(),
+                        paths: vec![path.to_path_buf()],
+                    })
+                }
+            } else if rnx.is_antex() {
+                if let Some(atx) = &mut self.atx {
+                    /* extend existing blob */
+                    atx.data.merge_mut(&rnx)?;
+                    atx.paths.push(path.to_path_buf());
+                } else {
+                    self.atx = Some(RnxData {
+                        data: rnx.clone(),
+                        paths: vec![path.to_path_buf()],
+                    })
+                }
+            } else {
+                return Err(Error::NonSupportedType);
+            }
+        } else if let Ok(data) = SP3::from_file(path) {
+            let path = Path::new(path);
+            if let Some(sp3) = &mut self.sp3 {
+                /* extend existing blob */
+                sp3.data.merge_mut(&data)?;
+                sp3.paths.push(path.to_path_buf());
+            } else {
+                self.sp3 = Some(RnxData {
+                    data: data.clone(),
+                    paths: vec![path.to_path_buf()],
+                })
+            }
+        } else {
+            return Err(Error::NonSupportedType);
+        }
+        Ok(())
     }
     /// Returns reference to primary data
-    pub fn primary_path(&self) -> &PathBuf {
-        &self.primary.path
+    pub fn primary_paths(&self) -> &[PathBuf] {
+        &self.primary.paths
     }
     /// Returns reference to primary data
     pub fn primary_data(&self) -> &Rinex {
@@ -203,37 +301,40 @@ impl QcContext {
     //     }
     // }
     /// Performs SV Orbit interpolation
-    pub fn orbit_interpolation(&mut self, order: usize, min_snr: Option<Snr>) {
-        /* NB: interpolate Complete Epochs only */
-        let complete_epoch: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
-        for (e, sv_signals) in complete_epoch {
-            for (sv, _carrier) in sv_signals {
-                // if orbit already exists: do not interpolate
-                // this will make things much quicker for high quality data products
-                let found = self
-                    .sv_position()
-                    .into_iter()
-                    .find(|(sv_e, svnn, _)| *sv_e == e && *svnn == sv);
-                if let Some((_, _, (x, y, z))) = found {
-                    // store as is
-                    self.orbits.insert((e, sv), (x, y, z));
-                } else if let Some(sp3) = self.sp3_data() {
-                    if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(sv, e, order) {
-                        self.orbits.insert((e, sv), (x_km, y_km, z_km));
-                    }
-                } else if let Some(nav) = self.navigation_data() {
-                    if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
-                        self.orbits
-                            .insert((e, sv), (x_m * 1.0E-3, y_m * 1.0E-3, z_m * 1.0E-3));
-                    }
-                }
-            }
-        }
+    pub fn orbit_interpolation(&mut self, _order: usize, _min_snr: Option<Snr>) {
+        // /* NB: interpolate Complete Epochs only */
+        //let complete_epoch: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
+        //for (e, sv_signals) in complete_epoch {
+        //    for (sv, carrier) in sv_signals {
+        //        // if orbit already exists: do not interpolate
+        //        // this will make things much quicker for high quality data products
+        //        let found = self
+        //            .sv_position()
+        //            .into_iter()
+        //            .find(|(sv_e, svnn, _)| *sv_e == e && *svnn == sv);
+        //        if let Some((_, _, (x, y, z))) = found {
+        //            // store as is
+        //            self.orbits.insert((e, sv), (x, y, z));
+        //        } else {
+        //            if let Some(sp3) = self.sp3_data() {
+        //                if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(sv, e, order)
+        //                {
+        //                    self.orbits.insert((e, sv), (x_km, y_km, z_km));
+        //                }
+        //            } else if let Some(nav) = self.navigation_data() {
+        //                if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
+        //                    self.orbits
+        //                        .insert((e, sv), (x_m * 1.0E-3, y_m * 1.0E-3, z_m * 1.0E-3));
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
         self.interpolated = true;
     }
     /// Returns (unique) Iterator over SV orbit (3D positions)
     /// to be used in this context
-    pub fn sv_position(&self) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
+    pub fn sv_position(&self) -> Vec<(Epoch, SV, (f64, f64, f64))> {
         if self.interpolated {
             todo!("CONCLUDE THIS PLEASE");
         } else {
@@ -252,7 +353,7 @@ impl QcContext {
     }
 }
 
-impl HtmlReport for QcContext {
+impl HtmlReport for RnxContext {
     fn to_html(&self) -> String {
         format!(
             "{}",
@@ -264,13 +365,8 @@ impl HtmlReport for QcContext {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        title:
-                            if let Some(name) = self.primary.path.file_name() {
-                                name.to_str()
-                                    .unwrap_or("Unknown")
-                            } else {
-                                "Unknown"
-                            }
+                        title: format!("{:?}",
+                            self.primary.paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().to_string()).collect::<Vec<String>>());
                     }
                     body {
                         : self.to_inline_html()
@@ -294,10 +390,14 @@ impl HtmlReport for QcContext {
                     : format!("Primary ({})", self.primary_data().header.rinex_type)
                 }
                 td {
-                    : self.primary.path.file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .to_string()
+                    @ for path in &self.primary.paths {
+                        br {
+                            : path.file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                                .to_string()
+                        }
+                    }
                 }
             }
             tr {
@@ -310,7 +410,10 @@ impl HtmlReport for QcContext {
                     } else {
                         @ for path in self.nav_paths().unwrap() {
                             br {
-                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                                : path.file_name()
+                                    .unwrap()
+                                    .to_string_lossy()
+                                    .to_string()
                             }
                         }
                     }

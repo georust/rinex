@@ -1,14 +1,14 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible}; //Marker, MarkerSymbol
 use rinex::prelude::Epoch;
-use rinex_qc::QcContext;
+use rinex::prelude::RnxContext;
 
 /*
  * Advanced NAV feature
  * compares residual error between broadcast ephemeris
  * and SP3 high precision orbits
  */
-pub fn plot_residual_ephemeris(ctx: &QcContext, plot_ctx: &mut PlotContext) {
+pub fn plot_residual_ephemeris(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let sp3 = ctx
         .sp3_data() // cannot fail at this point
         .unwrap();

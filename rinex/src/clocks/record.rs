@@ -5,11 +5,13 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
 
+use gnss::prelude::SV;
+
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum System {
-    /// Sv system for AS data
-    Sv(Sv),
+    /// SV system for AS data
+    SV(SV),
     /// Stations or Receiver name for other types of data
     Station(String),
 }
@@ -22,9 +24,9 @@ impl Default for System {
 
 impl System {
     /// Unwraps self as a `satellite vehicle`
-    pub fn as_sv(&self) -> Option<Sv> {
+    pub fn as_sv(&self) -> Option<SV> {
         match self {
-            System::Sv(s) => Some(*s),
+            System::SV(s) => Some(*s),
             _ => None,
         }
     }
@@ -160,8 +162,8 @@ pub(crate) fn parse_epoch(
             // old fashion
             let (system_str, r) = rem.split_at(5);
             rem = r.clone();
-            if let Ok(svnn) = Sv::from_str(system_str.trim()) {
-                System::Sv(svnn)
+            if let Ok(svnn) = SV::from_str(system_str.trim()) {
+                System::SV(svnn)
             } else {
                 System::Station(system_str.trim().to_string())
             }
@@ -169,10 +171,10 @@ pub(crate) fn parse_epoch(
         false => {
             // modern fashion
             let (system_str, r) = rem.split_at(4);
-            if let Ok(svnn) = Sv::from_str(system_str.trim()) {
+            if let Ok(svnn) = SV::from_str(system_str.trim()) {
                 let (_, r) = r.split_at(6);
                 rem = r.clone();
-                System::Sv(svnn)
+                System::SV(svnn)
             } else {
                 let mut content = system_str.to_owned();
                 let (remainder, r) = r.split_at(6);

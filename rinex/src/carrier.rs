@@ -1,7 +1,8 @@
 //! Carrier channels and associated methods
-use crate::{sv, Constellation, Observable, Sv};
-use std::str::FromStr;
+use crate::{Constellation, Observable};
 use thiserror::Error;
+
+use gnss::prelude::SV;
 
 lazy_static! {
     pub static ref KNOWN_CODES: Vec<&'static str> = vec![
@@ -73,10 +74,10 @@ pub enum Error {
     ParseError(String),
     //#[error("unable to identify glonass channel from \"{0}\"")]
     //ParseIntError(#[from] std::num::ParseIntError),
-    #[error("sv parsing error")]
-    SvParsing(#[from] sv::ParsingError),
     #[error("carrier::from_observable unrecognized \"{0}\"")]
     UnknownObservable(String),
+    #[error("unknown sv system")]
+    UnknownSV(SV),
 }
 
 impl std::fmt::Display for Carrier {
@@ -648,10 +649,9 @@ impl Carrier {
         }
     }
 
-    /// Builds a Carrier Frequency from an `Sv` 3 letter code descriptor,
+    /// Builds a Carrier Frequency from an SV 3 letter code descriptor,
     /// mainly used in `ATX` RINEX for so called `frequency` field
-    pub fn from_sv_code(code: &str) -> Result<Self, Error> {
-        let sv = Sv::from_str(code)?;
+    pub fn from_sv(sv: SV) -> Result<Self, Error> {
         match sv.constellation {
             Constellation::GPS => match sv.prn {
                 1 => Ok(Self::L1),
@@ -700,7 +700,7 @@ impl Carrier {
                 9 => Ok(Self::S),
                 _ => Ok(Self::L1),
             },
-            _ => panic!("non supported conversion from {:?}", sv.constellation),
+            _ => Err(Error::UnknownSV(sv)),
         }
     }
 }

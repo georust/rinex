@@ -56,7 +56,7 @@ impl PlotContext {
             } else {
                 html.push_str(&p.to_inline_html(None));
             }
-            html.push_str("\n");
+            html.push('\n');
         }
         html
     }

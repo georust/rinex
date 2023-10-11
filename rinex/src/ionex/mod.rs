@@ -1,5 +1,5 @@
 //! IONEX module
-use super::Sv;
+use gnss::prelude::SV;
 use hifitime::Epoch;
 use std::collections::HashMap;
 use strum_macros::EnumString;
@@ -33,7 +33,7 @@ pub enum MappingFunction {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum BiasSource {
     /// Referenced against a given vehicle
-    SpaceVehicle(Sv),
+    SpaceVehicle(SV),
     /// Referenced for an observation station on Earth
     Station(String),
 }

@@ -1,7 +1,7 @@
 use thiserror::Error;
 //use std::str::FromStr;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
-use rinex::constellation::Constellation;
+use gnss::prelude::Constellation;
 
 #[derive(Debug, Clone)]
 pub struct Receiver {

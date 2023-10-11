@@ -56,7 +56,7 @@ mod test {
                     for (system, _) in systems.iter() {
                         assert_eq!(
                             *system,
-                            System::Sv(Sv {
+                            System::SV(SV {
                                 constellation: Constellation::GPS,
                                 prn: 16
                             })
@@ -133,7 +133,7 @@ mod test {
                     for (system, data) in systems.iter() {
                         assert_eq!(
                             *system,
-                            System::Sv(Sv {
+                            System::SV(SV {
                                 constellation: Constellation::GPS,
                                 prn: 16
                             })

@@ -2,7 +2,7 @@ use strum_macros::EnumString;
 use thiserror::Error;
 //use std::collections::HashMap;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
-use rinex::constellation::Constellation;
+use gnss::constellation::Constellation;
 
 pub mod description;
 pub mod header;
@@ -193,7 +193,7 @@ impl Solution {
 mod tests {
     use super::*;
     use crate::Sinex;
-    use rinex::constellation::Constellation;
+    use gnss::constellation::Constellation;
     use std::str::FromStr;
     #[test]
     fn test_determination_methods() {

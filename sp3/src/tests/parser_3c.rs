@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use rinex::prelude::Constellation;
+    use gnss::prelude::Constellation;
     use std::path::PathBuf;
     use std::str::FromStr;
     #[cfg(feature = "flate2")]

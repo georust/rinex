@@ -11,7 +11,6 @@ mod test {
         assert_eq!(rnx.sv().count(), 2);
     }
     #[test]
-    #[ignore]
     fn gnss_filter_v3_duth0630() {
         let mut rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         rnx.filter_mut(filter!("GPS"));
@@ -21,24 +20,29 @@ mod test {
     #[ignore]
     fn v2_cari0010_07m_phys_filter() {
         let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
-        let rnx = rnx.filter(filter!("L1C"));
-        assert_eq!(rnx.observable().count(), 3);
-        let rnx = rnx.filter(filter!("TD"));
+        let dut = rnx.filter(filter!("L1C"));
+        assert_eq!(dut.observable().count(), 0);
+        let _dut = rnx.filter(filter!("TD"));
         assert_eq!(rnx.observable().count(), 1);
     }
     #[test]
-    #[ignore]
     fn v2_clar0020_00m_phys_filter() {
-        let mut rnx = Rinex::from_file("../test_resources/MET/V2/clar0020.00m").unwrap();
-        rnx.filter_mut(filter!("L1C"));
-        assert_eq!(rnx.observable().count(), 3);
-        rnx.filter_mut(filter!("PR"));
-        assert_eq!(rnx.observable().count(), 1);
+        let rnx = Rinex::from_file("../test_resources/MET/V2/clar0020.00m").unwrap();
+        let dut = rnx.filter(filter!("L1C"));
+        assert_eq!(dut.observable().count(), 0);
+        let dut = rnx.filter(filter!("PR"));
+        assert_eq!(dut.observable().count(), 1);
     }
     #[test]
-    #[ignore]
     fn v2_cari0010_07m_time_filter() {
-        let mut rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
-        rnx.filter_mut(filter!(">= 2000-01-02T22:00:00UTC"));
+        let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
+        let dut = rnx.filter(filter!(">2000-01-02T22:00:00 UTC"));
+        assert_eq!(dut.epoch().count(), 0);
+        let dut = rnx.filter(filter!("<=1996-04-02T00:00:00 UTC"));
+        assert_eq!(dut.epoch().count(), 3);
+        let dut = rnx.filter(filter!("<=1996-04-01T00:00:30 UTC"));
+        assert_eq!(dut.epoch().count(), 2);
+        let dut = rnx.filter(filter!("< 1996-04-01T00:00:30 UTC"));
+        assert_eq!(dut.epoch().count(), 1);
     }
 }

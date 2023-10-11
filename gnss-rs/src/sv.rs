@@ -1,16 +1,15 @@
-//! Satellite vehicle
-use super::{constellation, Constellation};
-use hifitime::Epoch;
-use hifitime::TimeScale;
+//! Space vehicles
+use crate::Constellation;
+use hifitime::{Epoch, TimeScale};
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-/// ̀`Sv` describes a Satellite Vehicle
+/// ̀SV describes a Satellite Vehicle
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Sv {
+pub struct SV {
     /// PRN identification # for this vehicle
     pub prn: u8,
     /// `GNSS` Constellation to which this vehicle is tied to
@@ -22,21 +21,52 @@ pub struct Sv {
  */
 include!(concat!(env!("OUT_DIR"), "/sbas.rs"));
 
-/// ̀`Sv` parsing & identification related errors
+/// ̀Parsing & identification related errors
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum ParsingError {
     #[error("constellation parsing error")]
-    ConstellationParsing(#[from] constellation::ParsingError),
+    ConstellationParsing(#[from] crate::constellation::ParsingError),
     #[error("sv prn# parsing error")]
     PRNParsing(#[from] std::num::ParseIntError),
 }
 
-impl Sv {
-    /// Creates a new `Sv`
+impl SV {
+    /// Builds a new SV
+    /// ```
+    /// extern crate gnss_rs as gnss;
+    ///
+    /// use hifitime::{TimeScale, Epoch};
+    /// use gnss::sv;
+    /// use gnss::prelude::*;
+    /// use std::str::FromStr;
+    ///
+    /// let sv = SV::new(Constellation::GPS, 1);
+    /// assert_eq!(sv.constellation, Constellation::GPS);
+    /// assert_eq!(sv.prn, 1);
+    /// assert_eq!(sv, sv!("G01"));
+    /// assert_eq!(sv.launched_date(), None);
+    ///
+    /// let launched_date = Epoch::from_str("2021-11-01T00:00:00 UTC")
+    ///     .unwrap();
+    /// assert_eq!(
+    ///     sv!("S23").launched_date(),
+    ///     Some(launched_date));
+    /// ```
     pub fn new(constellation: Constellation, prn: u8) -> Self {
         Self { prn, constellation }
     }
-    /// Returns timescale associated to this SV
+    /// Returns the Timescale of which this SV is a part of.
+    /// ```
+    /// extern crate gnss_rs as gnss;
+    ///
+    /// use hifitime::TimeScale;
+    /// use gnss::sv;
+    /// use gnss::prelude::*;
+    /// use std::str::FromStr;
+    ///
+    /// assert_eq!(sv!("G01").timescale(), Some(TimeScale::GPST));
+    /// assert_eq!(sv!("E13").timescale(), Some(TimeScale::GST));
+    /// ```
     pub fn timescale(&self) -> Option<TimeScale> {
         self.constellation.timescale()
     }
@@ -48,7 +78,7 @@ impl Sv {
         let to_find = (self.prn as u16) + 100;
         SBAS_VEHICLES
             .iter()
-            .filter(|e| e.prn == to_find)
+            .filter_map(|e| if e.prn == to_find { Some(e) } else { None })
             .reduce(|e, _| e)
     }
     /// Returns datetime at which Self was either launched or its serviced was deployed.
@@ -63,7 +93,7 @@ impl Sv {
     }
 }
 
-impl std::str::FromStr for Sv {
+impl std::str::FromStr for SV {
     type Err = ParsingError;
     /*
      * Parse SV from "XYY" standardized format.
@@ -72,8 +102,8 @@ impl std::str::FromStr for Sv {
      */
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let constellation = Constellation::from_str(&string[0..1])?;
-        let prn = string[1..].trim().parse::<u8>()?;
-        let mut ret = Sv::new(constellation, prn);
+        let prn = u8::from_str_radix(string[1..].trim(), 10)?;
+        let mut ret = SV::new(constellation, prn);
         if constellation.is_sbas() {
             // map the SXX to meaningful SBAS
             if let Some(sbas) = ret.sbas_definitions() {
@@ -86,7 +116,7 @@ impl std::str::FromStr for Sv {
     }
 }
 
-impl std::fmt::UpperHex for Sv {
+impl std::fmt::UpperHex for SV {
     /*
      * Possibly detailed identity for SBAS vehicles
      */
@@ -99,7 +129,7 @@ impl std::fmt::UpperHex for Sv {
     }
 }
 
-impl std::fmt::LowerHex for Sv {
+impl std::fmt::LowerHex for SV {
     /*
      * Prints self as XYY standard format
      */
@@ -108,7 +138,7 @@ impl std::fmt::LowerHex for Sv {
     }
 }
 
-impl std::fmt::Display for Sv {
+impl std::fmt::Display for SV {
     /*
      * Prints self as XYY standard format
      */
@@ -124,20 +154,20 @@ mod test {
     #[test]
     fn from_str() {
         for (descriptor, expected) in vec![
-            ("G01", Sv::new(Constellation::GPS, 1)),
-            ("G 1", Sv::new(Constellation::GPS, 1)),
-            ("G33", Sv::new(Constellation::GPS, 33)),
-            ("C01", Sv::new(Constellation::BeiDou, 1)),
-            ("C 3", Sv::new(Constellation::BeiDou, 3)),
-            ("R01", Sv::new(Constellation::Glonass, 1)),
-            ("R 1", Sv::new(Constellation::Glonass, 1)),
-            ("C254", Sv::new(Constellation::BeiDou, 254)),
-            ("E4 ", Sv::new(Constellation::Galileo, 4)),
-            ("R 9", Sv::new(Constellation::Glonass, 9)),
-            ("I 3", Sv::new(Constellation::IRNSS, 3)),
-            ("I16", Sv::new(Constellation::IRNSS, 16)),
+            ("G01", SV::new(Constellation::GPS, 1)),
+            ("G 1", SV::new(Constellation::GPS, 1)),
+            ("G33", SV::new(Constellation::GPS, 33)),
+            ("C01", SV::new(Constellation::BeiDou, 1)),
+            ("C 3", SV::new(Constellation::BeiDou, 3)),
+            ("R01", SV::new(Constellation::Glonass, 1)),
+            ("R 1", SV::new(Constellation::Glonass, 1)),
+            ("C254", SV::new(Constellation::BeiDou, 254)),
+            ("E4 ", SV::new(Constellation::Galileo, 4)),
+            ("R 9", SV::new(Constellation::Glonass, 9)),
+            ("I 3", SV::new(Constellation::IRNSS, 3)),
+            ("I16", SV::new(Constellation::IRNSS, 16)),
         ] {
-            let sv = Sv::from_str(descriptor);
+            let sv = SV::from_str(descriptor);
             assert!(
                 sv.is_ok(),
                 "failed to parse sv from \"{}\" - {:?}",
@@ -153,21 +183,21 @@ mod test {
         }
     }
     #[test]
-    fn from_str_with_sbas() {
+    fn sbas_from_str() {
         for (desc, parsed, lowerhex, upperhex) in vec![
-            ("S 3", Sv::new(Constellation::SBAS, 3), "S03", "S03"),
+            ("S 3", SV::new(Constellation::SBAS, 3), "S03", "S03"),
             (
                 "S22",
-                Sv::new(Constellation::AusNZ, 22),
+                SV::new(Constellation::AusNZ, 22),
                 "S22",
                 "INMARSAT-4F1",
             ),
-            ("S23", Sv::new(Constellation::EGNOS, 23), "S23", "ASTRA-5B"),
-            ("S25", Sv::new(Constellation::SDCM, 25), "S25", "Luch-5A"),
-            ("S 5", Sv::new(Constellation::SBAS, 5), "S05", "S05"),
-            ("S48", Sv::new(Constellation::ASAL, 48), "S48", "ALCOMSAT-1"),
+            ("S23", SV::new(Constellation::EGNOS, 23), "S23", "ASTRA-5B"),
+            ("S25", SV::new(Constellation::SDCM, 25), "S25", "Luch-5A"),
+            ("S 5", SV::new(Constellation::SBAS, 5), "S05", "S05"),
+            ("S48", SV::new(Constellation::ASAL, 48), "S48", "ALCOMSAT-1"),
         ] {
-            let sv = Sv::from_str(desc).unwrap();
+            let sv = SV::from_str(desc).unwrap();
             assert_eq!(sv, parsed, "failed to parse correct sv from \"{}\"", desc);
             assert_eq!(format!("{:x}", sv), lowerhex);
             assert_eq!(format!("{:X}", sv), upperhex);

@@ -1,9 +1,8 @@
+use super::{Antenna, Calibration, CalibrationMethod, Frequency, Pattern};
+use crate::{carrier, merge, merge::Merge, Epoch};
+use gnss::prelude::SV;
 use std::str::FromStr;
 use thiserror::Error;
-
-use super::{Antenna, Calibration, CalibrationMethod, Frequency, Pattern};
-
-use crate::{carrier, merge, merge::Merge, Epoch};
 
 /// Returns true if this line matches
 /// the beginning of a `epoch` for ATX file (special files),
@@ -61,6 +60,8 @@ pub enum Error {
     UnknownPcv(String),
     #[error("Failed to parse carrier frequency")]
     ParseCarrierError(#[from] carrier::Error),
+    #[error("sv parsing error")]
+    SvParsing(#[from] gnss::sv::ParsingError),
 }
 
 /// Parses entire Antenna block
@@ -130,7 +131,7 @@ pub(crate) fn parse_epoch(content: &str) -> Result<(Antenna, Vec<Frequency>), Er
             antenna = antenna.with_sinex_code(sinex.trim())
         } else if marker.contains("START OF FREQUENCY") {
             let svnn = content.split_at(10).0;
-            let carrier = carrier::Carrier::from_sv_code(svnn.trim())?;
+            let carrier = carrier::Carrier::from_sv(SV::from_str(svnn.trim())?)?;
             frequency = Frequency::default().with_carrier(carrier);
         } else if marker.contains("NORTH / EAST / UP") {
             let (north, rem) = content.split_at(10);

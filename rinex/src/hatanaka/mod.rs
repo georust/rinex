@@ -1,5 +1,4 @@
 //! RINEX compression / decompression module
-use crate::sv;
 use thiserror::Error;
 
 pub mod compressor;
@@ -41,7 +40,7 @@ pub enum Error {
     #[error("numdiff error")]
     NumDiffError(#[from] numdiff::Error),
     #[error("sv parsing error")]
-    SvParsing(#[from] sv::ParsingError),
+    SvParsing(#[from] gnss::sv::ParsingError),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
 }

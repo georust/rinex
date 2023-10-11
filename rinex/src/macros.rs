@@ -1,23 +1,5 @@
 //! Macros and helpers
 
-/// Creates an [`crate::Sv`] from given string description,
-/// which must be valid.
-#[macro_export]
-macro_rules! sv {
-    ($desc: expr) => {
-        Sv::from_str($desc).unwrap()
-    };
-}
-
-/// Creates a [crate::Constellation] from given string
-/// description, which must be valid.
-#[macro_export]
-macro_rules! gnss {
-    ($desc: expr) => {
-        Constellation::from_str($desc).unwrap()
-    };
-}
-
 /// Creates an [crate::Observable] from given string
 /// description, which must be valid.
 #[macro_export]

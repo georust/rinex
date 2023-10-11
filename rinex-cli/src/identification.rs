@@ -1,29 +1,46 @@
 use crate::Cli;
-use hifitime::Epoch;
 use rinex::observation::Snr;
+use rinex::prelude::RnxContext;
 use rinex::*;
-use rinex_qc::QcContext;
+
+use itertools::Itertools;
+use serde::Serialize;
 
 /*
  * Basic identification operations
  */
-pub fn rinex_identification(ctx: &QcContext, cli: &Cli) {
+pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
     let pretty = cli.pretty();
     let ops = cli.identification_ops();
 
     identification(
-        &ctx.primary_data(),
-        &ctx.primary_path().to_string_lossy().to_string(),
+        ctx.primary_data(),
+        &format!(
+            "{:?}",
+            ctx.primary_paths()
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect::<Vec<String>>()
+        ),
         pretty,
         ops.clone(),
     );
 
     if let Some(nav) = &ctx.navigation_data() {
-        identification(&nav, "Navigation Context blob", pretty, ops.clone());
+        identification(
+            nav,
+            &format!(
+                "{:?}",
+                ctx.primary_paths()
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<String>>()
+            ),
+            pretty,
+            ops.clone(),
+        );
     }
 }
-
-use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
 struct EpochReport {
@@ -58,11 +75,11 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
             println!("[{}]: {}", path, content);
         } else if op.eq("sv") {
             let mut csv = String::new();
-            for (i, sv) in rnx.sv().enumerate() {
+            for (i, sv) in rnx.sv().sorted().enumerate() {
                 if i == rnx.sv().count() - 1 {
-                    csv.push_str(&format!("{}\n", sv.to_string()));
+                    csv.push_str(&format!("{}\n", sv));
                 } else {
-                    csv.push_str(&format!("{}, ", sv.to_string()));
+                    csv.push_str(&format!("{}, ", sv));
                 }
             }
             println!("[{}]: {}", path, csv);
@@ -75,7 +92,8 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
             //};
             println!("[{}]: {:?}", path, data);
         } else if op.eq("gnss") {
-            let data: Vec<_> = rnx.constellation().collect();
+            let mut data: Vec<_> = rnx.constellation().collect();
+            data.sort();
             let content = match pretty {
                 true => serde_json::to_string_pretty(&data).unwrap(),
                 false => serde_json::to_string(&data).unwrap(),

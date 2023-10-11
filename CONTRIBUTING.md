@@ -21,12 +21,10 @@ depending on which type of RINEX we're talking about.
 For complex RINEX formats like Navigation Data, that module will contain all possible inner types.
 
 Other important structures :
+- SV and Constellation support is provided by the GNSS lib (gnss-rs)
 - `src/epoch/mod.rs`: the Epoch module basically provides
 hifitime::Epoch parsing methods, because RINEX describes date in non standard formats.
 Also, the `Flag` structure is used to mark Observations (valid or invalid).
-- `src/constellation.rs` defines GNSS constellations
-- `src/constellation/augmentation.rs` : preliminary SBAS support
-- `src/sv.rs` defines a Satellite vehicle, which is associated to a constellation
 - `src/observable.rs`: defines possible observations like raw phase
 - `src/carrier.rs`: defines carrier signals in terms of frequency and bandwidth.
 It also contains utilities to identify which GNSS signals we're dealing with,
@@ -67,9 +65,10 @@ Adding new SBAS vehicles
 ========================
 
 To add a newly launched SBAS vehicles, simply add it to the
-rinex/db/SBAS/sbas.json database.
+gnss-rs/data/sbas.json database.
 
-The only mandatory fields are :
+This database is auto integrated to this library to provide
+detailed SBAS supports. The only mandatory fields (in the databse) are:
 - the "constellation" field
 - the SBAS "prn" field (which is 100 + prn number)
 - "id": the name of that vehicle, for example "ASTRA-5B"
@@ -81,8 +80,10 @@ Other optional fields are:
 
 We don't support undeployed vehicles (in advance).
 
-Build scripts
-=============
+Modify or add Navigation Frames
+===============================
+
+Navigation frames are desc
 
 The build script is rinex/build.rs.
 

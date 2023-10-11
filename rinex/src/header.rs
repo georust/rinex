@@ -129,7 +129,7 @@ pub struct Header {
     /// optionnal receiver placement infos
     pub marker_type: Option<MarkerType>,
     /// Glonass FDMA channels
-    pub glo_channels: HashMap<Sv, i8>,
+    pub glo_channels: HashMap<SV, i8>,
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>,
     // /// Optionnal system time correction
@@ -155,7 +155,7 @@ pub struct Header {
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr_antenna: Option<Antenna>,
     /// Optionnal Vehicle Antenna information,
-    /// attached to a specifid Sv, only exists in ANTEX records
+    /// attached to a specifid SV, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
     /// Possible DCBs compensation information
@@ -192,7 +192,7 @@ pub enum ParsingError {
     #[error("failed to parse observable")]
     ObservableParsing(#[from] observable::ParsingError),
     #[error("constellation parsing error")]
-    ConstellationParsing(#[from] constellation::ParsingError),
+    ConstellationParsing(#[from] gnss::constellation::ParsingError),
     #[error("timescale parsing error")]
     TimescaleParsing(String),
     #[error("failed to parse \"{0}\" coordinates from \"{1}\"")]
@@ -287,7 +287,7 @@ impl Header {
         let mut doi: Option<String> = None;
         let mut station_url = String::new();
         let mut marker_type: Option<MarkerType> = None;
-        let mut glo_channels: HashMap<Sv, i8> = HashMap::new();
+        let mut glo_channels: HashMap<SV, i8> = HashMap::new();
         let mut rcvr: Option<Rcvr> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
         let mut sv_antenna: Option<SvAntenna> = None;
@@ -439,7 +439,7 @@ impl Header {
                     let (model, rem) = content.split_at(10);
                     let (svnn, rem) = rem.split_at(10);
                     let (cospar, _) = rem.split_at(10);
-                    if let Ok(sv) = Sv::from_str(svnn.trim()) {
+                    if let Ok(sv) = SV::from_str(svnn.trim()) {
                         if let Some(a) = &mut sv_antenna {
                             *a = a
                                 .with_sv(sv)
@@ -486,8 +486,11 @@ impl Header {
                     // old GLONASS NAV : no constellation field
                     constellation = Some(Constellation::Glonass);
                 } else if type_str.contains("GPS NAV DATA") {
-                    // old GPS NAV: no constellation field
                     constellation = Some(Constellation::GPS);
+                } else if type_str.contains("IRNSS NAV DATA") {
+                    constellation = Some(Constellation::IRNSS);
+                } else if type_str.contains("GNSS NAV DATA") {
+                    constellation = Some(Constellation::Mixed);
                 } else if type_str.contains("METEOROLOGICAL DATA") {
                     // these files are not tied to a constellation system,
                     // therefore, do not have this field
@@ -944,7 +947,7 @@ impl Header {
                 for i in 0..num_integer::div_ceil(slots.len(), 7) {
                     let svnn = &slots[i * 7..i * 7 + 4];
                     let chx = &slots[i * 7 + 4..std::cmp::min(i * 7 + 4 + 3, slots.len())];
-                    if let Ok(svnn) = Sv::from_str(svnn.trim()) {
+                    if let Ok(svnn) = SV::from_str(svnn.trim()) {
                         if let Ok(chx) = chx.trim().parse::<i8>() {
                             glo_channels.insert(svnn, chx);
                         }

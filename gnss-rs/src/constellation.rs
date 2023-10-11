@@ -1,14 +1,9 @@
-//! `GNSS` constellations & associated methods
+//! GNSS constellations
 use hifitime::TimeScale;
 use thiserror::Error;
 
-//#[cfg(feature = "serde")]
-//use serde::{Deserialize, Serialize};
-
-mod sbas;
-
-#[cfg(feature = "sbas")]
-pub use sbas::sbas_selection_helper;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Constellation parsing & identification related errors
 #[derive(Error, Clone, Debug, PartialEq)]
@@ -205,21 +200,15 @@ impl std::fmt::UpperHex for Constellation {
             Self::BeiDou => write!(f, "BDS"),
             Self::QZSS => write!(f, "QZSS"),
             Self::IRNSS => write!(f, "IRNSS"),
-            Self::WAAS => write!(f, "WAAS"),
-            Self::EGNOS => write!(f, "EGNOS"),
-            Self::BDSBAS => write!(f, "BDSBAS"),
-            Self::AusNZ => write!(f, "AUSNZ"),
-            Self::MSAS => write!(f, "MSAS"),
-            Self::NSAS => write!(f, "NSAS"),
-            Self::GBAS => write!(f, "GBAS"),
-            Self::SPAN => write!(f, "SPAN"),
-            Self::GAGAN => write!(f, "GAGAN"),
-            Self::KASS => write!(f, "KASS"),
-            Self::ASBAS => write!(f, "ASBAS"),
-            Self::ASAL => write!(f, "ASAL"),
-            Self::SDCM => write!(f, "SDCM"),
-            Self::Mixed => write!(f, "MIXED"),
-            Self::SBAS => write!(f, "SBAS"),
+            c => {
+                if c.is_sbas() {
+                    write!(f, "SBAS")
+                } else if c.is_mixed() {
+                    write!(f, "MIXED")
+                } else {
+                    Err(std::fmt::Error)
+                }
+            },
         }
     }
 }

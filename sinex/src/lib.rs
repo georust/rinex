@@ -1,4 +1,3 @@
-use rinex::constellation::Constellation;
 use std::collections::HashMap;
 use std::io::{prelude::*, BufReader};
 use std::str::FromStr;
@@ -13,9 +12,13 @@ pub mod header;
 pub mod receiver;
 //pub mod troposphere;
 
+extern crate gnss_rs as gnss;
+
 use description::Description;
 use header::{is_valid_header, Header};
 use reference::Reference;
+
+use gnss::constellation::Constellation;
 
 fn is_comment(line: &str) -> bool {
     line.starts_with('*')

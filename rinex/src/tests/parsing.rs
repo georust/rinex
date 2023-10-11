@@ -56,10 +56,10 @@ mod test {
                                                                       * For all Epoch: ephemeris selection
                                                                       * must return given ephemeris
                                                                       */
-                            for (toc, (_, sv, eph)) in rinex.ephemeris() {
+                            for (_toc, (_, sv, eph)) in rinex.ephemeris() {
                                 if let Some(ts) = sv.timescale() {
                                     if let Some(toe) = eph.toe(ts) {
-                                        let seleph = rinex.sv_ephemeris(*sv, toe);
+                                        let seleph = rinex.sv_ephemeris(sv, toe);
                                         assert!(
                                             seleph.is_some(),
                                             "ephemeris selection @ toe should always be feasible"
@@ -76,7 +76,7 @@ mod test {
                                 }
                             }
                             /*
-                             * Verify interpreted time scale, for all Sv
+                             * Verify interpreted time scale, for all SV
                              */
                             //for (e, (_, sv, _)) in rinex.ephemeris() {
                             //    /* verify toc correctness */

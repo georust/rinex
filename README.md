@@ -56,6 +56,7 @@ The application is auto-generated for a few architectures, download it from the
 [release portal](https://github.com/gwbres/rinex/releases)
 
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
+* [`gnss-rs`](gnss-rs/) Constellation and SV support in Rust, with detailed SBAS support.
 * [`gnss-rtk`](gnss-rtk/) a position solver from raw GNSS signals.
 Currently works from RINEX input data, but that is not exclusive.
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
