@@ -279,9 +279,44 @@ rinex-cli \
     -P decim:4:L1C
 ```
 
+### Observation targetted ops
+
+In RTK or QC mode, you probably want to load a super set of Observations
+and Navigation frames. Most of the time Observations come with a fast
+sample rate and are pretty lengthy. 
+In order to target only Observations in the data context, we allow "observ:"
+to prefix all -P operations, to specify the should only apply to Observations.
+
+For example let's consider we have a superset of daily data that comprise 
+two observations spanning 24h and a bunch of Navigation broadcast :
+
+```bash
+rinex-cli \
+    -r \
+    -d DATA/2023/256/OBS \
+    --nav DATA/2023/256/NAV \
+    --nav DATA/2023/256/SP3
+```
+
+Solving RTK in this case if probably not meaningful, let's decimate by 
+3600 so we resolve only a few positions
+
+```bash
+rinex-cli \
+    -r \
+    -d DATA/2023/256/OBS \
+    --nav DATA/2023/256/NAV \
+    --nav DATA/2023/256/SP3 \
+    -P observ:decim:3600
+```
+
+### Hatch smoothing special case
+
 The Hatch smoothing algorithm is a special case, considering it only applies to
-Code Pseudo Range, it can obviously only apply to Observation frames,
-and only such observations:
+Code Pseudo Range it can obviously only apply to Observation frames.
+
+For example, here we load a set of two files, only the L1 + L2 phase observations
+from the CRINEX are to be smoothed.
 
 ```bash
 rinex-cli \
