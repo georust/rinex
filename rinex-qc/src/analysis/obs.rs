@@ -6,7 +6,7 @@ use std::str::FromStr;
 extern crate gnss_rs as gnss;
 use gnss::prelude::SV;
 
-use crate::{pretty_array, QcOpts};
+use crate::QcOpts;
 
 //use rinex::carrier;
 use rinex::carrier::Carrier;
@@ -528,7 +528,15 @@ impl HtmlReport for QcObsAnalysis {
                     : "Codes"
                 }
                 td {
-                    : pretty_array(&self.codes)
+                    @ for mut chunks in &self.codes.iter().chunks(12) {
+                        p {
+                            @ while let Some(code) = chunks.next() {
+                                p {
+                                    : format!("{}, ", code)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             tr {
@@ -536,7 +544,15 @@ impl HtmlReport for QcObsAnalysis {
                     : "Observables"
                 }
                 td {
-                    : pretty_array(&self.observables)
+                    @ for mut chunks in &self.observables.iter().chunks(12) {
+                        p {
+                            @ while let Some(observable) = chunks.next() {
+                                p {
+                                    : format!("{}, ", observable)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             tr {

@@ -42,18 +42,6 @@ pub(crate) fn table_lengthy_td<A: std::fmt::Display>(
 }
 */
 
-/*
- * Array (CSV) pretty formatter
- */
-pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
-    let mut s = String::with_capacity(8 * list.len());
-    for index in 0..list.len() - 1 {
-        s.push_str(&format!("{}, ", list[index]));
-    }
-    s.push_str(&list[list.len() - 1].to_string());
-    s
-}
-
 use rinex::preprocessing::{MaskFilter, MaskOperand, Preprocessing, TargetItem};
 
 pub struct QcReport {}

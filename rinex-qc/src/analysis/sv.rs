@@ -1,4 +1,4 @@
-use super::{pretty_array, QcOpts};
+use super::QcOpts;
 use rinex::prelude::{Rinex, SV};
 
 use horrorshow::{box_html, RenderBox};
