@@ -220,12 +220,13 @@ fn report_epoch_completion(
                         }
                     }
                     td {
-                        @ for ((sv, carrier), count) in complete {
-                            b {
-                                : format!("{:X} {}/L1", sv, carrier)
-                            }
+                        @ for mut chunk in &complete.iter().chunks(8) {
                             p {
-                                : format!("{} ({}%)", count, count * 100 / total)
+                                @ while let Some(((sv, carrier), count)) = chunk.next() {
+                                    p {
+                                        : format!("{:X} {}/L1 | {} ({}%)", sv, carrier, count, count * 100 / total)
+                                    }
+                                }
                             }
                         }
                     }
