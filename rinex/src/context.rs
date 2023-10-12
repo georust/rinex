@@ -1,6 +1,4 @@
-//! Post and differential processing contexts
-use horrorshow::{box_html, helper::doctype, html, RenderBox};
-use rinex_qc_traits::HtmlReport;
+//! RINEX post processing context
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -17,6 +15,12 @@ use crate::prelude::{Epoch, GroundPosition, Rinex};
 use sp3::prelude::SP3;
 
 use log::{error, trace};
+
+#[cfg(feature = "qc")]
+use horrorshow::{box_html, helper::doctype, html, RenderBox};
+
+#[cfg(feature = "qc")]
+use rinex_qc_traits::HtmlReport;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -353,6 +357,7 @@ impl RnxContext {
     }
 }
 
+#[cfg(feature = "qc")]
 impl HtmlReport for RnxContext {
     fn to_html(&self) -> String {
         format!(
