@@ -102,7 +102,11 @@ fn build_context(cli: &Cli) -> RnxContext {
     let pathbf = Path::new(path).to_path_buf();
     let ctx = RnxContext::new(pathbf);
     if ctx.is_err() {
-        error!("failed to load desired context \"{}\"", path);
+        panic!(
+            "failed to load desired context \"{}\", : {:?}",
+            path,
+            ctx.err().unwrap()
+        );
     }
     let mut ctx = ctx.unwrap();
     /*
