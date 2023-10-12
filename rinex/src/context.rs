@@ -27,8 +27,6 @@ pub enum Error {
     #[error("parsing error")]
     RinexError(#[from] crate::Error),
     #[error("invalid file type")]
-    InvalidType,
-    #[error("non supported file type")]
     NonSupportedType,
     #[error("failed to extend rinex context")]
     RinexMergeError(#[from] merge::Error),
@@ -91,13 +89,9 @@ impl RnxContext {
         Ok(Self {
             primary: {
                 let data = Rinex::from_file(path)?;
-                if data.is_observation_rinex() || data.is_meteo_rinex() || data.is_ionex() {
-                    RnxData {
-                        data,
-                        paths: vec![Path::new(path).to_path_buf()],
-                    }
-                } else {
-                    return Err(Error::InvalidType);
+                RnxData {
+                    data,
+                    paths: vec![Path::new(path).to_path_buf()],
                 }
             },
             nav: None,
