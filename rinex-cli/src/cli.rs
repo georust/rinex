@@ -292,10 +292,14 @@ This is the most performant mode to solve a position."))
 						.long("rtk-cfg")
 						.value_name("FILE")
 						.help("Pass RTK custom configuration."))
+					.arg(Arg::new("gpx")
+						.long("gpx")
+                        .action(ArgAction::SetTrue)
+						.help("Form GPX track from RTK results"))
                     .arg(Arg::new("kml")
                         .long("kml")
-                        .help("Form a KML track with resolved positions.
-This turns off the default visualization."))
+                        .action(ArgAction::SetTrue)
+                        .help("Form KML track from RTK results"))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -521,6 +525,12 @@ Refer to README"))
     }
     pub fn rtk_only(&self) -> bool {
         self.matches.get_flag("rtk-only")
+    }
+    pub fn rtk_gpx(&self) -> bool {
+        self.matches.get_flag("gpx")
+    }
+    pub fn rtk_kml(&self) -> bool {
+        self.matches.get_flag("kml")
     }
     pub fn rtk_config(&self) -> Option<RTKConfig> {
         if let Some(path) = self.matches.get_one::<String>("rtk-config") {

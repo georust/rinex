@@ -41,11 +41,21 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("rinex error")]
+    RinexError(#[from] rinex::Error),
+    #[error("rtk post proc error")]
+    RTKPostError(#[from] rtk_postproc::Error),
+}
+
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
  * at the moment
  */
-fn workspace_path(ctx: &RnxContext) -> PathBuf {
+pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
     let primary_stem: &str = ctx
         .primary_paths()
         .first()
@@ -164,7 +174,7 @@ fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
     has_nav && has_ref_position
 }
 
-pub fn main() -> Result<(), rinex::Error> {
+pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
         .target(Target::Stdout)
