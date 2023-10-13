@@ -17,7 +17,7 @@ pub fn parse_datetime(content: &str) -> Result<chrono::NaiveDateTime, ParseDateT
     let h = secs / 3600.0;
     let m = (secs - h * 3600.0) / 60.0;
     let s = secs - h * 3600.0 - m * 60.0;
-    Ok(dt.and_hms(h as u32, m as u32, s as u32))
+    Ok(dt.and_hms_opt(h as u32, m as u32, s as u32).unwrap())
 }
 
 #[cfg(test)]
