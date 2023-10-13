@@ -7,6 +7,7 @@ mod cli; // command line interface
 pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
 mod plot; // plotting operations
+mod rtk_postproc; // rtk results post processing
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -35,6 +36,7 @@ use env_logger::{Builder, Target};
 extern crate log;
 
 use fops::open_with_web_browser;
+use rtk_postproc::rtk_postproc;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -530,48 +532,40 @@ pub fn main() -> Result<(), rinex::Error> {
             open_with_web_browser(&report_path.to_string_lossy());
         }
     }
+
+    if !rtk {
+        return Ok(());
+    }
+
     if let Ok(ref mut solver) = solver {
-        // position solver is feasible, with provided context
+        /* init */
+        match solver.init(&mut ctx) {
+            Err(e) => panic!("failed to initialize rtk solver - {}", e),
+            Ok(_) => info!("entering rtk mode"),
+        }
+
+        // position solver feasible & deployed
         let mut solving = true;
         let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
 
-        if rtk {
-            match solver.init(&mut ctx) {
-                Err(e) => panic!("failed to initialize rtk solver - {}", e),
-                Ok(_) => info!("entering rtk mode"),
+        while solving {
+            match solver.run(&mut ctx) {
+                Ok((t, estimate)) => {
+                    trace!("{:?}", t);
+                    results.insert(t, estimate);
+                },
+                Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
+                Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
+                Err(SolverError::SolvingError(t)) => {
+                    error!("failed to invert navigation matrix @ {}", t)
+                },
+                Err(SolverError::EpochDetermination(_)) => {
+                    solving = false; // abort
+                },
+                Err(e) => panic!("fatal error {:?}", e),
             }
-            while solving {
-                match solver.run(&mut ctx) {
-                    Ok((t, estimate)) => {
-                        trace!(
-                            "epoch: {}
-position error: {:.6E}, {:.6E}, {:.6E}
-HDOP {:.5E} | VDOP {:.5E}
-clock offset: {:.6E} | TDOP {:.5E}",
-                            t,
-                            estimate.dx,
-                            estimate.dy,
-                            estimate.dz,
-                            estimate.hdop,
-                            estimate.vdop,
-                            estimate.dt,
-                            estimate.tdop
-                        );
-                        results.insert(t, estimate);
-                    },
-                    Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
-                    Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
-                    Err(SolverError::SolvingError(t)) => {
-                        error!("failed to invert navigation matrix @ {}", t)
-                    },
-                    Err(SolverError::EpochDetermination(_)) => {
-                        solving = false; // abort
-                    },
-                    Err(e) => panic!("fatal error {:?}", e),
-                }
-            }
-            info!("done");
         }
+        rtk_postproc(workspace, &cli, &ctx, results)?;
     }
     Ok(())
 } // main
