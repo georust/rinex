@@ -19,6 +19,10 @@ use kml::{
 extern crate geo_types;
 use geo_types::Point as GeoPoint;
 
+use crate::fops::open_with_web_browser;
+use crate::plot::{build_chart_epoch_axis, PlotContext};
+use plotly::common::Mode;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("std::io error")]
@@ -35,17 +39,101 @@ pub(crate) fn rtk_postproc(
     ctx: &RnxContext,
     results: HashMap<Epoch, SolverEstimate>,
 ) -> Result<(), Error> {
+    // create a dedicated plot context
+    let mut plot_ctx = PlotContext::new();
+
+    let (x, y, z): (f64, f64, f64) = ctx
+        .ground_position()
+        .unwrap() // cannot fail
+        .into();
+    /*
+     * Create graphical visualization
+     * dx, dy : one dual plot
+     * hdop, vdop : one dual plot
+     * dz : dedicated plot
+     * dt, tdop : one dual plot
+     */
+    plot_ctx.add_cartesian2d_2y_plot("X, Y errors", "x error [m]", "y error [m]");
+    let epochs = results.keys().copied().collect::<Vec<Epoch>>();
+    let trace = build_chart_epoch_axis(
+        "x_err",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|e| e.dx).collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    let trace = build_chart_epoch_axis(
+        "y_err",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|e| e.dy).collect::<Vec<f64>>(),
+    )
+    .y_axis("y2");
+    plot_ctx.add_trace(trace);
+
+    plot_ctx.add_cartesian2d_plot("Z errors", "z error [m]");
+    let trace = build_chart_epoch_axis(
+        "z_err",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|e| e.dz).collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    plot_ctx.add_cartesian2d_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
+    let trace = build_chart_epoch_axis(
+        "hdop",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|e| e.hdop).collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    plot_ctx.add_cartesian2d_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
+    let trace = build_chart_epoch_axis(
+        "hdop",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|e| e.vdop).collect::<Vec<f64>>(),
+    )
+    .y_axis("y2");
+    plot_ctx.add_trace(trace);
+
+    plot_ctx.add_cartesian2d_2y_plot("Clock offset", "dt [s]", "TDOP [s]");
+    let trace = build_chart_epoch_axis(
+        "dt",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|e| e.dt).collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    let trace = build_chart_epoch_axis(
+        "tdop",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|e| e.tdop).collect::<Vec<f64>>(),
+    )
+    .y_axis("y2");
+    plot_ctx.add_trace(trace);
+
+    // render plots
+    let graphs = workspace.join("rtk.html");
+    let graphs = graphs.to_string_lossy().to_string();
+    let mut fd = File::create(&graphs).unwrap_or_else(|_| panic!("failed to crate \"{}\"", graphs));
+    write!(fd, "{}", plot_ctx.to_html()).expect("failed to render rtk visualization");
+    info!("\"{}\" rtk view generated", graphs);
+
+    /*
+     * Generate txt, GPX, KML..
+     */
     let txtpath = workspace.join("rtk.txt");
     let txtfile = txtpath.to_string_lossy().to_string();
     let mut fd = File::create(&txtfile)?;
 
     let mut gpx_track = gpx::Track::default();
     let mut kml_track = Vec::<Kml>::new();
-
-    let (x, y, z): (f64, f64, f64) = ctx
-        .ground_position()
-        .unwrap() // cannot fail
-        .into();
 
     writeln!(
         fd,
@@ -151,5 +239,10 @@ pub(crate) fn rtk_postproc(
         writer.write(&Kml::KmlDocument(kmldoc))?;
         info!("\"{}\" generated", kmlfile);
     }
+
+    if !cli.quiet() {
+        open_with_web_browser(&graphs);
+    }
+
     Ok(())
 }
