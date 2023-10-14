@@ -226,6 +226,11 @@ pub fn main() -> Result<(), Error> {
             }
             // print config to be used
             info!("{:#?}", solver.cfg);
+
+            // print more infos
+            if ctx.sp3_data().is_none() {
+                error!("--rtk does not work without SP3 at the moment");
+            }
         }
     } else {
         warn!("context is not sufficient or not compatible with --rtk");

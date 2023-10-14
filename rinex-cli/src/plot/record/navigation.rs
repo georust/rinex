@@ -1,5 +1,5 @@
 //! Navigation record plotting
-use crate::plot::{build_chart_epoch_axis, PlotContext};
+use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::prelude::RnxContext;
 use rinex::prelude::*;
@@ -153,8 +153,8 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
      */
     for (sv_index, sv) in rinex.sv().enumerate() {
         if sv_index == 0 {
-            plot_ctx.add_cartesian2d_2y_plot("SV Orbit", "Position (x) [km]", "Position (y) [km]");
-            trace!("sv orbit plot");
+            plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
+            trace!("broadcast orbit plot");
         }
         let epochs: Vec<_> = rinex
             .sv_position()
@@ -181,17 +181,6 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 },
             )
             .collect();
-        let trace =
-            build_chart_epoch_axis(&format!("{:X}(x)", sv), Mode::Markers, epochs.clone(), x_km)
-                .visible({
-                    if sv_index == 0 {
-                        Visible::True
-                    } else {
-                        Visible::LegendOnly
-                    }
-                });
-        plot_ctx.add_trace(trace);
-
         let y_km: Vec<_> = rinex
             .sv_position()
             .filter_map(
@@ -204,18 +193,35 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 },
             )
             .collect();
-
-        let trace =
-            build_chart_epoch_axis(&format!("{:X}(y)", sv), Mode::Markers, epochs.clone(), y_km)
-                .y_axis("y2")
-                .visible({
-                    if sv_index == 0 {
-                        Visible::True
+        let z_km: Vec<_> = rinex
+            .sv_position()
+            .filter_map(
+                |(_epoch, svnn, (_, _, z))| {
+                    if svnn == sv {
+                        Some(z)
                     } else {
-                        Visible::LegendOnly
+                        None
                     }
-                });
+                },
+            )
+            .collect();
+        let trace = build_3d_chart_epoch_label(
+            &format!("{:X}", sv),
+            Mode::Markers,
+            epochs.clone(),
+            x_km,
+            y_km,
+            z_km,
+        )
+        .visible({
+            if sv_index == 0 {
+                Visible::True
+            } else {
+                Visible::LegendOnly
+            }
+        });
         plot_ctx.add_trace(trace);
+
         /*
          * add SP3 (x, y) positions, if available
          */
@@ -244,20 +250,6 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                     },
                 )
                 .collect();
-            let trace = build_chart_epoch_axis(
-                &format!("{:X}(sp3_x)", sv),
-                Mode::LinesMarkers,
-                epochs.clone(),
-                x,
-            )
-            .visible({
-                if sv_index == 0 {
-                    Visible::True
-                } else {
-                    Visible::LegendOnly
-                }
-            });
-            plot_ctx.add_trace(trace);
             let y: Vec<f64> = sp3
                 .sv_position()
                 .filter_map(
@@ -270,79 +262,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                     },
                 )
                 .collect();
-            let trace = build_chart_epoch_axis(
-                &format!("{:X}(sp3_y)", sv),
-                Mode::LinesMarkers,
-                epochs.clone(),
-                y,
-            )
-            .y_axis("y2")
-            .visible({
-                if sv_index == 0 {
-                    Visible::True
-                } else {
-                    Visible::LegendOnly
-                }
-            });
-            plot_ctx.add_trace(trace);
-        }
-    }
-
-    for (sv_index, sv) in rinex.sv().enumerate() {
-        if sv_index == 0 {
-            plot_ctx.add_cartesian2d_plot("SV Altitude", "Altitude [km]");
-            trace!("sv altitude plot");
-        }
-        let epochs: Vec<_> = rinex
-            .sv_position()
-            .filter_map(
-                |(epoch, svnn, (_, _, _z))| {
-                    if svnn == sv {
-                        Some(epoch)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-        let z_km: Vec<_> = rinex
-            .sv_position()
-            .filter_map(
-                |(_epoch, svnn, (_, _, z))| {
-                    if svnn == sv {
-                        Some(z)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-        let trace = build_chart_epoch_axis(&format!("{:X}(z)", sv), Mode::Markers, epochs, z_km)
-            .visible({
-                if sv_index == 0 {
-                    Visible::True
-                } else {
-                    Visible::LegendOnly
-                }
-            });
-        plot_ctx.add_trace(trace);
-        /*
-         * add SP3 (z) positions, if available
-         */
-        if let Some(sp3) = sp3 {
-            let epochs: Vec<_> = sp3
-                .sv_position()
-                .filter_map(
-                    |(epoch, svnn, (_, _, _z))| {
-                        if svnn == sv {
-                            Some(epoch)
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect();
-            let z_km: Vec<_> = sp3
+            let z: Vec<_> = sp3
                 .sv_position()
                 .filter_map(
                     |(_epoch, svnn, (_, _, z))| {
@@ -354,11 +274,13 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                     },
                 )
                 .collect();
-            let trace = build_chart_epoch_axis(
-                &format!("{:X}(sp3_z)", sv),
+            let trace = build_3d_chart_epoch_label(
+                &format!("SP3({:X})", sv),
                 Mode::LinesMarkers,
-                epochs,
-                z_km,
+                epochs.clone(),
+                x,
+                y,
+                z,
             )
             .visible({
                 if sv_index == 0 {

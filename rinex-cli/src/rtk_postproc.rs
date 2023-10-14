@@ -20,7 +20,7 @@ extern crate geo_types;
 use geo_types::Point as GeoPoint;
 
 use crate::fops::open_with_web_browser;
-use crate::plot::{build_chart_epoch_axis, PlotContext};
+use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::Mode;
 
 #[derive(Debug, Error)]
@@ -57,30 +57,19 @@ pub(crate) fn rtk_postproc(
          * dt, tdop : one dual plot
          */
 
-        plot_ctx.add_cartesian2d_2y_plot("X, Y errors", "x error [m]", "y error [m]");
+        plot_ctx.add_cartesian3d_plot(
+            "Position errors",
+            "x error [m]",
+            "y error [m]",
+            "z error [m]",
+        );
         let epochs = results.keys().copied().collect::<Vec<Epoch>>();
-        let trace = build_chart_epoch_axis(
-            "x_err",
+        let trace = build_3d_chart_epoch_label(
+            "error",
             Mode::Markers,
             epochs.clone(),
             results.values().map(|e| e.dx).collect::<Vec<f64>>(),
-        );
-        plot_ctx.add_trace(trace);
-
-        let trace = build_chart_epoch_axis(
-            "y_err",
-            Mode::Markers,
-            epochs.clone(),
             results.values().map(|e| e.dy).collect::<Vec<f64>>(),
-        )
-        .y_axis("y2");
-        plot_ctx.add_trace(trace);
-
-        plot_ctx.add_cartesian2d_plot("Z errors", "z error [m]");
-        let trace = build_chart_epoch_axis(
-            "z_err",
-            Mode::Markers,
-            epochs.clone(),
             results.values().map(|e| e.dz).collect::<Vec<f64>>(),
         );
         plot_ctx.add_trace(trace);
@@ -94,9 +83,8 @@ pub(crate) fn rtk_postproc(
         );
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
         let trace = build_chart_epoch_axis(
-            "hdop",
+            "vdop",
             Mode::Markers,
             epochs.clone(),
             results.values().map(|e| e.vdop).collect::<Vec<f64>>(),

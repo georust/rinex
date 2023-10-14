@@ -11,8 +11,10 @@ use plotly::{
         Title,
     },
     layout::{Axis, Center, DragMode, Mapbox, MapboxStyle, Margin},
-    Layout, Plot, Scatter,
+    Layout, Plot, Scatter, Scatter3D,
 };
+
+use serde::Serialize;
 
 mod record;
 use rand::Rng;
@@ -232,11 +234,28 @@ pub fn build_default_plot(title: &str, y_title: &str) -> Plot {
         title,
         Side::Top,
         Font::default(),
-        "Epoch (UTC)",
+        "Epoch",
         y_title,
-        (false, false), // y=0 lines
-        true,           // show legend
-        true,           // autosize
+        (true, true), // y=0 lines
+        true,         // show legend
+        true,         // autosize
+    )
+}
+
+/*
+ * builds a standard 3D plot
+ */
+pub fn build_default_3d_plot(title: &str, x_title: &str, y_title: &str, z_title: &str) -> Plot {
+    build_3d_plot(
+        title,
+        Side::Top,
+        Font::default(),
+        x_title,
+        y_title,
+        z_title,
+        (true, true, true), // x=0,y=0,z=0 bold lines
+        true,               // show legend
+        true,               // autosize
     )
 }
 
@@ -249,7 +268,7 @@ pub fn build_default_2y_plot(title: &str, y1_title: &str, y2_title: &str) -> Plo
         title,
         Side::Top,
         Font::default(),
-        "Epoch (UTC)",
+        "Epoch",
         y1_title,
         y2_title,
         (false, false), // y=0 lines
@@ -339,9 +358,9 @@ fn build_plot_2y(
     title: &str,
     title_side: Side,
     title_font: Font,
-    x_axis_title: &str,
-    y1_axis_title: &str,
-    y2_axis_title: &str,
+    x_title: &str,
+    y1_title: &str,
+    y2_title: &str,
     zero_line: (bool, bool), // plots a bold line @ (x=0,y=0)
     show_legend: bool,
     auto_size: bool,
@@ -350,21 +369,57 @@ fn build_plot_2y(
         .title(Title::new(title).font(title_font))
         .x_axis(
             Axis::new()
-                .title(Title::new(x_axis_title).side(title_side))
+                .title(Title::new(x_title).side(title_side))
                 .zero_line(zero_line.0)
                 .show_tick_labels(false),
         )
         .y_axis(
             Axis::new()
-                .title(Title::new(y1_axis_title))
-                .zero_line(zero_line.0),
+                .title(Title::new(y1_title))
+                .zero_line(zero_line.1),
         )
         .y_axis2(
             Axis::new()
-                .title(Title::new(y2_axis_title))
-                .zero_line(zero_line.0)
+                .title(Title::new(y2_title))
                 .overlaying("y")
-                .side(AxisSide::Right),
+                .side(AxisSide::Right)
+                .zero_line(zero_line.1),
+        )
+        .show_legend(show_legend)
+        .auto_size(auto_size);
+    let mut p = Plot::new();
+    p.set_layout(layout);
+    p
+}
+
+fn build_3d_plot(
+    title: &str,
+    title_side: Side,
+    title_font: Font,
+    x_title: &str,
+    y_title: &str,
+    z_title: &str,
+    zero_line: (bool, bool, bool), // plots a bold line @ (x=0,y=0,z=0)
+    show_legend: bool,
+    auto_size: bool,
+) -> Plot {
+    let layout = Layout::new()
+        .title(Title::new(title).font(title_font))
+        .x_axis(
+            Axis::new()
+                .title(Title::new(x_title).side(title_side))
+                .zero_line(zero_line.0)
+                .show_tick_labels(false),
+        )
+        .y_axis(
+            Axis::new()
+                .title(Title::new(y_title))
+                .zero_line(zero_line.1),
+        )
+        .z_axis(
+            Axis::new()
+                .title(Title::new(z_title))
+                .zero_line(zero_line.2),
         )
         .show_legend(show_legend)
         .auto_size(auto_size);
@@ -376,14 +431,34 @@ fn build_plot_2y(
 /*
  * Builds a default chart, 2D, X = time axis
  */
-pub fn build_chart_epoch_axis(
+pub fn build_chart_epoch_axis<T: Clone + Default + Serialize>(
     name: &str,
     mode: Mode,
     epochs: Vec<Epoch>,
-    data_y: Vec<f64>,
-) -> Box<Scatter<f64, f64>> {
+    data_y: Vec<T>,
+) -> Box<Scatter<f64, T>> {
     let txt: Vec<String> = epochs.iter().map(|e| e.to_string()).collect();
     Scatter::new(epochs.iter().map(|e| e.to_utc_seconds()).collect(), data_y)
+        .mode(mode)
+        //.web_gl_mode(true)
+        .name(name)
+        .hover_text_array(txt)
+        .hover_info(HoverInfo::All)
+}
+
+/*
+ * Builds a default 3D chart
+ */
+pub fn build_3d_chart_epoch_label<T: Clone + Default + Serialize>(
+    name: &str,
+    mode: Mode,
+    epochs: Vec<Epoch>,
+    x: Vec<T>,
+    y: Vec<T>,
+    z: Vec<T>,
+) -> Box<Scatter3D<T, T, T>> {
+    let txt: Vec<String> = epochs.iter().map(|e| e.to_string()).collect();
+    Scatter3D::new(x, y, z)
         .mode(mode)
         //.web_gl_mode(true)
         .name(name)
