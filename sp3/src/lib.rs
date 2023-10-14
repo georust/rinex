@@ -594,9 +594,9 @@ impl Merge for SP3 {
         Ok(s)
     }
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        if self.agency != rhs.agency {
-            return Err(MergeError::DataProvider);
-        }
+        // if self.agency != rhs.agency {
+        //     return Err(MergeError::DataProvider);
+        // }
         if self.time_system != rhs.time_system {
             return Err(MergeError::TimeScale);
         }

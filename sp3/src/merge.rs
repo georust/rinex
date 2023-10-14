@@ -4,11 +4,11 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
 pub enum MergeError {
-    #[error("data providers (agencies) should match, when meging two sp3")]
-    DataProvider,
-    #[error("timescales should match when meging two sp3")]
+    // #[error("data providers (agencies) should match, when merging two sp3")]
+    // DataProvider,
+    #[error("timescales should match when merging two sp3")]
     TimeScale,
-    #[error("coords system (ref. frame) should match when meging two sp3")]
+    #[error("coords system (ref. frame) should match when merging two sp3")]
     CoordSystem,
 }
 
