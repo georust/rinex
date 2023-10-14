@@ -382,23 +382,24 @@ pub fn main() -> Result<(), Error> {
      * MERGE
      */
     if let Some(rinex_b) = cli.to_merge() {
-        info!("merging files..");
-
-        // [1] proceed to merge
         let new_rinex = ctx
             .primary_data()
             .merge(&rinex_b)
-            .expect("merging operation failed");
+            .expect("failed to merge both files");
 
-        //TODO: make this path programmable
-        let path = workspace.clone().join("merged.rnx");
+        let filename = match cli.output_path() {
+            Some(path) => path.clone(),
+            None => String::from("merged.rnx"),
+        };
+
+        let path = workspace.clone().join(&filename);
 
         let path = path
             .as_path()
             .to_str()
             .expect("failed to generate merged file");
 
-        // [2] generate new file
+        // generate new file
         new_rinex
             .to_file(path)
             .expect("failed to generate merged file");

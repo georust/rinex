@@ -127,9 +127,9 @@ Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
-                        .short('o')
+                        .long("obs")
                         .action(ArgAction::SetTrue)
-                        .help("Identify observables. Applies to Observation and Meteo RINEX"))
+                        .help("Identify observables in either Observation Data or Meteo Data contained in context."))
                     .arg(Arg::new("ssi-range")
                         .long("ssi-range")
                         .action(ArgAction::SetTrue)
@@ -295,9 +295,11 @@ This is the most performant mode to solve a position."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
-                        .value_name("FILE")
                         .long("merge")
-                        .help("Merges this RINEX into `--fp`"))
+                        .value_name("FILE(s)")
+                        .action(ArgAction::Append)
+                        .help("Merge given RINEX this RINEX into primary RINEX.
+Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `-d`"))
                     .arg(Arg::new("split")
                         .long("split")
                         .value_name("Epoch")
@@ -313,11 +315,12 @@ This is the most performant mode to solve a position."))
                         .action(ArgAction::SetTrue)
 						.help("Enable KML formatting. In RTK mode, a KML track is generated."))
                     .arg(Arg::new("output")
-                        .long("output")
+                        .short('o')
+                        .long("out")
                         .value_name("FILE")
                         .action(ArgAction::Append)
-                        .help("Custom file paths to be generated from preprocessed RINEX files.
-For example -fp was filtered and decimated, use --output to dump results into a new RINEX."))
+                        .help("Custom file name to be generated within Workspace.
+Allows merged file name to be customized."))
                     .arg(Arg::new("custom-header")
                         .long("custom-header")
                         .value_name("JSON")
@@ -563,6 +566,7 @@ Refer to README"))
     pub fn to_merge(&self) -> Option<Rinex> {
         if let Some(path) = self.merge_path() {
             let path = path.to_str().unwrap();
+            let rnx = Rinex::from_file(path);
             if let Ok(rnx) = Rinex::from_file(path) {
                 Some(rnx)
             } else {
