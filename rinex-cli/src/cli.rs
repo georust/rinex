@@ -37,7 +37,6 @@ Observation, Meteo and IONEX can only serve as primary data."))
                         .value_name("DIRECTORY")
                         .required_unless_present("filepath")
                         .help("Load directory recursively"))
-                .next_help_heading("General")
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
@@ -54,6 +53,26 @@ Observation, Meteo and IONEX can only serve as primary data."))
                         .value_name("FOLDER")
                         .help("Customize workspace location (folder does not have to exist).
 The default workspace is rinex-cli/workspace"))
+                    .arg(Arg::new("no-graph")
+                        .long("no-graph")
+                        .action(ArgAction::SetTrue)
+                        .help("Disable graphs generation, only text reports are to be generated."))
+                .next_help_heading("Data generation")
+					.arg(Arg::new("gpx")
+						.long("gpx")
+                        .action(ArgAction::SetTrue)
+						.help("Enable GPX formatting. In RTK mode, a GPX track is generated."))
+					.arg(Arg::new("kml")
+						.long("kml")
+                        .action(ArgAction::SetTrue)
+						.help("Enable KML formatting. In RTK mode, a KML track is generated."))
+                    .arg(Arg::new("output")
+                        .short('o')
+                        .long("out")
+                        .value_name("FILE")
+                        .action(ArgAction::Append)
+                        .help("Custom file name to be generated within Workspace.
+Allows merged file name to be customized."))
                 .next_help_heading("Data identification")
                     .arg(Arg::new("full-id")
                         .short('i')
@@ -141,18 +160,6 @@ Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."
                         .long("lli-mask")
                         .help("Applies given LLI AND() mask. 
 Also drops observations that did not come with an LLI flag"))
-                    .arg(Arg::new("clock-offset")
-                        .long("clk")
-                        .action(ArgAction::SetTrue)
-                        .help("Receiver Clock offset / drift analysis."))
-                    .arg(Arg::new("phase")
-                        .long("phase")
-                        .action(ArgAction::SetTrue)
-                        .help("Plot phase data as is (do not converted to carrier cycles, still set phase(t=0)=0"))
-                    .arg(Arg::new("raw-phase")
-                        .long("raw-phase")
-                        .action(ArgAction::SetTrue)
-                        .help("Plot phase data as is (not aligned to origin, not converted to carrier cycles)"))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
@@ -274,13 +281,6 @@ solver is deployed.
 This mode is turned off by default because it involves quite heavy computations.
 Use the RUST_LOG env. variable for verbosity.
 See [spp] for more information. "))
-                    .arg(Arg::new("spp")
-                        .long("spp")
-                        .action(ArgAction::SetTrue)
-                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
-Disregards whether the provided context is PPP compatible. 
-NB: we do not account for Relativistic effects by default and raw pseudo range are used.
-For indepth customization, refer to the configuration file and online documentation."))
                     .arg(Arg::new("rtk-only")
                         .long("rtk-only")
                         .short('r')
@@ -290,7 +290,14 @@ This is the most performant mode to solve a position."))
 					.arg(Arg::new("rtk-config")
 						.long("rtk-cfg")
 						.value_name("FILE")
-						.help("Pass RTK custom configuration."))
+						.help("Pass RTK custom configuration, refer to online documentation."))
+                    .arg(Arg::new("spp")
+                        .long("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
+Disregards whether the provided context is PPP compatible. 
+NB: we do not account for Relativistic effects by default and raw pseudo range are used.
+For indepth customization, refer to the configuration file and online documentation."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -304,29 +311,6 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
                         .value_name("Epoch")
                         .short('s')
                         .help("Split RINEX into two separate files"))
-                .next_help_heading("File generation")
-					.arg(Arg::new("gpx")
-						.long("gpx")
-                        .action(ArgAction::SetTrue)
-						.help("Enable GPX formatting. In RTK mode, a GPX track is generated."))
-					.arg(Arg::new("kml")
-						.long("kml")
-                        .action(ArgAction::SetTrue)
-						.help("Enable KML formatting. In RTK mode, a KML track is generated."))
-                    .arg(Arg::new("output")
-                        .short('o')
-                        .long("out")
-                        .value_name("FILE")
-                        .action(ArgAction::Append)
-                        .help("Custom file name to be generated within Workspace.
-Allows merged file name to be customized."))
-                    .arg(Arg::new("custom-header")
-                        .long("custom-header")
-                        .value_name("JSON")
-                        .action(ArgAction::Append)
-                        .help("Custom header attributes, in case we're generating data.
---custom-header must either be plain JSON or an external JSON descriptor.
-Refer to README"))
                     .get_matches()
             },
         }
@@ -554,6 +538,12 @@ Refer to README"))
     }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")
+    }
+    /*
+     * No graph to be generated
+     */
+    pub fn no_graph(&self) -> bool {
+        self.matches.get_flag("no-graph")
     }
     /*
      * Returns possible file path to merge

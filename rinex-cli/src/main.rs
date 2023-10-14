@@ -185,12 +185,17 @@ pub fn main() -> Result<(), Error> {
     // Cli
     let cli = Cli::new();
     let quiet = cli.quiet();
+    let no_graph = cli.no_graph();
 
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
     let rtk_only = cli.rtk_only();
     let rtk = cli.rtk() || rtk_only;
+
+    if cli.multipath() {
+        warn!("--mp analysis not available yet");
+    }
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -269,21 +274,21 @@ pub fn main() -> Result<(), Error> {
     /*
      * SV per Epoch analysis requested
      */
-    if cli.sv_epoch() {
+    if cli.sv_epoch() && !no_graph {
         info!("sv/epoch analysis");
         analysis::sv_epoch(&ctx, &mut plot_ctx);
     }
     /*
      * Epoch histogram analysis
      */
-    if cli.sampling_histogram() {
+    if cli.sampling_histogram() && !no_graph {
         info!("sample rate histogram analysis");
         analysis::sampling::histogram(&ctx, &mut plot_ctx);
     }
     /*
      * DCB analysis requested
      */
-    if cli.dcb() {
+    if cli.dcb() && !no_graph {
         let data = ctx
             .primary_data()
             .observation_phase_align_origin()
@@ -300,7 +305,7 @@ pub fn main() -> Result<(), Error> {
     /*
      * Code Multipath analysis
      */
-    if cli.multipath() {
+    if cli.multipath() && !no_graph {
         //let data = ctx
         //    .primary_data()
         //    .observation_phase_align_origin()
@@ -312,12 +317,11 @@ pub fn main() -> Result<(), Error> {
         //    "Meters of delay",
         //    &data,
         //);
-        warn!("--mp analysis not available yet");
     }
     /*
      * [GF] recombination visualization requested
      */
-    if cli.gf_recombination() {
+    if cli.gf_recombination() && !no_graph {
         let data = ctx
             .primary_data()
             .observation_phase_align_origin()
@@ -333,16 +337,15 @@ pub fn main() -> Result<(), Error> {
     /*
      * Ionospheric Delay Detector (graph)
      */
-    if cli.iono_detector() {
+    if cli.iono_detector() && !no_graph {
         let data = ctx.primary_data().iono_delay(Duration::from_seconds(360.0));
-
         plot::plot_iono_detector(&mut plot_ctx, &data);
         info!("--iono detector");
     }
     /*
      * [WL] recombination
      */
-    if cli.wl_recombination() {
+    if cli.wl_recombination() && !no_graph {
         let data = ctx.primary_data().wide_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -355,7 +358,7 @@ pub fn main() -> Result<(), Error> {
     /*
      * [NL] recombination
      */
-    if cli.nl_recombination() {
+    if cli.nl_recombination() && !no_graph {
         let data = ctx.primary_data().narrow_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -368,7 +371,7 @@ pub fn main() -> Result<(), Error> {
     /*
      * [MW] recombination
      */
-    if cli.mw_recombination() {
+    if cli.mw_recombination() && !no_graph {
         let data = ctx.primary_data().melbourne_wubbena();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -463,14 +466,14 @@ pub fn main() -> Result<(), Error> {
     /*
      * skyplot
      */
-    if skyplot_allowed(&ctx, &cli) {
+    if skyplot_allowed(&ctx, &cli) && !no_graph {
         plot::skyplot(&ctx, &mut plot_ctx);
         info!("skyplot view generated");
     }
     /*
      * CS Detector
      */
-    if cli.cs_graph() {
+    if cli.cs_graph() && !no_graph {
         info!("cs detector");
         //let mut detector = CsDetector::default();
         //let cs = detector.cs_detection(&ctx.primary_rinex);
@@ -479,14 +482,13 @@ pub fn main() -> Result<(), Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !rtk_only {
+    if !qc_only && !rtk_only && !no_graph {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
-    }
-    /*
-     * Render Graphs (HTML)
-     */
-    if !qc_only && !rtk_only {
+
+        /*
+         * Render Graphs (HTML)
+         */
         let html_path = workspace_path(&ctx).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
