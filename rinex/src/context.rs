@@ -7,10 +7,10 @@ use crate::{merge, merge::Merge};
 
 use sp3::Merge as SP3Merge;
 
-use gnss::prelude::SV;
-
 use crate::observation::Snr;
-use crate::prelude::{Epoch, GroundPosition, Rinex};
+//use crate::prelude::Epoch;
+use crate::prelude::{GroundPosition, Rinex};
+// use gnss::prelude::SV;
 
 use sp3::prelude::SP3;
 
@@ -331,25 +331,26 @@ impl RnxContext {
         //}
         self.interpolated = true;
     }
-    /// Returns (unique) Iterator over SV orbit (3D positions)
-    /// to be used in this context
-    pub fn sv_position(&self) -> Vec<(Epoch, SV, (f64, f64, f64))> {
-        if self.interpolated {
-            todo!("CONCLUDE THIS PLEASE");
-        } else {
-            match self.sp3_data() {
-                Some(sp3) => sp3.sv_position().collect(),
-                _ => self
-                    .navigation_data()
-                    .unwrap()
-                    .sv_position()
-                    .map(|(e, sv, (x, y, z))| {
-                        (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
-                    })
-                    .collect(),
-            }
-        }
-    }
+    // /// Returns (unique) Iterator over SV orbit (3D positions)
+    // /// to be used in this context
+    // #[cfg(feature = "nav")]
+    // pub fn sv_position(&self) -> Vec<(Epoch, SV, (f64, f64, f64))> {
+    //     if self.interpolated {
+    //         todo!("CONCLUDE THIS PLEASE");
+    //     } else {
+    //         match self.sp3_data() {
+    //             Some(sp3) => sp3.sv_position().collect(),
+    //             _ => self
+    //                 .navigation_data()
+    //                 .unwrap()
+    //                 .sv_position()
+    //                 .map(|(e, sv, (x, y, z))| {
+    //                     (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
+    //                 })
+    //                 .collect(),
+    //         }
+    //     }
+    // }
 }
 
 #[cfg(feature = "qc")]
