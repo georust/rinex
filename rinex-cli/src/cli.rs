@@ -3,7 +3,6 @@ use gnss_rtk::prelude::RTKConfig;
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
-use std::fs::ReadDir;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -566,12 +565,12 @@ Refer to README"))
     pub fn to_merge(&self) -> Option<Rinex> {
         if let Some(path) = self.merge_path() {
             let path = path.to_str().unwrap();
-            let rnx = Rinex::from_file(path);
-            if let Ok(rnx) = Rinex::from_file(path) {
-                Some(rnx)
-            } else {
-                error!("failed to parse \"{}\"", path);
-                None
+            match Rinex::from_file(path) {
+                Ok(rnx) => Some(rnx),
+                Err(e) => {
+                    error!("failed to parse \"{}\", {}", path, e);
+                    None
+                },
             }
         } else {
             None
