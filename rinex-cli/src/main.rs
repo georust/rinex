@@ -7,6 +7,7 @@ mod cli; // command line interface
 pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
 mod plot; // plotting operations
+mod rtk_postproc; // rtk results post processing
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -35,15 +36,26 @@ use env_logger::{Builder, Target};
 extern crate log;
 
 use fops::open_with_web_browser;
+use rtk_postproc::rtk_postproc;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("rinex error")]
+    RinexError(#[from] rinex::Error),
+    #[error("rtk post proc error")]
+    RTKPostError(#[from] rtk_postproc::Error),
+}
 
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
  * at the moment
  */
-fn workspace_path(ctx: &RnxContext) -> PathBuf {
+pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
     let primary_stem: &str = ctx
         .primary_paths()
         .first()
@@ -102,7 +114,11 @@ fn build_context(cli: &Cli) -> RnxContext {
     let pathbf = Path::new(path).to_path_buf();
     let ctx = RnxContext::new(pathbf);
     if ctx.is_err() {
-        error!("failed to load desired context \"{}\"", path);
+        panic!(
+            "failed to load desired context \"{}\", : {:?}",
+            path,
+            ctx.err().unwrap()
+        );
     }
     let mut ctx = ctx.unwrap();
     /*
@@ -158,7 +174,7 @@ fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
     has_nav && has_ref_position
 }
 
-pub fn main() -> Result<(), rinex::Error> {
+pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
         .target(Target::Stdout)
@@ -169,12 +185,17 @@ pub fn main() -> Result<(), rinex::Error> {
     // Cli
     let cli = Cli::new();
     let quiet = cli.quiet();
+    let no_graph = cli.no_graph();
 
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
     let rtk_only = cli.rtk_only();
     let rtk = cli.rtk() || rtk_only;
+
+    if cli.multipath() {
+        warn!("--mp analysis not available yet");
+    }
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -205,6 +226,11 @@ pub fn main() -> Result<(), rinex::Error> {
             }
             // print config to be used
             info!("{:#?}", solver.cfg);
+
+            // print more infos
+            if ctx.sp3_data().is_none() {
+                error!("--rtk does not work without SP3 at the moment");
+            }
         }
     } else {
         warn!("context is not sufficient or not compatible with --rtk");
@@ -253,21 +279,21 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * SV per Epoch analysis requested
      */
-    if cli.sv_epoch() {
+    if cli.sv_epoch() && !no_graph {
         info!("sv/epoch analysis");
         analysis::sv_epoch(&ctx, &mut plot_ctx);
     }
     /*
      * Epoch histogram analysis
      */
-    if cli.sampling_histogram() {
+    if cli.sampling_histogram() && !no_graph {
         info!("sample rate histogram analysis");
         analysis::sampling::histogram(&ctx, &mut plot_ctx);
     }
     /*
      * DCB analysis requested
      */
-    if cli.dcb() {
+    if cli.dcb() && !no_graph {
         let data = ctx
             .primary_data()
             .observation_phase_align_origin()
@@ -284,7 +310,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Code Multipath analysis
      */
-    if cli.multipath() {
+    if cli.multipath() && !no_graph {
         //let data = ctx
         //    .primary_data()
         //    .observation_phase_align_origin()
@@ -296,12 +322,11 @@ pub fn main() -> Result<(), rinex::Error> {
         //    "Meters of delay",
         //    &data,
         //);
-        warn!("--mp analysis not available yet");
     }
     /*
      * [GF] recombination visualization requested
      */
-    if cli.gf_recombination() {
+    if cli.gf_recombination() && !no_graph {
         let data = ctx
             .primary_data()
             .observation_phase_align_origin()
@@ -317,16 +342,15 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Ionospheric Delay Detector (graph)
      */
-    if cli.iono_detector() {
+    if cli.iono_detector() && !no_graph {
         let data = ctx.primary_data().iono_delay(Duration::from_seconds(360.0));
-
         plot::plot_iono_detector(&mut plot_ctx, &data);
         info!("--iono detector");
     }
     /*
      * [WL] recombination
      */
-    if cli.wl_recombination() {
+    if cli.wl_recombination() && !no_graph {
         let data = ctx.primary_data().wide_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -339,7 +363,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [NL] recombination
      */
-    if cli.nl_recombination() {
+    if cli.nl_recombination() && !no_graph {
         let data = ctx.primary_data().narrow_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -352,7 +376,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [MW] recombination
      */
-    if cli.mw_recombination() {
+    if cli.mw_recombination() && !no_graph {
         let data = ctx.primary_data().melbourne_wubbena();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -366,23 +390,24 @@ pub fn main() -> Result<(), rinex::Error> {
      * MERGE
      */
     if let Some(rinex_b) = cli.to_merge() {
-        info!("merging files..");
-
-        // [1] proceed to merge
         let new_rinex = ctx
             .primary_data()
             .merge(&rinex_b)
-            .expect("merging operation failed");
+            .expect("failed to merge both files");
 
-        //TODO: make this path programmable
-        let path = workspace.clone().join("merged.rnx");
+        let filename = match cli.output_path() {
+            Some(path) => path.clone(),
+            None => String::from("merged.rnx"),
+        };
+
+        let path = workspace.clone().join(&filename);
 
         let path = path
             .as_path()
             .to_str()
             .expect("failed to generate merged file");
 
-        // [2] generate new file
+        // generate new file
         new_rinex
             .to_file(path)
             .expect("failed to generate merged file");
@@ -446,14 +471,14 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * skyplot
      */
-    if skyplot_allowed(&ctx, &cli) {
+    if skyplot_allowed(&ctx, &cli) && !no_graph {
         plot::skyplot(&ctx, &mut plot_ctx);
         info!("skyplot view generated");
     }
     /*
      * CS Detector
      */
-    if cli.cs_graph() {
+    if cli.cs_graph() && !no_graph {
         info!("cs detector");
         //let mut detector = CsDetector::default();
         //let cs = detector.cs_detection(&ctx.primary_rinex);
@@ -462,14 +487,13 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !rtk_only {
+    if !qc_only && !rtk_only && !no_graph {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
-    }
-    /*
-     * Render Graphs (HTML)
-     */
-    if !qc_only && !rtk_only {
+
+        /*
+         * Render Graphs (HTML)
+         */
         let html_path = workspace_path(&ctx).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
@@ -526,48 +550,40 @@ pub fn main() -> Result<(), rinex::Error> {
             open_with_web_browser(&report_path.to_string_lossy());
         }
     }
+
+    if !rtk {
+        return Ok(());
+    }
+
     if let Ok(ref mut solver) = solver {
-        // position solver is feasible, with provided context
+        /* init */
+        match solver.init(&mut ctx) {
+            Err(e) => panic!("failed to initialize rtk solver - {}", e),
+            Ok(_) => info!("entering rtk mode"),
+        }
+
+        // position solver feasible & deployed
         let mut solving = true;
         let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
 
-        if rtk {
-            match solver.init(&mut ctx) {
-                Err(e) => panic!("failed to initialize rtk solver - {}", e),
-                Ok(_) => info!("entering rtk mode"),
+        while solving {
+            match solver.run(&mut ctx) {
+                Ok((t, estimate)) => {
+                    trace!("{:?}", t);
+                    results.insert(t, estimate);
+                },
+                Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
+                Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
+                Err(SolverError::SolvingError(t)) => {
+                    error!("failed to invert navigation matrix @ {}", t)
+                },
+                Err(SolverError::EpochDetermination(_)) => {
+                    solving = false; // abort
+                },
+                Err(e) => panic!("fatal error {:?}", e),
             }
-            while solving {
-                match solver.run(&mut ctx) {
-                    Ok((t, estimate)) => {
-                        trace!(
-                            "epoch: {}
-position error: {:.6E}, {:.6E}, {:.6E}
-HDOP {:.5E} | VDOP {:.5E}
-clock offset: {:.6E} | TDOP {:.5E}",
-                            t,
-                            estimate.dx,
-                            estimate.dy,
-                            estimate.dz,
-                            estimate.hdop,
-                            estimate.vdop,
-                            estimate.dt,
-                            estimate.tdop
-                        );
-                        results.insert(t, estimate);
-                    },
-                    Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
-                    Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
-                    Err(SolverError::SolvingError(t)) => {
-                        error!("failed to invert navigation matrix @ {}", t)
-                    },
-                    Err(SolverError::EpochDetermination(_)) => {
-                        solving = false; // abort
-                    },
-                    Err(e) => panic!("fatal error {:?}", e),
-                }
-            }
-            info!("done");
         }
+        rtk_postproc(workspace, &cli, &ctx, results)?;
     }
     Ok(())
 } // main

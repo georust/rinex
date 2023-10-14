@@ -302,7 +302,7 @@ impl Solver {
 
             let ephemeris = nav.sv_ephemeris(*sv, t);
             if ephemeris.is_none() {
-                error!("{:?} : {} no valid ephemeris", t, sv);
+                error!("{:?}: {} no valid ephemeris", t, sv);
                 continue;
             }
 

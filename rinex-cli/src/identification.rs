@@ -73,7 +73,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
                 false => serde_json::to_string(&report).unwrap(),
             };
             println!("[{}]: {}", path, content);
-        } else if op.eq("sv") {
+        } else if op.eq("sv") && (rnx.is_observation_rinex() || rnx.is_navigation_rinex()) {
             let mut csv = String::new();
             for (i, sv) in rnx.sv().sorted().enumerate() {
                 if i == rnx.sv().count() - 1 {
@@ -91,7 +91,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
             //    false => serde_json::to_string(&data).unwrap(),
             //};
             println!("[{}]: {:?}", path, data);
-        } else if op.eq("gnss") {
+        } else if op.eq("gnss") && (rnx.is_observation_rinex() || rnx.is_navigation_rinex()) {
             let mut data: Vec<_> = rnx.constellation().collect();
             data.sort();
             let content = match pretty {

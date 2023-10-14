@@ -3,7 +3,6 @@ use gnss_rtk::prelude::RTKConfig;
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
-use std::fs::ReadDir;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -38,7 +37,6 @@ Observation, Meteo and IONEX can only serve as primary data."))
                         .value_name("DIRECTORY")
                         .required_unless_present("filepath")
                         .help("Load directory recursively"))
-                .next_help_heading("General")
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
@@ -55,6 +53,26 @@ Observation, Meteo and IONEX can only serve as primary data."))
                         .value_name("FOLDER")
                         .help("Customize workspace location (folder does not have to exist).
 The default workspace is rinex-cli/workspace"))
+                    .arg(Arg::new("no-graph")
+                        .long("no-graph")
+                        .action(ArgAction::SetTrue)
+                        .help("Disable graphs generation, only text reports are to be generated."))
+                .next_help_heading("Data generation")
+					.arg(Arg::new("gpx")
+						.long("gpx")
+                        .action(ArgAction::SetTrue)
+						.help("Enable GPX formatting. In RTK mode, a GPX track is generated."))
+					.arg(Arg::new("kml")
+						.long("kml")
+                        .action(ArgAction::SetTrue)
+						.help("Enable KML formatting. In RTK mode, a KML track is generated."))
+                    .arg(Arg::new("output")
+                        .short('o')
+                        .long("out")
+                        .value_name("FILE")
+                        .action(ArgAction::Append)
+                        .help("Custom file name to be generated within Workspace.
+Allows merged file name to be customized."))
                 .next_help_heading("Data identification")
                     .arg(Arg::new("full-id")
                         .short('i')
@@ -127,9 +145,9 @@ Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
-                        .short('o')
+                        .long("obs")
                         .action(ArgAction::SetTrue)
-                        .help("Identify observables. Applies to Observation and Meteo RINEX"))
+                        .help("Identify observables in either Observation Data or Meteo Data contained in context."))
                     .arg(Arg::new("ssi-range")
                         .long("ssi-range")
                         .action(ArgAction::SetTrue)
@@ -142,18 +160,6 @@ Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."
                         .long("lli-mask")
                         .help("Applies given LLI AND() mask. 
 Also drops observations that did not come with an LLI flag"))
-                    .arg(Arg::new("clock-offset")
-                        .long("clk")
-                        .action(ArgAction::SetTrue)
-                        .help("Receiver Clock offset / drift analysis."))
-                    .arg(Arg::new("phase")
-                        .long("phase")
-                        .action(ArgAction::SetTrue)
-                        .help("Plot phase data as is (do not converted to carrier cycles, still set phase(t=0)=0"))
-                    .arg(Arg::new("raw-phase")
-                        .long("raw-phase")
-                        .action(ArgAction::SetTrue)
-                        .help("Plot phase data as is (not aligned to origin, not converted to carrier cycles)"))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
@@ -275,13 +281,6 @@ solver is deployed.
 This mode is turned off by default because it involves quite heavy computations.
 Use the RUST_LOG env. variable for verbosity.
 See [spp] for more information. "))
-                    .arg(Arg::new("spp")
-                        .long("spp")
-                        .action(ArgAction::SetTrue)
-                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
-Disregards whether the provided context is PPP compatible. 
-NB: we do not account for Relativistic effects by default and raw pseudo range are used.
-For indepth customization, refer to the configuration file and online documentation."))
                     .arg(Arg::new("rtk-only")
                         .long("rtk-only")
                         .short('r')
@@ -291,36 +290,27 @@ This is the most performant mode to solve a position."))
 					.arg(Arg::new("rtk-config")
 						.long("rtk-cfg")
 						.value_name("FILE")
-						.help("Pass RTK custom configuration."))
-                    .arg(Arg::new("kml")
-                        .long("kml")
-                        .help("Form a KML track with resolved positions.
-This turns off the default visualization."))
+						.help("Pass RTK custom configuration, refer to online documentation."))
+                    .arg(Arg::new("spp")
+                        .long("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
+Disregards whether the provided context is PPP compatible. 
+NB: we do not account for Relativistic effects by default and raw pseudo range are used.
+For indepth customization, refer to the configuration file and online documentation."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
-                        .value_name("FILE")
                         .long("merge")
-                        .help("Merges this RINEX into `--fp`"))
+                        .value_name("FILE(s)")
+                        .action(ArgAction::Append)
+                        .help("Merge given RINEX this RINEX into primary RINEX.
+Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `-d`"))
                     .arg(Arg::new("split")
                         .long("split")
                         .value_name("Epoch")
                         .short('s')
                         .help("Split RINEX into two separate files"))
-                .next_help_heading("RINEX output")
-                    .arg(Arg::new("output")
-                        .long("output")
-                        .value_name("FILE")
-                        .action(ArgAction::Append)
-                        .help("Custom file paths to be generated from preprocessed RINEX files.
-For example -fp was filtered and decimated, use --output to dump results into a new RINEX."))
-                    .arg(Arg::new("custom-header")
-                        .long("custom-header")
-                        .value_name("JSON")
-                        .action(ArgAction::Append)
-                        .help("Custom header attributes, in case we're generating data.
---custom-header must either be plain JSON or an external JSON descriptor.
-Refer to README"))
                     .get_matches()
             },
         }
@@ -522,6 +512,12 @@ Refer to README"))
     pub fn rtk_only(&self) -> bool {
         self.matches.get_flag("rtk-only")
     }
+    pub fn gpx(&self) -> bool {
+        self.matches.get_flag("gpx")
+    }
+    pub fn kml(&self) -> bool {
+        self.matches.get_flag("kml")
+    }
     pub fn rtk_config(&self) -> Option<RTKConfig> {
         if let Some(path) = self.matches.get_one::<String>("rtk-config") {
             if let Ok(content) = std::fs::read_to_string(path) {
@@ -544,6 +540,12 @@ Refer to README"))
         self.matches.get_flag("cs")
     }
     /*
+     * No graph to be generated
+     */
+    pub fn no_graph(&self) -> bool {
+        self.matches.get_flag("no-graph")
+    }
+    /*
      * Returns possible file path to merge
      */
     pub fn merge_path(&self) -> Option<&Path> {
@@ -553,11 +555,12 @@ Refer to README"))
     pub fn to_merge(&self) -> Option<Rinex> {
         if let Some(path) = self.merge_path() {
             let path = path.to_str().unwrap();
-            if let Ok(rnx) = Rinex::from_file(path) {
-                Some(rnx)
-            } else {
-                error!("failed to parse \"{}\"", path);
-                None
+            match Rinex::from_file(path) {
+                Ok(rnx) => Some(rnx),
+                Err(e) => {
+                    error!("failed to parse \"{}\", {}", path, e);
+                    None
+                },
             }
         } else {
             None
@@ -577,48 +580,6 @@ Refer to README"))
             }
         } else {
             None
-        }
-    }
-    /*
-     * Returns possible list of directories passed as specific data pool
-     */
-    pub fn data_directories(&self, key: &str) -> Vec<ReadDir> {
-        if let Some(matches) = self.matches.get_many::<String>(key) {
-            matches
-                .filter_map(|s| {
-                    let path = Path::new(s.as_str());
-                    if path.is_dir() {
-                        if let Ok(rd) = path.read_dir() {
-                            Some(rd)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            vec![]
-        }
-    }
-    /*
-     * Returns possible list of files to be loaded individually
-     */
-    pub fn data_files(&self, key: &str) -> Vec<String> {
-        if let Some(matches) = self.matches.get_many::<String>(key) {
-            matches
-                .filter_map(|s| {
-                    let path = Path::new(s.as_str());
-                    if path.is_file() {
-                        Some(path.to_string_lossy().to_string())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            vec![]
         }
     }
     fn manual_ecef(&self) -> Option<&String> {

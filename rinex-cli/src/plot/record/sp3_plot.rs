@@ -1,4 +1,4 @@
-use crate::plot::{build_chart_epoch_axis, PlotContext};
+use crate::plot::{build_3d_chart_epoch_label, PlotContext};
 use plotly::common::{Mode, Visible}; //Marker, MarkerSymbol
 use rinex::prelude::Epoch;
 use rinex::prelude::RnxContext;
@@ -37,9 +37,11 @@ pub fn plot_residual_ephemeris(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
      */
     for (sv_index, sv) in nav.sv().enumerate() {
         if sv_index == 0 {
-            plot_ctx.add_cartesian2d_plot(
-                "Broadast Ephemeris Residual Position Error (|NAV-SP3|)",
-                "Error [m]",
+            plot_ctx.add_cartesian3d_plot(
+                "Broadast / SP3 Residual Position Error",
+                "dx [m]",
+                "dy [m]",
+                "dz [m]",
             );
             trace!("|sp3 - broadcast| residual (x, y, z) error");
         }
@@ -54,7 +56,7 @@ pub fn plot_residual_ephemeris(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
             });
 
         let mut epochs: Vec<Epoch> = Vec::new();
-        let mut residuals: Vec<f64> = Vec::new();
+        let mut residuals: Vec<(f64, f64, f64)> = Vec::new();
 
         for (t, (sv_x, sv_y, sv_z)) in sv_position {
             if let Some((_, _, (sp3_x, sp3_y, sp3_z))) = sp3
@@ -63,32 +65,38 @@ pub fn plot_residual_ephemeris(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
             {
                 /* no need to interpolate => use right away */
                 epochs.push(t);
-                let err = ((sp3_x / 1000.0 - sv_x / 1000.0).powi(2)
-                    + (sp3_y / 1000.0 - sv_y / 1000.0).powi(2)
-                    + (sp3_z / 1000.0 - sv_z / 1000.0).powi(2))
-                .sqrt();
-                residuals.push(err);
+                residuals.push((
+                    (sv_x - sp3_x) / 1.0E3,
+                    (sv_y - sp3_y) / 1.0E3,
+                    (sv_z - sp3_z) / 1.0E3,
+                ));
             } else {
                 /* needs interpolation */
                 if let Some((sp3_x, sp3_y, sp3_z)) = sp3.sv_position_interpolate(sv, t, 11) {
                     epochs.push(t);
-                    let err = ((sp3_x / 1000.0 - sv_x / 1000.0).powi(2)
-                        + (sp3_y / 1000.0 - sv_y / 1000.0).powi(2)
-                        + (sp3_z / 1000.0 - sv_z / 1000.0).powi(2))
-                    .sqrt();
-                    residuals.push(err);
+                    residuals.push((
+                        (sv_x - sp3_x) / 1.0E3,
+                        (sv_y - sp3_y) / 1.0E3,
+                        (sv_z - sp3_z) / 1.0E3,
+                    ));
                 }
             }
         }
-        let trace =
-            build_chart_epoch_axis(&format!("|{:X}_err|", sv), Mode::Markers, epochs, residuals)
-                .visible({
-                    if sv_index < 4 {
-                        Visible::True
-                    } else {
-                        Visible::LegendOnly
-                    }
-                });
+        let trace = build_3d_chart_epoch_label(
+            &format!("{:X}", sv),
+            Mode::Markers,
+            epochs,
+            residuals.iter().map(|(x, _, _)| *x).collect::<Vec<f64>>(),
+            residuals.iter().map(|(_, y, _)| *y).collect::<Vec<f64>>(),
+            residuals.iter().map(|(_, _, z)| *z).collect::<Vec<f64>>(),
+        )
+        .visible({
+            if sv_index < 4 {
+                Visible::True
+            } else {
+                Visible::LegendOnly
+            }
+        });
         plot_ctx.add_trace(trace);
     }
 }

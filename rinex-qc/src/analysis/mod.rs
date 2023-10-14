@@ -1,4 +1,4 @@
-use crate::{pretty_array, QcOpts};
+use crate::QcOpts;
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
 use rinex::prelude::*;
 use rinex_qc_traits::HtmlReport; //table_lengthy_td

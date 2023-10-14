@@ -47,10 +47,18 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
     }
 
     for filt_str in cli.preprocessing() {
-        if let Ok(filt) = Filter::from_str(filt_str) {
+        /* special case : only apply to observ dataset */
+        let only_obs = filt_str.starts_with("observ:");
+        let offset: usize = match only_obs {
+            true => 7, // "observ:"
+            false => 0,
+        };
+        if let Ok(filt) = Filter::from_str(&filt_str[offset..]) {
             ctx.primary_data_mut().filter_mut(filt.clone());
-            if let Some(ref mut nav) = ctx.navigation_data_mut() {
-                nav.filter_mut(filt.clone());
+            if !only_obs {
+                if let Some(ref mut nav) = ctx.navigation_data_mut() {
+                    nav.filter_mut(filt.clone());
+                }
             }
             trace!("applied filter \"{}\"", filt_str);
         } else {

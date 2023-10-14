@@ -24,10 +24,11 @@ pub mod types;
 pub mod version;
 
 mod bibliography;
-mod context;
 mod ground_position;
 mod leap;
 mod observable;
+
+mod context;
 
 #[cfg(test)]
 mod tests;

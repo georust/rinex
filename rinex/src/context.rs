@@ -1,6 +1,4 @@
-//! Post and differential processing contexts
-use horrorshow::{box_html, helper::doctype, html, RenderBox};
-use rinex_qc_traits::HtmlReport;
+//! RINEX post processing context
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -9,22 +7,26 @@ use crate::{merge, merge::Merge};
 
 use sp3::Merge as SP3Merge;
 
-use gnss::prelude::SV;
-
 use crate::observation::Snr;
-use crate::prelude::{Epoch, GroundPosition, Rinex};
+//use crate::prelude::Epoch;
+use crate::prelude::{GroundPosition, Rinex};
+// use gnss::prelude::SV;
 
 use sp3::prelude::SP3;
 
 use log::{error, trace};
+
+#[cfg(feature = "qc")]
+use horrorshow::{box_html, helper::doctype, html, RenderBox};
+
+#[cfg(feature = "qc")]
+use rinex_qc_traits::HtmlReport;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("parsing error")]
     RinexError(#[from] crate::Error),
     #[error("invalid file type")]
-    InvalidType,
-    #[error("non supported file type")]
     NonSupportedType,
     #[error("failed to extend rinex context")]
     RinexMergeError(#[from] merge::Error),
@@ -87,9 +89,6 @@ impl RnxContext {
         Ok(Self {
             primary: {
                 let data = Rinex::from_file(path)?;
-                if !data.is_observation_rinex() {
-                    return Err(Error::InvalidType);
-                }
                 RnxData {
                     data,
                     paths: vec![Path::new(path).to_path_buf()],
@@ -332,27 +331,29 @@ impl RnxContext {
         //}
         self.interpolated = true;
     }
-    /// Returns (unique) Iterator over SV orbit (3D positions)
-    /// to be used in this context
-    pub fn sv_position(&self) -> Vec<(Epoch, SV, (f64, f64, f64))> {
-        if self.interpolated {
-            todo!("CONCLUDE THIS PLEASE");
-        } else {
-            match self.sp3_data() {
-                Some(sp3) => sp3.sv_position().collect(),
-                _ => self
-                    .navigation_data()
-                    .unwrap()
-                    .sv_position()
-                    .map(|(e, sv, (x, y, z))| {
-                        (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
-                    })
-                    .collect(),
-            }
-        }
-    }
+    // /// Returns (unique) Iterator over SV orbit (3D positions)
+    // /// to be used in this context
+    // #[cfg(feature = "nav")]
+    // pub fn sv_position(&self) -> Vec<(Epoch, SV, (f64, f64, f64))> {
+    //     if self.interpolated {
+    //         todo!("CONCLUDE THIS PLEASE");
+    //     } else {
+    //         match self.sp3_data() {
+    //             Some(sp3) => sp3.sv_position().collect(),
+    //             _ => self
+    //                 .navigation_data()
+    //                 .unwrap()
+    //                 .sv_position()
+    //                 .map(|(e, sv, (x, y, z))| {
+    //                     (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
+    //                 })
+    //                 .collect(),
+    //         }
+    //     }
+    // }
 }
 
+#[cfg(feature = "qc")]
 impl HtmlReport for RnxContext {
     fn to_html(&self) -> String {
         format!(

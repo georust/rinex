@@ -18,7 +18,7 @@ pub(crate) struct Line1 {
 impl std::str::FromStr for Line1 {
     type Err = ParsingError;
     fn from_str(line: &str) -> Result<Self, Self::Err> {
-        if line.len() != 60 {
+        if line.len() < 59 {
             return Err(ParsingError::MalformedH1);
         }
         Ok(Self {

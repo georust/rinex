@@ -10,7 +10,7 @@ GNSS Constellations and Space Vehicles (SV) support in Rust
 Add "gnss" to your Cargo.toml
 
 ```toml
-gnss-rs = "2"
+gnss-rs = "2.1"
 ```
 
 Import "gnss-rs": 
