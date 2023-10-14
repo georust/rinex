@@ -54,16 +54,17 @@ pub(crate) fn rtk_postproc(
 
     for (epoch, estimate) in results {
         let (px, py, pz) = (x + estimate.dx, y + estimate.dy, z + estimate.dz);
+        let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, map_3d::Ellipsoid::WGS84);
         let (hdop, vdop, tdop) = (estimate.hdop, estimate.vdop, estimate.tdop);
         writeln!(
             fd,
             "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
             epoch, estimate.dx, estimate.dy, estimate.dz, px, py, pz, hdop, vdop, estimate.dt, tdop
         )?;
-        if cli.rtk_gpx() {
+        if cli.gpx() {
             let mut segment = gpx::TrackSegment::new();
-            let mut wp = Waypoint::new(GeoPoint::new(px, py));
-            wp.elevation = Some(pz);
+            let mut wp = Waypoint::new(GeoPoint::new(lat, lon));
+            wp.elevation = Some(alt);
             wp.speed = None; // TODO ?
             wp.time = None; // TODO Gpx::Time
             wp.name = Some(format!("{:?}", epoch));
@@ -75,7 +76,7 @@ pub(crate) fn rtk_postproc(
             segment.points.push(wp);
             gpx_track.segments.push(segment);
         }
-        if cli.rtk_kml() {
+        if cli.kml() {
             kml_track.push(Kml::Placemark(Placemark {
                 name: Some(format!("{:?}", epoch)),
                 description: Some(String::from("\"Receiver Location\"")),
@@ -83,9 +84,9 @@ pub(crate) fn rtk_postproc(
                     Some(KmlGeometry::Point(KmlPoint {
                         coord: {
                             KmlCoord {
-                                x: px,
-                                y: py,
-                                z: Some(pz),
+                                x: lat,
+                                y: lon,
+                                z: Some(alt),
                             }
                         },
                         extrude: false,
@@ -101,10 +102,10 @@ pub(crate) fn rtk_postproc(
         }
     }
     info!("\"{}\" results generated", txtfile);
-    if cli.rtk_gpx() {
+    if cli.gpx() {
         let gpxpath = workspace.join("rtk.gpx");
         let gpxfile = gpxpath.to_string_lossy().to_string();
-        let mut fd = File::create(&gpxfile)?;
+        let fd = File::create(&gpxfile)?;
 
         let mut gpx = Gpx::default();
         gpx.version = GpxVersion::Gpx11;
@@ -126,10 +127,11 @@ pub(crate) fn rtk_postproc(
         gpx::write(&gpx, fd)?;
         info!("\"{}\" generated", gpxfile);
     }
-    if cli.rtk_kml() {
+    if cli.kml() {
         let kmlpath = workspace.join("rtk.kml");
         let kmlfile = kmlpath.to_string_lossy().to_string();
         let mut fd = File::create(&kmlfile)?;
+
         let kmldoc = KmlDocument {
             version: KmlVersion::V23,
             attrs: [(
@@ -138,7 +140,12 @@ pub(crate) fn rtk_postproc(
             )]
             .into_iter()
             .collect(),
-            elements: kml_track,
+            elements: {
+                vec![Kml::Folder {
+                    attrs: HashMap::new(),
+                    elements: kml_track,
+                }]
+            },
         };
         let mut writer = KmlWriter::from_writer(&mut fd);
         writer.write(&Kml::KmlDocument(kmldoc))?;

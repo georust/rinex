@@ -292,14 +292,6 @@ This is the most performant mode to solve a position."))
 						.long("rtk-cfg")
 						.value_name("FILE")
 						.help("Pass RTK custom configuration."))
-					.arg(Arg::new("gpx")
-						.long("gpx")
-                        .action(ArgAction::SetTrue)
-						.help("Form GPX track from RTK results"))
-                    .arg(Arg::new("kml")
-                        .long("kml")
-                        .action(ArgAction::SetTrue)
-                        .help("Form KML track from RTK results"))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -311,7 +303,15 @@ This is the most performant mode to solve a position."))
                         .value_name("Epoch")
                         .short('s')
                         .help("Split RINEX into two separate files"))
-                .next_help_heading("RINEX output")
+                .next_help_heading("File generation")
+					.arg(Arg::new("gpx")
+						.long("gpx")
+                        .action(ArgAction::SetTrue)
+						.help("Enable GPX formatting. In RTK mode, a GPX track is generated."))
+					.arg(Arg::new("kml")
+						.long("kml")
+                        .action(ArgAction::SetTrue)
+						.help("Enable KML formatting. In RTK mode, a KML track is generated."))
                     .arg(Arg::new("output")
                         .long("output")
                         .value_name("FILE")
@@ -526,10 +526,10 @@ Refer to README"))
     pub fn rtk_only(&self) -> bool {
         self.matches.get_flag("rtk-only")
     }
-    pub fn rtk_gpx(&self) -> bool {
+    pub fn gpx(&self) -> bool {
         self.matches.get_flag("gpx")
     }
-    pub fn rtk_kml(&self) -> bool {
+    pub fn kml(&self) -> bool {
         self.matches.get_flag("kml")
     }
     pub fn rtk_config(&self) -> Option<RTKConfig> {
@@ -587,48 +587,6 @@ Refer to README"))
             }
         } else {
             None
-        }
-    }
-    /*
-     * Returns possible list of directories passed as specific data pool
-     */
-    pub fn data_directories(&self, key: &str) -> Vec<ReadDir> {
-        if let Some(matches) = self.matches.get_many::<String>(key) {
-            matches
-                .filter_map(|s| {
-                    let path = Path::new(s.as_str());
-                    if path.is_dir() {
-                        if let Ok(rd) = path.read_dir() {
-                            Some(rd)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            vec![]
-        }
-    }
-    /*
-     * Returns possible list of files to be loaded individually
-     */
-    pub fn data_files(&self, key: &str) -> Vec<String> {
-        if let Some(matches) = self.matches.get_many::<String>(key) {
-            matches
-                .filter_map(|s| {
-                    let path = Path::new(s.as_str());
-                    if path.is_file() {
-                        Some(path.to_string_lossy().to_string())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            vec![]
         }
     }
     fn manual_ecef(&self) -> Option<&String> {
