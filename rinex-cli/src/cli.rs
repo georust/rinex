@@ -91,12 +91,6 @@ Allows merged file name to be customized."))
                         .long("sv")
                         .action(ArgAction::SetTrue)
                         .help("Enumerate Sv"))
-                    .arg(Arg::new("sv-epoch")
-                        .long("sv-epoch")
-                        .action(ArgAction::SetTrue)
-                        .help("Plot SV against Epoch.
-Useful to determine common Epochs or compare sample rates in between 
---fp OBS and --nav NAV for example."))
                     .arg(Arg::new("sampling")
                         .long("sampling")
                         .action(ArgAction::SetTrue)
@@ -431,10 +425,6 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     /// Returns true if Sv accross epoch display is requested
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
-    }
-    /// Epoch interval (histogram) analysis
-    pub fn sampling_histogram(&self) -> bool {
-        self.matches.get_flag("sampling-hist")
     }
     /// Phase /PR DCBs analysis requested
     pub fn dcb(&self) -> bool {

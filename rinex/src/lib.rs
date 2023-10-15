@@ -2410,7 +2410,7 @@ impl Rinex {
     ///     .unwrap();
     ///
     /// let data = rinex.sv_elevation_azimuth(Some(ref_pos));
-    /// for (epoch, (sv, (elev, azim))) in data {
+    /// for (epoch, sv, (elev, azim)) in data {
     ///     // azim: azimuth in °
     ///     // elev: elevation in °
     /// }
@@ -2418,7 +2418,7 @@ impl Rinex {
     pub fn sv_elevation_azimuth(
         &self,
         ref_position: Option<GroundPosition>,
-    ) -> Box<dyn Iterator<Item = (Epoch, (SV, (f64, f64)))> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64))> + '_> {
         let ground_position = match ref_position {
             Some(pos) => pos, // user value superceeds, in case it is passed
             _ => {
@@ -2436,7 +2436,7 @@ impl Rinex {
                 .filter_map(move |(epoch, (_, sv, ephemeris))| {
                     if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position)
                     {
-                        Some((*epoch, (sv, (elev, azim))))
+                        Some((*epoch, sv, (elev, azim)))
                     } else {
                         None // calculations may not be feasible,
                              // mainly when mandatory ephemeris broadcasts are missing
@@ -2458,6 +2458,13 @@ impl Rinex {
             })
         }))
     }
+    /// Returns closest Ionosphere Delay model in time.
+  pub fn ionosphere_model(&self, t: Epoch) -> Option<(Epoch, IonMessage)> {
+        self.ionosphere_models()
+            .map(|(t, (_, _, msg))| (*t, *msg))
+            .min_by_key(|(t_i, _)| (t - *t_i).abs())
+    }
+
     /// Returns [`KbModel`] Iterator
     /// ```
     /// use rinex::prelude::*;

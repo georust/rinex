@@ -25,7 +25,7 @@ pub fn skyplot(ctx: &RnxContext, plot_context: &mut PlotContext) {
         // Theta = degrees(azim)
         let data: Vec<(Epoch, f64, f64)> = nav_rnx
             .sv_elevation_azimuth(ctx.ground_position())
-            .filter_map(|(epoch, (sv, (elev, azi)))| {
+            .filter_map(|(epoch, sv, (elev, azi))| {
                 if sv == svnn {
                     let rho = elev;
                     let theta = azi;

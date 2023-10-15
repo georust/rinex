@@ -5,21 +5,14 @@ use rinex::prelude::RnxContext;
 use rinex::prelude::*;
 use sp3::SP3;
 
-pub fn plot_navigation(ctx: &RnxContext, plot_context: &mut PlotContext) {
-    if ctx.primary_data().is_navigation_rinex() {
-        plot_nav_data(ctx.primary_data(), ctx.sp3_data(), plot_context);
-    } else if let Some(nav) = &ctx.navigation_data() {
-        plot_nav_data(nav, ctx.sp3_data(), plot_context);
-    }
-}
-
-fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
+pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+    let nav = ctx.navigation_data().unwrap();
     /*
      * Plot SV Clock Offset/Drift
      * one plot (2 Y axes) for both Clock biases
      * and clock drift
      */
-    for (sv_index, sv) in rinex.sv().enumerate() {
+    for (sv_index, sv) in nav.sv().enumerate() {
         if sv_index == 0 {
             plot_ctx.add_cartesian2d_2y_plot(
                 "SV Clock Bias",
@@ -28,7 +21,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             );
             trace!("sv clock plot");
         }
-        let sv_epochs: Vec<_> = rinex
+        let sv_epochs: Vec<_> = nav
             .sv_clock()
             .filter_map(
                 |(epoch, svnn, (_, _, _))| {
@@ -40,7 +33,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 },
             )
             .collect();
-        let sv_clock: Vec<_> = rinex
+        let sv_clock: Vec<_> = nav
             .sv_clock()
             .filter_map(
                 |(_epoch, svnn, (clk, _, _))| {
@@ -53,7 +46,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             )
             .collect();
 
-        let sv_drift: Vec<_> = rinex
+        let sv_drift: Vec<_> = nav
             .sv_clock()
             .filter_map(
                 |(_epoch, svnn, (_, drift, _))| {
@@ -105,10 +98,9 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         });
         plot_ctx.add_trace(trace);
         /*
-         * Plot SP3 similar data (if available)
-         * useful for comparison
+         * Plot SP3 clock data (if any)
          */
-        if let Some(sp3) = sp3 {
+        if let Some(sp3) = ctx.sp3_data() {
             let epochs: Vec<_> = sp3
                 .sv_clock()
                 .filter_map(
@@ -147,16 +139,14 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
         }
     }
     /*
-     * Plot Broadcast Orbits
-     * X/Y(ECEF) on the sample plot
-     * Z (altitude) has its own plot
+     * Plot Broadcast Orbit (x, y, z)
      */
-    for (sv_index, sv) in rinex.sv().enumerate() {
+    for (sv_index, sv) in nav.sv().enumerate() {
         if sv_index == 0 {
             plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
             trace!("broadcast orbit plot");
         }
-        let epochs: Vec<_> = rinex
+        let epochs: Vec<_> = nav
             .sv_position()
             .filter_map(
                 |(epoch, svnn, (_, _, _))| {
@@ -169,7 +159,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             )
             .collect();
 
-        let x_km: Vec<_> = rinex
+        let x_km: Vec<_> = nav
             .sv_position()
             .filter_map(
                 |(_epoch, svnn, (x, _, _))| {
@@ -181,7 +171,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 },
             )
             .collect();
-        let y_km: Vec<_> = rinex
+        let y_km: Vec<_> = nav
             .sv_position()
             .filter_map(
                 |(_epoch, svnn, (_, y, _))| {
@@ -193,7 +183,7 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
                 },
             )
             .collect();
-        let z_km: Vec<_> = rinex
+        let z_km: Vec<_> = nav
             .sv_position()
             .filter_map(
                 |(_epoch, svnn, (_, _, z))| {
@@ -221,11 +211,10 @@ fn plot_nav_data(rinex: &Rinex, sp3: Option<&SP3>, plot_ctx: &mut PlotContext) {
             }
         });
         plot_ctx.add_trace(trace);
-
         /*
-         * add SP3 (x, y) positions, if available
+         * add SP3 (x, y, z) position, if available
          */
-        if let Some(sp3) = sp3 {
+        if let Some(sp3) = ctx.sp3_data() {
             let epochs: Vec<_> = sp3
                 .sv_position()
                 .filter_map(
