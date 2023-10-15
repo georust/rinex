@@ -346,7 +346,7 @@ impl SP3 {
                 }
 
                 if pc_count == 0 {
-                    constellation = Constellation::from_str(line[3..4].trim())?;
+                    constellation = Constellation::from_str(line[3..5].trim())?;
                     time_system = TimeScale::from_str(line[9..12].trim())?;
                 }
 
