@@ -14,18 +14,22 @@ use plotly::{
     Layout, Plot, Scatter, Scatter3D,
 };
 
+use rand::Rng;
 use serde::Serialize;
 
-mod record;
-use rand::Rng;
 use rinex::prelude::RnxContext;
 use rinex::prelude::*;
+
+mod record;
 
 mod context;
 pub use context::PlotContext;
 
 mod skyplot;
 pub use skyplot::skyplot;
+
+mod naviplot;
+pub use naviplot::naviplot;
 
 mod combination;
 pub use combination::{plot_gnss_dcb, plot_gnss_recombination, plot_iono_detector};
@@ -485,5 +489,8 @@ pub fn plot_record(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     }
     if ctx.has_sp3() && ctx.has_navigation_data() {
         record::plot_residual_ephemeris(ctx, plot_ctx);
+    }
+    if ctx.has_navigation_data() {
+        record::plot_ionospheric_delay(ctx, plot_ctx);
     }
 }
