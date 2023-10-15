@@ -22,6 +22,12 @@ use horrorshow::{box_html, helper::doctype, html, RenderBox};
 #[cfg(feature = "qc")]
 use rinex_qc_traits::HtmlReport;
 
+#[cfg(feature = "rtk")]
+mod rtk;
+
+#[cfg(feature = "rtk")]
+pub use rtk::RTKContext;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("parsing error")]

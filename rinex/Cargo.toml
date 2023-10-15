@@ -20,7 +20,12 @@ meteo = []
 nav = []
 ionex = []
 processing = []
-qc = ["rinex-qc-traits", "horrorshow"] # rinex Quality Check (mainly OBS RINEX) 
+
+# rinex Quality Check (mainly OBS RINEX) 
+qc = ["rinex-qc-traits", "horrorshow"] 
+
+# differential context, and associated methods for DGNSS
+rtk = []
 
 # enable everything
 full = [
@@ -32,6 +37,7 @@ full = [
     "obs",
     "processing",
     "qc",
+    "rtk",
     "sbas",
     "serde",
 ]
