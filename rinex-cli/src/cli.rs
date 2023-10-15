@@ -97,14 +97,14 @@ Allows merged file name to be customized."))
                         .help("Plot SV against Epoch.
 Useful to determine common Epochs or compare sample rates in between 
 --fp OBS and --nav NAV for example."))
-                    .arg(Arg::new("sampling-hist")
-                        .long("sampling-hist")
+                    .arg(Arg::new("sampling")
+                        .long("sampling")
                         .action(ArgAction::SetTrue)
-                        .help("Sample rate histogram analysis."))
+                        .help("Sample rate analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
-                        .help("Extracts (all) header fields"))
+                        .help("Extracts major header fields"))
                 .next_help_heading("Preprocessing")
                     .arg(Arg::new("gps-filter")
                         .short('G')
@@ -152,10 +152,6 @@ Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."
                         .long("ssi-range")
                         .action(ArgAction::SetTrue)
                         .help("Display SSI (min,max) range, accross all epochs and vehicles"))
-                    .arg(Arg::new("ssi-sv-range")
-                        .long("ssi-sv-range")
-                        .action(ArgAction::SetTrue)
-                        .help("Extract SSI (min,max) range, per vehicle, accross all epochs"))
                     .arg(Arg::new("lli-mask")
                         .long("lli-mask")
                         .help("Applies given LLI AND() mask. 
@@ -223,10 +219,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .help("Define the (RX) antenna ground position manualy, in decimal degrees.
 Some calculations require a reference position.
 Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
-                    .arg(Arg::new("orbits")
-                        .long("orbits")
-                        .action(ArgAction::SetTrue)
-                        .help("Enumerate orbit fields."))
                     .arg(Arg::new("nav-msg")
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
@@ -431,9 +423,9 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
             | self.matches.get_flag("header")
             | self.matches.get_flag("observables")
             | self.matches.get_flag("ssi-range")
-            | self.matches.get_flag("orbits")
             | self.matches.get_flag("nav-msg")
             | self.matches.get_flag("anomalies")
+            | self.matches.get_flag("sampling")
             | self.matches.get_flag("full-id")
     }
     /// Returns true if Sv accross epoch display is requested
@@ -461,21 +453,19 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
                 "gnss",
                 "observables",
                 "ssi-range",
-                "ssi-sv-range",
-                "orbits",
                 "nav-msg",
                 "anomalies",
+                "sampling",
             ]
         } else {
             let flags = [
                 "sv",
                 "header",
+                "sampling",
                 "epochs",
                 "gnss",
                 "observables",
                 "ssi-range",
-                "ssi-sv-range",
-                "orbits",
                 "nav-msg",
                 "anomalies",
             ];

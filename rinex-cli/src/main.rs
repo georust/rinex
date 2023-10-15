@@ -259,9 +259,17 @@ pub fn main() -> Result<(), Error> {
      * Missing ref. position may restrict possible operations.
      */
     if let Some(pos) = cli.manual_position() {
-        info!("using manually defined reference position {}", pos);
+        let (lat, lon, _) = pos.to_geodetic();
+        info!(
+            "using manually defined reference position {} (lat={:.5}°, lon={:.5}°)",
+            pos, lat, lon
+        );
     } else if let Some(pos) = ctx.ground_position() {
-        info!("using reference position {}", pos);
+        let (lat, lon, _) = pos.to_geodetic();
+        info!(
+            "using reference position {} (lat={:.5}°, lon={:.5}°)",
+            pos, lat, lon
+        );
     } else {
         info!("no reference position given or identified");
     }

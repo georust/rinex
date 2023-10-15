@@ -5,6 +5,9 @@ use rinex::*;
 
 use itertools::Itertools;
 use serde::Serialize;
+use std::collections::HashMap;
+
+use hifitime::Duration;
 
 /*
  * Basic identification operations
@@ -86,11 +89,11 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
         } else if op.eq("observables") && rnx.is_observation_rinex() {
             let mut data: Vec<_> = rnx.observable().collect();
             data.sort();
-            //let content = match pretty {
-            //    true => serde_json::to_string_pretty(&data).unwrap(),
-            //    false => serde_json::to_string(&data).unwrap(),
-            //};
-            println!("[{}]: {:?}", path, data);
+            let content = match pretty {
+                true => serde_json::to_string_pretty(&data).unwrap(),
+                false => serde_json::to_string(&data).unwrap(),
+            };
+            println!("[{}]: {}", path, content);
         } else if op.eq("gnss") && (rnx.is_observation_rinex() || rnx.is_navigation_rinex()) {
             let mut data: Vec<_> = rnx.constellation().collect();
             data.sort();
@@ -131,6 +134,15 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
         } else if op.eq("anomalies") && rnx.is_observation_rinex() {
             let data: Vec<_> = rnx.epoch_anomalies().collect();
             println!("{:#?}", data);
+        } else if op.eq("sampling") {
+            // histogram analysis
+            let data: Vec<(Duration, usize)> = rnx.sampling_histogram().collect();
+            let data: HashMap<String, usize> = data
+                .into_iter()
+                .map(|(dt, pop)| (dt.to_string(), pop))
+                .collect();
+            println!("{:#?}", data);
+            // gap analysis
         }
     }
 }
