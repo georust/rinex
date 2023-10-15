@@ -155,7 +155,7 @@ fn build_context(cli: &Cli) -> RnxContext {
 }
 
 /*
- * Returns true if Skyplot view if feasible
+ * Returns true if Skyplot view if feasible and allowed
  */
 fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
     if cli.quality_check_only() || cli.rtk_only() {
@@ -172,6 +172,14 @@ fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
         info!("see rinex-cli -h : antenna positions.");
     }
     has_nav && has_ref_position
+}
+
+/*
+ * Returns true if NAVI plot is both feasible and allowed
+ */
+fn naviplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
+    // TODO: this need to change once RnxContext gets improved
+    skyplot_allowed(ctx, cli)
 }
 
 pub fn main() -> Result<(), Error> {
@@ -283,20 +291,6 @@ pub fn main() -> Result<(), Error> {
     if cli.identification() {
         rinex_identification(&ctx, &cli);
         return Ok(()); // not proceeding further, in this mode
-    }
-    /*
-     * SV per Epoch analysis requested
-     */
-    if cli.sv_epoch() && !no_graph {
-        info!("sv/epoch analysis");
-        analysis::sv_epoch(&ctx, &mut plot_ctx);
-    }
-    /*
-     * Epoch histogram analysis
-     */
-    if cli.sampling_histogram() && !no_graph {
-        info!("sample rate histogram analysis");
-        analysis::sampling::histogram(&ctx, &mut plot_ctx);
     }
     /*
      * DCB analysis requested
@@ -482,6 +476,13 @@ pub fn main() -> Result<(), Error> {
     if skyplot_allowed(&ctx, &cli) && !no_graph {
         plot::skyplot(&ctx, &mut plot_ctx);
         info!("skyplot view generated");
+    }
+    /*
+     * 3D NAVI plot
+     */
+    if naviplot_allowed(&ctx, &cli) && !no_graph {
+        plot::naviplot(&ctx, &mut plot_ctx);
+        info!("navi plot generated");
     }
     /*
      * CS Detector
