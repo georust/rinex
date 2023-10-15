@@ -62,6 +62,9 @@ pub struct KbModel {
 }
 
 impl KbModel {
+    /*
+     * Parse self from line groupings
+     */
     pub(crate) fn parse(
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,
@@ -154,7 +157,13 @@ pub struct NgModel {
 }
 
 impl NgModel {
-    pub fn parse(mut lines: std::str::Lines<'_>, ts: TimeScale) -> Result<(Epoch, Self), Error> {
+    /*
+     * Parse self from line groupings
+     */
+    pub(crate) fn parse(
+        mut lines: std::str::Lines<'_>,
+        ts: TimeScale,
+    ) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::NgModelMissing1stLine),
@@ -194,7 +203,13 @@ pub struct BdModel {
 }
 
 impl BdModel {
-    pub fn parse(mut lines: std::str::Lines<'_>, ts: TimeScale) -> Result<(Epoch, Self), Error> {
+    /*
+     * Parse Self from line groupings
+     */
+    pub(crate) fn parse(
+        mut lines: std::str::Lines<'_>,
+        ts: TimeScale,
+    ) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::BdModelMissing1stLine),
@@ -234,7 +249,7 @@ impl BdModel {
 }
 
 /// IonMessage: wraps several ionospheric models
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IonMessage {
     /// Klobuchar Model
