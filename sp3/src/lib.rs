@@ -485,6 +485,25 @@ impl SP3 {
             .iter()
             .flat_map(|(e, sv)| sv.iter().map(|(sv, pos)| (*e, *sv, *pos)))
     }
+    /// Returns an Iterator over SV elevation and azimuth angle, both in degrees.
+    /// ref_geo: referance position expressed in decimal degrees
+    pub fn sv_elevation_azimuth(
+        &self,
+        ref_geo: Vector3D,
+    ) -> impl Iterator<Item = (Epoch, SV, (f64, f64))> + '_ {
+        self.sv_position().map(move |(t, sv, (x_km, y_km, z_km))| {
+            let (azim, elev, _) = map_3d::ecef2aer(
+                x_km * 1.0E3,
+                y_km * 1.0E3,
+                z_km * 1.0E3,
+                ref_geo.0,
+                ref_geo.1,
+                ref_geo.2,
+                map_3d::Ellipsoid::WGS84,
+            );
+            (t, sv, (map_3d::rad2deg(elev), map_3d::rad2deg(azim)))
+        })
+    }
     /// Returns an Iterator over SV velocities estimates,
     /// in 10^-1 m/s with 0.1 um/s precision.
     pub fn sv_velocities(&self) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
