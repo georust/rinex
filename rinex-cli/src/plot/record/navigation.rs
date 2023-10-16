@@ -1,8 +1,6 @@
-//! Navigation record plotting
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::prelude::*;
-use sp3::SP3;
 
 pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let mut clock_plot_created = false;

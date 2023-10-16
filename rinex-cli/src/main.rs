@@ -93,23 +93,6 @@ pub fn create_workspace(path: PathBuf) {
     });
 }
 
-use walkdir::WalkDir;
-
-/*
- * Loads augmentation directories recursively
- */
-fn load_recursive_augmentation(file: &str, ctx: &mut RnxContext, base_dir: &str, max_depth: usize) {
-    let walkdir = WalkDir::new(base_dir).max_depth(max_depth);
-    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-        if !entry.path().is_dir() {
-            let fullpath = entry.path().to_string_lossy().to_string();
-            if ctx.load(&fullpath).is_err() {
-                warn!("failed to load --{} \"{}\"", file, fullpath);
-            }
-        }
-    }
-}
-
 /*
  * Creates File/Data context defined by user.
  * Regroups all provided files/folders,

@@ -7,8 +7,8 @@ use crate::{merge, merge::Merge};
 
 use sp3::Merge as SP3Merge;
 
-use crate::observation::Snr;
-//use crate::prelude::Epoch;
+// use crate::observation::Snr;
+// use crate::prelude::Epoch;
 use crate::prelude::{GroundPosition, Rinex};
 // use gnss::prelude::SV;
 
@@ -176,25 +176,31 @@ impl RnxContext {
         Some(path.file_name().unwrap().to_string_lossy().to_string())
     }
     /// Loads given file into Context
-    pub fn load(&mut self, path: &str) -> Result<(), Error> {
-        if let Ok(rnx) = Rinex::from_file(path) {
-            let path = Path::new(path);
+    pub fn load(&mut self, filename: &str) -> Result<(), Error> {
+        if let Ok(rnx) = Rinex::from_file(filename) {
+            let path = Path::new(filename);
             if rnx.is_observation_rinex() {
                 self.load_obs(path, &rnx)?;
+                trace!("loaded observations \"{}\"", filename);
             } else if rnx.is_navigation_rinex() {
                 self.load_nav(path, &rnx)?;
+                trace!("loaded brdc nav \"{}\"", filename);
             } else if rnx.is_meteo_rinex() {
                 self.load_meteo(path, &rnx)?;
+                trace!("loaded meteo observations \"{}\"", filename);
             } else if rnx.is_ionex() {
                 self.load_ionex(path, &rnx)?;
+                trace!("loaded ionex \"{}\"", filename);
             } else if rnx.is_antex() {
                 self.load_antex(path, &rnx)?;
+                trace!("loaded antex dataset \"{}\"", filename);
             } else {
                 return Err(Error::NonSupportedType);
             }
-        } else if let Ok(sp3) = SP3::from_file(path) {
-            let path = Path::new(path);
+        } else if let Ok(sp3) = SP3::from_file(filename) {
+            let path = Path::new(filename);
             self.load_sp3(path, &sp3)?;
+            trace!("loaded sp3 \"{}\"", filename);
         }
 
         Ok(())
