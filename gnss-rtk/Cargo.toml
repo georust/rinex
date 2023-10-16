@@ -15,6 +15,7 @@ readme = "README.md"
 log = "0.4"
 thiserror = "1"
 nalgebra = "=0.32.1"
+map_3d = "0.1.5"
 nyx-space = "2.0.0-alpha.2" 
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 # rinex-qc = { path = "../rinex-qc", version = "=0.1.4", features = ["serde"] }

@@ -42,7 +42,7 @@ pub mod prelude {
 
 use cfg::RTKConfig;
 use estimate::SolverEstimate;
-use model::Modeling;
+use model::{Modeling, Modelization, Models};
 
 use log::{debug, error, trace, warn};
 
@@ -124,17 +124,21 @@ pub struct Solver {
     initiated: bool,
     /// current epoch
     nth_epoch: usize,
+    /// modelization memory storage
+    models: Models,
 }
 
 impl Solver {
     pub fn from(context: &RnxContext) -> Result<Self, SolverError> {
         let solver = SolverType::from(context)?;
+        let cfg = RTKConfig::default(solver);
         Ok(Self {
             cosmic: Cosm::de438(),
             solver,
             initiated: false,
-            cfg: RTKConfig::default(solver),
+            cfg: cfg.clone(),
             nth_epoch: 0,
+            models: Models::with_capacity(cfg.max_sv),
         })
     }
     pub fn init(&mut self, ctx: &mut RnxContext) -> Result<(), SolverError> {
@@ -182,6 +186,7 @@ impl Solver {
 
         self.nth_epoch = 0;
         self.initiated = true;
+        self.models = Models::with_capacity(self.cfg.max_sv);
         Ok(())
     }
     pub fn run(&mut self, ctx: &mut RnxContext) -> Result<(Epoch, SolverEstimate), SolverError> {
@@ -197,6 +202,8 @@ impl Solver {
             .cfg
             .rcvr_position
             .ok_or(SolverError::UndefinedAprioriPosition)?;
+
+        let lat_ddeg = pos0.to_geodetic().0;
 
         let (x0, y0, z0): (f64, f64, f64) = pos0.into();
 
@@ -291,7 +298,7 @@ impl Solver {
 
         debug!("{:?}: {} elected sv", t, elected_sv.len());
 
-        let mut sv_data: HashMap<SV, (f64, f64, f64, f64, Duration)> = HashMap::new();
+        let mut sv_data: HashMap<SV, (f64, f64, f64, f64, Duration, f64)> = HashMap::new();
 
         // 3: sv position evaluation
         for sv in &elected_sv {
@@ -352,15 +359,17 @@ impl Solver {
                 continue;
             }
 
+            // Resolve (x, y, z, elev°)
             let (x_km, y_km, z_km) = pos.unwrap();
+
+            let (elev, _) = Ephemeris::elevation_azimuth(
+                (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3),
+                pos0.into(),
+            );
 
             // Elevation filter
             if let Some(min_elev) = self.cfg.min_sv_elev {
-                let (e, _) = Ephemeris::elevation_azimuth(
-                    (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3),
-                    pos0.into(),
-                );
-                if e < min_elev {
+                if elev < min_elev {
                     trace!("{:?} : {} elev below mask", t, sv);
                     continue;
                 }
@@ -377,14 +386,32 @@ impl Solver {
                 if eclipsed {
                     debug!("{:?} : dropping eclipsed {}", t, sv);
                 } else {
-                    sv_data.insert(*sv, (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, pr, dt_sat));
+                    sv_data.insert(
+                        *sv,
+                        (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, pr, dt_sat, elev),
+                    );
                 }
             } else {
-                sv_data.insert(*sv, (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, pr, dt_sat));
+                sv_data.insert(
+                    *sv,
+                    (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, pr, dt_sat, elev),
+                );
             }
         }
 
-        // 6: form matrix
+        // 6: other modelization
+        self.models.modelize(
+            t,
+            sv_data
+                .iter()
+                .map(|(sv, (_x, _y, _z, _pr, _dt, elev))| (*sv, *elev))
+                .collect(),
+            lat_ddeg,
+            ctx,
+            &self.cfg,
+        );
+
+        // 7: form matrix
         let mut y = DVector::<f64>::zeros(elected_sv.len());
         let mut g = MatrixXx4::<f64>::zeros(elected_sv.len());
 

@@ -302,6 +302,10 @@ impl RnxContext {
             None
         }
     }
+    /// Returns true if self contains meteo data
+    pub fn has_meteo_data(&self) -> bool {
+        self.meteo.is_some()
+    }
     /// Returns reference to Meteo Data
     pub fn meteo_data(&self) -> Option<&Rinex> {
         if let Some(ref data) = self.meteo {
