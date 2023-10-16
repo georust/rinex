@@ -50,8 +50,10 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
 pub enum SolverError {
-    #[error("provided context is either not sufficient or invalid")]
-    Unfeasible,
+    #[error("need observation data")]
+    MissingObservations,
+    #[error("need navigation data")]
+    MissingBrdcNavigation,
     #[error("apriori position is not defined")]
     UndefinedAprioriPosition,
     #[error("failed to initialize solver - \"{0}\"")]
@@ -99,11 +101,13 @@ impl std::fmt::Display for SolverType {
 
 impl SolverType {
     fn from(ctx: &RnxContext) -> Result<Self, SolverError> {
-        if ctx.primary_data().is_observation_rinex() {
+        if ctx.obs_data().is_none() {
+            Err(SolverError::MissingObservations)
+        } else if ctx.nav_data().is_none() {
+            Err(SolverError::MissingBrdcNavigation)
+        } else {
             //TODO : multi carrier for selected constellations
             Ok(Self::SPP)
-        } else {
-            Err(SolverError::Unfeasible)
         }
     }
 }
@@ -185,6 +189,10 @@ impl Solver {
             return Err(SolverError::NotInitialized);
         }
 
+        let obs_data = ctx.obs_data().unwrap();
+
+        let nav_data = ctx.nav_data().unwrap();
+
         let pos0 = self
             .cfg
             .rcvr_position
@@ -196,7 +204,7 @@ impl Solver {
         let interp_order = self.cfg.interp_order;
 
         // 0: grab work instant
-        let t = ctx.primary_data().epoch().nth(self.nth_epoch);
+        let t = obs_data.epoch().nth(self.nth_epoch);
 
         if t.is_none() {
             self.nth_epoch += 1;
@@ -217,8 +225,7 @@ impl Solver {
         trace!("{:?}: {} candidates", t, elected_sv.len());
 
         // retrieve associated PR
-        let pr: Vec<_> = ctx
-            .primary_data()
+        let pr: Vec<_> = obs_data
             .pseudo_range_ok()
             .filter_map(|(epoch, svnn, _, pr)| {
                 if epoch == t && elected_sv.contains(&svnn) {
@@ -247,8 +254,7 @@ impl Solver {
 
             let mut snr_ok = self.cfg.min_sv_snr.is_none();
             if let Some(min_snr) = self.cfg.min_sv_snr {
-                let snr = ctx
-                    .primary_data()
+                let snr = obs_data
                     .snr()
                     .filter_map(|((epoch, _), svnn, _, snr)| {
                         if epoch == t && svnn == *sv {
@@ -298,9 +304,7 @@ impl Solver {
 
             let _ts = sv.timescale().unwrap(); // can't fail at this point ?
 
-            let nav = ctx.navigation_data().unwrap(); // can't fail at this point ?
-
-            let ephemeris = nav.sv_ephemeris(*sv, t);
+            let ephemeris = nav_data.sv_ephemeris(*sv, t);
             if ephemeris.is_none() {
                 error!("{:?}: {} no valid ephemeris", t, sv);
                 continue;
@@ -337,10 +341,10 @@ impl Solver {
                         Some(pos)
                     } else {
                         /* try to fall back to ephemeris nav */
-                        nav.sv_position_interpolate(*sv, t_tx, interp_order)
+                        nav_data.sv_position_interpolate(*sv, t_tx, interp_order)
                     }
                 },
-                _ => nav.sv_position_interpolate(*sv, t_tx, interp_order),
+                _ => nav_data.sv_position_interpolate(*sv, t_tx, interp_order),
             };
 
             if pos.is_none() {
@@ -512,7 +516,8 @@ impl Solver {
      * Returns all SV at "t"
      */
     fn sv_at_epoch(ctx: &RnxContext, t: Epoch) -> Option<Vec<SV>> {
-        ctx.primary_data()
+        ctx.obs_data()
+            .unwrap()
             .sv_epoch()
             .filter_map(|(epoch, svs)| if epoch == t { Some(svs) } else { None })
             .reduce(|svs, _| svs)

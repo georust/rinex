@@ -52,27 +52,32 @@ pub enum Error {
 }
 
 /*
- * Workspace location is fixed to rinex-cli/product/$primary
- * at the moment
+ * Utility : determines  the file stem of most major RINEX file in the context
  */
-pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
-    let primary_stem: &str = ctx
-        .primary_paths()
-        .first()
-        .expect("failed to determine Workspace")
+pub(crate) fn context_stem(ctx: &RnxContext) -> String {
+    let ctx_major_stem: &str = ctx
+        .rinex_path()
+        .expect("failed to determine a context name")
         .file_stem()
-        .expect("failed to determine Workspace")
+        .expect("failed to determine a context name")
         .to_str()
-        .expect("failed to determine Workspace");
+        .expect("failed to determine a context name");
     /*
      * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
      * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
      */
-    let primary_stem: Vec<&str> = primary_stem.split('.').collect();
+    let primary_stem: Vec<&str> = ctx_major_stem.split('.').collect();
+    primary_stem[0].to_string()
+}
 
+/*
+ * Workspace location is fixed to rinex-cli/product/$primary
+ * at the moment
+ */
+pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("workspace")
-        .join(primary_stem[0])
+        .join(&context_stem(ctx))
 }
 
 /*
@@ -110,48 +115,34 @@ fn load_recursive_augmentation(file: &str, ctx: &mut RnxContext, base_dir: &str,
  * Regroups all provided files/folders,
  */
 fn build_context(cli: &Cli) -> RnxContext {
-    let path = cli.input_path();
-    let pathbf = Path::new(path).to_path_buf();
-    let ctx = RnxContext::new(pathbf);
-    if ctx.is_err() {
-        panic!(
-            "failed to load desired context \"{}\", : {:?}",
-            path,
-            ctx.err().unwrap()
-        );
-    }
-    let mut ctx = ctx.unwrap();
-    /*
-     * load possible augmentations
-     */
-    for path in cli.navigation_paths() {
-        let path = Path::new(path);
-        let fullpath = path.to_string_lossy().to_string();
-        if path.is_dir() {
-            load_recursive_augmentation("nav", &mut ctx, &fullpath, 5);
-        } else if ctx.load(&fullpath).is_err() {
-            warn!("failed to load --nav \"{}\"", fullpath);
+    // Load base dir (if any)
+    if let Some(base_dir) = cli.input_base_dir() {
+        let ctx = RnxContext::new(base_dir.into());
+        if ctx.is_err() {
+            panic!(
+                "failed to load desired context \"{}\", : {:?}",
+                base_dir,
+                ctx.err().unwrap()
+            );
         }
-    }
-    for path in cli.atx_paths() {
-        let path = Path::new(path);
-        let fullpath = path.to_string_lossy().to_string();
-        if path.is_dir() {
-            load_recursive_augmentation("atx", &mut ctx, &fullpath, 5);
-        } else if ctx.load(&fullpath).is_err() {
-            warn!("failed to load --atx \"{}\"", fullpath);
+        let mut ctx = ctx.unwrap();
+        // Append individual files, if any
+        for filepath in cli.input_files() {
+            if ctx.load(filepath).is_err() {
+                warn!("failed to load \"{}\"", filepath);
+            }
         }
-    }
-    for path in cli.sp3_paths() {
-        let path = Path::new(path);
-        let fullpath = path.to_string_lossy().to_string();
-        if path.is_dir() {
-            load_recursive_augmentation("sp3", &mut ctx, &fullpath, 5);
-        } else if ctx.load(&fullpath).is_err() {
-            warn!("failed to load --sp3 \"{}\"", fullpath);
+        ctx
+    } else {
+        // load individual files, if any
+        let mut ctx = RnxContext::default();
+        for filepath in cli.input_files() {
+            if ctx.load(filepath).is_err() {
+                warn!("failed to load \"{}\"", filepath);
+            }
         }
+        ctx
     }
-    ctx
 }
 
 /*
@@ -250,12 +241,22 @@ pub fn main() -> Result<(), Error> {
     create_workspace(workspace.clone());
 
     /*
-     * Print more info on special primary data cases
+     * Print more info on provided context
      */
-    if ctx.primary_data().is_meteo_rinex() {
-        info!("meteo special primary data");
-    } else if ctx.primary_data().is_ionex() {
-        info!("ionex special primary data");
+    if ctx.obs_data().is_some() {
+        info!("observation data loaded");
+    }
+    if ctx.nav_data().is_some() {
+        info!("brdc navigation data loaded");
+    }
+    if ctx.sp3_data().is_some() {
+        info!("sp3 data loaded");
+    }
+    if ctx.meteo_data().is_some() {
+        info!("meteo data loaded");
+    }
+    if ctx.ionex_data().is_some() {
+        info!("ionex data loaded");
     }
 
     /*
@@ -296,106 +297,129 @@ pub fn main() -> Result<(), Error> {
      * DCB analysis requested
      */
     if cli.dcb() && !no_graph {
-        let data = ctx
-            .primary_data()
-            .observation_phase_align_origin()
-            .observation_phase_carrier_cycles()
-            .dcb();
-        plot::plot_gnss_dcb(
-            &mut plot_ctx,
-            "Differential Code Biases",
-            "DBCs [n.a]",
-            &data,
-        );
-        info!("--dcb analysis");
+        if let Some(rnx) = ctx.obs_data() {
+            let data = rnx
+                .observation_phase_align_origin()
+                .observation_phase_carrier_cycles()
+                .dcb();
+            plot::plot_gnss_dcb(
+                &mut plot_ctx,
+                "Differential Code Biases",
+                "DBCs [n.a]",
+                &data,
+            );
+            info!("dcb analysis");
+        } else {
+            error!("dcb is not feasible");
+        }
     }
     /*
      * Code Multipath analysis
      */
     if cli.multipath() && !no_graph {
-        //let data = ctx
-        //    .primary_data()
-        //    .observation_phase_align_origin()
-        //    .observation_phase_carrier_cycles()
-        //    .mp();
-        //plot::plot_gnss_dcb(
-        //    &mut plot_ctx,
-        //    "Code Multipath Biases",
-        //    "Meters of delay",
-        //    &data,
-        //);
+        if let Some(rnx) = ctx.obs_data() {
+            //let data = ctx
+            //    .primary_data()
+            //    .observation_phase_align_origin()
+            //    .observation_phase_carrier_cycles()
+            //    .mp();
+            //plot::plot_gnss_dcb(
+            //    &mut plot_ctx,
+            //    "Code Multipath Biases",
+            //    "Meters of delay",
+            //    &data,
+            //);
+        } else {
+            error!("mp is not feasible");
+        }
     }
     /*
      * [GF] recombination visualization requested
      */
     if cli.gf_recombination() && !no_graph {
-        let data = ctx
-            .primary_data()
-            .observation_phase_align_origin()
-            .geo_free();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Geometry Free signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--gf recombination");
+        if let Some(rnx) = ctx.obs_data() {
+            let data = rnx.observation_phase_align_origin().geo_free();
+            plot::plot_gnss_recombination(
+                &mut plot_ctx,
+                "Geometry Free signal combination",
+                "Meters of Li-Lj delay",
+                &data,
+            );
+            info!("gf recombination");
+        } else {
+            error!("gf is not feasible");
+        }
     }
     /*
      * Ionospheric Delay Detector (graph)
      */
     if cli.iono_detector() && !no_graph {
-        let data = ctx.primary_data().iono_delay(Duration::from_seconds(360.0));
-        plot::plot_iono_detector(&mut plot_ctx, &data);
-        info!("--iono detector");
+        if let Some(rnx) = ctx.obs_data() {
+            let data = rnx.iono_delay(Duration::from_seconds(360.0));
+            plot::plot_iono_detector(&mut plot_ctx, &data);
+            info!("iono detector");
+        } else {
+            error!("iono is not feasible");
+        }
     }
     /*
      * [WL] recombination
      */
     if cli.wl_recombination() && !no_graph {
-        let data = ctx.primary_data().wide_lane();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Wide Lane signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--wl recombination");
+        if let Some(rnx) = ctx.obs_data() {
+            let data = rnx.wide_lane();
+            plot::plot_gnss_recombination(
+                &mut plot_ctx,
+                "Wide Lane signal combination",
+                "Meters of Li-Lj delay",
+                &data,
+            );
+            info!("wl recombination");
+        } else {
+            error!("wl is not feasible");
+        }
     }
     /*
      * [NL] recombination
      */
     if cli.nl_recombination() && !no_graph {
-        let data = ctx.primary_data().narrow_lane();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Narrow Lane signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--nl recombination");
+        if let Some(rnx) = ctx.obs_data() {
+            let data = rnx.narrow_lane();
+            plot::plot_gnss_recombination(
+                &mut plot_ctx,
+                "Narrow Lane signal combination",
+                "Meters of Li-Lj delay",
+                &data,
+            );
+            info!("nl recombination");
+        } else {
+            error!("nl is not feasible");
+        }
     }
     /*
      * [MW] recombination
      */
     if cli.mw_recombination() && !no_graph {
-        let data = ctx.primary_data().melbourne_wubbena();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Melbourne-Wübbena signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--mw recombination");
+        if let Some(rnx) = ctx.obs_data() {
+            let data = rnx.melbourne_wubbena();
+            plot::plot_gnss_recombination(
+                &mut plot_ctx,
+                "Melbourne-Wübbena signal combination",
+                "Meters of Li-Lj delay",
+                &data,
+            );
+            info!("mw recombination");
+        } else {
+            error!("mw is not feasible");
+        }
     }
     /*
      * MERGE
      */
     if let Some(rinex_b) = cli.to_merge() {
-        let new_rinex = ctx
-            .primary_data()
-            .merge(&rinex_b)
-            .expect("failed to merge both files");
+        let rinex = ctx.rinex_data().expect("undefined RINEX data");
+
+        let new_rinex = rinex.merge(&rinex_b).expect("failed to merge both files");
 
         let filename = match cli.output_path() {
             Some(path) => path.clone(),
@@ -421,19 +445,11 @@ pub fn main() -> Result<(), Error> {
      * SPLIT
      */
     if let Some(epoch) = cli.split() {
-        let (rnx_a, rnx_b) = ctx
-            .primary_data()
+        let rinex = ctx.rinex_data().expect("undefined RINEX data");
+
+        let (rnx_a, rnx_b) = rinex
             .split(epoch)
             .expect("failed to split primary rinex file");
-
-        let file_stem = ctx
-            .primary_paths()
-            .first()
-            .expect("failed to determine file prefix")
-            .file_stem()
-            .expect("failed to determine file prefix")
-            .to_str()
-            .expect("failed to determine file prefix");
 
         let file_suffix = rnx_a
             .first_epoch()
@@ -443,7 +459,7 @@ pub fn main() -> Result<(), Error> {
         let path = format!(
             "{}/{}-{}.txt",
             workspace.to_string_lossy(),
-            file_stem,
+            context_stem(&ctx),
             file_suffix
         );
 
@@ -459,7 +475,7 @@ pub fn main() -> Result<(), Error> {
         let path = format!(
             "{}/{}-{}.txt",
             workspace.to_string_lossy(),
-            file_stem,
+            context_stem(&ctx),
             file_suffix
         );
 
@@ -473,9 +489,15 @@ pub fn main() -> Result<(), Error> {
     /*
      * skyplot
      */
-    if skyplot_allowed(&ctx, &cli) && !no_graph {
-        plot::skyplot(&ctx, &mut plot_ctx);
-        info!("skyplot view generated");
+    if !no_graph {
+        if skyplot_allowed(&ctx, &cli) {
+            let nav = ctx.nav_data().unwrap(); // infaillble
+            let ground_pos = ctx.ground_position().unwrap(); // infaillible
+            plot::skyplot(nav, ground_pos, &mut plot_ctx);
+            info!("skyplot view generated");
+        } else {
+            info!("skyplot view is not feasible");
+        }
     }
     /*
      * 3D NAVI plot

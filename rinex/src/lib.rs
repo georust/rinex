@@ -2459,7 +2459,7 @@ impl Rinex {
         }))
     }
     /// Returns closest Ionosphere Delay model in time.
-  pub fn ionosphere_model(&self, t: Epoch) -> Option<(Epoch, IonMessage)> {
+    pub fn ionosphere_model(&self, t: Epoch) -> Option<(Epoch, IonMessage)> {
         self.ionosphere_models()
             .map(|(t, (_, _, msg))| (*t, *msg))
             .min_by_key(|(t_i, _)| (t - *t_i).abs())

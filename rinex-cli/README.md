@@ -6,115 +6,119 @@ RINEX-cli
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
 
 
-`rinex-cli` is a command line application based off the RINEX crate,
-to manage RINEX files (like reshaping or mixing), but also perform geodesic calculations,
-analyze broadcast ephemeris, estimate differential code biases etc..
+`rinex-cli` is a command line application to post process RINEX data.  
+It can be used to reshape your RINEX files, or perform basic geodesic calculations,
+like broadcast ephemeris analysis and differential code biase estimation.
 
 It can also generate an html report that is similar to "teqc" QC mode.
 
 ## File loading interface
 
-`rinex-cli` accepts one primary file and possible context enhancers.
+`rinex-cli` accepts a single post processing RINEX context
+to be loaded. Such a context can comprise any kind of RINEX files and
+also accept SP3 files.
 
-In basic operations, only a primary file is expected.  
-Some RINEX files can only serve as primary files too.  
+Feasible operations are highly dependent on the provided context.
 Refer to [this page](doc/file-combination.md) to understand
 what data context you should provide for the analysis you want to perform.
 
-In any case: 
+You have two options to define your work context:
 
-- `--fp` (`-f`) only accepts one file at the moment
-- `-d` the smart recursive loader, allows loading entire datasets,
-with Observation RINEX as primary data.
-- `--nav`, `--sp3` `--atx` accept both single files (as many as you want)
-or directories, but they need to match that specific data type and they will serve
-as Observation RINEX augmentation.
-- `-d` or `-f` (at least once) is the only required command line argument.
+- Use `-f` (or `--fp`) to load as many individual files as you want.
+Can either be valid RINEX or SP3 files.
+- Use `-d` to load an entire folder recursively
+- Both flags can be used together
 
-To load several files, use the command line flag once per file, for example :
+`rinex-cli` currently only allows a single context to be defined.  
+We don't have an interface to define a dual context, for example
+a Reference station and a Rover station as needed in true RTK.  
+Thefore, it can only resolve the position
+of the receiver using standard trilateration method.
+
+## Observation Data in your Context
+
+The command line lets you load as many Broadcast Navigation data as you want,
+which is makes covering the time frame of your Observation Data very easily.
+But special care must be taken when defining your context:
+
+- You should only load coherent Observation Data.
+The interface lets you load as many Oobservation files as you want,
+but they should all be sampled by the same station. 
+One benefit from that, is you can load several days in a single run.
+
+- If you're not defining the receiver/station location yourself,
+we search for it in all provided files individually. 
+If it's defined in your Observation Data Header, this one is to be prefered.
+But sometimes it is not the case. In case you loaded Broadcast Navigation from
+different stations, you may wind up using the predefined apriori position,
+and all position solver results will not be expressed against the correct location.  
+Pay extra attention to the _apriori_ position being used:
+
+- Just like Broadcast Navigation, we allow loading as many SP3 files as you need.  
+For very advanced usage, you should only stack coherent SP3 files that used
+the same modeling in their making
+
+## File loading example
+
+`rinex-cli` works totally fine with partial context, especially a single
+file of a single kind. For example, load a single Observation File and run your analysis :
 
 ```bash
 ./target/release/rinex-cli \
-    --fp /tmp/PRIMARY.txt \
-    --nav /foo/NAV1.txt \
-    --nav /tmp/NAV2.txt
+    --fp /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz
 ```
 
-You can stack as many as you want.
+In any case:
 
-This also applies to directories, for example : 
+- File names are disregarded by this tool, you can parse and analyze files
+that do not follow naming conventions
+- Gzip compressed files must be terminated by .gz
+- Seamless CRINEX V1 and V3 decompression is built in
+
+`-f` lets you load any kind of RINEX individually:
+
+```bash
+# Run basic identification on a single GLO NAV file
+./target/release/rinex-cli \
+    -f /tmp/256/NAV/GLONASS/MAYG00MYT_R_2023256000_01D_GN.rnx.gz -i
+
+# Run basic identification on a single IONEX file
+./target/release/rinex-cli \
+    -f /foo/ionex.rnx.gz -i
+```
+
+Load a single Observation context, from station ASC2300USA, and take advantage
+of `-d` to cover its time frame for that day :
 
 ```bash
 ./target/release/rinex-cli \
-    --fp /tmp/PRIMARY.txt \
-    --nav /foo/NAV_DIR1 \
-    --nav /tmp/NAV_DIR2
+    --fp /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz \
+    -d /foo/BASE_DIR
+
+ls -l /foo/BASE_DIR
+
+BASE_DIR/NAV/*.gz
+BASE_DIR/SP3/*.gz
+BASE_DIR/METEO/*.gz
 ```
 
-With the following hierarchy, you can load Navigation and SP3 frames easily : 
+`-d` is recursive with a maximal depth of 5.  
+Therefore, it supports sorting your Navigation broadcast by constellation for example (one folder per constellation), or support loading several days at once if you store your data in one folder per Day of Year.
 
-```
-POOL/2023/100/SP3/
-POOL/2023/100/NAV/
-POOL/2023/100/NAV/GPS/
-POOL/2023/100/NAV/BEIDOU/
-POOL/2023/101/SP3/
-POOL/2023/101/NAV/
-```
+## Reports and Workspace 
 
-`--nav` POOL/2023/100/NAV is recursive but it can only load Navigation frames.
-It will not crash, but other residues are not accepted 
+Reports are generated in different formats: 
+- txt
+- stdout 
+- GPX tracks
+- KML tracks
 
-## Loading Daily or Weekly data sets 
+Plots and QC report are generated in HTML format.
 
-`-d` is the ultimate file loader. It works well if you sort your data as daily or weekly data.
-It allows loading complex RINEX blob for several days or weeks at once by
-recursively browsing directories, with a maximal depth of 5.
+All data produced is saved in the workspace, in a folder that bears the name of this current run.  
+The run is named after the filename encountered, with preference for Observation then Navigation files name.
 
-It is dedicated to QC or RTK solving, therefore Observations are considered as primary datasets
-to be enhanced with broadcast data.
-
-Take the following hierarchy for example :
-
-```
-POOL/2023/100/OBS_100.txt
-POOL/2023/100/FOLDER1/OBS_100.rnx.gz
-POOL/2023/100/NAV/*
-POOL/2023/100/SP3/*
-POOL/2023/256/OBS_256.txt
-POOL/2023/256/NAV1.txt
-POOL/2023/256/SP3/*
-POOL/2023/256/NAV2.txt
-```
-
-Running `rinex-cli -d POOL/2023/100` loads the entire Day 100 data.  
-OBS_100.txt is the first encountered Observation data : this run is nammed after it.    
-OBS_100.rnx.gz is also identified and will be stacked to the previously loaded Observations.    
-100/NAV/* and 100/SP3/* are loaded entirely and will permit RTK or advanced QC.
-
-Running `rinex-cli -d POOL/2023/256` gives the same thing for Day 256,
-expect that the run will be named OBS_256.
-
-Running `rinex-cli -d POOL/2023` will generate a run named OBS_100 that comprise
-both Day 100 and Day 256 contexts.
-
-## File naming conventions
-
-File names are disregarded by this tool, you can parse & analyze
-files that do not follow naming conventions.
-
-## Compressed data
-
-CRINEX (V1 and V3) are natively supported. That means you can load
-compressed Observation Data directly.  
-
-This tool supports gzip compressed files but their names must be terminated by `.gz`
-so we can determine a first decompression is needed.
-
-### Analysis and reporting
-
-Reports and plots are rendered in HTML in the `rinex/rinex-cli/workspace` directory.  
-Analysis is named after the primary RINEX file.
+The workspace is set to `$GIT/rinex-cli/workspace` by default, but that can be customized with `-w`.
 
 ## `teqc` operations
 
@@ -135,7 +139,7 @@ if you know how to operate the preprocessing toolkit
 
 `rinex-cli` integrates a position solver that will resolve the radio receiver location 
 the best it can, by post processing the provided RINEX context. 
-This mode in requested with `-r` or `--rtk` and is turned off by default.
+This mode in requested with `-r` or `--rtk` and is turned off by default.  
 
 To learn how to operate the solver, refer to [the dedicated page](doc/rtk.md).
 
@@ -181,7 +185,7 @@ Set the sensitivy as desired, "trace" being the most sensitive,
 RUST_LOG=trace rinex-cli --fp test_resources/NAV/V2/amel010.21g
 
 export RUST_LOG=info
-rinex-cli --fp test_resources/NAV/V2/amel010.21g
+rinex-cli -f test_resources/NAV/V2/amel010.21g
 ```
 
 Here's an example of traces you might get on a complex run:
@@ -228,43 +232,17 @@ rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 ```
 
-## HTML content
+## Identification mode
 
-The analysis report is generated in HTML.  
-In the future, we will allow other formats to be generated
-(like JSON). 
-
-When the analysis is concluded, the report
-is opened in the default web browser. This is turned off
-if the quiet option (`-q`) is active.
-
-The HTML content is self-sufficient, all Javascript
-and other dependencies are integrated . 
-This results in a large file whose rendering is quick.
-To change that behavior, the `--tiny-html` option is there. 
-The resulting report gets reduced (about 8 times smaller), but
-graphical views (if any) are longer to render in the browser.
-This is actually only true if the javascript has not been cached
-by the web browser.
-
-## Data identification
-
-Basic Identification consists in extracting high level information to understand which 
-data is contained in a given RINEX.
-Examples of such information would be `Epoch` or `Sv` enumerations.
-
-For example:
+`-i` is a quick method to print basic information in the terminal.
 
 ```bash
-rinex-cli -f OBS/V2/KOSG0010.95O --epochs
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv
+rinex-cli -f OBS/V2/KOSG0010.95O -i
+rinex-cli -d /tmp/BASE_DIR -i -p
 ``` 
 
-The `--pretty` (`-p`) option is there to make the datasets more readable (json format): 
+`-p` (or `--pretty`) makes stdout and JSON output more readable.
 
-```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O -g --epochs --sv -p
-``` 
 
 ## Data analysis
 

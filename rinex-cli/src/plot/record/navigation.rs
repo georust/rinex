@@ -1,17 +1,16 @@
 //! Navigation record plotting
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
-use rinex::prelude::RnxContext;
 use rinex::prelude::*;
 use sp3::SP3;
 
 pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
-    let nav = ctx.navigation_data().unwrap();
-    /*
-     * Plot SV Clock Offset/Drift
-     * one plot (2 Y axes) for both Clock biases
-     * and clock drift
-     */
+    let nav = ctx.nav_data().unwrap(); // infaillible ?
+                                       /*
+                                        * Plot SV Clock Offset/Drift
+                                        * one plot (2 Y axes) for both Clock biases
+                                        * and clock drift
+                                        */
     for (sv_index, sv) in nav.sv().enumerate() {
         if sv_index == 0 {
             plot_ctx.add_cartesian2d_2y_plot(

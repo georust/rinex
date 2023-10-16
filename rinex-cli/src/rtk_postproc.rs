@@ -1,4 +1,5 @@
 use crate::cli::Cli;
+use crate::context_stem;
 use hifitime::Epoch;
 use rinex::prelude::RnxContext;
 use rtk::prelude::SolverEstimate;
@@ -191,18 +192,7 @@ pub(crate) fn rtk_postproc(
 
         let mut gpx = Gpx::default();
         gpx.version = GpxVersion::Gpx11;
-
-        let filename: &str = ctx
-            .primary_paths()
-            .first()
-            .unwrap()
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap();
-        let filestem: Vec<&str> = filename.split('.').collect();
-
-        gpx_track.name = Some(filestem[0].to_string());
+        gpx_track.name = Some(context_stem(ctx).to_string());
         // gpx_track.number = Some(1);
         gpx.tracks.push(gpx_track);
 

@@ -472,18 +472,19 @@ pub fn build_3d_chart_epoch_label<T: Clone + Default + Serialize>(
 
 pub fn plot_record(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     /*
-     * primary analysis
+     * Run feasible record analysis
      */
-    if ctx.primary_data().is_observation_rinex() {
+    if ctx.has_observation_data() {
         record::plot_observation(ctx, plot_ctx);
-    } else if ctx.primary_data().is_meteo_rinex() {
-        record::plot_meteo(ctx, plot_ctx);
-    } else if ctx.primary_data().is_ionex() {
-        if let Some(borders) = ctx.primary_data().tec_map_borders() {
-            record::plot_tec_map(ctx, borders, plot_ctx);
+    }
+    if let Some(data) = ctx.meteo_data() {
+        record::plot_meteo(data, plot_ctx);
+    }
+    if let Some(data) = ctx.ionex_data() {
+        if let Some(borders) = data.tec_map_borders() {
+            record::plot_tec_map(data, borders, plot_ctx);
         }
     }
-
     if ctx.has_navigation_data() || ctx.has_sp3() {
         record::plot_navigation(ctx, plot_ctx);
     }

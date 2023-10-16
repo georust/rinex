@@ -15,26 +15,65 @@ use hifitime::Duration;
 pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
     let pretty = cli.pretty();
     let ops = cli.identification_ops();
-
-    identification(
-        ctx.primary_data(),
-        &format!(
-            "{:?}",
-            ctx.primary_paths()
-                .iter()
-                .map(|p| p.to_string_lossy().to_string())
-                .collect::<Vec<String>>()
-        ),
-        pretty,
-        ops.clone(),
-    );
-
-    if let Some(nav) = &ctx.navigation_data() {
+    /*
+     * Run identification on all contained files
+     */
+    if let Some(data) = ctx.obs_data() {
+        info!("observ identification");
+        identification(
+            data,
+            &format!(
+                "{:?}",
+                ctx.obs_paths()
+                    .unwrap()
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<String>>()
+            ),
+            pretty,
+            ops.clone(),
+        );
+    }
+    if let Some(nav) = &ctx.nav_data() {
+        info!("brdc identification");
         identification(
             nav,
             &format!(
                 "{:?}",
-                ctx.primary_paths()
+                ctx.nav_paths()
+                    .unwrap()
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<String>>()
+            ),
+            pretty,
+            ops.clone(),
+        );
+    }
+    if let Some(data) = &ctx.meteo_data() {
+        info!("meteo identification");
+        identification(
+            data,
+            &format!(
+                "{:?}",
+                ctx.meteo_paths()
+                    .unwrap()
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<String>>()
+            ),
+            pretty,
+            ops.clone(),
+        );
+    }
+    if let Some(data) = &ctx.ionex_data() {
+        info!("ionex identification");
+        identification(
+            data,
+            &format!(
+                "{:?}",
+                ctx.ionex_paths()
+                    .unwrap()
                     .iter()
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<String>>()

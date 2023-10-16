@@ -40,8 +40,10 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
 
     for filt in gnss_filters {
         let filt = Filter::from_str(filt).unwrap(); // cannot fail
-        ctx.primary_data_mut().filter_mut(filt.clone());
-        if let Some(ref mut nav) = ctx.navigation_data_mut() {
+        if let Some(ref mut obs) = ctx.obs_data_mut() {
+            obs.filter_mut(filt.clone());
+        }
+        if let Some(ref mut nav) = ctx.nav_data_mut() {
             nav.filter_mut(filt.clone());
         }
     }
@@ -54,11 +56,17 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
             false => 0,
         };
         if let Ok(filt) = Filter::from_str(&filt_str[offset..]) {
-            ctx.primary_data_mut().filter_mut(filt.clone());
-            if !only_obs {
-                if let Some(ref mut nav) = ctx.navigation_data_mut() {
-                    nav.filter_mut(filt.clone());
-                }
+            if let Some(ref mut data) = ctx.obs_data_mut() {
+                data.filter_mut(filt.clone());
+            }
+            if let Some(ref mut data) = ctx.meteo_data_mut() {
+                data.filter_mut(filt.clone());
+            }
+            if let Some(ref mut data) = ctx.nav_data_mut() {
+                data.filter_mut(filt.clone());
+            }
+            if let Some(ref mut data) = ctx.ionex_data_mut() {
+                data.filter_mut(filt.clone());
             }
             trace!("applied filter \"{}\"", filt_str);
         } else {

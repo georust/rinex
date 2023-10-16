@@ -274,7 +274,7 @@ them by 4:
 ```bash
 rinex-cli \
     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     -P L1C,L2C \
     -P decim:4:L1C
 ```
@@ -293,9 +293,8 @@ two observations spanning 24h and a bunch of Navigation broadcast :
 ```bash
 rinex-cli \
     -r \
-    -d DATA/2023/256/OBS \
-    --nav DATA/2023/256/NAV \
-    --nav DATA/2023/256/SP3
+    -f /tmp/256/OBS/data.txt \
+    -d DATA/2023/256/NAV 
 ```
 
 Solving RTK in this case if probably not meaningful, let's decimate by 
@@ -304,9 +303,8 @@ Solving RTK in this case if probably not meaningful, let's decimate by
 ```bash
 rinex-cli \
     -r \
-    -d DATA/2023/256/OBS \
-    --nav DATA/2023/256/NAV \
-    --nav DATA/2023/256/SP3 \
+    -f /tmp/256/OBS/data.txt \
+    -d DATA/2023/256/NAV \
     -P observ:decim:3600
 ```
 
@@ -321,7 +319,7 @@ from the CRINEX are to be smoothed.
 ```bash
 rinex-cli \
     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     -P L1C,L2C \
     -P smooth:hatch:c1c 
 ```

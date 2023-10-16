@@ -13,7 +13,7 @@ pub fn plot_residual_ephemeris(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
         .sp3_data() // cannot fail at this point
         .unwrap();
     let nav = ctx
-        .navigation_data() // cannot fail at this point
+        .nav_data() // cannot fail at this point
         .unwrap();
     /*
      * we need at least a small common time frame,

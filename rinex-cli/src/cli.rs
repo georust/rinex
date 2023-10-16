@@ -28,15 +28,15 @@ impl Cli {
                         .value_name("FILE")
                         .action(ArgAction::Append)
                         .required_unless_present("directory")
-                        .help("Input RINEX file. Serves as primary data.
-Must be Observation Data for --rtk.
-Observation, Meteo and IONEX can only serve as primary data."))
+                        .help("Input RINEX file. Can be any kind of RINEX, or an SP3 file,
+and you can load as many as you want."))
                     .arg(Arg::new("directory")
                         .short('d')
                         .long("dir")
                         .value_name("DIRECTORY")
                         .required_unless_present("filepath")
-                        .help("Load directory recursively"))
+                        .help("Load directory recursively. RINEX and SP3 files are identified
+and added like they were individually imported with -f."))
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
@@ -190,17 +190,6 @@ Also drops observations that did not come with an LLI flag"))
 Helps visualize what the CS detector is doing and fine tune its operation.
 CS do not get repaired with this command.
 If you're just interested in CS information, you probably just want `-qc` instead, avoid combining the two."))
-                .next_help_heading("Navigation RINEX")
-                    .arg(Arg::new("nav")
-                        .long("nav")
-                        .num_args(1..)
-                        .value_name("FILE/FOLDER")
-                        .action(ArgAction::Append)
-                        .help("Local NAV RINEX file(s). Enhance given context with Navigation Data.
-Use this flag to either load directories containing your Navigation data, 
-or once per individual files. You can stack as many as you want.
-Most useful when combined to Observation RINEX.  
-Enables complete `--qc` analysis with elevation mask taken into account.")) 
                     .arg(Arg::new("antenna-ecef")
                         .long("antenna-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
@@ -233,14 +222,6 @@ Use this flag to either load directories containing your SP3 data,
 or once per individual files. You can stack as many as you want. 
 Combining --sp3 and --nav unlocks residual comparison between the two datasets."))
                 .next_help_heading("Antenna")
-                    .arg(Arg::new("atx")
-                        .long("atx")
-						.num_args(1..)
-                        .value_name("FILE/FOLDER")
-                        .action(ArgAction::Append)
-                        .help("Local ANTEX file(s). Enhance given context with ANTEX Data.
-Use this flag to either load directories containing your ATX data,
-or once per individual files. You can stack as many as you want."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
@@ -301,31 +282,14 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
             },
         }
     }
-    /// Returns input filepaths
-    pub fn input_path(&self) -> &str {
-        if let Some(fp) = self.matches.get_one::<String>("filepath") {
-            fp
-        } else {
-            self.matches.get_one::<String>("directory").unwrap()
-        }
+    /// Returns input base dir
+    pub fn input_base_dir(&self) -> Option<&String> {
+        self.matches.get_one::<String>("directory")
     }
-    pub fn navigation_paths(&self) -> Vec<&String> {
-        if let Some(paths) = self.matches.get_many::<String>("nav") {
-            paths.collect()
-        } else {
-            Vec::new()
-        }
-    }
-    pub fn sp3_paths(&self) -> Vec<&String> {
-        if let Some(paths) = self.matches.get_many::<String>("sp3") {
-            paths.collect()
-        } else {
-            Vec::new()
-        }
-    }
-    pub fn atx_paths(&self) -> Vec<&String> {
-        if let Some(paths) = self.matches.get_many::<String>("atx") {
-            paths.collect()
+    /// Returns individual input filepaths
+    pub fn input_files(&self) -> Vec<&String> {
+        if let Some(fp) = self.matches.get_many::<String>("filepath") {
+            fp.collect()
         } else {
             Vec::new()
         }

@@ -6,17 +6,16 @@ RTK mode is requested with `-r` or `--rtk`.
 RTK (position solving) is feasible if you provide at least RINEX Observations
 (`-f`) and overlapping RINEX Navigation data (`--nav`).
 
-Currently it is also mandatory to provide overlapping SP3 with `--sp3` but that should be fixed
-in near future.
+Currently it is also mandatory to provide overlapping SP3 data to resolve a position.  
+This will be improved in a near future.
 
-As an example (this dataset is not provided), the most basic command line would look like this,
-where observations are imported for day 256 and we combine several NAV/SP3 by lazyili importing entire folders:
+To resolve a position, you should provide Observations from a reference station,
+and overlapping SP3 / Broadcast Navigation. Use -d to do that quickly:
 
 ```bash
-./target/release/rinex-cli -P GPS,GLO -r \
-    --fp DATA/2023/OBS/256/ANK200TUR_S_20232560000_01D_30S_MO.crx \
-    --nav DATA/2023/NAV/256 \
-    --sp3 DATA/2023/SP3/256
+./target/release/rinex-cli -P GPS,GAL -r \
+    -f DATA/2023/256/ANK200TUR_S_20232560000_01D_30S_MO.crx \
+    -d DATA/2023/256
 ```
 
 Current limitations
@@ -43,9 +42,8 @@ Use `-r` (or `--rtk-only`) to disable other opmodes. This gives you the quickest
 
 ```bash
 ./target/release/rinex-cli -R -S -r \
-    --fp DATA/2023/OBS/256/ANK200TUR_S_20232560000_01D_30S_MO.crx \
-    --nav DATA/2023/NAV/256 \
-    --sp3 DATA/2023/SP3/256
+    -fp DATA/2023/OBS/256/ANK200TUR_S_20232560000_01D_30S_MO.crx \
+    -d DATA/2023/NAV_SP3/256
 ```
 
 RTK configuration
@@ -58,7 +56,7 @@ to understand the physics and what they imply on the end result.
 
 A few configuration files are provided in the rinex-cli/config/rtk directory. 
 
-You can use them with `--rtk-cfg`:
+You can use them with `--rtk-cfg`.
 
 Forced SPP mode
 ===============
@@ -70,26 +68,6 @@ You can force the strategy to SPP with `--spp`
 It is possible to use the configuration file, even in forced SPP mode, to improve the end results:
 
 In this scenario, one wants to define Ionospheric delay model
-
-Provide SP3
-===========
-
-When SP3 is provided, they are prefered over NAV RINEX.  
-Refer to the library documentation [TODO](TODO)
-
-Example of SP3 extension :
-
-```bash
-./target/release/rinex-cli -R -S --spp \
-    --fp DATA/2023/OBS/256/ANK200TUR_S_20232560000_01D_30S_MO.crx \
-    --nav DATA/2023/NAV/255 \
-    --nav DATA/2023/NAV/256 \
-    --sp3 DATA/2023/SP3/255 \
-    --sp3 DATA/2023/SP3/256
-```
-
-It is totally possible to combine SP3 to a single frequency context,
-or a forced --spp strategy.
 
 Results
 =======

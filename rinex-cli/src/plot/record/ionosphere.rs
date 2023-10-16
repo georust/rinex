@@ -78,7 +78,7 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let ref_geo = ref_pos.to_geodetic();
     let lat_lon_ddeg = (ref_geo.0, ref_geo.1);
 
-    if let Some(nav) = ctx.navigation_data() {
+    if let Some(nav) = ctx.nav_data() {
         let mut kb_delay: Vec<(Epoch, f64)> = Vec::new();
         for (index, (t, svnn)) in nav.sv_epoch().enumerate() {
             for sv in svnn {

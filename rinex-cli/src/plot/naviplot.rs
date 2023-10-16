@@ -15,8 +15,8 @@ pub fn naviplot(ctx: &RnxContext, plot_context: &mut PlotContext) {
     plot_context.add_cartesian3d_plot("NAVI Plot", "x", "y", "z");
 
     // grab NAV context
-    let nav_rnx = match &ctx.navigation_data() {
-        Some(nav) => nav,
-        _ => ctx.primary_data(),
-    };
+    // let nav_rnx = match &ctx.navigation_data() {
+    //     Some(nav) => nav,
+    //     _ => ctx.primary_data(),
+    // };
 }
