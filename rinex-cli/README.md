@@ -38,13 +38,13 @@ of the receiver using standard trilateration method.
 ## Observation Data in your Context
 
 The command line lets you load as many Broadcast Navigation data as you want,
-which is makes covering the time frame of your Observation Data very easily.
+which makes covering the time frame of your Observation Data very easy.
 But special care must be taken when defining your context:
 
 - You should only load coherent Observation Data.
-The interface lets you load as many Oobservation files as you want,
+The interface lets you load as many Observation files as you want,
 but they should all be sampled by the same station. 
-One benefit from that, is you can load several days in a single run.
+One benefit is you can load and analyze several days at once.
 
 - If you're not defining the receiver/station location yourself,
 we search for it in all provided files individually. 
@@ -60,12 +60,12 @@ the same modeling in their making
 
 ## File loading example
 
-`rinex-cli` works totally fine with partial context, especially a single
-file of a single kind. For example, load a single Observation File and run your analysis :
+`rinex-cli` works totally fine with partial contexts, especially loading a single.
+For example, load a single Observation File and run your analysis :
 
 ```bash
 ./target/release/rinex-cli \
-    --fp /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -i
 ```
 
 In any case:
@@ -75,35 +75,37 @@ that do not follow naming conventions
 - Gzip compressed files must be terminated by .gz
 - Seamless CRINEX V1 and V3 decompression is built in
 
-`-f` lets you load any kind of RINEX individually:
+`-f` lets you load any kind of RINEX individually
+
+Example : run basic identification on a single MIXED NAV file :
 
 ```bash
-# Run basic identification on a single GLO NAV file
 ./target/release/rinex-cli \
-    -f /tmp/256/NAV/GLONASS/MAYG00MYT_R_2023256000_01D_GN.rnx.gz -i
-
-# Run basic identification on a single IONEX file
-./target/release/rinex-cli \
-    -f /foo/ionex.rnx.gz -i
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -i
 ```
 
-Load a single Observation context, from station ASC2300USA, and take advantage
-of `-d` to cover its time frame for that day :
+Example : load a coherent OBS + NAV context :
 
 ```bash
+./target/release/rinex-cli -i \
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
+```
+
+Example : let's say you have observations realized at station ASC2300USA,
+and want to provide overlapping Navigation context quickly :
+
+```bash
+ls /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz
+
+ls -lah /tmp/BASE_DIR/256/*
+
 ./target/release/rinex-cli \
-    --fp /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz \
+    -f /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz \
     -d /foo/BASE_DIR
-
-ls -l /foo/BASE_DIR
-
-BASE_DIR/NAV/*.gz
-BASE_DIR/SP3/*.gz
-BASE_DIR/METEO/*.gz
 ```
 
-`-d` is recursive with a maximal depth of 5.  
-Therefore, it supports sorting your Navigation broadcast by constellation for example (one folder per constellation), or support loading several days at once if you store your data in one folder per Day of Year.
+`-d` is recursive and limited to a maximal depth of 5.
 
 ## Reports and Workspace 
 

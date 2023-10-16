@@ -5,101 +5,115 @@ use rinex::prelude::*;
 use sp3::SP3;
 
 pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
-    let nav = ctx.nav_data().unwrap(); // infaillible ?
-                                       /*
-                                        * Plot SV Clock Offset/Drift
-                                        * one plot (2 Y axes) for both Clock biases
-                                        * and clock drift
-                                        */
-    for (sv_index, sv) in nav.sv().enumerate() {
-        if sv_index == 0 {
-            plot_ctx.add_cartesian2d_2y_plot(
-                "SV Clock Bias",
-                "Clock Bias [s]",
-                "Clock Drift [s/s]",
-            );
-            trace!("sv clock plot");
-        }
-        let sv_epochs: Vec<_> = nav
-            .sv_clock()
-            .filter_map(
-                |(epoch, svnn, (_, _, _))| {
-                    if svnn == sv {
-                        Some(epoch)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-        let sv_clock: Vec<_> = nav
-            .sv_clock()
-            .filter_map(
-                |(_epoch, svnn, (clk, _, _))| {
-                    if svnn == sv {
-                        Some(clk)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-
-        let sv_drift: Vec<_> = nav
-            .sv_clock()
-            .filter_map(
-                |(_epoch, svnn, (_, drift, _))| {
-                    if svnn == sv {
-                        Some(drift)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-
-        let trace = build_chart_epoch_axis(
-            &format!("{:X}(clk)", sv),
-            Mode::LinesMarkers,
-            sv_epochs.clone(),
-            sv_clock,
-        )
-        .visible({
-            if sv_index == 0 {
-                /*
-                 * Clock data differs too much,
-                 * looks better if we only present one by default
-                 */
-                Visible::True
-            } else {
-                Visible::LegendOnly
-            }
-        });
-        plot_ctx.add_trace(trace);
-
-        let trace = build_chart_epoch_axis(
-            &format!("{:X}(drift)", sv),
-            Mode::LinesMarkers,
-            sv_epochs.clone(),
-            sv_drift,
-        )
-        .y_axis("y2")
-        .visible({
-            if sv_index == 0 {
-                /*
-                 * Clock data differs too much,
-                 * looks better if we only present one by default
-                 */
-                Visible::True
-            } else {
-                Visible::LegendOnly
-            }
-        });
-        plot_ctx.add_trace(trace);
+    let mut clock_plot_created = false;
+    if let Some(nav) = ctx.nav_data() {
         /*
-         * Plot SP3 clock data (if any)
+         * Plot SV Clock Offset/Drift
+         * one plot (2 Y axes) for both Clock biases
+         * and clock drift
          */
-        if let Some(sp3) = ctx.sp3_data() {
+        for (sv_index, sv) in nav.sv().enumerate() {
+            if sv_index == 0 {
+                plot_ctx.add_cartesian2d_2y_plot(
+                    "SV Clock Bias",
+                    "Clock Bias [s]",
+                    "Clock Drift [s/s]",
+                );
+                trace!("sv clock plot");
+                clock_plot_created = true;
+            }
+            let sv_epochs: Vec<_> = nav
+                .sv_clock()
+                .filter_map(
+                    |(epoch, svnn, (_, _, _))| {
+                        if svnn == sv {
+                            Some(epoch)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+            let sv_clock: Vec<_> = nav
+                .sv_clock()
+                .filter_map(
+                    |(_epoch, svnn, (clk, _, _))| {
+                        if svnn == sv {
+                            Some(clk)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+
+            let sv_drift: Vec<_> = nav
+                .sv_clock()
+                .filter_map(
+                    |(_epoch, svnn, (_, drift, _))| {
+                        if svnn == sv {
+                            Some(drift)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+
+            let trace = build_chart_epoch_axis(
+                &format!("{:X}(clk)", sv),
+                Mode::LinesMarkers,
+                sv_epochs.clone(),
+                sv_clock,
+            )
+            .visible({
+                if sv_index == 0 {
+                    /*
+                     * Clock data differs too much,
+                     * looks better if we only present one by default
+                     */
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            });
+            plot_ctx.add_trace(trace);
+
+            let trace = build_chart_epoch_axis(
+                &format!("{:X}(drift)", sv),
+                Mode::LinesMarkers,
+                sv_epochs.clone(),
+                sv_drift,
+            )
+            .y_axis("y2")
+            .visible({
+                if sv_index == 0 {
+                    /*
+                     * Clock data differs too much,
+                     * looks better if we only present one by default
+                     */
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            });
+            plot_ctx.add_trace(trace);
+        }
+    }
+    /*
+     * Plot similar SP3 data (if any)
+     */
+    if let Some(sp3) = ctx.sp3_data() {
+        for (sv_index, sv) in sp3.sv().enumerate() {
+            if sv_index == 0 && !clock_plot_created {
+                plot_ctx.add_cartesian2d_2y_plot(
+                    "SV Clock Bias",
+                    "Clock Bias [s]",
+                    "Clock Drift [s/s]",
+                );
+                trace!("sv clock plot");
+            }
+
             let epochs: Vec<_> = sp3
                 .sv_clock()
                 .filter_map(
@@ -140,80 +154,98 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     /*
      * Plot Broadcast Orbit (x, y, z)
      */
-    for (sv_index, sv) in nav.sv().enumerate() {
-        if sv_index == 0 {
-            plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
-            trace!("broadcast orbit plot");
-        }
-        let epochs: Vec<_> = nav
-            .sv_position()
-            .filter_map(
-                |(epoch, svnn, (_, _, _))| {
-                    if svnn == sv {
-                        Some(epoch)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-
-        let x_km: Vec<_> = nav
-            .sv_position()
-            .filter_map(
-                |(_epoch, svnn, (x, _, _))| {
-                    if svnn == sv {
-                        Some(x)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-        let y_km: Vec<_> = nav
-            .sv_position()
-            .filter_map(
-                |(_epoch, svnn, (_, y, _))| {
-                    if svnn == sv {
-                        Some(y)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-        let z_km: Vec<_> = nav
-            .sv_position()
-            .filter_map(
-                |(_epoch, svnn, (_, _, z))| {
-                    if svnn == sv {
-                        Some(z)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect();
-        let trace = build_3d_chart_epoch_label(
-            &format!("{:X}", sv),
-            Mode::Markers,
-            epochs.clone(),
-            x_km,
-            y_km,
-            z_km,
-        )
-        .visible({
+    let mut pos_plot_created = false;
+    if let Some(nav) = ctx.nav_data() {
+        for (sv_index, sv) in nav.sv().enumerate() {
             if sv_index == 0 {
-                Visible::True
-            } else {
-                Visible::LegendOnly
+                plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
+                trace!("broadcast orbit plot");
+                pos_plot_created = true;
             }
-        });
-        plot_ctx.add_trace(trace);
-        /*
-         * add SP3 (x, y, z) position, if available
-         */
-        if let Some(sp3) = ctx.sp3_data() {
+            let epochs: Vec<_> = nav
+                .sv_position()
+                .filter_map(
+                    |(epoch, svnn, (_, _, _))| {
+                        if svnn == sv {
+                            Some(epoch)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+
+            let x_km: Vec<_> = nav
+                .sv_position()
+                .filter_map(
+                    |(_epoch, svnn, (x, _, _))| {
+                        if svnn == sv {
+                            Some(x)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+            let y_km: Vec<_> = nav
+                .sv_position()
+                .filter_map(
+                    |(_epoch, svnn, (_, y, _))| {
+                        if svnn == sv {
+                            Some(y)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+            let z_km: Vec<_> = nav
+                .sv_position()
+                .filter_map(
+                    |(_epoch, svnn, (_, _, z))| {
+                        if svnn == sv {
+                            Some(z)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+            let trace = build_3d_chart_epoch_label(
+                &format!("{:X}", sv),
+                Mode::Markers,
+                epochs.clone(),
+                x_km,
+                y_km,
+                z_km,
+            )
+            .visible({
+                if sv_index == 0 {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            });
+            plot_ctx.add_trace(trace);
+        }
+    }
+    /*
+     * add SP3 (x, y, z) position, if available
+     */
+    if let Some(sp3) = ctx.sp3_data() {
+        for (sv_index, sv) in sp3.sv().enumerate() {
+            if sv_index == 0 {
+                if !pos_plot_created {
+                    plot_ctx.add_cartesian3d_plot(
+                        "SV Orbit (broadcast)",
+                        "x [km]",
+                        "y [km]",
+                        "z [km]",
+                    );
+                    trace!("broadcast orbit plot");
+                    pos_plot_created = true;
+                }
+            }
             let epochs: Vec<_> = sp3
                 .sv_position()
                 .filter_map(
