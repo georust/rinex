@@ -37,6 +37,7 @@ fn meteorological_tropo_delay(
                             .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
                             .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
                         let (_, value) = value?;
+                        debug!("(meteo) zdd @ {}: {}", lat_ddeg, value);
                         Some((s.observable.clone(), value))
                     } else {
                         None /* not within latitude tolerance */
@@ -51,6 +52,7 @@ fn meteorological_tropo_delay(
                             .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
                             .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
                         let (_, value) = value?;
+                        debug!("(meteo) zwd @ {}: {}", lat_ddeg, value);
                         Some((s.observable.clone(), value))
                     } else {
                         None /* not within latitude tolerance */
@@ -158,8 +160,8 @@ fn unb3_delay_components(t: Epoch, lat_ddeg: f64, alt_above_sea_m: f64) -> (f64,
     //TODO
     // let h = h is the orthometric height in m;
     let beta = unb3_parameter(UNB3Param::Beta, lat_ddeg, day_of_year);
-    let t = unb3_parameter(UNB3Param::Temperature, lat_ddeg, day_of_year);
     let p = unb3_parameter(UNB3Param::Pressure, lat_ddeg, day_of_year);
+    let t = unb3_parameter(UNB3Param::Temperature, lat_ddeg, day_of_year);
     let e = unb3_parameter(UNB3Param::WaterVapourPressure, lat_ddeg, day_of_year);
     let lambda = unb3_parameter(UNB3Param::Lambda, lat_ddeg, day_of_year);
 
@@ -171,6 +173,11 @@ fn unb3_delay_components(t: Epoch, lat_ddeg: f64, alt_above_sea_m: f64) -> (f64,
 
     let zdd = (value).powf(g / r_d / beta) * z0_zdd;
     let zwd = (value).powf((lambda + 1.0_f64) * g / r_d / beta - 1.0_f64) * z0_zwd;
+
+    debug!(
+        "{:?}: unb3 - zdd(h=0) {} zwd(h=0) {} zdd(h={}) {} zwd(h={}) {}",
+        t, z0_zdd, z0_zwd, alt_above_sea_m, zdd, alt_above_sea_m, zwd
+    );
     (zdd, zwd)
 }
 

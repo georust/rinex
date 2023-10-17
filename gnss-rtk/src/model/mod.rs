@@ -1,5 +1,5 @@
 use crate::RTKConfig;
-use hifitime::Epoch;
+use hifitime::{Duration, Epoch};
 use log::debug;
 use map_3d::{deg2rad, ecef2geodetic, Ellipsoid};
 use rinex::prelude::{Observable, RnxContext, SV};
@@ -116,7 +116,12 @@ impl Modelization for Models {
         for (sv, elev) in sv {
             if cfg.modeling.tropo_delay {
                 let tropo = tropo::tropo_delay(t, lat_ddeg, alt_above_sea_m, elev, ctx);
-                debug!("{:?}: {} tropo delay {}", t, sv, tropo);
+                debug!(
+                    "{:?}: {} tropo delay {}",
+                    t,
+                    sv,
+                    Duration::from_seconds(tropo)
+                );
                 self.insert(sv, tropo);
             }
         }
