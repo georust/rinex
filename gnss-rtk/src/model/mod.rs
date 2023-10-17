@@ -60,6 +60,7 @@ pub trait Modelization {
         t: Epoch,
         sv: Vec<(SV, f64)>,
         lat_ddeg: f64,
+        alt_above_sea_m: f64,
         ctx: &RnxContext,
         cfg: &RTKConfig,
     );
@@ -107,13 +108,14 @@ impl Modelization for Models {
         t: Epoch,
         sv: Vec<(SV, f64)>,
         lat_ddeg: f64,
+        alt_above_sea_m: f64,
         ctx: &RnxContext,
         cfg: &RTKConfig,
     ) {
         self.clear();
         for (sv, elev) in sv {
             if cfg.modeling.tropo_delay {
-                let tropo = tropo::tropo_delay(t, lat_ddeg, elev, ctx);
+                let tropo = tropo::tropo_delay(t, lat_ddeg, alt_above_sea_m, elev, ctx);
                 debug!("{:?}: {} tropo delay {}", t, sv, tropo);
                 self.insert(sv, tropo);
             }

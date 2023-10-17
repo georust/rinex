@@ -126,6 +126,8 @@ pub struct Solver {
     nth_epoch: usize,
     /// modelization memory storage
     models: Models,
+    /// apriori altitude above sea level
+    apriori_alt_above_sea_m: f64,
 }
 
 impl Solver {
@@ -139,6 +141,7 @@ impl Solver {
             cfg: cfg.clone(),
             nth_epoch: 0,
             models: Models::with_capacity(cfg.max_sv),
+            apriori_alt_above_sea_m: 0.0_f64,
         })
     }
     pub fn init(&mut self, ctx: &mut RnxContext) -> Result<(), SolverError> {
@@ -184,8 +187,12 @@ impl Solver {
             warn!("eclipse filter is not meaningful when using spp strategy");
         }
 
+        /*
+         * initialize
+         */
         self.nth_epoch = 0;
         self.initiated = true;
+        self.apriori_alt_above_sea_m = self.cfg.rcvr_position.unwrap().sea_level_altitude();
         self.models = Models::with_capacity(self.cfg.max_sv);
         Ok(())
     }
@@ -407,6 +414,7 @@ impl Solver {
                 .map(|(sv, (_x, _y, _z, _pr, _dt, elev))| (*sv, *elev))
                 .collect(),
             lat_ddeg,
+            self.apriori_alt_above_sea_m,
             ctx,
             &self.cfg,
         );
