@@ -7,6 +7,8 @@ use std::collections::HashMap;
 
 use crate::SolverType;
 
+mod tropo;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -92,53 +94,6 @@ impl From<SolverType> for Modeling {
 
 pub type Models = HashMap<SV, f64>;
 
-fn meteorological_tropo_delay(
-    t: Epoch,
-    lat_ddeg: f64,
-    elev: f64,
-    ctx: &RnxContext,
-) -> (Option<f64>, Option<f64>) {
-    const max_latitude_delta: f64 = 15.0_f64;
-    let rnx = ctx.meteo_data().unwrap(); // infaillible
-    let meteo = rnx.header.meteo.as_ref().unwrap(); // infaillible
-    let delays: Vec<(Observable, f64)> = meteo
-        .sensors
-        .iter()
-        .filter_map(|s| {
-            match s.observable {
-                Observable::ZenithDryDelay => {
-                    let (x, y, z, _) = s.position?;
-                    let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                    if (lat - lat_ddeg).abs() < max_latitude_delta {
-                        let value = rnx
-                            .zenith_dry_delay()
-                            .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-                        let (_, value) = value?;
-                        Some((s.observable.clone(), value))
-                    } else {
-                        None /* not within latitude tolerance */
-                    }
-                },
-                _ => None,
-            }
-        })
-        .collect();
-    (None, None)
-}
-
-fn tropo_delay(t: Epoch, lat_ddeg: f64, elev: f64, ctx: &RnxContext) -> f64 {
-    if ctx.has_meteo_data() {
-        /*
-         * best model if meteo data correctly cover this time frame; use them
-         */
-        if let (Some(zdd), Some(zwd)) = meteorological_tropo_delay(t, lat_ddeg, elev, ctx) {
-            let m = 0.001 / (0.001 + deg2rad(lat_ddeg).sin()).sqrt();
-            return m * (zdd + zwd);
-        }
-    }
-    0.0_f64 //TODO
-}
-
 impl Modelization for Models {
     /*
      * Eval new models at Epoch "t" given
@@ -158,7 +113,7 @@ impl Modelization for Models {
         self.clear();
         for (sv, elev) in sv {
             if cfg.modeling.tropo_delay {
-                let tropo = tropo_delay(t, lat_ddeg, elev, ctx);
+                let tropo = tropo::tropo_delay(t, lat_ddeg, elev, ctx);
                 debug!("{:?}: {} tropo delay {}", t, sv, tropo);
                 self.insert(sv, tropo);
             }

@@ -35,7 +35,7 @@ a Reference station and a Rover station as needed in true RTK.
 Thefore, it can only resolve the position
 of the receiver using standard trilateration method.
 
-## Observation Data in your Context
+## NB: Observation Data in your Context
 
 The command line lets you load as many Broadcast Navigation data as you want,
 which makes covering the time frame of your Observation Data very easy.

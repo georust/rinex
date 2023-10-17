@@ -104,3 +104,9 @@ which you can either export or adjust for a single run. `trace` is the most sens
 The output is directed towards Stdout, therefore it can be streamed into a text file for example,
 to easily compare runs between them.
 
+Tropospheric delay
+==================
+
+If you have access to Meteo RINEX that cover the observation time frame: be sure to include them!  
+This will provide the best source of tropospheric delay compensation, in case it was measured on that day 
+at a close enough latitude (<= 15°).
