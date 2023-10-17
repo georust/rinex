@@ -177,6 +177,9 @@ impl Solver {
         /*
          * print some infos on latched config
          */
+        if self.cfg.modeling.iono_delay {
+            warn!("can't compensate for ionospheric delay at the moment");
+        }
         if self.cfg.modeling.earth_rotation {
             warn!("can't compensate for earth rotation at the moment");
         }
@@ -192,7 +195,7 @@ impl Solver {
          */
         self.nth_epoch = 0;
         self.initiated = true;
-        self.apriori_alt_above_sea_m = self.cfg.rcvr_position.unwrap().sea_level_altitude();
+        self.apriori_alt_above_sea_m = self.cfg.rcvr_position.unwrap().altitude();
         self.models = Models::with_capacity(self.cfg.max_sv);
         Ok(())
     }
@@ -429,26 +432,14 @@ impl Solver {
             return Err(SolverError::LessThan4Sv(t));
         }
 
-        for (index, (_sv, data)) in sv_data.iter().enumerate() {
+        for (index, (sv, data)) in sv_data.iter().enumerate() {
             let pr = data.3;
             let dt_sat = data.4.to_seconds();
             let (sv_x, sv_y, sv_z) = (data.0, data.1, data.2);
 
             let rho = ((sv_x - x0).powi(2) + (sv_y - y0).powi(2) + (sv_z - z0).powi(2)).sqrt();
 
-            //TODO
-            let models = -SPEED_OF_LIGHT * dt_sat;
-            //let models = models
-            //    .iter()
-            //    .filter_map(|sv, model| {
-            //        if sv == svnn {
-            //            Some(model)
-            //        } else {
-
-            //        }
-            //    })
-            //    .reduce(|m, _| m)
-            //    .unwrap();
+            let models = -SPEED_OF_LIGHT * dt_sat + self.models.sum_up(*sv);
 
             y[index] = pr - rho - models;
 

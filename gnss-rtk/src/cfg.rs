@@ -16,7 +16,7 @@ fn default_timescale() -> TimeScale {
 }
 
 fn default_interp() -> usize {
-    7
+    11
 }
 
 fn default_max_sv() -> usize {
@@ -24,14 +24,6 @@ fn default_max_sv() -> usize {
 }
 
 fn default_smoothing() -> bool {
-    false
-}
-
-fn default_iono() -> bool {
-    false
-}
-
-fn default_tropo() -> bool {
     false
 }
 
@@ -58,12 +50,6 @@ pub struct RTKConfig {
     /// PR code smoothing filter before moving forward
     #[cfg_attr(feature = "serde", serde(default = "default_smoothing"))]
     pub code_smoothing: bool,
-    /// true if we're using troposphere modeling
-    #[cfg_attr(feature = "serde", serde(default = "default_tropo"))]
-    pub tropo: bool,
-    /// true if we're using ionosphere modeling
-    #[cfg_attr(feature = "serde", serde(default = "default_iono"))]
-    pub iono: bool,
     /// Minimal percentage ]0; 1[ of Sun light to be received by an SV
     /// for not to be considered in Eclipse.
     /// A value closer to 0 means we tolerate fast Eclipse exit.
@@ -71,8 +57,10 @@ pub struct RTKConfig {
     #[cfg_attr(feature = "serde", serde(default))]
     pub min_sv_sunlight_rate: Option<f64>,
     /// Minimal elevation angle. SV below that angle will not be considered.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub min_sv_elev: Option<f64>,
     /// Minimal SNR for an SV to be considered.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub min_sv_snr: Option<Snr>,
     /// modeling
     #[cfg_attr(feature = "serde", serde(default))]
@@ -93,8 +81,6 @@ impl RTKConfig {
                 rcvr_position: None,
                 interp_order: default_interp(),
                 code_smoothing: default_smoothing(),
-                tropo: default_tropo(),
-                iono: default_iono(),
                 min_sv_sunlight_rate: None,
                 min_sv_elev: Some(10.0),
                 min_sv_snr: Some(Snr::from_str("weak").unwrap()),
@@ -108,8 +94,6 @@ impl RTKConfig {
                 rcvr_position: None,
                 interp_order: 11,
                 code_smoothing: default_smoothing(),
-                tropo: default_tropo(),
-                iono: default_iono(),
                 min_sv_sunlight_rate: Some(0.75),
                 min_sv_elev: Some(25.0),
                 min_sv_snr: Some(Snr::from_str("strong").unwrap()),

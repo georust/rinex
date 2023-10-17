@@ -40,13 +40,9 @@ impl GroundPosition {
         let (lat, lon, alt) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
         (rad2deg(lat), rad2deg(lon), alt)
     }
-    /// Returns absolute altitude
-    pub fn absolute_altitude(&self) -> f64 {
-        self.2
-    }
-    /// Returns altitude relative to sea level
-    pub fn sea_level_altitude(&self) -> f64 {
-        self.2 - 6.3781E6
+    /// Returns position altitude
+    pub fn altitude(&self) -> f64 {
+        self.to_geodetic().2
     }
 }
 

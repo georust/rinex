@@ -39,17 +39,17 @@ fn default_rel_clock_corr() -> bool {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Modeling {
-    #[cfg_attr(feature = "serde", serde(default = "default_sv_clock"))]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub sv_clock_bias: bool,
-    #[cfg_attr(feature = "serde", serde(default = "default_tropo"))]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub tropo_delay: bool,
-    #[cfg_attr(feature = "serde", serde(default = "default_iono"))]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub iono_delay: bool,
-    #[cfg_attr(feature = "serde", serde(default = "default_sv_tgd"))]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub sv_total_group_delay: bool,
-    #[cfg_attr(feature = "serde", serde(default = "default_earth_rot"))]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub earth_rotation: bool,
-    #[cfg_attr(feature = "serde", serde(default = "default_rel_clock_corr"))]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub relativistic_clock_corr: bool,
 }
 
@@ -114,14 +114,11 @@ impl Modelization for Models {
     ) {
         self.clear();
         for (sv, elev) in sv {
+            self.insert(sv, 0.0_f64);
+
             if cfg.modeling.tropo_delay {
                 let tropo = tropo::tropo_delay(t, lat_ddeg, alt_above_sea_m, elev, ctx);
-                debug!(
-                    "{:?}: {} tropo delay {}",
-                    t,
-                    sv,
-                    Duration::from_seconds(tropo)
-                );
+                debug!("{:?}: {}(e={:.3}) tropo delay {} [m]", t, sv, elev, tropo,);
                 self.insert(sv, tropo);
             }
         }
