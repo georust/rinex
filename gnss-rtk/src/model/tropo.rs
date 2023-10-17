@@ -1,9 +1,9 @@
 use crate::RTKConfig;
+use hifitime::{Duration, Epoch};
 use log::{debug, trace};
 use map_3d::{deg2rad, ecef2geodetic, Ellipsoid};
 use rinex::prelude::{Observable, RnxContext, SV};
 use std::collections::HashMap;
-use hifitime::{Duration, Epoch};
 
 use std::f64::consts::PI;
 
@@ -15,7 +15,7 @@ fn meteorological_tropo_delay(
     // maximal tolerated latitude difference
     const max_latitude_delta: f64 = 15.0_f64;
     // retain data sampled on that day only
-    const max_dt : Duration = Duration::from_hours(24.0_f64);
+    const max_dt: Duration = Duration::from_hours(24.0_f64);
 
     let rnx = ctx.meteo_data().unwrap(); // infaillible
     let meteo = rnx.header.meteo.as_ref().unwrap(); // infaillible
@@ -95,9 +95,8 @@ fn unb3_look_up_table(lut: [(f64, [f64; 5]); 5], prm: UNB3Param, lat_ddeg: f64) 
                 nearest = i;
             }
         }
-        lut[nearest].1[prm]
-            + lut[nearest +1].1[prm] - lut[nearest].1[prm] / 15.0_f64
-            * (lat_ddeg - lut[nearest].0)
+        lut[nearest].1[prm] + lut[nearest + 1].1[prm]
+            - lut[nearest].1[prm] / 15.0_f64 * (lat_ddeg - lut[nearest].0)
     }
 }
 
@@ -124,53 +123,68 @@ fn unb3_average_amplitude(prm: UNB3Param, lat_ddeg: f64) -> f64 {
 }
 
 fn unb3_parameter(prm: UNB3Param, lat_ddeg: f64, day_of_year: f64) -> f64 {
-    let dmin = match lat_ddeg < northern {
+    let dmin = match lat_ddeg.is_sign_positive() {
         true => 28.0_f64,
         false => 211.0_f64,
     };
     let annual = unb3_annual_average(prm, lat_ddeg);
     let amplitude = unb3_average_amplitude(prm, lat_ddeg);
-    annual - amplitude * ((day_of_year - 28_f64) * 2.0_f64 * PI / 365.25_f64).cos()
+    annual - amplitude * ((day_of_year - dmin) * 2.0_f64 * PI / 365.25_f64).cos()
 }
 
 /*
  * Evaluate ZWD and ZDD at given Epoch "t" and given latitude
  * This method is infaillible and will work at any Epoch, for any latitude
  */
-fn unb3_delay_components(t: Epoch, lat_ddeg: f64) -> (f64, f64) {
+fn unb3_delay_components(t: Epoch, lat_ddeg: f64, altitude: f64) -> (f64, f64) {
     // estimate zenith delay
+    const r: f64 = 287.054;
+    const k_1: f64 = 77.064;
+    const k_2: f64 = 382000.0_f64;
+    const r_d: f64 = 287.054;
+
+    const g: f64 = 9.80665_f64;
+    const g_m: f64 = 9.784_f64;
+    //TODO
+    //let g_m = 9.784 * (1.0_f64 - 2.66E-3 * (2 * lat_ddeg).cos() - 2.8E-7 * h);
+
     let day_of_year = t.day_of_year();
-    let h = height above sea level;
-    let r = 287.054;
-    let g = gravity constant;
-    let h = h is the orthometric height in m;
+
+    //TODO
+    // let h = h is the orthometric height in m;
     let beta = unb3_parameter(UNB3Param::Beta, lat_ddeg, day_of_year);
     let t_0 = unb3_parameter(UNB3Param::Temperature, lat_ddeg, day_of_year);
     let p_0 = unb3_parameter(UNB3Param::Pressure, lat_ddeg, day_of_year);
-    let es_exp = 1.2378847_f64E-5 * t_0.powi(2) * -1.9121316E-2 * t_0 + 33.93711047 - 6.3431645E-3 * 1.0/t_0;
+
+    let es_exp = 1.2378847_f64E - 5 * t_0.powi(2) * -1.9121316E-2 * t_0 + 33.93711047
+        - 6.3431645E-3 * 1.0 / t_0;
     let e_s = 0.01 * es_exp.exp();
     let e_0 = r * h * e_s * f_w / 100.0_f64;
-    let g_m = 9.784 * (1.0_f64 - 2.66E-3 * (2 * lat_ddeg).cos() - 2.8E-7 * h);
+
+    let z0_zdd = 10.0E-6 * k_1 * r_d * p / g_m;
+    let denom = (lambda + 1.0_f64) * g_m - beta * r_d;
+    let z0_zwd = 10.0E-6 * k_2 * r_d * e / t / denom;
 
     let value = 1.0_f64 - beta * h / t;
-    let zenith_dry = (value).powf(g / r_d / beta);
-    let zenith_wet = (value).powf((lambda + 1.0_f64) * g / r_d / beta -1.0_f64);
-
     let exponent = g / R / beta;
-    let dh_z = 10.0E-6 * k_1 * R * p_0 * (1 - beta * H / t_0).powf(exponent); 
-    0.0_f64 // TODO
+    let zdd = (value).powf(g / r_d / beta).exp(exponent) * z0_zdd;
+    let zwd = (value)
+        .powf((lambda + 1.0_f64) * g / r_d / beta - 1.0_f64)
+        .exp(exponent)
+        * z0_zwd;
+    (zdd, zwd)
 }
 
-fn tropo_delay(t: Epoch, lat_ddeg: f64, elev: f64, ctx: &RnxContext) -> f64 {
+fn tropo_delay(t: Epoch, lat_ddeg: f64, altitude: f64, elev: f64, ctx: &RnxContext) -> f64 {
     let (zdd, zwd): (f64, f64) = match ctx.has_meteo_data() {
         true => {
             if let (Some(zdd), Some(zwd)) = meteorological_tropo_delay(t, lat_ddeg, ctx) {
                 (zdd, zwd)
             } else {
-                unb3_delay_components(t, lat_ddeg)
+                unb3_delay_components(t, lat_ddeg, altitude)
             }
         },
-        false => unb3_delay_components(t, lat_ddeg)
-    }; 
+        false => unb3_delay_components(t, lat_ddeg, altitude),
+    };
     1.001_f64 / (0.002001_f64 + elev.sin().powi(2)).sqrt() * (zdd + zwd)
 }
