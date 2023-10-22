@@ -5,6 +5,8 @@ mod preprocessing;
 use preprocessing::preprocess;
 
 use rinex::prelude::*;
+use rinex::preprocessing::{Filter, Preprocessing};
+use std::str::FromStr;
 
 extern crate gnss_rtk as rtk;
 use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
@@ -121,7 +123,6 @@ pub fn main() -> Result<(), Error> {
     // Cli
     let cli = Cli::new();
     let quiet = cli.quiet();
-    let use_graph = cli.graph();
 
     // Build context
     let mut ctx = build_context(&cli);
@@ -143,8 +144,8 @@ pub fn main() -> Result<(), Error> {
     /*
      * Print more info on provided context
      */
-    if ctx.obs_data().is_some() {
-        info!("observation data loaded");
+    if ctx.obs_data().is_none() {
+        panic!("rnx2cggtts required Observation Data!");
     }
     if ctx.nav_data().is_some() {
         info!("brdc navigation data loaded");
@@ -158,14 +159,11 @@ pub fn main() -> Result<(), Error> {
     if ctx.ionex_data().is_some() {
         info!("ionex data loaded");
     }
-
     /*
      * Emphasize which reference position is to be used.
      * This will help user make sure everything is correct.
      * [+] Cli: always superceeds
-     * [+] then QC config file is prefered (advanced usage)
      * [+] eventually we rely on the context pool.
-     * Missing ref. position may restrict possible operations.
      */
     if let Some(pos) = cli.manual_position() {
         let (lat, lon, _) = pos.to_geodetic();
@@ -182,22 +180,49 @@ pub fn main() -> Result<(), Error> {
     } else {
         info!("no reference position given or identified");
     }
-
+    /*
+     * System delay(s) to be compensated
+     */
+    for (observable, delay_ns) in cli.rf_delay() {
+        solver.internal_delay.insert(carrier, delay_ns);
+        info!("RF delay: {} : {} [ns]", obervable, delay_ns);
+    }
+    if let Some(delay_ns) = cli.reference_time_delay() {
+        solver.time_ref_delay = delay_ns;
+        info!("REFERENCE TIME delay: {} [ns]", delay_ns);
+    }
     /*
      * Preprocessing
      */
     preprocess(&mut ctx, &cli);
-
-    /* init solver */
+    /*
+     * init. the solver
+     */
     match solver.init(&mut ctx) {
-        Err(e) => panic!("failed to initialize rtk solver - {}", e),
-        Ok(_) => info!("entering rtk mode"),
+        Err(e) => panic!("failed to initialize solver - {}", e),
+        Ok(_) => info!("solver has been initialized"),
+    }
+    /*
+     * CGGTTS custom processing
+     * 13' moving average on pseudo range observations
+     */
+    if cli.cggtts_processing() {
+        // TODO/DEBUG: remove that -> should always run
+        if let Some(ref mut obs) = ctx.obs_data_mut() {
+            info!("cggtts special preprocessing..");
+            //for observable in observables {
+            let filter = Filter::from_str("mov:13 min").unwrap();
+            //let filter = Filter::from_str(
+            //    &format!("mov:13 min:{}", observable)).unwrap();
+            obs.filter_mut(filter);
+            //}
+            info!("preprocessing completed");
+        }
     }
 
     // RUN
-    let mut tracks: Vec<CggttsTrack> = Vec::new();
-
     let mut solving = true;
+    let mut tracks: Vec<CggttsTrack> = Vec::new();
     let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
 
     while solving {

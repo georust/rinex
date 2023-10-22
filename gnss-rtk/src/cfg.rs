@@ -2,6 +2,7 @@ use crate::model::Modeling;
 use crate::SolverType;
 use hifitime::prelude::TimeScale;
 
+use std::collections::HashMap;
 use std::str::FromStr;
 
 #[cfg(feature = "serde")]
@@ -50,6 +51,20 @@ pub struct RTKConfig {
     /// PR code smoothing filter before moving forward
     #[cfg_attr(feature = "serde", serde(default = "default_smoothing"))]
     pub code_smoothing: bool,
+    /// System Internal Delay, as defined by BIPM in
+    /// "GPS Receivers Accurate Time Comparison" : the (frequency dependent)
+    /// time delay introduced by the combination of:
+    ///  + the RF cable (up to several nanoseconds)
+    ///  + the distance between the antenna baseline and its APC:
+    ///    a couple picoseconds, and is frequency dependent
+    ///  + the GNSS receiver inner delay (hardware and frequency dependent)
+    pub internal_delay: HashMap<Observable, f64>,
+    /// Time Reference Delay, as defined by BIPM in
+    /// "GPS Receivers Accurate Time Comparison" : the time delay
+    /// between the GNSS receiver external reference clock and the sampling clock
+    /// (once again can be persued as a cable delay). This one is typically
+    /// only required in ultra high precision timing applications
+    pub time_ref_delay: Option<f64>,
     /// Minimal percentage ]0; 1[ of Sun light to be received by an SV
     /// for not to be considered in Eclipse.
     /// A value closer to 0 means we tolerate fast Eclipse exit.
@@ -86,6 +101,8 @@ impl RTKConfig {
                 min_sv_snr: Some(Snr::from_str("weak").unwrap()),
                 modeling: Modeling::default(),
                 max_sv: default_max_sv(),
+                internal_delay: Default::default(),
+                time_ref_delay: Default::default(),
             },
             SolverType::PPP => Self {
                 timescale: default_timescale(),
@@ -99,6 +116,8 @@ impl RTKConfig {
                 min_sv_snr: Some(Snr::from_str("strong").unwrap()),
                 modeling: Modeling::default(),
                 max_sv: default_max_sv(),
+                internal_delay: Default::default(),
+                time_ref_delay: Default::default(),
             },
         }
     }

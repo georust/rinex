@@ -1,10 +1,12 @@
 use nyx_space::cosmic::eclipse::{eclipse_state, EclipseState};
 use nyx_space::cosmic::{Orbit, SPEED_OF_LIGHT};
 use nyx_space::md::prelude::{Bodies, LightTimeCalc};
+use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::prelude::{
     //Duration,
     Epoch,
+    Observable,
     RnxContext,
 };
 use std::collections::HashMap;
@@ -442,6 +444,23 @@ impl Solver {
             let models = -SPEED_OF_LIGHT * dt_sat + self.models.sum_up(*sv);
 
             y[index] = pr - rho - models;
+
+            /*
+             * accurate time delay compensation (if any)
+             */
+            let carrier_sig = Carrier::from_observable(
+                sv.constellation,
+                &Observable::PseudoRange("L1C".to_string()),
+            )
+            .unwrap(); // infaillible
+
+            if let Some(int_delay) = self.cfg.internal_delay.get(&carrier_sig) {
+                y[index] -= SPEED_OF_LIGHT * int_delay;
+            }
+
+            if let Some(timeref_delay) = self.cfg.time_ref_delay {
+                y[index] += SPEED_OF_LIGHT * timeref_delay;
+            }
 
             g[(index, 0)] = (x0 - sv_x) / rho;
             g[(index, 1)] = (y0 - sv_y) / rho;

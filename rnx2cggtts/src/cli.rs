@@ -36,27 +36,24 @@ and you can load as many as you want."))
                         .required_unless_present("filepath")
                         .help("Load directory recursively. RINEX and SP3 files are identified
 and added like they were individually imported with -f."))
-                    .arg(Arg::new("quiet")
-                        .short('q')
-                        .long("quiet")
-                        .action(ArgAction::SetTrue)
-                        .help("Disable all terminal output. Also disables auto HTML reports opener."))
-                    .arg(Arg::new("pretty")
+                    .arg(Arg::new("rfdly")
+                        .long("rf-delay")
+                        .help("Specify the RF delay (frequency dependent), in nanoseconds.
+Ideally, you should provide this time delay error, for all processed frequencies.
+For example, specify a 3.2 nanoseconds delay on C1 with: --rf-delay C1:3.2.")) 
+                    .arg(Arg::new("refdly")
+                        .long("ref-delay")
+                        .help("Specify the delay between the GNSS receiver external clock and its local sampling clock. This is the delay induced by the cable on the external ref clock. Specify it in nanoseconds, for example: --ref-delay 5.0"))
+                    .arg(Arg::new("processing")
                         .short('p')
-                        .long("pretty")
                         .action(ArgAction::SetTrue)
-                        .help("Make terminal output more readable."))
+                        .help("Enable special CGGTTS preprocessing (tmp/DEBUG)"))
                     .arg(Arg::new("workspace")
                         .short('w')
                         .long("workspace")
                         .value_name("FOLDER")
                         .help("Customize workspace location (folder does not have to exist).
 The default workspace is cggtts/workspace"))
-                    .arg(Arg::new("graph")
-                        .short('g')
-                        .long("graph")
-                        .action(ArgAction::SetTrue)
-                        .help("Disable graphs generation, only text reports are to be generated."))
                 .next_help_heading("Preprocessing")
                     .arg(Arg::new("gps-filter")
                         .short('G')
@@ -151,8 +148,8 @@ For indepth customization, refer to the configuration file and online documentat
         self.matches.get_flag(flag)
     }
     /// returns true if pretty JSON is requested
-    pub fn pretty(&self) -> bool {
-        self.get_flag("pretty")
+    pub fn cggtts_processing(&self) -> bool {
+        self.get_flag("processing")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
@@ -162,15 +159,37 @@ For indepth customization, refer to the configuration file and online documentat
     pub fn forced_spp(&self) -> bool {
         self.matches.get_flag("spp")
     }
+    /// Returns the manualy defined RFDLY (in nanoseconds!)
+    pub fn rf_delay(&self) -> Option<(Observable, f64)> {
+        if let Some(s) = self.matches.get_one::<String>("rfdly") {
+            if let Ok(f) = s.parse::<f64>() {
+                info!("reference time delay manually defined");
+                Some(f)
+            } else {
+                error!("reference time delay should be valid nanoseconds value");
+                None
+            }
+        } else {
+            None
+        }
+    }
+    /// Returns the manualy defined REFDLY (in nanoseconds!)
+    pub fn reference_time_delay(&self) -> Option<f64> {
+        if let Some(s) = self.matches.get_one::<String>("refdly") {
+            if let Ok(f) = s.parse::<f64>() {
+                info!("reference time delay manually defined");
+                Some(f)
+            } else {
+                error!("reference time delay should be valid nanoseconds value");
+                None
+            }
+        } else {
+            None
+        }
+    }
     /// Returns true if position solver forced to PPP
     pub fn forced_ppp(&self) -> bool {
         self.matches.get_flag("spp")
-    }
-    /*
-     * graphs to be generated
-     */
-    pub fn graph(&self) -> bool {
-        self.matches.get_flag("graph")
     }
     fn manual_ecef(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-ecef")
