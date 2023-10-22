@@ -1,20 +1,19 @@
 mod cli; // command line interface
-mod plot; // plotting operations
 pub mod fops; // file operation helpers
 
 mod preprocessing;
 use preprocessing::preprocess;
 
-//use horrorshow::Template;
 use rinex::prelude::*;
 
 extern crate gnss_rtk as rtk;
 use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
 
-use cggtts::{Cggtts, Track as CggttsTrack};
+use cggtts::prelude::Track as CggttsTrack;
+use cggtts::prelude::*;
+use cggtts::Coordinates;
 
 use cli::Cli;
-use plot::PlotContext;
 
 //extern crate pretty_env_logger;
 use env_logger::{Builder, Target};
@@ -22,7 +21,6 @@ use env_logger::{Builder, Target};
 #[macro_use]
 extern crate log;
 
-use fops::open_with_web_browser;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -125,16 +123,13 @@ pub fn main() -> Result<(), Error> {
     let quiet = cli.quiet();
     let use_graph = cli.graph();
 
-    // Init. plot context
-    let mut plot_ctx = PlotContext::new();
-
     // Build context
     let mut ctx = build_context(&cli);
 
     // Build position solver
     let mut solver = Solver::from(&ctx)
         .expect("provided context is not compatible with a position solving method");
-    
+
     if ctx.sp3_data().is_none() {
         error!("SP3 must unfortunately be provided at the moment");
         return Ok(());
@@ -187,7 +182,7 @@ pub fn main() -> Result<(), Error> {
     } else {
         info!("no reference position given or identified");
     }
-    
+
     /*
      * Preprocessing
      */
@@ -200,7 +195,6 @@ pub fn main() -> Result<(), Error> {
     }
 
     // RUN
-    let mut track = CggttsTrack::new();
     let mut tracks: Vec<CggttsTrack> = Vec::new();
 
     let mut solving = true;
@@ -223,21 +217,30 @@ pub fn main() -> Result<(), Error> {
             Err(e) => panic!("fatal error {:?}", e),
         }
     }
-    /* 
+    /*
      * Form CGGTTS
      */
-    let cggtts = Cggtts {
-        rev_date:,
-        lab:,
-        rcvr:,
-        nb_channels:,
-        ims:,
-        time_reference:,
-        reference_frame: ,
-        coordinates: ,
-        comments: Some(vec![format!("Generated with rnx2cggtts {}", env!("CARGO_ENV_PACKAGE"))),
-        delay: ,
-        tracks,
+    let rcvr = Rcvr::default();
+    let apc = Coordinates {
+        x: 0.0_f64,
+        y: 0.0_f64,
+        z: 0.0_f64,
     };
+
+    let utck = ReferenceTime::UTCk("LAB".to_string());
+
+    let cggtts = Cggtts::default()
+        .lab_agency("my agency")
+        .nb_channels(1)
+        .receiver(rcvr)
+        //.ims(ims)
+        .apc_coordinates(apc)
+        .time_reference(utck)
+        .reference_frame("WGS84")
+        .comments(&format!(
+            "Generated with rnx2cggtts {}",
+            env!("CARGO_PKG_VERSION")
+        ));
+
     Ok(())
 }

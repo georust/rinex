@@ -19,7 +19,6 @@ thiserror = "1"
 env_logger = "0.10"
 clap = { version = "4", features = ["derive", "color"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["serde"] }
-cggtts = { version = "3.2.2", features = ["serde"] }
+cggtts = { path = "../../cggtts/cggtts", features = ["serde"] }
 gnss-rtk = { path = "../gnss-rtk", version = "=0.1.0", features = ["serde"] }
-plotly = { git = "https://github.com/gwbres/plotly", branch = "density-mapbox" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
