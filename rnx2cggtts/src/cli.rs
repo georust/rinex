@@ -2,6 +2,7 @@ use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use gnss_rtk::prelude::RTKConfig;
 use log::{error, info};
 use rinex::prelude::*;
+use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -160,15 +161,36 @@ For indepth customization, refer to the configuration file and online documentat
         self.matches.get_flag("spp")
     }
     /// Returns the manualy defined RFDLY (in nanoseconds!)
-    pub fn rf_delay(&self) -> Option<(Observable, f64)> {
-        if let Some(s) = self.matches.get_one::<String>("rfdly") {
-            if let Ok(f) = s.parse::<f64>() {
-                info!("reference time delay manually defined");
-                Some(f)
-            } else {
-                error!("reference time delay should be valid nanoseconds value");
-                None
-            }
+    pub fn rf_delay(&self) -> Option<HashMap<Observable, f64>> {
+        if let Some(delays) = self.matches.get_many::<String>("rfdly") {
+            Some(
+                delays
+                    .into_iter()
+                    .filter_map(|string| {
+                        let items: Vec<_> = string.split(':').collect();
+                        if items.len() < 2 {
+                            error!("format error, command should be --rf-delay CODE:[nanos]");
+                            None
+                        } else {
+                            let code = items[0].trim();
+                            let nanos = items[0].trim();
+                            if let Ok(code) = Observable::from_str(code) {
+                                if let Ok(f) = nanos.parse::<f64>() {
+                                    Some((code, f))
+                                } else {
+                                    error!("invalid nanos: expecting valid f64");
+                                    None
+                                }
+                            } else {
+                                error!(
+                                    "invalid pseudo range CODE, expecting codes like \"L1C\",..."
+                                );
+                                None
+                            }
+                        }
+                    })
+                    .collect(),
+            )
         } else {
             None
         }

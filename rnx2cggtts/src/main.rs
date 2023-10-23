@@ -183,12 +183,14 @@ pub fn main() -> Result<(), Error> {
     /*
      * System delay(s) to be compensated
      */
-    for (observable, delay_ns) in cli.rf_delay() {
-        solver.internal_delay.insert(carrier, delay_ns);
-        info!("RF delay: {} : {} [ns]", obervable, delay_ns);
+    if let Some(rf_delay) = cli.rf_delay() {
+        for (code, delay_ns) in rf_delay {
+            solver.cfg.internal_delay.insert(code.clone(), delay_ns);
+            info!("RF delay: {} : {} [ns]", code.clone(), delay_ns);
+        }
     }
     if let Some(delay_ns) = cli.reference_time_delay() {
-        solver.time_ref_delay = delay_ns;
+        solver.cfg.time_ref_delay = Some(delay_ns);
         info!("REFERENCE TIME delay: {} [ns]", delay_ns);
     }
     /*

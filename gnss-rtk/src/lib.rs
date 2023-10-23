@@ -246,9 +246,9 @@ impl Solver {
         // retrieve associated PR
         let pr: Vec<_> = obs_data
             .pseudo_range_ok()
-            .filter_map(|(epoch, svnn, _, pr)| {
+            .filter_map(|(epoch, svnn, code, pr)| {
                 if epoch == t && elected_sv.contains(&svnn) {
-                    Some((svnn, pr))
+                    Some((svnn, code, pr))
                 } else {
                     None
                 }
@@ -262,7 +262,7 @@ impl Solver {
         elected_sv.retain(|sv| {
             let has_pr = pr
                 .iter()
-                .filter_map(|(svnn, pr)| if svnn == sv { Some(pr) } else { None })
+                .filter_map(|(svnn, code, pr)| if svnn == sv { Some((code, pr)) } else { None })
                 .reduce(|pr, _| pr)
                 .is_some();
 
@@ -310,14 +310,15 @@ impl Solver {
 
         debug!("{:?}: {} elected sv", t, elected_sv.len());
 
-        let mut sv_data: HashMap<SV, (f64, f64, f64, f64, Duration, f64)> = HashMap::new();
+        let mut sv_data: HashMap<SV, (f64, f64, f64, &Observable, f64, Duration, f64)> =
+            HashMap::new();
 
         // 3: sv position evaluation
         for sv in &elected_sv {
             // retrieve pr for this SV @ t
-            let pr = pr
+            let (code, pr) = pr
                 .iter()
-                .filter_map(|(svnn, pr)| if svnn == sv { Some(*pr) } else { None })
+                .filter_map(|(svnn, code, pr)| if svnn == sv { Some((code, *pr)) } else { None })
                 .reduce(|pr, _| pr)
                 .unwrap(); // can't fail at this point
 
@@ -400,13 +401,29 @@ impl Solver {
                 } else {
                     sv_data.insert(
                         *sv,
-                        (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, pr, dt_sat, elev),
+                        (
+                            x_km * 1.0E3,
+                            y_km * 1.0E3,
+                            z_km * 1.0E3,
+                            code.clone(),
+                            pr,
+                            dt_sat,
+                            elev,
+                        ),
                     );
                 }
             } else {
                 sv_data.insert(
                     *sv,
-                    (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, pr, dt_sat, elev),
+                    (
+                        x_km * 1.0E3,
+                        y_km * 1.0E3,
+                        z_km * 1.0E3,
+                        code.clone(),
+                        pr,
+                        dt_sat,
+                        elev,
+                    ),
                 );
             }
         }
@@ -416,7 +433,7 @@ impl Solver {
             t,
             sv_data
                 .iter()
-                .map(|(sv, (_x, _y, _z, _pr, _dt, elev))| (*sv, *elev))
+                .map(|(sv, (_x, _y, _z, _code, _pr, _dt, elev))| (*sv, *elev))
                 .collect(),
             lat_ddeg,
             self.apriori_alt_above_sea_m,
@@ -435,9 +452,10 @@ impl Solver {
         }
 
         for (index, (sv, data)) in sv_data.iter().enumerate() {
-            let pr = data.3;
-            let dt_sat = data.4.to_seconds();
             let (sv_x, sv_y, sv_z) = (data.0, data.1, data.2);
+            let code = data.3;
+            let pr = data.4;
+            let dt_sat = data.5.to_seconds();
 
             let rho = ((sv_x - x0).powi(2) + (sv_y - y0).powi(2) + (sv_z - z0).powi(2)).sqrt();
 
@@ -448,13 +466,7 @@ impl Solver {
             /*
              * accurate time delay compensation (if any)
              */
-            let carrier_sig = Carrier::from_observable(
-                sv.constellation,
-                &Observable::PseudoRange("L1C".to_string()),
-            )
-            .unwrap(); // infaillible
-
-            if let Some(int_delay) = self.cfg.internal_delay.get(&carrier_sig) {
+            if let Some(int_delay) = self.cfg.internal_delay.get(code) {
                 y[index] -= SPEED_OF_LIGHT * int_delay;
             }
 

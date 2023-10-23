@@ -9,6 +9,7 @@ use std::str::FromStr;
 use serde::Deserialize;
 
 use rinex::prelude::GroundPosition;
+use rinex::prelude::Observable;
 
 use rinex::observation::Snr;
 
