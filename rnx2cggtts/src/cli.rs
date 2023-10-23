@@ -39,16 +39,14 @@ and you can load as many as you want."))
 and added like they were individually imported with -f."))
                     .arg(Arg::new("rfdly")
                         .long("rf-delay")
+                        .action(ArgAction::Append)
                         .help("Specify the RF delay (frequency dependent), in nanoseconds.
-Ideally, you should provide this time delay error, for all processed frequencies.
+Ideally, you should provide a time delay for all codes used by the solver.
 For example, specify a 3.2 nanoseconds delay on C1 with: --rf-delay C1:3.2.")) 
                     .arg(Arg::new("refdly")
                         .long("ref-delay")
-                        .help("Specify the delay between the GNSS receiver external clock and its local sampling clock. This is the delay induced by the cable on the external ref clock. Specify it in nanoseconds, for example: --ref-delay 5.0"))
-                    .arg(Arg::new("processing")
-                        .short('p')
-                        .action(ArgAction::SetTrue)
-                        .help("Enable special CGGTTS preprocessing (tmp/DEBUG)"))
+                        .help("Specify the delay between the GNSS receiver external clock and its local sampling clock. 
+This is the delay induced by the cable on the external ref clock. Specify it in nanoseconds, for example: --ref-delay 5.0"))
                     .arg(Arg::new("workspace")
                         .short('w')
                         .long("workspace")
@@ -147,14 +145,6 @@ For indepth customization, refer to the configuration file and online documentat
     }
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
-    }
-    /// returns true if pretty JSON is requested
-    pub fn cggtts_processing(&self) -> bool {
-        self.get_flag("processing")
-    }
-    /// Returns true if quiet mode is activated
-    pub fn quiet(&self) -> bool {
-        self.matches.get_flag("quiet")
     }
     /// Returns true if position solver forced to SPP
     pub fn forced_spp(&self) -> bool {

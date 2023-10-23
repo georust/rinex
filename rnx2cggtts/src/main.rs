@@ -122,7 +122,6 @@ pub fn main() -> Result<(), Error> {
 
     // Cli
     let cli = Cli::new();
-    let quiet = cli.quiet();
 
     // Build context
     let mut ctx = build_context(&cli);
@@ -204,23 +203,6 @@ pub fn main() -> Result<(), Error> {
         Err(e) => panic!("failed to initialize solver - {}", e),
         Ok(_) => info!("solver has been initialized"),
     }
-    /*
-     * CGGTTS custom processing
-     * 13' moving average on pseudo range observations
-     */
-    if cli.cggtts_processing() {
-        // TODO/DEBUG: remove that -> should always run
-        if let Some(ref mut obs) = ctx.obs_data_mut() {
-            info!("cggtts special preprocessing..");
-            //for observable in observables {
-            let filter = Filter::from_str("mov:13 min").unwrap();
-            //let filter = Filter::from_str(
-            //    &format!("mov:13 min:{}", observable)).unwrap();
-            obs.filter_mut(filter);
-            //}
-            info!("preprocessing completed");
-        }
-    }
 
     // RUN
     let mut solving = true;
@@ -256,7 +238,7 @@ pub fn main() -> Result<(), Error> {
 
     let utck = ReferenceTime::UTCk("LAB".to_string());
 
-    let cggtts = Cggtts::default()
+    let cggtts = CGGTTS::default()
         .lab_agency("my agency")
         .nb_channels(1)
         .receiver(rcvr)
