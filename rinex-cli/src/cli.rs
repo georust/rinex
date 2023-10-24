@@ -213,16 +213,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .action(ArgAction::SetTrue)
                         .help("Display clock biases (offset, drift, drift changes) per epoch and vehicle.
 -fp must be a NAV file"))
-                .next_help_heading("High Precision Orbit / Clock")
-                    .arg(Arg::new("sp3")
-                        .long("sp3")
-                        .num_args(1..)
-                        .value_name("FILE/FOLDER")
-                        .action(clap::ArgAction::Append)
-                        .help("Local SP3 file(s). Enhance given context with IGS high precision Orbits.
-Use this flag to either load directories containing your SP3 data,
-or once per individual files. You can stack as many as you want. 
-Combining --sp3 and --nav unlocks residual comparison between the two datasets."))
                 .next_help_heading("Antenna")
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
