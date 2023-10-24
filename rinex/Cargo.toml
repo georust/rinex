@@ -24,8 +24,8 @@ processing = []
 # rinex Quality Check (mainly OBS RINEX) 
 qc = ["rinex-qc-traits", "horrorshow"] 
 
-# differential context, and associated methods for DGNSS
-rtk = []
+# SP3 enables the RINEX context structure
+sp3 = ["dep:sp3", "walkdir"] 
 
 # enable everything
 full = [
@@ -37,9 +37,9 @@ full = [
     "obs",
     "processing",
     "qc",
-    "rtk",
     "sbas",
     "serde",
+    "sp3",
 ]
 
 [package.metadata.docs.rs]
@@ -57,7 +57,6 @@ num-derive = "0.4"
 num-traits = "0.2.15"
 regex = "1"
 thiserror = "1"
-walkdir = "2.4.0"
 bitflags = { version = "2.3", features = ["serde"] } 
 lazy_static = "1.4"
 map_3d = "0.1.5"
@@ -71,9 +70,16 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 horrorshow = { version = "0.8", optional = true }
+
+# GNSS basic defininitions
 gnss-rs = { path = "../gnss-rs", version = "=2.1", features = ["serde"] }
+
+# RINEX QC dedicated traits
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
-sp3 = { path = "../sp3", version = "=1.0.6" }
+
+# RINEX Context dependencies
+walkdir = { version = "2.4.0", optional = true }
+sp3 = { path = "../sp3", version = "=1.0.6", optional = true }
 
 [dev-dependencies]
 serde_json = "1"

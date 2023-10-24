@@ -60,15 +60,15 @@ the same modeling in their making
 
 ## File loading example
 
-`rinex-cli` works totally fine with partial contexts, especially loading a single.
-For example, load a single Observation File and run your analysis :
+`rinex-cli` works totally fine with partial contexts, especially loading a single file.
+For example, load one Observation File with :
 
 ```bash
 ./target/release/rinex-cli \
     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz -i
 ```
 
-In any case:
+Note that :
 
 - File names are disregarded by this tool, you can parse and analyze files
 that do not follow naming conventions
@@ -96,13 +96,19 @@ Example : let's say you have observations realized at station ASC2300USA,
 and want to provide overlapping Navigation context quickly :
 
 ```bash
-ls /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz
+ls -l /foo/2023/256/*
 
-ls -lah /tmp/BASE_DIR/256/*
+/foo/2023/256/NAV/MIXED/AJAC00FRA_R_20232560000_01D_MN.rnx.gz
+/foo/2023/256/NAV/GALILEO/AMC400USA_R_20232560000_01D_EN.rnx.gz
+/foo/2023/256/NAV/GALILEO/ANK200TUR_S_20232560000_01D_EN.rnx
+/foo/2023/256/NAV/GALILEO/ANK200TUR_S_20232560000_01D_EN.rnx.gz
+/foo/2023/256/NAV/GALILEO/MAYG00MYT_R_20232560000_01D_EN.rnx.gz
+/foo/2023/256/SP3/ESA0OPSULT_20232551200_02D_15M_ORB.SP3.gz
+/foo/2023/256/SP3/ESA0OPSULT_20232560600_02D_15M_ORB.SP3.gz
 
 ./target/release/rinex-cli \
     -f /tmp/ASC2300USA_R_20232560000_01D_15S_M0.crx.gz \
-    -d /foo/BASE_DIR
+    -d /foo/2023/256
 ```
 
 `-d` is recursive and limited to a maximal depth of 5.

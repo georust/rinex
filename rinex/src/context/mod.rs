@@ -22,12 +22,6 @@ use horrorshow::{box_html, helper::doctype, html, RenderBox};
 #[cfg(feature = "qc")]
 use rinex_qc_traits::HtmlReport;
 
-#[cfg(feature = "rtk")]
-mod rtk;
-
-#[cfg(feature = "rtk")]
-pub use rtk::RTKContext;
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("can only form a RINEX context from a directory, not a single file")]
@@ -65,8 +59,8 @@ impl<T> ProvidedData<T> {
     }
 }
 
-/// RnxContext is a structure dedicated to typical
-/// RINEX post processing workflows.
+/// RnxContext is a structure dedicated to RINEX post processing workflows,
+/// like precise timing, positioning or atmosphere analysis.
 #[derive(Default, Debug, Clone)]
 pub struct RnxContext {
     /// Optional Observation data, to provide
@@ -91,16 +85,27 @@ pub struct RnxContext {
 }
 
 impl RnxContext {
-    /// Form a Rinex Context, by loading a directory recursively
+    /// Build a RINEX post processing context from either a directory or a single file
     pub fn new(path: PathBuf) -> Result<Self, Error> {
-        if !path.is_dir() {
-            Err(Error::NotADirectory)
-        } else {
+        if path.is_dir() {
             /* recursive builder */
             Self::from_directory(path)
+        } else {
+            /* load a single file */
+            Self::from_file(path)
         }
     }
-    /// Builds Self by recursive browsing
+    /*
+     * Builds Self from a single file
+     */
+    fn from_file(path: PathBuf) -> Result<Self, Error> {
+        let mut ctx = Self::default();
+        ctx.load(&path.to_string_lossy().to_string())?;
+        Ok(ctx)
+    }
+    /*
+     * Builds Self by recursive browsing
+     */
     fn from_directory(path: PathBuf) -> Result<Self, Error> {
         let mut ret = RnxContext::default();
         let walkdir = WalkDir::new(&path.to_string_lossy().to_string()).max_depth(5);
@@ -117,6 +122,35 @@ impl RnxContext {
             }
         }
         Ok(ret)
+    }
+    /// Load individual file into Context
+    pub fn load(&mut self, filename: &str) -> Result<(), Error> {
+        if let Ok(rnx) = Rinex::from_file(filename) {
+            let path = Path::new(filename);
+            if rnx.is_observation_rinex() {
+                self.load_obs(path, &rnx)?;
+                trace!("loaded observations \"{}\"", filename);
+            } else if rnx.is_navigation_rinex() {
+                self.load_nav(path, &rnx)?;
+                trace!("loaded brdc nav \"{}\"", filename);
+            } else if rnx.is_meteo_rinex() {
+                self.load_meteo(path, &rnx)?;
+                trace!("loaded meteo observations \"{}\"", filename);
+            } else if rnx.is_ionex() {
+                self.load_ionex(path, &rnx)?;
+                trace!("loaded ionex \"{}\"", filename);
+            } else if rnx.is_antex() {
+                self.load_antex(path, &rnx)?;
+                trace!("loaded antex dataset \"{}\"", filename);
+            } else {
+                return Err(Error::NonSupportedType);
+            }
+        } else if let Ok(sp3) = SP3::from_file(filename) {
+            let path = Path::new(filename);
+            self.load_sp3(path, &sp3)?;
+            trace!("loaded sp3 \"{}\"", filename);
+        }
+        Ok(())
     }
     /// Unwraps inner RINEX data, by preference order:
     /// 1. Observation Data if provided
@@ -174,36 +208,6 @@ impl RnxContext {
     pub fn rinex_name(&self) -> Option<String> {
         let path = self.rinex_path()?;
         Some(path.file_name().unwrap().to_string_lossy().to_string())
-    }
-    /// Loads given file into Context
-    pub fn load(&mut self, filename: &str) -> Result<(), Error> {
-        if let Ok(rnx) = Rinex::from_file(filename) {
-            let path = Path::new(filename);
-            if rnx.is_observation_rinex() {
-                self.load_obs(path, &rnx)?;
-                trace!("loaded observations \"{}\"", filename);
-            } else if rnx.is_navigation_rinex() {
-                self.load_nav(path, &rnx)?;
-                trace!("loaded brdc nav \"{}\"", filename);
-            } else if rnx.is_meteo_rinex() {
-                self.load_meteo(path, &rnx)?;
-                trace!("loaded meteo observations \"{}\"", filename);
-            } else if rnx.is_ionex() {
-                self.load_ionex(path, &rnx)?;
-                trace!("loaded ionex \"{}\"", filename);
-            } else if rnx.is_antex() {
-                self.load_antex(path, &rnx)?;
-                trace!("loaded antex dataset \"{}\"", filename);
-            } else {
-                return Err(Error::NonSupportedType);
-            }
-        } else if let Ok(sp3) = SP3::from_file(filename) {
-            let path = Path::new(filename);
-            self.load_sp3(path, &sp3)?;
-            trace!("loaded sp3 \"{}\"", filename);
-        }
-
-        Ok(())
     }
     /// Returns possible Observation Data paths
     pub fn obs_paths(&self) -> Option<&[PathBuf]> {

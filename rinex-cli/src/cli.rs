@@ -34,9 +34,11 @@ and you can load as many as you want."))
                         .short('d')
                         .long("dir")
                         .value_name("DIRECTORY")
+                        .action(ArgAction::Append)
                         .required_unless_present("filepath")
                         .help("Load directory recursively. RINEX and SP3 files are identified
-and added like they were individually imported with -f."))
+and added like they were individually imported with -f.
+You can import as many directories as you need."))
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
@@ -282,9 +284,13 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
             },
         }
     }
-    /// Returns input base dir
-    pub fn input_base_dir(&self) -> Option<&String> {
-        self.matches.get_one::<String>("directory")
+    /// Returns list of input directories
+    pub fn input_directories(&self) -> Vec<&String> {
+        if let Some(fp) = self.matches.get_many::<String>("directory") {
+            fp.collect()
+        } else {
+            Vec::new()
+        }
     }
     /// Returns individual input filepaths
     pub fn input_files(&self) -> Vec<&String> {

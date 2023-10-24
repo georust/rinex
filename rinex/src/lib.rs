@@ -28,8 +28,6 @@ mod ground_position;
 mod leap;
 mod observable;
 
-mod context;
-
 #[cfg(test)]
 mod tests;
 
@@ -88,6 +86,9 @@ pub mod preprocessing {
 #[cfg(feature = "qc")]
 #[macro_use]
 extern crate horrorshow;
+
+#[cfg(feature = "sp3")]
+mod context;
 
 use carrier::Carrier;
 use prelude::*;

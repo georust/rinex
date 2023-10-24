@@ -93,39 +93,31 @@ pub fn create_workspace(path: PathBuf) {
     });
 }
 
+use walkdir::WalkDir;
+
 /*
  * Creates File/Data context defined by user.
  * Regroups all provided files/folders,
  */
 fn build_context(cli: &Cli) -> RnxContext {
-    // Load base dir (if any)
-    if let Some(base_dir) = cli.input_base_dir() {
-        let ctx = RnxContext::new(base_dir.into());
-        if ctx.is_err() {
-            panic!(
-                "failed to load desired context \"{}\", : {:?}",
-                base_dir,
-                ctx.err().unwrap()
-            );
-        }
-        let mut ctx = ctx.unwrap();
-        // Append individual files, if any
-        for filepath in cli.input_files() {
-            if ctx.load(filepath).is_err() {
+    let mut ctx = RnxContext::default();
+    /* load all directories recursively, one by one */
+    for dir in cli.input_directories() {
+        let walkdir = WalkDir::new(dir).max_depth(5);
+        for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+            let filepath = entry.path().to_string_lossy().to_string();
+            if ctx.load(&filepath).is_err() {
                 warn!("failed to load \"{}\"", filepath);
             }
         }
-        ctx
-    } else {
-        // load individual files, if any
-        let mut ctx = RnxContext::default();
-        for filepath in cli.input_files() {
-            if ctx.load(filepath).is_err() {
-                warn!("failed to load \"{}\"", filepath);
-            }
-        }
-        ctx
     }
+    // load individual files, if any
+    for filepath in cli.input_files() {
+        if ctx.load(filepath).is_err() {
+            warn!("failed to load \"{}\"", filepath);
+        }
+    }
+    ctx
 }
 
 /*
@@ -145,6 +137,7 @@ fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
         info!("missing a reference position for the skyplot view.");
         info!("see rinex-cli -h : antenna positions.");
     }
+
     has_nav && has_ref_position
 }
 
