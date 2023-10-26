@@ -61,7 +61,6 @@ pub trait Modelization {
         sv: Vec<(SV, f64)>,
         lat_ddeg: f64,
         alt_above_sea_m: f64,
-        ctx: &RnxContext,
         cfg: &RTKConfig,
     );
 }
@@ -100,7 +99,6 @@ impl Modelization for Models {
      * Eval new models at Epoch "t" given
      * sv: list of SV at given elevation,
      * lat_ddeg: receiver location latitude
-     * ctx: global context
      * cfg: global configuration
      */
     fn modelize(
@@ -109,7 +107,6 @@ impl Modelization for Models {
         sv: Vec<(SV, f64)>,
         lat_ddeg: f64,
         alt_above_sea_m: f64,
-        ctx: &RnxContext,
         cfg: &RTKConfig,
     ) {
         self.clear();
@@ -117,8 +114,8 @@ impl Modelization for Models {
             self.insert(sv, 0.0_f64);
 
             if cfg.modeling.tropo_delay {
-                let tropo = tropo::tropo_delay(t, lat_ddeg, alt_above_sea_m, elev, ctx);
-                debug!("{:?}: {}(e={:.3}) tropo delay {} [m]", t, sv, elev, tropo,);
+                let tropo = tropo::tropo_delay(t, lat_ddeg, alt_above_sea_m, elev);
+                debug!("{:?}: {}(e={:.3}) tropo delay {} [m]", t, sv, elev, tropo);
                 self.insert(sv, tropo);
             }
         }

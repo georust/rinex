@@ -47,8 +47,6 @@ pub struct RTKConfig {
     /// Whether the solver is working in fixed altitude mode or not
     #[cfg_attr(feature = "serde", serde(default))]
     pub fixed_altitude: Option<f64>,
-    /// Position receveir position, if known before hand
-    pub rcvr_position: Option<GroundPosition>,
     /// PR code smoothing filter before moving forward
     #[cfg_attr(feature = "serde", serde(default = "default_smoothing"))]
     pub code_smoothing: bool,
