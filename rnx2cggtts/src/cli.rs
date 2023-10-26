@@ -36,7 +36,8 @@ and you can load as many as you want."))
                         .value_name("DIRECTORY")
                         .required_unless_present("filepath")
                         .help("Load directory recursively. RINEX and SP3 files are identified
-and added like they were individually imported with -f."))
+and added like they were individually imported with -f.
+You can load as many directories as you need."))
                     .arg(Arg::new("rfdly")
                         .long("rf-delay")
                         .action(ArgAction::Append)

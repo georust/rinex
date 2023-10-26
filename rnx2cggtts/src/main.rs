@@ -11,7 +11,7 @@ use std::str::FromStr;
 extern crate gnss_rtk as rtk;
 use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
 
-use cggtts::prelude::Track as CggttsTrack;
+use cggtts::prelude::Track as CGGTTSTrack;
 use cggtts::prelude::*;
 use cggtts::Coordinates;
 
@@ -112,6 +112,64 @@ fn build_context(cli: &Cli) -> RnxContext {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+struct TrackerData {
+    pub epoch: Epoch,
+    pub nb_avg: u16,
+    pub buffer: f64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct Tracker {
+    pub sv: SV,
+    pub synchronous: bool,
+    pub trk_duration: Duration,
+    pub data: Option<TrackerData>,
+}
+
+impl Tracker {
+    fn new(sv: SV, synchronous: bool, trk_duration: Duration) -> Self {
+        Self {
+            sv,
+            synchronous,
+            trk_duration,
+            data: None,
+        }
+    }
+    /// Track new SV (raw) measurement. Returns TrackData optionaly if we were able to form it
+    fn track(&mut self, t: Epoch, pr: f64) -> Option<TrackData> {
+        if let Some(data) = self.data {
+        } else {
+            /* align to scheduling procedure for synchronous CGGTTS */
+            if self.synchronous {
+                panic!("synchronous CGGTTS not supported yet");
+            } else {
+                self.data = {}
+            }
+        }
+    }
+}
+
+fn tracking(
+    &mut buffer: HashMap<(Epoch, SV, Observable), (u16, f64)>,
+    sv: &SV,
+    code: &Observable,
+) -> Option<((Epoch, SV, Observable), (u16, f64))> {
+    let key = buffer
+        .keys()
+        .filter_map(|(t, svnn, codenn)| {
+            if svnn == sv && code == codenn {
+                Some((t, svnn, codenn))
+            } else {
+                None
+            }
+        })
+        .reduce(|data, _| data);
+    let key = key?;
+    let value = buffer.remove(key)?;
+    Some((key, value))
+}
+
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
@@ -190,7 +248,7 @@ pub fn main() -> Result<(), Error> {
     }
     if let Some(delay_ns) = cli.reference_time_delay() {
         solver.cfg.time_ref_delay = Some(delay_ns);
-        info!("REFERENCE TIME delay: {} [ns]", delay_ns);
+        info!("REFERENCE delay: {} [ns]", delay_ns);
     }
     /*
      * Preprocessing
@@ -206,8 +264,9 @@ pub fn main() -> Result<(), Error> {
 
     // RUN
     let mut solving = true;
-    let mut tracks: Vec<CggttsTrack> = Vec::new();
+    let mut tracks: Vec<CGGTTSTrack> = Vec::new();
     let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
+    let mut tracker: Vec<Tracker> = Vec::new();
 
     while solving {
         match solver.run(&mut ctx) {
