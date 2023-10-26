@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 */
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct SolverEstimate {
+pub struct Estimate {
     /// X coordinates correction
     pub dx: f64,
     /// Y coordinates correction
@@ -28,9 +28,9 @@ pub struct SolverEstimate {
     pub tdop: f64,
 }
 
-impl SolverEstimate {
+impl Estimate {
     /*
-     * Builds a new SolverEstimate from `g` Nav Matrix,
+     * Builds a new Estimate from `g` Nav Matrix,
      * and `y` Nav Vector
      */
     pub fn new(g: MatrixXx4<f64>, y: DVector<f64>) -> Option<Self> {

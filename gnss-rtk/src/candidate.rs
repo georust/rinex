@@ -1,84 +1,106 @@
-/// Position solver candidate
+use gnss::prelude::{SNR, SV};
+use hifitime::{Epoch, Unit, Duration};
+use nyx_space::cosmic::SPEED_OF_LIGHT;
+use crate::{RTKConfig, Vector3D, Error};
+
+/// Pseudo Range observations, against
+/// given carrier frequency
 #[derive(Debug, Default, Clone)]
-pub struct Candidate {
-    /// SV
-    sv: SV,
-    /// Signal sampling instant
-    t: Epoch,
-    /// SV state (that we will resolve in the process)
-    state: Option<Vector3D>,
-    /// SV elevation (that we will resolve in the process)
-    elevation: Option<f64>,
-    /// SV azimuth (that we will resolve in the process)
-    azimuth: f64,
-    /// SV group delay
-    tgd: Option<f64>,
-    /// SV clock state (compared to GNSS timescale)
-    clock_state: Vector3D,
-    /// SV clock correction 
-    clock_corr: Duration,
-    /// SV state: position (ECEF)
-    state: (Vector3D),
-    /// SNR at sampling instant
-    snr: Snr,
-    /// Signal observations and sampling Epoch
-    observations: Vec<(Observable, f64)>,
+pub struct PseudoRange {
+    pub value: f64,
+    pub frequency: f64,
 }
 
-impl Candidate {
+/// Position solver candidate
+#[derive(Debug, Clone)]
+pub struct Candidate<'a> {
+    /// SV
+    pub sv: SV,
+    /// Signal sampling instant
+    pub t: Epoch,
+    /// SV state (that we will resolve in the process)
+    pub(crate) state: Option<Vector3D>,
+    /// SV elevation (that we will resolve in the process)
+    pub(crate) elevation: Option<f64>,
+    /// SV azimuth (that we will resolve in the process)
+    pub(crate) azimuth: Option<f64>,
+    /// SV group delay
+    pub(crate) tgd: Option<f64>,
+    /// SV clock state (compared to GNSS timescale)
+    pub(crate) clock_state: Vector3D,
+    /// SV clock correction 
+    pub(crate) clock_corr: Duration,
+    /// SNR at sampling instant
+    pub(crate) snr: SNR,
+    /// Pseudo range observations at "t"
+    pub(crate) pseudo_range: &'a Vec<PseudoRange>,
+}
+
+impl<'a> Candidate<'a> {
+    /// Creates a new candidate, to inject in the solver pool.
+    pub fn new(
+        sv: SV, 
+        t: Epoch, 
+        clock_state: Vector3D, 
+        clock_corr: Duration,
+        snr: SNR,
+        pseudo_range: &'a Vec<PseudoRange>,
+    ) -> Result<Self, Error> {
+        if pseudo_range.len() == 0 {
+            Err(Error::NeedsAtLeastOnePseudoRange)
+        } else {
+           Ok(Self {
+            sv,
+            t,
+            clock_state,
+            clock_corr,
+            snr,
+            pseudo_range: &'a pseudo_range,
+            tgd: None,
+            state: None,
+            elevation: None,
+            azimuth: None,
+        }) }
+    }
+    /*
+     * Returns true if self is fully interpolated,
+     * and therefore ready to resolve
+     */
     pub(crate) fn interpolated(&self) -> bool {
         self.state.is_some() 
         && self.elevation.is_some() 
         && self.azimuth.is_some()
     }
-    pub fn sv(s: &self, sv: SV) -> Self {
-        let mut s = self.clone();
-        s.sv = sv;
-        s
-    }
-    pub fn clock_bias(s: &self, clock_bias: (f64, f64, f64)) -> Self {
-        let mut s = self.clone();
-        s.clock_bias = clock_bias;
-        s
-    }
-    pub fn tgd(&self, tgd: f64) -> Self {
-        let mut s = self.clone();
-        s.tgd = tgd;
-        s
-    }
     /*
-     * Returns L1 pseudo range observation [m]
+     * Returns one pseudo range observation [m], disregarding its frequency
+     * Infaillible, because we don't allow to build Self without at least
+     * 1 PR observation
      */
-    fn l1_pseudorange(&self) -> Option<f64> {
-        self.observations
-            .filter_map(|(observable, value)| {
-                if observable.is_pseudorange() && observable.is_l1() {
-                    Some(value)
-                } else {
-                    None
-                }
-            })
+    pub(crate) fn pseudo_range(&self) -> f64 {
+        self.pseudo_range
+            .iter()
+            .map(|pr| pr.value)
             .reduce(|k, _| k)
+            .unwrap()
     }  
     /* 
      * Compute and return signal transmission Epoch 
      */
-    pub(crate) fn transmission_time(&self) -> Result<(Epoch, , Error> {
-        let l1_pr = self.l1_pseudorange()
-            .ok_or(Error::MissingL1PseudoRange(self.sv))?;
-        let seconds_ts = self.t_sampling.to_duration().to_seconds(); 
-        let dt_tx = seconds_ts - pr / C;
-        let mut e_tx = Epoch::from_duration(dt_tx * Unit::Second, self.t_sampling.time_scale); 
+    pub(crate) fn transmission_time(&self, cfg: &RTKConfig) -> Result<Epoch, Error> {
+        let (t, ts) = (self.t, self.t.time_scale);
+        let seconds_ts = t.to_duration().to_seconds(); 
+        let dt_tx = seconds_ts - self.pseudo_range() / SPEED_OF_LIGHT;
+        let mut e_tx = Epoch::from_duration(dt_tx * Unit::Second, ts); 
 
-        if self.cfg.sv_clock_bias {
-            dt_sat = Ephemeris::sv_clock_corr(sv, clock_bias, t, toe);
-            debug!("{:?}: {} dt_sat  {}", t, sv, dt_sat);
-            e_tx -= dt_sat;
+        if cfg.modeling.sv_clock_bias {
+            debug!("{:?}: {} dt_sat  {}", t, self.sv, self.clock_corr);
+            e_tx -= self.clock_corr;
         }
 
-        if self.cfg.sv_total_group_delay {
+        if cfg.modeling.sv_total_group_delay {
             if let Some(tgd) = self.tgd {
-                debug!("{:?}: {} tgd      {}", t, sv, tgd);
+                let tgd = tgd * Unit::Second;
+                debug!("{:?}: {} tgd      {}", t, self.sv, tgd);
                 e_tx -= tgd;
             }
         }
@@ -87,6 +109,7 @@ impl Candidate {
         let dt = (t - e_tx).to_seconds();
         assert!(dt > 0.0, "resolved t_tx is physically impossible");
         assert!(dt < 1.0, "|t -t_tx| < 1sec is physically impossible");
+
+        Ok(e_tx)
     }
 }
-

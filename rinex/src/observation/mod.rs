@@ -3,13 +3,11 @@ use super::{epoch, prelude::*, version::Version};
 use std::collections::HashMap;
 
 pub mod record;
-mod snr;
 
 #[cfg(docrs)]
 use crate::Bibliography;
 
 pub use record::{LliFlags, ObservationData, Record};
-pub use snr::Snr;
 
 macro_rules! fmt_month {
     ($m: expr) => {

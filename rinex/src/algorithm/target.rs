@@ -51,7 +51,7 @@ pub enum TargetItem {
     /// Epoch Flag Item
     EpochFlagItem(EpochFlag),
     /// SNR value
-    SnrItem(f64),
+    SNRItem(f64),
     /// Elevation Angle Item
     ElevationItem(f64),
     /// Azimuth Angle Item
@@ -217,7 +217,7 @@ impl TargetItem {
     }
     pub(crate) fn from_snr(content: &str) -> Result<Self, Error> {
         if let Ok(float) = parse_float_payload(content) {
-            Ok(Self::SnrItem(float))
+            Ok(Self::SNRItem(float))
         } else {
             Err(Error::InvalidSNRDescription)
         }

@@ -8,7 +8,7 @@ use crate::{
     Carrier, Observable,
 };
 
-use super::Snr;
+use gnss::prelude::SNR;
 use hifitime::Duration;
 
 #[derive(Error, Debug)]
@@ -58,7 +58,7 @@ pub struct ObservationData {
     /// Lock loss indicator
     pub lli: Option<LliFlags>,
     /// Signal strength indicator
-    pub snr: Option<Snr>,
+    pub snr: Option<SNR>,
 }
 
 impl std::ops::Add for ObservationData {
@@ -80,7 +80,7 @@ impl std::ops::AddAssign for ObservationData {
 
 impl ObservationData {
     /// Builds new ObservationData structure
-    pub fn new(obs: f64, lli: Option<LliFlags>, snr: Option<Snr>) -> ObservationData {
+    pub fn new(obs: f64, lli: Option<LliFlags>, snr: Option<SNR>) -> ObservationData {
         ObservationData { obs, lli, snr }
     }
     /// Returns `true` if self is determined as `ok`.    
@@ -91,13 +91,13 @@ impl ObservationData {
     ///    + SNR must match the .is_ok() criteria, refer to API
     pub fn is_ok(self) -> bool {
         let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
-        let snr_ok = self.snr.unwrap_or(Snr::default()).strong();
+        let snr_ok = self.snr.unwrap_or(SNR::default()).strong();
         lli_ok && snr_ok
     }
 
     /// Returns true if self is considered Ok with respect to given
     /// SNR condition (>=)
-    pub fn is_ok_snr(&self, min_snr: Snr) -> bool {
+    pub fn is_ok_snr(&self, min_snr: SNR) -> bool {
         if self
             .lli
             .unwrap_or(LliFlags::OK_OR_UNKNOWN)
@@ -382,7 +382,7 @@ fn parse_v2(
                 let obs = &slice[0..std::cmp::min(slice.len(), 14)]; // trimmed observations
                                                                      //println!("OBS \"{}\"", obs); //DEBUG
                 let mut lli: Option<LliFlags> = None;
-                let mut snr: Option<Snr> = None;
+                let mut snr: Option<SNR> = None;
                 if let Ok(obs) = obs.trim().parse::<f64>() {
                     // parse obs
                     if slice.len() > 14 {
@@ -392,7 +392,7 @@ fn parse_v2(
                         }
                         if slice.len() > 15 {
                             let snr_str = &slice[15..16];
-                            if let Ok(s) = Snr::from_str(snr_str) {
+                            if let Ok(s) = SNR::from_str(snr_str) {
                                 snr = Some(s);
                             }
                         }
@@ -508,7 +508,7 @@ fn parse_v3(
                     //println!("content \"{}\" \"{}\"", content, r); //DEBUG
                     rem = r.clone();
                     let content_len = content.len();
-                    let mut snr: Option<Snr> = None;
+                    let mut snr: Option<SNR> = None;
                     let mut lli: Option<LliFlags> = None;
                     let obs = &content[0..std::cmp::min(observable_width - 2, content_len)];
                     //println!("OBS \"{}\"", obs); //DEBUG
@@ -521,7 +521,7 @@ fn parse_v3(
                         }
                         if content_len > observable_width - 1 {
                             let snr_str = &content[observable_width - 1..observable_width];
-                            if let Ok(s) = Snr::from_str(snr_str) {
+                            if let Ok(s) = SNR::from_str(snr_str) {
                                 snr = Some(s);
                             }
                         }
@@ -532,7 +532,7 @@ fn parse_v3(
                     }
                 }
                 if rem.len() >= observable_width - 2 {
-                    let mut snr: Option<Snr> = None;
+                    let mut snr: Option<SNR> = None;
                     let mut lli: Option<LliFlags> = None;
                     let obs = &rem[0..observable_width - 2];
                     if let Ok(obs) = obs.trim().parse::<f64>() {
@@ -542,7 +542,7 @@ fn parse_v3(
                                 lli = LliFlags::from_bits(u);
                                 if rem.len() > observable_width - 1 {
                                     let snr_str = &rem[observable_width - 1..];
-                                    if let Ok(s) = Snr::from_str(snr_str) {
+                                    if let Ok(s) = SNR::from_str(snr_str) {
                                         snr = Some(s);
                                     }
                                 }
@@ -918,8 +918,8 @@ impl Mask for Record {
                         !svs.is_empty()
                     });
                 },
-                TargetItem::SnrItem(filter) => {
-                    let filter = Snr::from(filter);
+                TargetItem::SNRItem(filter) => {
+                    let filter = SNR::from(filter);
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|_, data| {
@@ -983,8 +983,8 @@ impl Mask for Record {
                         !svs.is_empty()
                     });
                 },
-                TargetItem::SnrItem(filter) => {
-                    let filter = Snr::from(filter);
+                TargetItem::SNRItem(filter) => {
+                    let filter = SNR::from(filter);
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|_, data| {
@@ -1019,8 +1019,8 @@ impl Mask for Record {
                         !svs.is_empty()
                     });
                 },
-                TargetItem::SnrItem(filter) => {
-                    let filter = Snr::from(filter);
+                TargetItem::SNRItem(filter) => {
+                    let filter = SNR::from(filter);
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|_, data| {
@@ -1055,8 +1055,8 @@ impl Mask for Record {
                         !svs.is_empty()
                     });
                 },
-                TargetItem::SnrItem(filter) => {
-                    let filter = Snr::from(filter);
+                TargetItem::SNRItem(filter) => {
+                    let filter = SNR::from(filter);
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|_, data| {
@@ -1091,8 +1091,8 @@ impl Mask for Record {
                         !svs.is_empty()
                     });
                 },
-                TargetItem::SnrItem(filter) => {
-                    let filter = Snr::from(filter);
+                TargetItem::SNRItem(filter) => {
+                    let filter = SNR::from(filter);
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|_, data| {
@@ -1189,7 +1189,7 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
                 }
             }
         },
-        TargetItem::SnrItem(_) => unimplemented!("decimate_data_subset::snr"),
+        TargetItem::SNRItem(_) => unimplemented!("decimate_data_subset::snr"),
         _ => {},
     }
 }

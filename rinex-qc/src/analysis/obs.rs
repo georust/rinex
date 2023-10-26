@@ -4,13 +4,12 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 extern crate gnss_rs as gnss;
-use gnss::prelude::SV;
+use gnss::prelude::{SNR, SV};
 
 use crate::QcOpts;
 
 //use rinex::carrier;
 use rinex::carrier::Carrier;
-use rinex::observation::Snr;
 use rinex::prelude::{Epoch, EpochFlag, Observable, Rinex};
 use rinex::preprocessing::Derivative;
 
@@ -262,7 +261,7 @@ fn report_snr_statistics(
                 @ if observable.is_phase_observable() || observable.is_pseudorange_observable() {
                     td {
                         b {
-                            : format!("{:e}", Snr::from_str(&format!("{}", max.1)).unwrap())
+                            : format!("{:e}", SNR::from_str(&format!("{}", max.1)).unwrap())
                         }
                         p {
                             : format!("@{}", max.0)
@@ -279,7 +278,7 @@ fn report_snr_statistics(
                 @ if observable.is_phase_observable() || observable.is_pseudorange_observable() {
                     td {
                         b {
-                            : format!("{:e}", Snr::from_str(&format!("{}", min.1)).unwrap())
+                            : format!("{:e}", SNR::from_str(&format!("{}", min.1)).unwrap())
                         }
                         p {
                             : format!("@{}", min.0)
@@ -411,7 +410,7 @@ impl QcObsAnalysis {
 
         let mut total_epochs = rnx.epoch().count();
         let mut complete_epochs: HashMap<(SV, Carrier), usize> = HashMap::new();
-        for (_, complete) in rnx.complete_epoch(Some(Snr::from(opts.min_snr_db))) {
+        for (_, complete) in rnx.complete_epoch(Some(SNR::from(opts.min_snr_db))) {
             for (sv, carrier) in complete {
                 if let Some(counter) = complete_epochs.get_mut(&(sv, carrier)) {
                     *counter += 1;

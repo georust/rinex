@@ -1,9 +1,11 @@
-use crate::RTKConfig;
-use hifitime::{Duration, Epoch};
+//! Physical, Atmospherical and Environmental modelizations
 use log::debug;
-use map_3d::{deg2rad, ecef2geodetic, Ellipsoid};
-use rinex::prelude::{Observable, RnxContext, SV};
+use hifitime::Epoch;
+use crate::RTKConfig;
+
+//use map_3d::{deg2rad, ecef2geodetic, Ellipsoid};
 use std::collections::HashMap;
+use rinex::prelude::SV;
 
 use crate::SolverType;
 
@@ -38,6 +40,26 @@ fn default_rel_clock_corr() -> bool {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+/// Superceed Tropospheric delay modeling
+pub struct SuperceededTropoModel {
+    /// Provide a Zenith Dry Delay [s] value yourself
+    pub zdd: f64,
+    /// Provide a Zenith Wet Delay [s] value yourself
+    pub zwd: f64,
+}
+
+/// When solving, we let the possibility to superceed
+/// atmospherical models, in case the user is capable of providing
+/// a better or more trusty model himself.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SuperceededModels {
+    pub tropo: Option<SuperceededTropoModel>,
+}
+
+/// Atmospherical, Physical and Environmental modeling 
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Modeling {
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_clock_bias: bool,
@@ -53,7 +75,7 @@ pub struct Modeling {
     pub relativistic_clock_corr: bool,
 }
 
-pub trait Modelization {
+pub(crate) trait Modelization {
     fn sum_up(&self, sv: SV) -> f64;
     fn modelize(
         &mut self,
@@ -62,6 +84,7 @@ pub trait Modelization {
         lat_ddeg: f64,
         alt_above_sea_m: f64,
         cfg: &RTKConfig,
+        superceeded: Option<SuperceededModels>,
     );
 }
 
@@ -108,6 +131,7 @@ impl Modelization for Models {
         lat_ddeg: f64,
         alt_above_sea_m: f64,
         cfg: &RTKConfig,
+        superceed: SuperceededModels,
     ) {
         self.clear();
         for (sv, elev) in sv {

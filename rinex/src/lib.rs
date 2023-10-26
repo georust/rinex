@@ -1644,7 +1644,10 @@ impl Rinex {
 }
 
 #[cfg(feature = "obs")]
-use crate::observation::{LliFlags, Snr};
+use gnss::prelude::SNR;
+
+#[cfg(feature = "obs")]
+use crate::observation::LliFlags;
 
 /*
  * OBS RINEX specific methods: only available on crate feature.
@@ -1956,7 +1959,7 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx")
     ///         .unwrap();
     /// for ((e, flag), sv, observable, snr) in rinex.snr() {
-    ///     // See RINEX specs or [Snr] documentation
+    ///     // See RINEX specs or [SNR] documentation
     ///     if snr.weak() {
     ///     } else if snr.strong() {
     ///     } else if snr.excellent() {
@@ -1969,7 +1972,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, Snr)> + '_> {
+    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, SNR)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations
@@ -2011,7 +2014,7 @@ impl Rinex {
     /// and an optional minimal SNR criteria is met (disregarded if None).
     pub fn complete_epoch(
         &self,
-        min_snr: Option<Snr>,
+        min_snr: Option<SNR>,
     ) -> Box<dyn Iterator<Item = (Epoch, Vec<(SV, Carrier)>)> + '_> {
         Box::new(
             self.observation()

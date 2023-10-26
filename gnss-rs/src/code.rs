@@ -1,8 +1,15 @@
-//! Carrier channels and associated methods
+//! GNSS codes 
 use crate::{Constellation, Observable};
 use thiserror::Error;
 
-use gnss::prelude::SV;
+/// GNSS codes
+pub enum Code {
+    /// GPS C1
+    C1,
+    /// GPS or Glonass P1
+    P1,
+    /// 
+}
 
 lazy_static! {
     pub(crate) static ref KNOWN_CODES: Vec<&'static str> = vec![
@@ -13,59 +20,6 @@ lazy_static! {
     ];
 }
 
-#[derive(Default, Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Carrier {
-    /// L1 (GPS, SBAS, QZSS)
-    #[default]
-    L1,
-    /// L2 (GPS, QZSS)
-    L2,
-    /// L5 (GPS, SBAS), QZSS
-    L5,
-    /// L6 (LEX) QZSS
-    L6,
-    /// Glonass channel 1 with possible offset
-    G1(Option<i8>),
-    /// Glonass G1a
-    G1a,
-    /// Glonass channel 2 with possible offset
-    G2(Option<i8>),
-    /// Glonass G2a
-    G2a,
-    /// Glonass channel 3
-    G3,
-    /// E1: GAL
-    E1,
-    /// E5: GAL (E5a + E5b)
-    E5,
-    /// E5a: GAL E5a
-    E5a,
-    /// E5b: GAL E5b
-    E5b,
-    /// E6: GAL military
-    E6,
-    /// B1: BeiDou 1i
-    B1I,
-    /// B1A BeiDou 1A
-    B1A,
-    /// B1C BeiDou 1C
-    B1C,
-    /// B2: BeiDou 2
-    B2,
-    /// B2i: BeiDou 2i
-    B2I,
-    /// B2a: BeiDou 2A
-    B2A,
-    /// B2b: BeiDou 2b
-    B2B,
-    /// B3
-    B3,
-    /// B3A
-    B3A,
-    /// IRNSS S
-    S,
-}
 
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {

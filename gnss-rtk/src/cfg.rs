@@ -1,17 +1,13 @@
-use crate::model::Modeling;
 use crate::SolverType;
+use gnss::prelude::SNR;
+use crate::model::Modeling;
 use hifitime::prelude::TimeScale;
 
-use std::collections::HashMap;
 use std::str::FromStr;
+use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde::Deserialize;
-
-use rinex::prelude::GroundPosition;
-use rinex::prelude::Observable;
-
-use rinex::observation::Snr;
 
 fn default_timescale() -> TimeScale {
     TimeScale::GPST
@@ -35,9 +31,6 @@ pub struct RTKConfig {
     /// Time scale
     #[cfg_attr(feature = "serde", serde(default = "default_timescale"))]
     pub timescale: TimeScale,
-    /// positioning mode
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub mode: SolverMode,
     /// (Position) interpolation filter order.
     /// A minimal order must be respected for correct results.
     /// -  7 when working with broadcast ephemeris
@@ -75,7 +68,7 @@ pub struct RTKConfig {
     pub min_sv_elev: Option<f64>,
     /// Minimal SNR for an SV to be considered.
     #[cfg_attr(feature = "serde", serde(default))]
-    pub min_sv_snr: Option<Snr>,
+    pub min_sv_snr: Option<SNR>,
     /// modeling
     #[cfg_attr(feature = "serde", serde(default))]
     pub modeling: Modeling,
@@ -90,14 +83,12 @@ impl RTKConfig {
         match solver {
             SolverType::SPP => Self {
                 timescale: default_timescale(),
-                mode: SolverMode::default(),
                 fixed_altitude: None,
-                rcvr_position: None,
                 interp_order: default_interp(),
                 code_smoothing: default_smoothing(),
                 min_sv_sunlight_rate: None,
                 min_sv_elev: Some(10.0),
-                min_sv_snr: Some(Snr::from_str("weak").unwrap()),
+                min_sv_snr: Some(SNR::from_str("weak").unwrap()),
                 modeling: Modeling::default(),
                 max_sv: default_max_sv(),
                 internal_delay: Default::default(),
@@ -105,14 +96,12 @@ impl RTKConfig {
             },
             SolverType::PPP => Self {
                 timescale: default_timescale(),
-                mode: SolverMode::default(),
                 fixed_altitude: None,
-                rcvr_position: None,
                 interp_order: 11,
                 code_smoothing: default_smoothing(),
                 min_sv_sunlight_rate: Some(0.75),
                 min_sv_elev: Some(25.0),
-                min_sv_snr: Some(Snr::from_str("strong").unwrap()),
+                min_sv_snr: Some(SNR::from_str("strong").unwrap()),
                 modeling: Modeling::default(),
                 max_sv: default_max_sv(),
                 internal_delay: Default::default(),

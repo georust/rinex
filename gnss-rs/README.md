@@ -3,7 +3,13 @@
 [![crates.io](https://img.shields.io/crates/v/gnss-rs.svg)](https://crates.io/crates/gnss-rs)
 [![crates.io](https://docs.rs/gnss-rs/badge.svg)](https://docs.rs/gnss-rs/badge.svg)
 
-GNSS Constellations and Space Vehicles (SV) support in Rust
+High level definitions to work with GNSS in Rust
+
++ Space Vehicles: `SV`
++ GNSS Constellations: `Constellation`
++ GNSS Timescales: `Constellation.timescale()`
++ GNSS codes: `Code`
++ Signal to Noise Ratio: `SNR`
 
 ## Getting started
 

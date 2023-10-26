@@ -8,7 +8,6 @@ use std::f64::consts::PI;
 fn meteorological_tropo_delay(
     t: Epoch,
     lat_ddeg: f64,
-    ctx: &RnxContext,
 ) -> (Option<f64>, Option<f64>) {
     // maximal tolerated latitude difference
     const max_latitude_delta: f64 = 15.0_f64;
@@ -205,11 +204,10 @@ pub(crate) fn tropo_delay(
     lat_ddeg: f64,
     altitude: f64,
     elev: f64,
-    ctx: &RnxContext,
 ) -> f64 {
     let (zdd, zwd): (f64, f64) = match ctx.has_meteo_data() {
         true => {
-            if let (Some(zdd), Some(zwd)) = meteorological_tropo_delay(t, lat_ddeg, ctx) {
+            if let (Some(zdd), Some(zwd)) = meteorological_tropo_delay(t, lat_ddeg) {
                 (zdd, zwd)
             } else {
                 unb3_delay_components(t, lat_ddeg, altitude)
