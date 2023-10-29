@@ -1,14 +1,11 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docrs, feature(doc_cfg))]
 
+use nyx_space::cosmic::eclipse::{eclipse_state, EclipseState};
 use nyx_space::cosmic::{Orbit, SPEED_OF_LIGHT};
 use nyx_space::md::prelude::{Bodies, Frame, LightTimeCalc};
-use nyx_space::cosmic::eclipse::{eclipse_state, EclipseState};
 
-use rinex::prelude::{
-    //Duration,
-    Epoch,
-};
+use hifitime::Epoch;
 
 extern crate gnss_rs as gnss;
 extern crate nyx_space as nyx;
@@ -26,34 +23,53 @@ use nyx::md::prelude::{Arc, Cosm};
 
 mod cfg;
 mod model;
+mod vector;
+
 mod apriori;
-mod estimate;
 mod candidate;
+mod estimate;
 
-use crate::mode::SolverMode;
-use crate::candidate::Candidate;
-use crate::apriori::AprioriPosition;
-
-pub mod prelude {
-    pub use crate::cfg::RTKConfig;
-    pub use crate::cfg::SolverMode;
-    pub use crate::estimate::Estimate;
-    pub use crate::model::Modeling;
-    pub use crate::RTKContext;
-    pub use crate::Error;
-    pub use crate::Solver;
-    pub use crate::SolverMode;
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub enum Mode {
+    /// SPP : code based and approximated models
+    /// aiming a metric resolution.
+    #[default]
+    SPP,
+    // /// PPP : phase + code based, the ultimate solver
+    // /// aiming a millimetric resolution.
+    // PPP,
 }
 
-use cfg::RTKConfig;
+impl std::fmt::Display for Mode {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::SPP => write!(fmt, "SPP"),
+            // Self::PPP => write!(fmt, "PPP"),
+        }
+    }
+}
+
+pub mod prelude {
+    pub use crate::cfg::Config;
+    pub use crate::estimate::Estimate;
+    pub use crate::model::Modeling;
+    pub use crate::Error;
+    pub use crate::Mode;
+    pub use crate::Solver;
+}
+
+use cfg::Config;
 use estimate::Estimate;
 use model::{
-    // Modelization, 
-    Models, 
+    Modelization,
+    Models,
     // Modeling,
 };
- 
-use apriori::Apriori;
+use vector::Vector3D;
+
+use apriori::AprioriPosition;
+use candidate::Candidate;
+use model::TropoComponents;
 
 use log::{debug, error, trace, warn};
 
@@ -75,42 +91,29 @@ pub enum Error {
 /// For Solver.resolve() to truly complete.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct InterpolationResult {
-    /// Position in the sky 
+    /// Position in the sky
     sky_pos: Vector3D,
     /// Optional elevation compared to reference position and horizon
     elevation: Option<f64>,
     /// Optional azimuth compared to reference position and magnetic North
-    azimuth: Option<f64>, 
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
-pub struct Vector3D {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
-impl From<(f64, f64, f64)> for Vector3D {
-    fn from(v: (f64, f64, f64)) -> Self {
-        Self {
-            x: v.0,
-            y: v.1,
-            z: v.2,
-        }
-    }
+    azimuth: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Solver {
     /// Solver parametrization
-    pub cfg: RTKConfig,
+    pub cfg: Config,
     /// Type of solver implemented
-    pub mode: SolverMode,
+    pub mode: Mode,
     /// apriori position
-    pub apriori: Apriori,
-    /// Interpolation method: must always resolve InterpolationResults 
+    pub apriori: AprioriPosition,
+    /// Interpolation method: must always resolve InterpolationResults
     /// correctly at given Epoch with desired interpolation order, for the solver to resolve.
-    pub interpolator : fn(SV, Epoch, usize) -> Option<InterpolationResult>,
+    pub interpolator: fn(Epoch, SV, usize) -> Option<InterpolationResult>,
+    /// Custom tropospheric delay components provider.
+    /// If you want to implement the tropospheric delay compensation yourself, or have a better source of such data, use this. Otherwise,
+    /// the solver will implement its own compensator
+    pub tropo_components: fn(Epoch, f64, f64) -> Option<TropoComponents>,
     /// cosmic model
     cosmic: Arc<Cosm>,
     /// Earth frame
@@ -123,15 +126,16 @@ pub struct Solver {
 
 impl Solver {
     pub fn new(
-        mode: SolverMode, 
-        apriori: AprioriPosition, 
-        cfg: &RTKConfig,
-        interpolator : fn(SV, Epoch, usize) -> Option<InterpolationResult>,
+        mode: Mode,
+        apriori: AprioriPosition,
+        cfg: &Config,
+        interpolator: fn(Epoch, SV, usize) -> Option<InterpolationResult>,
+        tropo_components: fn(Epoch, f64, f64) -> Option<TropoComponents>,
     ) -> Result<Self, Error> {
         let cosmic = Cosm::de438();
         let sun_frame = cosmic.frame("Sun J2000");
         let earth_frame = cosmic.frame("EME2000");
-        
+
         /*
          * print some infos on latched config
          */
@@ -142,15 +146,15 @@ impl Solver {
         if cfg.modeling.earth_rotation {
             warn!("can't compensate for earth rotation at the moment");
         }
-        
+
         if cfg.modeling.relativistic_clock_corr {
             warn!("relativistic clock corr. is not feasible at the moment");
         }
-        
-        if mode == SolverMode::PPP && cfg.min_sv_sunlight_rate.is_some() {
+
+        if mode == Mode::SPP && cfg.min_sv_sunlight_rate.is_some() {
             warn!("eclipse filter is not meaningful when using spp strategy");
         }
-        
+
         Ok(Self {
             mode,
             cosmic,
@@ -158,6 +162,7 @@ impl Solver {
             earth_frame,
             apriori,
             interpolator,
+            tropo_components,
             cfg: cfg.clone(),
             models: Models::with_capacity(cfg.max_sv),
         })
@@ -165,19 +170,24 @@ impl Solver {
     /// Candidates election process, you can either call yourself this method
     /// externally prior a Self.run(), or use "pre_selected: false" in Solver.run()
     /// or use "pre_selected: true" with your own selection method prior using Solver.run().
-    pub fn elect_candidates(t: Epoch, pool: Vec<Candidate>, mode: SolverMode, cfg: &RTKConfig) -> Vec<Candidate> {
+    pub fn elect_candidates<'a>(
+        t: Epoch,
+        pool: Vec<Candidate<'a>>,
+        mode: Mode,
+        cfg: &'a Config,
+    ) -> Vec<Candidate<'a>> {
         let mut p = pool.clone();
         p.iter()
             .filter_map(|c| {
                 let mode_compliant = match mode {
-                    SolverMode::SPP => true,
-                    SolverMode::PPP => false, // TODO
+                    Mode::SPP => true,
+                    // Mode::PPP => false, // TODO
                 };
                 let snr_ok = match cfg.min_sv_snr {
                     Some(snr) => {
                         let ok = c.snr > snr;
                         if !ok {
-                            trace!("{:?} : snr below criteria", c.t, c.sv);
+                            trace!("{:?} : {} snr below criteria", c.t, c.sv);
                         }
                         ok
                     },
@@ -188,18 +198,21 @@ impl Solver {
                 } else {
                     None
                 }
-            }) 
+            })
             .collect()
     }
     /// Run position solving algorithm, using predefined strategy.
-    pub fn run(
-        &mut self, 
-        t: Epoch, 
-        pool: Vec<Candidate>
-    ) -> Result<(Epoch, Estimate), Error> {
-
-        let (x0, y0, z0) = self.apriori.ecef;
-        let (lat_ddeg, lon_ddeg, altitude_above_sea_m) = self.apriori.geodetic;
+    pub fn run(&mut self, t: Epoch, pool: Vec<Candidate>) -> Result<(Epoch, Estimate), Error> {
+        let (x0, y0, z0) = (
+            self.apriori.ecef.x,
+            self.apriori.ecef.y,
+            self.apriori.ecef.z,
+        );
+        let (lat_ddeg, lon_ddeg, altitude_above_sea_m) = (
+            self.apriori.geodetic.x,
+            self.apriori.geodetic.y,
+            self.apriori.geodetic.z,
+        );
 
         let modeling = self.cfg.modeling;
         let interp_order = self.cfg.interp_order;
@@ -207,10 +220,11 @@ impl Solver {
         let pool = Self::elect_candidates(t, pool, self.mode, &self.cfg);
 
         /* interpolate positions */
-        let mut pool: Vec<Candidate> = pool.iter()
+        let mut pool: Vec<Candidate> = pool
+            .iter()
             .filter_map(|c| {
                 let mut t_tx = c.transmission_time(&self.cfg).ok()?;
-                
+
                 // TODO : complete this equation please
                 if self.cfg.modeling.relativistic_clock_corr {
                     let _e = 1.204112719279E-2;
@@ -227,7 +241,7 @@ impl Solver {
                     // we = 7.2921151467 E-5
                 }
 
-                if let Some(interpolated) = (self.interpolator)(c.sv, t_tx, self.cfg.interp_order) {
+                if let Some(interpolated) = (self.interpolator)(t_tx, c.sv, self.cfg.interp_order) {
                     let mut c = c.clone();
                     c.state = Some(interpolated.sky_pos);
                     c.elevation = interpolated.elevation;
@@ -252,13 +266,12 @@ impl Solver {
         /* apply eclipse filter (if need be) */
         if let Some(min_rate) = self.cfg.min_sv_sunlight_rate {
             for idx in 0..pool.len() {
-                let state = pool[idx].state
-                    .unwrap(); // infaillible
+                let state = pool[idx].state.unwrap(); // infaillible
                 let (x, y, z) = (state.x, state.y, state.z);
                 let orbit = Orbit {
-                    x_km: x /1000.0,
-                    y_km: y /1000.0,
-                    z_km: z /1000.0,
+                    x_km: x / 1000.0,
+                    y_km: y / 1000.0,
+                    z_km: z / 1000.0,
                     vx_km_s: 0.0_f64, // TODO ?
                     vy_km_s: 0.0_f64, // TODO ?
                     vz_km_s: 0.0_f64, // TODO ?
@@ -266,12 +279,7 @@ impl Solver {
                     frame: self.earth_frame,
                     stm: None,
                 };
-                let state = eclipse_state(
-                    &orbit, 
-                    self.sun_frame, 
-                    self.earth_frame,
-                    &self.cosmic,
-                );
+                let state = eclipse_state(&orbit, self.sun_frame, self.earth_frame, &self.cosmic);
                 let eclipsed = match state {
                     EclipseState::Umbra => true,
                     EclipseState::Visibilis => false,
@@ -283,26 +291,27 @@ impl Solver {
                 }
             }
         }
-        
+
         /* make sure we still have enough SV */
         let nb_candidates = pool.len();
         if nb_candidates < 4 {
-            debug!("{:?}: {} sv is not enough to generate a solution", t, nb_candidates);
+            debug!(
+                "{:?}: {} sv is not enough to generate a solution",
+                t, nb_candidates
+            );
             return Err(Error::LessThan4Sv(t));
         } else {
             debug!("{:?}: {} elected sv", t, nb_candidates);
         }
-        
+
         /* modelization */
         self.models.modelize(
             t,
-            pool 
-                .iter()
-                .map(|c| (c.sv, c.elevation.unwrap()))
-                .collect(),
+            pool.iter().map(|c| (c.sv, c.elevation.unwrap())).collect(),
             lat_ddeg,
             altitude_above_sea_m,
             &self.cfg,
+            self.tropo_components,
         );
 
         /* form matrix */
@@ -317,7 +326,6 @@ impl Solver {
             let (sv_x, sv_y, sv_z) = (state.x, state.y, state.z);
 
             // let code = data.3;
-
 
             let rho = ((sv_x - x0).powi(2) + (sv_y - y0).powi(2) + (sv_z - z0).powi(2)).sqrt();
 
@@ -358,9 +366,12 @@ impl Solver {
      */
     fn sun_earth_vector(&mut self, t: Epoch) -> Vector3D {
         let sun_body = Bodies::Sun;
-        let orbit =
-            self.cosmic
-                .celestial_state(sun_body.ephem_path(), t, self.earth_frame, LightTimeCalc::None);
+        let orbit = self.cosmic.celestial_state(
+            sun_body.ephem_path(),
+            t,
+            self.earth_frame,
+            LightTimeCalc::None,
+        );
         Vector3D {
             x: orbit.x_km * 1000.0,
             y: orbit.y_km * 1000.0,

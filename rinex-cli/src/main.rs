@@ -7,10 +7,11 @@ mod cli; // command line interface
 pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
 mod plot; // plotting operations
-mod rtk_postproc; // rtk results post processing
 
 mod preprocessing;
 use preprocessing::preprocess;
+
+mod positioning;
 
 //use horrorshow::Template;
 use rinex::{
@@ -124,7 +125,7 @@ fn build_context(cli: &Cli) -> RnxContext {
  * Returns true if Skyplot view if feasible and allowed
  */
 fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() || cli.rtk_only() {
+    if cli.quality_check_only() || cli.positioning_only() {
         /*
          * Special modes: no plots allowed
          */
@@ -165,8 +166,8 @@ pub fn main() -> Result<(), Error> {
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
-    let rtk_only = cli.rtk_only();
-    let rtk = cli.rtk() || rtk_only;
+    let positioning_only = cli.positioning_only();
+    let positioning = cli.spp() || positioning_only;
 
     if cli.multipath() {
         warn!("--mp analysis not available yet");
@@ -494,7 +495,7 @@ pub fn main() -> Result<(), Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !rtk_only && !no_graph {
+    if !qc_only && !positioning_only && !no_graph {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
 
@@ -558,21 +559,12 @@ pub fn main() -> Result<(), Error> {
         }
     }
 
-    if !rtk {
-        return Ok(());
+    if positioning {
+        let results = positioning::solver(&mut ctx)?;
+        positioning::post_process(workspace, &cli, results)?;
     }
 
     if let Ok(ref mut solver) = solver {
-        /* init */
-        match solver.init(&mut ctx) {
-            Err(e) => panic!("failed to initialize rtk solver - {}", e),
-            Ok(_) => info!("entering rtk mode"),
-        }
-
-        // position solver feasible & deployed
-        let mut solving = true;
-        let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
-
         while solving {
             match solver.run(&mut ctx) {
                 Ok((t, estimate)) => {

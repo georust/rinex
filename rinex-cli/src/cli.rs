@@ -44,11 +44,11 @@ You can import as many directories as you need."))
                         .long("quiet")
                         .action(ArgAction::SetTrue)
                         .help("Disable all terminal output. Also disables auto HTML reports opener."))
-                    .arg(Arg::new("pretty")
-                        .short('p')
-                        .long("pretty")
+                    .arg(Arg::new("pretty-json")
+                        .short('j')
+                        .long("json")
                         .action(ArgAction::SetTrue)
-                        .help("Make terminal output more readable."))
+                        .help("Make JSON output more readable."))
                     .arg(Arg::new("workspace")
                         .short('w')
                         .long("workspace")
@@ -229,22 +229,18 @@ The summary report by default is integrated to the global HTML report."))
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
                         .help("Activates QC mode and disables all other features: quickest qc rendition."))
-                .next_help_heading("RTK (Positioning)")
-                    .arg(Arg::new("rtk")
-                        .long("rtk")
+                .next_help_heading("Positioning")
+                    .arg(Arg::new("spp")
+                        .long("spp")
                         .action(ArgAction::SetTrue)
-                        .help("Activate GNSS receiver position solver.
-This is only possible if provided context is sufficient.
-Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
-solver is deployed.
-This mode is turned off by default because it involves quite heavy computations.
-Use the RUST_LOG env. variable for verbosity.
-See [spp] for more information. "))
-                    .arg(Arg::new("rtk-only")
-                        .long("rtk-only")
-                        .short('r')
+                        .help("SPP post processed positioning.
+Use with ${RUST_LOG} env logger for more information.
+Refer to the positioning documentation."))
+                    .arg(Arg::new("pos-only")
+                        .long("pos-only")
+                        .short('p')
                         .action(ArgAction::SetTrue)
-                        .help("Activates GNSS position solver, disables all other modes.
+                        .help("Disable context analysis and run position solver only.
 This is the most performant mode to solve a position."))
 					.arg(Arg::new("rtk-config")
 						.long("rtk-cfg")
@@ -430,27 +426,19 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
         self.matches.get_flag(flag)
     }
     /// returns true if pretty JSON is requested
-    pub fn pretty(&self) -> bool {
-        self.get_flag("pretty")
+    pub fn pretty_json(&self) -> bool {
+        self.get_flag("pretty-json")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
-    /// Returns true if position solver is enabled
-    pub fn rtk(&self) -> bool {
-        self.matches.get_flag("rtk") || self.forced_spp() || self.forced_ppp()
-    }
-    /// Returns true if position solver forced to SPP
-    pub fn forced_spp(&self) -> bool {
+    /// Returns true if SPP position solver is enabled
+    pub fn spp(&self) -> bool {
         self.matches.get_flag("spp")
     }
-    /// Returns true if position solver forced to PPP
-    pub fn forced_ppp(&self) -> bool {
-        self.matches.get_flag("spp")
-    }
-    pub fn rtk_only(&self) -> bool {
-        self.matches.get_flag("rtk-only")
+    pub fn positioning_only(&self) -> bool {
+        self.matches.get_flag("pos-only")
     }
     pub fn gpx(&self) -> bool {
         self.matches.get_flag("gpx")

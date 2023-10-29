@@ -1,10 +1,10 @@
-use crate::SolverType;
-use gnss::prelude::SNR;
 use crate::model::Modeling;
+use crate::Mode;
+use gnss::prelude::SNR;
 use hifitime::prelude::TimeScale;
 
 use std::str::FromStr;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde::Deserialize;
@@ -27,7 +27,23 @@ fn default_smoothing() -> bool {
 
 #[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-pub struct RTKConfig {
+/// System Internal Delay as defined by BIPM in
+/// "GPS Receivers Accurate Time Comparison" : the (frequency dependent)
+/// time delay introduced by the combination of:
+///  + the RF cable (up to several nanoseconds)
+///  + the distance between the antenna baseline and its APC:
+///    a couple picoseconds, and is frequency dependent
+///  + the GNSS receiver inner delay (hardware and frequency dependent)
+pub struct InternalDelay {
+    /// Delay [s]
+    pub delay: f64,
+    /// Carrier frequency [Hz]
+    pub carrier_frequency: f64,
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
+pub struct Config {
     /// Time scale
     #[cfg_attr(feature = "serde", serde(default = "default_timescale"))]
     pub timescale: TimeScale,
@@ -43,14 +59,8 @@ pub struct RTKConfig {
     /// PR code smoothing filter before moving forward
     #[cfg_attr(feature = "serde", serde(default = "default_smoothing"))]
     pub code_smoothing: bool,
-    /// System Internal Delay, as defined by BIPM in
-    /// "GPS Receivers Accurate Time Comparison" : the (frequency dependent)
-    /// time delay introduced by the combination of:
-    ///  + the RF cable (up to several nanoseconds)
-    ///  + the distance between the antenna baseline and its APC:
-    ///    a couple picoseconds, and is frequency dependent
-    ///  + the GNSS receiver inner delay (hardware and frequency dependent)
-    pub internal_delay: HashMap<Observable, f64>,
+    /// Internal delays
+    pub internal_delay: Vec<InternalDelay>,
     /// Time Reference Delay, as defined by BIPM in
     /// "GPS Receivers Accurate Time Comparison" : the time delay
     /// between the GNSS receiver external reference clock and the sampling clock
@@ -78,10 +88,10 @@ pub struct RTKConfig {
     pub max_sv: usize,
 }
 
-impl RTKConfig {
-    pub fn default(solver: SolverType) -> Self {
+impl Config {
+    pub fn default(solver: Mode) -> Self {
         match solver {
-            SolverType::SPP => Self {
+            Mode::SPP => Self {
                 timescale: default_timescale(),
                 fixed_altitude: None,
                 interp_order: default_interp(),
@@ -94,19 +104,19 @@ impl RTKConfig {
                 internal_delay: Default::default(),
                 time_ref_delay: Default::default(),
             },
-            SolverType::PPP => Self {
-                timescale: default_timescale(),
-                fixed_altitude: None,
-                interp_order: 11,
-                code_smoothing: default_smoothing(),
-                min_sv_sunlight_rate: Some(0.75),
-                min_sv_elev: Some(25.0),
-                min_sv_snr: Some(SNR::from_str("strong").unwrap()),
-                modeling: Modeling::default(),
-                max_sv: default_max_sv(),
-                internal_delay: Default::default(),
-                time_ref_delay: Default::default(),
-            },
+            //Mode::PPP => Self {
+            //    timescale: default_timescale(),
+            //    fixed_altitude: None,
+            //    interp_order: 11,
+            //    code_smoothing: default_smoothing(),
+            //    min_sv_sunlight_rate: Some(0.75),
+            //    min_sv_elev: Some(25.0),
+            //    min_sv_snr: Some(SNR::from_str("strong").unwrap()),
+            //    modeling: Modeling::default(),
+            //    max_sv: default_max_sv(),
+            //    internal_delay: Default::default(),
+            //    time_ref_delay: Default::default(),
+            //},
         }
     }
 }

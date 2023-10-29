@@ -5,18 +5,16 @@
 #[macro_use]
 mod macros;
 
-mod snr;
-mod code;
-pub mod sv;
 pub mod constellation;
+mod snr;
+pub mod sv;
 
 use constellation::Constellation;
 
 pub mod prelude {
-    pub use crate::sv::SV;
-    pub use crate::snr::SNR;
-    pub use crate::code::Code;
     pub use crate::constellation::Constellation;
+    pub use crate::snr::SNR;
+    pub use crate::sv::SV;
 }
 
 mod sbas;

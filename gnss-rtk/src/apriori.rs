@@ -16,7 +16,7 @@ impl AprioriPosition {
             geodetic: ecef2geodetic(x, y, z, Ellipsoid::WGS84).into(),
         }
     }
-    /// Builds Self from Geodetic coordinates: 
+    /// Builds Self from Geodetic coordinates:
     /// latitude [ddeg], longitude [ddeg] and altitude above sea [m].
     pub fn from_geo(geodetic: Vector3D) -> Self {
         let (lat, lon, alt) = (geodetic.x, geodetic.y, geodetic.z);
@@ -26,4 +26,3 @@ impl AprioriPosition {
         }
     }
 }
-
