@@ -2,14 +2,12 @@
 resolver = "2"
 
 members = [
-    "gnss-rs",
-    "gnss-rtk",
     "crx2rnx", 
     "qc-traits", 
     "rinex", 
     "rinex-qc", 
     "rinex-cli", 
-    "rnx2cggtts", 
+    # "rnx2cggtts", 
     "rnx2crx", 
     "sinex",
     "sp3",

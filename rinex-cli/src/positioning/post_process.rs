@@ -2,7 +2,7 @@ use crate::cli::Cli;
 use crate::context_stem;
 use hifitime::Epoch;
 use rinex::prelude::RnxContext;
-use rtk::prelude::SolverEstimate;
+use rtk::prelude::Estimate;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -38,7 +38,7 @@ pub(crate) fn post_process(
     workspace: PathBuf,
     cli: &Cli,
     ctx: &RnxContext,
-    results: HashMap<Epoch, SolverEstimate>,
+    results: HashMap<Epoch, Estimate>,
 ) -> Result<(), Error> {
     // create a dedicated plot context
     let no_graph = cli.no_graph();

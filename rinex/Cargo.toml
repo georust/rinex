@@ -70,9 +70,7 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 horrorshow = { version = "0.8", optional = true }
-
-# GNSS basic defininitions
-gnss-rs = { path = "../gnss-rs", version = "=2.1", features = ["serde"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", version = "=2.1", features = ["serde"] }
 
 # RINEX QC dedicated traits
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
@@ -84,7 +82,7 @@ sp3 = { path = "../sp3", version = "=1.0.6", optional = true }
 [dev-dependencies]
 serde_json = "1"
 criterion = "0.5"
-rand = "0.8"
+# rand = "0.8.4"
 
 [[bench]]
 name = "benchmark"

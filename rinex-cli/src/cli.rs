@@ -1,5 +1,5 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use gnss_rtk::prelude::RTKConfig;
+use gnss_rtk::prelude::Config;
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
@@ -246,13 +246,6 @@ This is the most performant mode to solve a position."))
 						.long("rtk-cfg")
 						.value_name("FILE")
 						.help("Pass RTK custom configuration, refer to online documentation."))
-                    .arg(Arg::new("spp")
-                        .long("spp")
-                        .action(ArgAction::SetTrue)
-                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
-Disregards whether the provided context is PPP compatible. 
-NB: we do not account for Relativistic effects by default and raw pseudo range are used.
-For indepth customization, refer to the configuration file and online documentation."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -446,7 +439,7 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     pub fn kml(&self) -> bool {
         self.matches.get_flag("kml")
     }
-    pub fn rtk_config(&self) -> Option<RTKConfig> {
+    pub fn rtk_config(&self) -> Option<Config> {
         if let Some(path) = self.matches.get_one::<String>("rtk-config") {
             if let Ok(content) = std::fs::read_to_string(path) {
                 let opts = serde_json::from_str(&content);

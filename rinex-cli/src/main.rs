@@ -23,6 +23,7 @@ use rinex::{
 
 use rinex_qc::*;
 
+extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
 use cli::Cli;
@@ -36,7 +37,6 @@ use env_logger::{Builder, Target};
 extern crate log;
 
 use fops::open_with_web_browser;
-use rtk_postproc::rtk_postproc;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -535,7 +535,7 @@ pub fn main() -> Result<(), Error> {
     }
 
     if positioning {
-        let results = positioning::solver(&mut ctx)?;
+        let results = positioning::solver(&mut ctx, &cli)?;
         positioning::post_process(workspace, &cli, &ctx, results)?;
     }
 

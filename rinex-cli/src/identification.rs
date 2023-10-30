@@ -1,5 +1,5 @@
 use crate::Cli;
-use rinex::observation::Snr;
+use gnss::prelude::SNR;
 use rinex::prelude::RnxContext;
 use rinex::*;
 
@@ -92,8 +92,8 @@ struct EpochReport {
 
 #[derive(Clone, Debug, Serialize)]
 struct SSIReport {
-    pub min: Option<Snr>,
-    pub max: Option<Snr>,
+    pub min: Option<SNR>,
+    pub max: Option<SNR>,
 }
 
 fn identification(rnx: &Rinex, path: &str, pretty_json: bool, ops: Vec<&str>) {
