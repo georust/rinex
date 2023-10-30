@@ -13,8 +13,8 @@ use hifitime::Duration;
  * Basic identification operations
  */
 pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
-    let pretty = cli.pretty();
     let ops = cli.identification_ops();
+    let pretty_json = cli.pretty_json();
     /*
      * Run identification on all contained files
      */
@@ -30,7 +30,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<String>>()
             ),
-            pretty,
+            pretty_json,
             ops.clone(),
         );
     }
@@ -46,7 +46,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<String>>()
             ),
-            pretty,
+            pretty_json,
             ops.clone(),
         );
     }
@@ -62,7 +62,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<String>>()
             ),
-            pretty,
+            pretty_json,
             ops.clone(),
         );
     }
@@ -78,7 +78,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
                     .map(|p| p.to_string_lossy().to_string())
                     .collect::<Vec<String>>()
             ),
-            pretty,
+            pretty_json,
             ops.clone(),
         );
     }
@@ -96,11 +96,11 @@ struct SSIReport {
     pub max: Option<Snr>,
 }
 
-fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
+fn identification(rnx: &Rinex, path: &str, pretty_json: bool, ops: Vec<&str>) {
     for op in ops {
         debug!("identification: {}", op);
         if op.eq("header") {
-            let content = match pretty {
+            let content = match pretty_json {
                 true => serde_json::to_string_pretty(&rnx.header).unwrap(),
                 false => serde_json::to_string(&rnx.header).unwrap(),
             };
@@ -110,7 +110,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
                 first: format!("{:?}", rnx.first_epoch()),
                 last: format!("{:?}", rnx.last_epoch()),
             };
-            let content = match pretty {
+            let content = match pretty_json {
                 true => serde_json::to_string_pretty(&report).unwrap(),
                 false => serde_json::to_string(&report).unwrap(),
             };
@@ -128,7 +128,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
         } else if op.eq("observables") && rnx.is_observation_rinex() {
             let mut data: Vec<_> = rnx.observable().collect();
             data.sort();
-            let content = match pretty {
+            let content = match pretty_json {
                 true => serde_json::to_string_pretty(&data).unwrap(),
                 false => serde_json::to_string(&data).unwrap(),
             };
@@ -136,7 +136,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
         } else if op.eq("gnss") && (rnx.is_observation_rinex() || rnx.is_navigation_rinex()) {
             let mut data: Vec<_> = rnx.constellation().collect();
             data.sort();
-            let content = match pretty {
+            let content = match pretty_json {
                 true => serde_json::to_string_pretty(&data).unwrap(),
                 false => serde_json::to_string(&data).unwrap(),
             };
@@ -154,7 +154,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
                         .map(|(_, _, _, snr)| snr)
                 },
             };
-            let content = match pretty {
+            let content = match pretty_json {
                 true => serde_json::to_string_pretty(&ssi).unwrap(),
                 false => serde_json::to_string(&ssi).unwrap(),
             };
@@ -162,7 +162,7 @@ fn identification(rnx: &Rinex, path: &str, pretty: bool, ops: Vec<&str>) {
         } else if op.eq("orbits") && rnx.is_navigation_rinex() {
             error!("nav::orbits not available yet");
             //let data: Vec<_> = rnx.orbit_fields();
-            //let content = match pretty {
+            //let content = match pretty_json {
             //    true => serde_json::to_string_pretty(&data).unwrap(),
             //    false => serde_json::to_string(&data).unwrap(),
             //};

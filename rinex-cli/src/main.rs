@@ -21,10 +21,9 @@ use rinex::{
     split::Split,
 };
 
-extern crate gnss_rtk as rtk;
-use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
-
 use rinex_qc::*;
+
+extern crate gnss_rtk as rtk;
 
 use cli::Cli;
 use identification::rinex_identification;
@@ -48,8 +47,10 @@ use thiserror::Error;
 pub enum Error {
     #[error("rinex error")]
     RinexError(#[from] rinex::Error),
-    #[error("rtk post proc error")]
-    RTKPostError(#[from] rtk_postproc::Error),
+    #[error("positioning solver error")]
+    PositioningSolverError(#[from] positioning::solver::Error),
+    #[error("post processing error")]
+    PositioningPostProcError(#[from] positioning::post_process::Error),
 }
 
 /*
@@ -168,6 +169,10 @@ pub fn main() -> Result<(), Error> {
 
     let positioning_only = cli.positioning_only();
     let positioning = cli.spp() || positioning_only;
+        
+    if !positioning { 
+        warn!("position solver currently turned off");
+    }
 
     if cli.multipath() {
         warn!("--mp analysis not available yet");
@@ -181,36 +186,6 @@ pub fn main() -> Result<(), Error> {
 
     // Build context
     let mut ctx = build_context(&cli);
-
-    // Position solver
-    let mut solver = Solver::from(&ctx);
-    if let Ok(ref mut solver) = solver {
-        info!(
-            "provided context is compatible with {} position solver",
-            solver.solver
-        );
-        // custom config ? apply it
-        if let Some(cfg) = cli.rtk_config() {
-            solver.cfg = cfg.clone();
-        }
-        if !rtk {
-            warn!("position solver currently turned off");
-        } else {
-            if cli.forced_spp() {
-                warn!("forced method to spp");
-                solver.solver = SolverType::SPP;
-            }
-            // print config to be used
-            info!("{:#?}", solver.cfg);
-
-            // print more infos
-            if ctx.sp3_data().is_none() {
-                error!("--rtk does not work without SP3 at the moment");
-            }
-        }
-    } else {
-        warn!("context is not sufficient or not compatible with --rtk");
-    }
 
     // Workspace
     let workspace = workspace_path(&ctx);
@@ -560,29 +535,9 @@ pub fn main() -> Result<(), Error> {
     }
 
     if positioning {
-        let results = positioning::solver(&mut ctx)?;
-        positioning::post_process(workspace, &cli, results)?;
+        let results = positioning::solver(&mut ctx, )?;
+        positioning::post_process(workspace, &cli, &ctx, results)?;
     }
 
-    if let Ok(ref mut solver) = solver {
-        while solving {
-            match solver.run(&mut ctx) {
-                Ok((t, estimate)) => {
-                    trace!("{:?}", t);
-                    results.insert(t, estimate);
-                },
-                Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
-                Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
-                Err(SolverError::SolvingError(t)) => {
-                    error!("failed to invert navigation matrix @ {}", t)
-                },
-                Err(SolverError::EpochDetermination(_)) => {
-                    solving = false; // abort
-                },
-                Err(e) => panic!("fatal error {:?}", e),
-            }
-        }
-        rtk_postproc(workspace, &cli, &ctx, results)?;
-    }
     Ok(())
 } // main

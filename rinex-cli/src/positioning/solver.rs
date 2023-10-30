@@ -1,19 +1,28 @@
 use thiserror::Error;
 use rinex::prelude::RnxContext;
 use rtk::prelude::{
+    Epoch,
+    Solver,
     Config, 
     Estimate, Mode, InterpolationResult,
     model::TropoComponents,
+    Candidate,
 };
+
+use std::collections::HashMap;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("rtk error")]
-    RTKError(#[from] rtk::Error),
+    #[error("solver error")]
+    SolverError(#[from] rtk::Error),
     #[error("missing observations")]
     MissingObservationData,
     #[error("missing brdc navigation")]
     MissingBroadcastNavigationData,
+    #[error("undefined apriori position")]
+    UndefinedAprioriPosition,
+    #[error("positioning requires overlapped SP3 data at the moment")]
+    MissingSp3Data,
 }
 
 fn interpolator(sv: SV, t: Epoch, order: usize) -> Option<InterpolationResult> {
@@ -95,12 +104,38 @@ fn tropo_model_components(ctx: &RnxContext, t: &Epoch) -> Option<TropoComponents
     }
 }
 
-pub fn solver(ctx: &mut RnxContext, apriori_pos: Vector3D) -> Result<HashMap<Epoch, SolverEstimate>, Error> {
-    
+pub fn solver(ctx: &mut RnxContext) 
+    -> Result<HashMap<Epoch, Estimate>, Error> 
+{
     // parse custom config, if any
     let cfg = match cli.positioning_cfg() {
         Some(cfg) => cfg,
-        None => Config::default(),
+        None => Config::default(Mode::SPP),
+    };
+
+    let mode = match cli.forced_spp() {
+        true => {
+            warn!("forced solver to spp");
+            Mode::SPP,
+        },
+        false => Mode::SPP, //TODO
+    };
+
+    // print config to be used
+    info!("{:#?}", cfg);
+            
+    if ctx.sp3_data().is_none() {
+        error!("--rtk does not work without SP3 at the moment");
+        return Err(Error::MissingSp3Data);
+    }
+
+    // a priori position
+    let apriori = match cfg.apriori_position {
+        Some(pos) => pos,
+        None => {
+            ctx.ground_position()
+                .ok_or(Err(Error::UndefinedAprioriPosition))?
+        },
     };
     
     let mut solver = Solver::new(
@@ -125,19 +160,19 @@ pub fn solver(ctx: &mut RnxContext, apriori_pos: Vector3D) -> Result<HashMap<Epo
         }
     };
 
-    let mut ret: HashMap<Epoch, SolverEstimate> 
+    let mut ret: HashMap<Epoch, Estimate> = HashMap::new(); 
     for ((t, flag), (clk, observations)) in obs_data.observation() {
 
         let mut candidates : Vec<Candidate> = Vec::new();
-        for sv in svs {
-            let ephemeris = nav_data.ephemeris()?;
-            let clock_state = None;
-            let clock_corr = None;
-            candidates.push(Candidate::new(sv, t, clock_state, clock_corr, snr, pseudo_range));
-        )
-        if let Ok((t, estimate)) = solver.run(epoch, candidates) {
-            ret.insert(t, estimate);
-        }
+        //for sv in svs {
+        //    let ephemeris = nav_data.ephemeris()?;
+        //    let clock_state = None;
+        //    let clock_corr = None;
+        //    candidates.push(Candidate::new(sv, t, clock_state, clock_corr, snr, pseudo_range));
+        //}
+        //if let Ok((t, estimate)) = solver.run(epoch, candidates) {
+        //    ret.insert(t, estimate);
+        //}
     }
     Ok(ret)
 }

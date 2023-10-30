@@ -56,6 +56,7 @@ pub mod prelude {
     pub use crate::Error;
     pub use crate::Mode;
     pub use crate::Solver;
+    pub use hifitime::{Duration, Epoch, TimeScale};
 }
 
 use cfg::Config;
