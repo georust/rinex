@@ -24,7 +24,7 @@ and we aim towards advanced geodesic and ionospheric analysis.
 * Use `rinex-cli` for detailed Observation and Navigation identification and visualization
 (option `-qc` summarizes this in a single report)
 * Use `crx2rnx` to convert compressed RINEX to readable RINEX so you can import them in other tools like Matlab or Python
-* Use `rinex-cli` option `-r` or `--spp` or `--ppp` to resolve navigation Equations
+* Use `rinex-cli --spp` or `--ppp` to resolve a single point position
 * Use `rinex2cggtts` to generate data for common view time transfer
 * Use `ublox-rnx` to generate RINEX from a local Ublox ( :warning: Work in Progress)
 
@@ -64,15 +64,12 @@ summon from the "cli" application directly.
 ## Architecture 
 
 * [`rinex`](rinex/) is the core library 
-* [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
-It can be used to process RINEX files and perform operations similar to `teqc`.   
+* [`rinex-cli`](rinex-cli/) : an application dedicated to RINEX post processing.
+It supports some of `teqc` operations.   
 The application is auto-generated for a few architectures, download it from the 
 [release portal](https://github.com/gwbres/rinex/releases)
 
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
-* [`gnss-rs`](gnss-rs/) Constellation and SV support in Rust, with detailed SBAS support.
-* [`gnss-rtk`](gnss-rtk/) a position solver from raw GNSS signals.
-Currently works from RINEX input data, but that is not exclusive.
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
@@ -81,6 +78,13 @@ Currently works from RINEX input data, but that is not exclusive.
 
 * [`ublox-rnx`](ublox-rnx/) is an application intended to generate RINEX Data
 from raw uBlox GNSS receiver frames. This application is work in progress at the moment.
+
+## Other tools and relevant Ecosystems
+
+* [Nyx-space](https://github.com/nyx-space/nyx)
+* [Hifitime](https://github.com/nyx-space/hifitime)
+* [CGGTTS](https://github.com/gwbres/cggtts)
+* [GNSS definitions in Rust](https://github.com/rtk-rs/gnss)
 
 RINEX formats & applications
 ============================
@@ -137,9 +141,11 @@ processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms |
 Special Thanks
 ==============
 
-RINEX relies heavily on the great libraries written by C. Rabotin, [check out his work](https://github.com/nyx-space).  
-Some features would not exist without the invaluable help of J. Lesouple,
-check out his 
+These tools would not exist without the great libraries written by C. Rabotin, 
+[check out his work](https://github.com/nyx-space).  
+
+Some features would not exist without the invaluable help of J. Lesouple, through
+our countless discussions. Check out his 
 [PhD manuscript (french)](http://perso.recherche.enac.fr/~julien.lesouple/fr/publication/thesis/THESIS.pdf?fbclid=IwAR3WlHm0eP7ygRzywbL07Ig-JawvsdCEdvz1umJJaRRXVO265J9cp931YyI)
 
 Contributions
