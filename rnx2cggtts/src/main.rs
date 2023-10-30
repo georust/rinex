@@ -185,9 +185,6 @@ pub fn main() -> Result<(), Error> {
     let mut ctx = build_context(&cli);
 
     // Build position solver
-    let mut solver = Solver::from(&ctx)
-        .expect("provided context is not compatible with a position solving method");
-
     if ctx.sp3_data().is_none() {
         error!("SP3 must unfortunately be provided at the moment");
         return Ok(());
@@ -254,37 +251,30 @@ pub fn main() -> Result<(), Error> {
      * Preprocessing
      */
     preprocess(&mut ctx, &cli);
-    /*
-     * init. the solver
-     */
-    match solver.init(&mut ctx) {
-        Err(e) => panic!("failed to initialize solver - {}", e),
-        Ok(_) => info!("solver has been initialized"),
-    }
 
-    // RUN
-    let mut solving = true;
-    let mut tracks: Vec<CGGTTSTrack> = Vec::new();
-    let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
-    let mut tracker: Vec<Tracker> = Vec::new();
+    // // RUN
+    // let mut solving = true;
+    // let mut tracks: Vec<CGGTTSTrack> = Vec::new();
+    // let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
+    // let mut tracker: Vec<Tracker> = Vec::new();
 
-    while solving {
-        match solver.run(&mut ctx) {
-            Ok((t, estimate)) => {
-                trace!("{:?}", t);
-                results.insert(t, estimate);
-            },
-            Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
-            Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
-            Err(SolverError::SolvingError(t)) => {
-                error!("failed to invert navigation matrix @ {}", t)
-            },
-            Err(SolverError::EpochDetermination(_)) => {
-                solving = false; // abort
-            },
-            Err(e) => panic!("fatal error {:?}", e),
-        }
-    }
+    // while solving {
+    //     match solver.run(&mut ctx) {
+    //         Ok((t, estimate)) => {
+    //             trace!("{:?}", t);
+    //             results.insert(t, estimate);
+    //         },
+    //         Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
+    //         Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
+    //         Err(SolverError::SolvingError(t)) => {
+    //             error!("failed to invert navigation matrix @ {}", t)
+    //         },
+    //         Err(SolverError::EpochDetermination(_)) => {
+    //             solving = false; // abort
+    //         },
+    //         Err(e) => panic!("fatal error {:?}", e),
+    //     }
+    // }
     /*
      * Form CGGTTS
      */

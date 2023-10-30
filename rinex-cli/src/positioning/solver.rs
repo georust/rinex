@@ -1,13 +1,8 @@
-use thiserror::Error;
 use rinex::prelude::RnxContext;
 use rtk::prelude::{
-    Epoch,
-    Solver,
-    Config, 
-    Estimate, Mode, InterpolationResult,
-    model::TropoComponents,
-    Candidate,
+    model::TropoComponents, Candidate, Config, Epoch, Estimate, InterpolationResult, Mode, Solver,
 };
+use thiserror::Error;
 
 use std::collections::HashMap;
 
@@ -25,15 +20,19 @@ pub enum Error {
     MissingSp3Data,
 }
 
-fn interpolator(sv: SV, t: Epoch, order: usize) -> Option<InterpolationResult> {
+fn interpolator(t: Epoch, sv: SV, order: usize) -> Option<InterpolationResult> {
+    None
+}
+
+fn tropo_components(t: Epoch, lat_ddeg: f64, h_sea: f64) -> Option<TropoComponents> {
     None
 }
 
 fn tropo_model_components(ctx: &RnxContext, t: &Epoch) -> Option<TropoComponents> {
+    const max_latitude_delta: f64 = 15.0_f64;
     let mut ret: Option<SuperceededTropoModel> = None;
-    let const max_latitude_delta: f64 = 15.0_f64;
     let max_dt = Duration::from_hours(24.0);
-    let meteo = ctx.meteo_data()?:
+    let meteo = ctx.meteo_data()?;
     let meteo = meteo.header.meteo.as_ref().unwrap();
 
     let delays: Vec<(Observable, f64)> = meteo
@@ -81,32 +80,32 @@ fn tropo_model_components(ctx: &RnxContext, t: &Epoch) -> Option<TropoComponents
     } else {
         Some(TropoComponent {
             zdd: {
-                delays.filter_map(|(obs, value)| {
-                    if obs == Observable::ZenithDryDelay {
-                        Some(value)
-                    } else {
-                        None
-                    }
-                })
-                .reduce(|k, _| k)
+                delays
+                    .filter_map(|(obs, value)| {
+                        if obs == Observable::ZenithDryDelay {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    })
+                    .reduce(|k, _| k)
             },
             zwd: {
-                delays.filter_map(|(obs, value)| {
-                    if obs == Observable::ZenithWetDelay {
-                        Some(value)
-                    } else {
-                        None
-                    }
-                })
-                .reduce(|k, _| k)
+                delays
+                    .filter_map(|(obs, value)| {
+                        if obs == Observable::ZenithWetDelay {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    })
+                    .reduce(|k, _| k)
             },
         })
     }
 }
 
-pub fn solver(ctx: &mut RnxContext) 
-    -> Result<HashMap<Epoch, Estimate>, Error> 
-{
+pub fn solver(ctx: &mut RnxContext) -> Result<HashMap<Epoch, Estimate>, Error> {
     // parse custom config, if any
     let cfg = match cli.positioning_cfg() {
         Some(cfg) => cfg,
@@ -116,14 +115,14 @@ pub fn solver(ctx: &mut RnxContext)
     let mode = match cli.forced_spp() {
         true => {
             warn!("forced solver to spp");
-            Mode::SPP,
+            Mode::SPP
         },
         false => Mode::SPP, //TODO
     };
 
     // print config to be used
     info!("{:#?}", cfg);
-            
+
     if ctx.sp3_data().is_none() {
         error!("--rtk does not work without SP3 at the moment");
         return Err(Error::MissingSp3Data);
@@ -132,38 +131,38 @@ pub fn solver(ctx: &mut RnxContext)
     // a priori position
     let apriori = match cfg.apriori_position {
         Some(pos) => pos,
-        None => {
-            ctx.ground_position()
-                .ok_or(Err(Error::UndefinedAprioriPosition))?
-        },
+        None => ctx
+            .ground_position()
+            .ok_or(Error::UndefinedAprioriPosition)?,
     };
-    
-    let mut solver = Solver::new(
-        Mode::SPP,
-        apriori,
-        cfg,
-        interpolator,
-    );
-        
+
+    let ecef = apriori.to_ecef_wgs84();
+
+    let apriori = Vector3D {
+        x: ecef.0,
+        y: ecef.1,
+        z: ecef.2,
+    };
+
+    let mut solver = Solver::new(mode, apriori, &cfg, interpolator, tropo_components);
 
     let obs_data = match ctx.obs_data() {
-        Some(obs_data) = obs_data,
+        Some(obs_data) => obs_data,
         None => {
-            return Error::MissingObservationData;
-        }
+            return Err(Error::MissingObservationData);
+        },
     };
-    
+
     let nav_data = match ctx.nav_data() {
-        Some(nav_data) = nav_data,
+        Some(nav_data) => nav_data,
         None => {
-            return Error::MissingBroadcastNavigationData;
-        }
+            return Err(Error::MissingBroadcastNavigationData);
+        },
     };
 
-    let mut ret: HashMap<Epoch, Estimate> = HashMap::new(); 
+    let mut ret: HashMap<Epoch, Estimate> = HashMap::new();
     for ((t, flag), (clk, observations)) in obs_data.observation() {
-
-        let mut candidates : Vec<Candidate> = Vec::new();
+        let mut candidates: Vec<Candidate> = Vec::new();
         //for sv in svs {
         //    let ephemeris = nav_data.ephemeris()?;
         //    let clock_state = None;

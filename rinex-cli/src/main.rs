@@ -169,8 +169,8 @@ pub fn main() -> Result<(), Error> {
 
     let positioning_only = cli.positioning_only();
     let positioning = cli.spp() || positioning_only;
-        
-    if !positioning { 
+
+    if !positioning {
         warn!("position solver currently turned off");
     }
 
@@ -535,7 +535,7 @@ pub fn main() -> Result<(), Error> {
     }
 
     if positioning {
-        let results = positioning::solver(&mut ctx, )?;
+        let results = positioning::solver(&mut ctx)?;
         positioning::post_process(workspace, &cli, &ctx, results)?;
     }
 
