@@ -129,10 +129,10 @@ impl Ephemeris {
         self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
-     * Returns TGD field if such field is not empty
+     * Returns TGD field, if such field is not empty, expressed as a [Duration]
      */
-    pub fn tgd(&self) -> Option<f64> {
-        self.get_orbit_f64("tgd")
+    pub fn tgd(&self) -> Option<Duration> {
+        Some(Duration::from_seconds(self.get_orbit_f64("tgd")?))
     }
     /*
      * Helper to apply a clock correction to provided time (expressed as Epoch)

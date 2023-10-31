@@ -34,7 +34,7 @@ pub enum Error {
     KmlError(#[from] kml::Error),
 }
 
-pub(crate) fn post_process(
+pub fn post_process(
     workspace: PathBuf,
     cli: &Cli,
     ctx: &RnxContext,

@@ -1,8 +1,12 @@
 use crate::Cli;
-use gnss::prelude::{Constellation, SV};
+use gnss::prelude::{Constellation, SNR, SV};
+use rinex::carrier::Carrier;
+use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, RnxContext};
+
 use rtk::prelude::{
-    Candidate, Config, Duration, Epoch, Estimate, InterpolationResult, Mode, Solver,
+    AprioriPosition, Candidate, Config, Duration, Epoch, Estimate, InterpolationResult, Mode,
+    PseudoRange, Solver,
 };
 
 use rtk::{model::TropoComponents, Vector3D};
@@ -132,13 +136,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
             .ok_or(Error::UndefinedAprioriPosition)?,
     };
 
-    let ecef = pos.to_ecef_wgs84();
-
-    let apriori = Vector3D {
-        x: ecef.0,
-        y: ecef.1,
-        z: ecef.2,
-    };
+    let apriori = AprioriPosition::from_ecef(pos.to_ecef_wgs84().into());
 
     // print config to be used
     info!("{:#?}", cfg);
@@ -148,7 +146,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
         return Err(Error::MissingSp3Data);
     }
 
-    let mut solver = Solver::new(mode, apriori, &cfg, interpolator, tropo_components);
+    let mut solver = Solver::new(mode, apriori, &cfg, interpolator, tropo_components)?;
 
     let obs_data = match ctx.obs_data() {
         Some(obs_data) => obs_data,
@@ -165,17 +163,55 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
     };
 
     let mut ret: HashMap<Epoch, Estimate> = HashMap::new();
-    for ((t, flag), (clk, observations)) in obs_data.observation() {
+    for ((t, flag), (clk, vehicles)) in obs_data.observation() {
         let mut candidates: Vec<Candidate> = Vec::new();
-        //for sv in svs {
-        //    let ephemeris = nav_data.ephemeris()?;
-        //    let clock_state = None;
-        //    let clock_corr = None;
-        //    candidates.push(Candidate::new(sv, t, clock_state, clock_corr, snr, pseudo_range));
-        //}
-        //if let Ok((t, estimate)) = solver.run(epoch, candidates) {
-        //    ret.insert(t, estimate);
-        //}
+
+        if !flag.is_ok() {
+            /* we only feed "OK" epochs" */
+            continue;
+        }
+
+        for (sv, observations) in vehicles {
+            let sv_eph = nav_data.sv_ephemeris(*sv, *t);
+            if sv_eph.is_none() {
+                warn!("{:?} ({}) : undetermined ephemeris", t, sv);
+                continue; // can't proceed further
+            }
+
+            let (toe, sv_eph) = sv_eph.unwrap();
+
+            let tgd = sv_eph.tgd();
+            let clock_state = sv_eph.sv_clock();
+            let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
+            let clock_state: Vector3D = clock_state.into();
+            let mut snr = SNR::default();
+            let mut pseudo_range = Vec::<PseudoRange>::new();
+
+            for (observable, data) in observations {
+                if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
+                    if observable.is_pseudorange_observable() {
+                        pseudo_range.push(PseudoRange {
+                            frequency: carrier.frequency(),
+                            value: data.obs,
+                        });
+                    }
+                }
+            }
+            if let Ok(candidate) =
+                Candidate::new(*sv, *t, clock_state, clock_corr, snr, &pseudo_range.clone())
+            {
+                candidates.push(candidate);
+            } else {
+                warn!("{:?}: failed to form {} candidate", t, sv);
+            }
+        }
+        match solver.run(*t, candidates) {
+            Ok((t, estimate)) => {
+                debug!("{:?} : resolved: {:?}", t, estimate);
+                ret.insert(t, estimate);
+            },
+            Err(e) => warn!("{:?} : {}", t, e),
+        }
     }
     Ok(ret)
 }
