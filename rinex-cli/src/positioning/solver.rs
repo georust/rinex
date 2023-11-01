@@ -8,16 +8,15 @@ use statrs::statistics::Statistics;
 use rtk::{
     model::TropoComponents,
     prelude::{
-        AprioriPosition, Candidate, Config, Duration, Epoch, Estimate, InterpolationResult, Mode,
-        PseudoRange, Solver,
+        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, Mode,
+        PVTSolution, PseudoRange, Solver,
     },
     Vector3D,
 };
 
 use map_3d::{ecef2geodetic, Ellipsoid};
-use thiserror::Error;
-
 use std::collections::HashMap;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -33,87 +32,7 @@ pub enum Error {
     UndefinedAprioriPosition,
 }
 
-fn tropo_components(t: Epoch, lat_ddeg: f64, h_sea: f64) -> Option<TropoComponents> {
-    None
-}
-
-//fn tropo_model_components(ctx: &RnxContext, t: &Epoch) -> Option<TropoComponents> {
-//    const max_latitude_delta: f64 = 15.0_f64;
-//    let max_dt = Duration::from_hours(24.0);
-//    let rnx = ctx.meteo_data()?;
-//    let meteo = meteo.header.meteo.as_ref().unwrap();
-//
-//    let delays: Vec<(Observable, f64)> = meteo
-//        .sensors
-//        .iter()
-//        .filter_map(|s| {
-//            match s.observable {
-//                Observable::ZenithDryDelay => {
-//                    let (x, y, z, _) = s.position?;
-//                    let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-//                    if (lat - lat_ddeg).abs() < max_latitude_delta {
-//                        let value = rnx.zenith_dry_delay()
-//                            .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
-//                            .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-//                        let (_, value) = value?;
-//                        debug!("(meteo) zdd @ {}: {}", lat_ddeg, value);
-//                        Some((s.observable.clone(), value))
-//                    } else {
-//                        None /* not within latitude tolerance */
-//                    }
-//                },
-//                Observable::ZenithWetDelay => {
-//                    let (x, y, z, _) = s.position?;
-//                    let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-//                    if (lat - lat_ddeg).abs() < max_latitude_delta {
-//                        let value = rnx.zenith_wet_delay()
-//                            .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
-//                            .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-//                        let (_, value) = value?;
-//                        debug!("(meteo) zwd @ {}: {}", lat_ddeg, value);
-//                        Some((s.observable.clone(), value))
-//                    } else {
-//                        None /* not within latitude tolerance */
-//                    }
-//                },
-//                _ => None,
-//            }
-//        })
-//        .collect();
-//    if delays.len() < 2 {
-//        trace!("meteo data out of tolerance");
-//        None
-//    } else {
-//        Some(TropoComponents {
-//            zdd: {
-//                delays
-//                    .iter()
-//                    .filter_map(|(obs, value)| {
-//                        if obs == &Observable::ZenithDryDelay {
-//                            Some(value)
-//                        } else {
-//                            None
-//                        }
-//                    })
-//                    .reduce(|k, _| k)
-//            },
-//            zwd: {
-//                delays
-//                    .iter()
-//                    .filter_map(|(obs, value)| {
-//                        if obs == &Observable::ZenithWetDelay {
-//                            Some(value)
-//                        } else {
-//                            None
-//                        }
-//                    })
-//                    .reduce(|k, _| k)
-//            },
-//        })
-//    }
-//}
-
-pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate>, Error> {
+pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolution>, Error> {
     // parse custom config, if any
     let cfg = match cli.rtk_config() {
         Some(cfg) => cfg,
@@ -156,11 +75,13 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
     };
 
     let sp3_data = ctx.sp3_data();
+    let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
         mode,
         apriori,
         &cfg,
+        /* state vector interpolator */
         |t, sv, order| {
             /* SP3 source is prefered */
             if let Some(sp3) = sp3_data {
@@ -172,7 +93,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
                         azimuth: Some(azi),
                     })
                 } else {
-                    debug!("{:?} ({}): sp3 interpolation failed", t, sv);
+                    // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
                     if let Some(vec3d) = nav_data.sv_position_interpolate(sv, t, order) {
                         let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
                         Some(InterpolationResult {
@@ -181,7 +102,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
                             azimuth: Some(azi),
                         })
                     } else {
-                        debug!("{:?} ({}): nav interpolation failed", t, sv);
+                        // debug!("{:?} ({}): nav interpolation failed", t, sv);
                         None
                     }
                 }
@@ -194,15 +115,92 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
                         azimuth: Some(azi),
                     })
                 } else {
-                    debug!("{:?} ({}): nav interpolation failed", t, sv);
+                    // debug!("{:?} ({}): nav interpolation failed", t, sv);
                     None
                 }
             }
         },
-        tropo_components,
+        /* tropo components possible source */
+        |t, lat_ddeg, h_sea_m| {
+            const max_latitude_delta: f64 = 15.0;
+            let max_dt = Duration::from_hours(24.0);
+            let rnx = meteo_data?;
+            let meteo = rnx.header.meteo.as_ref().unwrap();
+
+            let delays: Vec<(Observable, f64)> = meteo
+                .sensors
+                .iter()
+                .filter_map(|s| match s.observable {
+                    Observable::ZenithDryDelay => {
+                        let (x, y, z, _) = s.position?;
+                        let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                        if (lat - lat_ddeg).abs() < max_latitude_delta {
+                            let value = rnx
+                                .zenith_dry_delay()
+                                .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
+                                .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
+                            let (_, value) = value?;
+                            debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
+                            Some((s.observable.clone(), value))
+                        } else {
+                            None
+                        }
+                    },
+                    Observable::ZenithWetDelay => {
+                        let (x, y, z, _) = s.position?;
+                        let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                        if (lat - lat_ddeg).abs() < max_latitude_delta {
+                            let value = rnx
+                                .zenith_wet_delay()
+                                .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
+                                .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
+                            let (_, value) = value?;
+                            debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
+                            Some((s.observable.clone(), value))
+                        } else {
+                            None
+                        }
+                    },
+                    _ => None,
+                })
+                .collect();
+
+            if delays.len() < 2 {
+                None
+            } else {
+                Some(TropoComponents {
+                    zdd: {
+                        delays
+                            .iter()
+                            .filter_map(|(obs, value)| {
+                                if obs == &Observable::ZenithDryDelay {
+                                    Some(*value)
+                                } else {
+                                    None
+                                }
+                            })
+                            .reduce(|k, _| k)
+                            .unwrap()
+                    },
+                    zwd: {
+                        delays
+                            .iter()
+                            .filter_map(|(obs, value)| {
+                                if obs == &Observable::ZenithWetDelay {
+                                    Some(*value)
+                                } else {
+                                    None
+                                }
+                            })
+                            .reduce(|k, _| k)
+                            .unwrap()
+                    },
+                })
+            }
+        },
     )?;
 
-    let mut ret: HashMap<Epoch, Estimate> = HashMap::new();
+    let mut ret: HashMap<Epoch, PVTSolution> = HashMap::new();
     for ((t, flag), (clk, vehicles)) in obs_data.observation() {
         let mut candidates: Vec<Candidate> = Vec::new();
 
@@ -214,7 +212,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
-                warn!("{:?} ({}) : undetermined ephemeris", t, sv);
+                // warn!("{:?} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
 

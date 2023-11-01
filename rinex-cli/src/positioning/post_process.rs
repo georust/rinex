@@ -1,13 +1,14 @@
 use crate::cli::Cli;
 use crate::context_stem;
-use hifitime::Epoch;
-use rinex::prelude::RnxContext;
-use rtk::prelude::Estimate;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use thiserror::Error;
+
+use hifitime::Epoch;
+use rinex::prelude::RnxContext;
+use rtk::prelude::PVTSolution;
 
 extern crate gpx;
 use gpx::{errors::GpxError, Gpx, GpxVersion, Waypoint};
@@ -38,7 +39,7 @@ pub fn post_process(
     workspace: PathBuf,
     cli: &Cli,
     ctx: &RnxContext,
-    results: HashMap<Epoch, Estimate>,
+    results: HashMap<Epoch, PVTSolution>,
 ) -> Result<(), Error> {
     // create a dedicated plot context
     let no_graph = cli.no_graph();
@@ -135,14 +136,14 @@ pub fn post_process(
         "Epoch, dx, dy, dz, x_ecef, y_ecef, z_ecef, hdop, vdop, rcvr_clock_bias, tdop"
     )?;
 
-    for (epoch, estimate) in results {
-        let (px, py, pz) = (x + estimate.dx, y + estimate.dy, z + estimate.dz);
+    for (epoch, solution) in results {
+        let (px, py, pz) = (x + solution.dx, y + solution.dy, z + solution.dz);
         let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, map_3d::Ellipsoid::WGS84);
-        let (hdop, vdop, tdop) = (estimate.hdop, estimate.vdop, estimate.tdop);
+        let (hdop, vdop, tdop) = (solution.hdop, solution.vdop, solution.tdop);
         writeln!(
             fd,
             "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
-            epoch, estimate.dx, estimate.dy, estimate.dz, px, py, pz, hdop, vdop, estimate.dt, tdop
+            epoch, solution.dx, solution.dy, solution.dz, px, py, pz, hdop, vdop, solution.dt, tdop
         )?;
         if cli.gpx() {
             let mut segment = gpx::TrackSegment::new();
@@ -177,7 +178,7 @@ pub fn post_process(
                         attrs: HashMap::new(),
                     }))
                 },
-                attrs: [(String::from("TDOP"), format!("{:.6E}", estimate.tdop))]
+                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop))]
                     .into_iter()
                     .collect(),
                 children: vec![],
