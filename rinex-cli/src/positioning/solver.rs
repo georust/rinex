@@ -198,7 +198,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
                 }
             }
             if let Ok(candidate) =
-                Candidate::new(*sv, *t, clock_state, clock_corr, snr, &pseudo_range.clone())
+                Candidate::new(*sv, *t, clock_state, clock_corr, snr, pseudo_range.clone())
             {
                 candidates.push(candidate);
             } else {

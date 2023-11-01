@@ -107,16 +107,20 @@ fn build_context(cli: &Cli) -> RnxContext {
     for dir in cli.input_directories() {
         let walkdir = WalkDir::new(dir).max_depth(5);
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-            let filepath = entry.path().to_string_lossy().to_string();
-            if ctx.load(&filepath).is_err() {
-                warn!("failed to load \"{}\"", filepath);
+            if !entry.path().is_dir() {
+                let filepath = entry.path().to_string_lossy().to_string();
+                let ret = ctx.load(&filepath);
+                if ret.is_err() {
+                    warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
+                }
             }
         }
     }
     // load individual files, if any
     for filepath in cli.input_files() {
-        if ctx.load(filepath).is_err() {
-            warn!("failed to load \"{}\"", filepath);
+        let ret = ctx.load(filepath);
+        if ret.is_err() {
+            warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
         }
     }
     ctx
@@ -448,7 +452,9 @@ pub fn main() -> Result<(), Error> {
             plot::skyplot(nav, ground_pos, &mut plot_ctx);
             info!("skyplot view generated");
         } else {
-            info!("skyplot view is not feasible");
+            if !no_graph {
+                info!("skyplot view is not feasible");
+            }
         }
     }
     /*
