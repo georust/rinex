@@ -3,13 +3,16 @@ use gnss::prelude::{Constellation, SNR, SV};
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, RnxContext};
+use statrs::statistics::Statistics;
 
-use rtk::prelude::{
-    AprioriPosition, Candidate, Config, Duration, Epoch, Estimate, InterpolationResult, Mode,
-    PseudoRange, Solver,
+use rtk::{
+    model::TropoComponents,
+    prelude::{
+        AprioriPosition, Candidate, Config, Duration, Epoch, Estimate, InterpolationResult, Mode,
+        PseudoRange, Solver,
+    },
+    Vector3D,
 };
-
-use rtk::{model::TropoComponents, Vector3D};
 
 use map_3d::{ecef2geodetic, Ellipsoid};
 use thiserror::Error;
@@ -28,10 +31,6 @@ pub enum Error {
     MissingSp3Data,
     #[error("undefined apriori position")]
     UndefinedAprioriPosition,
-}
-
-fn interpolator(t: Epoch, sv: SV, order: usize) -> Option<InterpolationResult> {
-    None
 }
 
 fn tropo_components(t: Epoch, lat_ddeg: f64, h_sea: f64) -> Option<TropoComponents> {
@@ -136,31 +135,72 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
             .ok_or(Error::UndefinedAprioriPosition)?,
     };
 
-    let apriori = AprioriPosition::from_ecef(pos.to_ecef_wgs84().into());
+    let apriori_ecef_wgs84 = pos.to_ecef_wgs84();
+    let apriori = AprioriPosition::from_ecef(apriori_ecef_wgs84.into());
 
     // print config to be used
     info!("{:#?}", cfg);
 
-    if ctx.sp3_data().is_none() {
-        error!("--rtk does not work without SP3 at the moment");
-        return Err(Error::MissingSp3Data);
-    }
-
-    let mut solver = Solver::new(mode, apriori, &cfg, interpolator, tropo_components)?;
-
     let obs_data = match ctx.obs_data() {
-        Some(obs_data) => obs_data,
+        Some(data) => data,
         None => {
             return Err(Error::MissingObservationData);
         },
     };
 
     let nav_data = match ctx.nav_data() {
-        Some(nav_data) => nav_data,
+        Some(data) => data,
         None => {
             return Err(Error::MissingBroadcastNavigationData);
         },
     };
+
+    let sp3_data = ctx.sp3_data();
+
+    let mut solver = Solver::new(
+        mode,
+        apriori,
+        &cfg,
+        |t, sv, order| {
+            /* SP3 source is prefered */
+            if let Some(sp3) = sp3_data {
+                if let Some(vec3d) = sp3.sv_position_interpolate(sv, t, order) {
+                    let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                    Some(InterpolationResult {
+                        sky_pos: vec3d.into(),
+                        elevation: Some(elev),
+                        azimuth: Some(azi),
+                    })
+                } else {
+                    debug!("{:?} ({}): sp3 interpolation failed", t, sv);
+                    if let Some(vec3d) = nav_data.sv_position_interpolate(sv, t, order) {
+                        let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                        Some(InterpolationResult {
+                            sky_pos: vec3d.into(),
+                            elevation: Some(elev),
+                            azimuth: Some(azi),
+                        })
+                    } else {
+                        debug!("{:?} ({}): nav interpolation failed", t, sv);
+                        None
+                    }
+                }
+            } else {
+                if let Some(vec3d) = nav_data.sv_position_interpolate(sv, t, order) {
+                    let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                    Some(InterpolationResult {
+                        sky_pos: vec3d.into(),
+                        elevation: Some(elev),
+                        azimuth: Some(azi),
+                    })
+                } else {
+                    debug!("{:?} ({}): nav interpolation failed", t, sv);
+                    None
+                }
+            }
+        },
+        tropo_components,
+    )?;
 
     let mut ret: HashMap<Epoch, Estimate> = HashMap::new();
     for ((t, flag), (clk, vehicles)) in obs_data.observation() {
@@ -184,7 +224,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
             let clock_state = sv_eph.sv_clock();
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
             let clock_state: Vector3D = clock_state.into();
-            let mut snr = SNR::default();
+            let mut snr = Vec::<f64>::new();
             let mut pseudo_range = Vec::<PseudoRange>::new();
 
             for (observable, data) in observations {
@@ -194,9 +234,23 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, Estimate
                             frequency: carrier.frequency(),
                             value: data.obs,
                         });
+                        if let Some(obs_snr) = data.snr {
+                            snr.push(obs_snr.into());
+                        }
                     }
                 }
             }
+
+            /* worst SNR over all used observations */
+            let snr: Option<f64> = match snr.is_empty() {
+                true => None,
+                false => {
+                    let snr = snr.min();
+                    debug!("{:?} ({}): SNR : {:?}", t, sv, snr);
+                    Some(snr)
+                },
+            };
+
             if let Ok(candidate) =
                 Candidate::new(*sv, *t, clock_state, clock_corr, snr, pseudo_range.clone())
             {
