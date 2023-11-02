@@ -30,8 +30,8 @@ jobs:
     - uses: actions-rs/cargo@v1
       name: Linter 
       with:
-        command: fmt --all
-        args: -- --check
+        command: fmt
+        args: --all -- --check
     - name: Audit
       continue-on-error: true
       run: |
