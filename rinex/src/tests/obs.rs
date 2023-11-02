@@ -2,6 +2,7 @@
 mod test {
     use crate::filter;
     use crate::observable;
+    use crate::observation::SNR;
     use crate::preprocessing::*;
     use crate::tests::toolkit::test_observation_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
@@ -72,14 +73,14 @@ mod test {
                     .unwrap();
                 assert_eq!(l1.obs, -9440000.265);
                 assert!(l1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert_eq!(l1.snr, Some(Snr::DbHz48_53));
+                assert_eq!(l1.snr, Some(SNR::DbHz48_53));
 
                 let l2 = observations
                     .get(&Observable::from_str("L2").unwrap())
                     .unwrap();
                 assert_eq!(l2.obs, -7293824.593);
                 assert!(l2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert_eq!(l2.snr, Some(Snr::DbHz42_47));
+                assert_eq!(l2.snr, Some(SNR::DbHz42_47));
 
                 let c1 = observations
                     .get(&Observable::from_str("C1").unwrap())
@@ -223,14 +224,14 @@ mod test {
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 117129399.048);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.snr, Some(Snr::DbHz36_41));
+        assert_eq!(observed.snr, Some(SNR::DbHz36_41));
         // L2
         let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 91269672.416);
         assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-        assert_eq!(observed.snr, Some(Snr::DbHz36_41));
+        assert_eq!(observed.snr, Some(SNR::DbHz36_41));
         // P2
         let observed = observations.get(&Observable::from_str("P2").unwrap());
         assert!(observed.is_some());
@@ -275,7 +276,7 @@ mod test {
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 124375967.254);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.snr, Some(Snr::DbHz0));
+        assert_eq!(observed.snr, Some(SNR::DbHz0));
         // L2
         let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert!(observed.is_none());
@@ -404,14 +405,14 @@ mod test {
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225566.040);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.snr, Some(Snr::DbHz36_41));
+        assert_eq!(observed.snr, Some(SNR::DbHz36_41));
         //C2
         let observed = observations.get(&Observable::from_str("C2").unwrap());
         assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225562.932);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("6").unwrap()));
         //C5 [missing]
         let observed = observations.get(&Observable::from_str("C5").unwrap());
         assert!(observed.is_none());
@@ -421,14 +422,14 @@ mod test {
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 127306204.852);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("6").unwrap()));
         //L2
         let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 99199629.819);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("4").unwrap()));
         //L5 [missing]
         let observed = observations.get(&Observable::from_str("L5").unwrap());
         assert!(observed.is_none());
@@ -438,14 +439,14 @@ mod test {
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225565.620);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("4").unwrap()));
         //P2
         let observed = observations.get(&Observable::from_str("P2").unwrap());
         assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225563.191);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("4").unwrap()));
         //S1
         let observed = observations.get(&Observable::from_str("S1").unwrap());
         assert!(observed.is_some());
@@ -479,13 +480,13 @@ mod test {
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23126824.976);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("C2").unwrap());
         assert!(observed.is_some());
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23126830.088);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("C5").unwrap());
         assert!(observed.is_none());
         //L1,L2,L5
@@ -494,13 +495,13 @@ mod test {
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 123669526.377);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert!(observed.is_some());
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 96187435.849);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(SNR::from_str("6").unwrap()));
         let observed = observations.get(&Observable::from_str("L5").unwrap());
         assert!(observed.is_none());
         //P1, P2
@@ -581,7 +582,7 @@ mod test {
         let l1c = l1c.unwrap();
         assert_eq!(l1c.obs, 106380411.418);
         assert_eq!(l1c.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(l1c.snr, Some(Snr::from_str("8").unwrap()));
+        assert_eq!(l1c.snr, Some(SNR::from_str("8").unwrap()));
 
         let s1c = data.get(&Observable::from_str("S1C").unwrap());
         assert!(s1c.is_some());

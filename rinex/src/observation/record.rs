@@ -8,7 +8,7 @@ use crate::{
     Carrier, Observable,
 };
 
-use gnss::prelude::SNR;
+use crate::observation::SNR;
 use hifitime::Duration;
 
 #[derive(Error, Debug)]

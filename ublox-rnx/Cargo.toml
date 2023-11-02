@@ -22,4 +22,4 @@ serialport = "4.2.0"
 ublox = "0.4.4"
 rinex = { path = "../rinex", version = "=0.15.0", features = ["serde", "nav", "obs"] }
 clap = { version = "3.2.22", features = ["yaml"] }
-gnss-rs = { version = "2.1.1", features = ["serde"] }
+gnss-rs = { version = "2.1.2", features = ["serde"] }

@@ -1,5 +1,6 @@
 use crate::Cli;
-use gnss::prelude::SNR;
+
+use rinex::observation::SNR;
 use rinex::prelude::RnxContext;
 use rinex::*;
 

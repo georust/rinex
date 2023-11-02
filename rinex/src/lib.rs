@@ -60,6 +60,7 @@ use version::Version;
 
 /// Package to include all basic structures
 pub mod prelude {
+    #[cfg(feature = "sp3")]
     pub use crate::context::RnxContext;
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
@@ -1644,10 +1645,7 @@ impl Rinex {
 }
 
 #[cfg(feature = "obs")]
-use gnss::prelude::SNR;
-
-#[cfg(feature = "obs")]
-use crate::observation::LliFlags;
+use crate::observation::{LliFlags, SNR};
 
 /*
  * OBS RINEX specific methods: only available on crate feature.

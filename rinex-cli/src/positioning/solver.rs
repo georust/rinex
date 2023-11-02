@@ -1,9 +1,11 @@
 use crate::Cli;
-use gnss::prelude::{Constellation, SNR, SV};
+use statrs::statistics::Statistics;
+
+use gnss::prelude::{Constellation, SV};
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
+use rinex::observation::SNR;
 use rinex::prelude::{Observable, RnxContext};
-use statrs::statistics::Statistics;
 
 use rtk::{
     model::TropoComponents,

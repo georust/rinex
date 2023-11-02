@@ -4,12 +4,13 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 extern crate gnss_rs as gnss;
-use gnss::prelude::{SNR, SV};
+
+use gnss::prelude::SV;
 
 use crate::QcOpts;
-
 //use rinex::carrier;
 use rinex::carrier::Carrier;
+use rinex::observation::SNR;
 use rinex::prelude::{Epoch, EpochFlag, Observable, Rinex};
 use rinex::preprocessing::Derivative;
 

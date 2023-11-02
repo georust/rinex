@@ -4,6 +4,9 @@ use std::collections::HashMap;
 
 pub mod record;
 
+mod snr;
+pub use snr::SNR;
+
 #[cfg(docrs)]
 use crate::Bibliography;
 
