@@ -20,4 +20,5 @@ clap = { version = "4", features = ["derive", "color"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["serde"] }
 cggtts = { path = "../../cggtts/cggtts", features = ["serde"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
