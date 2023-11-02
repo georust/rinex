@@ -1,0 +1,146 @@
+[env]
+CARGO_MAKE_BINARY_RELEASE_ENV_INSTALL_MUSL = false
+CARGO_MAKE_BINARY_EXECUTABLE_NAME = "rinex-cli"
+CARGO_MAKE_PROJECT_NAME = "rinex"
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+CARGO_MAKE_RUN_CLIPPY = true
+CARGO_MAKE_CLIPPY_ARGS = "--all-features -- -D warnings"
+CARGO_MAKE_RUN_CHECK_FORMAT = true
+
+[env.'release+windows']
+CARGO_MAKE_RELEASE_FLOW_TARGET = "x86_64-pc-windows-msvc"
+
+[env.'release+mac_intel']
+CARGO_MAKE_RELEASE_FLOW_TARGET = "x86_64-apple-darwin"
+
+[env.'release+mac_arm']
+CARGO_MAKE_RELEASE_FLOW_TARGET = "aarch64-apple-darwin"
+
+[env.'release+static+x86_64']
+CARGO_MAKE_RELEASE_FLOW_TARGET = "x86_64-unknown-linux-musl"
+OPENSSL_DIR="/usr/local/musl"
+OPENSSL_INCLUDE_DIR="/usr/local/musl/include"
+DEP_OPENSSL_INCLUDE="/usr/local/musl/include"
+OPENSSL_LIB_DIR="/usr/local/musl/lib"
+OPENSSL_STATIC=1
+
+[env.'release+static+aarch64']
+CARGO_MAKE_RELEASE_FLOW_TARGET = "aarch64-unknown-linux-musl"
+CC_aarch64_unknown_linux_musl="clang"
+AR_aarch64_unknown_linux_musl="llvm-ar"
+CFLAGS_aarch64_unknown_linux_musl="-I/usr/aarch64-linux-gnu/include"
+CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu"
+CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-C link-self-contained=yes -C linker=rust-lld -C opt-level=3"
+OPENSSL_DIR="/usr/local/musl-aarch64"
+OPENSSL_INCLUDE_DIR="/usr/local/musl-aarch64/include"
+DEP_OPENSSL_INCLUDE="/usr/local/musl-aarch64/include"
+OPENSSL_LIB_DIR="/usr/local/musl-aarch64/lib"
+OPENSSL_STATIC=1
+
+[tasks.zip-release-binary-for-target]
+description = "Zips up the release binary, README, and license(s)"
+category = "Publish"
+condition = { env_set = [
+  "CARGO_MAKE_RELEASE_FLOW_TARGET",
+  "CARGO_MAKE_PROJECT_NAME",
+  "CARGO_MAKE_PROJECT_VERSION",
+  "CARGO_MAKE_BINARY_EXECUTABLE_NAME",
+], env_true = ["CARGO_MAKE_CI"] }
+env = { OUTPUT_NAME = "${CARGO_MAKE_PROJECT_NAME}-${CARGO_MAKE_PROJECT_VERSION}-${CARGO_MAKE_RELEASE_FLOW_TARGET}" }
+script_runner = "@duckscript"
+script = '''
+OUTPUT_NAME = get_env OUTPUT_NAME
+CARGO_MAKE_RELEASE_FLOW_TARGET = get_env CARGO_MAKE_RELEASE_FLOW_TARGET
+CARGO_MAKE_BINARY_EXECUTABLE_NAME = get_env CARGO_MAKE_BINARY_EXECUTABLE_NAME
+echo "OUTPUT_NAME: ${OUTPUT_NAME}"
+echo "CARGO_MAKE_RELEASE_FLOW_TARGET: ${CARGO_MAKE_RELEASE_FLOW_TARGET}"
+echo "CARGO_MAKE_BINARY_EXECUTABLE_NAME: ${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
+mkdir ${OUTPUT_NAME}
+echo "Copying executable..."
+glob_cp target/${CARGO_MAKE_RELEASE_FLOW_TARGET}/release/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}* ${OUTPUT_NAME}
+echo "Copying README..."
+cp README.md ${OUTPUT_NAME}/README.md
+echo "Copying LICENSE..."
+cp LICENSE ${OUTPUT_NAME}/LICENSE
+echo "Creating archive..."
+os = os_family
+if eq ${os} windows
+  exec --fail-on-error 7z a ${OUTPUT_NAME}.zip ${OUTPUT_NAME} -r
+else
+  exec --fail-on-error zip -r ${OUTPUT_NAME}.zip ${OUTPUT_NAME}
+end
+'''
+
+[tasks.setup-release-build-env-vars]
+script = ""
+
+[tasks.setup-musl]
+script_runner = "@duckscript"
+script = """
+  cm_run_task setup-musl-aarch64
+  cm_run_task setup-musl-x86_64
+"""
+
+[tasks.setup-musl-aarch64]
+condition = { profiles = ["release+static+aarch64"] }
+script_runner = "@shell"
+env = { OPENSSL_VERSION = "1.1.1g" }
+script = '''
+echo "Installing system dependencies for building openssl..."
+sudo apt install -y linux-headers-generic
+
+echo "Installing aarch64 cross compiler..."
+sudo curl -sSL https://musl.cc/aarch64-linux-musl-cross.tgz | \
+  sudo tar -C /opt -xvzf -
+
+export PATH=/opt/aarch64-linux-musl-cross/bin:${PATH}
+
+echo "Building OpenSSL with musl toolchain..."
+tag=$(dd if=/dev/urandom count=8 bs=1 status=none| md5sum | cut -f1 -d' ')
+
+sudo mkdir -p /usr/local/musl-aarch64/include/openssl && \
+  sudo ln -sf /usr/include/linux /usr/local/musl-aarch64/include/linux && \
+  sudo ln -sf /usr/include/aarch64-linux-gnu/asm /usr/local/musl-aarch64/include/asm && \
+  sudo ln -sf /usr/include/asm-generic /usr/local/musl-aarch64/include/asm-generic && \
+  mkdir -p /tmp/rust-openssl-build-$tag && \
+  cd /tmp/rust-openssl-build-$tag && \
+  short_version="$(echo "$OPENSSL_VERSION" | sed s'/[a-z]$//' )" && \
+  { curl -v -fLO "https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz" || \
+    curl -v -fLO "https://www.openssl.org/source/old/$short_version/openssl-$OPENSSL_VERSION.tar.gz"; } && \
+  tar xvzf "openssl-$OPENSSL_VERSION.tar.gz" && cd "openssl-$OPENSSL_VERSION" && \
+  env CC=aarch64-linux-musl-gcc ./Configure no-shared no-zlib -fPIC --prefix=/usr/local/musl-aarch64 -DOPENSSL_NO_SECURE_MEMORY linux-aarch64 && \
+  env C_INCLUDE_PATH=/usr/local/musl-aarch64/include/ make depend && \
+  env C_INCLUDE_PATH=/usr/local/musl-aarch64/include/ make -j`nproc` && \
+  sudo make install_sw && \
+  sudo rm -v /usr/local/musl-aarch64/include/linux /usr/local/musl-aarch64/include/asm /usr/local/musl-aarch64/include/asm-generic && \
+  rm -rf /tmp/rust-openssl-build-*
+'''
+
+[tasks.setup-musl-x86_64]
+condition = { profiles = ["release+static+x86_64"] }
+script_runner = "@shell"
+env = { OPENSSL_VERSION = "1.1.1g" }
+script = '''
+echo "Installing system dependencies for building openssl..."
+sudo apt install -y linux-headers-generic
+
+echo "Building OpenSSL with musl toolchain"
+tag=$(dd if=/dev/urandom count=8 bs=1 status=none| md5sum | cut -f1 -d' ')
+
+sudo mkdir -p /usr/local/musl/include/openssl && \
+  sudo ln -sf /usr/include/linux /usr/local/musl/include/linux && \
+  sudo ln -sf /usr/include/x86_64-linux-gnu/asm /usr/local/musl/include/asm && \
+  sudo ln -sf /usr/include/asm-generic /usr/local/musl/include/asm-generic && \
+  mkdir -p /tmp/rust-openssl-build-$tag && \
+  cd /tmp/rust-openssl-build-$tag && \
+  short_version="$(echo "$OPENSSL_VERSION" | sed s'/[a-z]$//' )" && \
+  { curl -v -fLO "https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz" || \
+    curl -v -fLO "https://www.openssl.org/source/old/$short_version/openssl-$OPENSSL_VERSION.tar.gz"; } && \
+  tar xvzf "openssl-$OPENSSL_VERSION.tar.gz" && cd "openssl-$OPENSSL_VERSION" && \
+  env CC=musl-gcc ./Configure no-shared no-zlib -fPIC --prefix=/usr/local/musl -DOPENSSL_NO_SECURE_MEMORY linux-x86_64 && \
+  env C_INCLUDE_PATH=/usr/local/musl/include/ make depend && \
+  env C_INCLUDE_PATH=/usr/local/musl/include/ make -j`nproc` && \
+  sudo make install_sw && \
+  sudo rm -v /usr/local/musl/include/linux /usr/local/musl/include/asm /usr/local/musl/include/asm-generic && \
+  rm -rf /tmp/rust-openssl-build-*
+'''

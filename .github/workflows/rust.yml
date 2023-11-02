@@ -11,27 +11,73 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+
+  lint:
+    name: Linter 
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Setup 
-      uses: actions-rs/toolchain@v1
+    - uses: actions-rs/toolchain@v1
+      name: Install Rust 
       with:
         toolchain: stable
         override: true
         components: rustfmt, clippy 
-    - name: Install dependencies 
+    - uses: actions-rs/cargo@v1
+      name: Linter 
+      with:
+        command: fmt --all
+        args: -- --check
+    - name: Audit
+      continue-on-error: true
+      run: |
+        cargo install cargo-audit
+        cargo audit
+
+  tests:
+    name: Tests 
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      name: Install Rust
+      with:
+        toolchain: stable
+        override: true
+    - name: UBX2RNX dependencies 
       run: |
         sudo apt-get update
         sudo apt-get install -y libudev-dev
-    - name: Build (Default)
-      run: cargo build
-    - name: Test (Default)
-      run: cargo test -- --nocapture
-    - name: Build (All features)
-      run: cargo build --all-features
-    - name: Test (All features)
-      run: cargo test --all-features -- --nocapture
-    - name: Coding style
-      run: cargo fmt --all -- --check
+    - uses: actions-rs/cargo@v1
+      name: Test
+      with:
+        command: test
+        args: --verbose
+    - uses: actions-rs/cargo@v1
+      name: Test (all features)
+      with:
+        command: test
+        args: --verbose --all-features
+
+  build:
+    name: Build binaries
+    needs:
+      - lint
+      - tests
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        name: Install Rust
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: davidB/rust-cargo-make@v1
+        with:
+          version: 0.32.12
+      - name: Run CI
+        run: cargo make ci-flow 
