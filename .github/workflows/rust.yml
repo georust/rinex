@@ -62,26 +62,3 @@ jobs:
       with:
         command: test
         args: --verbose --all-features
-
-  build:
-    name: Build binaries
-    needs:
-      - lint
-      - tests
-    strategy:
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        name: Install Rust
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: davidB/rust-cargo-make@v1
-        with:
-          version: 0.32.12
-      - name: Run CI
-        run: cargo make ci-flow 
