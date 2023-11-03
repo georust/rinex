@@ -31,8 +31,8 @@ horrorshow = "0.8"
 clap = { version = "4.4.6", features = ["derive", "color"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
-gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["full"] }
 rinex-qc = { path = "../rinex-qc", version = "=0.1.5", features = ["serde"] } 
 sp3 = { path = "../sp3", version = "=1.0.6",  features = ["serde", "flate2"] }
