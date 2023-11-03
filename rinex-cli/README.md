@@ -35,7 +35,7 @@ a Reference station and a Rover station as needed in true RTK.
 Thefore, it can only resolve the position
 of the receiver using standard trilateration method.
 
-## NB: Observation Data in your Context
+## Observation Data in your context :eyes:
 
 The command line lets you load as many Broadcast Navigation data as you want,
 which makes covering the time frame of your Observation Data very easy.
@@ -44,19 +44,20 @@ But special care must be taken when defining your context:
 - You should only load coherent Observation Data.
 The interface lets you load as many Observation files as you want,
 but they should all be sampled by the same station. 
-One benefit is you can load and analyze several days at once.
+One benefit is you can load and analyze several days from a given receiver.
 
 - If you're not defining the receiver/station location yourself,
 we search for it in all provided files individually. 
 If it's defined in your Observation Data Header, this one is to be prefered.
 But sometimes it is not the case. In case you loaded Broadcast Navigation from
-different stations, you may wind up using the predefined apriori position,
-and all position solver results will not be expressed against the correct location.  
-Pay extra attention to the _apriori_ position being used:
+different stations, you may wind up using thire predefined apriori position,
+and all position solver results would then be expressed against that apriori position,
+which is not the receiver's location.
+Pay extra attention to the _apriori_ position being used: this is emphasized in the applications log.
 
 - Just like Broadcast Navigation, we allow loading as many SP3 files as you need.  
 For very advanced usage, you should only stack coherent SP3 files that used
-the same modeling in their making
+the same modeling and mapping function in particulary, when they were created.
 
 ## File loading example
 
@@ -143,13 +144,14 @@ if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
 - other advanced operations are documented in the [processing](doc/processing.md) suite
 
-## Positioning (RTK)
+## Positioning opmode
 
-`rinex-cli` integrates a position solver that will resolve the radio receiver location 
-the best it can, by post processing the provided RINEX context. 
-This mode in requested with `-r` or `--rtk` and is turned off by default.  
+`rinex-cli` integrates a position solver that will resolve the receiver location 
+by post processing the provided RINEX context. 
+This mode in requested with `-p` or `--spp` and is turned off by default, considering
+the computations are quite heavy.
 
-To learn how to operate the solver, refer to [the dedicated page](doc/rtk.md).
+To learn how to operate the solver, refer to [the dedicated page](doc/positioning.md).
 
 ## Getting started
 
