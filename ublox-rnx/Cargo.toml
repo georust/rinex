@@ -12,6 +12,7 @@ edition = "2021"
 readme = "README.md"
 
 [dependencies]
+clap = "4"
 log = "0.4"
 pretty_env_logger = "0.5"
 chrono = "0.4.30"
@@ -20,6 +21,5 @@ thiserror = "1"
 serde_json = "1.0"
 serialport = "4.2.0"
 ublox = "0.4.4"
-rinex = { path = "../rinex", version = "=0.15.0", features = ["serde", "nav", "obs"] }
-clap = { version = "3.2.22", features = ["yaml"] }
 gnss-rs = { version = "2.1.2", features = ["serde"] }
+rinex = { path = "../rinex", version = "=0.15.0", features = ["serde", "nav", "obs"] }
