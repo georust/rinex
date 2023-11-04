@@ -242,10 +242,11 @@ Refer to the positioning documentation."))
                         .action(ArgAction::SetTrue)
                         .help("Disable context analysis and run position solver only.
 This is the most performant mode to solve a position."))
-					.arg(Arg::new("rtk-config")
-						.long("rtk-cfg")
+					.arg(Arg::new("config")
+						.long("cfg")
+                        .short('c')
 						.value_name("FILE")
-						.help("Pass RTK custom configuration, refer to online documentation."))
+						.help("Pass Positioning configuration, refer to doc/positioning."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -439,16 +440,15 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     pub fn kml(&self) -> bool {
         self.matches.get_flag("kml")
     }
-    pub fn rtk_config(&self) -> Option<Config> {
-        if let Some(path) = self.matches.get_one::<String>("rtk-config") {
+    pub fn config(&self) -> Option<Config> {
+        if let Some(path) = self.matches.get_one::<String>("config") {
             if let Ok(content) = std::fs::read_to_string(path) {
                 let opts = serde_json::from_str(&content);
                 if let Ok(opts) = opts {
                     info!("loaded rtk config: \"{}\"", path);
                     return Some(opts);
                 } else {
-                    error!("failed to parse config file \"{}\"", path);
-                    info!("using default parameters");
+                    panic!("failed to parse config file \"{}\"", path);
                 }
             } else {
                 error!("failed to read config file \"{}\"", path);

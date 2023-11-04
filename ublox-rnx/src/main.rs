@@ -50,7 +50,7 @@ fn identify_constellation(id: u8) -> Result<Constellation, Error> {
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // cli
     let cli = Cli::new();
-    
+
     // Device configuration
     let port = cli.port();
     let baud_rate = match cli.baudrate() {

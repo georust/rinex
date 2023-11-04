@@ -5,7 +5,7 @@ use gnss::prelude::{Constellation, SV};
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::observation::SNR;
-use rinex::prelude::{Observable, RnxContext};
+use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::{
     model::TropoComponents,
@@ -34,9 +34,87 @@ pub enum Error {
     UndefinedAprioriPosition,
 }
 
+fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<TropoComponents> {
+    const max_latitude_delta: f64 = 15.0;
+    let max_dt = Duration::from_hours(24.0);
+    let rnx = meteo?;
+    let meteo = rnx.header.meteo.as_ref().unwrap();
+
+    let delays: Vec<(Observable, f64)> = meteo
+        .sensors
+        .iter()
+        .filter_map(|s| match s.observable {
+            Observable::ZenithDryDelay => {
+                let (x, y, z, _) = s.position?;
+                let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                if (lat - lat_ddeg).abs() < max_latitude_delta {
+                    let value = rnx
+                        .zenith_dry_delay()
+                        .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
+                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
+                    let (_, value) = value?;
+                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
+                    Some((s.observable.clone(), value))
+                } else {
+                    None
+                }
+            },
+            Observable::ZenithWetDelay => {
+                let (x, y, z, _) = s.position?;
+                let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                if (lat - lat_ddeg).abs() < max_latitude_delta {
+                    let value = rnx
+                        .zenith_wet_delay()
+                        .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
+                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
+                    let (_, value) = value?;
+                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
+                    Some((s.observable.clone(), value))
+                } else {
+                    None
+                }
+            },
+            _ => None,
+        })
+        .collect();
+
+    if delays.len() < 2 {
+        None
+    } else {
+        Some(TropoComponents {
+            zdd: {
+                delays
+                    .iter()
+                    .filter_map(|(obs, value)| {
+                        if obs == &Observable::ZenithDryDelay {
+                            Some(*value)
+                        } else {
+                            None
+                        }
+                    })
+                    .reduce(|k, _| k)
+                    .unwrap()
+            },
+            zwd: {
+                delays
+                    .iter()
+                    .filter_map(|(obs, value)| {
+                        if obs == &Observable::ZenithWetDelay {
+                            Some(*value)
+                        } else {
+                            None
+                        }
+                    })
+                    .reduce(|k, _| k)
+                    .unwrap()
+            },
+        })
+    }
+}
+
 pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolution>, Error> {
     // parse custom config, if any
-    let cfg = match cli.rtk_config() {
+    let cfg = match cli.config() {
         Some(cfg) => cfg,
         None => Config::default(Mode::SPP),
     };
@@ -58,6 +136,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
 
     let apriori_ecef_wgs84 = pos.to_ecef_wgs84();
     let apriori = AprioriPosition::from_ecef(apriori_ecef_wgs84.into());
+    let lat_ddeg = apriori.geodetic.x;
 
     // print config to be used
     info!("{:#?}", cfg);
@@ -122,84 +201,6 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
                 }
             }
         },
-        /* tropo components possible source */
-        |t, lat_ddeg, h_sea_m| {
-            const max_latitude_delta: f64 = 15.0;
-            let max_dt = Duration::from_hours(24.0);
-            let rnx = meteo_data?;
-            let meteo = rnx.header.meteo.as_ref().unwrap();
-
-            let delays: Vec<(Observable, f64)> = meteo
-                .sensors
-                .iter()
-                .filter_map(|s| match s.observable {
-                    Observable::ZenithDryDelay => {
-                        let (x, y, z, _) = s.position?;
-                        let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                        if (lat - lat_ddeg).abs() < max_latitude_delta {
-                            let value = rnx
-                                .zenith_dry_delay()
-                                .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
-                                .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-                            let (_, value) = value?;
-                            debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
-                            Some((s.observable.clone(), value))
-                        } else {
-                            None
-                        }
-                    },
-                    Observable::ZenithWetDelay => {
-                        let (x, y, z, _) = s.position?;
-                        let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                        if (lat - lat_ddeg).abs() < max_latitude_delta {
-                            let value = rnx
-                                .zenith_wet_delay()
-                                .filter(|(t_sens, value)| (*t_sens - t).abs() < max_dt)
-                                .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-                            let (_, value) = value?;
-                            debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
-                            Some((s.observable.clone(), value))
-                        } else {
-                            None
-                        }
-                    },
-                    _ => None,
-                })
-                .collect();
-
-            if delays.len() < 2 {
-                None
-            } else {
-                Some(TropoComponents {
-                    zdd: {
-                        delays
-                            .iter()
-                            .filter_map(|(obs, value)| {
-                                if obs == &Observable::ZenithDryDelay {
-                                    Some(*value)
-                                } else {
-                                    None
-                                }
-                            })
-                            .reduce(|k, _| k)
-                            .unwrap()
-                    },
-                    zwd: {
-                        delays
-                            .iter()
-                            .filter_map(|(obs, value)| {
-                                if obs == &Observable::ZenithWetDelay {
-                                    Some(*value)
-                                } else {
-                                    None
-                                }
-                            })
-                            .reduce(|k, _| k)
-                            .unwrap()
-                    },
-                })
-            }
-        },
     )?;
 
     let mut ret: HashMap<Epoch, PVTSolution> = HashMap::new();
@@ -259,7 +260,9 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
                 warn!("{:?}: failed to form {} candidate", t, sv);
             }
         }
-        match solver.run(*t, candidates) {
+        let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
+
+        match solver.run(*t, candidates, tropo_components) {
             Ok((t, estimate)) => {
                 debug!("{:?} : {:?}", t, estimate);
                 ret.insert(t, estimate);
