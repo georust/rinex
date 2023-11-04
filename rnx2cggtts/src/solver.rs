@@ -111,7 +111,7 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
     }
 }
 
-pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolution>, Error> {
+pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolution>, Error> {
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,

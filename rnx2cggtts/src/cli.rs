@@ -1,10 +1,11 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use gnss_rtk::prelude::RTKConfig;
 use log::{error, info};
 use rinex::prelude::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
+
+use rtk::prelude::Config;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -38,6 +39,13 @@ and you can load as many as you want."))
                         .help("Load directory recursively. RINEX and SP3 files are identified
 and added like they were individually imported with -f.
 You can load as many directories as you need."))
+                    .arg(Arg::new("workspace")
+                        .short('w')
+                        .long("workspace")
+                        .value_name("FOLDER")
+                        .help("Customize workspace location (folder does not have to exist).
+The default workspace is rinex-cli/workspace"))
+                .next_help_heading("Setup / Hardware")
                     .arg(Arg::new("rfdly")
                         .long("rf-delay")
                         .action(ArgAction::Append)
@@ -48,12 +56,16 @@ For example, specify a 3.2 nanoseconds delay on C1 with: --rf-delay C1:3.2."))
                         .long("ref-delay")
                         .help("Specify the delay between the GNSS receiver external clock and its local sampling clock. 
 This is the delay induced by the cable on the external ref clock. Specify it in nanoseconds, for example: --ref-delay 5.0"))
-                    .arg(Arg::new("workspace")
-                        .short('w')
-                        .long("workspace")
-                        .value_name("FOLDER")
-                        .help("Customize workspace location (folder does not have to exist).
-The default workspace is cggtts/workspace"))
+                .next_help_heading("Solver")
+					.arg(Arg::new("config")
+						.long("cfg")
+                        .short('c')
+						.value_name("FILE")
+						.help("Pass Positioning configuration, refer to README."))
+                    .arg(Arg::new("spp")
+                        .long("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Force solving strategy to SPP."))
                 .next_help_heading("Preprocessing")
                     .arg(Arg::new("gps-filter")
                         .short('G')
@@ -89,20 +101,17 @@ The default workspace is cggtts/workspace"))
                         .action(ArgAction::Append)
 						.help("Design preprocessing operations.
 Refer to rinex-cli Preprocessor documentation for more information"))
-                    .arg(Arg::new("spp")
-                        .long("spp")
-                        .action(ArgAction::SetTrue)
-                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
-Disregards whether the provided context is PPP compatible. 
-NB: we do not account for Relativistic effects by default and raw pseudo range are used.
-For indepth customization, refer to the configuration file and online documentation."))
                     .get_matches()
             },
         }
     }
-    /// Returns input base dir
-    pub fn input_base_dir(&self) -> Option<&String> {
-        self.matches.get_one::<String>("directory")
+    /// Returns list of input directories
+    pub fn input_directories(&self) -> Vec<&String> {
+        if let Some(fp) = self.matches.get_many::<String>("directory") {
+            fp.collect()
+        } else {
+            Vec::new()
+        }
     }
     /// Returns individual input filepaths
     pub fn input_files(&self) -> Vec<&String> {
@@ -111,10 +120,6 @@ For indepth customization, refer to the configuration file and online documentat
         } else {
             Vec::new()
         }
-    }
-    /// Returns output filepaths
-    pub fn output_path(&self) -> Option<&String> {
-        self.matches.get_one::<String>("output")
     }
     pub fn preprocessing(&self) -> Vec<&String> {
         if let Some(filters) = self.matches.get_many::<String>("preprocessing") {
@@ -147,8 +152,7 @@ For indepth customization, refer to the configuration file and online documentat
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
     }
-    /// Returns true if position solver forced to SPP
-    pub fn forced_spp(&self) -> bool {
+    pub fn spp(&self) -> bool {
         self.matches.get_flag("spp")
     }
     /// Returns the manualy defined RFDLY (in nanoseconds!)
@@ -200,10 +204,6 @@ For indepth customization, refer to the configuration file and online documentat
             None
         }
     }
-    /// Returns true if position solver forced to PPP
-    pub fn forced_ppp(&self) -> bool {
-        self.matches.get_flag("spp")
-    }
     fn manual_ecef(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-ecef")
     }
@@ -247,6 +247,23 @@ For indepth customization, refer to the configuration file and online documentat
                 }
             } else {
                 error!("altitude should be f64 [ddeg]");
+            }
+        }
+        None
+    }
+    pub fn config(&self) -> Option<Config> {
+        if let Some(path) = self.matches.get_one::<String>("config") {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                let opts = serde_json::from_str(&content);
+                if let Ok(opts) = opts {
+                    info!("loaded rtk config: \"{}\"", path);
+                    return Some(opts);
+                } else {
+                    panic!("failed to parse config file \"{}\"", path);
+                }
+            } else {
+                error!("failed to read config file \"{}\"", path);
+                info!("using default parameters");
             }
         }
         None

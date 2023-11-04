@@ -1,15 +1,11 @@
-mod cli; // command line interface
-pub mod fops; // file operation helpers
+#[macro_use]
+extern crate log;
 
-mod preprocessing;
-use preprocessing::preprocess;
+extern crate gnss_rtk as rtk;
 
 use rinex::prelude::*;
 use rinex::preprocessing::{Filter, Preprocessing};
 use std::str::FromStr;
-
-extern crate gnss_rtk as rtk;
-use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
 
 use cggtts::prelude::Track as CGGTTSTrack;
 use cggtts::prelude::*;
@@ -20,14 +16,19 @@ use cli::Cli;
 //extern crate pretty_env_logger;
 use env_logger::{Builder, Target};
 
-#[macro_use]
-extern crate log;
-
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
+
+mod cli; // command line interface
+pub mod fops; // file operation helpers
+
+mod preprocessing;
+use preprocessing::preprocess;
+
+mod solver;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -60,6 +61,8 @@ pub(crate) fn context_stem(ctx: &RnxContext) -> String {
  */
 pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("rinex-cli")
         .join("workspace")
         .join(&context_stem(ctx))
 }
@@ -77,39 +80,35 @@ pub fn create_workspace(path: PathBuf) {
     });
 }
 
+use walkdir::WalkDir;
+
 /*
  * Creates File/Data context defined by user.
  * Regroups all provided files/folders,
  */
 fn build_context(cli: &Cli) -> RnxContext {
-    // Load base dir (if any)
-    if let Some(base_dir) = cli.input_base_dir() {
-        let ctx = RnxContext::new(base_dir.into());
-        if ctx.is_err() {
-            panic!(
-                "failed to load desired context \"{}\", : {:?}",
-                base_dir,
-                ctx.err().unwrap()
-            );
-        }
-        let mut ctx = ctx.unwrap();
-        // Append individual files, if any
-        for filepath in cli.input_files() {
-            if ctx.load(filepath).is_err() {
-                warn!("failed to load \"{}\"", filepath);
+    let mut ctx = RnxContext::default();
+    /* load all directories recursively, one by one */
+    for dir in cli.input_directories() {
+        let walkdir = WalkDir::new(dir).max_depth(5);
+        for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+            if !entry.path().is_dir() {
+                let filepath = entry.path().to_string_lossy().to_string();
+                let ret = ctx.load(&filepath);
+                if ret.is_err() {
+                    warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
+                }
             }
         }
-        ctx
-    } else {
-        // load individual files, if any
-        let mut ctx = RnxContext::default();
-        for filepath in cli.input_files() {
-            if ctx.load(filepath).is_err() {
-                warn!("failed to load \"{}\"", filepath);
-            }
-        }
-        ctx
     }
+    // load individual files, if any
+    for filepath in cli.input_files() {
+        let ret = ctx.load(filepath);
+        if ret.is_err() {
+            warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
+        }
+    }
+    ctx
 }
 
 #[derive(Debug, Clone, Default)]
@@ -121,54 +120,48 @@ struct TrackerData {
 
 #[derive(Debug, Clone, Default)]
 struct Tracker {
+    /// SV that we're tracking
     pub sv: SV,
-    pub synchronous: bool,
     pub trk_duration: Duration,
-    pub data: Option<TrackerData>,
 }
 
 impl Tracker {
-    fn new(sv: SV, synchronous: bool, trk_duration: Duration) -> Self {
-        Self {
-            sv,
-            synchronous,
-            trk_duration,
-            data: None,
-        }
+    fn new(sv: SV, trk_duration: Duration) -> Self {
+        Self { sv, trk_duration }
     }
-    /// Track new SV (raw) measurement. Returns TrackData optionaly if we were able to form it
-    fn track(&mut self, t: Epoch, pr: f64) -> Option<TrackData> {
-        if let Some(data) = self.data {
-        } else {
-            /* align to scheduling procedure for synchronous CGGTTS */
-            if self.synchronous {
-                panic!("synchronous CGGTTS not supported yet");
-            } else {
-                self.data = {}
-            }
-        }
-    }
+    // /// Track new SV (raw) measurement. Returns TrackData optionaly if we were able to form it
+    // fn track(&mut self, t: Epoch, pr: f64) -> Option<TrackData> {
+    //     if let Some(data) = self.data {
+    //     } else {
+    //         /* align to scheduling procedure for synchronous CGGTTS */
+    //         if self.synchronous {
+    //             panic!("synchronous CGGTTS not supported yet");
+    //         } else {
+    //             self.data = {}
+    //         }
+    //     }
+    // }
 }
 
-fn tracking(
-    &mut buffer: HashMap<(Epoch, SV, Observable), (u16, f64)>,
-    sv: &SV,
-    code: &Observable,
-) -> Option<((Epoch, SV, Observable), (u16, f64))> {
-    let key = buffer
-        .keys()
-        .filter_map(|(t, svnn, codenn)| {
-            if svnn == sv && code == codenn {
-                Some((t, svnn, codenn))
-            } else {
-                None
-            }
-        })
-        .reduce(|data, _| data);
-    let key = key?;
-    let value = buffer.remove(key)?;
-    Some((key, value))
-}
+// fn tracking(
+//     &mut buffer: HashMap<(Epoch, SV, Observable), (u16, f64)>,
+//     sv: &SV,
+//     code: &Observable,
+// ) -> Option<((Epoch, SV, Observable), (u16, f64))> {
+//     let key = buffer
+//         .keys()
+//         .filter_map(|(t, svnn, codenn)| {
+//             if svnn == sv && code == codenn {
+//                 Some((t, svnn, codenn))
+//             } else {
+//                 None
+//             }
+//         })
+//         .reduce(|data, _| data);
+//     let key = key?;
+//     let value = buffer.remove(key)?;
+//     Some((key, value))
+// }
 
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
@@ -196,16 +189,16 @@ pub fn main() -> Result<(), Error> {
     create_workspace(workspace.clone());
 
     /*
-     * Print more info on provided context
+     * Verify provided context and feasibility
      */
     if ctx.obs_data().is_none() {
-        panic!("rnx2cggtts required Observation Data!");
+        panic!("rnx2cggtts requires Observation Data to be provided!");
     }
-    if ctx.nav_data().is_some() {
-        info!("brdc navigation data loaded");
+    if ctx.nav_data().is_none() {
+        panic!("rnx2cggtts requires BRDC Navigation Data to be provided!");
     }
-    if ctx.sp3_data().is_some() {
-        info!("sp3 data loaded");
+    if ctx.sp3_data().is_none() {
+        panic!("rnx2cggtts requires SP3 Data to be provided!");
     }
     if ctx.meteo_data().is_some() {
         info!("meteo data loaded");
@@ -239,18 +232,20 @@ pub fn main() -> Result<(), Error> {
      */
     if let Some(rf_delay) = cli.rf_delay() {
         for (code, delay_ns) in rf_delay {
-            solver.cfg.internal_delay.insert(code.clone(), delay_ns);
+            // solver.cfg.internal_delay.insert(code.clone(), delay_ns);
             info!("RF delay: {} : {} [ns]", code.clone(), delay_ns);
         }
     }
     if let Some(delay_ns) = cli.reference_time_delay() {
-        solver.cfg.time_ref_delay = Some(delay_ns);
+        // solver.cfg.time_ref_delay = Some(delay_ns);
         info!("REFERENCE delay: {} [ns]", delay_ns);
     }
     /*
      * Preprocessing
      */
     preprocess(&mut ctx, &cli);
+
+    let solutions = solver::resolve(&mut ctx, &cli);
 
     // // RUN
     // let mut solving = true;

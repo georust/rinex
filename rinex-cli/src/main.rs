@@ -37,7 +37,6 @@ use env_logger::{Builder, Target};
 extern crate log;
 
 use fops::open_with_web_browser;
-use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 

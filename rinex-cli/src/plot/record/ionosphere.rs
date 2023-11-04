@@ -87,7 +87,7 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                         IonMessage::KlobucharModel(model) => {
                             let sv_elev_azim = nav
                                 .sv_elevation_azimuth(Some(ref_pos))
-                                .find(|(epoch, svnn, (elev, azi))| *epoch == t && *svnn == sv);
+                                .find(|(epoch, svnn, _)| *epoch == t && *svnn == sv);
                             if let Some(elev_azim) = sv_elev_azim {
                                 kb_delay.push((
                                     t,

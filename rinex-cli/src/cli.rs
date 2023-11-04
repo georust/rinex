@@ -213,7 +213,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .action(ArgAction::SetTrue)
                         .help("Display clock biases (offset, drift, drift changes) per epoch and vehicle.
 -fp must be a NAV file"))
-                .next_help_heading("Antenna")
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")

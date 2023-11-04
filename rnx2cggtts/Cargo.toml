@@ -15,6 +15,10 @@ readme = "README.md"
 log = "0.4"
 chrono = "0.4"
 thiserror = "1"
+walkdir = "2.4.0"
+serde_json = "1"
+statrs = "0.16"
+map_3d = "0.1.5"
 env_logger = "0.10"
 clap = { version = "4", features = ["derive", "color"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["serde"] }
