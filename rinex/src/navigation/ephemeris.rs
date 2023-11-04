@@ -419,7 +419,7 @@ impl Ephemeris {
     }
     /// Helper method to calculate elevation and azimuth angles, both in degrees,
     /// between a reference position (in meter ECEF WGS84) and a resolved
-    /// SV position in the sky, expressed in meter ECEF WFS84.
+    /// SV position in the sky, expressed in meter ECEF WGS84.
     pub fn elevation_azimuth(
         sv_position: (f64, f64, f64),
         reference_position: (f64, f64, f64),

@@ -33,6 +33,26 @@ pub enum Error {
     UndefinedAprioriPosition,
 }
 
+/* offset within MJD50722 reference day, in minutes */
+fn mjd50722_offset(i: u32) -> u32 {
+    2 + (i - 1) * 16 * 60
+}
+
+fn initial_offset_minutes(mjd: u32) -> u32 {
+    ((mjd - 50722) * 4 + 2) % 16 //TODO CONST 16'=960s
+}
+
+fn next_track_start(t: Epoch, trk_i: Option<u32>) -> Epoch {
+    let mjd = t.to_mjd_utc_days().floor() as u32;
+    if let Some(i) = trk_i {
+        let offset = initial_offset_minutes(mjd) * 60;
+        t + Duration::from_seconds(960.0 * i as f64) - Duration::from_seconds(offset as f64)
+    } else {
+        let offset = initial_offset_minutes(mjd + 1) * 60;
+        Epoch::from_mjd_utc((mjd + 1) as f64) + Duration::from_seconds(offset as f64)
+    }
+}
+
 fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<TropoComponents> {
     const MAX_LATDDEG_DELTA: f64 = 15.0;
     let max_dt = Duration::from_hours(24.0);
@@ -202,17 +222,37 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         },
     )?;
 
-    // resolved PVT solutions
+    // PVT solutions
     let mut ret: HashMap<Epoch, PVTSolution> = HashMap::new();
-    // possibly provided resolved T components (contained in RINEX)
-    let mut provided_clk: HashMap<Epoch, f64> = HashMap::new();
 
-    for ((t, flag), (clk, vehicles)) in obs_data.observation() {
+    // CGGTTS specifics
+    let mut t0: Option<Epoch> = None; // first symbol to be latched
+    let mut prev_mjd: Option<u32> = None;
+    let mut track_ith: Option<u32> = None;
+
+    for (index, ((t, flag), (clk, vehicles))) in obs_data.observation().enumerate() {
         let mut candidates: Vec<Candidate> = Vec::new();
 
         if !flag.is_ok() {
-            /* we only feed "OK" epochs" */
+            /* we only consider "OK" epochs" */
             continue;
+        }
+
+        if let Some(t0) = t0 {
+            if *t < t0 {
+                debug!("{:?} : scheduler: WAITING", t);
+                continue;
+            }
+        } else {
+            // determine next track
+            let next = next_track_start(*t, None);
+            debug!("first track will start @ {:?}", next);
+
+            t0 = Some(next);
+            if *t < next {
+                debug!("{:?} : scheduler: WAITING", t);
+                continue;
+            }
         }
 
         for (sv, observations) in vehicles {
@@ -220,11 +260,6 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
             if sv_eph.is_none() {
                 warn!("{:?} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
-            }
-
-            /* store possibly provided clk data, so we can compare to it */
-            if let Some(clk) = clk {
-                provided_clk.insert(*t, *clk);
             }
 
             let (toe, sv_eph) = sv_eph.unwrap();
@@ -258,24 +293,16 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                     Some(snr)
                 },
             };
-
-            if let Ok(candidate) =
-                Candidate::new(*sv, *t, clock_state, clock_corr, snr, pseudo_range.clone())
-            {
-                candidates.push(candidate);
-            } else {
-                warn!("{:?}: failed to form {} candidate", t, sv);
-            }
         }
-        let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
+        //let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
 
-        match solver.run(*t, candidates, tropo_components) {
-            Ok((t, estimate)) => {
-                debug!("{:?} : {:?}", t, estimate);
-                ret.insert(t, estimate);
-            },
-            Err(e) => warn!("{:?} : {}", t, e),
-        }
+        //match solver.run(*t, candidates, tropo_components) {
+        //    Ok((t, estimate)) => {
+        //        debug!("{:?} : {:?}", t, estimate);
+        //        ret.insert(t, estimate);
+        //    },
+        //    Err(e) => warn!("{:?} : {}", t, e),
+        //}
     }
     Ok(ret)
 }

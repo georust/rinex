@@ -78,7 +78,7 @@ TODO
 
 ## Accurate hardware setup definitions
 
-In CGGTTS we're talking about 10E-12 residual errors, therefore every fraction of delay counts.  
+In CGGTTS we're talking about 0.1 ns errors, therefore every fraction of delay counts.  
 
 The GNSS-RTK solver configuration can take into account two hardware induced source of delay 
 [that are defined right here] and need to be correctly characterized and defined in your RNX2CGGTTS ops.

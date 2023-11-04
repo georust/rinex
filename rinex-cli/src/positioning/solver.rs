@@ -165,19 +165,22 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
         |t, sv, order| {
             /* SP3 source is prefered */
             if let Some(sp3) = sp3_data {
-                if let Some(vec3d) = sp3.sv_position_interpolate(sv, t, order) {
-                    let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                if let Some((x, y, z)) = sp3.sv_position_interpolate(sv, t, order) {
+                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                    let (elev, azi) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
                     Some(InterpolationResult {
-                        sky_pos: vec3d.into(),
+                        sky_pos: (x, y, z).into(),
                         elevation: Some(elev),
                         azimuth: Some(azi),
                     })
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
-                    if let Some(vec3d) = nav_data.sv_position_interpolate(sv, t, order) {
-                        let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                    if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                        let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                        let (elev, azi) =
+                            Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
                         Some(InterpolationResult {
-                            sky_pos: vec3d.into(),
+                            sky_pos: (x, y, z).into(),
                             elevation: Some(elev),
                             azimuth: Some(azi),
                         })
@@ -187,10 +190,11 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
                     }
                 }
             } else {
-                if let Some(vec3d) = nav_data.sv_position_interpolate(sv, t, order) {
-                    let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                    let (elev, azi) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
                     Some(InterpolationResult {
-                        sky_pos: vec3d.into(),
+                        sky_pos: (x, y, z).into(),
                         elevation: Some(elev),
                         azimuth: Some(azi),
                     })
@@ -211,7 +215,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
         let mut candidates: Vec<Candidate> = Vec::new();
 
         if !flag.is_ok() {
-            /* we only feed "OK" epochs" */
+            /* we only consider "OK" epochs" */
             continue;
         }
 
