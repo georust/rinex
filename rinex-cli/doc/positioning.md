@@ -132,6 +132,15 @@ You can activate the generation of a KML track with `--kml`.
 The solutions are also plotted and analyzed graphically, opening that view is automatic, unless
 you set the `-q` quite option.
 
+
+One output is the local GNSS receiver time and the dilution of precision on the time component :
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/clk_tdop.png">
+
+The vertical and horizontal dilution of precision are also depicted :
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/hdop_vdop.png">
+
 ## Current limitations
 
 Refer to the GNSS solver's limitation, explained in the 
