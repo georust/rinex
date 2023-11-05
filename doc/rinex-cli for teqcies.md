@@ -5,6 +5,9 @@
 This aims to be a simple tutorial for those who wish to transition away from the unsupported and closed source
 UNAVCO `teqc` tool towards the newer and more powerful open source `rinex-cli`.
 
+<!-- It takes most of its `teqc`-xamples
+from UNAVCOs guide at  https://www.unavco.org/software/data-processing/teqc/tutorial/tutorial.html -->
+
 Although a full 1-1 replacement is not in scope, this guide should help you replace your existing scripts and take
 advantage of a lot of new functionality.
 
@@ -31,4 +34,15 @@ Extensive info on all parameters is available by running `rinex-cli` without par
 
 ## rinex-cli QC
 
-* QC reports
+To do Quality Check (QC) of satellite positioning data and get an HTML report, you must enable quality check mode with the `--qc` flag.
+
+`rinex-cli --qc <filename>` where in teqc you would do `teqc +qc <filename>`
+
+If you wish to only perform quality check, you instead set the `--qc-only` flag, skipping all other features for faster
+rendition.
+
+`rinex-cli --qc-only <filename>`
+
+You can also pass a QC configuration file:
+
+`rinex-cli --qc-cfg <filename>`
