@@ -20,6 +20,7 @@ serde_json = "1"
 statrs = "0.16"
 map_3d = "0.1.5"
 env_logger = "0.10"
+gnss-rs = { version = "2.1.2" , features = ["serde"] }
 clap = { version = "4", features = ["derive", "color"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["serde"] }
 cggtts = { path = "../../cggtts/cggtts", features = ["serde"] }

@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
 use rinex::prelude::*;

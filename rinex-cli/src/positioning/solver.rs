@@ -219,16 +219,19 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
             continue;
         }
 
+        /*
+         * store possibly provided clk state estimator,
+         * so we can compare ours to this one later
+         */
+        if let Some(clk) = clk {
+            provided_clk.insert(*t, *clk);
+        }
+
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
                 warn!("{:?} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
-            }
-
-            /* store possibly provided clk data, so we can compare to it */
-            if let Some(clk) = clk {
-                provided_clk.insert(*t, *clk);
             }
 
             let (toe, sv_eph) = sv_eph.unwrap();

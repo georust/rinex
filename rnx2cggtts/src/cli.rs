@@ -1,11 +1,12 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info};
-use rinex::prelude::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 
+use rinex::prelude::*;
 use rtk::prelude::Config;
+use cggtts::track::SkyTracker;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -45,6 +46,17 @@ You can load as many directories as you need."))
                         .value_name("FOLDER")
                         .help("Customize workspace location (folder does not have to exist).
 The default workspace is rinex-cli/workspace"))
+                .next_help_heading("Sky tracker & Common View")
+                    .arg(Arg::new("tracking")
+                        .short('t')
+                        .value_name("DURATION")
+                        .help("Modify tracking duration: default is 780s + 3' as defined by BIPM.
+You can't modify the tracking duration unless you have complete control on both remote sites."))
+                    .arg(Arg::new("single")
+                        .short('s')
+                        .value_name("SV")
+                        .action(ArgAction::SetTrue)
+                        .help("Using single (unique) Space Vehicle that will have to be in sight on both remote sites."))
                 .next_help_heading("Setup / Hardware")
                     .arg(Arg::new("rfdly")
                         .long("rf-delay")
@@ -267,5 +279,17 @@ Refer to rinex-cli Preprocessor documentation for more information"))
             }
         }
         None
+    }
+    pub fn tracking_duration(&self) -> Duration {
+        if let Some(t) = self.matches.get_one::<String>("tracking") {
+            if let Ok(dt) = Duration::from_str(t.trim()) {
+                warn!("using custom traking duration {}", dt);
+                dt
+            } else {
+                panic!("incorrect tracking duration specification");
+            }
+        } else {
+            Duration::from_seconds(SkyTracker::BIPM_TRACKING_DURATION_SECONDS.into())
+        }
     }
 }
