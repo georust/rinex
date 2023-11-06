@@ -235,8 +235,10 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
          * store possibly provided clk state estimator,
          * so we can compare ours to this one later
          */
-        if let Some(clk) = clk  && flag.is_ok() {
-            provided_clk.insert(*t, *clk);
+        if flag.is_ok() {
+            if let Some(clk) = clk {
+                provided_clk.insert(*t, *clk);
+            }
         }
 
         /* synchronize sky tracker prior anything */
@@ -278,12 +280,6 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                 // time to release this track
                 debug!("{:?} - releasing new track", *t);
 
-                let clock_state = sv_eph.sv_clock();
-                let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-                let clock_state: Vector3D = clock_state.into();
-                let mut snr = Vec::<f64>::new();
-                let mut pseudorange = Vec::<PseudoRange>::new();
-
                 for (sv, _) in vehicles {
                     let tracker = tracker
                         .pool
@@ -293,8 +289,11 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
 
                     if let Some(tracker) = tracker {
                         // 1. only continuously tracked vehicles will contribute
-                        if trk.n_avg != trk_nb_avg {
-                            debug!("{:?} - {} not contiguous will not contribute", *t, sv);
+                        if tracker.n_avg != trk_nb_avg {
+                            debug!(
+                                "{:?} - {} not continuously tracked -> will not contribute",
+                                *t, sv
+                            );
                             continue;
                         }
 
@@ -313,7 +312,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                         let mut snr = Vec::<f64>::new();
 
                         let mut pseudo_range = vec![PseudoRange {
-                            value: traker.pr,
+                            value: tracker.pseudo_range,
                             //TODO: improve this once L2/L5.. are unlocked
                             frequency: Carrier::from_str("L1").unwrap().frequency(),
                         }];
