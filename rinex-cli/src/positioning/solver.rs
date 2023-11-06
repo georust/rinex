@@ -10,7 +10,7 @@ use rtk::{
     model::TropoComponents,
     prelude::{
         AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, Mode,
-        PVTSolution, PseudoRange, Solver,
+        PVTSolution, PVTSolutionType, PseudoRange, Solver,
     },
     Vector3D,
 };
@@ -276,7 +276,13 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
         }
         let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
 
-        match solver.run(*t, candidates, tropo_components) {
+        match solver.resolve(
+            *t,
+            PVTSolutionType::PositionVelocityTime,
+            candidates,
+            tropo_components,
+            None,
+        ) {
             Ok((t, estimate)) => {
                 debug!("{:?} : {:?}", t, estimate);
                 ret.insert(t, estimate);

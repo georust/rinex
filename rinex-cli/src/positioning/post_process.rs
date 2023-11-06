@@ -70,9 +70,9 @@ pub fn post_process(
             "error",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.dx).collect::<Vec<f64>>(),
-            results.values().map(|e| e.dy).collect::<Vec<f64>>(),
-            results.values().map(|e| e.dz).collect::<Vec<f64>>(),
+            results.values().map(|e| e.p.x).collect::<Vec<f64>>(),
+            results.values().map(|e| e.p.y).collect::<Vec<f64>>(),
+            results.values().map(|e| e.p.z).collect::<Vec<f64>>(),
         );
         plot_ctx.add_trace(trace);
 
@@ -137,13 +137,23 @@ pub fn post_process(
     )?;
 
     for (epoch, solution) in results {
-        let (px, py, pz) = (x + solution.dx, y + solution.dy, z + solution.dz);
+        let (px, py, pz) = (x + solution.p.x, y + solution.p.y, z + solution.p.z);
         let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, map_3d::Ellipsoid::WGS84);
         let (hdop, vdop, tdop) = (solution.hdop, solution.vdop, solution.tdop);
         writeln!(
             fd,
             "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
-            epoch, solution.dx, solution.dy, solution.dz, px, py, pz, hdop, vdop, solution.dt, tdop
+            epoch,
+            solution.p.x,
+            solution.p.y,
+            solution.p.z,
+            px,
+            py,
+            pz,
+            hdop,
+            vdop,
+            solution.dt,
+            tdop
         )?;
         if cli.gpx() {
             let mut segment = gpx::TrackSegment::new();

@@ -15,12 +15,12 @@ use rtk::{
     Vector3D,
 };
 
-use cggtts::{
-    track::SkyTracker,
-};
+use cggtts::track::SkyTracker;
 
 use map_3d::{ecef2geodetic, Ellipsoid};
 use std::collections::HashMap;
+
+use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -124,7 +124,6 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         Some(cfg) => cfg,
         None => Config::default(Mode::SPP),
     };
-    
 
     let rtk_mode = match cli.spp() {
         true => {
@@ -133,7 +132,6 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         },
         false => Mode::SPP, //TODO
     };
-
 
     let pos = match cli.manual_position() {
         Some(pos) => pos,
@@ -155,8 +153,9 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
             return Err(Error::MissingObservationData);
         },
     };
-    
-    let dominant_sample_rate = obs_data.dominant_sample_rate()
+
+    let dominant_sample_rate = obs_data
+        .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady RINEX observations");
 
     let nav_data = match ctx.nav_data() {
@@ -221,18 +220,18 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
 
     // CGGTTS specifics
     let mut t0 = Option::<Epoch>::None;
-    let mut tracker = SkyTracker::default()
-        .tracking_duration(trk_duration);
+    let mut tracker = SkyTracker::default().tracking_duration(trk_duration);
 
     let mut time_to_next = Option::<Duration>::None;
-    
-    let trk_nb_avg = (trk_duration.total_nanoseconds() / dominant_sample_rate.total_nanoseconds()) as u32; 
+
+    let trk_nb_avg =
+        (trk_duration.total_nanoseconds() / dominant_sample_rate.total_nanoseconds()) as u32;
 
     // print more infos
     info!("using tracking duration: {}", trk_duration);
 
     for (index, ((t, flag), (clk, vehicles))) in obs_data.observation().enumerate() {
-        /* 
+        /*
          * store possibly provided clk state estimator,
          * so we can compare ours to this one later
          */
@@ -244,7 +243,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         if t0.is_none() {
             t0 = Some(tracker.next_track_start(*t));
         }
-            
+
         let t0 = t0.unwrap();
         if *t < t0 {
             // Dropping first partial track
@@ -259,7 +258,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         if !flag.is_ok() {
             continue;
         }
-        
+
         /* latch all PR observations */
         for (sv, observations) in vehicles {
             for (observable, data) in observations {
@@ -271,45 +270,39 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                 }
             }
         }
-        
+
         let time_to_next_track = tracker.time_to_next_track(*t);
-        
+
         if let Some(prev_time_to_next) = time_to_next {
             if time_to_next_track > prev_time_to_next {
                 // time to release this track
                 debug!("{:?} - releasing new track", *t);
-                
+
                 let clock_state = sv_eph.sv_clock();
                 let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
                 let clock_state: Vector3D = clock_state.into();
                 let mut snr = Vec::<f64>::new();
                 let mut pseudorange = Vec::<PseudoRange>::new();
 
-
                 for (sv, _) in vehicles {
-                    let tracker = tracker.pool
+                    let tracker = tracker
+                        .pool
                         .iter()
-                        .filter_map(|svnn, trk| {
-                            if svnn == sv {
-                                Some(trk)
-                            } else {
-                                None
-                            }
-                        })
+                        .filter_map(|(svnn, trk)| if svnn == sv { Some(trk) } else { None })
                         .reduce(|trk, _| trk);
 
                     if let Some(tracker) = tracker {
                         // 1. only continuously tracked vehicles will contribute
                         if trk.n_avg != trk_nb_avg {
                             debug!("{:?} - {} not contiguous will not contribute", *t, sv);
-                            continue ;
+                            continue;
                         }
 
                         // 2. Resolve
                         let sv_eph = nav_data.sv_ephemeris(*sv, *t);
                         if sv_eph.is_none() {
                             warn!("{:?} ({}) : undetermined ephemeris", t, sv);
-                            continue ; // can't proceed further
+                            continue; // can't proceed further
                         }
 
                         let (toe, sv_eph) = sv_eph.unwrap();
@@ -319,35 +312,11 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                         let clock_state: Vector3D = clock_state.into();
                         let mut snr = Vec::<f64>::new();
 
-                        let mut pseudo_range = vec![
-                            PseudoRange {
-                                //TODO: improve this once L2/L5.. are unlocked
-                                frequency: Carrier::from_str("L1").unwrap().
-                                value: traker.pr,
-                            },
-                        ];
-
-
-                    }
-                }
-                        // RESOLVE
-                        let sv_eph = nav_data.sv_ephemeris(*sv, *t);
-                        if let Some(ephemeris) = sv_eph {
-                        
-                            let (toe, sv_eph) = sv_eph.unwrap();
-                            
-                            let clock_state = sv_eph.sv_clock();
-                            let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-                            let clock_state: Vector3D = clock_state.into();
-                            let mut snr = Vec::<f64>::new();
-                            let mut pseudo_range = Vec::<PseudoRange>::new();
-
-
-                        } else {
-                            warn!("{:?} ({}) : undetermined ephemeris", t, sv);
-                        }
-
-                    } else {
+                        let mut pseudo_range = vec![PseudoRange {
+                            value: traker.pr,
+                            //TODO: improve this once L2/L5.. are unlocked
+                            frequency: Carrier::from_str("L1").unwrap().frequency(),
+                        }];
                     }
                 }
 
@@ -355,7 +324,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                 tracker.reset();
             }
         }
-        
+
         trace!("{:?} - {} until next track", *t, time_to_next_track);
         time_to_next = Some(time_to_next_track);
         //let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);

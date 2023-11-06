@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 
+use cggtts::track::SkyTracker;
 use rinex::prelude::*;
 use rtk::prelude::Config;
-use cggtts::track::SkyTracker;
 
 pub struct Cli {
     /// Arguments passed by user
