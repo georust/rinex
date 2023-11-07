@@ -6,7 +6,6 @@ extern crate gnss_rtk as rtk;
 
 use rinex::prelude::*;
 use rinex::preprocessing::{Filter, Preprocessing};
-use std::str::FromStr;
 
 use cggtts::prelude::Track as CGGTTSTrack;
 use cggtts::prelude::*;
@@ -21,6 +20,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use std::str::FromStr;
 use thiserror::Error;
 
 mod cli; // command line interface

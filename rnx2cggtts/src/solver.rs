@@ -319,6 +319,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                     }
                 }
 
+                match solver.resolve(*t, candidates, tropo_components, PVTSolutionType::TimeOnly) {}
+
                 // RESET the tracker
                 tracker.reset();
             }

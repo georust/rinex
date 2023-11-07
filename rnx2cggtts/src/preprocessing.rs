@@ -73,4 +73,22 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
             error!("invalid filter description \"{}\"", filt_str);
         }
     }
+
+    /* tracking a single sv */
+    if let Some(sv) = cli.single_sv() {
+        let filt = Filter::from_str(&sv.to_string()).unwrap();
+        if let Some(ref mut data) = ctx.obs_data_mut() {
+            data.filter_mut(filt.clone());
+        }
+        if let Some(ref mut data) = ctx.meteo_data_mut() {
+            data.filter_mut(filt.clone());
+        }
+        if let Some(ref mut data) = ctx.nav_data_mut() {
+            data.filter_mut(filt.clone());
+        }
+        if let Some(ref mut data) = ctx.ionex_data_mut() {
+            data.filter_mut(filt.clone());
+        }
+        info!("set to track {}", sv);
+    }
 }

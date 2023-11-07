@@ -52,11 +52,11 @@ The default workspace is rinex-cli/workspace"))
                         .value_name("DURATION")
                         .help("Modify tracking duration: default is 780s + 3' as defined by BIPM.
 You can't modify the tracking duration unless you have complete control on both remote sites."))
-                    .arg(Arg::new("single")
+                    .arg(Arg::new("single-sv")
                         .short('s')
                         .value_name("SV")
                         .action(ArgAction::SetTrue)
-                        .help("Using single (unique) Space Vehicle that will have to be in sight on both remote sites."))
+                        .help("Track single (unique) Space Vehicle that must be in plain sight on both remote sites."))
                 .next_help_heading("Setup / Hardware")
                     .arg(Arg::new("rfdly")
                         .long("rf-delay")
@@ -290,6 +290,22 @@ Refer to rinex-cli Preprocessor documentation for more information"))
             }
         } else {
             Duration::from_seconds(SkyTracker::BIPM_TRACKING_DURATION_SECONDS.into())
+        }
+    }
+    /* true if we're working on a combination of SV */
+    pub fn melting_pot(&self) -> bool {
+        self.single_sv().is_none()
+    }
+    /* true if we're tracking a single SV */
+    pub fn single_sv(&self) -> Option<SV> {
+        if let Some(sv) = self.matches.get_one::<String>("single-sv") {
+            if let Ok(sv) = SV::from_str(sv) {
+                Some(sv)
+            } else {
+                panic!("failed to parse SV from \"{}\"", sv);
+            }
+        } else {
+            None
         }
     }
 }
