@@ -10,7 +10,7 @@ use rtk::{
     model::TropoComponents,
     prelude::{
         AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, Mode,
-        PVTSolution, PseudoRange, Solver,
+        PVTSolution, PVTSolutionType, PseudoRange, Solver,
     },
     Vector3D,
 };
@@ -176,19 +176,22 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         |t, sv, order| {
             /* SP3 source is prefered */
             if let Some(sp3) = sp3_data {
-                if let Some(vec3d) = sp3.sv_position_interpolate(sv, t, order) {
-                    let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                if let Some((x, y, z)) = sp3.sv_position_interpolate(sv, t, order) {
+                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                    let (elev, azi) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
                     Some(InterpolationResult {
-                        sky_pos: vec3d.into(),
+                        sky_pos: (x, y, z).into(),
                         elevation: Some(elev),
                         azimuth: Some(azi),
                     })
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
-                    if let Some(vec3d) = nav_data.sv_position_interpolate(sv, t, order) {
-                        let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                    if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                        let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                        let (elev, azi) =
+                            Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
                         Some(InterpolationResult {
-                            sky_pos: vec3d.into(),
+                            sky_pos: (x, y, z).into(),
                             elevation: Some(elev),
                             azimuth: Some(azi),
                         })
@@ -198,10 +201,11 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                     }
                 }
             } else {
-                if let Some(vec3d) = nav_data.sv_position_interpolate(sv, t, order) {
-                    let (elev, azi) = Ephemeris::elevation_azimuth(vec3d, apriori_ecef_wgs84);
+                if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                    let (elev, azi) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
                     Some(InterpolationResult {
-                        sky_pos: vec3d.into(),
+                        sky_pos: (x, y, z).into(),
                         elevation: Some(elev),
                         azimuth: Some(azi),
                     })
@@ -214,7 +218,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
     )?;
 
     // PVT solutions
-    let mut ret: HashMap<Epoch, PVTSolution> = HashMap::new();
+    let mut solutions: HashMap<Epoch, PVTSolution> = HashMap::new();
     // possibly provided resolved T components (contained in RINEX)
     let mut provided_clk: HashMap<Epoch, f64> = HashMap::new();
 
@@ -264,8 +268,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         /* latch all PR observations */
         for (sv, observations) in vehicles {
             for (observable, data) in observations {
-                //TODO: we only latch "L1" signal at the moment
-                if observable.to_string().starts_with("L1") {
+                //TODO: we only latch "L1" observables at the moment..
+                if observable.to_string().starts_with("C1") {
                     if observable.is_pseudorange_observable() {
                         tracker.latch_data(*t, *sv, data.obs);
                     }
@@ -277,8 +281,9 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
 
         if let Some(prev_time_to_next) = time_to_next {
             if time_to_next_track > prev_time_to_next {
-                // time to release this track
                 debug!("{:?} - releasing new track", *t);
+
+                let mut candidates = Vec::<Candidate>::with_capacity(4);
 
                 for (sv, _) in vehicles {
                     let tracker = tracker
@@ -291,8 +296,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                         // 1. only continuously tracked vehicles will contribute
                         if tracker.n_avg != trk_nb_avg {
                             debug!(
-                                "{:?} - {} not continuously tracked -> will not contribute",
-                                *t, sv
+                                "{:?} - {} ({}/{}) loss of sight, will not contribute",
+                                *t, sv, tracker.n_avg, trk_nb_avg
                             );
                             continue;
                         }
@@ -316,10 +321,37 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                             //TODO: improve this once L2/L5.. are unlocked
                             frequency: Carrier::from_str("L1").unwrap().frequency(),
                         }];
+
+                        if let Ok(candidate) = Candidate::new(
+                            *sv,
+                            *t,
+                            clock_state,
+                            clock_corr,
+                            None,
+                            pseudo_range.clone(),
+                        ) {
+                            candidates.push(candidate);
+                        } else {
+                            warn!("{:?}: failed to form {} candidate", t, sv);
+                        }
                     }
                 }
 
-                match solver.resolve(*t, candidates, tropo_components, PVTSolutionType::TimeOnly) {}
+                let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
+
+                match solver.resolve(
+                    *t,
+                    PVTSolutionType::TimeOnly,
+                    candidates,
+                    tropo_components,
+                    None,
+                ) {
+                    Ok((t, pvt)) => {
+                        debug!("{:?} : {:?}", t, pvt);
+                        solutions.insert(t, pvt);
+                    },
+                    Err(e) => warn!("{:?} : {}", t, e),
+                }
 
                 // RESET the tracker
                 tracker.reset();
@@ -328,15 +360,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
 
         trace!("{:?} - {} until next track", *t, time_to_next_track);
         time_to_next = Some(time_to_next_track);
-        //let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
-
-        //match solver.run(*t, candidates, tropo_components) {
-        //    Ok((t, estimate)) => {
-        //        debug!("{:?} : {:?}", t, estimate);
-        //        ret.insert(t, estimate);
-        //    },
-        //    Err(e) => warn!("{:?} : {}", t, e),
-        //}
     }
-    Ok(ret)
+
+    Ok(solutions)
 }

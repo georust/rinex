@@ -248,6 +248,8 @@ pub fn main() -> Result<(), Error> {
 
     let solutions = solver::resolve(&mut ctx, &cli);
 
+    info!("PVT SOLUTIONS : {:#?}", solutions);
+
     // // RUN
     // let mut solving = true;
     // let mut tracks: Vec<CGGTTSTrack> = Vec::new();

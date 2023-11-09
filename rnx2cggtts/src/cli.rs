@@ -55,7 +55,6 @@ You can't modify the tracking duration unless you have complete control on both 
                     .arg(Arg::new("single-sv")
                         .short('s')
                         .value_name("SV")
-                        .action(ArgAction::SetTrue)
                         .help("Track single (unique) Space Vehicle that must be in plain sight on both remote sites."))
                 .next_help_heading("Setup / Hardware")
                     .arg(Arg::new("rfdly")

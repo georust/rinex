@@ -207,12 +207,12 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
     )?;
 
     // resolved PVT solutions
-    let mut ret: HashMap<Epoch, PVTSolution> = HashMap::new();
+    let mut solutions: HashMap<Epoch, PVTSolution> = HashMap::new();
     // possibly provided resolved T components (contained in RINEX)
     let mut provided_clk: HashMap<Epoch, f64> = HashMap::new();
 
     for ((t, flag), (clk, vehicles)) in obs_data.observation() {
-        let mut candidates: Vec<Candidate> = Vec::new();
+        let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
             /* we only consider "OK" epochs" */
@@ -283,12 +283,12 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
             tropo_components,
             None,
         ) {
-            Ok((t, estimate)) => {
-                debug!("{:?} : {:?}", t, estimate);
-                ret.insert(t, estimate);
+            Ok((t, pvt)) => {
+                debug!("{:?} : {:?}", t, pvt);
+                solutions.insert(t, pvt);
             },
             Err(e) => warn!("{:?} : {}", t, e),
         }
     }
-    Ok(ret)
+    Ok(solutions)
 }
