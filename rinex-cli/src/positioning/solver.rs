@@ -112,18 +112,19 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
 }
 
 pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolution>, Error> {
-    // parse custom config, if any
-    let cfg = match cli.config() {
-        Some(cfg) => cfg,
-        None => Config::default(Mode::SPP),
-    };
-
-    let mode = match cli.spp() {
+    // custom strategy
+    let rtk_mode = match cli.spp() {
         true => {
             info!("spp position solver");
             Mode::SPP
         },
         false => Mode::SPP, //TODO
+    };
+
+    // parse custom config, if any
+    let cfg = match cli.config() {
+        Some(cfg) => cfg,
+        None => Config::default(rtk_mode),
     };
 
     let pos = match cli.manual_position() {
@@ -158,7 +159,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
-        mode,
+        rtk_mode,
         apriori,
         &cfg,
         /* state vector interpolator */

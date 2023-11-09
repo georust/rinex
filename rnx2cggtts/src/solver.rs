@@ -2,9 +2,12 @@ use crate::Cli;
 use statrs::statistics::Statistics;
 
 use gnss::prelude::{Constellation, SV};
-use rinex::carrier::Carrier;
-use rinex::navigation::Ephemeris;
-use rinex::prelude::{Observable, Rinex, RnxContext};
+
+use rinex::{
+    carrier::Carrier,
+    navigation::Ephemeris,
+    prelude::{Observable, Rinex, RnxContext},
+};
 
 use rtk::{
     model::TropoComponents,
@@ -15,10 +18,12 @@ use rtk::{
     Vector3D,
 };
 
-use cggtts::track::SkyTracker;
+use cggtts::{
+    prelude::{CommonViewClass, Track, TrackData},
+    track::SkyTracker,
+};
 
 use map_3d::{ecef2geodetic, Ellipsoid};
-use std::collections::HashMap;
 
 use std::str::FromStr;
 use thiserror::Error;
@@ -115,22 +120,23 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
     }
 }
 
-pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolution>, Error> {
+pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // cli customizations
     let trk_duration = cli.tracking_duration();
 
-    // parse custom config, if any
-    let cfg = match cli.config() {
-        Some(cfg) => cfg,
-        None => Config::default(Mode::SPP),
-    };
-
+    // custom strategy
     let rtk_mode = match cli.spp() {
         true => {
             info!("spp position solver");
             Mode::SPP
         },
         false => Mode::SPP, //TODO
+    };
+
+    // parse custom config, if any
+    let cfg = match cli.config() {
+        Some(cfg) => cfg,
+        None => Config::default(rtk_mode),
     };
 
     let pos = match cli.manual_position() {
@@ -217,16 +223,17 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         },
     )?;
 
-    // PVT solutions
-    let mut solutions: HashMap<Epoch, PVTSolution> = HashMap::new();
-    // possibly provided resolved T components (contained in RINEX)
-    let mut provided_clk: HashMap<Epoch, f64> = HashMap::new();
-
     // CGGTTS specifics
-    let mut t0 = Option::<Epoch>::None;
-    let mut tracker = SkyTracker::default().tracking_duration(trk_duration);
+    let mut tracks = Vec::<Track>::new();
 
+    let mut t0 = Option::<Epoch>::None;
+    let mut dsg = 0.0_f64;
+    let mut tracker = SkyTracker::default().tracking_duration(trk_duration);
     let mut time_to_next = Option::<Duration>::None;
+    let mut srsys = 0.0_f64;
+    let mut refsys: Option<f64> = None;
+    let (mut trk_azi, mut trk_elev) = (0.0_f64, 0.0_f64);
+    let mut melting_pot = false;
 
     let trk_nb_avg =
         (trk_duration.total_nanoseconds() / dominant_sample_rate.total_nanoseconds()) as u32;
@@ -235,16 +242,6 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
     info!("using tracking duration: {}", trk_duration);
 
     for (index, ((t, flag), (clk, vehicles))) in obs_data.observation().enumerate() {
-        /*
-         * store possibly provided clk state estimator,
-         * so we can compare ours to this one later
-         */
-        if flag.is_ok() {
-            if let Some(clk) = clk {
-                provided_clk.insert(*t, *clk);
-            }
-        }
-
         /* synchronize sky tracker prior anything */
         if t0.is_none() {
             t0 = Some(tracker.next_track_start(*t));
@@ -280,7 +277,12 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         let time_to_next_track = tracker.time_to_next_track(*t);
 
         if let Some(prev_time_to_next) = time_to_next {
-            if time_to_next_track > prev_time_to_next {
+            // if time_to_next_track <= trk_duration /2 && prev_time_to_next > trk_duration /2 {
+            //     /* mid track point */
+            //     }
+            // }
+
+            if time_to_next_track >= prev_time_to_next {
                 debug!("{:?} - releasing new track", *t);
 
                 let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -342,13 +344,76 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
                 match solver.resolve(
                     *t,
                     PVTSolutionType::TimeOnly,
-                    candidates,
+                    candidates.clone(),
                     tropo_components,
                     None,
                 ) {
-                    Ok((t, pvt)) => {
-                        debug!("{:?} : {:?}", t, pvt);
-                        solutions.insert(t, pvt);
+                    Ok((t, pvt_solution)) => {
+                        // form a CGGTTS track
+                        debug!("{:?} : {:?}", t, pvt_solution);
+
+                        if let Some(refsys) = refsys {
+                            srsys = (pvt_solution.dt - refsys)
+                                / (trk_duration.total_nanoseconds() as f64 * 1.0E-9);
+                        }
+
+                        refsys = Some(pvt_solution.dt);
+
+                        let track = match melting_pot {
+                            true => {
+                                /* we're in focused common view */
+                                Track::new_sv(
+                                    candidates.clone()[0].sv,
+                                    t,
+                                    trk_duration,
+                                    CommonViewClass::SingleChannel,
+                                    trk_elev,
+                                    trk_azi,
+                                    TrackData {
+                                        refsv: 9999999999.0,
+                                        srsv: 99999.0,
+                                        refsys: pvt_solution.dt,
+                                        srsys, //TODO
+                                        dsg,   //TODO
+                                        ioe: 999,
+                                        mdtr: 9999.0,
+                                        smdt: 999.0,
+                                        mdio: 9999.0,
+                                        smdi: 999.0,
+                                    },
+                                    None,  //TODO "iono": once L2/L5 unlocked,
+                                    99,    // TODO "rcvr_channel"
+                                    "C1C", //TODO: verify this please
+                                )
+                            },
+                            false => {
+                                /* melting pot */
+                                Track::new_melting_pot(
+                                    t,
+                                    trk_duration,
+                                    CommonViewClass::MultiChannel,
+                                    trk_elev,
+                                    trk_azi,
+                                    TrackData {
+                                        refsv: 9999999999.0,
+                                        srsv: 99999.0,
+                                        refsys: pvt_solution.dt,
+                                        srsys, //TODO
+                                        dsg,   //TODO
+                                        ioe: 999,
+                                        mdtr: 9999.0,
+                                        smdt: 999.0,
+                                        mdio: 9999.0,
+                                        smdi: 999.0,
+                                    },
+                                    None,  //TODO "iono": once L2/L5 unlocked,
+                                    99,    // TODO "rcvr_channel"
+                                    "C1C", //TODO: verify this please
+                                )
+                            },
+                        };
+
+                        tracks.push(track);
                     },
                     Err(e) => warn!("{:?} : {}", t, e),
                 }
@@ -362,5 +427,5 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolu
         time_to_next = Some(time_to_next_track);
     }
 
-    Ok(solutions)
+    Ok(tracks)
 }

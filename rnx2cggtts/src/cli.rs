@@ -4,14 +4,15 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 
-use cggtts::track::SkyTracker;
-use rinex::prelude::*;
-use rtk::prelude::Config;
-
 pub struct Cli {
     /// Arguments passed by user
     matches: ArgMatches,
 }
+
+use cggtts::{prelude::ReferenceTime, track::SkyTracker};
+
+use rinex::prelude::*;
+use rtk::prelude::Config;
 
 impl Cli {
     /// Build new command line interface
@@ -46,14 +47,33 @@ You can load as many directories as you need."))
                         .value_name("FOLDER")
                         .help("Customize workspace location (folder does not have to exist).
 The default workspace is rinex-cli/workspace"))
-                .next_help_heading("Sky tracker & Common View")
+                .next_help_heading("CGGTTS")
+                    .arg(Arg::new("custom-clock")
+                        .long("clk")
+                        .value_name("NAME")
+                        .help("Set the name of your local custom clock (in case it's a UTC replica, prefer -u)."))
+                    .arg(Arg::new("utck")
+                        .short('u')
+                        .value_name("NAME")
+                        .help("Set the name of your local UTC replica. In case your local clock is not tracking UTC, prefer --clk."))
+                    .arg(Arg::new("station")
+                        .short('s')
+                        .value_name("NAME")
+                        .help("Define / override the station name. If not specified, we expect the input
+RINEX Observations to follow naming conventions and we deduce the station name from the filename."))
+                    .arg(Arg::new("filename")
+                        .short('o')
+                        .value_name("FILENAME")
+                        .help("Set CGGTTS filename to be generated (within workspace).
+When not defined, the CGGTTS follows naming conventions, and is named after the Station and Receiver definitions."))
+                .next_help_heading("Sky tracking & Common View")
                     .arg(Arg::new("tracking")
                         .short('t')
                         .value_name("DURATION")
                         .help("Modify tracking duration: default is 780s + 3' as defined by BIPM.
 You can't modify the tracking duration unless you have complete control on both remote sites."))
                     .arg(Arg::new("single-sv")
-                        .short('s')
+                        .long("sv")
                         .value_name("SV")
                         .help("Track single (unique) Space Vehicle that must be in plain sight on both remote sites."))
                 .next_help_heading("Setup / Hardware")
@@ -306,5 +326,29 @@ Refer to rinex-cli Preprocessor documentation for more information"))
         } else {
             None
         }
+    }
+    fn utck(&self) -> Option<&String> {
+        self.matches.get_one::<String>("utck")
+    }
+    fn custom_clock(&self) -> Option<&String> {
+        self.matches.get_one::<String>("custom-clock")
+    }
+    /* reference time to use in header formatting */
+    pub fn reference_time(&self) -> ReferenceTime {
+        if let Some(utck) = self.utck() {
+            ReferenceTime::UTCk(utck.clone())
+        } else if let Some(clk) = self.custom_clock() {
+            ReferenceTime::Custom(clk.clone())
+        } else {
+            ReferenceTime::Custom("Unknown".to_string())
+        }
+    }
+    /* custom station name */
+    pub fn custom_station(&self) -> Option<&String> {
+        self.matches.get_one::<String>("station")
+    }
+    /* custom filename */
+    pub fn custom_filename(&self) -> Option<&String> {
+        self.matches.get_one::<String>("filename")
     }
 }

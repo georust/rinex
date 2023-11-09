@@ -13,10 +13,9 @@ use cggtts::Coordinates;
 
 use cli::Cli;
 
-//extern crate pretty_env_logger;
 use env_logger::{Builder, Target};
 
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -31,10 +30,14 @@ use preprocessing::preprocess;
 
 mod solver;
 
+use std::fs::File;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("rinex error")]
     RinexError(#[from] rinex::Error),
+    #[error("failed to format cggtts")]
+    CggttsWriteError(#[from] std::io::Error),
 }
 
 /*
@@ -111,58 +114,6 @@ fn build_context(cli: &Cli) -> RnxContext {
     }
     ctx
 }
-
-#[derive(Debug, Clone, Default)]
-struct TrackerData {
-    pub epoch: Epoch,
-    pub nb_avg: u16,
-    pub buffer: f64,
-}
-
-#[derive(Debug, Clone, Default)]
-struct Tracker {
-    /// SV that we're tracking
-    pub sv: SV,
-    pub trk_duration: Duration,
-}
-
-impl Tracker {
-    fn new(sv: SV, trk_duration: Duration) -> Self {
-        Self { sv, trk_duration }
-    }
-    // /// Track new SV (raw) measurement. Returns TrackData optionaly if we were able to form it
-    // fn track(&mut self, t: Epoch, pr: f64) -> Option<TrackData> {
-    //     if let Some(data) = self.data {
-    //     } else {
-    //         /* align to scheduling procedure for synchronous CGGTTS */
-    //         if self.synchronous {
-    //             panic!("synchronous CGGTTS not supported yet");
-    //         } else {
-    //             self.data = {}
-    //         }
-    //     }
-    // }
-}
-
-// fn tracking(
-//     &mut buffer: HashMap<(Epoch, SV, Observable), (u16, f64)>,
-//     sv: &SV,
-//     code: &Observable,
-// ) -> Option<((Epoch, SV, Observable), (u16, f64))> {
-//     let key = buffer
-//         .keys()
-//         .filter_map(|(t, svnn, codenn)| {
-//             if svnn == sv && code == codenn {
-//                 Some((t, svnn, codenn))
-//             } else {
-//                 None
-//             }
-//         })
-//         .reduce(|data, _| data);
-//     let key = key?;
-//     let value = buffer.remove(key)?;
-//     Some((key, value))
-// }
 
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
@@ -246,33 +197,6 @@ pub fn main() -> Result<(), Error> {
      */
     preprocess(&mut ctx, &cli);
 
-    let solutions = solver::resolve(&mut ctx, &cli);
-
-    info!("PVT SOLUTIONS : {:#?}", solutions);
-
-    // // RUN
-    // let mut solving = true;
-    // let mut tracks: Vec<CGGTTSTrack> = Vec::new();
-    // let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
-    // let mut tracker: Vec<Tracker> = Vec::new();
-
-    // while solving {
-    //     match solver.run(&mut ctx) {
-    //         Ok((t, estimate)) => {
-    //             trace!("{:?}", t);
-    //             results.insert(t, estimate);
-    //         },
-    //         Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
-    //         Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
-    //         Err(SolverError::SolvingError(t)) => {
-    //             error!("failed to invert navigation matrix @ {}", t)
-    //         },
-    //         Err(SolverError::EpochDetermination(_)) => {
-    //             solving = false; // abort
-    //         },
-    //         Err(e) => panic!("fatal error {:?}", e),
-    //     }
-    // }
     /*
      * Form CGGTTS
      */
@@ -283,20 +207,49 @@ pub fn main() -> Result<(), Error> {
         z: 0.0_f64,
     };
 
-    let utck = ReferenceTime::UTCk("LAB".to_string());
+    let station: String = match cli.custom_station() {
+        Some(station) => station.to_string(),
+        None => {
+            let stem = context_stem(&ctx);
+            if let Some(index) = stem.find('_') {
+                stem[..index].to_string()
+            } else {
+                String::from("LAB")
+            }
+        },
+    };
 
-    let cggtts = CGGTTS::default()
-        .lab_agency("my agency")
+    let mut cggtts = CGGTTS::default()
+        .station(&station)
         .nb_channels(1)
         .receiver(rcvr)
-        //.ims(ims)
+        //.ims(ims) // TODO
         .apc_coordinates(apc)
-        .time_reference(utck)
+        .reference_time(cli.reference_time())
         .reference_frame("WGS84")
         .comments(&format!(
             "Generated with rnx2cggtts {}",
             env!("CARGO_PKG_VERSION")
         ));
+
+    /*
+     * Form TRACKS
+     */
+    let tracks = solver::resolve(&mut ctx, &cli);
+
+    if let Ok(tracks) = tracks {
+        for trk in tracks {
+            cggtts.tracks.push(trk);
+        }
+    }
+
+    let filename = match cli.custom_filename() {
+        Some(filename) => filename.to_string(),
+        None => cggtts.filename(),
+    };
+
+    let mut fd = File::create(&filename)?;
+    write!(fd, "{}", cggtts)?;
 
     Ok(())
 }
