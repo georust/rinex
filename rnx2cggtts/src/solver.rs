@@ -12,7 +12,7 @@ use rtk::{
     model::TropoComponents,
     prelude::{
         AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, Mode,
-        PVTSolution, PVTSolutionType, PseudoRange, Solver,
+        PVTSolution, PVTSolutionType, PseudoRange, Solver, TimeScale,
     },
     Vector3D,
 };
@@ -240,11 +240,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
-
-    let mut sched = Scheduler::new(first_epoch, trk_duration);
-    let mut trk_data = TrackData::default();
-    let (mut trk_azi, mut trk_elev) = (0.0_f64, 0.0_f64);
-    let mut prev_time_to_next = Option::<Duration>::None;
+    let mut sched = Scheduler::new(first_epoch.in_time_scale(TimeScale::UTC), trk_duration);
 
     for ((t, flag), (clk, vehicles)) in obs_data.observation() {
         /*
@@ -316,57 +312,62 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         if single_sv.is_some() {
                             candidates[0].azimuth.unwrap()
                         } else {
-                            0.0_f64
+                            9999.0_f64
                         }
                     },
                     elevation: {
                         if single_sv.is_some() {
                             candidates[0].elevation.unwrap()
                         } else {
-                            0.0_f64
+                            999.0_f64
                         }
                     },
                 };
 
                 let ioe = 0; //TODO
+                match sched.latch_measurements(t, fitdata, ioe) {
+                    Err(e) => {
+                        warn!("{:?} - track fitting error: \"{}\"", t, e);
+                        sched.reset(t);
+                    },
+                    Ok(None) => info!("{:?} - {} until next track", t, sched.time_to_next_track(t)),
+                    Ok(Some(((trk_elev, trk_azi), trk_data))) => {
+                        debug!("{:?} - formed new track", t);
 
-                if let Some(trk_data) = sched.latch_measurements(t, fitdata, ioe) {
-                    debug!("{:?} - releasing new track", t);
+                        let track = match single_sv {
+                            Some(sv) => {
+                                /* we're in focused common view */
+                                Track::new_sv(
+                                    sv,
+                                    t.in_time_scale(TimeScale::UTC),
+                                    trk_duration,
+                                    CommonViewClass::SingleChannel,
+                                    trk_elev,
+                                    trk_azi,
+                                    trk_data,
+                                    None,  //TODO "iono": once L2/L5 unlocked,
+                                    99,    // TODO "rcvr_channel"
+                                    "C1C", //TODO: verify this please
+                                )
+                            },
+                            None => {
+                                /* melting pot */
+                                Track::new_melting_pot(
+                                    t.in_time_scale(TimeScale::UTC),
+                                    trk_duration,
+                                    CommonViewClass::MultiChannel,
+                                    trk_elev,
+                                    trk_azi,
+                                    trk_data,
+                                    None,  //TODO "iono": once L2/L5 unlocked,
+                                    99,    // TODO "rcvr_channel"
+                                    "C1C", //TODO: verify this please
+                                )
+                            },
+                        };
 
-                    let track = match single_sv {
-                        Some(sv) => {
-                            /* we're in focused common view */
-                            Track::new_sv(
-                                sv,
-                                t,
-                                trk_duration,
-                                CommonViewClass::SingleChannel,
-                                trk_elev,
-                                trk_azi,
-                                trk_data,
-                                None,  //TODO "iono": once L2/L5 unlocked,
-                                99,    // TODO "rcvr_channel"
-                                "C1C", //TODO: verify this please
-                            )
-                        },
-                        None => {
-                            /* melting pot */
-                            Track::new_melting_pot(
-                                t,
-                                trk_duration,
-                                CommonViewClass::MultiChannel,
-                                trk_elev,
-                                trk_azi,
-                                trk_data,
-                                None,  //TODO "iono": once L2/L5 unlocked,
-                                99,    // TODO "rcvr_channel"
-                                "C1C", //TODO: verify this please
-                            )
-                        },
-                    };
-                    tracks.push(track);
-                } else {
-                    trace!("{:?} - {} until next track", t, sched.time_to_next_track(t));
+                        tracks.push(track);
+                    },
                 }
             },
             Err(e) => warn!("{:?} - pvt resolution error \"{}\"", t, e),
