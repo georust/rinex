@@ -244,17 +244,6 @@ pub fn main() -> Result<(), Error> {
             env!("CARGO_PKG_VERSION")
         ));
 
-    /*
-     * Form TRACKS
-     */
-    let tracks = solver::resolve(&mut ctx, &cli);
-
-    if let Ok(tracks) = tracks {
-        for trk in tracks {
-            cggtts.tracks.push(trk);
-        }
-    }
-
     let filename = match cli.custom_filename() {
         Some(filename) => filename.to_string(),
         None => cggtts.filename(),
@@ -262,6 +251,17 @@ pub fn main() -> Result<(), Error> {
 
     let mut fd = File::create(&filename)?;
     write!(fd, "{}", cggtts)?;
+
+    /*
+     * Form TRACKS
+     */
+    let tracks = solver::resolve(&mut ctx, &cli, &mut fd);
+
+    // if let Ok(tracks) = tracks {
+    //     for trk in tracks {
+    //         cggtts.tracks.push(trk);
+    //     }
+    // }
 
     Ok(())
 }

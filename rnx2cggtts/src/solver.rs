@@ -1,4 +1,6 @@
 use crate::Cli;
+use std::fs::File;
+use std::io::Write;
 
 use gnss::prelude::{Constellation, SV};
 
@@ -41,6 +43,8 @@ pub enum Error {
     MissingSp3Data,
     #[error("undefined apriori position")]
     UndefinedAprioriPosition,
+    #[error("failed to write CGGTTS track")]
+    WriteError(#[from] std::io::Error),
 }
 
 fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<TropoComponents> {
@@ -121,7 +125,7 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
     }
 }
 
-pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
+pub fn resolve(ctx: &mut RnxContext, cli: &Cli, fd: &mut File) -> Result<Vec<Track>, Error> {
     // cli customizations
     let trk_duration = cli.tracking_duration();
     let trk_duration_s = trk_duration.total_nanoseconds() as f64 * 1.0E-9;
@@ -332,7 +336,15 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     },
                     Ok(None) => info!("{:?} - {} until next track", t, sched.time_to_next_track(t)),
                     Ok(Some(((trk_elev, trk_azi), trk_data))) => {
-                        debug!("{:?} - formed new track", t);
+                        info!("{:?} - formed new track", t);
+                        trace!(
+                            "{:?} - Elev {}° - Azi {}° - REFSV {} REFSYS {}",
+                            t,
+                            trk_elev,
+                            trk_azi,
+                            trk_data.refsv,
+                            trk_data.refsys
+                        );
 
                         let track = match single_sv {
                             Some(sv) => {
@@ -366,7 +378,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                             },
                         };
 
-                        tracks.push(track);
+                        writeln!(fd, "{}", track)?;
                     },
                 }
             },
