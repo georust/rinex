@@ -288,7 +288,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
                 debug!("{:?} : {:?}", t, pvt);
                 solutions.insert(t, pvt);
             },
-            Err(e) => warn!("{:?} : {}", t, e),
+            Err(e) => warn!("{:?} : pvt solver error \"{}\"", t, e),
         }
     }
     Ok(solutions)
