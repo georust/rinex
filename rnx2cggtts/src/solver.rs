@@ -1,5 +1,4 @@
 use crate::Cli;
-use statrs::statistics::Statistics;
 
 use gnss::prelude::{Constellation, SV};
 
@@ -20,11 +19,13 @@ use rtk::{
 
 use cggtts::{
     prelude::{CommonViewClass, Track, TrackData},
-    track::SkyTracker,
+    track::{FitData, Scheduler},
 };
 
+//use statrs::statistics::Statistics;
 use map_3d::{ecef2geodetic, Ellipsoid};
 
+use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -123,6 +124,16 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
 pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // cli customizations
     let trk_duration = cli.tracking_duration();
+    let trk_duration_s = trk_duration.total_nanoseconds() as f64 * 1.0E-9;
+    info!("tracking duration: {}", trk_duration);
+
+    let single_sv: Option<SV> = match cli.single_sv() {
+        Some(sv) => {
+            info!("tracking {}", sv);
+            Some(sv)
+        },
+        None => None,
+    };
 
     // custom strategy
     let rtk_mode = match cli.spp() {
@@ -163,6 +174,10 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     let dominant_sample_rate = obs_data
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady RINEX observations");
+
+    let first_epoch = obs_data
+        .first_epoch()
+        .expect("RNX2CGGTTS requires RINEX observations to be populated");
 
     let nav_data = match ctx.nav_data() {
         Some(data) => data,
@@ -226,205 +241,136 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
 
-    let mut t0 = Option::<Epoch>::None;
-    let mut dsg = 0.0_f64;
-    let mut tracker = SkyTracker::default().tracking_duration(trk_duration);
-    let mut time_to_next = Option::<Duration>::None;
-    let mut srsys = 0.0_f64;
-    let mut refsys: Option<f64> = None;
+    let mut sched = Scheduler::new(first_epoch, trk_duration);
+    let mut trk_data = TrackData::default();
     let (mut trk_azi, mut trk_elev) = (0.0_f64, 0.0_f64);
-    let mut melting_pot = false;
+    let mut prev_time_to_next = Option::<Duration>::None;
 
-    let trk_nb_avg =
-        (trk_duration.total_nanoseconds() / dominant_sample_rate.total_nanoseconds()) as u32;
-
-    // print more infos
-    info!("using tracking duration: {}", trk_duration);
-
-    for (index, ((t, flag), (clk, vehicles))) in obs_data.observation().enumerate() {
-        /* synchronize sky tracker prior anything */
-        if t0.is_none() {
-            t0 = Some(tracker.next_track_start(*t));
-        }
-
-        let t0 = t0.unwrap();
-        if *t < t0 {
-            // Dropping first partial track
-            trace!("{:?} - tracker is not synchronized", *t);
-            continue;
-        }
-
+    for ((t, flag), (clk, vehicles)) in obs_data.observation() {
         /*
-         * Tracker is now aligned & ""synchronized""
          * we only consider "OK" Epochs
          */
         if !flag.is_ok() {
             continue;
         }
+        // resolve a PVT
+        let mut candidates = Vec::<Candidate>::with_capacity(4);
 
-        /* latch all PR observations */
         for (sv, observations) in vehicles {
+            // form PVT candidate
+            let sv_eph = nav_data.sv_ephemeris(*sv, *t);
+            if sv_eph.is_none() {
+                warn!("{:?} ({}) : undetermined ephemeris", t, sv);
+                continue; // can't proceed further
+            }
+
+            let (toe, sv_eph) = sv_eph.unwrap();
+
+            let clock_state = sv_eph.sv_clock();
+            let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
+            let clock_state: Vector3D = clock_state.into();
+            let mut snr = Vec::<f64>::new();
+            let mut pseudo_range = Vec::<PseudoRange>::new();
+
             for (observable, data) in observations {
-                //TODO: we only latch "L1" observables at the moment..
+                //TODO: we can only latch "L1" observables at the moment..
                 if observable.to_string().starts_with("C1") {
                     if observable.is_pseudorange_observable() {
-                        tracker.latch_data(*t, *sv, data.obs);
+                        pseudo_range.push(PseudoRange {
+                            value: data.obs,
+                            frequency: Carrier::from_str("L1").unwrap().frequency(), //TODO L2, L5..
+                        });
                     }
                 }
             }
+
+            if let Ok(candidate) =
+                Candidate::new(*sv, *t, clock_state, clock_corr, None, pseudo_range.clone())
+            {
+                candidates.push(candidate);
+            } else {
+                warn!("{:?}: failed to form {} candidate", t, sv);
+            }
         }
 
-        let time_to_next_track = tracker.time_to_next_track(*t);
+        // resolve PVT
+        let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
 
-        if let Some(prev_time_to_next) = time_to_next {
-            // if time_to_next_track <= trk_duration /2 && prev_time_to_next > trk_duration /2 {
-            //     /* mid track point */
-            //     }
-            // }
+        match solver.resolve(
+            *t,
+            PVTSolutionType::TimeOnly,
+            candidates.clone(),
+            tropo_components,
+            None,
+        ) {
+            Ok((t, pvt_solution)) => {
+                debug!("{:?} : {:?}", t, pvt_solution);
 
-            if time_to_next_track >= prev_time_to_next {
-                debug!("{:?} - releasing new track", *t);
-
-                let mut candidates = Vec::<Candidate>::with_capacity(4);
-
-                for (sv, _) in vehicles {
-                    let tracker = tracker
-                        .pool
-                        .iter()
-                        .filter_map(|(svnn, trk)| if svnn == sv { Some(trk) } else { None })
-                        .reduce(|trk, _| trk);
-
-                    if let Some(tracker) = tracker {
-                        // 1. only continuously tracked vehicles will contribute
-                        if tracker.n_avg != trk_nb_avg {
-                            debug!(
-                                "{:?} - {} ({}/{}) loss of sight, will not contribute",
-                                *t, sv, tracker.n_avg, trk_nb_avg
-                            );
-                            continue;
-                        }
-
-                        // 2. Resolve
-                        let sv_eph = nav_data.sv_ephemeris(*sv, *t);
-                        if sv_eph.is_none() {
-                            warn!("{:?} ({}) : undetermined ephemeris", t, sv);
-                            continue; // can't proceed further
-                        }
-
-                        let (toe, sv_eph) = sv_eph.unwrap();
-
-                        let clock_state = sv_eph.sv_clock();
-                        let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-                        let clock_state: Vector3D = clock_state.into();
-                        let mut snr = Vec::<f64>::new();
-
-                        let mut pseudo_range = vec![PseudoRange {
-                            value: tracker.pseudo_range,
-                            //TODO: improve this once L2/L5.. are unlocked
-                            frequency: Carrier::from_str("L1").unwrap().frequency(),
-                        }];
-
-                        if let Ok(candidate) = Candidate::new(
-                            *sv,
-                            *t,
-                            clock_state,
-                            clock_corr,
-                            None,
-                            pseudo_range.clone(),
-                        ) {
-                            candidates.push(candidate);
+                let fitdata = FitData {
+                    refsv: pvt_solution.dt,
+                    refsys: 0.0_f64, //TODO
+                    mdtr: pvt_solution.tropo,
+                    mdio: pvt_solution.iono.modeled,
+                    msio: pvt_solution.iono.measured,
+                    azimuth: {
+                        if single_sv.is_some() {
+                            candidates[0].azimuth.unwrap()
                         } else {
-                            warn!("{:?}: failed to form {} candidate", t, sv);
+                            0.0_f64
                         }
-                    }
-                }
-
-                let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
-
-                match solver.resolve(
-                    *t,
-                    PVTSolutionType::TimeOnly,
-                    candidates.clone(),
-                    tropo_components,
-                    None,
-                ) {
-                    Ok((t, pvt_solution)) => {
-                        // form a CGGTTS track
-                        debug!("{:?} : {:?}", t, pvt_solution);
-
-                        if let Some(refsys) = refsys {
-                            srsys = (pvt_solution.dt - refsys)
-                                / (trk_duration.total_nanoseconds() as f64 * 1.0E-9);
-                        }
-
-                        refsys = Some(pvt_solution.dt);
-
-                        let track = match melting_pot {
-                            true => {
-                                /* we're in focused common view */
-                                Track::new_sv(
-                                    candidates.clone()[0].sv,
-                                    t,
-                                    trk_duration,
-                                    CommonViewClass::SingleChannel,
-                                    trk_elev,
-                                    trk_azi,
-                                    TrackData {
-                                        refsv: 9999999999.0,
-                                        srsv: 99999.0,
-                                        refsys: pvt_solution.dt,
-                                        srsys, //TODO
-                                        dsg,   //TODO
-                                        ioe: 999,
-                                        mdtr: 9999.0,
-                                        smdt: 999.0,
-                                        mdio: 9999.0,
-                                        smdi: 999.0,
-                                    },
-                                    None,  //TODO "iono": once L2/L5 unlocked,
-                                    99,    // TODO "rcvr_channel"
-                                    "C1C", //TODO: verify this please
-                                )
-                            },
-                            false => {
-                                /* melting pot */
-                                Track::new_melting_pot(
-                                    t,
-                                    trk_duration,
-                                    CommonViewClass::MultiChannel,
-                                    trk_elev,
-                                    trk_azi,
-                                    TrackData {
-                                        refsv: 9999999999.0,
-                                        srsv: 99999.0,
-                                        refsys: pvt_solution.dt,
-                                        srsys, //TODO
-                                        dsg,   //TODO
-                                        ioe: 999,
-                                        mdtr: 9999.0,
-                                        smdt: 999.0,
-                                        mdio: 9999.0,
-                                        smdi: 999.0,
-                                    },
-                                    None,  //TODO "iono": once L2/L5 unlocked,
-                                    99,    // TODO "rcvr_channel"
-                                    "C1C", //TODO: verify this please
-                                )
-                            },
-                        };
-
-                        tracks.push(track);
                     },
-                    Err(e) => warn!("{:?} : {}", t, e),
+                    elevation: {
+                        if single_sv.is_some() {
+                            candidates[0].elevation.unwrap()
+                        } else {
+                            0.0_f64
+                        }
+                    },
+                };
+
+                let ioe = 0; //TODO
+
+                if let Some(trk_data) = sched.latch_measurements(t, fitdata, ioe) {
+                    debug!("{:?} - releasing new track", t);
+
+                    let track = match single_sv {
+                        Some(sv) => {
+                            /* we're in focused common view */
+                            Track::new_sv(
+                                sv,
+                                t,
+                                trk_duration,
+                                CommonViewClass::SingleChannel,
+                                trk_elev,
+                                trk_azi,
+                                trk_data,
+                                None,  //TODO "iono": once L2/L5 unlocked,
+                                99,    // TODO "rcvr_channel"
+                                "C1C", //TODO: verify this please
+                            )
+                        },
+                        None => {
+                            /* melting pot */
+                            Track::new_melting_pot(
+                                t,
+                                trk_duration,
+                                CommonViewClass::MultiChannel,
+                                trk_elev,
+                                trk_azi,
+                                trk_data,
+                                None,  //TODO "iono": once L2/L5 unlocked,
+                                99,    // TODO "rcvr_channel"
+                                "C1C", //TODO: verify this please
+                            )
+                        },
+                    };
+                    tracks.push(track);
+                } else {
+                    trace!("{:?} - {} until next track", t, sched.time_to_next_track(t));
                 }
-
-                // RESET the tracker
-                tracker.reset();
-            }
+            },
+            Err(e) => warn!("{:?} - pvt resolution error \"{}\"", t, e),
         }
-
-        trace!("{:?} - {} until next track", *t, time_to_next_track);
-        time_to_next = Some(time_to_next_track);
     }
 
     Ok(tracks)

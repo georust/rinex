@@ -200,7 +200,19 @@ pub fn main() -> Result<(), Error> {
     /*
      * Form CGGTTS
      */
-    let rcvr = Rcvr::default();
+    let obs_data = ctx.obs_data().unwrap();
+
+    let rcvr = match &obs_data.header.rcvr {
+        Some(rcvr) => Rcvr {
+            manufacturer: String::from("XX"),
+            recv_type: rcvr.model.clone(),
+            serial_number: rcvr.sn.clone(),
+            year: 0,
+            release: rcvr.firmware.clone(),
+        },
+        None => Rcvr::default(),
+    };
+
     let apc = Coordinates {
         x: 0.0_f64,
         y: 0.0_f64,

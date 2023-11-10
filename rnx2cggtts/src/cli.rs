@@ -9,8 +9,7 @@ pub struct Cli {
     matches: ArgMatches,
 }
 
-use cggtts::{prelude::ReferenceTime, track::SkyTracker};
-
+use cggtts::{prelude::ReferenceTime, track::Scheduler};
 use rinex::prelude::*;
 use rtk::prelude::Config;
 
@@ -308,12 +307,8 @@ Refer to rinex-cli Preprocessor documentation for more information"))
                 panic!("incorrect tracking duration specification");
             }
         } else {
-            Duration::from_seconds(SkyTracker::BIPM_TRACKING_DURATION_SECONDS.into())
+            Duration::from_seconds(Scheduler::BIPM_TRACKING_DURATION_SECONDS.into())
         }
-    }
-    /* true if we're working on a combination of SV */
-    pub fn melting_pot(&self) -> bool {
-        self.single_sv().is_none()
     }
     /* true if we're tracking a single SV */
     pub fn single_sv(&self) -> Option<SV> {
