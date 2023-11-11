@@ -80,7 +80,7 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
 
     if let Some(nav) = ctx.nav_data() {
         let mut kb_delay: Vec<(Epoch, f64)> = Vec::new();
-        for (index, (t, svnn)) in nav.sv_epoch().enumerate() {
+        for (_index, (t, svnn)) in nav.sv_epoch().enumerate() {
             for sv in svnn {
                 if let Some((t, model)) = nav.ionosphere_model(t) {
                     match model {

@@ -272,7 +272,7 @@ pub fn main() -> Result<(), Error> {
      * Code Multipath analysis
      */
     if cli.multipath() && !no_graph {
-        if let Some(rnx) = ctx.obs_data() {
+        if let Some(_rnx) = ctx.obs_data() {
             //let data = ctx
             //    .primary_data()
             //    .observation_phase_align_origin()

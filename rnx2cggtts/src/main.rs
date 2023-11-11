@@ -5,9 +5,7 @@ extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
 use rinex::prelude::*;
-use rinex::preprocessing::{Filter, Preprocessing};
 
-use cggtts::prelude::Track as CGGTTSTrack;
 use cggtts::prelude::*;
 use cggtts::Coordinates;
 
@@ -19,7 +17,6 @@ use env_logger::{Builder, Target};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use std::str::FromStr;
 use thiserror::Error;
 
 mod cli; // command line interface
@@ -205,7 +202,7 @@ pub fn main() -> Result<(), Error> {
     let rcvr = match &obs_data.header.rcvr {
         Some(rcvr) => Rcvr {
             manufacturer: String::from("XX"),
-            recv_type: rcvr.model.clone(),
+            model: rcvr.model.clone(),
             serial_number: rcvr.sn.clone(),
             year: 0,
             release: rcvr.firmware.clone(),
@@ -239,11 +236,22 @@ pub fn main() -> Result<(), Error> {
         .apc_coordinates(apc)
         .reference_time(cli.reference_time())
         .reference_frame("WGS84")
-        .comments(&format!(
-            "Generated with rnx2cggtts {}",
-            env!("CARGO_PKG_VERSION")
-        ));
+        .comments(&format!("rnx2cggtts v{}", env!("CARGO_PKG_VERSION")));
 
+    /*
+     * Form TRACKS
+     */
+    let tracks = solver::resolve(&mut ctx, &cli);
+
+    if let Ok(tracks) = tracks {
+        for track in tracks {
+            cggtts.tracks.push(track);
+        }
+    }
+
+    /*
+     * Create file
+     */
     let filename = match cli.custom_filename() {
         Some(filename) => filename.to_string(),
         None => cggtts.filename(),
@@ -251,17 +259,6 @@ pub fn main() -> Result<(), Error> {
 
     let mut fd = File::create(&filename)?;
     write!(fd, "{}", cggtts)?;
-
-    /*
-     * Form TRACKS
-     */
-    let tracks = solver::resolve(&mut ctx, &cli, &mut fd);
-
-    // if let Ok(tracks) = tracks {
-    //     for trk in tracks {
-    //         cggtts.tracks.push(trk);
-    //     }
-    // }
-
+    info!("{} has been generated", filename);
     Ok(())
 }

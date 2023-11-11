@@ -1,7 +1,7 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info};
 use std::collections::HashMap;
-use std::path::Path;
+
 use std::str::FromStr;
 
 pub struct Cli {
@@ -308,18 +308,6 @@ Refer to rinex-cli Preprocessor documentation for more information"))
             }
         } else {
             Duration::from_seconds(Scheduler::BIPM_TRACKING_DURATION_SECONDS.into())
-        }
-    }
-    /* true if we're tracking a single SV */
-    pub fn single_sv(&self) -> Option<SV> {
-        if let Some(sv) = self.matches.get_one::<String>("single-sv") {
-            if let Ok(sv) = SV::from_str(sv) {
-                Some(sv)
-            } else {
-                panic!("failed to parse SV from \"{}\"", sv);
-            }
-        } else {
-            None
         }
     }
     fn utck(&self) -> Option<&String> {

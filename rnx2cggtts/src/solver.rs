@@ -1,7 +1,4 @@
 use crate::Cli;
-use std::fs::File;
-use std::io::Write;
-
 use gnss::prelude::{Constellation, SV};
 
 use rinex::{
@@ -13,20 +10,19 @@ use rinex::{
 use rtk::{
     prelude::{
         AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, Mode,
-        PVTSolution, PVTSolutionType, PseudoRange, Solver, TimeScale, TropoComponents,
+        PVTSolutionType, PseudoRange, Solver, TimeScale, TropoComponents,
     },
     Vector3D,
 };
 
 use cggtts::{
-    prelude::{CommonViewClass, Track, TrackData},
-    track::{FitData, Scheduler},
+    prelude::{CommonViewClass, Track},
+    track::{FitData, GlonassChannel, Scheduler},
 };
 
 //use statrs::statistics::Statistics;
 use map_3d::{ecef2geodetic, Ellipsoid};
 
-use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -38,12 +34,8 @@ pub enum Error {
     MissingObservationData,
     #[error("missing brdc navigation")]
     MissingBroadcastNavigationData,
-    #[error("positioning requires overlapped SP3 data at the moment")]
-    MissingSp3Data,
     #[error("undefined apriori position")]
     UndefinedAprioriPosition,
-    #[error("failed to write CGGTTS track")]
-    WriteError(#[from] std::io::Error),
 }
 
 fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<TropoComponents> {
@@ -124,19 +116,11 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
     }
 }
 
-pub fn resolve(ctx: &mut RnxContext, cli: &Cli, fd: &mut File) -> Result<Vec<Track>, Error> {
+pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // cli customizations
     let trk_duration = cli.tracking_duration();
-    let trk_duration_s = trk_duration.total_nanoseconds() as f64 * 1.0E-9;
+    let _trk_duration_s = trk_duration.total_nanoseconds() as f64 * 1.0E-9;
     info!("tracking duration: {}", trk_duration);
-
-    let single_sv: Option<SV> = match cli.single_sv() {
-        Some(sv) => {
-            info!("tracking {}", sv);
-            Some(sv)
-        },
-        None => None,
-    };
 
     // custom strategy
     let rtk_mode = match cli.spp() {
@@ -174,7 +158,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli, fd: &mut File) -> Result<Vec<Tra
         },
     };
 
-    let dominant_sample_rate = obs_data
+    let _dominant_sample_rate = obs_data
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady RINEX observations");
 
@@ -247,15 +231,16 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli, fd: &mut File) -> Result<Vec<Tra
     let mut tracks = Vec::<Track>::new();
     let mut sched = Scheduler::new(first_epoch.in_time_scale(TimeScale::UTC), trk_duration);
 
-    for ((t, flag), (clk, vehicles)) in obs_data.observation() {
+    for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         /*
          * we only consider "OK" Epochs
          */
         if !flag.is_ok() {
             continue;
         }
-        // resolve a PVT
-        let mut candidates = Vec::<Candidate>::with_capacity(4);
+
+        // resolve a PVT for every single SV, at every single "t"
+        let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
 
         for (sv, observations) in vehicles {
             // form PVT candidate
@@ -270,7 +255,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli, fd: &mut File) -> Result<Vec<Tra
             let clock_state = sv_eph.sv_clock();
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
             let clock_state: Vector3D = clock_state.into();
-            let mut snr = Vec::<f64>::new();
+            let _snr = Vec::<f64>::new();
             let mut pseudo_range = Vec::<PseudoRange>::new();
 
             for (observable, data) in observations {
@@ -285,105 +270,113 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli, fd: &mut File) -> Result<Vec<Tra
                 }
             }
 
-            if let Ok(candidate) =
-                Candidate::new(*sv, *t, clock_state, clock_corr, None, pseudo_range.clone())
-            {
-                candidates.push(candidate);
-            } else {
-                warn!("{:?}: failed to form {} candidate", t, sv);
+            let candidate =
+                Candidate::new(*sv, *t, clock_state, clock_corr, None, pseudo_range.clone());
+
+            if candidate.is_err() {
+                warn!(
+                    "{:?}: failed to resolve a PVT for {} : \"{}\"",
+                    t,
+                    sv,
+                    candidate.err().unwrap()
+                );
+                continue;
             }
-        }
 
-        // resolve PVT
-        let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
+            let candidate = candidate.unwrap();
+            match solver.resolve(
+                *t,
+                PVTSolutionType::TimeOnly, // Single SV opmode
+                vec![candidate],           // Single SV opmode
+                tropo_components,
+                None,
+            ) {
+                Ok((t, mut pvt_solution)) => {
+                    debug!("{:?} : {:?}", t, pvt_solution);
 
-        match solver.resolve(
-            *t,
-            PVTSolutionType::TimeOnly,
-            candidates.clone(),
-            tropo_components,
-            None,
-        ) {
-            Ok((t, pvt_solution)) => {
-                debug!("{:?} : {:?}", t, pvt_solution);
+                    let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible at this point
 
-                let fitdata = FitData {
-                    refsv: pvt_solution.dt,
-                    refsys: 0.0_f64, //TODO
-                    mdtr: pvt_solution.tropo,
-                    mdio: pvt_solution.iono.modeled,
-                    msio: pvt_solution.iono.measured,
-                    azimuth: {
-                        if single_sv.is_some() {
-                            candidates[0].state.unwrap().azimuth
-                        } else {
-                            9999.0_f64
-                        }
-                    },
-                    elevation: {
-                        if single_sv.is_some() {
-                            candidates[0].state.unwrap().elevation
-                        } else {
-                            999.0_f64
-                        }
-                    },
-                };
+                    let azimuth = pvt_data.azimuth;
+                    let elevation = pvt_data.elevation;
 
-                let ioe = 0; //TODO
-                match sched.latch_measurements(t, fitdata, ioe) {
-                    Err(e) => {
-                        warn!("{:?} - track fitting error: \"{}\"", t, e);
-                        sched.reset(t);
-                    },
-                    Ok(None) => info!("{:?} - {} until next track", t, sched.time_to_next_track(t)),
-                    Ok(Some(((trk_elev, trk_azi), trk_data))) => {
-                        info!("{:?} - formed new track", t);
-                        trace!(
-                            "{:?} - Elev {}° - Azi {}° - REFSV {} REFSYS {}",
-                            t,
-                            trk_elev,
-                            trk_azi,
-                            trk_data.refsv,
-                            trk_data.refsys
-                        );
+                    let refsv = pvt_solution.dt;
+                    let refsys = pvt_solution.dt + clock_corr.to_seconds();
 
-                        let track = match single_sv {
-                            Some(sv) => {
-                                /* we're in focused common view */
-                                Track::new_sv(
-                                    sv,
-                                    t.in_time_scale(TimeScale::UTC),
-                                    trk_duration,
-                                    CommonViewClass::SingleChannel,
-                                    trk_elev,
-                                    trk_azi,
-                                    trk_data,
-                                    None,  //TODO "iono": once L2/L5 unlocked,
-                                    99,    // TODO "rcvr_channel"
-                                    "C1C", //TODO: verify this please
-                                )
-                            },
-                            None => {
-                                /* melting pot */
-                                Track::new_melting_pot(
-                                    t.in_time_scale(TimeScale::UTC),
-                                    trk_duration,
-                                    CommonViewClass::MultiChannel,
-                                    trk_elev,
-                                    trk_azi,
-                                    trk_data,
-                                    None,  //TODO "iono": once L2/L5 unlocked,
-                                    99,    // TODO "rcvr_channel"
-                                    "C1C", //TODO: verify this please
-                                )
-                            },
-                        };
+                    let mdtr = pvt_data.tropo.value().unwrap_or(0.0_f64); // MDTR evaluation
+                                                                          // is always required in RNX2CGGTTS
+                                                                          // this absorb a possibly disabled TROPO compensation
+                                                                          // in the rtk solver.
 
-                        writeln!(fd, "{}", track)?;
-                    },
-                }
-            },
-            Err(e) => warn!("{:?} - pvt resolution error \"{}\"", t, e),
+                    let mdio = pvt_data.iono.modeled;
+                    let msio = pvt_data.iono.measured;
+
+                    let fitdata = FitData {
+                        refsv,
+                        refsys,
+                        mdtr,
+                        mdio,
+                        msio,
+                        azimuth,
+                        elevation,
+                    };
+
+                    let ioe = 0; //TODO
+                    match sched.latch_measurements(t, fitdata, ioe) {
+                        Err(e) => {
+                            warn!("{:?} - track fitting error: \"{}\"", t, e);
+                            sched.reset(t);
+                        },
+                        Ok(None) => {
+                            info!("{:?} - {} until next track", t, sched.time_to_next_track(t))
+                        },
+                        Ok(Some(((trk_elev, trk_azi), trk_data))) => {
+                            info!("{:?} - formed new track", t);
+                            trace!(
+                                "{:?} - Elev {}° - Azi {}° - REFSV {} REFSYS {}",
+                                t,
+                                trk_elev,
+                                trk_azi,
+                                trk_data.refsv,
+                                trk_data.refsys
+                            );
+
+                            let track = match sv.constellation {
+                                Constellation::Glonass => {
+                                    Track::new_sv(
+                                        *sv,
+                                        t.in_time_scale(TimeScale::UTC),
+                                        trk_duration,
+                                        CommonViewClass::SingleChannel,
+                                        trk_elev,
+                                        trk_azi,
+                                        trk_data,
+                                        None, //TODO "iono": once L2/L5 unlocked,
+                                        99,   // TODO "rcvr_channel"
+                                        "C1C",
+                                    )
+                                },
+                                _ => {
+                                    Track::new_glonass_sv(
+                                        *sv,
+                                        t.in_time_scale(TimeScale::UTC),
+                                        trk_duration,
+                                        CommonViewClass::SingleChannel,
+                                        trk_elev,
+                                        trk_azi,
+                                        trk_data,
+                                        None, //TODO "iono": once L2/L5 unlocked,
+                                        99,   // TODO "rcvr_channel"
+                                        GlonassChannel::default(), //TODO
+                                        "C1C",
+                                    )
+                                },
+                            };
+                            tracks.push(track);
+                        },
+                    }
+                },
+                Err(e) => warn!("{:?} - pvt resolution error \"{}\"", t, e),
+            }
         }
     }
 
