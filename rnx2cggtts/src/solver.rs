@@ -233,6 +233,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     let mut trk_midpoint = Option::<Epoch>::None;
     let mut trackers = HashMap::<SV, SVTracker>::new();
 
+    let l1_frequency = Carrier::from_str("L1").unwrap().frequency(); //TODO L2, L5..
+
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         /*
          * we only consider "OK" Epochs
@@ -266,7 +268,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     if observable.is_pseudorange_observable() {
                         pseudo_range.push(PseudoRange {
                             value: data.obs,
-                            frequency: Carrier::from_str("L1").unwrap().frequency(), //TODO L2, L5..
+                            frequency: l1_frequency,
                         });
                     }
                 }
@@ -310,8 +312,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     let mdio = pvt_data.iono.modeled;
                     let msio = pvt_data.iono.measured;
                     debug!(
-                        "{:?} : new {} PVT solution REFSV={:.3E}, REFSYS={:.3E}",
-                        t, sv, refsv, refsys
+                        "{:?} : new {} PVT solution (elev={:.2}°, azi={:.2}°, REFSV={:.3E}, REFSYS={:.3E})",
+                        t, sv, elevation, azimuth, refsv, refsys
                     );
 
                     let fitdata = FitData {
@@ -334,35 +336,38 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     };
 
                     // verify buffer continuity
-                    if tracker.not_empty() {
-                        if !tracker.no_gaps(dominant_sampling_period) {
-                            // on any discontinuity we need to reset
-                            // that tracker. This will skip the formation
-                            // of its next track.
-                            tracker.reset();
-                            warn!("{:?} - discarding {} track due to data gaps", t, sv);
-                            // push new measurement
-                            tracker.latch_measurement(t, fitdata);
-                            continue; // abort for this SV
-                        }
-                    }
+                    if !tracker.no_gaps(dominant_sampling_period) {
+                        // on any discontinuity we need to reset
+                        // that tracker. This will abort the ongoing track.
+                        tracker.reset();
+                        warn!("{:?} - discarding {} track due to data gaps", t, sv);
 
-                    // push new measurement
-                    tracker.latch_measurement(t, fitdata);
+                        // push new measurement
+                        tracker.latch_measurement(t, fitdata);
+                        continue; // abort for this SV
+                    }
 
                     if next_release.is_some() {
                         let next_release = next_release.unwrap();
                         let trk_midpoint = trk_midpoint.unwrap();
 
-                        if t >= trk_midpoint + trk_duration / 2 {
+                        if t >= next_release {
                             /* time to release a track */
                             let ioe = 0; //TODO
-                            match tracker.fit(ioe, trk_midpoint) {
+                                         // latch last measurement
+                            tracker.latch_measurement(t, fitdata);
+
+                            match tracker.fit(
+                                ioe,
+                                trk_duration,
+                                dominant_sampling_period,
+                                trk_midpoint,
+                            ) {
                                 Ok(((trk_elev, trk_azi), trk_data)) => {
-                                    info!("{:?} - formed new track", t);
-                                    trace!(
-                                        "{:?} - elev {:.2}° - azi {:.3}° - REFSV {:.3E} REFSYS {:.3E}",
+                                    info!(
+                                        "{:?} - new {} track: elev {:.2}° - azi {:.2}° - REFSV {:.3E} REFSYS {:.3E}",
                                         t,
+                                        sv,
                                         trk_elev,
                                         trk_azi,
                                         trk_data.refsv,
@@ -371,23 +376,9 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
                                     let track = match sv.constellation {
                                         Constellation::Glonass => {
-                                            Track::new(
-                                                *sv,
-                                                Epoch::from_utc_duration(t.to_utc_duration()),
-                                                trk_duration,
-                                                CommonViewClass::SingleChannel,
-                                                trk_elev,
-                                                trk_azi,
-                                                trk_data,
-                                                None, //TODO "iono": once L2/L5 unlocked,
-                                                99,   // TODO "rcvr_channel"
-                                                "C1C",
-                                            )
-                                        },
-                                        _ => {
                                             Track::new_glonass(
                                                 *sv,
-                                                Epoch::from_utc_duration(t.to_utc_duration()),
+                                                next_release,
                                                 trk_duration,
                                                 CommonViewClass::SingleChannel,
                                                 trk_elev,
@@ -396,19 +387,41 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                                 None, //TODO "iono": once L2/L5 unlocked,
                                                 99,   // TODO "rcvr_channel"
                                                 GlonassChannel::default(), //TODO
-                                                "C1C",
+                                                "C1C", //TODO
                                             )
                                         },
-                                    };
+                                        _ => {
+                                            Track::new(
+                                                *sv,
+                                                next_release,
+                                                trk_duration,
+                                                CommonViewClass::SingleChannel,
+                                                trk_elev,
+                                                trk_azi,
+                                                trk_data,
+                                                None,  //TODO "iono": once L2/L5 unlocked,
+                                                99,    // TODO "rcvr_channel"
+                                                "C1C", //TODO
+                                            )
+                                        },
+                                    }; // match constellation
                                     tracks.push(track);
                                 },
-                                Err(e) => {
-                                    warn!("{:?} - track fitting error: \"{}\"", t, e);
-                                    tracker.reset();
-                                },
+                                Err(e) => warn!("{:?} - track fitting error: \"{}\"", t, e),
                             } //.fit()
-                        } // time to release a track
-                    } //release.is_some()
+
+                            // reset so we start a new track
+                            tracker.reset();
+                        }
+                        // time to release a track
+                        else {
+                            tracker.latch_measurement(t, fitdata);
+                        }
+                    }
+                    //release.is_none()
+                    else {
+                        tracker.latch_measurement(t, fitdata);
+                    }
                 },
                 Err(e) => {
                     warn!("{:?} - pvt resolution error \"{}\"", t, e);
@@ -420,12 +433,12 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         tracker.reset();
                     }
                 },
-            }
-        }
+            } //.pvt resolve
+        } //.sv()
         next_release = Some(sched.next_track_start(*t));
         trk_midpoint = Some(next_release.unwrap() - trk_duration / 2);
         info!("{:?} - {} until next track", t, next_release.unwrap() - *t);
-    }
+    } //.observations()
 
     Ok(tracks)
 }
