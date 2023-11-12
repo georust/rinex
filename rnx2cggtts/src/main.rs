@@ -20,7 +20,6 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 mod cli; // command line interface
-pub mod fops; // file operation helpers
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -133,9 +132,12 @@ pub fn main() -> Result<(), Error> {
     }
 
     // Workspace
-    let workspace = workspace_path(&ctx);
-    info!("workspace is \"{}\"", workspace.to_string_lossy());
+    let workspace = match cli.custom_workspace() {
+        Some(workspace) => Path::new(workspace).join(&context_stem(&ctx)).to_path_buf(),
+        None => workspace_path(&ctx),
+    };
     create_workspace(workspace.clone());
+    info!("workspace is \"{}\"", workspace.to_string_lossy());
 
     /*
      * Verify provided context and feasibility
@@ -253,12 +255,12 @@ pub fn main() -> Result<(), Error> {
      * Create file
      */
     let filename = match cli.custom_filename() {
-        Some(filename) => filename.to_string(),
-        None => cggtts.filename(),
+        Some(filename) => workspace.join(filename.to_string()),
+        None => workspace.join(cggtts.filename()),
     };
 
     let mut fd = File::create(&filename)?;
     write!(fd, "{}", cggtts)?;
-    info!("{} has been generated", filename);
+    info!("{} has been generated", filename.to_string_lossy());
     Ok(())
 }

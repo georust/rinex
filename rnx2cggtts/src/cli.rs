@@ -330,6 +330,10 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     pub fn custom_station(&self) -> Option<&String> {
         self.matches.get_one::<String>("station")
     }
+    /* custom workspace */
+    pub fn custom_workspace(&self) -> Option<&String> {
+        self.matches.get_one::<String>("workspace")
+    }
     /* custom filename */
     pub fn custom_filename(&self) -> Option<&String> {
         self.matches.get_one::<String>("filename")
