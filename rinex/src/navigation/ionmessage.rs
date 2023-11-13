@@ -1,4 +1,7 @@
-use crate::{epoch, prelude::*};
+use crate::{
+    epoch::{parse_in_timescale, ParsingError as EpochParsingError},
+    prelude::{Duration, Epoch, TimeScale},
+};
 use bitflags::bitflags;
 use std::str::FromStr;
 use thiserror::Error;
@@ -27,7 +30,7 @@ pub enum Error {
     #[error("failed to parse float data")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse epoch")]
-    EpochParsingError(#[from] epoch::ParsingError),
+    EpochParsingError(#[from] EpochParsingError),
 }
 
 /// Klobuchar Parameters region
@@ -107,7 +110,7 @@ impl KbModel {
             },
         };
 
-        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
+        let (epoch, _) = parse_in_timescale(epoch.trim(), ts)?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -129,6 +132,10 @@ impl KbModel {
                 region,
             },
         ))
+    }
+    /* converts self to time delay [s] */
+    pub(crate) fn time_delay(&self, freq: f64) -> Option<Duration> {
+        None
     }
 }
 
@@ -177,7 +184,7 @@ impl NgModel {
             _ => return Err(Error::NgModelMissing2ndLine),
         };
 
-        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
+        let (epoch, _) = parse_in_timescale(epoch.trim(), ts)?;
         let a = (
             f64::from_str(a0.trim())?,
             f64::from_str(a1.trim())?,
@@ -191,6 +198,10 @@ impl NgModel {
                 region: NgRegionFlags::from_bits(f as u16).unwrap_or(NgRegionFlags::empty()),
             },
         ))
+    }
+    /* converts self to time delay [s] */
+    pub(crate) fn time_delay(&self, freq: f64) -> Option<Duration> {
+        None
     }
 }
 
@@ -232,7 +243,7 @@ impl BdModel {
         };
         let (a7, a8) = line.split_at(23);
 
-        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
+        let (epoch, _) = parse_in_timescale(epoch.trim(), ts)?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -245,6 +256,10 @@ impl BdModel {
             f64::from_str(a8.trim()).unwrap_or(0.0_f64),
         );
         Ok((epoch, Self { alpha }))
+    }
+    /* converts self to time delay [s] */
+    pub(crate) fn time_delay(&self, freq: f64) -> Option<Duration> {
+        None
     }
 }
 
@@ -267,6 +282,18 @@ impl Default for IonMessage {
 }
 
 impl IonMessage {
+    /// Converts self to time delay [s]
+    pub fn time_delay(&self, freq: f64) -> Option<Duration> {
+        if let Some(kb) = self.as_klobuchar() {
+            kb.time_delay(freq)
+        } else if let Some(ng) = self.as_nequick_g() {
+            ng.time_delay(freq)
+        } else if let Some(bd) = self.as_bdgim() {
+            bd.time_delay(freq)
+        } else {
+            None
+        }
+    }
     /// Unwraps self as Klobuchar Model
     pub fn as_klobuchar(&self) -> Option<&KbModel> {
         match self {

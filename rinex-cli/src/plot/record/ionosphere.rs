@@ -78,38 +78,38 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let ref_geo = ref_pos.to_geodetic();
     let lat_lon_ddeg = (ref_geo.0, ref_geo.1);
 
-    if let Some(nav) = ctx.nav_data() {
-        let mut kb_delay: Vec<(Epoch, f64)> = Vec::new();
-        for (_index, (t, svnn)) in nav.sv_epoch().enumerate() {
-            for sv in svnn {
-                if let Some((t, model)) = nav.ionosphere_model(t) {
-                    match model {
-                        IonMessage::KlobucharModel(model) => {
-                            let sv_elev_azim = nav
-                                .sv_elevation_azimuth(Some(ref_pos))
-                                .find(|(epoch, svnn, _)| *epoch == t && *svnn == sv);
-                            if let Some(elev_azim) = sv_elev_azim {
-                                kb_delay.push((
-                                    t,
-                                    klob_ionospheric_delay(t, sv, model, elev_azim.2, lat_lon_ddeg),
-                                ));
-                            }
-                        },
-                        _ => {},
-                    }
-                }
-            }
-        }
-        if !kb_delay.is_empty() {
-            trace!("klobuchar ionospheric model");
-            plot_ctx.add_cartesian2d_plot("Ionospheric Delay", "Delay [s]");
-            let trace = build_chart_epoch_axis(
-                "kb",
-                Mode::LinesMarkers,
-                kb_delay.iter().map(|(t, _)| *t).collect(),
-                kb_delay.iter().map(|(_, dly)| *dly).collect(),
-            );
-            plot_ctx.add_trace(trace);
-        }
-    }
+    // if let Some(nav) = ctx.nav_data() {
+    //     let mut kb_delay: Vec<(Epoch, f64)> = Vec::new();
+    //     for (_index, (t, svnn)) in nav.sv_epoch().enumerate() {
+    //         for sv in svnn {
+    //             if let Some(t, (_, _, model)) = nav.ionosphere_models(t) {
+    //                 match model {
+    //                     IonMessage::KlobucharModel(model) => {
+    //                         let sv_elev_azim = nav
+    //                             .sv_elevation_azimuth(Some(ref_pos))
+    //                             .find(|(epoch, svnn, _)| *epoch == t && *svnn == sv);
+    //                         if let Some(elev_azim) = sv_elev_azim {
+    //                             kb_delay.push((
+    //                                 t,
+    //                                 klob_ionospheric_delay(t, sv, model, elev_azim.2, lat_lon_ddeg),
+    //                             ));
+    //                         }
+    //                     },
+    //                     _ => {},
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     if !kb_delay.is_empty() {
+    //         trace!("klobuchar ionospheric model");
+    //         plot_ctx.add_cartesian2d_plot("Ionospheric Delay", "Delay [s]");
+    //         let trace = build_chart_epoch_axis(
+    //             "kb",
+    //             Mode::LinesMarkers,
+    //             kb_delay.iter().map(|(t, _)| *t).collect(),
+    //             kb_delay.iter().map(|(_, dly)| *dly).collect(),
+    //         );
+    //         plot_ctx.add_trace(trace);
+    //     }
+    // }
 }
