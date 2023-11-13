@@ -136,7 +136,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
         None => Config::default(rtk_mode),
     };
 
-    let pos = match cli.manual_position() {
+    let pos = match cli.manual_apc() {
         Some(pos) => pos,
         None => ctx
             .ground_position()
@@ -385,7 +385,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                                 trk_azi,
                                                 trk_data,
                                                 None, //TODO "iono": once L2/L5 unlocked,
-                                                99,   // TODO "rcvr_channel"
+                                                0,    // TODO "rcvr_channel" > 0 if known
                                                 GlonassChannel::default(), //TODO
                                                 "C1C", //TODO
                                             )
@@ -400,7 +400,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                                 trk_azi,
                                                 trk_data,
                                                 None,  //TODO "iono": once L2/L5 unlocked,
-                                                99,    // TODO "rcvr_channel"
+                                                0,     // TODO "rcvr_channel" > 0 if known
                                                 "C1C", //TODO
                                             )
                                         },

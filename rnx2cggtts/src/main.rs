@@ -157,27 +157,7 @@ pub fn main() -> Result<(), Error> {
     if ctx.ionex_data().is_some() {
         info!("ionex data loaded");
     }
-    /*
-     * Emphasize which reference position is to be used.
-     * This will help user make sure everything is correct.
-     * [+] Cli: always superceeds
-     * [+] eventually we rely on the context pool.
-     */
-    if let Some(pos) = cli.manual_position() {
-        let (lat, lon, _) = pos.to_geodetic();
-        info!(
-            "using manually defined reference position {} (lat={:.5}°, lon={:.5}°)",
-            pos, lat, lon
-        );
-    } else if let Some(pos) = ctx.ground_position() {
-        let (lat, lon, _) = pos.to_geodetic();
-        info!(
-            "using reference position {} (lat={:.5}°, lon={:.5}°)",
-            pos, lat, lon
-        );
-    } else {
-        info!("no reference position given or identified");
-    }
+
     /*
      * System delay(s) to be compensated
      */
@@ -191,6 +171,7 @@ pub fn main() -> Result<(), Error> {
         // solver.cfg.time_ref_delay = Some(delay_ns);
         info!("REFERENCE delay: {} [ns]", delay_ns);
     }
+
     /*
      * Preprocessing
      */
@@ -212,12 +193,6 @@ pub fn main() -> Result<(), Error> {
         None => Rcvr::default(),
     };
 
-    let apc = Coordinates {
-        x: 0.0_f64,
-        y: 0.0_f64,
-        z: 0.0_f64,
-    };
-
     let station: String = match cli.custom_station() {
         Some(station) => station.to_string(),
         None => {
@@ -232,10 +207,34 @@ pub fn main() -> Result<(), Error> {
 
     let mut cggtts = CGGTTS::default()
         .station(&station)
-        .nb_channels(1)
-        .receiver(rcvr)
-        //.ims(ims) // TODO
-        .apc_coordinates(apc)
+        .nb_channels(1) // TODO: improve this ?
+        .receiver(rcvr.clone())
+        .ims(rcvr.clone()) // TODO : improve this ?
+        .apc_coordinates({
+            if let Some(apc) = cli.manual_apc() {
+                let (lat, lon, _) = apc.to_geodetic();
+                info!(
+                    "manually defined APC {} (lat={:.5}°, lon={:.5}°)",
+                    apc, lat, lon
+                );
+
+                let (x, y, z) = apc.to_ecef_wgs84();
+                Coordinates { x, y, z }
+            } else if let Some(pos) = ctx.ground_position() {
+                let (lat, lon, _) = pos.to_geodetic();
+                info!(
+                    "using reference position {} (lat={:.5}°, lon={:.5}°)",
+                    pos, lat, lon
+                );
+
+                // TODO is this correct ?
+                //  needs proably some adjustment
+                let (x, y, z) = pos.to_ecef_wgs84();
+                Coordinates { x, y, z }
+            } else {
+                panic!("context has undetermined APC coordinates");
+            }
+        })
         .reference_time(cli.reference_time())
         .reference_frame("WGS84")
         .comments(&format!("rnx2cggtts v{}", env!("CARGO_PKG_VERSION")));

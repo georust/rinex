@@ -65,6 +65,20 @@ RINEX Observations to follow naming conventions and we deduce the station name f
                         .value_name("FILENAME")
                         .help("Set CGGTTS filename to be generated (within workspace).
 When not defined, the CGGTTS follows naming conventions, and is named after the Station and Receiver definitions."))
+                .next_help_heading("Antenna")
+                    .arg(Arg::new("apc")
+                        .short('a')
+                        .long("apc")
+                        .value_name("\"lat, lon, alt\" coordinates triplet in ddeg")
+                        .help("Define the APC coordinates manually as Lat, Lon, Alt in decimal degrees.
+If not defined, the RINEX context must provide it. 
+Either one is mandatory for the RNX2CGGTTS ops."))
+                    .arg(Arg::new("apc-ecef")
+                        .long("apc-ecef")
+                        .value_name("\"x, y, z\" coordinates triplet in ECEF [m]")
+                        .help("Define the APC position manually as ECEF [m].
+If not defined, the RINEX context must provide it. 
+Either one is mandatory for the RNX2CGGTTS ops."))
                 .next_help_heading("Sky tracking & Common View")
                     .arg(Arg::new("tracking")
                         .short('t')
@@ -240,47 +254,6 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     fn manual_geodetic(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-geo")
     }
-    /// Returns Ground Position possibly specified by user
-    pub fn manual_position(&self) -> Option<GroundPosition> {
-        if let Some(args) = self.manual_ecef() {
-            let content: Vec<&str> = args.split(',').collect();
-            if content.len() != 3 {
-                panic!("expecting \"x, y, z\" description");
-            }
-            if let Ok(pos_x) = f64::from_str(content[0].trim()) {
-                if let Ok(pos_y) = f64::from_str(content[1].trim()) {
-                    if let Ok(pos_z) = f64::from_str(content[2].trim()) {
-                        return Some(GroundPosition::from_ecef_wgs84((pos_x, pos_y, pos_z)));
-                    } else {
-                        error!("pos(z) should be f64 ECEF [m]");
-                    }
-                } else {
-                    error!("pos(y) should be f64 ECEF [m]");
-                }
-            } else {
-                error!("pos(x) should be f64 ECEF [m]");
-            }
-        } else if let Some(args) = self.manual_geodetic() {
-            let content: Vec<&str> = args.split(',').collect();
-            if content.len() != 3 {
-                panic!("expecting \"lat, lon, alt\" description");
-            }
-            if let Ok(lat) = f64::from_str(content[0].trim()) {
-                if let Ok(long) = f64::from_str(content[1].trim()) {
-                    if let Ok(alt) = f64::from_str(content[2].trim()) {
-                        return Some(GroundPosition::from_geodetic((lat, long, alt)));
-                    } else {
-                        error!("altitude should be f64 [ddeg]");
-                    }
-                } else {
-                    error!("altitude should be f64 [ddeg]");
-                }
-            } else {
-                error!("altitude should be f64 [ddeg]");
-            }
-        }
-        None
-    }
     pub fn config(&self) -> Option<Config> {
         if let Some(path) = self.matches.get_one::<String>("config") {
             if let Ok(content) = std::fs::read_to_string(path) {
@@ -337,5 +310,55 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     /* custom filename */
     pub fn custom_filename(&self) -> Option<&String> {
         self.matches.get_one::<String>("filename")
+    }
+    /* manual APC coordinates */
+    fn manual_apc_ecef(&self) -> Option<&String> {
+        self.matches.get_one::<String>("apc-ecef")
+    }
+    /* manual APC coordinates */
+    fn manual_apc_geodetic(&self) -> Option<&String> {
+        self.matches.get_one::<String>("apc")
+    }
+    /* manual APC coordinates */
+    pub fn manual_apc(&self) -> Option<GroundPosition> {
+        if let Some(args) = self.manual_apc_ecef() {
+            let content: Vec<&str> = args.split(',').collect();
+            if content.len() != 3 {
+                panic!("expecting \"x, y, z\" description");
+            }
+            if let Ok(pos_x) = f64::from_str(content[0].trim()) {
+                if let Ok(pos_y) = f64::from_str(content[1].trim()) {
+                    if let Ok(pos_z) = f64::from_str(content[2].trim()) {
+                        return Some(GroundPosition::from_ecef_wgs84((pos_x, pos_y, pos_z)));
+                    } else {
+                        panic!("pos(z) should be f64 ECEF [m]");
+                    }
+                } else {
+                    panic!("pos(y) should be f64 ECEF [m]");
+                }
+            } else {
+                panic!("pos(x) should be f64 ECEF [m]");
+            }
+        } else if let Some(args) = self.manual_apc_geodetic() {
+            let content: Vec<&str> = args.split(',').collect();
+            if content.len() != 3 {
+                panic!("expecting \"lat, lon, alt\" description");
+            }
+            if let Ok(lat) = f64::from_str(content[0].trim()) {
+                if let Ok(long) = f64::from_str(content[1].trim()) {
+                    if let Ok(alt) = f64::from_str(content[2].trim()) {
+                        return Some(GroundPosition::from_geodetic((lat, long, alt)));
+                    } else {
+                        panic!("altitude should be f64 [ddeg]");
+                    }
+                } else {
+                    panic!("altitude should be f64 [ddeg]");
+                }
+            } else {
+                panic!("altitude should be f64 [ddeg]");
+            }
+        }
+
+        None
     }
 }
