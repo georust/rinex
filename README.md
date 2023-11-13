@@ -21,12 +21,15 @@ and we aim towards advanced geodesic and ionospheric analysis.
   - decimation and time binning
   - split into two files
   - merge two files together
-* Use `rinex-cli` for detailed Observation and Navigation identification and visualization
-(option `-qc` summarizes this in a single report)
-* Use `crx2rnx` to convert compressed RINEX to readable RINEX so you can import them in other tools like Matlab or Python
-* Use `rinex-cli --spp` or `--ppp` to resolve a single point position
-* Use `rinex2cggtts` to generate data for common view time transfer
-* Use `ublox-rnx` to generate RINEX from a local Ublox ( :warning: Work in Progress)
+* Use `crx2rnx` to decompress your file so you can import them
+into third party tools (Python, Matlab..)
+* Use `rinex-cli` for detailed Observation and Navigation analysis
+and grahs
+  - use `--qc` option for thorough analysis report (historical "teqc")
+* Use `rinex-cli `-p`, `--spp` or `--ppp` to resolve PVT solutions
+* Use `rinex2cggtts` to generate CGGTTS for clock comparison and common view time transfer
+* Use `rnx2crnx` to compress your Observations
+* Use `ublox-rnx` to generate RINEX from a uBlox receiver :warning: Work in Progress)
 
 ## Advantages :rocket: 
 
