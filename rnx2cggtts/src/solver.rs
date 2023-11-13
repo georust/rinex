@@ -301,8 +301,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     let azimuth = pvt_data.azimuth;
                     let elevation = pvt_data.elevation;
 
-                    let refsv = pvt_solution.dt;
-                    let refsys = pvt_solution.dt + clock_corr.to_seconds();
+                    let refsys = pvt_solution.dt;
+                    let refsv = pvt_solution.dt + clock_corr.to_seconds();
 
                     let mdtr = pvt_data.tropo.value().unwrap_or(0.0_f64); // MDTR evaluation
                                                                           // is always required in RNX2CGGTTS
