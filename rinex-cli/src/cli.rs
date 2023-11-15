@@ -231,8 +231,16 @@ The summary report by default is integrated to the global HTML report."))
                 .next_help_heading("Positioning")
                     .arg(Arg::new("spp")
                         .long("spp")
+                        .conflicts_with("ppp")
                         .action(ArgAction::SetTrue)
-                        .help("SPP post processed positioning.
+                        .help("Enable Single Point Positioning.
+Use with ${RUST_LOG} env logger for more information.
+Refer to the positioning documentation."))
+                    .arg(Arg::new("ppp")
+                        .long("ppp")
+                        .conflicts_with("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Enable Precise Point Positioning.
 Use with ${RUST_LOG} env logger for more information.
 Refer to the positioning documentation."))
                     .arg(Arg::new("pos-only")
@@ -428,6 +436,9 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     }
     /// Returns true if SPP position solver is enabled
     pub fn spp(&self) -> bool {
+        self.matches.get_flag("spp")
+    }
+    pub fn ppp(&self) -> bool {
         self.matches.get_flag("spp")
     }
     pub fn positioning_only(&self) -> bool {

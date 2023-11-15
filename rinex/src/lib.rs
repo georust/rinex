@@ -2510,19 +2510,43 @@ impl Rinex {
                 .filter_map(|(e, (_, _, ion))| ion.as_bdgim().map(|model| (*e, *model))),
         )
     }
-    /// Returns Ionospheric Delay Model to use
-    pub fn sv_ionod_model(&self, sv: SV, t: Epoch, frequency: f64) -> Option<Duration> {
+    /// Returns Ionospheric Delay Model (as meters of delay) to use
+    pub fn ionod_model(
+        &self,
+        t: Epoch,
+        sv_elevation: f64,
+        sv_azimuth: f64,
+        user_lat_ddeg: f64,
+        user_lon_ddeg: f64,
+        carrier: Carrier,
+    ) -> Option<f64> {
+        // grab nearest model ; in time
         let (_, model) = self
             .ionosphere_models()
-            .filter_map(|(t, (_, sv, msg))| {
-                if sv.constellation == sv.constellation {
-                    Some((t, msg))
-                } else {
-                    None
-                }
-            })
+            .map(|(t, (_, sv, msg))| (t, (sv, msg)))
             .min_by_key(|(t_i, _)| (t - **t_i).abs())?;
-        model.time_delay(frequency)
+
+        let (model_sv, model) = model;
+
+        if let Some(kb) = model.as_klobuchar() {
+            let h_km = match model_sv.constellation {
+                Constellation::BeiDou => 375.0,
+                // we only expect BDS or GPS here,
+                // wrongly formed RINEX will cause innacurate results
+                Constellation::GPS | _ => 350.0,
+            };
+            Some(kb.meters_delay(
+                t,
+                sv_elevation,
+                sv_azimuth,
+                h_km,
+                user_lat_ddeg,
+                user_lon_ddeg,
+                carrier,
+            ))
+        } else {
+            None
+        }
     }
     /// Returns [`StoMessage`] frames Iterator
     /// ```

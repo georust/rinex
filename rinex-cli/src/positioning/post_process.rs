@@ -1,6 +1,5 @@
 use crate::cli::Cli;
-use crate::context_stem;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -21,6 +20,8 @@ use kml::{
 extern crate geo_types;
 use geo_types::Point as GeoPoint;
 
+use crate::context_stem;
+
 use crate::fops::open_with_web_browser;
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::Mode;
@@ -39,7 +40,7 @@ pub fn post_process(
     workspace: PathBuf,
     cli: &Cli,
     ctx: &RnxContext,
-    results: HashMap<Epoch, PVTSolution>,
+    results: BTreeMap<Epoch, PVTSolution>,
 ) -> Result<(), Error> {
     // create a dedicated plot context
     let no_graph = cli.no_graph();
@@ -124,7 +125,7 @@ pub fn post_process(
     /*
      * Generate txt, GPX, KML..
      */
-    let txtpath = workspace.join("rtk.txt");
+    let txtpath = workspace.join("pvt-solutions.txt");
     let txtfile = txtpath.to_string_lossy().to_string();
     let mut fd = File::create(&txtfile)?;
 
@@ -195,9 +196,9 @@ pub fn post_process(
             }));
         }
     }
-    info!("\"{}\" results generated", txtfile);
+    info!("\"{}\" generated", txtfile);
     if cli.gpx() {
-        let gpxpath = workspace.join("rtk.gpx");
+        let gpxpath = workspace.join(&format!("{}.gpx", context_stem(&ctx)));
         let gpxfile = gpxpath.to_string_lossy().to_string();
         let fd = File::create(&gpxfile)?;
 
@@ -208,10 +209,10 @@ pub fn post_process(
         gpx.tracks.push(gpx_track);
 
         gpx::write(&gpx, fd)?;
-        info!("\"{}\" generated", gpxfile);
+        info!("{} gpx track generated", gpxfile);
     }
     if cli.kml() {
-        let kmlpath = workspace.join("rtk.kml");
+        let kmlpath = workspace.join(&format!("{}.kml", context_stem(&ctx)));
         let kmlfile = kmlpath.to_string_lossy().to_string();
         let mut fd = File::create(&kmlfile)?;
 
@@ -232,7 +233,7 @@ pub fn post_process(
         };
         let mut writer = KmlWriter::from_writer(&mut fd);
         writer.write(&Kml::KmlDocument(kmldoc))?;
-        info!("\"{}\" generated", kmlfile);
+        info!("{} kml track generated", kmlfile);
     }
 
     if !cli.quiet() && !no_graph {

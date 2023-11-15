@@ -171,7 +171,7 @@ pub fn main() -> Result<(), Error> {
     let qc = cli.quality_check() || qc_only;
 
     let positioning_only = cli.positioning_only();
-    let positioning = cli.spp() || positioning_only;
+    let positioning = cli.spp() || cli.ppp() || positioning_only;
 
     if !positioning {
         warn!("position solver currently turned off");

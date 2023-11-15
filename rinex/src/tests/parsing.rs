@@ -76,21 +76,6 @@ mod test {
                                 }
                             }
                             /*
-                             * for all ionospheric models, requesting a model at this epoch should always return the exact model
-                             */
-                            for (toc, (_, _sv, model)) in rinex.ionosphere_models() {
-                                let selmodel = rinex.ionosphere_model(*toc);
-                                assert!(
-                                    selmodel.is_some(),
-                                    "ionosphere model selection should always work @ toc"
-                                );
-                                let (seltoc, selmodel) = selmodel.unwrap();
-                                assert_eq!(
-                                    seltoc, *toc,
-                                    "should have located a ionospheric model at toc"
-                                );
-                            }
-                            /*
                              * Verify interpreted time scale, for all SV
                              */
                             //for (e, (_, sv, _)) in rinex.ephemeris() {

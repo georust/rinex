@@ -8,14 +8,14 @@ use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::{
     prelude::{
-        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, Mode,
-        PVTSolution, PVTSolutionType, PseudoRange, Solver, TropoComponents,
+        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, IonosphericDelay,
+        Mode, PVTSolution, PVTSolutionType, PseudoRange, Solver, TropoComponents,
     },
     Vector3D,
 };
 
 use map_3d::{ecef2geodetic, Ellipsoid};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -110,14 +110,18 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
     }
 }
 
-pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolution>, Error> {
+pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolution>, Error> {
     // custom strategy
     let rtk_mode = match cli.spp() {
         true => {
-            info!("spp position solver");
+            info!("single point positioning opmode");
             Mode::SPP
         },
-        false => Mode::SPP, //TODO
+        false => {
+            info!("precise point positioning opmode");
+            //TODO: verify feasiblity here, otherwise panic
+            Mode::PPP
+        },
     };
 
     // parse custom config, if any
@@ -209,7 +213,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
     )?;
 
     // resolved PVT solutions
-    let mut solutions: HashMap<Epoch, PVTSolution> = HashMap::new();
+    let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
     // possibly provided resolved T components (contained in RINEX)
     let mut provided_clk: HashMap<Epoch, f64> = HashMap::new();
 
@@ -243,17 +247,40 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
             let clock_state: Vector3D = clock_state.into();
             let mut snr = Vec::<f64>::new();
             let mut pseudo_range = Vec::<PseudoRange>::new();
+            let mut modeled_ionod = Vec::<IonosphericDelay>::new();
 
             for (observable, data) in observations {
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
+                    let frequency = carrier.frequency();
+
                     if observable.is_pseudorange_observable() {
                         pseudo_range.push(PseudoRange {
-                            frequency: carrier.frequency(),
+                            frequency,
                             value: data.obs,
                         });
                         if let Some(obs_snr) = data.snr {
                             snr.push(obs_snr.into());
                         }
+                    }
+
+                    /* IONOD */
+                    if cfg.modeling.iono_delay {
+                        /* inject possible models */
+                        if let Some(time_delay) = nav_data.ionod_model(
+                            *t,
+                            sv,
+                            sv_elevation,
+                            sv_azim,
+                            apriori.geodetic.x,
+                            apriori.geodetic.y,
+                            carrier,
+                        ) {
+                            modeled_ionod.push(IonosphericDelay {
+                                frequency,
+                                time_delay,
+                            });
+                        }
+                        /* provide possible STEC */
                     }
                 }
             }
@@ -268,9 +295,15 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
                 },
             };
 
-            if let Ok(candidate) =
-                Candidate::new(*sv, *t, clock_state, clock_corr, snr, pseudo_range.clone())
-            {
+            if let Ok(candidate) = Candidate::new(
+                *sv,
+                *t,
+                clock_state,
+                clock_corr,
+                snr,
+                pseudo_range.clone(),
+                modeled_ionod,
+            ) {
                 candidates.push(candidate);
             } else {
                 warn!("{:?}: failed to form {} candidate", t, sv);
@@ -292,5 +325,6 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<HashMap<Epoch, PVTSolut
             Err(e) => warn!("{:?} : pvt solver error \"{}\"", t, e),
         }
     }
+
     Ok(solutions)
 }

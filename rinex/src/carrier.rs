@@ -172,6 +172,9 @@ impl Carrier {
     }
     pub fn frequency_mhz(&self) -> f64 {
         match self {
+            /*
+             * GPS, Gal, QZSS, SBAS
+             */
             Self::L1 | Self::E1 => 1575.42_f64,
             Self::L2 => 1227.60_f64,
             Self::L6 | Self::E6 => 1278.750_f64,
@@ -179,6 +182,9 @@ impl Carrier {
             Self::E5 => 1191.795_f64,
             Self::E5a => 1176.45_f64,
             Self::E5b => 1207.140_f64,
+            /*
+             * IRNSS
+             */
             Self::S => 2492.028_f64,
             /*
              * Glonass

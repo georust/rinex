@@ -1,10 +1,14 @@
 use crate::{
+    carrier::Carrier,
     epoch::{parse_in_timescale, ParsingError as EpochParsingError},
     prelude::{Duration, Epoch, TimeScale},
 };
 use bitflags::bitflags;
 use std::str::FromStr;
 use thiserror::Error;
+
+use map_3d::deg2rad;
+use std::f64::consts::PI;
 
 /// Model parsing error
 #[derive(Debug, Error)]
@@ -133,9 +137,68 @@ impl KbModel {
             },
         ))
     }
-    /* converts self to time delay [s] */
-    pub(crate) fn time_delay(&self, freq: f64) -> Option<Duration> {
-        None
+    /* converts self to meters of delay */
+    pub(crate) fn meters_delay(
+        &self,
+        t: Epoch,
+        e: f64,
+        a: f64,
+        h_km: f64,
+        user_lat_ddeg: f64,
+        user_lon_ddeg: f64,
+        carrier: Carrier,
+    ) -> f64 {
+        const PHI_P: f64 = 78.3;
+        const R_EARTH: f64 = 6378.0;
+        const LAMBDA_P: f64 = 291.0;
+        const L1_F: f64 = 1575.42E6;
+
+        let fract = R_EARTH / (R_EARTH + h_km);
+        let phi_u = deg2rad(user_lat_ddeg);
+        let lambda_u = deg2rad(user_lon_ddeg);
+
+        let t_gps = t.to_duration_in_time_scale(TimeScale::GPST).to_seconds();
+        let psi = PI / 2.0 - e - (fract * e.cos()).asin();
+        let phi_i = (phi_u.sin() * psi.cos() + phi_u.cos() * psi.sin() * a.cos()).asin();
+        let lambda_i = lambda_u + a.sin() * psi / phi_i.cos();
+        let phi_m = (phi_i.sin() * PHI_P.sin()
+            + phi_i.cos() * PHI_P.cos() * (lambda_i - LAMBDA_P).cos())
+        .asin();
+
+        let mut t_s = 43.2E3 * lambda_i / PI + t_gps;
+        if t_s > 86.4E3 {
+            t_s -= 86.4E3;
+        } else if t_s < 0.0 {
+            t_s += 86.4E3;
+        }
+
+        let mut a_i = self.alpha.0 * (phi_m / PI).powi(0)
+            + self.alpha.1 * (phi_m / PI).powi(1)
+            + self.alpha.2 * (phi_m / PI).powi(2)
+            + self.alpha.3 * (phi_m / PI).powi(3);
+        if a_i < 0.0 {
+            a_i = 0.0_f64;
+        }
+        let mut p_i = self.beta.0 * (phi_m / PI).powi(0)
+            + self.beta.1 * (phi_m / PI).powi(1)
+            + self.beta.2 * (phi_m / PI).powi(2)
+            + self.beta.3 * (phi_m / PI).powi(3);
+        if p_i < 72.0E3 {
+            p_i = 72.0E3;
+        }
+
+        let x_i = 2.0 * PI * (t_s - 50400.0) / p_i;
+        let f = 1.0 / ((1.0 - fract * e.cos()).powi(2)).sqrt();
+        let i_1 = match x_i < PI / 2.0 {
+            true => 5.0 * 10E-9 + a_i * x_i.cos(),
+            false => f * 5.0 * 10E-9,
+        };
+
+        if carrier == Carrier::L1 {
+            i_1
+        } else {
+            i_1 * (L1_F / carrier.frequency()).powi(2)
+        }
     }
 }
 
@@ -199,9 +262,9 @@ impl NgModel {
             },
         ))
     }
-    /* converts self to time delay [s] */
-    pub(crate) fn time_delay(&self, freq: f64) -> Option<Duration> {
-        None
+    /* converts self to meters of delay */
+    pub(crate) fn meters_delay(&self, freq: f64) -> f64 {
+        0.0_f64
     }
 }
 
@@ -257,9 +320,9 @@ impl BdModel {
         );
         Ok((epoch, Self { alpha }))
     }
-    /* converts self to time delay [s] */
-    pub(crate) fn time_delay(&self, freq: f64) -> Option<Duration> {
-        None
+    /* converts self to meters of delay */
+    pub(crate) fn meters_delay(&self, freq: f64) -> f64 {
+        0.0_f64
     }
 }
 
@@ -282,14 +345,23 @@ impl Default for IonMessage {
 }
 
 impl IonMessage {
-    /// Converts self to time delay [s]
-    pub fn time_delay(&self, freq: f64) -> Option<Duration> {
+    /* converts self to meters of delay */
+    pub(crate) fn meters_delay(
+        &self,
+        t: Epoch,
+        e: f64,
+        a: f64,
+        h_km: f64,
+        user_lat_ddeg: f64,
+        user_lon_ddeg: f64,
+        carrier: Carrier,
+    ) -> Option<f64> {
         if let Some(kb) = self.as_klobuchar() {
-            kb.time_delay(freq)
+            Some(kb.meters_delay(t, e, a, h_km, user_lat_ddeg, user_lon_ddeg, carrier))
         } else if let Some(ng) = self.as_nequick_g() {
-            ng.time_delay(freq)
+            None
         } else if let Some(bd) = self.as_bdgim() {
-            bd.time_delay(freq)
+            None
         } else {
             None
         }
