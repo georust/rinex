@@ -1,15 +1,15 @@
 use crate::Cli;
 use statrs::statistics::Statistics;
 
-// use gnss::prelude::{Constellation, SV};
+use gnss::prelude::Constellation; // SV};
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::{
     prelude::{
-        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, IonosphericDelay,
-        Mode, PVTSolution, PVTSolutionType, PseudoRange, Solver, TropoComponents,
+        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, KbModel, Mode,
+        Observation, PVTSolution, PVTSolutionType, Solver, TropoComponents,
     },
     Vector3D,
 };
@@ -245,78 +245,91 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             let clock_state = sv_eph.sv_clock();
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
             let clock_state: Vector3D = clock_state.into();
-            let mut snr = Vec::<f64>::new();
-            let mut pseudo_range = Vec::<PseudoRange>::new();
-            let mut modeled_ionod = Vec::<IonosphericDelay>::new();
+            let mut codes = Vec::<Observation>::new();
+            let mut phases = Vec::<Observation>::new();
 
             for (observable, data) in observations {
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
                     let frequency = carrier.frequency();
 
                     if observable.is_pseudorange_observable() {
-                        pseudo_range.push(PseudoRange {
+                        codes.push(Observation {
                             frequency,
+                            snr: {
+                                if let Some(snr) = data.snr {
+                                    Some(snr.into())
+                                } else {
+                                    None
+                                }
+                            },
                             value: data.obs,
                         });
-                        if let Some(obs_snr) = data.snr {
-                            snr.push(obs_snr.into());
-                        }
-                    }
-
-                    /* IONOD */
-                    if cfg.modeling.iono_delay {
-                        /* inject possible models */
-                        if let Some(time_delay) = nav_data.ionod_model(
-                            *t,
-                            sv,
-                            sv_elevation,
-                            sv_azim,
-                            apriori.geodetic.x,
-                            apriori.geodetic.y,
-                            carrier,
-                        ) {
-                            modeled_ionod.push(IonosphericDelay {
-                                frequency,
-                                time_delay,
-                            });
-                        }
-                        /* provide possible STEC */
+                    } else if observable.is_phase_observable() {
+                        phases.push(Observation {
+                            frequency,
+                            snr: {
+                                if let Some(snr) = data.snr {
+                                    Some(snr.into())
+                                } else {
+                                    None
+                                }
+                            },
+                            value: data.obs,
+                        });
                     }
                 }
             }
-
-            /* worst SNR over all used observations */
-            let snr: Option<f64> = match snr.is_empty() {
-                true => None,
-                false => {
-                    let snr = snr.min();
-                    debug!("{:?} ({}): SNR : {:?}", t, sv, snr);
-                    Some(snr)
-                },
-            };
 
             if let Ok(candidate) = Candidate::new(
                 *sv,
                 *t,
                 clock_state,
                 clock_corr,
-                snr,
-                pseudo_range.clone(),
-                modeled_ionod,
+                codes.clone(),
+                phases.clone(),
             ) {
                 candidates.push(candidate);
             } else {
                 warn!("{:?}: failed to form {} candidate", t, sv);
             }
         }
+
+        // grab possible Kb Model
+        let kb_model = nav_data
+            .klobuchar_models()
+            .min_by_key(|(t_i, _, _)| (*t - *t_i).abs());
+
+        let kb_model = match kb_model {
+            Some((_, sv, kb_model)) => {
+                Some(KbModel {
+                    h_km: {
+                        match sv.constellation {
+                            Constellation::BeiDou => 375.0,
+                            // we only expect GPS or BDS here,
+                            // badly formed RINEX will generate errors in the solutions
+                            _ | Constellation::GPS => 350.0,
+                        }
+                    },
+                    alpha: kb_model.alpha,
+                    beta: kb_model.beta,
+                })
+            },
+            None => None,
+        };
+
+        // grab possible tropo components
         let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
+
+        // TODO
+        let stec = Option::<f64>::None;
 
         match solver.resolve(
             *t,
             PVTSolutionType::PositionVelocityTime,
             candidates,
+            kb_model,
+            stec,
             tropo_components,
-            None,
         ) {
             Ok((t, pvt)) => {
                 debug!("{:?} : {:?}", t, pvt);

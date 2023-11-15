@@ -2466,17 +2466,16 @@ impl Rinex {
     /// use rinex::navigation::KbRegionCode;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
     ///     .unwrap();
-    /// for (epoch, kb_model) in rnx.klobuchar_models() {
+    /// for (epoch, _sv, kb_model) in rnx.klobuchar_models() {
     ///     let alpha = kb_model.alpha;
     ///     let beta = kb_model.beta;
-    ///     // we only have this example at the moment
     ///     assert_eq!(kb_model.region, KbRegionCode::WideArea);
     /// }
     /// ```
-    pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, KbModel)> + '_> {
+    pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, SV, KbModel)> + '_> {
         Box::new(
             self.ionosphere_models()
-                .filter_map(|(e, (_, _, ion))| ion.as_klobuchar().map(|model| (*e, *model))),
+                .filter_map(|(e, (_, sv, ion))| ion.as_klobuchar().map(|model| (*e, sv, *model))),
         )
     }
     /// Returns [`NgModel`] Iterator
