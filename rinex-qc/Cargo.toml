@@ -24,7 +24,7 @@ hifitime = "3.8.4"
 strum = "0.25"
 strum_macros = "0.25"
 horrorshow = "0.8"
-itertools = "0.11.0"
+itertools = "0.12.0"
 statrs = "0.16"
 sp3 = { path = "../sp3", version = "=1.0.6", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1" }
