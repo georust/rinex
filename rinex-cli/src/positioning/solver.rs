@@ -329,7 +329,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             candidates,
             kb_model,
             stec,
-            tropo_components,
+            None, //tropo_components,
         ) {
             Ok((t, pvt)) => {
                 debug!("{:?} : {:?}", t, pvt);

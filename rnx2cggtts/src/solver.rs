@@ -334,7 +334,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     vec![candidate],
                     kb_model,
                     stec,
-                    tropo_components,
+                    None, //tropo_components,
                 ) {
                     Ok((t, mut pvt_solution)) => {
                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
@@ -346,7 +346,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         let refsv = pvt_solution.dt + clock_corr.to_seconds();
 
                         /*
-                         * TROPO : always present 
+                         * TROPO : always present
                          *         convert to time delay (CGGTTS)
                          */
                         let mdtr = match pvt_data.tropo.value() {
