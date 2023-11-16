@@ -355,12 +355,12 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         };
 
                         let mdio = match pvt_data.iono.modeled {
-                            Some(iono) => Some(iono / 299792458.0),
+                            Some(iono) => Some(iono), // / 299792458.0),
                             None => None,
                         };
 
                         let msio = match pvt_data.iono.measured {
-                            Some(iono) => Some(iono / 299792458.0),
+                            Some(iono) => Some(iono), // / 299792458.0),
                             None => None,
                         };
 
