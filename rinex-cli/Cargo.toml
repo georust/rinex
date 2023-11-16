@@ -27,7 +27,7 @@ rinex-qc = { path = "../rinex-qc", version = "=0.1.5", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["full"] }
 gnss-rtk = { path = "../gnss-rtk", version = "=0.1.0", features = ["serde"] }
 thiserror = "1"
-itertools = "0.11"
+itertools = "0.12"
 # plotly =  "0.8.4"
 plotly = { git = "https://github.com/gwbres/plotly", branch = "density-mapbox" }
 # plotly = { path = "../../plotly-rs/plotly" }
