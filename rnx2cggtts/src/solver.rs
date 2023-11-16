@@ -345,13 +345,25 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         let refsys = pvt_solution.dt;
                         let refsv = pvt_solution.dt + clock_corr.to_seconds();
 
-                        let mdtr = pvt_data.tropo.value().unwrap_or(0.0_f64); // MDTR evaluation
-                                                                              // is always required in RNX2CGGTTS
-                                                                              // this absorb a possibly disabled TROPO compensation
-                                                                              // in the rtk solver.
+                        /*
+                         * TROPO : always present 
+                         *         convert to time delay (CGGTTS)
+                         */
+                        let mdtr = match pvt_data.tropo.value() {
+                            Some(tropo) => tropo / 299792458.0,
+                            None => 0.0_f64,
+                        };
 
-                        let mdio = pvt_data.iono.modeled;
-                        let msio = pvt_data.iono.measured;
+                        let mdio = match pvt_data.iono.modeled {
+                            Some(iono) => Some(iono / 299792458.0),
+                            None => None,
+                        };
+
+                        let msio = match pvt_data.iono.measured {
+                            Some(iono) => Some(iono / 299792458.0),
+                            None => None,
+                        };
+
                         debug!(
                             "{:?} : new {}:{} PVT solution (elev={:.2}°, azi={:.2}°, REFSV={:.3E}, REFSYS={:.3E})",
                             t, sv, observable, elevation, azimuth, refsv, refsys
