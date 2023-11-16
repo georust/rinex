@@ -307,7 +307,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                             Constellation::BeiDou => 375.0,
                             // we only expect GPS or BDS here,
                             // badly formed RINEX will generate errors in the solutions
-                            _ | Constellation::GPS => 350.0,
+                            _ => 350.0,
                         }
                     },
                     alpha: kb_model.alpha,
