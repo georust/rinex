@@ -1,6 +1,5 @@
 use crate::Cli;
 use std::collections::HashMap;
-use std::str::FromStr;
 use thiserror::Error;
 
 use gnss::prelude::{Constellation, SV};
@@ -13,8 +12,21 @@ use rinex::{
 
 use rtk::{
     prelude::{
-        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, IonosphericBias,
-        KbModel, Mode, Observation, PVTSolutionType, Solver, TimeScale, TroposphericBias,
+        AprioriPosition,
+        BdModel,
+        Candidate,
+        Config,
+        Duration,
+        Epoch,
+        InterpolationResult,
+        IonosphericBias,
+        KbModel,
+        Mode,
+        NgModel,
+        Observation,
+        PVTSolutionType,
+        Solver,
+        TroposphericBias, //TimeScale
     },
     Vector3D,
 };
@@ -114,6 +126,42 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f
     }
 }
 
+fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
+    let kb_model = nav
+        .klobuchar_models()
+        .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
+
+    match kb_model {
+        Some((_, sv, kb_model)) => {
+            Some(KbModel {
+                h_km: {
+                    match sv.constellation {
+                        Constellation::BeiDou => 375.0,
+                        // we only expect GPS or BDS here,
+                        // badly formed RINEX will generate errors in the solutions
+                        _ => 350.0,
+                    }
+                },
+                alpha: kb_model.alpha,
+                beta: kb_model.beta,
+            })
+        },
+        None => None,
+    }
+}
+
+fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
+    nav.bdgim_models()
+        .min_by_key(|(t_i, _)| (t - *t_i).abs())
+        .map(|(_, model)| BdModel { alpha: model.alpha })
+}
+
+fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
+    nav.nequick_g_models()
+        .min_by_key(|(t_i, _)| (t - *t_i).abs())
+        .map(|(_, model)| NgModel { a: model.a })
+}
+
 pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // custom tracking duration
     let trk_duration = cli.tracking_duration();
@@ -158,10 +206,6 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     let dominant_sampling_period = obs_data
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady RINEX observations");
-
-    let first_epoch = obs_data
-        .first_epoch()
-        .expect("RNX2CGGTTS requires RINEX observations to be populated");
 
     let nav_data = match ctx.nav_data() {
         Some(data) => data,
@@ -226,7 +270,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
-    let mut sched = Scheduler::new(trk_duration);
+    let sched = Scheduler::new(trk_duration);
     let mut next_release = Option::<Epoch>::None;
     let mut trk_midpoint = Option::<Epoch>::None;
     let mut trackers = HashMap::<(SV, Observable), SVTracker>::new();
@@ -239,35 +283,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
             continue;
         }
 
-        // Nearest Kb
-        let kb_model = nav_data
-            .klobuchar_models()
-            .min_by_key(|(t_i, _, _)| (*t - *t_i).abs());
-
-        // TODO
-        let stec_meas = Option::<f64>::None;
-
         // Nearest TROPO
         let zwd_zdd = tropo_components(meteo_data, *t, lat_ddeg);
-
-        // Nearest Kb model
-        let kb_model = match kb_model {
-            Some((_, sv, kb_model)) => {
-                Some(KbModel {
-                    h_km: {
-                        match sv.constellation {
-                            Constellation::BeiDou => 375.0,
-                            // we only expect GPS or BDS here,
-                            // badly formed RINEX will generate errors in the solutions
-                            _ => 350.0,
-                        }
-                    },
-                    alpha: kb_model.alpha,
-                    beta: kb_model.beta,
-                })
-            },
-            None => None,
-        };
 
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
@@ -282,8 +299,10 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
             let clock_state: Vector3D = clock_state.into();
 
             let iono_bias = IonosphericBias {
-                kb_model,
-                stec_meas,
+                kb_model: kb_model(nav_data, *t),
+                bd_model: bd_model(nav_data, *t),
+                ng_model: ng_model(nav_data, *t),
+                stec_meas: None, //TODO
             };
 
             let tropo_bias = TroposphericBias {
@@ -300,8 +319,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
                 let carrier = carrier.unwrap();
                 let frequency = carrier.frequency();
-
-                let mut code = Observation::default();
+                let code: Observation;
 
                 if observable.is_pseudorange_observable() {
                     code = Observation {
@@ -342,7 +360,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     &iono_bias,
                     &tropo_bias,
                 ) {
-                    Ok((t, mut pvt_solution)) => {
+                    Ok((t, pvt_solution)) => {
                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
 
                         let azimuth = pvt_data.azimuth;
@@ -361,12 +379,12 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         };
 
                         let mdio = match pvt_data.iono_bias.modeled {
-                            Some(iono) => Some(iono), // / 299792458.0),
+                            Some(iono) => Some(iono),
                             None => None,
                         };
 
                         let msio = match pvt_data.iono_bias.measured {
-                            Some(iono) => Some(iono), // / 299792458.0),
+                            Some(iono) => Some(iono),
                             None => None,
                         };
 
@@ -387,7 +405,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
                         let target = &(*sv, observable.clone());
 
-                        let mut tracker = match trackers.get_mut(target) {
+                        let tracker = match trackers.get_mut(target) {
                             None => {
                                 // initialize new tracker
                                 trackers.insert((*sv, observable.clone()), SVTracker::default());

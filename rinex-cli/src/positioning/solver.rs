@@ -1,5 +1,5 @@
 use crate::Cli;
-use statrs::statistics::Statistics;
+//use statrs::statistics::Statistics;
 
 use gnss::prelude::Constellation; // SV};
 use rinex::carrier::Carrier;
@@ -8,8 +8,9 @@ use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::{
     prelude::{
-        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, IonosphericBias,
-        KbModel, Mode, Observation, PVTSolution, PVTSolutionType, Solver, TroposphericBias,
+        AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
+        IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
+        TroposphericBias,
     },
     Vector3D,
 };
@@ -105,6 +106,42 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f
 
         Some((zwd, zdd))
     }
+}
+
+fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
+    let kb_model = nav
+        .klobuchar_models()
+        .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
+
+    match kb_model {
+        Some((_, sv, kb_model)) => {
+            Some(KbModel {
+                h_km: {
+                    match sv.constellation {
+                        Constellation::BeiDou => 375.0,
+                        // we only expect GPS or BDS here,
+                        // badly formed RINEX will generate errors in the solutions
+                        _ => 350.0,
+                    }
+                },
+                alpha: kb_model.alpha,
+                beta: kb_model.beta,
+            })
+        },
+        None => None,
+    }
+}
+
+fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
+    nav.bdgim_models()
+        .min_by_key(|(t_i, _)| (t - *t_i).abs())
+        .map(|(_, model)| BdModel { alpha: model.alpha })
+}
+
+fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
+    nav.nequick_g_models()
+        .min_by_key(|(t_i, _)| (t - *t_i).abs())
+        .map(|(_, model)| NgModel { a: model.a })
 }
 
 pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolution>, Error> {
@@ -294,35 +331,11 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
         // grab possible tropo components
         let zwd_zdd = tropo_components(meteo_data, *t, lat_ddeg);
 
-        // TODO
-        let stec_meas = Option::<f64>::None;
-
-        // grab possible Kb Model
-        let kb_model = nav_data
-            .klobuchar_models()
-            .min_by_key(|(t_i, _, _)| (*t - *t_i).abs());
-
-        let kb_model = match kb_model {
-            Some((_, sv, kb_model)) => {
-                Some(KbModel {
-                    h_km: {
-                        match sv.constellation {
-                            Constellation::BeiDou => 375.0,
-                            // we only expect GPS or BDS here,
-                            // badly formed RINEX will generate errors in the solutions
-                            _ => 350.0,
-                        }
-                    },
-                    alpha: kb_model.alpha,
-                    beta: kb_model.beta,
-                })
-            },
-            None => None,
-        };
-
         let iono_bias = IonosphericBias {
-            kb_model,
-            stec_meas,
+            kb_model: kb_model(nav_data, *t),
+            bd_model: bd_model(nav_data, *t),
+            ng_model: ng_model(nav_data, *t),
+            stec_meas: None, //TODO
         };
 
         let tropo_bias = TroposphericBias {
