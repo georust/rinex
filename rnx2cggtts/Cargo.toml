@@ -1,6 +1,6 @@
 [package]
 name = "rnx2cggtts"
-version = "0.0.1"
+version = "0.1.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "CGGTTS data generation from RINEX"
@@ -25,4 +25,4 @@ clap = { version = "4", features = ["derive", "color"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["serde"] }
 cggtts = { git = "https://github.com/gwbres/cggtts", branch = "develop", features = ["serde", "scheduler"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
