@@ -13,8 +13,8 @@ use rinex::{
 
 use rtk::{
     prelude::{
-        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, KbModel, Mode,
-        Observation, PVTSolutionType, Solver, TimeScale, TropoComponents,
+        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, IonosphericBias,
+        KbModel, Mode, Observation, PVTSolutionType, Solver, TimeScale, TroposphericBias,
     },
     Vector3D,
 };
@@ -39,7 +39,7 @@ pub enum Error {
     UndefinedAprioriPosition,
 }
 
-fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<TropoComponents> {
+fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
     const MAX_LATDDEG_DELTA: f64 = 15.0;
     let max_dt = Duration::from_hours(24.0);
     let rnx = meteo?;
@@ -86,34 +86,31 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
     if delays.len() < 2 {
         None
     } else {
-        Some(TropoComponents {
-            zdd: {
-                delays
-                    .iter()
-                    .filter_map(|(obs, value)| {
-                        if obs == &Observable::ZenithDryDelay {
-                            Some(*value)
-                        } else {
-                            None
-                        }
-                    })
-                    .reduce(|k, _| k)
-                    .unwrap()
-            },
-            zwd: {
-                delays
-                    .iter()
-                    .filter_map(|(obs, value)| {
-                        if obs == &Observable::ZenithWetDelay {
-                            Some(*value)
-                        } else {
-                            None
-                        }
-                    })
-                    .reduce(|k, _| k)
-                    .unwrap()
-            },
-        })
+        let zdd = delays
+            .iter()
+            .filter_map(|(obs, value)| {
+                if obs == &Observable::ZenithDryDelay {
+                    Some(*value)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+            .unwrap();
+
+        let zwd = delays
+            .iter()
+            .filter_map(|(obs, value)| {
+                if obs == &Observable::ZenithWetDelay {
+                    Some(*value)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+            .unwrap();
+
+        Some((zwd, zdd))
     }
 }
 
@@ -242,16 +239,35 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
             continue;
         }
 
-        // Nearest TROPO
-        let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
-
         // Nearest Kb
         let kb_model = nav_data
             .klobuchar_models()
             .min_by_key(|(t_i, _, _)| (*t - *t_i).abs());
 
-        // TODO: nearest STEC
-        let stec = Option::<f64>::None;
+        // TODO
+        let stec_meas = Option::<f64>::None;
+
+        // Nearest TROPO
+        let zwd_zdd = tropo_components(meteo_data, *t, lat_ddeg);
+
+        // Nearest Kb model
+        let kb_model = match kb_model {
+            Some((_, sv, kb_model)) => {
+                Some(KbModel {
+                    h_km: {
+                        match sv.constellation {
+                            Constellation::BeiDou => 375.0,
+                            // we only expect GPS or BDS here,
+                            // badly formed RINEX will generate errors in the solutions
+                            _ => 350.0,
+                        }
+                    },
+                    alpha: kb_model.alpha,
+                    beta: kb_model.beta,
+                })
+            },
+            None => None,
+        };
 
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
@@ -265,23 +281,14 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
             let clock_state: Vector3D = clock_state.into();
 
-            // Nearest Kb model
-            let kb_model = match kb_model {
-                Some((_, sv, kb_model)) => {
-                    Some(KbModel {
-                        h_km: {
-                            match sv.constellation {
-                                Constellation::BeiDou => 375.0,
-                                // we only expect GPS or BDS here,
-                                // badly formed RINEX will generate errors in the solutions
-                                _ => 350.0,
-                            }
-                        },
-                        alpha: kb_model.alpha,
-                        beta: kb_model.beta,
-                    })
-                },
-                None => None,
+            let iono_bias = IonosphericBias {
+                kb_model,
+                stec_meas,
+            };
+
+            let tropo_bias = TroposphericBias {
+                total: None, //TODO
+                zwd_zdd,
             };
 
             // form PVT "candidate" for each signal
@@ -332,9 +339,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     *t,
                     PVTSolutionType::TimeOnly,
                     vec![candidate],
-                    kb_model,
-                    stec,
-                    None, //tropo_components,
+                    &iono_bias,
+                    &tropo_bias,
                 ) {
                     Ok((t, mut pvt_solution)) => {
                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
@@ -349,17 +355,17 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                          * TROPO : always present
                          *         convert to time delay (CGGTTS)
                          */
-                        let mdtr = match pvt_data.tropo.value() {
+                        let mdtr = match pvt_data.tropo_bias.value() {
                             Some(tropo) => tropo / 299792458.0,
                             None => 0.0_f64,
                         };
 
-                        let mdio = match pvt_data.iono.modeled {
+                        let mdio = match pvt_data.iono_bias.modeled {
                             Some(iono) => Some(iono), // / 299792458.0),
                             None => None,
                         };
 
-                        let msio = match pvt_data.iono.measured {
+                        let msio = match pvt_data.iono_bias.measured {
                             Some(iono) => Some(iono), // / 299792458.0),
                             None => None,
                         };

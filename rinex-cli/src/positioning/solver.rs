@@ -8,8 +8,8 @@ use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::{
     prelude::{
-        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, KbModel, Mode,
-        Observation, PVTSolution, PVTSolutionType, Solver, TropoComponents,
+        AprioriPosition, Candidate, Config, Duration, Epoch, InterpolationResult, IonosphericBias,
+        KbModel, Mode, Observation, PVTSolution, PVTSolutionType, Solver, TroposphericBias,
     },
     Vector3D,
 };
@@ -32,7 +32,7 @@ pub enum Error {
     UndefinedAprioriPosition,
 }
 
-fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<TropoComponents> {
+fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
     const MAX_LATDDEG_DELTA: f64 = 15.0;
     let max_dt = Duration::from_hours(24.0);
     let rnx = meteo?;
@@ -79,34 +79,31 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<Tr
     if delays.len() < 2 {
         None
     } else {
-        Some(TropoComponents {
-            zdd: {
-                delays
-                    .iter()
-                    .filter_map(|(obs, value)| {
-                        if obs == &Observable::ZenithDryDelay {
-                            Some(*value)
-                        } else {
-                            None
-                        }
-                    })
-                    .reduce(|k, _| k)
-                    .unwrap()
-            },
-            zwd: {
-                delays
-                    .iter()
-                    .filter_map(|(obs, value)| {
-                        if obs == &Observable::ZenithWetDelay {
-                            Some(*value)
-                        } else {
-                            None
-                        }
-                    })
-                    .reduce(|k, _| k)
-                    .unwrap()
-            },
-        })
+        let zdd = delays
+            .iter()
+            .filter_map(|(obs, value)| {
+                if obs == &Observable::ZenithDryDelay {
+                    Some(*value)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+            .unwrap();
+
+        let zwd = delays
+            .iter()
+            .filter_map(|(obs, value)| {
+                if obs == &Observable::ZenithWetDelay {
+                    Some(*value)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+            .unwrap();
+
+        Some((zwd, zdd))
     }
 }
 
@@ -294,6 +291,12 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             }
         }
 
+        // grab possible tropo components
+        let zwd_zdd = tropo_components(meteo_data, *t, lat_ddeg);
+
+        // TODO
+        let stec_meas = Option::<f64>::None;
+
         // grab possible Kb Model
         let kb_model = nav_data
             .klobuchar_models()
@@ -317,19 +320,22 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             None => None,
         };
 
-        // grab possible tropo components
-        let tropo_components = tropo_components(meteo_data, *t, lat_ddeg);
+        let iono_bias = IonosphericBias {
+            kb_model,
+            stec_meas,
+        };
 
-        // TODO
-        let stec = Option::<f64>::None;
+        let tropo_bias = TroposphericBias {
+            total: None, //TODO
+            zwd_zdd,
+        };
 
         match solver.resolve(
             *t,
             PVTSolutionType::PositionVelocityTime,
             candidates,
-            kb_model,
-            stec,
-            None, //tropo_components,
+            &iono_bias,
+            &tropo_bias,
         ) {
             Ok((t, pvt)) => {
                 debug!("{:?} : {:?}", t, pvt);
