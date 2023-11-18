@@ -188,6 +188,11 @@ pub trait Combine {
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
+    /// Iono free combination
+    fn iono_free(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
+
     /// Perform Wide Lane recombination.   
     /// See [Self::geo_free] for API example.
     fn wide_lane(
@@ -223,36 +228,6 @@ pub trait Dcb {
     /// let dcb = rinex.dcb();
     /// ```
     fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-}
-
-/// Multipath biases estimation.
-/// Refer to [Bibliography::ESABookVol1] and [Bibliography::MpTaoglas].
-#[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
-pub trait Mp {
-    /// Returns Multipath bias estimates,
-    /// sorted per (unique) signal combinations and for each individual SV.
-    fn mp(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-}
-
-/// Ionospheric Delay estimation trait.
-#[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
-pub trait IonoDelay {
-    /// The Iono delay estimator is the derivative of the [Combine::geo_free]
-    /// recombination. One can then use a peak detector for example,
-    /// to determine signal perturbations, due to ionospheric activity.
-    /// To improve behavior and avoid discontinuities on data gaps,
-    /// we perform the derivative only if the previous point was sampled at worst
-    /// `max_dt` prior current point.  
-    /// This is intended to be used on raw Phase data only,
-    /// but can be evaluated on PR too (if such data is passed).  
-    /// In that scenario, ideally the user used a smoothing algorithm,
-    /// prior to invoking this method: see the preprocessing toolkit.
-    fn iono_delay(
-        &self,
-        max_dt: Duration,
-    ) -> HashMap<Observable, HashMap<SV, BTreeMap<Epoch, f64>>>;
 }
 
 #[cfg(test)]
