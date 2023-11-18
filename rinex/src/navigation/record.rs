@@ -1187,8 +1187,6 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
                         filter.contains(&sv)
-                    } else if let Some((_, sv, _)) = fr.as_ion() {
-                        filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_eop() {
                         filter.contains(&sv)
                     } else if let Some((_, sv, _)) = fr.as_sto() {
