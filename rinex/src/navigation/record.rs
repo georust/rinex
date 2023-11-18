@@ -1187,12 +1187,8 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
                         filter.contains(&sv)
-                    } else if let Some((_, sv, _)) = fr.as_eop() {
-                        filter.contains(&sv)
-                    } else if let Some((_, sv, _)) = fr.as_sto() {
-                        filter.contains(&sv)
                     } else {
-                        // non existing
+                        // Only applies to Ephemeris frames
                         false
                     }
                 });
@@ -1212,26 +1208,8 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
                         } else {
                             filter.contains(&sv.constellation)
                         }
-                    } else if let Some((_, sv, _)) = fr.as_ion() {
-                        if broad_sbas_filter {
-                            sv.constellation.is_sbas() || filter.contains(&sv.constellation)
-                        } else {
-                            filter.contains(&sv.constellation)
-                        }
-                    } else if let Some((_, sv, _)) = fr.as_eop() {
-                        if broad_sbas_filter {
-                            sv.constellation.is_sbas() || filter.contains(&sv.constellation)
-                        } else {
-                            filter.contains(&sv.constellation)
-                        }
-                    } else if let Some((_, sv, _)) = fr.as_sto() {
-                        if broad_sbas_filter {
-                            sv.constellation.is_sbas() || filter.contains(&sv.constellation)
-                        } else {
-                            filter.contains(&sv.constellation)
-                        }
                     } else {
-                        // non existing
+                        // Only applies to Ephemeris frames
                         false
                     }
                 });
