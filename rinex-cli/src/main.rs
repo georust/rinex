@@ -16,7 +16,7 @@ mod positioning;
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
-    observation::{Combine, Dcb, IonoDelay}, //Mp},
+    observation::{Combine, Dcb},
     prelude::*,
     split::Split,
 };
@@ -154,6 +154,85 @@ fn naviplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
     skyplot_allowed(ctx, cli)
 }
 
+/*
+ * Plots requested combinations
+ */
+fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
+    if cli.dcb() {
+        let data = obs
+            //.observation_phase_align_origin()
+            //.observation_phase_carrier_cycles()
+            .dcb();
+        plot::plot_gnss_dcb(
+            plot_ctx,
+            "Differential Code Biases",
+            "Differential Code Bias [s]",
+            &data,
+        );
+        info!("dcb analysis");
+    }
+    //if cli.multipath() {
+    //    let data = rnx
+    //        //.observation_phase_align_origin()
+    //        //.observation_phase_carrier_cycles()
+    //        .dcb();
+    //    plot::plot_gnss_dcb(
+    //        &mut plot_ctx,
+    //        "Code Multipath",
+    //        "Meters of delay",
+    //        &data,
+    //    );
+    //    info!("multipath analysis");
+    //}
+    if cli.if_combination() {
+        // let data = rnx.observation_phase_align_origin().geo_free();
+        let data = obs.iono_free();
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Ionosphere Free combination",
+            "Meters of delay",
+        );
+        info!("iono free combination");
+    }
+    if cli.gf_combination() {
+        // let data = rnx.observation_phase_align_origin().geo_free();
+        let data = obs.geo_free();
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Geometry Free combination",
+            "Meters of delay",
+        );
+        info!("geo free combination");
+    }
+    if cli.wl_combination() {
+        let data = obs.wide_lane();
+        plot::plot_gnss_combination(&data, plot_ctx, "Wide Lane combination", "Meters of delay");
+        info!("wide lane combination");
+    }
+    if cli.nl_combination() {
+        let data = obs.narrow_lane();
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Narrow Lane combination",
+            "Meters of delay",
+        );
+        info!("wide lane combination");
+    }
+    if cli.mw_combination() {
+        let data = obs.melbourne_wubbena();
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Melbourne-Wübbena signal combination",
+            "Meters of Li-Lj delay",
+        );
+        info!("melbourne-wubbena combination");
+    }
+}
+
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
@@ -249,123 +328,13 @@ pub fn main() -> Result<(), Error> {
         return Ok(()); // not proceeding further, in this mode
     }
     /*
-     * DCB analysis requested
+     * plot combinations (if any)
      */
-    if cli.dcb() && !no_graph {
-        if let Some(rnx) = ctx.obs_data() {
-            let data = rnx
-                .observation_phase_align_origin()
-                .observation_phase_carrier_cycles()
-                .dcb();
-            plot::plot_gnss_dcb(
-                &mut plot_ctx,
-                "Differential Code Biases",
-                "DBCs [n.a]",
-                &data,
-            );
-            info!("dcb analysis");
+    if !no_graph {
+        if let Some(obs) = ctx.obs_data() {
+            plot_combinations(obs, &cli, &mut plot_ctx);
         } else {
-            error!("dcb is not feasible");
-        }
-    }
-    /*
-     * Code Multipath analysis
-     */
-    if cli.multipath() && !no_graph {
-        if let Some(_rnx) = ctx.obs_data() {
-            //let data = ctx
-            //    .primary_data()
-            //    .observation_phase_align_origin()
-            //    .observation_phase_carrier_cycles()
-            //    .mp();
-            //plot::plot_gnss_dcb(
-            //    &mut plot_ctx,
-            //    "Code Multipath Biases",
-            //    "Meters of delay",
-            //    &data,
-            //);
-        } else {
-            error!("mp is not feasible");
-        }
-    }
-    /*
-     * [GF] recombination visualization requested
-     */
-    if cli.gf_recombination() && !no_graph {
-        if let Some(rnx) = ctx.obs_data() {
-            let data = rnx.observation_phase_align_origin().geo_free();
-            plot::plot_gnss_recombination(
-                &mut plot_ctx,
-                "Geometry Free signal combination",
-                "Meters of Li-Lj delay",
-                &data,
-            );
-            info!("gf recombination");
-        } else {
-            error!("gf is not feasible");
-        }
-    }
-    /*
-     * Ionospheric Delay Detector (graph)
-     */
-    if cli.iono_detector() && !no_graph {
-        if let Some(rnx) = ctx.obs_data() {
-            let data = rnx.iono_delay(Duration::from_seconds(360.0));
-            plot::plot_iono_detector(&mut plot_ctx, &data);
-            info!("iono detector");
-        } else {
-            error!("iono is not feasible");
-        }
-    }
-    /*
-     * [WL] recombination
-     */
-    if cli.wl_recombination() && !no_graph {
-        if let Some(rnx) = ctx.obs_data() {
-            let data = rnx.wide_lane();
-            plot::plot_gnss_recombination(
-                &mut plot_ctx,
-                "Wide Lane signal combination",
-                "Meters of Li-Lj delay",
-                &data,
-            );
-            info!("wl recombination");
-        } else {
-            error!("wl is not feasible");
-        }
-    }
-    /*
-     * [NL] recombination
-     */
-    if cli.nl_recombination() && !no_graph {
-        if let Some(rnx) = ctx.obs_data() {
-            let data = rnx.narrow_lane();
-            plot::plot_gnss_recombination(
-                &mut plot_ctx,
-                "Narrow Lane signal combination",
-                "Meters of Li-Lj delay",
-                &data,
-            );
-            info!("nl recombination");
-        } else {
-            error!("nl is not feasible");
-        }
-    }
-    /*
-     * [MW] recombination
-     */
-    if cli.mw_recombination() && !no_graph {
-        if let Some(rnx) = ctx.obs_data() {
-            let data = rnx.melbourne_wubbena();
-            plot::plot_gnss_recombination(
-                &mut plot_ctx,
-                "Melbourne-Wübbena signal combination",
-                "Meters of Li-Lj delay",
-                &data,
-            );
-            info!("mw recombination");
-        } else {
-            error!("mw is not feasible");
+            error!("GNSS combinations requires Observation Data");
         }
     }
     /*

@@ -32,7 +32,7 @@ mod naviplot;
 pub use naviplot::naviplot;
 
 mod combination;
-pub use combination::{plot_gnss_dcb, plot_gnss_recombination, plot_iono_detector};
+pub use combination::{plot_gnss_combination, plot_gnss_dcb};
 
 /*
  * Generates N marker symbols to be used

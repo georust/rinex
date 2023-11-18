@@ -152,34 +152,40 @@ Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."
                         .long("lli-mask")
                         .help("Applies given LLI AND() mask. 
 Also drops observations that did not come with an LLI flag"))
+                    .arg(Arg::new("if")
+                        .long("if")
+                        .action(ArgAction::SetTrue)
+                        .help("Ionosphere Free combination graph"))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
-                        .help("Geometry Free recombination of both Phase and PR measurements."))
+                        .conflicts_with("no-graph")
+                        .help("Geometry Free combination graph"))
                     .arg(Arg::new("wl")
                         .long("wl")
                         .action(ArgAction::SetTrue)
-                        .help("Wide Lane recombination of both Phase and PR measurements."))
+                        .conflicts_with("no-graph")
+                        .help("Wide Lane combination graph"))
                     .arg(Arg::new("nl")
                         .long("nl")
                         .action(ArgAction::SetTrue)
-                        .help("Narrow Lane recombination of both Phase and PR measurements."))
+                        .conflicts_with("no-graph")
+                        .help("Narrow Lane combination graph"))
                     .arg(Arg::new("mw")
                         .long("mw")
                         .action(ArgAction::SetTrue)
-                        .help("Melbourne-Wübbena recombinations"))
+                        .conflicts_with("no-graph")
+                        .help("Melbourne-Wübbena combination graph"))
                     .arg(Arg::new("dcb")
                         .long("dcb")
                         .action(ArgAction::SetTrue)
+                        .conflicts_with("no-graph")
                         .help("Differential Code Bias analysis"))
                     .arg(Arg::new("multipath")
                         .long("mp")
                         .action(ArgAction::SetTrue)
+                        .conflicts_with("no-graph")
                         .help("Code Multipath analysis"))
-                    .arg(Arg::new("iono")
-                        .long("iono")
-                        .action(ArgAction::SetTrue)
-                        .help("Plot the ionospheric delay detector"))
                     .arg(Arg::new("anomalies")
                         .short('a')
                         .long("anomalies")
@@ -353,20 +359,20 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     pub fn irnss_filter(&self) -> bool {
         self.matches.get_flag("irnss-filter")
     }
-    pub fn gf_recombination(&self) -> bool {
+    pub fn gf_combination(&self) -> bool {
         self.matches.get_flag("gf")
     }
-    pub fn wl_recombination(&self) -> bool {
+    pub fn if_combination(&self) -> bool {
+        self.matches.get_flag("if")
+    }
+    pub fn wl_combination(&self) -> bool {
         self.matches.get_flag("wl")
     }
-    pub fn nl_recombination(&self) -> bool {
+    pub fn nl_combination(&self) -> bool {
         self.matches.get_flag("nl")
     }
-    pub fn mw_recombination(&self) -> bool {
+    pub fn mw_combination(&self) -> bool {
         self.matches.get_flag("mw")
-    }
-    pub fn iono_detector(&self) -> bool {
-        self.matches.get_flag("iono")
     }
     pub fn identification(&self) -> bool {
         self.matches.get_flag("sv")
