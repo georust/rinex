@@ -566,4 +566,7 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
         }
         None
     }
+    pub fn workspace(&self) -> Option<&String> {
+        self.matches.get_one::<String>("workspace")
+    }
 }

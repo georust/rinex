@@ -75,10 +75,13 @@ pub(crate) fn context_stem(ctx: &RnxContext) -> String {
  * Workspace location is fixed to rinex-cli/product/$primary
  * at the moment
  */
-pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("workspace")
-        .join(&context_stem(ctx))
+pub fn workspace_path(ctx: &RnxContext, cli: &Cli) -> PathBuf {
+    match cli.workspace() {
+        Some(w) => Path::new(w).join(&context_stem(ctx)),
+        None => Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("workspace")
+            .join(&context_stem(ctx)),
+    }
 }
 
 /*
@@ -270,7 +273,7 @@ pub fn main() -> Result<(), Error> {
     let mut ctx = build_context(&cli);
 
     // Workspace
-    let workspace = workspace_path(&ctx);
+    let workspace = workspace_path(&ctx, &cli);
     info!("workspace is \"{}\"", workspace.to_string_lossy());
     create_workspace(workspace.clone());
 
@@ -451,7 +454,7 @@ pub fn main() -> Result<(), Error> {
         /*
          * Render Graphs (HTML)
          */
-        let html_path = workspace_path(&ctx).join("graphs.html");
+        let html_path = workspace_path(&ctx, &cli).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
         let mut html_fd = std::fs::File::create(html_path)
