@@ -11,25 +11,12 @@ RINEX
 
 Rust tool suites to parse, analyze and process [RINEX Data](https://en.wikipedia.org/wiki/RINEX).
 
-This RINEX toolsuite is part of the [GeoRust community](https://github.com/georust),
-and we aim towards advanced geodesic and ionospheric analysis.
+Our Wiki contains [several tutorials and applications](https://github.com/georust/rinex/wiki), it will get you started quickly.
 
-## Workflow 
+For any question or problems you may experience:
 
-* Basic RINEX identification with `rinex-cli` (option `-i`)
-* Use `rinex-cli` to rework your files : 
-  - decimation and time binning
-  - split into two files
-  - merge two files together
-* Use `crx2rnx` to decompress your file so you can import them
-into third party tools (Python, Matlab..)
-* Use `rinex-cli` for detailed Observation and Navigation analysis
-and grahs
-  - use `--qc` option for thorough analysis report (historical "teqc")
-* Use `rinex-cli `-p`, `--spp` or `--ppp` to resolve PVT solutions
-* Use `rinex2cggtts` to generate CGGTTS for clock comparison and common view time transfer
-* Use `rnx2crnx` to compress your Observations
-* Use `ublox-rnx` to generate RINEX from a uBlox receiver :warning: Work in Progress)
+- open a new issue
+- drop us a message [on Discord](https://discord.gg/Fp2aape)
 
 ## Advantages :rocket: 
 
