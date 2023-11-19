@@ -79,7 +79,8 @@ pub fn workspace_path(ctx: &RnxContext, cli: &Cli) -> PathBuf {
     match cli.workspace() {
         Some(w) => Path::new(w).join(&context_stem(ctx)),
         None => Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("workspace")
+            .join("..")
+            .join("WORKSPACE")
             .join(&context_stem(ctx)),
     }
 }

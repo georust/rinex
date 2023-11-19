@@ -125,7 +125,7 @@ pub fn post_process(
     /*
      * Generate txt, GPX, KML..
      */
-    let txtpath = workspace.join("pvt-solutions.txt");
+    let txtpath = workspace.join("pvt-solutions.csv");
     let txtfile = txtpath.to_string_lossy().to_string();
     let mut fd = File::create(&txtfile)?;
 

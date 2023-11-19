@@ -62,8 +62,7 @@ pub(crate) fn context_stem(ctx: &RnxContext) -> String {
 pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
-        .join("rinex-cli")
-        .join("workspace")
+        .join("WORKSPACE")
         .join(&context_stem(ctx))
 }
 
