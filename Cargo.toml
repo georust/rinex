@@ -13,3 +13,5 @@ members = [
     "sp3",
     "ublox-rnx", 
 ]
+
+exclude = ["./test_resources"]
