@@ -11,7 +11,7 @@ RINEX
 
 Rust tool suites to parse, analyze and process [RINEX Data](https://en.wikipedia.org/wiki/RINEX).
 
-Our Wiki contains [several tutorials and applications](https://github.com/georust/rinex/wiki), it will get you started quickly.
+Our Wiki contains [several tutorials and applications](https://github.com/georust/rinex/wiki): it will get you started quickly.
 
 For any question or problems you may experience:
 
