@@ -1,8 +1,6 @@
-//! Command line tool to decompress CRINEX files
-use rinex::*;
-
 mod cli;
 use cli::Cli;
+use rinex::*;
 use std::path::{Path, PathBuf};
 
 fn workspace(cli: &Cli) -> PathBuf {
@@ -24,21 +22,41 @@ fn create_workspace(path: &PathBuf) {
     });
 }
 
+fn input_name(path: &PathBuf) -> String {
+    let stem = path
+        .file_stem()
+        .expect("failed to determine input file name")
+        .to_str()
+        .expect("failed to determine input file name");
+
+    if stem.ends_with(".crx") {
+        stem.strip_suffix(".crx")
+            .expect("failed to determine input file name")
+            .to_string()
+    } else {
+        stem.to_string()
+    }
+}
+
 // deduce output name, from input name
 fn output_filename<'a>(stem: &'a str, path: &PathBuf) -> String {
-
-    let extension = path.extension()
-        .expect("failed to determine input file extension")
+    let filename = path
+        .file_name()
+        .expect("failed to determine input file name")
         .to_str()
-        .expect("failed to determine input file extension");
+        .expect("failed to determine input file name");
 
-    if extension.eq("gz") {
-        String::from("None")
+    if filename.ends_with("gz") {
+        filename
+            .strip_suffix(".gz")
+            .expect("failed to determine output file name")
+            .replace("crx", "rnx")
+            .to_string()
     } else {
-        if extension.contains('d') {
-            extension.replace('d', "o").to_string()
-        } else if extension.contains('D') {
-            extension.replace('D', "O").to_string()
+        if filename.ends_with('d') {
+            filename.replace('d', "o").to_string()
+        } else if filename.ends_with('D') {
+            filename.replace('D', "O").to_string()
         } else {
             format!("{}.rnx", stem)
         }
@@ -49,31 +67,24 @@ fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
 
     let input_path = cli.input_path();
-    let input_stem = input_path.file_stem()
-        .expect("failed to determine input file name")
-        .to_str()
-        .expect("failed to determine input file name");
-    
-    println!("decompressing \"{}\"..", input_stem);
+    let input_name = input_name(&input_path);
+    println!("decompressing \"{}\"..", input_name);
 
-    let workspace_path = workspace(&cli)
-        .join(input_stem);
+    let workspace_path = workspace(&cli).join(&input_name);
 
     create_workspace(&workspace_path);
 
     let output_name = match cli.output_name() {
         Some(name) => name.clone(),
-        _ => output_filename(input_stem, &input_path),
+        _ => output_filename(&input_name, &input_path),
     };
 
     let filepath = input_path.to_string_lossy();
-    
+
     let mut rinex = Rinex::from_file(&filepath)?;
     rinex.crnx2rnx_mut(); // convert to RINEX
 
-    let outputpath = format!("{}/{}", 
-        workspace_path.to_string_lossy(),
-        output_name);
+    let outputpath = format!("{}/{}", workspace_path.to_string_lossy(), output_name);
 
     rinex.to_file(&outputpath)?; // dump
     println!("\"{}\" generated", outputpath.clone());

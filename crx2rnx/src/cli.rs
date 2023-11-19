@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use clap::{Arg, ArgMatches, ColorChoice, Command};
+use std::path::{Path, PathBuf};
 
 pub struct Cli {
     /// arguments passed by user
@@ -31,17 +31,16 @@ impl Cli {
                     )
                     .arg(
                         Arg::new("workspace")
-                        .short('w')
-                        .long("workspace")
-                        .help("Define custom workspace location"))
+                            .short('w')
+                            .long("workspace")
+                            .help("Define custom workspace location"),
+                    )
                     .get_matches()
             },
         }
     }
     pub fn input_path(&self) -> PathBuf {
-        Path::new(self.matches.get_one::<String>("filepath")
-            .unwrap())
-            .to_path_buf()
+        Path::new(self.matches.get_one::<String>("filepath").unwrap()).to_path_buf()
     }
     pub fn output_name(&self) -> Option<&String> {
         self.matches.get_one::<String>("output")
