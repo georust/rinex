@@ -22,9 +22,16 @@ use geo_types::Point as GeoPoint;
 
 use crate::context_stem;
 
+use plotly::color::NamedColor;
+use plotly::common::Mode;
+use plotly::common::{Marker, MarkerSymbol};
+use plotly::layout::MapboxStyle;
+use plotly::ScatterMapbox;
+
+use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
+
 use crate::fops::open_with_web_browser;
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
-use plotly::common::Mode;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -46,27 +53,57 @@ pub fn post_process(
     let no_graph = cli.no_graph();
     let mut plot_ctx = PlotContext::new();
 
-    let (x, y, z): (f64, f64, f64) = ctx
+    let (x, y, z) = ctx
         .ground_position()
-        .unwrap() // cannot fail
-        .into();
+        .unwrap() // cannot fail at this point
+        .to_ecef_wgs84();
+
+    let (lat_ddeg, lon_ddeg, _) = ctx
+        .ground_position()
+        .unwrap() // cannot fail at this point
+        .to_geodetic();
 
     if !no_graph {
-        /*
-         * Create graphical visualization
-         * dx, dy : one dual plot
-         * hdop, vdop : one dual plot
-         * dz : dedicated plot
-         * dt, tdop : one dual plot
-         */
-
-        plot_ctx.add_cartesian3d_plot(
-            "Position errors",
-            "x error [m]",
-            "y error [m]",
-            "z error [m]",
-        );
         let epochs = results.keys().copied().collect::<Vec<Epoch>>();
+
+        let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
+        for result in results.values() {
+            let px = x + result.p.x;
+            let py = y + result.p.y;
+            let pz = z + result.p.z;
+            let (lat_ddeg, lon_ddeg, _) = ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
+            lat.push(rad2deg(lat_ddeg));
+            lon.push(rad2deg(lon_ddeg));
+        }
+
+        plot_ctx.add_world_map(
+            "PVT solutions",
+            true, // show legend
+            MapboxStyle::OpenStreetMap,
+            (lat_ddeg, lon_ddeg), //center
+            15,                   // zoom in!!
+        );
+
+        let ref_scatter = ScatterMapbox::new(vec![lat_ddeg], vec![lon_ddeg])
+            .marker(
+                Marker::new()
+                    .size(5)
+                    .symbol(MarkerSymbol::Circle)
+                    .color(NamedColor::Red),
+            )
+            .name("Apriori");
+        plot_ctx.add_trace(ref_scatter);
+
+        let pvt_scatter = ScatterMapbox::new(lat, lon)
+            .marker(
+                Marker::new()
+                    .size(5)
+                    .symbol(MarkerSymbol::Circle)
+                    .color(NamedColor::Black),
+            )
+            .name("PVT");
+        plot_ctx.add_trace(pvt_scatter);
+
         let trace = build_3d_chart_epoch_label(
             "error",
             Mode::Markers,
@@ -74,6 +111,20 @@ pub fn post_process(
             results.values().map(|e| e.p.x).collect::<Vec<f64>>(),
             results.values().map(|e| e.p.y).collect::<Vec<f64>>(),
             results.values().map(|e| e.p.z).collect::<Vec<f64>>(),
+        );
+
+        /*
+         * Create graphical visualization
+         * dx, dy : one dual plot
+         * hdop, vdop : one dual plot
+         * dz : dedicated plot
+         * dt, tdop : one dual plot
+         */
+        plot_ctx.add_cartesian3d_plot(
+            "Position errors",
+            "x error [m]",
+            "y error [m]",
+            "z error [m]",
         );
         plot_ctx.add_trace(trace);
 
@@ -158,7 +209,7 @@ pub fn post_process(
         )?;
         if cli.gpx() {
             let mut segment = gpx::TrackSegment::new();
-            let mut wp = Waypoint::new(GeoPoint::new(lat, lon));
+            let mut wp = Waypoint::new(GeoPoint::new(rad2deg(lat), rad2deg(lon)));
             wp.elevation = Some(alt);
             wp.speed = None; // TODO ?
             wp.time = None; // TODO Gpx::Time
@@ -179,8 +230,8 @@ pub fn post_process(
                     Some(KmlGeometry::Point(KmlPoint {
                         coord: {
                             KmlCoord {
-                                x: lat,
-                                y: lon,
+                                x: rad2deg(lat),
+                                y: rad2deg(lon),
                                 z: Some(alt),
                             }
                         },

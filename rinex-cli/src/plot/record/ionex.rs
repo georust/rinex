@@ -5,9 +5,7 @@ use plotly::common::{Marker, MarkerSymbol};
 use plotly::layout::MapboxStyle;
 use plotly::DensityMapbox;
 use plotly::ScatterMapbox;
-//use rinex::prelude::Epoch;
 use rinex::prelude::Rinex;
-//use std::collections::HashMap;
 
 pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: &mut PlotContext) {
     let _cmap = colorous::TURBO;
