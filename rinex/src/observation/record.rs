@@ -1402,38 +1402,31 @@ fn dual_freq_combination(
                 }
 
                 let (lhs_carrier, ref_carrier) = (lhs_carrier.unwrap(), ref_carrier.unwrap());
+                let (f_j, f_i) = (lhs_carrier.frequency(), ref_carrier.frequency());
 
-                //DEBUG
-                println!(
-                    "{:?} - LHS: {} RHS: {}",
-                    epoch,
-                    lhs_observable.clone(),
-                    ref_observable.clone()
-                );
+                let df = match squared_freq {
+                    true => f_i.powi(2) - f_j.powi(2),
+                    false => f_i - f_j,
+                };
 
-                let gamma = (77.0_f64 / 60.0_f64).powi(2);
-
-                let value = match add {
+                let (c_i, c_j) = match freq_scaling {
                     true => {
-                        if freq_scaling {
-                            (gamma * ref_data + lhs_data.obs) / (gamma - 1.0)
+                        if squared_freq {
+                            (f_i.powi(2) / df, f_j.powi(2) / df)
                         } else {
-                            ref_data + lhs_data.obs
+                            (f_i / df, f_j / df)
                         }
                     },
+                    false => (1.0_f64, 1.0_f64),
+                };
+
+                let value = match add {
+                    true => c_i * ref_data + c_j * lhs_data.obs,
                     false => {
-                        if freq_scaling {
-                            if ref_observable.is_pseudorange_observable() && swap_code {
-                                (gamma * lhs_data.obs - ref_data) / (gamma - 1.0)
-                            } else {
-                                (gamma * ref_data - lhs_data.obs) / (gamma - 1.0)
-                            }
+                        if ref_observable.is_pseudorange_observable() && swap_code {
+                            c_j * lhs_data.obs - c_i * ref_data
                         } else {
-                            if ref_observable.is_pseudorange_observable() && swap_code {
-                                lhs_data.obs - ref_data
-                            } else {
-                                ref_data - lhs_data.obs
-                            }
+                            c_i * ref_data - c_j * lhs_data.obs
                         }
                     },
                 };
@@ -1465,7 +1458,7 @@ impl Combine for Record {
     fn iono_free(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, false, true, true, false)
+        dual_freq_combination(self, true, true, true, false)
     }
     fn geo_free(
         &self,
