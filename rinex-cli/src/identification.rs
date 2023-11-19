@@ -1,8 +1,11 @@
 use crate::Cli;
+use std::str::FromStr;
 
-use rinex::observation::SNR;
-use rinex::prelude::RnxContext;
 use rinex::*;
+use sp3::SP3;
+use rinex::observation::SNR;
+use rinex::preprocessing::*;
+use rinex::prelude::RnxContext;
 
 use itertools::Itertools;
 use serde::Serialize;
@@ -20,7 +23,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
      * Run identification on all contained files
      */
     if let Some(data) = ctx.obs_data() {
-        info!("observ identification");
+        info!("obs. data identification");
         identification(
             data,
             &format!(
@@ -36,7 +39,7 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
         );
     }
     if let Some(nav) = &ctx.nav_data() {
-        info!("brdc identification");
+        info!("nav. data identification");
         identification(
             nav,
             &format!(
@@ -83,6 +86,9 @@ pub fn rinex_identification(ctx: &RnxContext, cli: &Cli) {
             ops.clone(),
         );
     }
+    if let Some(sp3) = ctx.sp3_data() {
+        sp3_identification(sp3);
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -95,6 +101,37 @@ struct EpochReport {
 struct SSIReport {
     pub min: Option<SNR>,
     pub max: Option<SNR>,
+}
+
+fn report_sampling_histogram(data: &Vec<(Duration, usize)>) {
+    let data: HashMap<String, usize> = data
+        .into_iter()
+        .map(|(dt, pop)| (dt.to_string(), *pop))
+        .collect();
+    println!("{:#?}", data);
+}
+
+/*
+ * Method dedicated to sampling "identification"
+ */
+fn sampling_identification(rnx: &Rinex) {
+    if rnx.is_navigation_rinex() {
+        /* 
+         * with NAV RINEX, we're interested in 
+         * differentiating the BRDC NAV/ION and basically all messages time frames
+         */
+        let data: Vec<(Duration, usize)> = rnx
+            .filter(Filter::from_str("EPH").unwrap())
+            .sampling_histogram()
+            .collect();
+        println!("BRDC ephemeris:");
+        report_sampling_histogram(&data);
+    
+    } else {
+        // Other RINEX types: run sampling histogram analysis
+        let data: Vec<(Duration, usize)> = rnx.sampling_histogram().collect();
+        report_sampling_histogram(&data);
+    }
 }
 
 fn identification(rnx: &Rinex, path: &str, pretty_json: bool, ops: Vec<&str>) {
@@ -175,14 +212,22 @@ fn identification(rnx: &Rinex, path: &str, pretty_json: bool, ops: Vec<&str>) {
             let data: Vec<_> = rnx.epoch_anomalies().collect();
             println!("{:#?}", data);
         } else if op.eq("sampling") {
-            // histogram analysis
-            let data: Vec<(Duration, usize)> = rnx.sampling_histogram().collect();
-            let data: HashMap<String, usize> = data
-                .into_iter()
-                .map(|(dt, pop)| (dt.to_string(), pop))
-                .collect();
-            println!("{:#?}", data);
-            // gap analysis
+            sampling_identification(rnx);
         }
     }
+}
+
+fn sp3_identification(sp3: &SP3) {
+    let report = format!("SP3 IDENTIFICATION
+Sampling period: {:?},
+NB of epochs: {},
+Time frame: {:?} - {:?},
+SV: {:?}
+", 
+sp3.epoch_interval,
+sp3.nb_epochs(), 
+sp3.first_epoch(), 
+sp3.last_epoch(), 
+sp3.sv().map(|sv| sv.to_string()).collect::<Vec<String>>());
+    println!("{}", report);
 }

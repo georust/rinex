@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use clap::{Arg, ArgMatches, ColorChoice, Command};
 
 pub struct Cli {
@@ -26,16 +27,26 @@ impl Cli {
                         Arg::new("output")
                             .short('o')
                             .long("output")
-                            .help("Output RINEX file"),
+                            .help("Custom output file name"),
                     )
+                    .arg(
+                        Arg::new("workspace")
+                        .short('w')
+                        .long("workspace")
+                        .help("Define custom workspace location"))
                     .get_matches()
             },
         }
     }
-    pub fn input_path(&self) -> &str {
-        self.matches.get_one::<String>("filepath").unwrap()
+    pub fn input_path(&self) -> PathBuf {
+        Path::new(self.matches.get_one::<String>("filepath")
+            .unwrap())
+            .to_path_buf()
     }
-    pub fn output_path(&self) -> Option<&String> {
+    pub fn output_name(&self) -> Option<&String> {
         self.matches.get_one::<String>("output")
+    }
+    pub fn workspace(&self) -> Option<&String> {
+        self.matches.get_one::<String>("workspace")
     }
 }
