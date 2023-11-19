@@ -1582,13 +1582,6 @@ impl Header {
     fn fmt_observation_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(obs) = &self.obs {
             if let Some(e) = obs.time_of_first_obs {
-                //TODO: hifitime does not have a gregorian decomposition method at the moment
-                //let offset = match time_of_first_obs.time_scale {
-                //    TimeScale::GPST => Duration::from_seconds(19.0),
-                //    TimeScale::GST => Duration::from_seconds(35.0),
-                //    TimeScale::BDT => Duration::from_seconds(35.0),
-                //    _ => Duration::default(),
-                //};
                 let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
                 writeln!(
                     f,
@@ -1631,12 +1624,27 @@ impl Header {
                             if (i % 9) == 0 && i > 0 {
                                 descriptor.push_str("      "); // TAB
                             }
-                            descriptor.push_str(&format!("{:>6}", observable));
+                            descriptor.push_str(&format!("    {}", observable));
                         }
                         writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
                     }
                 },
-                _ => {},
+                _ => {
+                    /*
+                     * List of observables
+                     */
+                    let mut descriptor = String::new();
+                    if let Some((_constell, observables)) = obs.codes.iter().next() {
+                        descriptor.push_str(&format!("{:6}", observables.len()));
+                        for (i, observable) in observables.iter().enumerate() {
+                            if (i % 9) == 0 && i > 0 {
+                                descriptor.push_str("      "); // TAB
+                            }
+                            descriptor.push_str(&format!("   {}", observable));
+                        }
+                        writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
+                    }
+                },
             }
             // must take place after list of observables:
             //  TODO scaling factor
