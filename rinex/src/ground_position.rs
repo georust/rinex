@@ -52,6 +52,15 @@ impl std::fmt::Display for GroundPosition {
     }
 }
 
+/*
+ * RINEX compatible formatting
+ */
+impl std::fmt::UpperHex for GroundPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:14.4}{:14.4}{:14.4}", self.0, self.1, self.2)
+    }
+}
+
 #[cfg(feature = "qc")]
 use rinex_qc_traits::HtmlReport;
 

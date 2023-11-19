@@ -1692,6 +1692,15 @@ impl std::fmt::Display for Header {
         writeln!(f, "{}", fmt_rinex(&self.station, "MARKER NAME"))?;
         writeln!(f, "{}", fmt_rinex(&self.station_id, "MARKER NUMBER"))?;
 
+        // APRIORI POS
+        if let Some(position) = self.ground_position {
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(&format!("{:X}", position), "APPROX POSITION XYZ")
+            )?;
+        }
+
         // ANT
         if let Some(antenna) = &self.rcvr_antenna {
             writeln!(
