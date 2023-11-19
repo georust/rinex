@@ -1633,16 +1633,13 @@ impl Header {
                     /*
                      * List of observables
                      */
-                    let mut descriptor = String::new();
-                    if let Some((_constell, observables)) = obs.codes.iter().next() {
-                        descriptor.push_str(&format!("{:6}", observables.len()));
-                        for (i, observable) in observables.iter().enumerate() {
-                            if (i % 9) == 0 && i > 0 {
-                                descriptor.push_str("      "); // TAB
-                            }
-                            descriptor.push_str(&format!("   {}", observable));
+                    for (constell, observables) in &obs.codes {
+                        let mut descriptor = String::new();
+                        descriptor.push_str(&format!("{:x}{:5}", constell, observables.len()));
+                        for observable in observables {
+                            descriptor.push_str(&format!(" {}", observable));
                         }
-                        writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
+                        writeln!(f, "{}", fmt_rinex(&descriptor, "SYS / # / OBS TYPES"))?;
                     }
                 },
             }
