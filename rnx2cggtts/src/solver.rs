@@ -162,6 +162,25 @@ fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
         .map(|(_, model)| NgModel { a: model.a })
 }
 
+fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
+    for ((k_sv, _), tracker) in trackers {
+        if *k_sv == sv {
+            tracker.reset();
+        }
+    }
+}
+
+fn reset_sv_sig_tracker(
+    sv_sig: (SV, Observable),
+    trackers: &mut HashMap<(SV, Observable), SVTracker>,
+) {
+    for (k, tracker) in trackers {
+        if k == &sv_sig {
+            tracker.reset();
+        }
+    }
+}
+
 pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // custom tracking duration
     let trk_duration = cli.tracking_duration();
@@ -288,8 +307,10 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
+
             if sv_eph.is_none() {
                 warn!("{:?} ({}) : undetermined ephemeris", t, sv);
+                reset_sv_tracker(*sv, &mut trackers); // reset for this SV entirely
                 continue; // can't proceed further
             }
 
