@@ -6,13 +6,10 @@ use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
 
-use rtk::{
-    prelude::{
-        AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
-        IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
-        TroposphericBias,
-    },
-    Vector3D,
+use rtk::prelude::{
+    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
+    IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
+    TroposphericBias, Vector3,
 };
 
 use map_3d::{ecef2geodetic, Ellipsoid};
@@ -210,7 +207,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        sky_pos: (x, y, z).into(),
+                        position: Vector3::new(x, y, z),
+                        velocity: None,
                     })
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
@@ -221,7 +219,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                         Some(InterpolationResult {
                             azimuth,
                             elevation,
-                            sky_pos: (x, y, z).into(),
+                            position: Vector3::new(x, y, z),
+                            velocity: None,
                         })
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
@@ -236,7 +235,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        sky_pos: (x, y, z).into(),
+                        position: Vector3::new(x, y, z),
+                        velocity: None,
                     })
                 } else {
                     // debug!("{:?} ({}): nav interpolation failed", t, sv);
@@ -278,7 +278,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
 
             let clock_state = sv_eph.sv_clock();
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            let clock_state: Vector3D = clock_state.into();
+            let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
+
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();
 
@@ -314,14 +315,9 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                 }
             }
 
-            if let Ok(candidate) = Candidate::new(
-                *sv,
-                *t,
-                clock_state,
-                clock_corr,
-                codes.clone(),
-                phases.clone(),
-            ) {
+            if let Ok(candidate) =
+                Candidate::new(*sv, *t, clock_corr, codes.clone(), phases.clone())
+            {
                 candidates.push(candidate);
             } else {
                 warn!("{:?}: failed to form {} candidate", t, sv);

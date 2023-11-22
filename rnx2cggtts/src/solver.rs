@@ -10,25 +10,23 @@ use rinex::{
     prelude::{Observable, Rinex, RnxContext},
 };
 
-use rtk::{
-    prelude::{
-        AprioriPosition,
-        BdModel,
-        Candidate,
-        Config,
-        Duration,
-        Epoch,
-        InterpolationResult,
-        IonosphericBias,
-        KbModel,
-        Mode,
-        NgModel,
-        Observation,
-        PVTSolutionType,
-        Solver,
-        TroposphericBias, //TimeScale
-    },
-    Vector3D,
+use rtk::prelude::{
+    AprioriPosition,
+    BdModel,
+    Candidate,
+    Config,
+    Duration,
+    Epoch,
+    InterpolationResult,
+    IonosphericBias,
+    KbModel,
+    Mode,
+    NgModel,
+    Observation,
+    PVTSolutionType,
+    Solver,
+    TroposphericBias, //TimeScale
+    Vector3,
 };
 
 use cggtts::{
@@ -251,7 +249,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        sky_pos: (x, y, z).into(),
+                        position: Vector3::new(x, y, z),
+                        velocity: None,
                     })
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
@@ -262,7 +261,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         Some(InterpolationResult {
                             azimuth,
                             elevation,
-                            sky_pos: (x, y, z).into(),
+                            position: Vector3::new(x, y, z),
+                            velocity: None,
                         })
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
@@ -277,7 +277,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        sky_pos: (x, y, z).into(),
+                        position: Vector3::new(x, y, z),
+                        velocity: None,
                     })
                 } else {
                     // debug!("{:?} ({}): nav interpolation failed", t, sv);
@@ -317,7 +318,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
             let (toe, sv_eph) = sv_eph.unwrap();
             let clock_state = sv_eph.sv_clock();
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            let clock_state: Vector3D = clock_state.into();
+            let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
 
             let iono_bias = IonosphericBias {
                 kb_model: kb_model(nav_data, *t),
