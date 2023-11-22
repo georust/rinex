@@ -208,9 +208,9 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     let (elevation, azimuth) =
                         Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
                     Some(InterpolationResult {
-                        sky_pos: (x, y, z).into(),
                         azimuth,
                         elevation,
+                        sky_pos: (x, y, z).into(),
                     })
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
