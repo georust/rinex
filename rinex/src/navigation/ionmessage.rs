@@ -1,7 +1,11 @@
 use crate::{
     carrier::Carrier,
     epoch::{parse_in_timescale, ParsingError as EpochParsingError},
-    prelude::{Duration, Epoch, TimeScale},
+    prelude::{
+        Epoch,
+        TimeScale,
+        //Duration,
+    },
 };
 use bitflags::bitflags;
 use std::str::FromStr;
@@ -262,10 +266,10 @@ impl NgModel {
             },
         ))
     }
-    /* converts self to meters of delay */
-    pub(crate) fn meters_delay(&self, freq: f64) -> f64 {
-        0.0_f64
-    }
+    // /* converts self to meters of delay */
+    // pub(crate) fn meters_delay(&self, freq: f64) -> f64 {
+    //     0.0_f64
+    // }
 }
 
 /// BDGIM Model payload
@@ -320,10 +324,10 @@ impl BdModel {
         );
         Ok((epoch, Self { alpha }))
     }
-    /* converts self to meters of delay */
-    pub(crate) fn meters_delay(&self, freq: f64) -> f64 {
-        0.0_f64
-    }
+    // /* converts self to meters of delay */
+    // pub(crate) fn meters_delay(&self, freq: f64) -> f64 {
+    //     0.0_f64
+    // }
 }
 
 /// IonMessage: wraps several ionospheric models
@@ -345,27 +349,27 @@ impl Default for IonMessage {
 }
 
 impl IonMessage {
-    /* converts self to meters of delay */
-    pub(crate) fn meters_delay(
-        &self,
-        t: Epoch,
-        e: f64,
-        a: f64,
-        h_km: f64,
-        user_lat_ddeg: f64,
-        user_lon_ddeg: f64,
-        carrier: Carrier,
-    ) -> Option<f64> {
-        if let Some(kb) = self.as_klobuchar() {
-            Some(kb.meters_delay(t, e, a, h_km, user_lat_ddeg, user_lon_ddeg, carrier))
-        } else if let Some(ng) = self.as_nequick_g() {
-            None
-        } else if let Some(bd) = self.as_bdgim() {
-            None
-        } else {
-            None
-        }
-    }
+    // /* converts self to meters of delay */
+    // pub(crate) fn meters_delay(
+    //     &self,
+    //     t: Epoch,
+    //     e: f64,
+    //     a: f64,
+    //     h_km: f64,
+    //     user_lat_ddeg: f64,
+    //     user_lon_ddeg: f64,
+    //     carrier: Carrier,
+    // ) -> Option<f64> {
+    //     if let Some(kb) = self.as_klobuchar() {
+    //         Some(kb.meters_delay(t, e, a, h_km, user_lat_ddeg, user_lon_ddeg, carrier))
+    //     } else if let Some(ng) = self.as_nequick_g() {
+    //         None
+    //     } else if let Some(bd) = self.as_bdgim() {
+    //         None
+    //     } else {
+    //         None
+    //     }
+    // }
     /// Unwraps self as Klobuchar Model
     pub fn as_klobuchar(&self) -> Option<&KbModel> {
         match self {

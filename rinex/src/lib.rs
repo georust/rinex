@@ -1644,8 +1644,8 @@ impl Rinex {
     }
 }
 
-#[cfg(feature = "obs")]
-use std::str::FromStr;
+// #[cfg(feature = "obs")]
+// use std::str::FromStr;
 
 #[cfg(feature = "obs")]
 use crate::observation::{LliFlags, SNR};

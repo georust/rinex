@@ -1,6 +1,12 @@
-use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use log::{error, info};
-use std::path::Path;
+use clap::{
+    Arg,
+    //ArgAction,
+    ArgMatches,
+    ColorChoice,
+    Command,
+};
+// use log::{error, info};
+// use std::path::Path;
 use std::str::FromStr;
 
 pub struct Cli {

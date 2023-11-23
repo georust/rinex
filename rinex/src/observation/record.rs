@@ -190,7 +190,7 @@ pub(crate) fn parse_epoch(
 
     // V > 2 might start with a ">" marker
     if line.starts_with('>') {
-        line = line.split_at(1).1.clone();
+        line = line.split_at(1).1;
     }
 
     let (date, rem) = line.split_at(offset + 3);
@@ -506,7 +506,7 @@ fn parse_v3(
                     let split_offset = std::cmp::min(observable_width, rem.len()); // avoid overflow on last obs
                     let (content, r) = rem.split_at(split_offset);
                     //println!("content \"{}\" \"{}\"", content, r); //DEBUG
-                    rem = r.clone();
+                    rem = r;
                     let content_len = content.len();
                     let mut snr: Option<SNR> = None;
                     let mut lli: Option<LliFlags> = None;
@@ -1356,7 +1356,6 @@ fn dual_freq_combination(
     > = HashMap::new();
     for (epoch, (_, vehicles)) in rec {
         for (sv, observations) in vehicles {
-            let mut formed: Vec<(Observable, Observable)> = Vec::new();
             for (lhs_observable, lhs_data) in observations {
                 if !lhs_observable.is_phase_observable()
                     && !lhs_observable.is_pseudorange_observable()

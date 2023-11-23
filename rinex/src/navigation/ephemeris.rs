@@ -554,7 +554,7 @@ fn parse_orbits(
                 // omitted field
                 key_index += 1;
                 nb_missing = nb_missing.saturating_sub(1);
-                line = rem.clone();
+                line = rem;
                 continue;
             }
             /*
@@ -578,7 +578,7 @@ fn parse_orbits(
                 }
             }
             key_index += 1;
-            line = rem.clone();
+            line = rem;
         }
     }
     Ok(map)

@@ -609,11 +609,10 @@ impl Header {
                         .parse::<u16>()
                         .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
-                    let (_num, rem) = rem.split_at(3);
+                    let (_num, mut rem) = rem.split_at(3);
 
                     // parse end of line
                     let mut len = rem.len();
-                    let mut rem = rem.clone();
 
                     while len > 0 {
                         let (observable, r) = rem.split_at(4);
@@ -621,7 +620,7 @@ impl Header {
                         // latch scaling value
                         observation.insert_scaling(gnss, observable, scaling);
                         // continue
-                        rem = r.clone();
+                        rem = r;
                         len = rem.len();
                     }
                     scaling_count += 1;
@@ -911,13 +910,13 @@ impl Header {
                     .parse::<u8>()
                     .or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
 
-                let mut rem = r.clone();
+                let mut rem = r;
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
                     if let Ok(c) = ClockDataType::from_str(code.trim()) {
                         clocks.codes.push(c);
                     }
-                    rem = r.clone()
+                    rem = r;
                 }
             } else if marker.contains("STATION NAME / NUM") {
                 let (name, num) = content.split_at(4);
