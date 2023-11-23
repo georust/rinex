@@ -168,9 +168,11 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             .ok_or(Error::UndefinedAprioriPosition)?,
     };
 
-    let apriori_ecef_wgs84 = pos.to_ecef_wgs84();
-    let apriori = AprioriPosition::from_ecef(apriori_ecef_wgs84.into());
-    let lat_ddeg = apriori.geodetic.x;
+    let apriori_ecef = pos.to_ecef_wgs84();
+    let apriori = Vector3::<f64>::new(apriori_ecef.0, apriori_ecef.1, apriori_ecef.2);
+    let apriori = AprioriPosition::from_ecef(apriori);
+
+    let lat_ddeg = apriori.geodetic[0];
 
     // print config to be used
     info!("{:#?}", cfg);
@@ -203,7 +205,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                 if let Some((x, y, z)) = sp3.sv_position_interpolate(sv, t, order) {
                     let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                     let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
+                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
@@ -215,7 +217,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
                         let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                         let (elevation, azimuth) =
-                            Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
+                            Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
                         Some(InterpolationResult {
                             azimuth,
                             elevation,
@@ -231,7 +233,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                 if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
                     let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                     let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef_wgs84);
+                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
@@ -315,9 +317,14 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                 }
             }
 
-            if let Ok(candidate) =
-                Candidate::new(*sv, *t, clock_corr, codes.clone(), phases.clone())
-            {
+            if let Ok(candidate) = Candidate::new(
+                *sv,
+                *t,
+                clock_state,
+                clock_corr,
+                codes.clone(),
+                phases.clone(),
+            ) {
                 candidates.push(candidate);
             } else {
                 warn!("{:?}: failed to form {} candidate", t, sv);
