@@ -1402,31 +1402,44 @@ fn dual_freq_combination(
 
                 let (lhs_carrier, ref_carrier) = (lhs_carrier.unwrap(), ref_carrier.unwrap());
                 let (f_j, f_i) = (lhs_carrier.frequency(), ref_carrier.frequency());
+                let (lambda_j, lambda_i) = (lhs_carrier.wavelength(), ref_carrier.wavelength());
 
-                let df = match squared_freq {
-                    true => f_i.powi(2) - f_j.powi(2),
-                    false => f_i - f_j,
+                let (f_j, f_i) = match squared_freq {
+                    true => (f_j.powi(2), f_i.powi(2)),
+                    false => (f_j, f_i),
                 };
 
-                let (c_i, c_j) = match freq_scaling {
-                    true => {
-                        if squared_freq {
-                            (f_i.powi(2) / df, f_j.powi(2) / df)
-                        } else {
-                            (f_i / df, f_j / df)
-                        }
-                    },
-                    false => (1.0_f64, 1.0_f64),
+                let df = f_i - f_j;
+                let (v_j, v_i) = match ref_observable.is_pseudorange_observable() {
+                    true => (lhs_data.obs, ref_data),
+                    false => (lhs_data.obs * lambda_j, ref_data * lambda_i),
+                };
+
+                let (v_j, v_i) = match squared_freq {
+                    true => (v_j, v_i),
+                    false => (v_j, v_i),
                 };
 
                 let value = match add {
-                    true => c_i * ref_data + c_j * lhs_data.obs,
-                    false => {
-                        if ref_observable.is_pseudorange_observable() && swap_code {
-                            c_j * lhs_data.obs - c_i * ref_data
-                        } else {
-                            c_i * ref_data - c_j * lhs_data.obs
-                        }
+                    true => match freq_scaling {
+                        true => (f_i * v_i + f_j * v_j) / df,
+                        false => v_i + v_j,
+                    },
+                    false => match freq_scaling {
+                        true => {
+                            if ref_observable.is_pseudorange_observable() && swap_code {
+                                (f_j * v_j - f_i * v_i) / df
+                            } else {
+                                (f_i * v_i - f_j * v_j) / df
+                            }
+                        },
+                        false => {
+                            if ref_observable.is_pseudorange_observable() && swap_code {
+                                v_j - v_i
+                            } else {
+                                v_i - v_j
+                            }
+                        },
                     },
                 };
 

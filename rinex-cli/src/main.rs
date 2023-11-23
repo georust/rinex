@@ -163,10 +163,7 @@ fn naviplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
  */
 fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
     if cli.dcb() {
-        let data = obs
-            //.observation_phase_align_origin()
-            //.observation_phase_carrier_cycles()
-            .dcb();
+        let data = obs.dcb();
         plot::plot_gnss_dcb(
             plot_ctx,
             "Differential Code Biases",
@@ -177,8 +174,6 @@ fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
     }
     //if cli.multipath() {
     //    let data = rnx
-    //        //.observation_phase_align_origin()
-    //        //.observation_phase_carrier_cycles()
     //        .dcb();
     //    plot::plot_gnss_dcb(
     //        &mut plot_ctx,
@@ -189,7 +184,6 @@ fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
     //    info!("multipath analysis");
     //}
     if cli.if_combination() {
-        // let data = rnx.observation_phase_align_origin().geo_free();
         let data = obs.iono_free();
         plot::plot_gnss_combination(
             &data,
@@ -200,7 +194,6 @@ fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
         info!("iono free combination");
     }
     if cli.gf_combination() {
-        // let data = rnx.observation_phase_align_origin().geo_free();
         let data = obs.geo_free();
         plot::plot_gnss_combination(
             &data,
