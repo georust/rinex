@@ -28,10 +28,11 @@ map_3d = "0.1.5"
 ndarray = "0.15"
 colorous = "1.0"
 horrorshow = "0.8"
-clap = { version = "4.4.6", features = ["derive", "color"] }
+clap = { version = "4.4.8", features = ["derive", "color"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
-gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
+gnss-rtk = { version = "0.2.2", features = ["serde"] }
+# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["full"] }
 rinex-qc = { path = "../rinex-qc", version = "=0.1.5", features = ["serde"] } 
