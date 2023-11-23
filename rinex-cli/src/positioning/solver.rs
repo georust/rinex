@@ -284,6 +284,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
 
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();
+            let mut dopplers = Vec::<Observation>::new();
 
             for (observable, data) in observations {
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
@@ -313,6 +314,18 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                             },
                             value: data.obs,
                         });
+                    } else if observable.is_doppler_observable() {
+                        dopplers.push(Observation {
+                            frequency,
+                            snr: {
+                                if let Some(snr) = data.snr {
+                                    Some(snr.into())
+                                } else {
+                                    None
+                                }
+                            },
+                            value: data.obs,
+                        });
                     }
                 }
             }
@@ -324,6 +337,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                 clock_corr,
                 codes.clone(),
                 phases.clone(),
+                dopplers.clone(),
             ) {
                 candidates.push(candidate);
             } else {

@@ -1,5 +1,6 @@
 use crate::Cli;
 use std::collections::HashMap;
+use std::str::FromStr;
 use thiserror::Error;
 
 use gnss::prelude::{Constellation, SV};
@@ -343,10 +344,13 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
                 let carrier = carrier.unwrap();
                 let frequency = carrier.frequency();
-                let code: Observation;
+
+                let mut code = Option::<Observation>::None;
+                let mut phase = Option::<Observation>::None;
+                let mut assoc_doppler = Option::<Observation>::None;
 
                 if observable.is_pseudorange_observable() {
-                    code = Observation {
+                    code = Some(Observation {
                         frequency,
                         snr: {
                             if let Some(snr) = data.snr {
@@ -356,14 +360,78 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                             }
                         },
                         value: data.obs,
-                    };
-                } else {
-                    // NB: can only work on code observations at the moment
+                    });
+                } else if observable.is_phase_observable() {
+                    phase = Some(Observation {
+                        frequency,
+                        snr: {
+                            if let Some(snr) = data.snr {
+                                Some(snr.into())
+                            } else {
+                                None
+                            }
+                        },
+                        value: data.obs,
+                    });
+                }
+
+                if code.is_none() && phase.is_none() {
                     continue;
                 }
 
-                let candidate =
-                    Candidate::new(*sv, *t, clock_state, clock_corr, vec![code], vec![]);
+                let mut doppler = Option::<Observation>::None;
+                let doppler_to_match =
+                    Observable::from_str(&format!("D{}", &observable.to_string()[..1])).unwrap();
+
+                for (observable, data) in observations {
+                    if observable.is_doppler_observable() && observable == &doppler_to_match {
+                        assoc_doppler = Some(Observation {
+                            frequency,
+                            snr: {
+                                if let Some(snr) = data.snr {
+                                    Some(snr.into())
+                                } else {
+                                    None
+                                }
+                            },
+                            value: data.obs,
+                        });
+                    }
+                }
+
+                let candidate = match code {
+                    Some(code) => {
+                        let doppler = match doppler {
+                            Some(doppler) => vec![doppler],
+                            None => vec![],
+                        };
+                        Candidate::new(
+                            *sv,
+                            *t,
+                            clock_state,
+                            clock_corr,
+                            vec![code],
+                            vec![],
+                            doppler,
+                        )
+                    },
+                    None => {
+                        let phase = phase.unwrap(); // infaillible
+                        let doppler = match doppler {
+                            Some(doppler) => vec![doppler],
+                            None => vec![],
+                        };
+                        Candidate::new(
+                            *sv,
+                            *t,
+                            clock_state,
+                            clock_corr,
+                            vec![],
+                            vec![phase],
+                            doppler,
+                        )
+                    },
+                };
 
                 if candidate.is_err() {
                     warn!(
