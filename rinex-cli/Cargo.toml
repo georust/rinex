@@ -1,6 +1,6 @@
 [package]
 name = "rinex-cli"
-version = "0.9.5"
+version = "0.9.6"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Command line tool parse and analyze RINEX data"
@@ -25,18 +25,20 @@ serde_json = "1"
 thiserror = "1"
 itertools = "0.12"
 map_3d = "0.1.5"
-ndarray = "0.15"
+# ndarray = "0.15"
 colorous = "1.0"
 horrorshow = "0.8"
 clap = { version = "4.4.8", features = ["derive", "color"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
-gnss-rtk = { version = "0.2.2", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
-# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-rinex = { path = "../rinex", version = "=0.15.0", features = ["full"] }
+rinex = { path = "../rinex", version = "=0.15.1", features = ["full"] }
 rinex-qc = { path = "../rinex-qc", version = "=0.1.5", features = ["serde"] } 
 sp3 = { path = "../sp3", version = "=1.0.6",  features = ["serde", "flate2"] }
 # plotly =  "0.8.4"
 plotly = { git = "https://github.com/gwbres/plotly", branch = "density-mapbox" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
+
+# solver
+gnss-rtk = { version = "0.2.2", features = ["serde"] }
+# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
+# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }

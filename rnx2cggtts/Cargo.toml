@@ -1,6 +1,10 @@
 [package]
 name = "rnx2cggtts"
+<<<<<<< HEAD
 version = "0.2.0"
+=======
+version = "1.0.0"
+>>>>>>> 5e87ddf (prepase new release)
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "CGGTTS data generation from RINEX"
@@ -23,9 +27,16 @@ env_logger = "0.10"
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
 clap = { version = "4.4.8", features = ["derive", "color"] }
 rinex = { path = "../rinex", version = "=0.15.0", features = ["serde"] }
-cggtts = { git = "https://github.com/gwbres/cggtts", branch = "develop", features = ["serde", "scheduler"] }
-# cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
+rinex = { path = "../rinex", version = "=0.15.1", features = ["serde"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+
+# cggtts
+cggtts = { version = "4.0.1", features = ["serde", "scheduler"] }
+# cggtts = { git = "https://github.com/gwbres/cggtts", branch = "develop", features = ["serde", "scheduler"] }
+# cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
+
+# solver
 gnss-rtk = { version = "0.2.2", features = ["serde"] }
 # gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
