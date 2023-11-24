@@ -3,10 +3,10 @@ name: rust
 on:
   push:
     branches:
-      - main
+      - [ main ]
   pull_request:
     branches:
-      - main
+      - [ main ]
 
 env:
   RUST_BACKTRACE: 1
@@ -60,3 +60,21 @@ jobs:
       with:
         command: test
         args: --verbose --all-features
+  
+  windows-build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: RINEXCLI 
+      run: cargo build -p rinex-cli --all-features --release --verbose
+    - name: RNX2CGGTS
+      run: cargo build -p rnx2cggtts --all-features --release --verbose
+  
+  build-mac:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: RINEXCLI 
+      run: cargo build -p rinex-cli --all-features --release --verbose
+    - name: RNX2CGGTS
+      run: cargo build -p rnx2cggtts --all-features --release --verbose
