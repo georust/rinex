@@ -3,10 +3,10 @@ name: rust
 on:
   push:
     branches:
-      - [ main ]
+      - main
   pull_request:
     branches:
-      - [ main ]
+      - main
 
 env:
   RUST_BACKTRACE: 1
@@ -64,7 +64,13 @@ jobs:
   windows-build:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    - uses: actions-rs/cargo@v1
+    - uses: actions-rs/toolchain@v1
+      name: Install Rust
+      with:
+        toolchain: stable
+        override: true
     - name: RINEXCLI 
       run: cargo build -p rinex-cli --all-features --release --verbose
     - name: RNX2CGGTS
@@ -77,7 +83,13 @@ jobs:
   build-mac:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    - uses: actions-rs/cargo@v1
+    - uses: actions-rs/toolchain@v1
+      name: Install Rust
+      with:
+        toolchain: stable
+        override: true
     - name: RINEXCLI 
       run: cargo build -p rinex-cli --all-features --release --verbose
     - name: RNX2CGGTS
