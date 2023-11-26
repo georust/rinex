@@ -1346,9 +1346,9 @@ use crate::observation::Combine;
 fn dual_freq_combination(
     rec: &Record,
     add: bool,
-    swap_code: bool,    // swap code but not phase
-    lambda_scaling: bool,  // multiply phase by lambda
-    freq_scaling: bool, // apply c_i, c_j scalings
+    swap_code: bool,      // swap code but not phase
+    lambda_scaling: bool, // multiply phase by lambda
+    freq_scaling: bool,   // apply c_i, c_j scalings
 ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
     let mut ret: HashMap<
         (Observable, Observable),
@@ -1407,8 +1407,8 @@ fn dual_freq_combination(
                 let df = f_i - f_j;
                 let denom = f_i.powi(2) - f_j.powi(2);
                 let c_i = f_i.powi(2) / denom;
-                let c_j = - f_j.powi(2) / denom;
-                
+                let c_j = -f_j.powi(2) / denom;
+
                 let (v_j, v_i) = match ref_observable.is_pseudorange_observable() {
                     true => (lhs_data.obs, ref_data),
                     false => {
