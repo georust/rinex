@@ -1337,7 +1337,7 @@ impl Decimate for Record {
 }
 
 #[cfg(feature = "obs")]
-use crate::observation::Combine;
+use crate::observation::{Combination, Combine};
 
 /*
  * Combines same physics but observed on different carrier frequency
@@ -1345,10 +1345,7 @@ use crate::observation::Combine;
 #[cfg(feature = "obs")]
 fn dual_freq_combination(
     rec: &Record,
-    add: bool,
-    swap_code: bool,            // swap code; not phase
-    freq_scaling: bool,         // apply f1/f2 scalings
-    squared_freq_scaling: bool, // apply f1^2/f2^2 scalings
+    combination: Combination,
 ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
     const SPEED_OF_LIGHT: f64 = 2.99792458E8;
     let mut ret: HashMap<
@@ -1402,40 +1399,70 @@ fn dual_freq_combination(
                 }
 
                 let (lhs_carrier, ref_carrier) = (lhs_carrier.unwrap(), ref_carrier.unwrap());
-                let (f_j, f_i) = (lhs_carrier.frequency(), ref_carrier.frequency());
+                let (fj, fi) = (lhs_carrier.frequency(), ref_carrier.frequency());
                 let (lambda_j, lambda_i) = (lhs_carrier.wavelength(), ref_carrier.wavelength());
 
-                let df = match add {
-                    true => f_i + f_j,
-                    false => f_i - f_j,
+                let alpha = match combination {
+                    Combination::GeometryFree => 1.0_f64,
+                    Combination::IonosphereFree => 1.0 / (fi.powi(2) - fj.powi(2)),
+                    Combination::WideLane => 1.0 / (fi - fj),
+                    Combination::NarrowLane => 1.0 / (fi + fj),
+                    Combination::MelbourneWubbena => unreachable!("mw combination"),
                 };
 
-                let (v_j, v_i) = match ref_observable.is_pseudorange_observable() {
-                    true => (lhs_data.obs, ref_data),
-                    false => (lhs_data.obs * lambda_j, ref_data * lambda_i),
+                let beta = match combination {
+                    Combination::GeometryFree => 1.0_f64,
+                    Combination::IonosphereFree => {
+                        if ref_observable.is_pseudorange_observable() {
+                            fi.powi(2)
+                        } else {
+                            SPEED_OF_LIGHT * fi
+                        }
+                    },
+                    Combination::WideLane | Combination::NarrowLane => {
+                        if ref_observable.is_pseudorange_observable() {
+                            1.0_f64
+                        } else {
+                            SPEED_OF_LIGHT
+                        }
+                    },
+                    Combination::MelbourneWubbena => unreachable!("mw combination"),
                 };
 
-                let value = match add {
-                    true => match freq_scaling {
-                        true => SPEED_OF_LIGHT / df * (v_i + v_j),
-                        false => v_i + v_j,
+                let gamma = match combination {
+                    Combination::GeometryFree => 1.0_f64,
+                    Combination::IonosphereFree => {
+                        if ref_observable.is_pseudorange_observable() {
+                            fj.powi(2) / fi.powi(2)
+                        } else {
+                            fj / fi
+                        }
                     },
-                    false => match freq_scaling {
-                        true => {
-                            if ref_observable.is_pseudorange_observable() && swap_code {
-                                SPEED_OF_LIGHT / df * (v_j - v_i)
-                            } else {
-                                SPEED_OF_LIGHT / df * (v_i - v_j)
-                            }
-                        },
-                        false => {
-                            if ref_observable.is_pseudorange_observable() && swap_code {
-                                v_j - v_i
-                            } else {
-                                v_i - v_j
-                            }
-                        },
+                    Combination::WideLane => 1.0_f64,
+                    Combination::NarrowLane => 1.0_f64,
+                    Combination::MelbourneWubbena => unreachable!("mw combination"),
+                };
+
+                let (v_j, v_i) = match combination {
+                    Combination::GeometryFree => {
+                        if ref_observable.is_pseudorange_observable() {
+                            (ref_data, lhs_data.obs)
+                        } else {
+                            (lhs_data.obs * lambda_j, ref_data * lambda_i)
+                        }
                     },
+                    _ => {
+                        if ref_observable.is_pseudorange_observable() {
+                            (lhs_data.obs, ref_data)
+                        } else {
+                            (lhs_data.obs * lambda_j, ref_data * lambda_i)
+                        }
+                    },
+                };
+
+                let value = match combination {
+                    Combination::NarrowLane => alpha * beta * (v_i + gamma * v_j),
+                    _ => alpha * beta * (v_i - gamma * v_j),
                 };
 
                 let combination = (lhs_observable.clone(), ref_observable.clone());
@@ -1461,77 +1488,76 @@ fn dual_freq_combination(
 }
 
 #[cfg(feature = "obs")]
-impl Combine for Record {
-    fn iono_free(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, false, false, false, true)
-    }
-    fn geo_free(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, false, true, false, false)
-    }
-    fn narrow_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, true, false, true, false)
-    }
-    fn wide_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, false, false, true, false)
-    }
-    fn melbourne_wubbena(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let code_narrow = self.narrow_lane();
-        let mut phase_wide = self.wide_lane();
+fn mw_combination(
+    rec: &Record,
+) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    const SPEED_OF_LIGHT: f64 = 2.99792458E8;
+    let mut ret: HashMap<
+        (Observable, Observable),
+        BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,
+    > = HashMap::new();
+    let code_narrow = dual_freq_combination(rec, Combination::NarrowLane);
+    let mut phase_wide = dual_freq_combination(rec, Combination::WideLane);
 
-        phase_wide.retain(|(lhs_obs, rhs_obs), phase_wide| {
-            let lhs_code_obs =
-                Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..])).unwrap();
-            let rhs_code_obs =
-                Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..])).unwrap();
+    phase_wide.retain(|(lhs_obs, rhs_obs), phase_wide| {
+        let lhs_code_obs =
+            Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..])).unwrap();
+        let rhs_code_obs =
+            Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..])).unwrap();
 
-            if lhs_obs.is_phase_observable() {
-                if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
-                    phase_wide.retain(|sv, phase_data| {
-                        if let Some(code_data) = code_data.get(&sv) {
-                            phase_data.retain(|epoch, _| code_data.get(&epoch).is_some());
-                            phase_data.len() > 0
-                        } else {
-                            false
-                        }
-                    });
-                    phase_wide.len() > 0
-                } else {
-                    false
-                }
+        if lhs_obs.is_phase_observable() {
+            if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
+                phase_wide.retain(|sv, phase_data| {
+                    if let Some(code_data) = code_data.get(&sv) {
+                        phase_data.retain(|epoch, _| code_data.get(&epoch).is_some());
+                        phase_data.len() > 0
+                    } else {
+                        false
+                    }
+                });
+                phase_wide.len() > 0
             } else {
                 false
             }
-        });
+        } else {
+            false
+        }
+    });
 
-        for ((lhs_obs, rhs_obs), phase_data) in phase_wide.iter_mut() {
-            let lhs_code_obs =
-                Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..])).unwrap();
-            let rhs_code_obs =
-                Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..])).unwrap();
+    for ((lhs_obs, rhs_obs), phase_data) in phase_wide.iter_mut() {
+        let lhs_code_obs =
+            Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..])).unwrap();
+        let rhs_code_obs =
+            Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..])).unwrap();
 
-            if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
-                for (phase_sv, mut data) in phase_data {
-                    if let Some(code_data) = code_data.get(&phase_sv) {
-                        for (epoch, mut phase_wide) in data {
-                            if let Some(narrow_code) = code_data.get(&epoch) {
-                                *phase_wide -= narrow_code;
-                            }
+        if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
+            for (phase_sv, mut data) in phase_data {
+                if let Some(code_data) = code_data.get(&phase_sv) {
+                    for (epoch, mut phase_wide) in data {
+                        if let Some(narrow_code) = code_data.get(&epoch) {
+                            *phase_wide -= narrow_code;
                         }
                     }
                 }
             }
         }
-        phase_wide
+    }
+    phase_wide
+}
+
+#[cfg(feature = "obs")]
+impl Combine for Record {
+    fn combine(
+        &self,
+        c: Combination,
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        match c {
+            Combination::GeometryFree
+            | Combination::IonosphereFree
+            | Combination::NarrowLane
+            | Combination::WideLane => dual_freq_combination(self, c),
+            Combination::MelbourneWubbena => mw_combination(self),
+        }
     }
 }
 
@@ -1679,4 +1705,97 @@ mod test {
             Version { major: 3, minor: 0 }
         ));
     }
+}
+
+/*
+ * Code multipath bias
+ */
+#[cfg(feature = "obs")]
+pub(crate) fn code_multipath(
+    rec: &Record,
+) -> HashMap<Observable, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    let mut ret: HashMap<Observable, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> =
+        HashMap::new();
+
+    for (epoch, (_, vehicles)) in rec {
+        for (sv, observations) in vehicles {
+            for (observable, obsdata) in observations {
+                if !observable.is_pseudorange_observable() {
+                    continue;
+                }
+
+                let code = observable.to_string();
+                let carrier = &code[1..2].to_string();
+                let code_is_l1 = code.contains("1");
+
+                let mut phase_i = Option::<f64>::None;
+                let mut phase_j = Option::<f64>::None;
+                let mut f_i = Option::<f64>::None;
+                let mut f_j = Option::<f64>::None;
+
+                for (rhs_observable, rhs_data) in observations {
+                    if !rhs_observable.is_phase_observable() {
+                        continue;
+                    }
+                    let rhs_code = rhs_observable.to_string();
+
+                    // identify carrier signal
+                    let rhs_carrier = Carrier::from_observable(sv.constellation, &rhs_observable);
+                    if rhs_carrier.is_err() {
+                        continue;
+                    }
+                    let rhs_carrier = rhs_carrier.unwrap();
+                    let lambda = rhs_carrier.wavelength();
+
+                    if code_is_l1 {
+                        if rhs_code.contains("2") {
+                            f_j = Some(rhs_carrier.frequency());
+                            phase_j = Some(rhs_data.obs * lambda);
+                        } else if rhs_code.contains(carrier) {
+                            f_i = Some(rhs_carrier.frequency());
+                            phase_i = Some(rhs_data.obs * lambda);
+                        }
+                    } else {
+                        if rhs_code.contains("1") {
+                            f_j = Some(rhs_carrier.frequency());
+                            phase_j = Some(rhs_data.obs * lambda);
+                        } else if rhs_code.contains(carrier) {
+                            f_i = Some(rhs_carrier.frequency());
+                            phase_i = Some(rhs_data.obs * lambda);
+                        }
+                    }
+
+                    if phase_i.is_some() && phase_j.is_some() {
+                        break; // DONE
+                    }
+                }
+
+                if phase_i.is_none() || phase_j.is_none() {
+                    continue; // can't proceed
+                }
+
+                let gamma = (f_i.unwrap() / f_j.unwrap()).powi(2);
+                let alpha = (gamma + 1.0) / (gamma - 1.0);
+                let beta = 2.0 / (gamma - 1.0);
+                let value = obsdata.obs - alpha * phase_i.unwrap() + beta * phase_j.unwrap();
+
+                if let Some(data) = ret.get_mut(&observable) {
+                    if let Some(data) = data.get_mut(&sv) {
+                        data.insert(*epoch, value);
+                    } else {
+                        let mut map: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                        map.insert(*epoch, value);
+                        data.insert(*sv, map);
+                    }
+                } else {
+                    let mut map: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                    map.insert(*epoch, value);
+                    let mut bmap: BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>> = BTreeMap::new();
+                    bmap.insert(*sv, map);
+                    ret.insert(observable.clone(), bmap);
+                }
+            }
+        }
+    }
+    ret
 }

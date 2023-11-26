@@ -1648,7 +1648,7 @@ impl Rinex {
 // use std::str::FromStr;
 
 #[cfg(feature = "obs")]
-use crate::observation::{LliFlags, SNR};
+use crate::observation::{record::code_multipath, LliFlags, SNR};
 
 /*
  * OBS RINEX specific methods: only available on crate feature.
@@ -2075,26 +2075,16 @@ impl Rinex {
                 .filter(|(_sv, list)| !list.is_empty()),
         )
     }
-    /// Returns Multipath bias estimates, per (unique) signal combination
-    /// and SV. Refer to [Bibliography::ESABookVol1] and [Bibliography::MpTaoglas].
-    fn multipath(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        todo!("NOT DONE");
-        // let mut ret : HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        // let iono_free = self.iono_free();
-        // for ((lhs_code, rhs_code), code_if) in &iono_free {
-        //     if !lhs_code.is_pseudorange_observable() {
-        //         continue ;
-        //     }
-        //     // find similar IONO FREE PHASE comb.
-        //     let lhs_phase_obs = Observable::from_str(&format!("L{}", &lhs_code.to_string()[1..])).unwrap();
-        //     let rhs_phase_obs = Observable::from_str(&format!("L{}", &rhs_code.to_string()[1..])).unwrap();
-        //     let phase_if = iono_free.get(&(lhs_phase_obs, rhs_phase_obs));
-        //     if phase_if.is_none() {
-        //         continue ;
-        //     }
-
-        // }
-        // ret
+    /// Returns Code Multipath bias estimates, for sampled code combination and per SV.
+    /// Refer to [Bibliography::ESABookVol1] and [Bibliography::MpTaoglas].
+    pub fn code_multipath(
+        &self,
+    ) -> HashMap<Observable, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            code_multipath(r)
+        } else {
+            HashMap::new()
+        }
     }
 }
 
@@ -3100,54 +3090,19 @@ impl Dcb for Rinex {
 //}
 
 #[cfg(feature = "obs")]
-use observation::Combine;
+use observation::{Combination, Combine};
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Combine for Rinex {
-    fn geo_free(
+    fn combine(
         &self,
+        c: Combination,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
-            r.geo_free()
+            r.combine(c)
         } else {
-            panic!("wrong RINEX type");
-        }
-    }
-    fn iono_free(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.iono_free()
-        } else {
-            panic!("wrong RINEX type");
-        }
-    }
-    fn wide_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.wide_lane()
-        } else {
-            panic!("wrong RINEX type");
-        }
-    }
-    fn narrow_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.narrow_lane()
-        } else {
-            panic!("wrong RINEX type");
-        }
-    }
-    fn melbourne_wubbena(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.melbourne_wubbena()
-        } else {
-            panic!("wrong RINEX type");
+            HashMap::new()
         }
     }
 }

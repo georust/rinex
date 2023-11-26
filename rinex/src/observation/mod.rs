@@ -149,66 +149,27 @@ impl HeaderFields {
 #[cfg(feature = "obs")]
 use std::collections::BTreeMap;
 
-/// GNSS signal recombination trait.    
-/// Import this to recombine OBS RINEX with usual recombination methods.   
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[derive(Debug, Copy, Clone)]
+pub enum Combination {
+    GeometryFree,
+    IonosphereFree,
+    WideLane,
+    NarrowLane,
+    MelbourneWubbena,
+}
+
+/// GNSS signal combination trait.    
 /// This only applies to OBS RINEX records.  
 /// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1]
 /// for more information.
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Combine {
-    /// Perform Geometry Free signal recombination on all phase
-    /// and pseudo range observations, for each individual SV
-    /// and individual Epoch.   
-    /// Geometry Free (Gf) recombination cancels out geometric
-    /// biases and leaves frequency dependent terms out,
-    /// like Ionospheric induced time delay.  
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::observation::*;
-    ///
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///    .unwrap();
-    ///
-    /// let gf = rinex.geo_free();
-    /// for ((ref_observable, rhs_observable), data) in gf {
-    ///     // for each recombination that we were able to form,
-    ///     // a "reference" observable was chosen,
-    ///     // and RHS observable is compared to it.
-    ///     // For example "L2C-L1C" : L1C is the reference observable
-    ///     for (sv, epochs) in data {
-    ///         // applied to all possible SV
-    ///         for ((epoch, _flag), value) in epochs {
-    ///             // value: actual recombination result
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    fn geo_free(
+    fn combine(
         &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-
-    /// Iono free combination
-    fn iono_free(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-
-    /// Perform Wide Lane recombination.   
-    /// See [Self::geo_free] for API example.
-    fn wide_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-
-    /// Perform Narrow Lane recombination.   
-    /// See [Self::geo_free] for API example.
-    fn narrow_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-
-    /// Perform Melbourne-Wübbena recombination.   
-    /// See [`Self::geo_free`] for API example.
-    fn melbourne_wubbena(
-        &self,
+        combination: Combination,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 

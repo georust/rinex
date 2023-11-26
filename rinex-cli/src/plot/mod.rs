@@ -32,7 +32,7 @@ mod naviplot;
 pub use naviplot::naviplot;
 
 mod combination;
-pub use combination::{plot_gnss_combination, plot_gnss_dcb};
+pub use combination::{plot_gnss_combination, plot_gnss_dcb_mp};
 
 /*
  * Generates N marker symbols to be used

@@ -16,7 +16,7 @@ mod positioning;
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
-    observation::{Combine, Dcb},
+    observation::{Combination, Combine, Dcb},
     prelude::*,
     split::Split,
 };
@@ -162,29 +162,23 @@ fn naviplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
  * Plots requested combinations
  */
 fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
-    if cli.dcb() {
-        let data = obs.dcb();
-        plot::plot_gnss_dcb(
-            plot_ctx,
-            "Differential Code Biases",
-            "Differential Code Bias [s]",
-            &data,
-        );
-        info!("dcb analysis");
-    }
-    //if cli.multipath() {
-    //    let data = rnx
-    //        .dcb();
+    //if cli.dcb() {
+    //    let data = obs.dcb();
     //    plot::plot_gnss_dcb(
-    //        &mut plot_ctx,
-    //        "Code Multipath",
-    //        "Meters of delay",
+    //        plot_ctx,
+    //        "Differential Code Biases",
+    //        "Differential Code Bias [s]",
     //        &data,
     //    );
-    //    info!("multipath analysis");
+    //    info!("dcb analysis");
     //}
+    if cli.multipath() {
+        let data = obs.code_multipath();
+        plot::plot_gnss_dcb_mp(&data, plot_ctx, "Code Multipath", "Meters of delay");
+        info!("code multipath analysis");
+    }
     if cli.if_combination() {
-        let data = obs.iono_free();
+        let data = obs.combine(Combination::IonosphereFree);
         plot::plot_gnss_combination(
             &data,
             plot_ctx,
@@ -194,7 +188,7 @@ fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
         info!("iono free combination");
     }
     if cli.gf_combination() {
-        let data = obs.geo_free();
+        let data = obs.combine(Combination::GeometryFree);
         plot::plot_gnss_combination(
             &data,
             plot_ctx,
@@ -204,12 +198,12 @@ fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
         info!("geo free combination");
     }
     if cli.wl_combination() {
-        let data = obs.wide_lane();
+        let data = obs.combine(Combination::WideLane);
         plot::plot_gnss_combination(&data, plot_ctx, "Wide Lane combination", "Meters of delay");
         info!("wide lane combination");
     }
     if cli.nl_combination() {
-        let data = obs.narrow_lane();
+        let data = obs.combine(Combination::NarrowLane);
         plot::plot_gnss_combination(
             &data,
             plot_ctx,
@@ -219,7 +213,7 @@ fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
         info!("wide lane combination");
     }
     if cli.mw_combination() {
-        let data = obs.melbourne_wubbena();
+        let data = obs.combine(Combination::MelbourneWubbena);
         plot::plot_gnss_combination(
             &data,
             plot_ctx,
@@ -251,10 +245,6 @@ pub fn main() -> Result<(), Error> {
 
     if !positioning {
         warn!("position solver currently turned off");
-    }
-
-    if cli.multipath() {
-        warn!("--mp analysis not available yet");
     }
 
     // Initiate plot context

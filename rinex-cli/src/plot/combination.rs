@@ -42,11 +42,11 @@ pub fn plot_gnss_combination(
 /*
  * Plot DCB analysis
  */
-pub fn plot_gnss_dcb(
+pub fn plot_gnss_dcb_mp(
+    data: &HashMap<Observable, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>,
     plot_context: &mut PlotContext,
     plot_title: &str,
     y_title: &str,
-    data: &HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
     // add a plot
     plot_context.add_cartesian2d_plot(plot_title, y_title);
@@ -57,7 +57,7 @@ pub fn plot_gnss_dcb(
         for (_sv, epochs) in vehicles {
             let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
-            let trace = build_chart_epoch_axis(op, Mode::Markers, data_x, data_y)
+            let trace = build_chart_epoch_axis(&op.to_string()[1..], Mode::Markers, data_x, data_y)
                 .marker(Marker::new().symbol(markers[op_index].clone()))
                 .visible({
                     if op_index < 2 {
