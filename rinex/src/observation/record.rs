@@ -1346,10 +1346,11 @@ use crate::observation::Combine;
 fn dual_freq_combination(
     rec: &Record,
     add: bool,
-    swap_code: bool,      // swap code but not phase
-    lambda_scaling: bool, // multiply phase by lambda
-    freq_scaling: bool,   // apply c_i, c_j scalings
+    swap_code: bool,            // swap code; not phase
+    freq_scaling: bool,         // apply f1/f2 scalings
+    squared_freq_scaling: bool, // apply f1^2/f2^2 scalings
 ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    const SPEED_OF_LIGHT: f64 = 2.99792458E8;
     let mut ret: HashMap<
         (Observable, Observable),
         BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,
@@ -1404,33 +1405,27 @@ fn dual_freq_combination(
                 let (f_j, f_i) = (lhs_carrier.frequency(), ref_carrier.frequency());
                 let (lambda_j, lambda_i) = (lhs_carrier.wavelength(), ref_carrier.wavelength());
 
-                let df = f_i - f_j;
-                let denom = f_i.powi(2) - f_j.powi(2);
-                let c_i = f_i.powi(2) / denom;
-                let c_j = -f_j.powi(2) / denom;
+                let df = match add {
+                    true => f_i + f_j,
+                    false => f_i - f_j,
+                };
 
                 let (v_j, v_i) = match ref_observable.is_pseudorange_observable() {
                     true => (lhs_data.obs, ref_data),
-                    false => {
-                        if lambda_scaling {
-                            (lhs_data.obs * lambda_j, ref_data * lambda_i)
-                        } else {
-                            (lhs_data.obs, ref_data)
-                        }
-                    },
+                    false => (lhs_data.obs * lambda_j, ref_data * lambda_i),
                 };
 
                 let value = match add {
                     true => match freq_scaling {
-                        true => c_i * v_i + c_j * v_j,
+                        true => SPEED_OF_LIGHT / df * (v_i + v_j),
                         false => v_i + v_j,
                     },
                     false => match freq_scaling {
                         true => {
                             if ref_observable.is_pseudorange_observable() && swap_code {
-                                c_j * v_j - c_i * v_i
+                                SPEED_OF_LIGHT / df * (v_j - v_i)
                             } else {
-                                c_i * v_i - c_j * v_j
+                                SPEED_OF_LIGHT / df * (v_i - v_j)
                             }
                         },
                         false => {
@@ -1470,77 +1465,73 @@ impl Combine for Record {
     fn iono_free(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, false, false, true, true)
+        dual_freq_combination(self, false, false, false, true)
     }
     fn geo_free(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, false, true, true, false)
+        dual_freq_combination(self, false, true, false, false)
     }
     fn narrow_lane(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, true, false, false, true)
+        dual_freq_combination(self, true, false, true, false)
     }
     fn wide_lane(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        dual_freq_combination(self, false, false, false, true)
+        dual_freq_combination(self, false, false, true, false)
     }
     fn melbourne_wubbena(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        self.wide_lane() // TODO
-                         // let code_narrow = self.narrow_lane();
-                         // let mut phase_wide = self.wide_lane();
+        let code_narrow = self.narrow_lane();
+        let mut phase_wide = self.wide_lane();
 
-        // phase_wide.retain(|(lhs_obs, rhs_obs), phase_wide| {
-        //
-        //     let lhs_code_obs = Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..]))
-        //         .unwrap();
-        //     let rhs_code_obs = Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..]))
-        //         .unwrap();
+        phase_wide.retain(|(lhs_obs, rhs_obs), phase_wide| {
+            let lhs_code_obs =
+                Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..])).unwrap();
+            let rhs_code_obs =
+                Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..])).unwrap();
 
-        //     if lhs_obs.is_phase_observable() {
-        //         if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
-        //             phase_wide.retain(|sv, phase_data| {
-        //                 if let Some(code_data) = code_data.get(&sv) {
-        //                     phase_data.retain(|epoch, _| {
-        //                         code_data.get(&epoch).is_some()
-        //                     });
-        //                     phase_data.len() > 0
-        //                 } else {
-        //                     false
-        //                 }
-        //             });
-        //             phase_wide.len() > 0
-        //         } else {
-        //             false
-        //         }
-        //     } else {
-        //         false
-        //     }
-        // });
+            if lhs_obs.is_phase_observable() {
+                if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
+                    phase_wide.retain(|sv, phase_data| {
+                        if let Some(code_data) = code_data.get(&sv) {
+                            phase_data.retain(|epoch, _| code_data.get(&epoch).is_some());
+                            phase_data.len() > 0
+                        } else {
+                            false
+                        }
+                    });
+                    phase_wide.len() > 0
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        });
 
-        // for ((lhs_obs, rhs_obs), phase_data) in phase_wide.iter_mut() {
-        //     let lhs_code_obs = Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..]))
-        //         .unwrap();
-        //     let rhs_code_obs = Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..]))
-        //         .unwrap();
+        for ((lhs_obs, rhs_obs), phase_data) in phase_wide.iter_mut() {
+            let lhs_code_obs =
+                Observable::from_str(&format!("C{}", &lhs_obs.to_string()[1..])).unwrap();
+            let rhs_code_obs =
+                Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..])).unwrap();
 
-        //     if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
-        //         for (phase_sv, mut data) in phase_data {
-        //             if let Some(code_data) = code_data.get(&phase_sv) {
-        //                 for (epoch, mut phase_wide) in data {
-        //                     if let Some(narrow_code) = code_data.get(&epoch) {
-        //                         *phase_wide -= narrow_code;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        // phase_wide
+            if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
+                for (phase_sv, mut data) in phase_data {
+                    if let Some(code_data) = code_data.get(&phase_sv) {
+                        for (epoch, mut phase_wide) in data {
+                            if let Some(narrow_code) = code_data.get(&epoch) {
+                                *phase_wide -= narrow_code;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        phase_wide
     }
 }
 
