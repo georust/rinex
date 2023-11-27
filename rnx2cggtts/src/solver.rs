@@ -379,7 +379,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     continue;
                 }
 
-                let mut doppler = Option::<Observation>::None;
+                let doppler = Option::<Observation>::None;
                 let doppler_to_match =
                     Observable::from_str(&format!("D{}", &observable.to_string()[..1])).unwrap();
 

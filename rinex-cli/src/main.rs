@@ -16,7 +16,7 @@ mod positioning;
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
-    observation::{Combination, Combine, Dcb},
+    observation::{Combination, Combine},
     prelude::*,
     split::Split,
 };

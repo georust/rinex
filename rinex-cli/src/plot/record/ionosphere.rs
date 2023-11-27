@@ -1,7 +1,7 @@
-use crate::plot::{build_chart_epoch_axis, PlotContext};
+use crate::plot::PlotContext;
 use hifitime::{Epoch, TimeScale};
-use plotly::common::Mode;
-use rinex::navigation::{IonMessage, KbModel};
+
+use rinex::navigation::KbModel;
 use rinex::prelude::{Constellation, GroundPosition, RnxContext, SV};
 use std::f64::consts::PI;
 
@@ -72,11 +72,11 @@ fn klob_ionospheric_delay(
     }
 }
 
-pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+pub fn plot_ionospheric_delay(ctx: &RnxContext, _plot_ctx: &mut PlotContext) {
     let ref_pos = ctx.ground_position().unwrap_or(GroundPosition::default());
 
     let ref_geo = ref_pos.to_geodetic();
-    let lat_lon_ddeg = (ref_geo.0, ref_geo.1);
+    let _lat_lon_ddeg = (ref_geo.0, ref_geo.1);
 
     // if let Some(nav) = ctx.nav_data() {
     //     let mut kb_delay: Vec<(Epoch, f64)> = Vec::new();

@@ -1491,11 +1491,6 @@ fn dual_freq_combination(
 fn mw_combination(
     rec: &Record,
 ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-    const SPEED_OF_LIGHT: f64 = 2.99792458E8;
-    let mut ret: HashMap<
-        (Observable, Observable),
-        BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,
-    > = HashMap::new();
     let code_narrow = dual_freq_combination(rec, Combination::NarrowLane);
     let mut phase_wide = dual_freq_combination(rec, Combination::WideLane);
 
@@ -1531,9 +1526,9 @@ fn mw_combination(
             Observable::from_str(&format!("C{}", &rhs_obs.to_string()[1..])).unwrap();
 
         if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
-            for (phase_sv, mut data) in phase_data {
+            for (phase_sv, data) in phase_data {
                 if let Some(code_data) = code_data.get(&phase_sv) {
-                    for (epoch, mut phase_wide) in data {
+                    for (epoch, phase_wide) in data {
                         if let Some(narrow_code) = code_data.get(&epoch) {
                             *phase_wide -= narrow_code;
                         }

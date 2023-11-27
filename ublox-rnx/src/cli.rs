@@ -7,7 +7,6 @@ use clap::{
 };
 // use log::{error, info};
 // use std::path::Path;
-use std::str::FromStr;
 
 pub struct Cli {
     /// Arguments passed by user
