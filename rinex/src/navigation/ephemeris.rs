@@ -129,10 +129,10 @@ impl Ephemeris {
         self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
-     * Returns TGD field if such field is not empty
+     * Returns TGD field, if such field is not empty, expressed as a [Duration]
      */
-    pub fn tgd(&self) -> Option<f64> {
-        self.get_orbit_f64("tgd")
+    pub fn tgd(&self) -> Option<Duration> {
+        Some(Duration::from_seconds(self.get_orbit_f64("tgd")?))
     }
     /*
      * Helper to apply a clock correction to provided time (expressed as Epoch)
@@ -419,7 +419,7 @@ impl Ephemeris {
     }
     /// Helper method to calculate elevation and azimuth angles, both in degrees,
     /// between a reference position (in meter ECEF WGS84) and a resolved
-    /// SV position in the sky, expressed in meter ECEF WFS84.
+    /// SV position in the sky, expressed in meter ECEF WGS84.
     pub fn elevation_azimuth(
         sv_position: (f64, f64, f64),
         reference_position: (f64, f64, f64),
@@ -554,7 +554,7 @@ fn parse_orbits(
                 // omitted field
                 key_index += 1;
                 nb_missing = nb_missing.saturating_sub(1);
-                line = rem.clone();
+                line = rem;
                 continue;
             }
             /*
@@ -578,7 +578,7 @@ fn parse_orbits(
                 }
             }
             key_index += 1;
-            line = rem.clone();
+            line = rem;
         }
     }
     Ok(map)

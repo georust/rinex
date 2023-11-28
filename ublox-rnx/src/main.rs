@@ -1,8 +1,6 @@
 //! Application to generate RINEX data in standard format
 //! using a Ublox receiver.   
 //! Homepage: <https://github.com/gwbres/rinex>
-use clap::load_yaml;
-use clap::App;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -28,7 +26,10 @@ use ublox::{NavStatusFlags, NavStatusFlags2};
 
 use log::{debug, error, info, trace, warn};
 
+mod cli;
 mod device;
+
+use cli::Cli;
 
 #[derive(Debug, Clone, Error)]
 pub enum Error {
@@ -47,19 +48,23 @@ fn identify_constellation(id: u8) -> Result<Constellation, Error> {
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let yaml = load_yaml!("app.yml");
-    let app = App::from_yaml(yaml);
-    let matches = app.get_matches();
+    // cli
+    let cli = Cli::new();
 
-    // Port config
-    let port = matches.value_of("port").unwrap();
-    let baud = matches.value_of("baud").unwrap_or("9600");
-    let baud = u32::from_str_radix(baud, 10).unwrap();
+    // Device configuration
+    let port = cli.port();
+    let baud_rate = match cli.baudrate() {
+        Ok(b) => b,
+        Err(e) => {
+            error!("failed to parse baud_rate: {}", e);
+            9600
+        },
+    };
 
-    //TODO: currently only supports GPS
+    info!("connecting to {}, baud: {}", port, baud_rate);
 
     // open device
-    let port = serialport::new(port, baud)
+    let port = serialport::new(port.clone(), baud_rate)
         .open()
         .unwrap_or_else(|_| panic!("failed to open serial port \"{}\"", port));
     let mut device = device::Device::new(port);
@@ -72,7 +77,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             reserved0: 0,
             tx_ready: 0,
             mode: UartMode::new(DataBits::Eight, Parity::None, StopBits::One),
-            baud_rate: baud,
+            baud_rate,
             in_proto_mask: InProtoMask::all(),
             out_proto_mask: OutProtoMask::UBLOX,
             flags: 0,

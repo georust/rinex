@@ -1,39 +1,42 @@
 use std::str::FromStr;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Error {
-    InvalidSnrCode,
+    InvalidSNRCode,
 }
 
-/// `Snr` Signal to noise ratio description,
-/// is attached to some observations
+/// Signal to noise ratio description, generally closely tied
+/// to raw GNSS signal observations.
 #[derive(Default, PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Snr {
-    /// Snr ~= 0 dB/Hz
+pub enum SNR {
+    /// SNR ~= 0 dB/Hz
     DbHz0,
-    /// Snr < 12 dB/Hz
+    /// SNR < 12 dB/Hz
     DbHz12,
-    /// 12 dB/Hz <= Snr < 17 dB/Hz
+    /// 12 dB/Hz <= SNR < 17 dB/Hz
     DbHz12_17,
-    /// 18 dB/Hz <= Snr < 23 dB/Hz
+    /// 18 dB/Hz <= SNR < 23 dB/Hz
     DbHz18_23,
-    /// 24 dB/Hz <= Snr < 29 dB/Hz
+    /// 24 dB/Hz <= SNR < 29 dB/Hz
     #[default]
     DbHz24_29,
-    /// 30 dB/Hz <= Snr < 35 dB/Hz
+    /// 30 dB/Hz <= SNR < 35 dB/Hz
     DbHz30_35,
-    /// 36 dB/Hz <= Snr < 41 dB/Hz
+    /// 36 dB/Hz <= SNR < 41 dB/Hz
     DbHz36_41,
-    /// 42 dB/Hz <= Snr < 47 dB/Hz
+    /// 42 dB/Hz <= SNR < 47 dB/Hz
     DbHz42_47,
-    /// 48 dB/Hz <= Snr < 53 dB/Hz
+    /// 48 dB/Hz <= SNR < 53 dB/Hz
     DbHz48_53,
-    /// Snr >= 54 dB/Hz
+    /// SNR >= 54 dB/Hz
     DbHz54,
 }
 
-impl std::fmt::LowerHex for Snr {
+impl std::fmt::LowerHex for SNR {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let descriptor = match self {
             Self::DbHz0 => "0",
@@ -51,7 +54,7 @@ impl std::fmt::LowerHex for Snr {
     }
 }
 
-impl std::fmt::LowerExp for Snr {
+impl std::fmt::LowerExp for SNR {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let descriptor = match self {
             Self::DbHz0 => "<< 12 dB",
@@ -69,30 +72,30 @@ impl std::fmt::LowerExp for Snr {
     }
 }
 
-impl FromStr for Snr {
+impl FromStr for SNR {
     type Err = Error;
     fn from_str(code: &str) -> Result<Self, Self::Err> {
         match code.trim() {
-            "0" => Ok(Snr::DbHz0),
-            "1" => Ok(Snr::DbHz12),
-            "2" => Ok(Snr::DbHz12_17),
-            "3" => Ok(Snr::DbHz18_23),
-            "4" => Ok(Snr::DbHz24_29),
-            "5" => Ok(Snr::DbHz30_35),
-            "6" => Ok(Snr::DbHz36_41),
-            "7" => Ok(Snr::DbHz42_47),
-            "8" => Ok(Snr::DbHz48_53),
-            "9" => Ok(Snr::DbHz54),
-            "bad" => Ok(Snr::DbHz18_23),
-            "weak" => Ok(Snr::DbHz24_29),
-            "strong" => Ok(Snr::DbHz30_35),
-            "excellent" => Ok(Snr::DbHz48_53),
-            _ => Err(Error::InvalidSnrCode),
+            "0" => Ok(SNR::DbHz0),
+            "1" => Ok(SNR::DbHz12),
+            "2" => Ok(SNR::DbHz12_17),
+            "3" => Ok(SNR::DbHz18_23),
+            "4" => Ok(SNR::DbHz24_29),
+            "5" => Ok(SNR::DbHz30_35),
+            "6" => Ok(SNR::DbHz36_41),
+            "7" => Ok(SNR::DbHz42_47),
+            "8" => Ok(SNR::DbHz48_53),
+            "9" => Ok(SNR::DbHz54),
+            "bad" => Ok(SNR::DbHz18_23),
+            "weak" => Ok(SNR::DbHz24_29),
+            "strong" => Ok(SNR::DbHz30_35),
+            "excellent" => Ok(SNR::DbHz48_53),
+            _ => Err(Error::InvalidSNRCode),
         }
     }
 }
 
-impl From<f64> for Snr {
+impl From<f64> for SNR {
     fn from(f_db: f64) -> Self {
         if f_db < 12.0 {
             Self::DbHz12
@@ -116,24 +119,24 @@ impl From<f64> for Snr {
     }
 }
 
-impl From<Snr> for f64 {
-    fn from(val: Snr) -> Self {
+impl From<SNR> for f64 {
+    fn from(val: SNR) -> Self {
         match val {
-            Snr::DbHz0 => 0.0_f64,
-            Snr::DbHz12 => 12.0_f64,
-            Snr::DbHz12_17 => 17.0_f64,
-            Snr::DbHz18_23 => 23.0_f64,
-            Snr::DbHz24_29 => 29.0_f64,
-            Snr::DbHz30_35 => 35.0_f64,
-            Snr::DbHz36_41 => 41.0_f64,
-            Snr::DbHz42_47 => 47.0_f64,
-            Snr::DbHz48_53 => 53.0_f64,
-            Snr::DbHz54 => 54.0_f64,
+            SNR::DbHz0 => 0.0_f64,
+            SNR::DbHz12 => 12.0_f64,
+            SNR::DbHz12_17 => 17.0_f64,
+            SNR::DbHz18_23 => 23.0_f64,
+            SNR::DbHz24_29 => 29.0_f64,
+            SNR::DbHz30_35 => 35.0_f64,
+            SNR::DbHz36_41 => 41.0_f64,
+            SNR::DbHz42_47 => 47.0_f64,
+            SNR::DbHz48_53 => 53.0_f64,
+            SNR::DbHz54 => 54.0_f64,
         }
     }
 }
 
-impl From<u8> for Snr {
+impl From<u8> for SNR {
     fn from(u: u8) -> Self {
         if u >= 54 {
             Self::DbHz54
@@ -159,22 +162,22 @@ impl From<u8> for Snr {
     }
 }
 
-impl Snr {
+impl SNR {
     /// Returns true if self describes a bad signal level
     pub fn bad(self) -> bool {
-        self <= Snr::DbHz18_23
+        self <= SNR::DbHz18_23
     }
     /// Returns true if `self` describes a weak signal level
     pub fn weak(self) -> bool {
-        self < Snr::DbHz30_35
+        self < SNR::DbHz30_35
     }
     /// Returns true if `self` describes a strong signal level, defined in standard specifications
     pub fn strong(self) -> bool {
-        self >= Snr::DbHz30_35
+        self >= SNR::DbHz30_35
     }
     /// Returns true if `self` is a very strong signal level
     pub fn excellent(self) -> bool {
-        self > Snr::DbHz42_47
+        self > SNR::DbHz42_47
     }
 }
 
@@ -184,38 +187,38 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn observation_snr() {
-        let snr = Snr::from_str("0").unwrap();
-        assert_eq!(snr, Snr::DbHz0);
+        let snr = SNR::from_str("0").unwrap();
+        assert_eq!(snr, SNR::DbHz0);
         assert!(snr.bad());
 
-        let snr = Snr::from_str("9").unwrap();
+        let snr = SNR::from_str("9").unwrap();
         assert!(snr.excellent());
 
-        let snr = Snr::from_str("10");
+        let snr = SNR::from_str("10");
         assert!(snr.is_err());
 
-        let snr: Snr = Snr::from(48_u8);
-        assert_eq!(snr, Snr::DbHz48_53);
+        let snr: SNR = SNR::from(48_u8);
+        assert_eq!(snr, SNR::DbHz48_53);
         assert!(snr.excellent());
         assert_eq!(format!("{:x}", snr), "8");
         assert_eq!(format!("{:e}", snr), "[48, 53[ dB");
 
-        let snr: Snr = Snr::from(31.3);
-        assert_eq!(snr, Snr::DbHz30_35);
+        let snr: SNR = SNR::from(31.3);
+        assert_eq!(snr, SNR::DbHz30_35);
         assert!(snr.strong());
 
-        let snr: Snr = Snr::from(3.0);
-        assert_eq!(snr, Snr::DbHz12);
+        let snr: SNR = SNR::from(3.0);
+        assert_eq!(snr, SNR::DbHz12);
         assert!(snr.bad());
 
-        assert_eq!(Snr::from_str("excellent"), Ok(Snr::DbHz48_53));
-        assert_eq!(Snr::from_str("strong"), Ok(Snr::DbHz30_35));
-        assert_eq!(Snr::from_str("weak"), Ok(Snr::DbHz24_29));
-        assert_eq!(Snr::from_str("bad"), Ok(Snr::DbHz18_23));
+        assert_eq!(SNR::from_str("excellent"), Ok(SNR::DbHz48_53));
+        assert_eq!(SNR::from_str("strong"), Ok(SNR::DbHz30_35));
+        assert_eq!(SNR::from_str("weak"), Ok(SNR::DbHz24_29));
+        assert_eq!(SNR::from_str("bad"), Ok(SNR::DbHz18_23));
 
-        assert!(Snr::from_str("bad").unwrap().bad());
-        assert!(Snr::from_str("weak").unwrap().weak());
-        assert!(Snr::from_str("strong").unwrap().strong());
-        assert!(Snr::from_str("excellent").unwrap().excellent());
+        assert!(SNR::from_str("bad").unwrap().bad());
+        assert!(SNR::from_str("weak").unwrap().weak());
+        assert!(SNR::from_str("strong").unwrap().strong());
+        assert!(SNR::from_str("excellent").unwrap().excellent());
     }
 }

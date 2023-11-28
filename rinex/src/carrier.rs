@@ -5,7 +5,7 @@ use thiserror::Error;
 use gnss::prelude::SV;
 
 lazy_static! {
-    pub static ref KNOWN_CODES: Vec<&'static str> = vec![
+    pub(crate) static ref KNOWN_CODES: Vec<&'static str> = vec![
         "1A", "1B", "1C", "1D", "1E", "1L", "1M", "1P", "1S", "1W", "1X", "1Z", "2C", "2D", "2L",
         "2M", "2P", "2S", "2W", "3I", "3X", "3Q", "4A", "4B", "4X", "5A", "5B", "5C", "5D", "5I",
         "5P", "5Q", "5X", "6A", "6B", "6C", "6D", "6E", "6I", "6P", "6Q", "6X", "6Z", "7D", "7I",
@@ -172,6 +172,9 @@ impl Carrier {
     }
     pub fn frequency_mhz(&self) -> f64 {
         match self {
+            /*
+             * GPS, Gal, QZSS, SBAS
+             */
             Self::L1 | Self::E1 => 1575.42_f64,
             Self::L2 => 1227.60_f64,
             Self::L6 | Self::E6 => 1278.750_f64,
@@ -179,6 +182,9 @@ impl Carrier {
             Self::E5 => 1191.795_f64,
             Self::E5a => 1176.45_f64,
             Self::E5b => 1207.140_f64,
+            /*
+             * IRNSS
+             */
             Self::S => 2492.028_f64,
             /*
              * Glonass

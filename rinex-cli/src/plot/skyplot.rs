@@ -3,29 +3,22 @@ use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
 };
-use rinex::prelude::Epoch;
-use rinex::prelude::RnxContext;
+use rinex::prelude::{Epoch, GroundPosition, Rinex};
 
 /*
  * Skyplot view
  */
-pub fn skyplot(ctx: &RnxContext, plot_context: &mut PlotContext) {
+pub fn skyplot(rnx: &Rinex, ref_position: GroundPosition, plot_context: &mut PlotContext) {
     plot_context.add_polar2d_plot("Skyplot");
 
-    // grab NAV context
-    let nav_rnx = match &ctx.navigation_data() {
-        Some(nav) => nav,
-        _ => ctx.primary_data(),
-    };
-
-    for (svnn_index, svnn) in nav_rnx.sv().enumerate() {
+    for (svnn_index, svnn) in rnx.sv().enumerate() {
         // per sv
         // grab related elevation data
         // Rho   = degrees(elev)
         // Theta = degrees(azim)
-        let data: Vec<(Epoch, f64, f64)> = nav_rnx
-            .sv_elevation_azimuth(ctx.ground_position())
-            .filter_map(|(epoch, (sv, (elev, azi)))| {
+        let data: Vec<(Epoch, f64, f64)> = rnx
+            .sv_elevation_azimuth(Some(ref_position))
+            .filter_map(|(epoch, sv, (elev, azi))| {
                 if sv == svnn {
                     let rho = elev;
                     let theta = azi;

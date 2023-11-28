@@ -67,10 +67,7 @@ To learn more about cycle slips, refer to the [processing section](processing.md
 Enhanced Observation analysis
 =============================
 
-Navigation data can be added on top of Observation RINEX provided with `--fp`.   
-
-Ideally, Navigation data (ephemeris frames) were sampled with the same parameters, at the same time,
-in the same environment. To proceed to enhanced analysis, specify the context with `--nav`.
+Enhanced Observation analysis is possible as long as Navigation Data is integrated to the context.
 
 The enhanced visualization depicts the Sv elevation angles accross encountered epochs,
 along previous Observations. We do not apply interpolation for Observation / Navigation
@@ -82,9 +79,9 @@ In this example, we run it for all GPS vehicles:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-        --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-            -P GPS --sv-epoch
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    -P GPS --sv-epoch
 ```
 
 From the resuling "sv.png" product:
@@ -99,7 +96,7 @@ Let's plot it:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-        --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-            -P G25,G29,G31,G12 ">=2020-06-25T05:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    -P G25,G29,G31,G12 ">=2020-06-25T05:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
 ```

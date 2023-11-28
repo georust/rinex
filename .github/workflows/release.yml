@@ -1,28 +1,198 @@
-name: release
-on:
-  release:
-    types: [created]
+name: Release
 
-env:
-  PKG_CONFIG_PATH: "/usr/lib/pkgconfig"
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
 
 jobs:
+  build:
+    name: build
+    runs-on: ${{ matrix.os }}
+    env:
+      # For some builds, we use cross to test on 32-bit and big-endian
+      # systems.
+      CARGO: cargo
+      # When CARGO is set to CROSS, this is set to `--target matrix.target`.
+      TARGET_FLAGS: ''
+      # When CARGO is set to CROSS, TARGET_DIR includes matrix.target.
+      TARGET_DIR: ./target
+      # Bump this as appropriate. We pin to a version to make sure CI
+      # continues to work as cross releases in the past have broken things
+      # in subtle ways.
+      CROSS_VERSION: v0.2.5
+      # Emit backtraces on panics.
+      RUST_BACKTRACE: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - build: linux
+          os: ubuntu-latest
+          rust: stable
+          target: x86_64-unknown-linux-musl
+          strip: x86_64-linux-musl-strip
+        - build: stable-x86
+          os: ubuntu-latest
+          rust: stable
+          target: i686-unknown-linux-gnu
+          strip: x86_64-linux-gnu-strip
+        - build: macos
+          os: macos-latest
+          rust: nightly
+          target: x86_64-apple-darwin
+        - build: win-msvc
+          os: windows-latest
+          rust: nightly
+          target: x86_64-pc-windows-msvc
+        - build: win-gnu
+          os: windows-latest
+          rust: nightly-x86_64-gnu
+          target: x86_64-pc-windows-gnu
+        - build: win32-msvc
+          os: windows-latest
+          rust: nightly
+          target: i686-pc-windows-msvc
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        target: ${{ matrix.target }}
+    - name: Use Cross
+      if: matrix.os == 'ubuntu-latest' && matrix.target != ''
+      shell: bash
+      run: |
+        # In the past, new releases of 'cross' have broken CI. So for now, we
+        # pin it. We also use their pre-compiled binary releases because cross
+        # has over 100 dependencies and takes a bit to compile.
+        dir="$RUNNER_TEMP/cross-download"
+        mkdir "$dir"
+        echo "$dir" >> $GITHUB_PATH
+        cd "$dir"
+        curl -LO "https://github.com/cross-rs/cross/releases/download/$CROSS_VERSION/cross-x86_64-unknown-linux-musl.tar.gz"
+        tar xf cross-x86_64-unknown-linux-musl.tar.gz
+        echo "CARGO=cross" >> $GITHUB_ENV
+
+    - name: Set target variables
+      shell: bash
+      run: |
+        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
+        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+
+    - name: Show command used for Cargo
+      shell: bash
+      run: |
+        echo "cargo command is: ${{ env.CARGO }}"
+        echo "target flag is: ${{ env.TARGET_FLAGS }}"
+        echo "target dir is: ${{ env.TARGET_DIR }}"
+
+    - name: Build applications
+      shell: bash
+      run: |
+        ${{ env.CARGO }} build --verbose ${{ env.TARGET_FLAGS }} -r -p rinex-cli -p rnx2cggtts -p rnx2crx -p crx2rnx -p ublox-rnx
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
+          rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
+          rinex-cli="target/${{ matrix.target }}/release/rinex-cli.exe"
+          rnx2cggtts="target/${{ matrix.target }}/release/rnx2cggtts.exe"
+          ublox-rnx="target/${{ matrix.target }}/release/ublox-rnx.exe"
+        else
+          crx2rnx="target/${{ matrix.target }}/release/crx2rnx"
+          rnx2crx="target/${{ matrix.target }}/release/rnx2crx"
+          rinex-cli="target/${{ matrix.target }}/release/rinex-cli"
+          rnx2cggtts="target/${{ matrix.target }}/release/rnx2cggtts"
+          ublox-rnx="target/${{ matrix.target }}/release/ublox-rnx"
+        fi
+        echo "CRX2RNX=$crx2rnx" >> $GITHUB_ENV
+        echo "RNX2CRX=$crx2rnx" >> $GITHUB_ENV
+        echo "RNXCLI=$rinex-cli" >> $GITHUB_ENV
+        echo "RNX2CGGTTS=$rnx2cggtts" >> $GITHUB_ENV
+        echo "UBX2RNX=$ublox-rnx" >> $GITHUB_ENV
+
+    - name: Strip release binary (macos)
+      if: matrix.os == 'macos-latest'
+      shell: bash
+      run: |
+        strip "$CRX2RNX" >> $GITHUB_ENV
+        strip "$RNX2CRX" >> $GITHUB_ENV
+        strip "$RNXCLI" >> $GITHUB_ENV
+        strip "$UBX2RNX" >> $GITHUB_ENV
+        strip "$RNX2CGGTTS" >> $GITHUB_ENV
+
+    - name: Strip release binary (cross)
+      if: env.CARGO == 'cross'
+      shell: bash
+      run: |
+        docker run --rm -v \
+          "$PWD/target:/target:Z" \
+          "rustembedded/cross:${{ matrix.target }}" \
+          "${{ matrix.strip }}" \
+          "/target/${{ matrix.target }}/release/crx2rnx" \
+          "/target/${{ matrix.target }}/release/rnx2crx" \
+          "/target/${{ matrix.target }}/release/rnx2cggtts" \
+          "/target/${{ matrix.target }}/release/ublox-rnx" \
+          "/target/${{ matrix.target }}/release/rinex-cli"
+
+    - name: Determine archive name
+      shell: bash
+      run: |
+        echo "ARCHIVE=rinex-${{ github.ref_name }}-${{ matrix.target }}" >> $GITHUB_ENV
+
+    - name: Creating directory for archive
+      shell: bash
+      run: |
+        mkdir -p "$ARCHIVE"
+        cp {README.md,LICENSE-MIT,LICENSE-APACHE} "$ARCHIVE"/
+        cp target/${{ matrix.target }}/release/"$CRX2RNX" "$ARCHIVE"/
+        cp target/${{ matrix.target }}/release/"$RNX2CRX" "$ARCHIVE"/
+        cp target/${{ matrix.target }}/release/"$RNXCLI" "$ARCHIVE"/
+        cp target/${{ matrix.target }}/release/"$RNX2CGGTTS" "$ARCHIVE"/
+        cp target/${{ matrix.target }}/release/"$UBX2RNX" "$ARCHIVE"/
+
+    - name: Build archive (Unix)
+      shell: bash
+      if: matrix.os != 'windows-latest'
+      run: |
+        tar czf "$ARCHIVE.tar.gz" "$ARCHIVE"
+        shasum -a 256 "$ARCHIVE.tar.gz" > "$ARCHIVE.tar.gz.sha256"
+        echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
+        echo "ASSET_SUM=$ARCHIVE.tar.gz.sha256" >> $GITHUB_ENV
+    
+    - name: Build archive (Windows)
+      shell: bash
+      if: matrix.os == 'windows-latest'
+      run: |
+        7z a "$ARCHIVE.zip" "$ARCHIVE"
+        certutil -hashfile "$ARCHIVE.zip" SHA256 > "$ARCHIVE.zip.sha256"
+        echo "ASSET=$ARCHIVE.zip" >> $GITHUB_ENV
+        echo "ASSET_SUM=$ARCHIVE.zip.sha256" >> $GITHUB_ENV
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3     
+      with:
+        name: ${{ env.ASSET }}
+        path: |
+          ${{ env.ASSET }}
+          ${{ env.ASSET_SUM }}
+  
   release:
     runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      matrix:
-        target: [x86_64-unknown-linux-musl, x86_64-apple-darwin, x86_64-pc-windows-gnu]
+    needs: ['build']
     steps:
-      - uses: actions/checkout@master
-      - name: Release ${{ matrix.target }}
-        uses: rust-build/rust-build.action@v1.4.3
-        env:
-          GITHUB_TOKEN: ${{ matrix.target }}
-        with:
-          SRC_DIR: "rinex-cli"
-          RUSTTARGET: ${{ matrix.target }}
-          EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
-          TOOLCHAIN_VERSION: stable
-          ARCHIVE_TYPES: zip
-          ARCHIVE_NAME: rinex-cli-${{ matrix.target }}.zip
+    - name: Create Release
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: actions/create-release@v1
+      with:
+        draft: true
+        tag_name: ${{ github.ref_name }}
+        release_name: ${{ github.ref_name }}

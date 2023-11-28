@@ -62,17 +62,18 @@ impl Type {
 impl std::str::FromStr for Type {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.eq("NAVIGATION DATA") || s.contains("NAV DATA") {
+        let s = s.to_lowercase();
+        if s.eq("navigation data") || s.contains("nav data") {
             Ok(Self::NavigationData)
-        } else if s.eq("OBSERVATION DATA") {
+        } else if s.eq("observation data") {
             Ok(Self::ObservationData)
-        } else if s.eq("METEOROLOGICAL DATA") {
+        } else if s.eq("meteorological data") {
             Ok(Self::MeteoData)
-        } else if s.eq("CLOCK DATA") || s.eq("C") {
+        } else if s.eq("clock data") || s.eq("c") {
             Ok(Self::ClockData)
-        } else if s.eq("ANTEX") {
+        } else if s.eq("antex") {
             Ok(Self::AntennaData)
-        } else if s.eq("IONOSPHERE MAPS") {
+        } else if s.eq("ionosphere maps") {
             Ok(Self::IonosphereMaps)
         } else {
             Err(ParsingError::TypeParsing(String::from(s)))

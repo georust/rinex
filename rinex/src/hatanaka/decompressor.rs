@@ -339,7 +339,7 @@ impl Decompressor {
                     //   as it is made of a single line.
                     //   It needs to be formatted according to standards,
                     //   for the result being constructed. See the following operations
-                    self.epoch_descriptor = recovered.clone().to_string();
+                    self.epoch_descriptor = recovered.to_string();
                     // initialize sv identifier
                     self.sv_ptr = 0;
                     if let Some(n) = Self::parse_nb_sv(&self.epoch_descriptor, crx_major) {

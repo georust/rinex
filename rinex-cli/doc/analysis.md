@@ -34,10 +34,9 @@ otherwise plot becomes rapidly messy:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    --retain-sv G01,G08,R04,R08,R09 \
-    --sv-epoch
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    -P G01,G08,R04,R08,R09 --sv
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_diff_esbc00dnk.png">

@@ -3,17 +3,11 @@ use crate::plot::PlotContext;
 use plotly::color::NamedColor;
 use plotly::common::{Marker, MarkerSymbol};
 use plotly::layout::MapboxStyle;
-use plotly::DensityMapbox;
+//use plotly::DensityMapbox;
 use plotly::ScatterMapbox;
-//use rinex::prelude::Epoch;
-use rinex::prelude::RnxContext;
-//use std::collections::HashMap;
+use rinex::prelude::Rinex;
 
-pub fn plot_tec_map(
-    ctx: &RnxContext,
-    _borders: ((f64, f64), (f64, f64)),
-    plot_ctx: &mut PlotContext,
-) {
+pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: &mut PlotContext) {
     let _cmap = colorous::TURBO;
     //TODO
     //let hover_text: Vec<String> = ctx.primary_data().epoch().map(|e| e.to_string()).collect();
@@ -22,9 +16,8 @@ pub fn plot_tec_map(
      * plotly-rs has no means to animate plots at the moment
      * therefore.. we create one plot for all remaining Epochs
      */
-    for epoch in ctx.primary_data().epoch() {
-        let lat: Vec<_> = ctx
-            .primary_data()
+    for epoch in data.epoch() {
+        let lat: Vec<_> = data
             .tec()
             .filter_map(
                 |(t, lat, _, _, _)| {
@@ -36,8 +29,7 @@ pub fn plot_tec_map(
                 },
             )
             .collect();
-        let lon: Vec<_> = ctx
-            .primary_data()
+        let lon: Vec<_> = data
             .tec()
             .filter_map(
                 |(t, _, lon, _, _)| {
@@ -49,8 +41,7 @@ pub fn plot_tec_map(
                 },
             )
             .collect();
-        let tec: Vec<_> = ctx
-            .primary_data()
+        let tec: Vec<_> = data
             .tec()
             .filter_map(
                 |(t, _, _, _, tec)| {
@@ -84,14 +75,14 @@ pub fn plot_tec_map(
         plot_ctx.add_trace(grid);
 
         //let map = AnimatedDensityMapbox::new(lat.clone(), lon.clone(), z)
-        let map = DensityMapbox::new(lat.clone(), lon.clone(), tec.clone())
-            //.title("TEST")
-            .name(epoch.to_string())
-            .opacity(0.66)
-            //.hover_text_array(hover_text.clone())
-            .zauto(true)
-            //.animation_frame("test")
-            .zoom(3);
-        plot_ctx.add_trace(map);
+        //let map = DensityMapbox::new(lat.clone(), lon.clone(), tec.clone())
+        //    //.title("TEST")
+        //    .name(epoch.to_string())
+        //    .opacity(0.66)
+        //    //.hover_text_array(hover_text.clone())
+        //    .zauto(true)
+        //    //.animation_frame("test")
+        //    .zoom(3);
+        //plot_ctx.add_trace(map);
     }
 }

@@ -28,8 +28,6 @@ mod ground_position;
 mod leap;
 mod observable;
 
-mod context;
-
 #[cfg(test)]
 mod tests;
 
@@ -62,6 +60,7 @@ use version::Version;
 
 /// Package to include all basic structures
 pub mod prelude {
+    #[cfg(feature = "sp3")]
     pub use crate::context::RnxContext;
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
@@ -88,6 +87,9 @@ pub mod preprocessing {
 #[cfg(feature = "qc")]
 #[macro_use]
 extern crate horrorshow;
+
+#[cfg(feature = "sp3")]
+mod context;
 
 use carrier::Carrier;
 use prelude::*;
@@ -1642,8 +1644,11 @@ impl Rinex {
     }
 }
 
+// #[cfg(feature = "obs")]
+// use std::str::FromStr;
+
 #[cfg(feature = "obs")]
-use crate::observation::{LliFlags, Snr};
+use crate::observation::{record::code_multipath, LliFlags, SNR};
 
 /*
  * OBS RINEX specific methods: only available on crate feature.
@@ -1955,7 +1960,7 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx")
     ///         .unwrap();
     /// for ((e, flag), sv, observable, snr) in rinex.snr() {
-    ///     // See RINEX specs or [Snr] documentation
+    ///     // See RINEX specs or [SNR] documentation
     ///     if snr.weak() {
     ///     } else if snr.strong() {
     ///     } else if snr.excellent() {
@@ -1968,7 +1973,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, Snr)> + '_> {
+    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, SNR)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations
@@ -2010,7 +2015,7 @@ impl Rinex {
     /// and an optional minimal SNR criteria is met (disregarded if None).
     pub fn complete_epoch(
         &self,
-        min_snr: Option<Snr>,
+        min_snr: Option<SNR>,
     ) -> Box<dyn Iterator<Item = (Epoch, Vec<(SV, Carrier)>)> + '_> {
         Box::new(
             self.observation()
@@ -2026,7 +2031,6 @@ impl Rinex {
                                 {
                                     continue; // not interesting here
                                 }
-                                //let carrier_code = &observable.to_string()[1..2];
                                 let carrier =
                                     Carrier::from_observable(sv.constellation, observable);
                                 if carrier.is_err() {
@@ -2070,6 +2074,17 @@ impl Rinex {
                 })
                 .filter(|(_sv, list)| !list.is_empty()),
         )
+    }
+    /// Returns Code Multipath bias estimates, for sampled code combination and per SV.
+    /// Refer to [Bibliography::ESABookVol1] and [Bibliography::MpTaoglas].
+    pub fn code_multipath(
+        &self,
+    ) -> HashMap<Observable, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            code_multipath(r)
+        } else {
+            HashMap::new()
+        }
     }
 }
 
@@ -2410,7 +2425,7 @@ impl Rinex {
     ///     .unwrap();
     ///
     /// let data = rinex.sv_elevation_azimuth(Some(ref_pos));
-    /// for (epoch, (sv, (elev, azim))) in data {
+    /// for (epoch, sv, (elev, azim)) in data {
     ///     // azim: azimuth in °
     ///     // elev: elevation in °
     /// }
@@ -2418,7 +2433,7 @@ impl Rinex {
     pub fn sv_elevation_azimuth(
         &self,
         ref_position: Option<GroundPosition>,
-    ) -> Box<dyn Iterator<Item = (Epoch, (SV, (f64, f64)))> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64))> + '_> {
         let ground_position = match ref_position {
             Some(pos) => pos, // user value superceeds, in case it is passed
             _ => {
@@ -2436,7 +2451,7 @@ impl Rinex {
                 .filter_map(move |(epoch, (_, sv, ephemeris))| {
                     if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position)
                     {
-                        Some((*epoch, (sv, (elev, azim))))
+                        Some((*epoch, sv, (elev, azim)))
                     } else {
                         None // calculations may not be feasible,
                              // mainly when mandatory ephemeris broadcasts are missing
@@ -2464,17 +2479,16 @@ impl Rinex {
     /// use rinex::navigation::KbRegionCode;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
     ///     .unwrap();
-    /// for (epoch, kb_model) in rnx.klobuchar_models() {
+    /// for (epoch, _sv, kb_model) in rnx.klobuchar_models() {
     ///     let alpha = kb_model.alpha;
     ///     let beta = kb_model.beta;
-    ///     // we only have this example at the moment
     ///     assert_eq!(kb_model.region, KbRegionCode::WideArea);
     /// }
     /// ```
-    pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, KbModel)> + '_> {
+    pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, SV, KbModel)> + '_> {
         Box::new(
             self.ionosphere_models()
-                .filter_map(|(e, (_, _, ion))| ion.as_klobuchar().map(|model| (*e, *model))),
+                .filter_map(|(e, (_, sv, ion))| ion.as_klobuchar().map(|model| (*e, sv, *model))),
         )
     }
     /// Returns [`NgModel`] Iterator
@@ -2507,6 +2521,44 @@ impl Rinex {
             self.ionosphere_models()
                 .filter_map(|(e, (_, _, ion))| ion.as_bdgim().map(|model| (*e, *model))),
         )
+    }
+    /// Returns Ionospheric Delay Model (as meters of delay) to use
+    pub fn ionod_model(
+        &self,
+        t: Epoch,
+        sv_elevation: f64,
+        sv_azimuth: f64,
+        user_lat_ddeg: f64,
+        user_lon_ddeg: f64,
+        carrier: Carrier,
+    ) -> Option<f64> {
+        // grab nearest model ; in time
+        let (_, model) = self
+            .ionosphere_models()
+            .map(|(t, (_, sv, msg))| (t, (sv, msg)))
+            .min_by_key(|(t_i, _)| (t - **t_i).abs())?;
+
+        let (model_sv, model) = model;
+
+        if let Some(kb) = model.as_klobuchar() {
+            let h_km = match model_sv.constellation {
+                Constellation::BeiDou => 375.0,
+                // we only expect BDS or GPS here,
+                // wrongly formed RINEX will cause innacurate results
+                Constellation::GPS | _ => 350.0,
+            };
+            Some(kb.meters_delay(
+                t,
+                sv_elevation,
+                sv_azimuth,
+                h_km,
+                user_lat_ddeg,
+                user_lon_ddeg,
+                carrier,
+            ))
+        } else {
+            None
+        }
     }
     /// Returns [`StoMessage`] frames Iterator
     /// ```
@@ -3038,63 +3090,19 @@ impl Dcb for Rinex {
 //}
 
 #[cfg(feature = "obs")]
-use observation::Combine;
+use observation::{Combination, Combine};
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Combine for Rinex {
-    fn geo_free(
+    fn combine(
         &self,
+        c: Combination,
     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
-            r.geo_free()
+            r.combine(c)
         } else {
-            panic!("wrong RINEX type");
-        }
-    }
-    fn wide_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.wide_lane()
-        } else {
-            panic!("wrong RINEX type");
-        }
-    }
-    fn narrow_lane(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.narrow_lane()
-        } else {
-            panic!("wrong RINEX type");
-        }
-    }
-    fn melbourne_wubbena(
-        &self,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.melbourne_wubbena()
-        } else {
-            panic!("wrong RINEX type");
-        }
-    }
-}
-
-#[cfg(feature = "obs")]
-use observation::IonoDelay;
-
-#[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
-impl IonoDelay for Rinex {
-    fn iono_delay(
-        &self,
-        max_dt: Duration,
-    ) -> HashMap<Observable, HashMap<SV, BTreeMap<Epoch, f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.iono_delay(max_dt)
-        } else {
-            panic!("wrong RINEX type");
+            HashMap::new()
         }
     }
 }

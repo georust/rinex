@@ -152,16 +152,15 @@ pub(crate) fn parse_epoch(
     let mut lines = content.lines();
     let line = lines.next().unwrap();
     // Data type code
-    let (dtype, rem) = line.split_at(3);
+    let (dtype, mut rem) = line.split_at(3);
     let data_type = ClockDataType::from_str(dtype.trim())?; // must pass
-    let mut rem = rem.clone();
     let limit = Version { major: 3, minor: 4 };
 
     let system: System = match version < limit {
         true => {
             // old fashion
             let (system_str, r) = rem.split_at(5);
-            rem = r.clone();
+            rem = r;
             if let Ok(svnn) = SV::from_str(system_str.trim()) {
                 System::SV(svnn)
             } else {
@@ -173,12 +172,12 @@ pub(crate) fn parse_epoch(
             let (system_str, r) = rem.split_at(4);
             if let Ok(svnn) = SV::from_str(system_str.trim()) {
                 let (_, r) = r.split_at(6);
-                rem = r.clone();
+                rem = r;
                 System::SV(svnn)
             } else {
                 let mut content = system_str.to_owned();
                 let (remainder, r) = r.split_at(6);
-                rem = r.clone();
+                rem = r;
                 content.push_str(remainder);
                 System::Station(content.trim().to_string())
             }
@@ -211,7 +210,7 @@ pub(crate) fn parse_epoch(
 
     if n > 2 {
         if let Some(l) = lines.next() {
-            let line = l.clone();
+            let line = l;
             let items: Vec<&str> = line.split_ascii_whitespace().collect();
             for (i, item) in items.iter().enumerate() {
                 if let Ok(f) = item.trim().parse::<f64>() {

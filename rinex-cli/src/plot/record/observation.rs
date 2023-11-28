@@ -20,7 +20,12 @@ fn observable_to_physics(observable: &Observable) -> String {
  * Plots given Observation RINEX content
  */
 pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
-    let record = ctx.primary_data().record.as_obs().unwrap(); // cannot fail
+    let record = ctx
+        .obs_data()
+        .unwrap() // infaillible
+        .record
+        .as_obs()
+        .unwrap(); // infaillible
 
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
@@ -132,11 +137,11 @@ pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
                 if index == 0 && physics == "Signal Strength" {
                     // 1st Carrier encountered: plot SV only once
                     // we also only augment the SSI plot when NAV context is provided
-                    if let Some(nav) = &ctx.navigation_data() {
+                    if let Some(nav) = &ctx.nav_data() {
                         // grab elevation angle
                         let data: Vec<(Epoch, f64)> = nav
                             .sv_elevation_azimuth(ctx.ground_position())
-                            .map(|(epoch, (_sv, (elev, _a)))| (epoch, elev))
+                            .map(|(epoch, _sv, (elev, _a))| (epoch, elev))
                             .collect();
                         // plot (Epoch, Elev)
                         let epochs: Vec<Epoch> = data.iter().map(|(e, _)| *e).collect();

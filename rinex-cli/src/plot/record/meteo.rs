@@ -1,16 +1,15 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
-use rinex::prelude::RnxContext;
 use rinex::prelude::*;
 
 /*
  * Plots Meteo RINEX
  */
-pub fn plot_meteo(ctx: &RnxContext, plot_context: &mut PlotContext) {
+pub fn plot_meteo(rnx: &Rinex, plot_context: &mut PlotContext) {
     /*
      * 1 plot per physics
      */
-    for observable in ctx.primary_data().observable() {
+    for observable in rnx.observable() {
         let unit = match observable {
             Observable::Pressure => "hPa",
             Observable::Temperature => "°C",
@@ -27,8 +26,7 @@ pub fn plot_meteo(ctx: &RnxContext, plot_context: &mut PlotContext) {
             &format!("{} Observations", observable),
             &format!("{} [{}]", observable, unit),
         );
-        let data_x: Vec<_> = ctx
-            .primary_data()
+        let data_x: Vec<_> = rnx
             .meteo()
             .flat_map(|(e, observations)| {
                 observations.iter().filter_map(
@@ -42,8 +40,7 @@ pub fn plot_meteo(ctx: &RnxContext, plot_context: &mut PlotContext) {
                 )
             })
             .collect();
-        let data_y: Vec<_> = ctx
-            .primary_data()
+        let data_y: Vec<_> = rnx
             .meteo()
             .flat_map(|(_e, observations)| {
                 observations.iter().filter_map(|(obs, value)| {

@@ -609,11 +609,10 @@ impl Header {
                         .parse::<u16>()
                         .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
-                    let (_num, rem) = rem.split_at(3);
+                    let (_num, mut rem) = rem.split_at(3);
 
                     // parse end of line
                     let mut len = rem.len();
-                    let mut rem = rem.clone();
 
                     while len > 0 {
                         let (observable, r) = rem.split_at(4);
@@ -621,7 +620,7 @@ impl Header {
                         // latch scaling value
                         observation.insert_scaling(gnss, observable, scaling);
                         // continue
-                        rem = r.clone();
+                        rem = r;
                         len = rem.len();
                     }
                     scaling_count += 1;
@@ -911,13 +910,13 @@ impl Header {
                     .parse::<u8>()
                     .or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
 
-                let mut rem = r.clone();
+                let mut rem = r;
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
                     if let Ok(c) = ClockDataType::from_str(code.trim()) {
                         clocks.codes.push(c);
                     }
-                    rem = r.clone()
+                    rem = r;
                 }
             } else if marker.contains("STATION NAME / NUM") {
                 let (name, num) = content.split_at(4);
@@ -1582,13 +1581,6 @@ impl Header {
     fn fmt_observation_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(obs) = &self.obs {
             if let Some(e) = obs.time_of_first_obs {
-                //TODO: hifitime does not have a gregorian decomposition method at the moment
-                //let offset = match time_of_first_obs.time_scale {
-                //    TimeScale::GPST => Duration::from_seconds(19.0),
-                //    TimeScale::GST => Duration::from_seconds(35.0),
-                //    TimeScale::BDT => Duration::from_seconds(35.0),
-                //    _ => Duration::default(),
-                //};
                 let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
                 writeln!(
                     f,
@@ -1631,12 +1623,24 @@ impl Header {
                             if (i % 9) == 0 && i > 0 {
                                 descriptor.push_str("      "); // TAB
                             }
-                            descriptor.push_str(&format!("{:>6}", observable));
+                            descriptor.push_str(&format!("    {}", observable));
                         }
                         writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF OBSERV"))?;
                     }
                 },
-                _ => {},
+                _ => {
+                    /*
+                     * List of observables
+                     */
+                    for (constell, observables) in &obs.codes {
+                        let mut descriptor = String::new();
+                        descriptor.push_str(&format!("{:x}{:5}", constell, observables.len()));
+                        for observable in observables {
+                            descriptor.push_str(&format!(" {}", observable));
+                        }
+                        writeln!(f, "{}", fmt_rinex(&descriptor, "SYS / # / OBS TYPES"))?;
+                    }
+                },
             }
             // must take place after list of observables:
             //  TODO scaling factor
@@ -1691,6 +1695,15 @@ impl std::fmt::Display for Header {
 
         writeln!(f, "{}", fmt_rinex(&self.station, "MARKER NAME"))?;
         writeln!(f, "{}", fmt_rinex(&self.station_id, "MARKER NUMBER"))?;
+
+        // APRIORI POS
+        if let Some(position) = self.ground_position {
+            writeln!(
+                f,
+                "{}",
+                fmt_rinex(&format!("{:X}", position), "APPROX POSITION XYZ")
+            )?;
+        }
 
         // ANT
         if let Some(antenna) = &self.rcvr_antenna {

@@ -7,23 +7,24 @@ mod cli; // command line interface
 pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
 mod plot; // plotting operations
-mod rtk_postproc; // rtk results post processing
 
 mod preprocessing;
 use preprocessing::preprocess;
 
+mod positioning;
+
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
-    observation::{Combine, Dcb, IonoDelay}, //Mp},
+    observation::{Combination, Combine},
     prelude::*,
     split::Split,
 };
 
-extern crate gnss_rtk as rtk;
-use rtk::prelude::{Solver, SolverError, SolverEstimate, SolverType};
-
 use rinex_qc::*;
+
+extern crate gnss_rs as gnss;
+extern crate gnss_rtk as rtk;
 
 use cli::Cli;
 use identification::rinex_identification;
@@ -36,8 +37,6 @@ use env_logger::{Builder, Target};
 extern crate log;
 
 use fops::open_with_web_browser;
-use rtk_postproc::rtk_postproc;
-use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -47,32 +46,43 @@ use thiserror::Error;
 pub enum Error {
     #[error("rinex error")]
     RinexError(#[from] rinex::Error),
-    #[error("rtk post proc error")]
-    RTKPostError(#[from] rtk_postproc::Error),
+    #[error("positioning solver error")]
+    PositioningSolverError(#[from] positioning::solver::Error),
+    #[error("post processing error")]
+    PositioningPostProcError(#[from] positioning::post_process::Error),
+}
+
+/*
+ * Utility : determines  the file stem of most major RINEX file in the context
+ */
+pub(crate) fn context_stem(ctx: &RnxContext) -> String {
+    let ctx_major_stem: &str = ctx
+        .rinex_path()
+        .expect("failed to determine a context name")
+        .file_stem()
+        .expect("failed to determine a context name")
+        .to_str()
+        .expect("failed to determine a context name");
+    /*
+     * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
+     * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
+     */
+    let primary_stem: Vec<&str> = ctx_major_stem.split('.').collect();
+    primary_stem[0].to_string()
 }
 
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
  * at the moment
  */
-pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
-    let primary_stem: &str = ctx
-        .primary_paths()
-        .first()
-        .expect("failed to determine Workspace")
-        .file_stem()
-        .expect("failed to determine Workspace")
-        .to_str()
-        .expect("failed to determine Workspace");
-    /*
-     * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
-     * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
-     */
-    let primary_stem: Vec<&str> = primary_stem.split('.').collect();
-
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("workspace")
-        .join(primary_stem[0])
+pub fn workspace_path(ctx: &RnxContext, cli: &Cli) -> PathBuf {
+    match cli.workspace() {
+        Some(w) => Path::new(w).join(&context_stem(ctx)),
+        None => Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("WORKSPACE")
+            .join(&context_stem(ctx)),
+    }
 }
 
 /*
@@ -91,74 +101,39 @@ pub fn create_workspace(path: PathBuf) {
 use walkdir::WalkDir;
 
 /*
- * Loads augmentation directories recursively
- */
-fn load_recursive_augmentation(file: &str, ctx: &mut RnxContext, base_dir: &str, max_depth: usize) {
-    let walkdir = WalkDir::new(base_dir).max_depth(max_depth);
-    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-        if !entry.path().is_dir() {
-            let fullpath = entry.path().to_string_lossy().to_string();
-            if ctx.load(&fullpath).is_err() {
-                warn!("failed to load --{} \"{}\"", file, fullpath);
-            }
-        }
-    }
-}
-
-/*
  * Creates File/Data context defined by user.
  * Regroups all provided files/folders,
  */
 fn build_context(cli: &Cli) -> RnxContext {
-    let path = cli.input_path();
-    let pathbf = Path::new(path).to_path_buf();
-    let ctx = RnxContext::new(pathbf);
-    if ctx.is_err() {
-        panic!(
-            "failed to load desired context \"{}\", : {:?}",
-            path,
-            ctx.err().unwrap()
-        );
-    }
-    let mut ctx = ctx.unwrap();
-    /*
-     * load possible augmentations
-     */
-    for path in cli.navigation_paths() {
-        let path = Path::new(path);
-        let fullpath = path.to_string_lossy().to_string();
-        if path.is_dir() {
-            load_recursive_augmentation("nav", &mut ctx, &fullpath, 5);
-        } else if ctx.load(&fullpath).is_err() {
-            warn!("failed to load --nav \"{}\"", fullpath);
+    let mut ctx = RnxContext::default();
+    /* load all directories recursively, one by one */
+    for dir in cli.input_directories() {
+        let walkdir = WalkDir::new(dir).max_depth(5);
+        for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+            if !entry.path().is_dir() {
+                let filepath = entry.path().to_string_lossy().to_string();
+                let ret = ctx.load(&filepath);
+                if ret.is_err() {
+                    warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
+                }
+            }
         }
     }
-    for path in cli.atx_paths() {
-        let path = Path::new(path);
-        let fullpath = path.to_string_lossy().to_string();
-        if path.is_dir() {
-            load_recursive_augmentation("atx", &mut ctx, &fullpath, 5);
-        } else if ctx.load(&fullpath).is_err() {
-            warn!("failed to load --atx \"{}\"", fullpath);
-        }
-    }
-    for path in cli.sp3_paths() {
-        let path = Path::new(path);
-        let fullpath = path.to_string_lossy().to_string();
-        if path.is_dir() {
-            load_recursive_augmentation("sp3", &mut ctx, &fullpath, 5);
-        } else if ctx.load(&fullpath).is_err() {
-            warn!("failed to load --sp3 \"{}\"", fullpath);
+    // load individual files, if any
+    for filepath in cli.input_files() {
+        let ret = ctx.load(filepath);
+        if ret.is_err() {
+            warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
         }
     }
     ctx
 }
 
 /*
- * Returns true if Skyplot view if feasible
+ * Returns true if Skyplot view if feasible and allowed
  */
 fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() || cli.rtk_only() {
+    if cli.quality_check_only() || cli.positioning_only() {
         /*
          * Special modes: no plots allowed
          */
@@ -171,7 +146,82 @@ fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
         info!("missing a reference position for the skyplot view.");
         info!("see rinex-cli -h : antenna positions.");
     }
+
     has_nav && has_ref_position
+}
+
+/*
+ * Returns true if NAVI plot is both feasible and allowed
+ */
+fn naviplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
+    // TODO: this need to change once RnxContext gets improved
+    skyplot_allowed(ctx, cli)
+}
+
+/*
+ * Plots requested combinations
+ */
+fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
+    //if cli.dcb() {
+    //    let data = obs.dcb();
+    //    plot::plot_gnss_dcb(
+    //        plot_ctx,
+    //        "Differential Code Biases",
+    //        "Differential Code Bias [s]",
+    //        &data,
+    //    );
+    //    info!("dcb analysis");
+    //}
+    if cli.multipath() {
+        let data = obs.code_multipath();
+        plot::plot_gnss_dcb_mp(&data, plot_ctx, "Code Multipath", "Meters of delay");
+        info!("code multipath analysis");
+    }
+    if cli.if_combination() {
+        let data = obs.combine(Combination::IonosphereFree);
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Ionosphere Free combination",
+            "Meters of delay",
+        );
+        info!("iono free combination");
+    }
+    if cli.gf_combination() {
+        let data = obs.combine(Combination::GeometryFree);
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Geometry Free combination",
+            "Meters of delay",
+        );
+        info!("geo free combination");
+    }
+    if cli.wl_combination() {
+        let data = obs.combine(Combination::WideLane);
+        plot::plot_gnss_combination(&data, plot_ctx, "Wide Lane combination", "Meters of delay");
+        info!("wide lane combination");
+    }
+    if cli.nl_combination() {
+        let data = obs.combine(Combination::NarrowLane);
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Narrow Lane combination",
+            "Meters of delay",
+        );
+        info!("wide lane combination");
+    }
+    if cli.mw_combination() {
+        let data = obs.combine(Combination::MelbourneWubbena);
+        plot::plot_gnss_combination(
+            &data,
+            plot_ctx,
+            "Melbourne-Wübbena signal combination",
+            "Meters of Li-Lj delay",
+        );
+        info!("melbourne-wubbena combination");
+    }
 }
 
 pub fn main() -> Result<(), Error> {
@@ -190,11 +240,11 @@ pub fn main() -> Result<(), Error> {
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
-    let rtk_only = cli.rtk_only();
-    let rtk = cli.rtk() || rtk_only;
+    let positioning_only = cli.positioning_only();
+    let positioning = cli.spp() || cli.ppp() || positioning_only;
 
-    if cli.multipath() {
-        warn!("--mp analysis not available yet");
+    if !positioning {
+        warn!("position solver currently turned off");
     }
 
     // Initiate plot context
@@ -206,48 +256,28 @@ pub fn main() -> Result<(), Error> {
     // Build context
     let mut ctx = build_context(&cli);
 
-    // Position solver
-    let mut solver = Solver::from(&ctx);
-    if let Ok(ref mut solver) = solver {
-        info!(
-            "provided context is compatible with {} position solver",
-            solver.solver
-        );
-        // custom config ? apply it
-        if let Some(cfg) = cli.rtk_config() {
-            solver.cfg = cfg.clone();
-        }
-        if !rtk {
-            warn!("position solver currently turned off");
-        } else {
-            if cli.forced_spp() {
-                warn!("forced method to spp");
-                solver.solver = SolverType::SPP;
-            }
-            // print config to be used
-            info!("{:#?}", solver.cfg);
-
-            // print more infos
-            if ctx.sp3_data().is_none() {
-                error!("--rtk does not work without SP3 at the moment");
-            }
-        }
-    } else {
-        warn!("context is not sufficient or not compatible with --rtk");
-    }
-
     // Workspace
-    let workspace = workspace_path(&ctx);
+    let workspace = workspace_path(&ctx, &cli);
     info!("workspace is \"{}\"", workspace.to_string_lossy());
     create_workspace(workspace.clone());
 
     /*
-     * Print more info on special primary data cases
+     * Print more info on provided context
      */
-    if ctx.primary_data().is_meteo_rinex() {
-        info!("meteo special primary data");
-    } else if ctx.primary_data().is_ionex() {
-        info!("ionex special primary data");
+    if ctx.obs_data().is_some() {
+        info!("observation data loaded");
+    }
+    if ctx.nav_data().is_some() {
+        info!("brdc navigation data loaded");
+    }
+    if ctx.sp3_data().is_some() {
+        info!("sp3 data loaded");
+    }
+    if ctx.meteo_data().is_some() {
+        info!("meteo data loaded");
+    }
+    if ctx.ionex_data().is_some() {
+        info!("ionex data loaded");
     }
 
     /*
@@ -259,9 +289,17 @@ pub fn main() -> Result<(), Error> {
      * Missing ref. position may restrict possible operations.
      */
     if let Some(pos) = cli.manual_position() {
-        info!("using manually defined reference position {}", pos);
+        let (lat, lon, _) = pos.to_geodetic();
+        info!(
+            "using manually defined reference position {} (lat={:.5}°, lon={:.5}°)",
+            pos, lat, lon
+        );
     } else if let Some(pos) = ctx.ground_position() {
-        info!("using reference position {}", pos);
+        let (lat, lon, _) = pos.to_geodetic();
+        info!(
+            "using reference position {} (lat={:.5}°, lon={:.5}°)",
+            pos, lat, lon
+        );
     } else {
         info!("no reference position given or identified");
     }
@@ -277,123 +315,22 @@ pub fn main() -> Result<(), Error> {
         return Ok(()); // not proceeding further, in this mode
     }
     /*
-     * SV per Epoch analysis requested
+     * plot combinations (if any)
      */
-    if cli.sv_epoch() && !no_graph {
-        info!("sv/epoch analysis");
-        analysis::sv_epoch(&ctx, &mut plot_ctx);
-    }
-    /*
-     * Epoch histogram analysis
-     */
-    if cli.sampling_histogram() && !no_graph {
-        info!("sample rate histogram analysis");
-        analysis::sampling::histogram(&ctx, &mut plot_ctx);
-    }
-    /*
-     * DCB analysis requested
-     */
-    if cli.dcb() && !no_graph {
-        let data = ctx
-            .primary_data()
-            .observation_phase_align_origin()
-            .observation_phase_carrier_cycles()
-            .dcb();
-        plot::plot_gnss_dcb(
-            &mut plot_ctx,
-            "Differential Code Biases",
-            "DBCs [n.a]",
-            &data,
-        );
-        info!("--dcb analysis");
-    }
-    /*
-     * Code Multipath analysis
-     */
-    if cli.multipath() && !no_graph {
-        //let data = ctx
-        //    .primary_data()
-        //    .observation_phase_align_origin()
-        //    .observation_phase_carrier_cycles()
-        //    .mp();
-        //plot::plot_gnss_dcb(
-        //    &mut plot_ctx,
-        //    "Code Multipath Biases",
-        //    "Meters of delay",
-        //    &data,
-        //);
-    }
-    /*
-     * [GF] recombination visualization requested
-     */
-    if cli.gf_recombination() && !no_graph {
-        let data = ctx
-            .primary_data()
-            .observation_phase_align_origin()
-            .geo_free();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Geometry Free signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--gf recombination");
-    }
-    /*
-     * Ionospheric Delay Detector (graph)
-     */
-    if cli.iono_detector() && !no_graph {
-        let data = ctx.primary_data().iono_delay(Duration::from_seconds(360.0));
-        plot::plot_iono_detector(&mut plot_ctx, &data);
-        info!("--iono detector");
-    }
-    /*
-     * [WL] recombination
-     */
-    if cli.wl_recombination() && !no_graph {
-        let data = ctx.primary_data().wide_lane();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Wide Lane signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--wl recombination");
-    }
-    /*
-     * [NL] recombination
-     */
-    if cli.nl_recombination() && !no_graph {
-        let data = ctx.primary_data().narrow_lane();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Narrow Lane signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--nl recombination");
-    }
-    /*
-     * [MW] recombination
-     */
-    if cli.mw_recombination() && !no_graph {
-        let data = ctx.primary_data().melbourne_wubbena();
-        plot::plot_gnss_recombination(
-            &mut plot_ctx,
-            "Melbourne-Wübbena signal combination",
-            "Meters of Li-Lj delay",
-            &data,
-        );
-        info!("--mw recombination");
+    if !no_graph {
+        if let Some(obs) = ctx.obs_data() {
+            plot_combinations(obs, &cli, &mut plot_ctx);
+        } else {
+            error!("GNSS combinations requires Observation Data");
+        }
     }
     /*
      * MERGE
      */
     if let Some(rinex_b) = cli.to_merge() {
-        let new_rinex = ctx
-            .primary_data()
-            .merge(&rinex_b)
-            .expect("failed to merge both files");
+        let rinex = ctx.rinex_data().expect("undefined RINEX data");
+
+        let new_rinex = rinex.merge(&rinex_b).expect("failed to merge both files");
 
         let filename = match cli.output_path() {
             Some(path) => path.clone(),
@@ -419,19 +356,11 @@ pub fn main() -> Result<(), Error> {
      * SPLIT
      */
     if let Some(epoch) = cli.split() {
-        let (rnx_a, rnx_b) = ctx
-            .primary_data()
+        let rinex = ctx.rinex_data().expect("undefined RINEX data");
+
+        let (rnx_a, rnx_b) = rinex
             .split(epoch)
             .expect("failed to split primary rinex file");
-
-        let file_stem = ctx
-            .primary_paths()
-            .first()
-            .expect("failed to determine file prefix")
-            .file_stem()
-            .expect("failed to determine file prefix")
-            .to_str()
-            .expect("failed to determine file prefix");
 
         let file_suffix = rnx_a
             .first_epoch()
@@ -441,7 +370,7 @@ pub fn main() -> Result<(), Error> {
         let path = format!(
             "{}/{}-{}.txt",
             workspace.to_string_lossy(),
-            file_stem,
+            context_stem(&ctx),
             file_suffix
         );
 
@@ -457,7 +386,7 @@ pub fn main() -> Result<(), Error> {
         let path = format!(
             "{}/{}-{}.txt",
             workspace.to_string_lossy(),
-            file_stem,
+            context_stem(&ctx),
             file_suffix
         );
 
@@ -471,9 +400,24 @@ pub fn main() -> Result<(), Error> {
     /*
      * skyplot
      */
-    if skyplot_allowed(&ctx, &cli) && !no_graph {
-        plot::skyplot(&ctx, &mut plot_ctx);
-        info!("skyplot view generated");
+    if !no_graph {
+        if skyplot_allowed(&ctx, &cli) {
+            let nav = ctx.nav_data().unwrap(); // infaillble
+            let ground_pos = ctx.ground_position().unwrap(); // infaillible
+            plot::skyplot(nav, ground_pos, &mut plot_ctx);
+            info!("skyplot view generated");
+        } else {
+            if !no_graph {
+                info!("skyplot view is not feasible");
+            }
+        }
+    }
+    /*
+     * 3D NAVI plot
+     */
+    if naviplot_allowed(&ctx, &cli) && !no_graph {
+        plot::naviplot(&ctx, &mut plot_ctx);
+        info!("navi plot generated");
     }
     /*
      * CS Detector
@@ -487,14 +431,14 @@ pub fn main() -> Result<(), Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !rtk_only && !no_graph {
+    if !qc_only && !positioning_only && !no_graph {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
 
         /*
          * Render Graphs (HTML)
          */
-        let html_path = workspace_path(&ctx).join("graphs.html");
+        let html_path = workspace_path(&ctx, &cli).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
         let mut html_fd = std::fs::File::create(html_path)
@@ -551,39 +495,10 @@ pub fn main() -> Result<(), Error> {
         }
     }
 
-    if !rtk {
-        return Ok(());
+    if positioning {
+        let results = positioning::solver(&mut ctx, &cli)?;
+        positioning::post_process(workspace, &cli, &ctx, results)?;
     }
 
-    if let Ok(ref mut solver) = solver {
-        /* init */
-        match solver.init(&mut ctx) {
-            Err(e) => panic!("failed to initialize rtk solver - {}", e),
-            Ok(_) => info!("entering rtk mode"),
-        }
-
-        // position solver feasible & deployed
-        let mut solving = true;
-        let mut results: HashMap<Epoch, SolverEstimate> = HashMap::new();
-
-        while solving {
-            match solver.run(&mut ctx) {
-                Ok((t, estimate)) => {
-                    trace!("{:?}", t);
-                    results.insert(t, estimate);
-                },
-                Err(SolverError::NoSv(t)) => info!("no SV elected @{}", t),
-                Err(SolverError::LessThan4Sv(t)) => info!("less than 4 SV @{}", t),
-                Err(SolverError::SolvingError(t)) => {
-                    error!("failed to invert navigation matrix @ {}", t)
-                },
-                Err(SolverError::EpochDetermination(_)) => {
-                    solving = false; // abort
-                },
-                Err(e) => panic!("fatal error {:?}", e),
-            }
-        }
-        rtk_postproc(workspace, &cli, &ctx, results)?;
-    }
     Ok(())
 } // main

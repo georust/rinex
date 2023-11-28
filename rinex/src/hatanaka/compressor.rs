@@ -323,13 +323,13 @@ impl Compressor {
 
                         // compress all observables
                         // and store flags for line completion
-                        let mut observables = line.clone();
+                        let mut observables = line;
                         for _ in 0..nb_obs_line {
                             let index = std::cmp::min(16, observables.len()); // avoid overflow
                                                                               // as some data flags might be omitted
                             let (data, rem) = observables.split_at(index);
                             let (obsdata, flags) = data.split_at(14);
-                            observables = rem.clone();
+                            observables = rem;
                             if let Ok(obsdata) = obsdata.trim().parse::<f64>() {
                                 let obsdata = f64::round(obsdata * 1000.0) as i64;
                                 if flags.trim().is_empty() {

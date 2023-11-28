@@ -1,5 +1,5 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use gnss_rtk::prelude::RTKConfig;
+use gnss_rtk::prelude::Config;
 use log::{error, info};
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
@@ -28,25 +28,27 @@ impl Cli {
                         .value_name("FILE")
                         .action(ArgAction::Append)
                         .required_unless_present("directory")
-                        .help("Input RINEX file. Serves as primary data.
-Must be Observation Data for --rtk.
-Observation, Meteo and IONEX can only serve as primary data."))
+                        .help("Input RINEX file. Can be any kind of RINEX, or an SP3 file,
+and you can load as many as you want."))
                     .arg(Arg::new("directory")
                         .short('d')
                         .long("dir")
                         .value_name("DIRECTORY")
+                        .action(ArgAction::Append)
                         .required_unless_present("filepath")
-                        .help("Load directory recursively"))
+                        .help("Load directory recursively. RINEX and SP3 files are identified
+and added like they were individually imported with -f.
+You can import as many directories as you need."))
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
                         .action(ArgAction::SetTrue)
                         .help("Disable all terminal output. Also disables auto HTML reports opener."))
-                    .arg(Arg::new("pretty")
-                        .short('p')
-                        .long("pretty")
+                    .arg(Arg::new("pretty-json")
+                        .short('j')
+                        .long("json")
                         .action(ArgAction::SetTrue)
-                        .help("Make terminal output more readable."))
+                        .help("Make JSON output more readable."))
                     .arg(Arg::new("workspace")
                         .short('w')
                         .long("workspace")
@@ -91,20 +93,14 @@ Allows merged file name to be customized."))
                         .long("sv")
                         .action(ArgAction::SetTrue)
                         .help("Enumerate Sv"))
-                    .arg(Arg::new("sv-epoch")
-                        .long("sv-epoch")
+                    .arg(Arg::new("sampling")
+                        .long("sampling")
                         .action(ArgAction::SetTrue)
-                        .help("Plot SV against Epoch.
-Useful to determine common Epochs or compare sample rates in between 
---fp OBS and --nav NAV for example."))
-                    .arg(Arg::new("sampling-hist")
-                        .long("sampling-hist")
-                        .action(ArgAction::SetTrue)
-                        .help("Sample rate histogram analysis."))
+                        .help("Sample rate analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
-                        .help("Extracts (all) header fields"))
+                        .help("Extracts major header fields"))
                 .next_help_heading("Preprocessing")
                     .arg(Arg::new("gps-filter")
                         .short('G')
@@ -152,42 +148,44 @@ Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."
                         .long("ssi-range")
                         .action(ArgAction::SetTrue)
                         .help("Display SSI (min,max) range, accross all epochs and vehicles"))
-                    .arg(Arg::new("ssi-sv-range")
-                        .long("ssi-sv-range")
-                        .action(ArgAction::SetTrue)
-                        .help("Extract SSI (min,max) range, per vehicle, accross all epochs"))
                     .arg(Arg::new("lli-mask")
                         .long("lli-mask")
                         .help("Applies given LLI AND() mask. 
 Also drops observations that did not come with an LLI flag"))
+                    .arg(Arg::new("if")
+                        .long("if")
+                        .action(ArgAction::SetTrue)
+                        .help("Ionosphere Free combination graph"))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
-                        .help("Geometry Free recombination of both Phase and PR measurements."))
+                        .conflicts_with("no-graph")
+                        .help("Geometry Free combination graph"))
                     .arg(Arg::new("wl")
                         .long("wl")
                         .action(ArgAction::SetTrue)
-                        .help("Wide Lane recombination of both Phase and PR measurements."))
+                        .conflicts_with("no-graph")
+                        .help("Wide Lane combination graph"))
                     .arg(Arg::new("nl")
                         .long("nl")
                         .action(ArgAction::SetTrue)
-                        .help("Narrow Lane recombination of both Phase and PR measurements."))
+                        .conflicts_with("no-graph")
+                        .help("Narrow Lane combination graph"))
                     .arg(Arg::new("mw")
                         .long("mw")
                         .action(ArgAction::SetTrue)
-                        .help("Melbourne-Wübbena recombinations"))
+                        .conflicts_with("no-graph")
+                        .help("Melbourne-Wübbena combination graph"))
                     .arg(Arg::new("dcb")
                         .long("dcb")
                         .action(ArgAction::SetTrue)
+                        .conflicts_with("no-graph")
                         .help("Differential Code Bias analysis"))
                     .arg(Arg::new("multipath")
                         .long("mp")
                         .action(ArgAction::SetTrue)
+                        .conflicts_with("no-graph")
                         .help("Code Multipath analysis"))
-                    .arg(Arg::new("iono")
-                        .long("iono")
-                        .action(ArgAction::SetTrue)
-                        .help("Plot the ionospheric delay detector"))
                     .arg(Arg::new("anomalies")
                         .short('a')
                         .long("anomalies")
@@ -200,17 +198,6 @@ Also drops observations that did not come with an LLI flag"))
 Helps visualize what the CS detector is doing and fine tune its operation.
 CS do not get repaired with this command.
 If you're just interested in CS information, you probably just want `-qc` instead, avoid combining the two."))
-                .next_help_heading("Navigation RINEX")
-                    .arg(Arg::new("nav")
-                        .long("nav")
-                        .num_args(1..)
-                        .value_name("FILE/FOLDER")
-                        .action(ArgAction::Append)
-                        .help("Local NAV RINEX file(s). Enhance given context with Navigation Data.
-Use this flag to either load directories containing your Navigation data, 
-or once per individual files. You can stack as many as you want.
-Most useful when combined to Observation RINEX.  
-Enables complete `--qc` analysis with elevation mask taken into account.")) 
                     .arg(Arg::new("antenna-ecef")
                         .long("antenna-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
@@ -223,10 +210,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .help("Define the (RX) antenna ground position manualy, in decimal degrees.
 Some calculations require a reference position.
 Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
-                    .arg(Arg::new("orbits")
-                        .long("orbits")
-                        .action(ArgAction::SetTrue)
-                        .help("Enumerate orbit fields."))
                     .arg(Arg::new("nav-msg")
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
@@ -236,25 +219,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .action(ArgAction::SetTrue)
                         .help("Display clock biases (offset, drift, drift changes) per epoch and vehicle.
 -fp must be a NAV file"))
-                .next_help_heading("High Precision Orbit / Clock")
-                    .arg(Arg::new("sp3")
-                        .long("sp3")
-                        .num_args(1..)
-                        .value_name("FILE/FOLDER")
-                        .action(clap::ArgAction::Append)
-                        .help("Local SP3 file(s). Enhance given context with IGS high precision Orbits.
-Use this flag to either load directories containing your SP3 data,
-or once per individual files. You can stack as many as you want. 
-Combining --sp3 and --nav unlocks residual comparison between the two datasets."))
-                .next_help_heading("Antenna")
-                    .arg(Arg::new("atx")
-                        .long("atx")
-						.num_args(1..)
-                        .value_name("FILE/FOLDER")
-                        .action(ArgAction::Append)
-                        .help("Local ANTEX file(s). Enhance given context with ANTEX Data.
-Use this flag to either load directories containing your ATX data,
-or once per individual files. You can stack as many as you want."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
@@ -270,34 +234,32 @@ The summary report by default is integrated to the global HTML report."))
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
                         .help("Activates QC mode and disables all other features: quickest qc rendition."))
-                .next_help_heading("RTK (Positioning)")
-                    .arg(Arg::new("rtk")
-                        .long("rtk")
-                        .action(ArgAction::SetTrue)
-                        .help("Activate GNSS receiver position solver.
-This is only possible if provided context is sufficient.
-Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
-solver is deployed.
-This mode is turned off by default because it involves quite heavy computations.
-Use the RUST_LOG env. variable for verbosity.
-See [spp] for more information. "))
-                    .arg(Arg::new("rtk-only")
-                        .long("rtk-only")
-                        .short('r')
-                        .action(ArgAction::SetTrue)
-                        .help("Activates GNSS position solver, disables all other modes.
-This is the most performant mode to solve a position."))
-					.arg(Arg::new("rtk-config")
-						.long("rtk-cfg")
-						.value_name("FILE")
-						.help("Pass RTK custom configuration, refer to online documentation."))
+                .next_help_heading("Positioning")
                     .arg(Arg::new("spp")
                         .long("spp")
+                        .conflicts_with("ppp")
                         .action(ArgAction::SetTrue)
-                        .help("Enables Positioning forced to Single Frequency SPP solver mode.
-Disregards whether the provided context is PPP compatible. 
-NB: we do not account for Relativistic effects by default and raw pseudo range are used.
-For indepth customization, refer to the configuration file and online documentation."))
+                        .help("Enable Single Point Positioning.
+Use with ${RUST_LOG} env logger for more information.
+Refer to the positioning documentation."))
+                    .arg(Arg::new("ppp")
+                        .long("ppp")
+                        .conflicts_with("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Enable Precise Point Positioning.
+Use with ${RUST_LOG} env logger for more information.
+Refer to the positioning documentation."))
+                    .arg(Arg::new("pos-only")
+                        .long("pos-only")
+                        .short('p')
+                        .action(ArgAction::SetTrue)
+                        .help("Disable context analysis and run position solver only.
+This is the most performant mode to solve a position."))
+					.arg(Arg::new("config")
+						.long("cfg")
+                        .short('c')
+						.value_name("FILE")
+						.help("Pass Positioning configuration, refer to doc/positioning."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -315,31 +277,18 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
             },
         }
     }
-    /// Returns input filepaths
-    pub fn input_path(&self) -> &str {
-        if let Some(fp) = self.matches.get_one::<String>("filepath") {
-            fp
-        } else {
-            self.matches.get_one::<String>("directory").unwrap()
-        }
-    }
-    pub fn navigation_paths(&self) -> Vec<&String> {
-        if let Some(paths) = self.matches.get_many::<String>("nav") {
-            paths.collect()
+    /// Returns list of input directories
+    pub fn input_directories(&self) -> Vec<&String> {
+        if let Some(fp) = self.matches.get_many::<String>("directory") {
+            fp.collect()
         } else {
             Vec::new()
         }
     }
-    pub fn sp3_paths(&self) -> Vec<&String> {
-        if let Some(paths) = self.matches.get_many::<String>("sp3") {
-            paths.collect()
-        } else {
-            Vec::new()
-        }
-    }
-    pub fn atx_paths(&self) -> Vec<&String> {
-        if let Some(paths) = self.matches.get_many::<String>("atx") {
-            paths.collect()
+    /// Returns individual input filepaths
+    pub fn input_files(&self) -> Vec<&String> {
+        if let Some(fp) = self.matches.get_many::<String>("filepath") {
+            fp.collect()
         } else {
             Vec::new()
         }
@@ -410,20 +359,20 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     pub fn irnss_filter(&self) -> bool {
         self.matches.get_flag("irnss-filter")
     }
-    pub fn gf_recombination(&self) -> bool {
+    pub fn gf_combination(&self) -> bool {
         self.matches.get_flag("gf")
     }
-    pub fn wl_recombination(&self) -> bool {
+    pub fn if_combination(&self) -> bool {
+        self.matches.get_flag("if")
+    }
+    pub fn wl_combination(&self) -> bool {
         self.matches.get_flag("wl")
     }
-    pub fn nl_recombination(&self) -> bool {
+    pub fn nl_combination(&self) -> bool {
         self.matches.get_flag("nl")
     }
-    pub fn mw_recombination(&self) -> bool {
+    pub fn mw_combination(&self) -> bool {
         self.matches.get_flag("mw")
-    }
-    pub fn iono_detector(&self) -> bool {
-        self.matches.get_flag("iono")
     }
     pub fn identification(&self) -> bool {
         self.matches.get_flag("sv")
@@ -431,18 +380,14 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
             | self.matches.get_flag("header")
             | self.matches.get_flag("observables")
             | self.matches.get_flag("ssi-range")
-            | self.matches.get_flag("orbits")
             | self.matches.get_flag("nav-msg")
             | self.matches.get_flag("anomalies")
+            | self.matches.get_flag("sampling")
             | self.matches.get_flag("full-id")
     }
     /// Returns true if Sv accross epoch display is requested
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
-    }
-    /// Epoch interval (histogram) analysis
-    pub fn sampling_histogram(&self) -> bool {
-        self.matches.get_flag("sampling-hist")
     }
     /// Phase /PR DCBs analysis requested
     pub fn dcb(&self) -> bool {
@@ -461,21 +406,19 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
                 "gnss",
                 "observables",
                 "ssi-range",
-                "ssi-sv-range",
-                "orbits",
                 "nav-msg",
                 "anomalies",
+                "sampling",
             ]
         } else {
             let flags = [
                 "sv",
                 "header",
+                "sampling",
                 "epochs",
                 "gnss",
                 "observables",
                 "ssi-range",
-                "ssi-sv-range",
-                "orbits",
                 "nav-msg",
                 "anomalies",
             ];
@@ -490,27 +433,22 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
         self.matches.get_flag(flag)
     }
     /// returns true if pretty JSON is requested
-    pub fn pretty(&self) -> bool {
-        self.get_flag("pretty")
+    pub fn pretty_json(&self) -> bool {
+        self.get_flag("pretty-json")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
-    /// Returns true if position solver is enabled
-    pub fn rtk(&self) -> bool {
-        self.matches.get_flag("rtk") || self.forced_spp() || self.forced_ppp()
-    }
-    /// Returns true if position solver forced to SPP
-    pub fn forced_spp(&self) -> bool {
+    /// Returns true if SPP position solver is enabled
+    pub fn spp(&self) -> bool {
         self.matches.get_flag("spp")
     }
-    /// Returns true if position solver forced to PPP
-    pub fn forced_ppp(&self) -> bool {
+    pub fn ppp(&self) -> bool {
         self.matches.get_flag("spp")
     }
-    pub fn rtk_only(&self) -> bool {
-        self.matches.get_flag("rtk-only")
+    pub fn positioning_only(&self) -> bool {
+        self.matches.get_flag("pos-only")
     }
     pub fn gpx(&self) -> bool {
         self.matches.get_flag("gpx")
@@ -518,16 +456,15 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     pub fn kml(&self) -> bool {
         self.matches.get_flag("kml")
     }
-    pub fn rtk_config(&self) -> Option<RTKConfig> {
-        if let Some(path) = self.matches.get_one::<String>("rtk-config") {
+    pub fn config(&self) -> Option<Config> {
+        if let Some(path) = self.matches.get_one::<String>("config") {
             if let Ok(content) = std::fs::read_to_string(path) {
                 let opts = serde_json::from_str(&content);
                 if let Ok(opts) = opts {
                     info!("loaded rtk config: \"{}\"", path);
                     return Some(opts);
                 } else {
-                    error!("failed to parse config file \"{}\"", path);
-                    info!("using default parameters");
+                    panic!("failed to parse config file \"{}\"", path);
                 }
             } else {
                 error!("failed to read config file \"{}\"", path);
@@ -628,5 +565,8 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
             }
         }
         None
+    }
+    pub fn workspace(&self) -> Option<&String> {
+        self.matches.get_one::<String>("workspace")
     }
 }

@@ -20,27 +20,44 @@ impl From<GroundPosition> for (f64, f64, f64) {
 }
 
 impl GroundPosition {
+    /// Builds Self from ECEF WGS84 coordinates
     pub fn from_ecef_wgs84(pos: (f64, f64, f64)) -> Self {
         Self(pos.0, pos.1, pos.2)
     }
+    /// Builds Self from Geodetic coordinates in ddeg
     pub fn from_geodetic(pos: (f64, f64, f64)) -> Self {
         let (x, y, z) = pos;
         let (x, y, z) = geodetic2ecef(deg2rad(x), deg2rad(y), deg2rad(z), Ellipsoid::WGS84);
         Self(x, y, z)
     }
+    /// Converts Self to ECEF WGS84
     pub fn to_ecef_wgs84(&self) -> (f64, f64, f64) {
         (self.0, self.1, self.2)
     }
+    /// Converts Self to geodetic coordinates in ddeg
     pub fn to_geodetic(&self) -> (f64, f64, f64) {
         let (x, y, z) = (self.0, self.1, self.2);
         let (lat, lon, alt) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
         (rad2deg(lat), rad2deg(lon), alt)
+    }
+    /// Returns position altitude
+    pub fn altitude(&self) -> f64 {
+        self.to_geodetic().2
     }
 }
 
 impl std::fmt::Display for GroundPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "WGS84 ({}m {}m {}m)", self.0, self.1, self.2)
+    }
+}
+
+/*
+ * RINEX compatible formatting
+ */
+impl std::fmt::UpperHex for GroundPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:14.4}{:14.4}{:14.4}", self.0, self.1, self.2)
     }
 }
 

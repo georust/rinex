@@ -48,6 +48,13 @@ pub struct QcReport {}
 
 impl QcReport {
     fn build_analysis(ctx: &RnxContext, opts: &QcOpts) -> Vec<QcAnalysis> {
+        /*
+         * QC analysis not feasible when Observations not provided
+         */
+        if ctx.obs_data().is_none() {
+            return Vec::new();
+        }
+
         // build analysis to perform
         let mut analysis: Vec<QcAnalysis> = Vec::new();
         /*
@@ -62,17 +69,18 @@ impl QcReport {
 
         match opts.classification {
             QcClassification::GNSS => {
-                for gnss in ctx.primary_data().constellation() {
+                for gnss in ctx.obs_data().unwrap().constellation() {
                     filter_targets.push(TargetItem::from(gnss));
                 }
             },
             QcClassification::SV => {
-                for sv in ctx.primary_data().sv() {
+                for sv in ctx.obs_data().unwrap().sv() {
                     filter_targets.push(TargetItem::from(sv));
                 }
             },
             QcClassification::Physics => {
-                let mut observables: Vec<_> = ctx.primary_data().observable().cloned().collect();
+                let mut observables: Vec<_> =
+                    ctx.obs_data().unwrap().observable().cloned().collect();
                 observables.sort(); // improves report rendering
                 for obsv in observables {
                     filter_targets.push(TargetItem::from(obsv));
@@ -86,11 +94,11 @@ impl QcReport {
                 operand: MaskOperand::Equals,
             };
 
-            let subset = ctx.primary_data().filter(mask.clone().into());
+            let subset = ctx.obs_data().unwrap().filter(mask.clone().into());
 
             // also apply to possible NAV augmentation
             let nav_subset = ctx
-                .navigation_data()
+                .nav_data()
                 .as_ref()
                 .map(|nav| nav.filter(mask.clone().into()));
 
@@ -113,10 +121,7 @@ impl QcReport {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        title:
-                            format!("{:?}", context.primary.paths.iter()
-                                .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
-                                .collect::<Vec<String>>());
+                        title: context.rinex_name().unwrap_or(String::from("Undefined"))
                     }
                     body {
                         div(id="version") {
@@ -167,8 +172,14 @@ impl QcReport {
                                         : "File Header"
                                     }
                                 }
-                                tbody {
-                                    : context.primary_data().header.to_inline_html()
+                                @ if let Some(data) = context.rinex_data() {
+                                    tbody {
+                                        : data.header.to_inline_html()
+                                    }
+                                } else {
+                                    tbody {
+                                        : "Undefined"
+                                    }
                                 }
                             }
                         }
@@ -185,16 +196,25 @@ impl QcReport {
                                     thead {
                                         @ if opts.classification == QcClassification::GNSS {
                                             th {
-                                                : format!("{:X} analysis", context.primary_data().constellation().nth(i).unwrap())
+                                                : format!("{:X} analysis", context
+                                                    .obs_data()
+                                                    .unwrap() // infaillible, until we only accept QC with OBS
+                                                    .constellation().nth(i).unwrap())
                                             }
                                         } else if opts.classification == QcClassification::SV {
                                             th {
-                                                : format!("{:X} analysis", context.primary_data().sv().nth(i).unwrap())
+                                                : format!("{:X} analysis", context
+                                                    .obs_data()
+                                                    .unwrap() // infaillible, until we only accept QC with OBS
+                                                    .sv().nth(i).unwrap())
                                             }
 
                                         } else if opts.classification == QcClassification::Physics {
                                             th {
-                                                : format!("{} analysis", context.primary_data().observable().nth(i).unwrap())
+                                                : format!("{} analysis", context
+                                                    .obs_data()
+                                                    .unwrap() // infaillible, until we only accept QC with OBS
+                                                    .observable().nth(i).unwrap())
                                             }
                                         }
                                     }
