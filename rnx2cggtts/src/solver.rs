@@ -191,7 +191,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
             info!("spp position solver");
             Mode::SPP
         },
-        false => Mode::SPP, //TODO
+        false => Mode::PPP,
     };
 
     // parse custom config, if any
