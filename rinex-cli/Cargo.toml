@@ -32,11 +32,13 @@ clap = { version = "4.4.8", features = ["derive", "color"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.15.1", features = ["full"] }
-rinex-qc = { path = "../rinex-qc", version = "=0.1.5", features = ["serde"] } 
+rinex-qc = { path = "../rinex-qc", version = "=0.1.6", features = ["serde"] } 
 sp3 = { path = "../sp3", version = "=1.0.6",  features = ["serde", "flate2"] }
-# plotly =  "0.8.4"
-plotly = { git = "https://github.com/gwbres/plotly", branch = "density-mapbox" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
+
+# plotly
+plotly =  "0.8.4"
+# plotly = { git = "https://github.com/gwbres/plotly", branch = "density-mapbox" }
 
 # solver
 gnss-rtk = { version = "0.2.2", features = ["serde"] }

@@ -3,7 +3,7 @@ use crate::plot::PlotContext;
 use plotly::color::NamedColor;
 use plotly::common::{Marker, MarkerSymbol};
 use plotly::layout::MapboxStyle;
-use plotly::DensityMapbox;
+//use plotly::DensityMapbox;
 use plotly::ScatterMapbox;
 use rinex::prelude::Rinex;
 
@@ -75,14 +75,14 @@ pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: 
         plot_ctx.add_trace(grid);
 
         //let map = AnimatedDensityMapbox::new(lat.clone(), lon.clone(), z)
-        let map = DensityMapbox::new(lat.clone(), lon.clone(), tec.clone())
-            //.title("TEST")
-            .name(epoch.to_string())
-            .opacity(0.66)
-            //.hover_text_array(hover_text.clone())
-            .zauto(true)
-            //.animation_frame("test")
-            .zoom(3);
-        plot_ctx.add_trace(map);
+        //let map = DensityMapbox::new(lat.clone(), lon.clone(), tec.clone())
+        //    //.title("TEST")
+        //    .name(epoch.to_string())
+        //    .opacity(0.66)
+        //    //.hover_text_array(hover_text.clone())
+        //    .zauto(true)
+        //    //.animation_frame("test")
+        //    .zoom(3);
+        //plot_ctx.add_trace(map);
     }
 }
