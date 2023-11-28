@@ -62,6 +62,8 @@ The application is auto-generated for a few architectures, download it from the
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
+* [`rnx2cggtts`](rnx2cggtts/) post processes RINEX data and resolves PVT that we
+wrap in CGGTTS format which is dedicated to (remote) clock comparison 
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
 * [`qc-traits`](qc-traits/) declares Traits that are shared between `rinex` and `rinex-qc`
 * [`sinex`](sinex/) SNX dedicated core library
