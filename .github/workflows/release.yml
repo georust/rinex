@@ -34,26 +34,18 @@ jobs:
           os: ubuntu-latest
           rust: stable
           target: x86_64-unknown-linux-musl
-        - build: stable-x86
-          os: ubuntu-latest
-          rust: stable
-          target: i686-unknown-linux-gnu
         - build: macos
           os: macos-latest
           rust: nightly
-          target: x86_64-apple-darwin
-        - build: win-msvc
+          target: aarch64-apple-darwin
+        - build: win64-msvc
           os: windows-latest
           rust: nightly
           target: x86_64-pc-windows-msvc
-        - build: win-gnu
+        - build: win64-gnu
           os: windows-latest
           rust: nightly-x86_64-gnu
           target: x86_64-pc-windows-gnu
-        - build: win32-msvc
-          os: windows-latest
-          rust: nightly
-          target: i686-pc-windows-msvc
 
     steps:
     - name: Checkout repository
@@ -104,6 +96,8 @@ jobs:
       shell: bash
       run: |
         ${{ env.CARGO }} build --verbose --target ${{ matrix.target }} -r -p rinex-cli -p rnx2cggtts -p rnx2crx -p crx2rnx -p ublox-rnx
+        ls -lah target
+        ls -lah target/${{ matrix.target }}
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
@@ -139,7 +133,7 @@ jobs:
         cp target/${{ matrix.target }}/release/"$RNX2CGGTTS" "$ARCHIVE"/
         cp target/${{ matrix.target }}/release/"$UBX2RNX" "$ARCHIVE"/
 
-    - name: Build archive (Unix)
+    - name: Gzip archive (Unix)
       shell: bash
       if: matrix.os != 'windows-latest'
       run: |
@@ -148,7 +142,7 @@ jobs:
         echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
         echo "ASSET_SUM=$ARCHIVE.tar.gz.sha256" >> $GITHUB_ENV
     
-    - name: Build archive (Windows)
+    - name: Zip archive (Windows)
       shell: bash
       if: matrix.os == 'windows-latest'
       run: |
@@ -157,7 +151,7 @@ jobs:
         echo "ASSET=$ARCHIVE.zip" >> $GITHUB_ENV
         echo "ASSET_SUM=$ARCHIVE.zip.sha256" >> $GITHUB_ENV
 
-    - name: Upload artifact
+    - name: Upload artifacts
       uses: actions/upload-artifact@v3     
       with:
         name: ${{ env.ASSET }}
