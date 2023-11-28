@@ -34,12 +34,10 @@ jobs:
           os: ubuntu-latest
           rust: stable
           target: x86_64-unknown-linux-musl
-          strip: x86_64-linux-musl-strip
         - build: stable-x86
           os: ubuntu-latest
           rust: stable
           target: i686-unknown-linux-gnu
-          strip: x86_64-linux-gnu-strip
         - build: macos
           os: macos-latest
           rust: nightly
@@ -124,30 +122,6 @@ jobs:
         echo "RNXCLI=$rinex-cli" >> $GITHUB_ENV
         echo "RNX2CGGTTS=$rnx2cggtts" >> $GITHUB_ENV
         echo "UBX2RNX=$ublox-rnx" >> $GITHUB_ENV
-
-    - name: Strip release binary (macos)
-      if: matrix.os == 'macos-latest'
-      shell: bash
-      run: |
-        strip "$CRX2RNX" >> $GITHUB_ENV
-        strip "$RNX2CRX" >> $GITHUB_ENV
-        strip "$RNXCLI" >> $GITHUB_ENV
-        strip "$UBX2RNX" >> $GITHUB_ENV
-        strip "$RNX2CGGTTS" >> $GITHUB_ENV
-
-    - name: Strip release binary (cross)
-      if: env.CARGO == 'cross'
-      shell: bash
-      run: |
-        docker run --rm -v \
-          "$PWD/target:/target:Z" \
-          "rustembedded/cross:${{ matrix.target }}" \
-          "${{ matrix.strip }}" \
-          "/target/${{ matrix.target }}/release/crx2rnx" \
-          "/target/${{ matrix.target }}/release/rnx2crx" \
-          "/target/${{ matrix.target }}/release/rnx2cggtts" \
-          "/target/${{ matrix.target }}/release/ublox-rnx" \
-          "/target/${{ matrix.target }}/release/rinex-cli"
 
     - name: Determine archive name
       shell: bash
