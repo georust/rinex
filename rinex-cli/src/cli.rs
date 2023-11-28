@@ -445,7 +445,7 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
         self.matches.get_flag("spp")
     }
     pub fn ppp(&self) -> bool {
-        self.matches.get_flag("spp")
+        self.matches.get_flag("ppp")
     }
     pub fn positioning_only(&self) -> bool {
         self.matches.get_flag("pos-only")
