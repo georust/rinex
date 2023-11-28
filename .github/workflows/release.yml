@@ -66,6 +66,14 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
         target: ${{ matrix.target }}
+
+    - name: UBX2RNX Dependencies
+      if: matrix.build == 'linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
+
     - name: Use Cross
       if: matrix.os == 'ubuntu-latest' && matrix.target != ''
       shell: bash
@@ -97,7 +105,7 @@ jobs:
     - name: Build applications
       shell: bash
       run: |
-        ${{ env.CARGO }} build --verbose ${{ env.TARGET_FLAGS }} -r -p rinex-cli -p rnx2cggtts -p rnx2crx -p crx2rnx -p ublox-rnx
+        ${{ env.CARGO }} build --verbose --target ${{ matrix.target }} -r -p rinex-cli -p rnx2cggtts -p rnx2crx -p crx2rnx -p ublox-rnx
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
