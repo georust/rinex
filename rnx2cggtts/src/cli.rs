@@ -9,9 +9,9 @@ pub struct Cli {
     matches: ArgMatches,
 }
 
-use cggtts::{prelude::ReferenceTime, track::Scheduler};
 use rinex::prelude::*;
-use rtk::prelude::Config;
+use gnss_rtk::prelude::{Config, Mode as SolverMode};
+use cggtts::{prelude::ReferenceTime, track::Scheduler};
 
 impl Cli {
     /// Build new command line interface
@@ -108,8 +108,14 @@ This is the delay induced by the cable on the external ref clock. Specify it in 
 						.help("Pass Positioning configuration, refer to README."))
                     .arg(Arg::new("spp")
                         .long("spp")
+                        .conflicts_with("ppp")
                         .action(ArgAction::SetTrue)
-                        .help("Force solving strategy to SPP."))
+                        .help("Force solving strategy to SPP (default is LSQSPP)."))
+                    .arg(Arg::new("ppp")
+                        .long("ppp")
+                        .conflicts_with("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Force solving strategy to PPP (default is LSQSPP)."))
                 .next_help_heading("Preprocessing")
                     .arg(Arg::new("gps-filter")
                         .short('G')
@@ -196,8 +202,20 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
     }
-    pub fn spp(&self) -> bool {
+    /* returns RTK solver mode to implement */
+    pub fn solver_mode(&self) -> SolverMode {
+        if self.matches.get_flag("spp") {
+            SolverMode::SPP
+        } else if self.matches.get_flag("ppp") {
+            SolverMode::PPP
+        } else {
+            SolverMode::LSQSPP
+        }
+    }
+    pub fn positioning(&self) -> bool {
         self.matches.get_flag("spp")
+            || self.matches.get_flag("lsqspp")
+            || self.matches.get_flag("ppp")
     }
     /// Returns the manualy defined RFDLY (in nanoseconds!)
     pub fn rf_delay(&self) -> Option<HashMap<Observable, f64>> {
