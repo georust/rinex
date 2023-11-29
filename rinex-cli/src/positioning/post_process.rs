@@ -160,7 +160,7 @@ pub fn post_process(
             "hdop",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.hdop).collect::<Vec<f64>>(),
+            results.values().map(|e| e.hdop()).collect::<Vec<f64>>(),
         );
         plot_ctx.add_trace(trace);
 
@@ -168,7 +168,7 @@ pub fn post_process(
             "vdop",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.vdop).collect::<Vec<f64>>(),
+            results.values().map(|e| e.vdop()).collect::<Vec<f64>>(),
         )
         .y_axis("y2");
         plot_ctx.add_trace(trace);
@@ -186,7 +186,7 @@ pub fn post_process(
             "tdop",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.tdop).collect::<Vec<f64>>(),
+            results.values().map(|e| e.tdop()).collect::<Vec<f64>>(),
         )
         .y_axis("y2");
         plot_ctx.add_trace(trace);
@@ -218,7 +218,7 @@ pub fn post_process(
     for (epoch, solution) in results {
         let (px, py, pz) = (x + solution.p.x, y + solution.p.y, z + solution.p.z);
         let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, map_3d::Ellipsoid::WGS84);
-        let (hdop, vdop, tdop) = (solution.hdop, solution.vdop, solution.tdop);
+        let (hdop, vdop, tdop) = (solution.hdop(), solution.vdop(), solution.tdop());
         writeln!(
             fd,
             "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
@@ -270,7 +270,7 @@ pub fn post_process(
                         attrs: HashMap::new(),
                     }))
                 },
-                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop))]
+                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop()))]
                     .into_iter()
                     .collect(),
                 children: vec![],
