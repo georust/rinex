@@ -33,7 +33,15 @@ jobs:
         - build: linux
           os: ubuntu-latest
           rust: stable
+          target: x86_64-unknown-linux-gnu
+        - build: linux
+          os: ubuntu-latest
+          rust: stable
           target: x86_64-unknown-linux-musl
+        - build: macos
+          os: macos-latest
+          rust: nightly
+          target: x86_64-apple-darwin
         - build: macos
           os: macos-latest
           rust: nightly
@@ -95,9 +103,14 @@ jobs:
     - name: Build applications
       shell: bash
       run: |
-        ${{ env.CARGO }} build --verbose --target ${{ matrix.target }} -r -p rinex-cli -p rnx2cggtts -p rnx2crx -p crx2rnx -p ublox-rnx
-        ls -lah target
-        ls -lah target/${{ matrix.target }}
+        CARGO_PROFILE_RELEASE_STRIP=symbols ${{ env.CARGO }} build --verbose \
+          --target ${{ matrix.target }} -r \
+          -p rinex-cli \
+          -p rnx2cggtts \
+          -p rnx2crx \
+          -p crx2rnx \
+          -p ublox-rnx
+        ls -lah target/${{ matrix.target }}/release
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
