@@ -34,28 +34,18 @@ jobs:
           os: ubuntu-latest
           rust: stable
           target: x86_64-unknown-linux-musl
-          strip: x86_64-linux-musl-strip
-        - build: stable-x86
-          os: ubuntu-latest
-          rust: stable
-          target: i686-unknown-linux-gnu
-          strip: x86_64-linux-gnu-strip
         - build: macos
           os: macos-latest
           rust: nightly
-          target: x86_64-apple-darwin
-        - build: win-msvc
+          target: aarch64-apple-darwin
+        - build: win64-msvc
           os: windows-latest
           rust: nightly
           target: x86_64-pc-windows-msvc
-        - build: win-gnu
+        - build: win64-gnu
           os: windows-latest
           rust: nightly-x86_64-gnu
           target: x86_64-pc-windows-gnu
-        - build: win32-msvc
-          os: windows-latest
-          rust: nightly
-          target: i686-pc-windows-msvc
 
     steps:
     - name: Checkout repository
@@ -66,6 +56,14 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
         target: ${{ matrix.target }}
+
+    - name: UBX2RNX Dependencies
+      if: matrix.build == 'linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
+
     - name: Use Cross
       if: matrix.os == 'ubuntu-latest' && matrix.target != ''
       shell: bash
@@ -97,7 +95,9 @@ jobs:
     - name: Build applications
       shell: bash
       run: |
-        ${{ env.CARGO }} build --verbose ${{ env.TARGET_FLAGS }} -r -p rinex-cli -p rnx2cggtts -p rnx2crx -p crx2rnx -p ublox-rnx
+        ${{ env.CARGO }} build --verbose --target ${{ matrix.target }} -r -p rinex-cli -p rnx2cggtts -p rnx2crx -p crx2rnx -p ublox-rnx
+        ls -lah target
+        ls -lah target/${{ matrix.target }}
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
@@ -117,30 +117,6 @@ jobs:
         echo "RNX2CGGTTS=$rnx2cggtts" >> $GITHUB_ENV
         echo "UBX2RNX=$ublox-rnx" >> $GITHUB_ENV
 
-    - name: Strip release binary (macos)
-      if: matrix.os == 'macos-latest'
-      shell: bash
-      run: |
-        strip "$CRX2RNX" >> $GITHUB_ENV
-        strip "$RNX2CRX" >> $GITHUB_ENV
-        strip "$RNXCLI" >> $GITHUB_ENV
-        strip "$UBX2RNX" >> $GITHUB_ENV
-        strip "$RNX2CGGTTS" >> $GITHUB_ENV
-
-    - name: Strip release binary (cross)
-      if: env.CARGO == 'cross'
-      shell: bash
-      run: |
-        docker run --rm -v \
-          "$PWD/target:/target:Z" \
-          "rustembedded/cross:${{ matrix.target }}" \
-          "${{ matrix.strip }}" \
-          "/target/${{ matrix.target }}/release/crx2rnx" \
-          "/target/${{ matrix.target }}/release/rnx2crx" \
-          "/target/${{ matrix.target }}/release/rnx2cggtts" \
-          "/target/${{ matrix.target }}/release/ublox-rnx" \
-          "/target/${{ matrix.target }}/release/rinex-cli"
-
     - name: Determine archive name
       shell: bash
       run: |
@@ -157,7 +133,7 @@ jobs:
         cp target/${{ matrix.target }}/release/"$RNX2CGGTTS" "$ARCHIVE"/
         cp target/${{ matrix.target }}/release/"$UBX2RNX" "$ARCHIVE"/
 
-    - name: Build archive (Unix)
+    - name: Gzip archive (Unix)
       shell: bash
       if: matrix.os != 'windows-latest'
       run: |
@@ -166,7 +142,7 @@ jobs:
         echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
         echo "ASSET_SUM=$ARCHIVE.tar.gz.sha256" >> $GITHUB_ENV
     
-    - name: Build archive (Windows)
+    - name: Zip archive (Windows)
       shell: bash
       if: matrix.os == 'windows-latest'
       run: |
@@ -175,7 +151,7 @@ jobs:
         echo "ASSET=$ARCHIVE.zip" >> $GITHUB_ENV
         echo "ASSET_SUM=$ARCHIVE.zip.sha256" >> $GITHUB_ENV
 
-    - name: Upload artifact
+    - name: Upload artifacts
       uses: actions/upload-artifact@v3     
       with:
         name: ${{ env.ASSET }}
