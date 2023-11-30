@@ -186,18 +186,17 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     info!("tracking duration set to {}", trk_duration);
 
     // custom strategy
-    let rtk_mode = match cli.spp() {
-        true => {
-            info!("spp position solver");
-            Mode::SPP
-        },
-        false => Mode::SPP, //TODO
+    let mode = cli.solver_mode();
+    match mode {
+        Mode::SPP => info!("single point positioning"),
+        Mode::LSQSPP => info!("recursive lsq single point positioning"),
+        Mode::PPP => info!("precise point positioning"),
     };
 
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,
-        None => Config::default(rtk_mode),
+        None => Config::default(mode),
     };
 
     let pos = match cli.manual_apc() {
@@ -238,7 +237,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
-        rtk_mode,
+        mode,
         apriori,
         &cfg,
         /* state vector interpolator */

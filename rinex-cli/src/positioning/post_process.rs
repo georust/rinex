@@ -81,7 +81,7 @@ pub fn post_process(
             true, // show legend
             MapboxStyle::OpenStreetMap,
             (lat_ddeg, lon_ddeg), //center
-            15,                   // zoom in!!
+            18,                   // zoom in!!
         );
 
         let ref_scatter = ScatterMapbox::new(vec![lat_ddeg], vec![lon_ddeg])
@@ -128,12 +128,39 @@ pub fn post_process(
         );
         plot_ctx.add_trace(trace);
 
+        plot_ctx.add_cartesian2d_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
+        let trace = build_chart_epoch_axis(
+            "velocity (x)",
+            Mode::Markers,
+            epochs.clone(),
+            results.values().map(|p| p.v.x).collect::<Vec<f64>>(),
+        );
+        plot_ctx.add_trace(trace);
+
+        let trace = build_chart_epoch_axis(
+            "velocity (y)",
+            Mode::Markers,
+            epochs.clone(),
+            results.values().map(|p| p.v.y).collect::<Vec<f64>>(),
+        )
+        .y_axis("y2");
+        plot_ctx.add_trace(trace);
+
+        plot_ctx.add_cartesian2d_plot("Velocity (Z)", "Speed [m/s]");
+        let trace = build_chart_epoch_axis(
+            "velocity (z)",
+            Mode::Markers,
+            epochs.clone(),
+            results.values().map(|p| p.v.z).collect::<Vec<f64>>(),
+        );
+        plot_ctx.add_trace(trace);
+
         plot_ctx.add_cartesian2d_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
         let trace = build_chart_epoch_axis(
             "hdop",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.hdop).collect::<Vec<f64>>(),
+            results.values().map(|e| e.hdop()).collect::<Vec<f64>>(),
         );
         plot_ctx.add_trace(trace);
 
@@ -141,7 +168,7 @@ pub fn post_process(
             "vdop",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.vdop).collect::<Vec<f64>>(),
+            results.values().map(|e| e.vdop()).collect::<Vec<f64>>(),
         )
         .y_axis("y2");
         plot_ctx.add_trace(trace);
@@ -159,7 +186,7 @@ pub fn post_process(
             "tdop",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.tdop).collect::<Vec<f64>>(),
+            results.values().map(|e| e.tdop()).collect::<Vec<f64>>(),
         )
         .y_axis("y2");
         plot_ctx.add_trace(trace);
@@ -185,16 +212,16 @@ pub fn post_process(
 
     writeln!(
         fd,
-        "Epoch, dx, dy, dz, x_ecef, y_ecef, z_ecef, hdop, vdop, rcvr_clock_bias, tdop"
+        "Epoch, dx, dy, dz, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rcvr_clock_bias, tdop"
     )?;
 
     for (epoch, solution) in results {
         let (px, py, pz) = (x + solution.p.x, y + solution.p.y, z + solution.p.z);
         let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, map_3d::Ellipsoid::WGS84);
-        let (hdop, vdop, tdop) = (solution.hdop, solution.vdop, solution.tdop);
+        let (hdop, vdop, tdop) = (solution.hdop(), solution.vdop(), solution.tdop());
         writeln!(
             fd,
-            "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
+            "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
             epoch,
             solution.p.x,
             solution.p.y,
@@ -202,6 +229,9 @@ pub fn post_process(
             px,
             py,
             pz,
+            solution.v.x,
+            solution.v.y,
+            solution.v.z,
             hdop,
             vdop,
             solution.dt,
@@ -240,7 +270,7 @@ pub fn post_process(
                         attrs: HashMap::new(),
                     }))
                 },
-                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop))]
+                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop()))]
                     .into_iter()
                     .collect(),
                 children: vec![],

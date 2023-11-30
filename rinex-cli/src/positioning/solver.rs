@@ -143,22 +143,18 @@ fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 
 pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolution>, Error> {
     // custom strategy
-    let rtk_mode = match cli.spp() {
-        true => {
-            info!("single point positioning opmode");
-            Mode::SPP
-        },
-        false => {
-            info!("precise point positioning opmode");
-            //TODO: verify feasiblity here, otherwise panic
-            Mode::PPP
-        },
+    let mode = cli.solver_mode().unwrap(); // infaillible
+
+    match mode {
+        Mode::SPP => info!("single point positioning"),
+        Mode::LSQSPP => info!("recursive lsq single point positioning"),
+        Mode::PPP => info!("precise point positioning"),
     };
 
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,
-        None => Config::default(rtk_mode),
+        None => Config::default(mode),
     };
 
     let pos = match cli.manual_position() {
@@ -195,7 +191,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
-        rtk_mode,
+        mode,
         apriori,
         &cfg,
         /* state vector interpolator */

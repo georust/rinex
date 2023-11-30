@@ -1,10 +1,13 @@
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use gnss_rtk::prelude::Config;
 use log::{error, info};
-use rinex::prelude::*;
-use rinex_qc::QcOpts;
+
 use std::path::Path;
 use std::str::FromStr;
+
+use rinex::prelude::*;
+use rinex_qc::QcOpts;
+
+use gnss_rtk::prelude::{Config, Mode as SolverMode};
 
 pub struct Cli {
     /// Arguments passed by user
@@ -238,13 +241,23 @@ The summary report by default is integrated to the global HTML report."))
                     .arg(Arg::new("spp")
                         .long("spp")
                         .conflicts_with("ppp")
+                        .conflicts_with("lsqspp")
                         .action(ArgAction::SetTrue)
                         .help("Enable Single Point Positioning.
+Use with ${RUST_LOG} env logger for more information.
+Refer to the positioning documentation."))
+                    .arg(Arg::new("lsqspp")
+                        .long("lsqspp")
+                        .conflicts_with("ppp")
+                        .conflicts_with("spp")
+                        .action(ArgAction::SetTrue)
+                        .help("Recursive Weighted Least Square SPP strategy.
 Use with ${RUST_LOG} env logger for more information.
 Refer to the positioning documentation."))
                     .arg(Arg::new("ppp")
                         .long("ppp")
                         .conflicts_with("spp")
+                        .conflicts_with("lsqspp")
                         .action(ArgAction::SetTrue)
                         .help("Enable Precise Point Positioning.
 Use with ${RUST_LOG} env logger for more information.
@@ -440,12 +453,22 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
-    /// Returns true if SPP position solver is enabled
-    pub fn spp(&self) -> bool {
-        self.matches.get_flag("spp")
+    /* returns RTK solver mode to implement */
+    pub fn solver_mode(&self) -> Option<SolverMode> {
+        if self.matches.get_flag("spp") {
+            Some(SolverMode::SPP)
+        } else if self.matches.get_flag("lsqspp") {
+            Some(SolverMode::LSQSPP)
+        } else if self.matches.get_flag("ppp") {
+            Some(SolverMode::PPP)
+        } else {
+            None
+        }
     }
-    pub fn ppp(&self) -> bool {
+    pub fn positioning(&self) -> bool {
         self.matches.get_flag("spp")
+            || self.matches.get_flag("lsqspp")
+            || self.matches.get_flag("ppp")
     }
     pub fn positioning_only(&self) -> bool {
         self.matches.get_flag("pos-only")
