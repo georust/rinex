@@ -2,8 +2,14 @@
 	"timescale": "GPST",
     "interp_order": 11,
     "max_sv": 10,
+    "min_sv_elev": 20.0,
+    "min_snr": 20.0,
     "modeling": {
         "sv_clock_bias": true,
-        "sv_total_group_delay": true
+        "sv_total_group_delay": true,
+        "relativistic_clock_bias": true,
+        "tropo_delay": true,
+        "iono_delay": true,
+        "earth_rotation": false
     }
 }
