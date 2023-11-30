@@ -10,6 +10,6 @@
         "relativistic_clock_bias": true,
         "tropo_delay": true,
         "iono_delay": true,
-        "earth_rotation": false
+        "earth_rotation": true
     }
 }
