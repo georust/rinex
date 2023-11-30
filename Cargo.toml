@@ -15,6 +15,3 @@ members = [
 ]
 
 exclude = ["./test_resources"]
-
-[profile.release]
-strip = "symbols"
