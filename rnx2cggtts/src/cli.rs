@@ -9,9 +9,9 @@ pub struct Cli {
     matches: ArgMatches,
 }
 
-use rinex::prelude::*;
-use gnss_rtk::prelude::{Config, Mode as SolverMode};
 use cggtts::{prelude::ReferenceTime, track::Scheduler};
+use gnss_rtk::prelude::{Config, Mode as SolverMode};
+use rinex::prelude::*;
 
 impl Cli {
     /// Build new command line interface
