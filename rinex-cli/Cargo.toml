@@ -28,7 +28,7 @@ map_3d = "0.1.5"
 # ndarray = "0.15"
 colorous = "1.0"
 horrorshow = "0.8"
-clap = { version = "4.4.8", features = ["derive", "color"] }
+clap = { version = "4.4.10", features = ["derive", "color"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.15.1", features = ["full"] }
