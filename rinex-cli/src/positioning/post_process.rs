@@ -155,6 +155,15 @@ pub fn post_process(
         );
         plot_ctx.add_trace(trace);
 
+        plot_ctx.add_cartesian2d_plot("GDOP", "GDOP [m]");
+        let trace = build_chart_epoch_axis(
+            "gdop",
+            Mode::Markers,
+            epochs.clone(),
+            results.values().map(|e| e.gdop()).collect::<Vec<f64>>(),
+        );
+        plot_ctx.add_trace(trace);
+
         plot_ctx.add_cartesian2d_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
         let trace = build_chart_epoch_axis(
             "hdop",
