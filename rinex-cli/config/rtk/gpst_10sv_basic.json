@@ -1,5 +1,5 @@
 {
-	"timescale": "GPST",
+    "timescale": "GPST",
     "interp_order": 11,
     "max_sv": 10,
     "min_sv_elev": 20.0,
