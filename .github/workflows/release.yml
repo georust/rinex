@@ -79,21 +79,21 @@ jobs:
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
-          rinex-cli="target/${{ matrix.target }}/release/rinex-cli.exe"
+          rinexcli="target/${{ matrix.target }}/release/rinex-cli.exe"
           rnx2cggtts="target/${{ matrix.target }}/release/rnx2cggtts.exe"
-          ublox-rnx="target/${{ matrix.target }}/release/ublox-rnx.exe"
+          ubloxrnx="target/${{ matrix.target }}/release/ublox-rnx.exe"
         else
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx"
-          rinex-cli="target/${{ matrix.target }}/release/rinex-cli"
+          rinexcli="target/${{ matrix.target }}/release/rinex-cli"
           rnx2cggtts="target/${{ matrix.target }}/release/rnx2cggtts"
-          ublox-rnx="target/${{ matrix.target }}/release/ublox-rnx"
+          ubloxrnx="target/${{ matrix.target }}/release/ublox-rnx"
         fi
         echo "CRX2RNX=$crx2rnx" >> $GITHUB_ENV
         echo "RNX2CRX=$crx2rnx" >> $GITHUB_ENV
-        echo "RNXCLI=$rinex-cli" >> $GITHUB_ENV
+        echo "RNXCLI=$rinexcli" >> $GITHUB_ENV
         echo "RNX2CGGTTS=$rnx2cggtts" >> $GITHUB_ENV
-        echo "UBX2RNX=$ublox-rnx" >> $GITHUB_ENV
+        echo "UBX2RNX=$ubloxrnx" >> $GITHUB_ENV
 
     - name: Determine archive name
       shell: bash
