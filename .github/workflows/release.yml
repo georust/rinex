@@ -101,11 +101,11 @@ jobs:
       run: |
         mkdir -p "$ARCHIVE"
         cp {README.md,LICENSE-MIT,LICENSE-APACHE} "$ARCHIVE"/
-        cp target/${{ matrix.target }}/release/"$CRX2RNX" "$ARCHIVE"/
-        cp target/${{ matrix.target }}/release/"$RNX2CRX" "$ARCHIVE"/
-        cp target/${{ matrix.target }}/release/"$RNXCLI" "$ARCHIVE"/
-        cp target/${{ matrix.target }}/release/"$RNX2CGGTTS" "$ARCHIVE"/
-        cp target/${{ matrix.target }}/release/"$UBX2RNX" "$ARCHIVE"/
+        cp "$CRX2RNX" "$ARCHIVE"/
+        cp "$RNX2CRX" "$ARCHIVE"/
+        cp "$RNXCLI" "$ARCHIVE"/
+        cp "$RNX2CGGTTS" "$ARCHIVE"/
+        cp "$UBX2RNX" "$ARCHIVE"/
 
     - name: Gzip archive (Unix)
       shell: bash
