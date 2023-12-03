@@ -7,9 +7,9 @@ use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolatedPosition, InterpolationResult,
-    IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
-    TroposphericBias, Vector3,
+    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolatedPosition,
+    InterpolationResult, IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution,
+    PVTSolutionType, Solver, TroposphericBias, Vector3,
 };
 
 use map_3d::{ecef2geodetic, Ellipsoid};
@@ -223,7 +223,9 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                             azimuth,
                             elevation,
                             velocity: None,
-                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
+                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(
+                                x, y, z,
+                            )),
                         })
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
@@ -286,7 +288,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             let clock_state = match sp3_has_clock {
                 true => {
                     let sp3 = sp3_data.unwrap();
-                    if let Some(clk) = sp3.sv_clock()
+                    if let Some(clk) = sp3
+                        .sv_clock()
                         .filter_map(|(sp3_t, sp3_sv, clk)| {
                             if sp3_t == *t && sp3_sv == *sv {
                                 Some(clk * 1.0E-6)
@@ -294,12 +297,12 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                                 None
                             }
                         })
-                        .reduce(|clk, _| clk) 
+                        .reduce(|clk, _| clk)
                     {
                         let clock_state = sv_eph.sv_clock();
                         Vector3::new(clock_state.0, 0.0_f64, 0.0_f64)
                     } else {
-                        /* 
+                        /*
                          * SP3 preference: abort on missing Epochs
                          */
                         //continue ;
@@ -311,9 +314,14 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     let clock_state = sv_eph.sv_clock();
                     Vector3::new(clock_state.0, clock_state.1, clock_state.2)
                 },
-            }; 
-            
-            let clock_corr = Ephemeris::sv_clock_corr(*sv, (clock_state[0], clock_state[1], clock_state[2]), *t, toe);
+            };
+
+            let clock_corr = Ephemeris::sv_clock_corr(
+                *sv,
+                (clock_state[0], clock_state[1], clock_state[2]),
+                *t,
+                toe,
+            );
 
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();

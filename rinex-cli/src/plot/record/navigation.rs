@@ -1,7 +1,7 @@
-use rinex::prelude::*;
-use rinex::navigation::Ephemeris;
-use plotly::common::{Mode, Visible};
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
+use plotly::common::{Mode, Visible};
+use rinex::navigation::Ephemeris;
+use rinex::prelude::*;
 
 pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let mut clock_plot_created = false;
@@ -322,7 +322,8 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                     plot_ctx.add_cartesian2d_plot("SV Clock Correction", "Correction [s]");
                     trace!("sv clock correction plot");
                 }
-                let epochs : Vec<_> = obsdata.observation()
+                let epochs: Vec<_> = obsdata
+                    .observation()
                     .filter_map(|((t, flag), (_, vehicles))| {
                         if flag.is_ok() && vehicles.contains_key(&sv) {
                             Some(*t)
@@ -331,7 +332,8 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                         }
                     })
                     .collect();
-                let clock_corr : Vec<_> = obsdata.observation()
+                let clock_corr: Vec<_> = obsdata
+                    .observation()
                     .filter_map(|((t, flag), (_, vehicles))| {
                         if flag.is_ok() {
                             let (toe, sv_eph) = navdata.sv_ephemeris(sv, *t)?;
@@ -346,19 +348,16 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                         }
                     })
                     .collect();
-                
-                let trace = build_chart_epoch_axis(
-                    &format!("{}", sv),
-                    Mode::Markers,
-                    epochs,
-                    clock_corr)
-                    .visible({
-                        if sv_index < 3 {
-                            Visible::True
-                        } else {
-                            Visible::LegendOnly
-                        }
-                    });
+
+                let trace =
+                    build_chart_epoch_axis(&format!("{}", sv), Mode::Markers, epochs, clock_corr)
+                        .visible({
+                            if sv_index < 3 {
+                                Visible::True
+                            } else {
+                                Visible::LegendOnly
+                            }
+                        });
                 plot_ctx.add_trace(trace);
             }
         }

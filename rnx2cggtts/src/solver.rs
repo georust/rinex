@@ -265,7 +265,9 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                             azimuth,
                             elevation,
                             velocity: None,
-                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
+                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(
+                                x, y, z,
+                            )),
                         })
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
