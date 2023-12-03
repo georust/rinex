@@ -188,6 +188,11 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
     };
 
     let sp3_data = ctx.sp3_data();
+    let sp3_has_clock = match sp3_data {
+        Some(sp3) => sp3.sv_clock().count() > 0,
+        None => false,
+    };
+
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
@@ -274,9 +279,41 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
 
             let (toe, sv_eph) = sv_eph.unwrap();
 
-            let clock_state = sv_eph.sv_clock();
-            let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
+            /*
+             * Prefer SP3 for clock state (if any),
+             * otherwise, use brdc
+             */
+            let clock_state = match sp3_has_clock {
+                true => {
+                    let sp3 = sp3_data.unwrap();
+                    if let Some(clk) = sp3.sv_clock()
+                        .filter_map(|(sp3_t, sp3_sv, clk)| {
+                            if sp3_t == *t && sp3_sv == *sv {
+                                Some(clk * 1.0E-6)
+                            } else {
+                                None
+                            }
+                        })
+                        .reduce(|clk, _| clk) 
+                    {
+                        let clock_state = sv_eph.sv_clock();
+                        Vector3::new(clock_state.0, 0.0_f64, 0.0_f64)
+                    } else {
+                        /* 
+                         * SP3 preference: abort on missing Epochs
+                         */
+                        //continue ;
+                        let clock_state = sv_eph.sv_clock();
+                        Vector3::new(clock_state.0, clock_state.1, clock_state.2)
+                    }
+                },
+                false => {
+                    let clock_state = sv_eph.sv_clock();
+                    Vector3::new(clock_state.0, clock_state.1, clock_state.2)
+                },
+            }; 
+            
+            let clock_corr = Ephemeris::sv_clock_corr(*sv, (clock_state[0], clock_state[1], clock_state[2]), *t, toe);
 
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();
