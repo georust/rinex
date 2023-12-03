@@ -7,7 +7,7 @@ use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
+    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolatedPosition, InterpolationResult,
     IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
     TroposphericBias, Vector3,
 };
@@ -210,8 +210,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        position: Vector3::new(x, y, z),
                         velocity: None,
+                        position: InterpolatedPosition::MassCenter(Vector3::new(x, y, z)),
                     })
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
@@ -222,8 +222,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                         Some(InterpolationResult {
                             azimuth,
                             elevation,
-                            position: Vector3::new(x, y, z),
                             velocity: None,
+                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
                         })
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
@@ -238,7 +238,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        position: Vector3::new(x, y, z),
+                        position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
                         velocity: None,
                     })
                 } else {
