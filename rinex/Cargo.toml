@@ -19,6 +19,7 @@ obs = []
 meteo = []
 nav = []
 ionex = []
+antex = []
 processing = []
 
 # rinex Quality Check (mainly OBS RINEX) 

@@ -1,6 +1,9 @@
 use crate::Epoch;
 use strum_macros::EnumString;
 
+/* SV antenna support */
+mod sv;
+
 /// Known Calibration Methods
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -28,13 +31,78 @@ pub enum CalibrationMethod {
 pub struct Calibration {
     /// Calibration method
     pub method: CalibrationMethod,
-    /// Agency who performed the calibration
+    /// Agency who performed this calibration
     pub agency: String,
     /// Date of calibration
-    pub date: String,
+    pub date: Epoch,
 }
 
-/// Describes an Antenna section inside the ATX record
+/// Antenna description, as contained in ATX records
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct Antenna {
+    /// Antenna specific field, either a
+    /// spacecraft antenna or a receiver antenna
+    pub specific: AntennaSpecific,
+    /// dazi azimuth increment
+    dazi: u16,
+    /// zenith grid definition
+    pub zenith_grid: Grid,
+    /// number of frequencies
+    pub nb_frequencies: usize,
+    /// start of validity period
+    pub valid_from: Epoch,
+    /// end of validity period
+    pub valid_until: Epoch,
+}
+
+impl Antenna {
+    /// Returns whether this calibration is valid or not
+    pub is_valid(&self, now: Epoch) -> bool {
+        now > self.valid_from && now < self.valid_until
+    }
+}
+    
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum AntennaSpecific {
+    /// Attributes of a receiver antenna
+    RXAntenna(RXAntenna),
+    /// Attributes of a spacecraft antenna
+    SVAntenna(sv::SVAntenna),
+}
+
+impl AntennaSpecific {
+    /* unwrap as SVAntenna, if possible */
+    pub(crate) fn as_sv_antenna(&self) -> Option<SVAntenna> {
+        match self {
+            Self::SVAntenna(ant) => Some(ant),
+            _ => None,
+        }
+    }
+    /* unwrap as RXAntenna, if possible */
+    pub(crate) fn as_rx_antenna(&self) -> Option<RXAntenna> {
+        match self {
+            Self::RXAntenna(ant) => Some(ant),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct RXAntenna {
+}
+
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct SVAntenna {
+    pub sv: SV,
+    pub cospar_id: String,
+}
+
+/// Antenna attributes, as described in ATX records.
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Antenna {

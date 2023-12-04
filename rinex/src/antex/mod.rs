@@ -4,19 +4,19 @@ pub mod frequency;
 pub mod pcv;
 pub mod record;
 
-pub use antenna::{Antenna, Calibration, CalibrationMethod};
-pub use frequency::{Frequency, Pattern};
 pub use pcv::Pcv;
 pub use record::Record;
+pub use antenna::{Antenna, Calibration, CalibrationMethod};
+pub use frequency::{Frequency, Pattern};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
-    /// Phase Center Variations
+    /// Type of Phase Center Variation in use
     pub pcv: pcv::Pcv,
     /// Optionnal reference antenna Serial Number
     /// used to produce this calibration file
-    pub reference_sn: Option<String>,
+    pub reference_ant_sn: Option<String>,
 }
 
 impl HeaderFields {
