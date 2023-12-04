@@ -26,7 +26,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 rinex = { path = "../rinex", version = "=0.15.1", features = ["full"] }
 
 # cggtts
-cggtts = { version = "4.0.1", features = ["serde", "scheduler"] }
+cggtts = { version = "4.1.0", features = ["serde", "scheduler"] }
 # cggtts = { git = "https://github.com/gwbres/cggtts", branch = "develop", features = ["serde", "scheduler"] }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
 
