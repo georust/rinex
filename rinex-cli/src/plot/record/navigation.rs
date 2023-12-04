@@ -1,5 +1,6 @@
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
+use rinex::navigation::Ephemeris;
 use rinex::prelude::*;
 
 pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
@@ -110,6 +111,7 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                     "Clock Drift [s/s]",
                 );
                 trace!("sv clock plot");
+                clock_plot_created = true;
             }
 
             let epochs: Vec<_> = sp3
@@ -308,6 +310,56 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                 }
             });
             plot_ctx.add_trace(trace);
+        }
+    }
+    /*
+     * Plot BRDC Clock correction
+     */
+    if let Some(navdata) = ctx.nav_data() {
+        if let Some(obsdata) = ctx.obs_data() {
+            for (sv_index, sv) in obsdata.sv().enumerate() {
+                if sv_index == 0 {
+                    plot_ctx.add_cartesian2d_plot("SV Clock Correction", "Correction [s]");
+                    trace!("sv clock correction plot");
+                }
+                let epochs: Vec<_> = obsdata
+                    .observation()
+                    .filter_map(|((t, flag), (_, vehicles))| {
+                        if flag.is_ok() && vehicles.contains_key(&sv) {
+                            Some(*t)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                let clock_corr: Vec<_> = obsdata
+                    .observation()
+                    .filter_map(|((t, flag), (_, vehicles))| {
+                        if flag.is_ok() {
+                            let (toe, sv_eph) = navdata.sv_ephemeris(sv, *t)?;
+                            /*
+                             * TODO prefer SP3 (if any)
+                             */
+                            let clock_state = sv_eph.sv_clock();
+                            let clock_corr = Ephemeris::sv_clock_corr(sv, clock_state, *t, toe);
+                            Some(clock_corr.to_seconds())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let trace =
+                    build_chart_epoch_axis(&format!("{}", sv), Mode::Markers, epochs, clock_corr)
+                        .visible({
+                            if sv_index < 3 {
+                                Visible::True
+                            } else {
+                                Visible::LegendOnly
+                            }
+                        });
+                plot_ctx.add_trace(trace);
+            }
         }
     }
 }

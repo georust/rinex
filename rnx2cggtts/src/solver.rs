@@ -18,6 +18,7 @@ use rtk::prelude::{
     Config,
     Duration,
     Epoch,
+    InterpolatedPosition,
     InterpolationResult,
     IonosphericBias,
     KbModel,
@@ -251,8 +252,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        position: Vector3::new(x, y, z),
                         velocity: None,
+                        position: InterpolatedPosition::MassCenter(Vector3::new(x, y, z)),
                     })
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
@@ -263,8 +264,10 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         Some(InterpolationResult {
                             azimuth,
                             elevation,
-                            position: Vector3::new(x, y, z),
                             velocity: None,
+                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(
+                                x, y, z,
+                            )),
                         })
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
@@ -279,8 +282,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     Some(InterpolationResult {
                         azimuth,
                         elevation,
-                        position: Vector3::new(x, y, z),
                         velocity: None,
+                        position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
                     })
                 } else {
                     // debug!("{:?} ({}): nav interpolation failed", t, sv);
