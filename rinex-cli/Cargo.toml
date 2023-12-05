@@ -14,7 +14,7 @@ rust-version = "1.64"
 
 [dependencies]
 log = "0.4"
-gpx = "0.9"
+gpx = "0.10"
 kml = "0.8"
 statrs = "0.16"
 walkdir = "2.4.0"
