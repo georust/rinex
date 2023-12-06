@@ -218,7 +218,7 @@ pub enum ParsingError {
     #[error("failed to parse ionex grid {0} from \"{1}\"")]
     InvalidIonexGrid(String, String),
     #[error("invalid ionex grid definition")]
-    InvalidIonexGridDefinition(#[from] ionex::grid::Error),
+    InvalidIonexGridDefinition(#[from] linspace::Error),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -1910,7 +1910,7 @@ impl Merge for Header {
                 if mixed_antex {
                     return Err(merge::Error::AntexAbsoluteRelativeMismatch);
                 }
-                merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
+                // merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
         }
         if let Some(lhs) = &mut self.clocks {

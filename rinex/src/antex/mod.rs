@@ -4,10 +4,10 @@ pub mod frequency;
 pub mod pcv;
 pub mod record;
 
-pub use pcv::Pcv;
-pub use record::Record;
 pub use antenna::{Antenna, Calibration, CalibrationMethod};
 pub use frequency::{Frequency, Pattern};
+pub use pcv::Pcv;
+pub use record::Record;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -29,7 +29,7 @@ impl HeaderFields {
     /// Sets Reference Antenna serial number
     pub fn with_serial_number(&self, sn: &str) -> Self {
         let mut s = self.clone();
-        s.reference_sn = Some(sn.to_string());
+        s.reference_ant_sn = Some(sn.to_string());
         s
     }
 }

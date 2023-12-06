@@ -9,7 +9,6 @@ pub enum SVAntennaParsingError {
     CosparParsing(#[from] CosparParsingError),
 }
 
-
 pub struct SVAntenna {
     /// Spacecraft
     pub sv: SV
