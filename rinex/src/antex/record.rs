@@ -1,12 +1,16 @@
+use gnss::prelude::SV;
+use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
+use thiserror::Error;
+
 use super::{
     antenna::SvAntennaParsingError, Antenna, AntennaSpecific, Calibration, CalibrationMethod,
     Cospar, Frequency, Pattern, RxAntenna, SvAntenna,
 };
-use crate::{carrier, merge, merge::Merge, Epoch};
-use gnss::prelude::SV;
-use std::collections::BTreeMap;
-use std::str::FromStr;
-use thiserror::Error;
+use crate::{carrier, merge, merge::Merge, Carrier, Epoch};
+
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 /// Returns true if this line matches
 /// the beginning of a `epoch` for ATX file (special files),
@@ -14,6 +18,26 @@ use thiserror::Error;
 /// for this given antenna, there is no sampling data attached to it.
 pub(crate) fn is_new_epoch(content: &str) -> bool {
     content.contains("START OF ANTENNA")
+}
+
+/// We currently do not support azimuth dependent phase patterns.
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum AntennaPhasePattern {
+    AzimuthIndependentPattern(Vec<f64>),
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct FrequencyDependentData {
+    /// Eccentricities of the mean APC as NEU coordinates in millimeters.
+    /// The offset position is either relative to
+    /// Antenna Reference point (ARP), if this is an [`RxAntenna`],
+    /// or the Spacecraft Mass Center, if this is an [`SvAntenna`].
+    pub apc_eccentricity: (f64, f64, f64),
+    /// Antenna Phase Pattern.
+    /// We currently do not support Azimuth Dependent phase patterns.
+    pub phase_pattern: AntennaPhasePattern,
 }
 
 /// ANTEX RINEX record content.
@@ -56,7 +80,7 @@ pub(crate) fn is_new_epoch(content: &str) -> bool {
 /// }
 /// ```
 */
-pub type Record = BTreeMap<Antenna, Vec<Frequency>>;
+pub type Record = BTreeMap<Antenna, HashMap<Carrier, FrequencyDependentData>>;
 
 #[derive(Debug, Error)]
 pub enum Error {
