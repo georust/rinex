@@ -8,8 +8,8 @@ pub mod record;
 pub use record::{Record, TECPlane, TEC};
 
 pub mod grid;
-pub use grid::Grid;
 use crate::linspace::Linspace;
+pub use grid::Grid;
 
 pub mod system;
 pub use system::RefSystem;
