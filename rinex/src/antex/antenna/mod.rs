@@ -42,9 +42,9 @@ pub struct Calibration {
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Antenna {
-    /// Antenna specific field, either a
-    /// spacecraft antenna or a receiver antenna
-    pub specific: AntennaSpecific,
+    // /// Antenna specific field, either a
+    // /// spacecraft antenna or a receiver antenna
+    // pub specific: AntennaSpecific,
     /// dazi azimuth increment
     dazi: u16,
     /// zenith grid definition
@@ -74,13 +74,13 @@ impl Antenna {
     }
 }
 
-#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+//#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
+//#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum AntennaSpecific {
-    // /// Attributes of a receiver antenna
-    // RXAntenna(RXAntenna),
-    // /// Attributes of a spacecraft antenna
-    // SVAntenna(sv::SVAntenna),
+//    // /// Attributes of a receiver antenna
+//    // RXAntenna(RXAntenna),
+//    // /// Attributes of a spacecraft antenna
+//    // SVAntenna(sv::SVAntenna),
 }
 
 impl AntennaSpecific {

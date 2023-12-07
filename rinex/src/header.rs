@@ -12,6 +12,7 @@ use crate::{
     types::Type,
     version::Version,
     Observable,
+    linspace::Linspace,
 };
 
 use hifitime::Epoch;
@@ -1047,14 +1048,14 @@ impl Header {
                     let grid = match spacing == 0.0 {
                         true => {
                             // special case, 2D fixed altitude
-                            ionex::GridLinspace {
+                            Linspace {
                                 // avoid verifying the Linspace in this case
                                 start,
                                 end,
                                 spacing: 0.0,
                             }
                         },
-                        _ => ionex::GridLinspace::new(start, end, spacing)?,
+                        _ => Linspace::new(start, end, spacing)?,
                     };
 
                     ionex = ionex.with_altitude_grid(grid);
@@ -1083,7 +1084,7 @@ impl Header {
                     )))?;
 
                     ionex =
-                        ionex.with_latitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                        ionex.with_latitude_grid(Linspace::new(start, end, spacing)?);
                 } else {
                     return Err(grid_format_error!("LAT1 / LAT2 / DLAT", content));
                 }
@@ -1109,7 +1110,7 @@ impl Header {
                     )))?;
 
                     ionex =
-                        ionex.with_longitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                        ionex.with_longitude_grid(Linspace::new(start, end, spacing)?);
                 } else {
                     return Err(grid_format_error!("LON1 / LON2 / DLON", content));
                 }
