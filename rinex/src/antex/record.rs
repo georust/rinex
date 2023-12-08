@@ -80,7 +80,7 @@ pub struct FrequencyDependentData {
 /// }
 /// ```
 */
-pub type Record = BTreeMap<Antenna, HashMap<Carrier, FrequencyDependentData>>;
+pub type Record = Vec<(Antenna, HashMap<Carrier, FrequencyDependentData>)>;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -96,7 +96,9 @@ pub enum Error {
 
 /// Parses entire Antenna block
 /// and all inner frequency entries
-pub(crate) fn parse_antenna(content: &str) -> Result<Antenna, Error> {
+pub(crate) fn parse_antenna(
+    content: &str,
+) -> Result<(Antenna, HashMap<Carrier, FrequencyDependentData>), Error> {
     let lines = content.lines();
     let mut antenna = Antenna::default();
 
