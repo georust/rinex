@@ -28,10 +28,9 @@ use plotly::common::{Marker, MarkerSymbol};
 use plotly::layout::MapboxStyle;
 use plotly::ScatterMapbox;
 
-use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
-
 use crate::fops::open_with_web_browser;
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
+use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -128,7 +127,7 @@ pub fn post_process(
         );
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
+        plot_ctx.add_timedomain_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
         let trace = build_chart_epoch_axis(
             "velocity (x)",
             Mode::Markers,
@@ -146,7 +145,7 @@ pub fn post_process(
         .y_axis("y2");
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_plot("Velocity (Z)", "Speed [m/s]");
+        plot_ctx.add_timedomain_plot("Velocity (Z)", "Speed [m/s]");
         let trace = build_chart_epoch_axis(
             "velocity (z)",
             Mode::Markers,
@@ -155,7 +154,7 @@ pub fn post_process(
         );
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_plot("GDOP", "GDOP [m]");
+        plot_ctx.add_timedomain_plot("GDOP", "GDOP [m]");
         let trace = build_chart_epoch_axis(
             "gdop",
             Mode::Markers,
@@ -164,7 +163,7 @@ pub fn post_process(
         );
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
+        plot_ctx.add_timedomain_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
         let trace = build_chart_epoch_axis(
             "hdop",
             Mode::Markers,
@@ -188,7 +187,7 @@ pub fn post_process(
         .y_axis("y2");
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_2y_plot("Clock offset", "dt [s]", "TDOP [s]");
+        plot_ctx.add_timedomain_2y_plot("Clock offset", "dt [s]", "TDOP [s]");
         let trace = build_chart_epoch_axis(
             "dt",
             Mode::Markers,

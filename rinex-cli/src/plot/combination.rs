@@ -10,7 +10,7 @@ pub fn plot_gnss_combination(
     y_title: &str,
 ) {
     // add a plot
-    plot_context.add_cartesian2d_plot(plot_title, y_title);
+    plot_context.add_timedomain_plot(plot_title, y_title);
 
     // generate 1 marker per OP
     let markers = generate_markers(data.len());
@@ -49,7 +49,7 @@ pub fn plot_gnss_dcb_mp(
     y_title: &str,
 ) {
     // add a plot
-    plot_context.add_cartesian2d_plot(plot_title, y_title);
+    plot_context.add_timedomain_plot(plot_title, y_title);
     // generate 1 marker per OP
     let markers = generate_markers(data.len());
     // plot all ops
