@@ -202,26 +202,20 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                     let (elevation, azimuth) =
                         Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(InterpolationResult {
-                        azimuth,
-                        elevation,
-                        velocity: None,
-                        position: InterpolatedPosition::MassCenter(Vector3::new(x, y, z)),
-                    })
+                    Some(
+                        InterpolationResult::from_mass_center_position((x, y, z))
+                            .with_elevation_azimuth((elevation, azimuth)),
+                    )
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
                     if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
                         let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                         let (elevation, azimuth) =
                             Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                        Some(InterpolationResult {
-                            azimuth,
-                            elevation,
-                            velocity: None,
-                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(
-                                x, y, z,
-                            )),
-                        })
+                        Some(
+                            InterpolationResult::from_apc_position((x, y, z))
+                                .with_elevation_azimuth((elevation, azimuth)),
+                        )
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
                         None
@@ -232,12 +226,10 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                     let (elevation, azimuth) =
                         Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(InterpolationResult {
-                        azimuth,
-                        elevation,
-                        position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
-                        velocity: None,
-                    })
+                    Some(
+                        InterpolationResult::from_apc_position((x, y, z))
+                            .with_elevation_azimuth((elevation, azimuth)),
+                    )
                 } else {
                     // debug!("{:?} ({}): nav interpolation failed", t, sv);
                     None
