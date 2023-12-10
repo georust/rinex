@@ -25,6 +25,7 @@ pub(crate) fn is_new_epoch(content: &str) -> bool {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum AntennaPhasePattern {
+    /// Azimuth Independent Phase pattern
     AzimuthIndependentPattern(Vec<f64>),
 }
 
