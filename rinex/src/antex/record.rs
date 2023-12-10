@@ -5,9 +5,9 @@ use thiserror::Error;
 
 use super::{
     antenna::SvAntennaParsingError, Antenna, AntennaSpecific, Calibration, CalibrationMethod,
-    Cospar, Frequency, Pattern, RxAntenna, SvAntenna,
+    Cospar, RxAntenna, SvAntenna,
 };
-use crate::{carrier, merge, merge::Merge, Carrier, Epoch};
+use crate::{carrier, linspace::Linspace, merge, merge::Merge, Carrier, Epoch};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -20,6 +20,7 @@ pub(crate) fn is_new_epoch(content: &str) -> bool {
     content.contains("START OF ANTENNA")
 }
 
+/// Phase pattern description.
 /// We currently do not support azimuth dependent phase patterns.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -27,7 +28,13 @@ pub enum AntennaPhasePattern {
     AzimuthIndependentPattern(Vec<f64>),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+impl Default for AntennaPhasePattern {
+    fn default() -> Self {
+        Self::AzimuthIndependentPattern(Vec::<f64>::new())
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct FrequencyDependentData {
     /// Eccentricities of the mean APC as NEU coordinates in millimeters.
@@ -86,12 +93,74 @@ pub type Record = Vec<(Antenna, HashMap<Carrier, FrequencyDependentData>)>;
 pub enum Error {
     #[error("Unknown PCV \"{0}\"")]
     UnknownPcv(String),
-    #[error("Failed to parse carrier frequency")]
-    ParseCarrierError(#[from] carrier::Error),
-    #[error("sv parsing error")]
+    #[error("failed to determine the frequency")]
     SvParsing(#[from] gnss::sv::ParsingError),
+    #[error("failed to determine the frequency")]
+    ParseCarrierError(#[from] carrier::Error),
     #[error("sv antenna parsing error")]
     SvAntennaParsing(#[from] SvAntennaParsingError),
+    #[error("failed to parse APC/NEU northern coordinates")]
+    APCNorthernCoordinatesParsing,
+    #[error("failed to parse APC/NEU eastern coordinates")]
+    APCEasternCoordinatesParsing,
+    #[error("failed to parse APC/NEU upper coordinates")]
+    APCUpperCoordinatesParsing,
+    #[error("failed to identify number of calibrated antennas")]
+    NumberOfCalibratedAntennasParsing,
+    #[error("failed to parse start of validity period")]
+    StartOfValidityPeriodParsing,
+    #[error("failed to parse end of validity period")]
+    EndOfValidityPeriodParsing,
+    #[error("failed to parse year of this calibration")]
+    DatetimeYearParsing,
+    #[error("failed to parse month of this calibration")]
+    DatetimeMonthParsing,
+    #[error("failed to parse day of this calibration")]
+    DatetimeDayParsing,
+    #[error("failed to parse start of zenith grid")]
+    ZenithGridStartParsing,
+    #[error("failed to parse end of zenith grid")]
+    ZenithGridEndParsing,
+    #[error("failed to parse spacing of zenith grid")]
+    ZenithGridSpacingParsing,
+}
+
+fn parse_datetime(content: &str) -> Result<Epoch, Error> {
+    let mut parser = content.split('-');
+
+    let year = parser.next().ok_or(Error::DatetimeYearParsing)?;
+    let year = year
+        .parse::<i32>()
+        .map_err(|_| Error::DatetimeYearParsing)?;
+
+    let month = parser.next().ok_or(Error::DatetimeMonthParsing)?;
+
+    let month = match month {
+        "JAN" => 1,
+        "FEB" => 2,
+        "MAR" => 3,
+        "APR" => 4,
+        "MAY" => 5,
+        "JUN" => 6,
+        "JUL" => 7,
+        "AUG" => 8,
+        "SEP" => 9,
+        "OCT" => 10,
+        "NOV" => 11,
+        "DEC" => 12,
+        _ => {
+            return Err(Error::DatetimeMonthParsing);
+        },
+    };
+
+    let day = parser.next().ok_or(Error::DatetimeDayParsing)?;
+    let day = day.parse::<u8>().map_err(|_| Error::DatetimeDayParsing)?;
+
+    Ok(Epoch::from_gregorian_utc_at_midnight(
+        2000 + year,
+        month,
+        day,
+    ))
 }
 
 /// Parses entire Antenna block
@@ -101,9 +170,11 @@ pub(crate) fn parse_antenna(
 ) -> Result<(Antenna, HashMap<Carrier, FrequencyDependentData>), Error> {
     let lines = content.lines();
     let mut antenna = Antenna::default();
+    let mut inner = HashMap::<Carrier, FrequencyDependentData>::new();
+    let mut frequency = Carrier::default();
+    let mut freq_data = FrequencyDependentData::default();
+    let mut valid_from = Epoch::default();
 
-    //let mut frequency = Frequency::default();
-    //let mut frequencies: Vec<Frequency> = Vec::new();
     for line in lines {
         let (content, marker) = line.split_at(60);
         if marker.contains("TYPE / SERIAL NO") {
@@ -137,83 +208,97 @@ pub(crate) fn parse_antenna(
         } else if marker.contains("METH / BY / # / DATE") {
             let (method, rem) = content.split_at(20);
             let (agency, rem) = rem.split_at(20);
-            let (_, rem) = rem.split_at(10); // N#
+            let (number, rem) = rem.split_at(10); // N#
             let (date, _) = rem.split_at(10);
+
             let cal = Calibration {
                 method: CalibrationMethod::from_str(method.trim()).unwrap(),
+                number: number
+                    .trim()
+                    .parse::<u16>()
+                    .map_err(|_| Error::NumberOfCalibratedAntennasParsing)?,
                 agency: agency.trim().to_string(),
-                date: Epoch::default(), // TODO
+                date: parse_datetime(date.trim())?,
             };
-            antenna = antenna.with_calibration(cal)
+
+            antenna.calibration = cal.clone();
+        } else if marker.contains("VALID FROM") {
+            valid_from =
+                Epoch::from_str(content.trim()).map_err(|_| Error::StartOfValidityPeriodParsing)?;
+        } else if marker.contains("VALID UNTIL") {
+            let valid_until =
+                Epoch::from_str(content.trim()).map_err(|_| Error::EndOfValidityPeriodParsing)?;
+
+            antenna = antenna.with_validity_period(valid_from, valid_until);
+        } else if marker.contains("SINEX CODE") {
+            let sinex = content.split_at(20).0;
+            antenna.sinex_code = sinex.trim().to_string();
         } else if marker.contains("DAZI") {
-            let dazi = content.split_at(20).0.trim();
-            if let Ok(dazi) = f64::from_str(dazi) {
-                antenna = antenna.with_dazi(dazi)
-            }
+            //let dazi = content.split_at(20).0.trim();
+            //if let Ok(dazi) = f64::from_str(dazi) {
+            //    antenna = antenna.with_dazi(dazi)
+            //}
         } else if marker.contains("# OF FREQUENCIES") {
-            if let Ok(nb) = marker.parse::<u32>() {
-                antenna.nb_frequencies = nb as usize;
-            }
+            /*
+             * we actually do not care about this field
+             * it is easy to determine it from the current infrastructure
+             */
+        } else if marker.contains("START OF FREQUENCY") {
+            let svnn = content.split_at(10).0;
+            let sv = SV::from_str(svnn.trim())?;
+            frequency = carrier::Carrier::from_sv(sv)?;
+        } else if marker.contains("NORTH / EAST / UP") {
+            let (north, rem) = content.split_at(10);
+            let (east, rem) = rem.split_at(10);
+            let (up, _) = rem.split_at(10);
+            let north = north
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| Error::APCNorthernCoordinatesParsing)?;
+            let east = east
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| Error::APCEasternCoordinatesParsing)?;
+            let up = up
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| Error::APCUpperCoordinatesParsing)?;
+
+            freq_data.apc_eccentricity = (north, east, up);
+        } else if marker.contains("ZEN1 / ZEN2 / DZEN") {
+            let (start, rem) = content.split_at(8);
+            let (end, rem) = rem.split_at(6);
+            let (spacing, _) = rem.split_at(6);
+
+            let start = start
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| Error::ZenithGridStartParsing)?;
+            let end = end
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| Error::ZenithGridEndParsing)?;
+            let spacing = spacing
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| Error::ZenithGridSpacingParsing)?;
+
+            antenna.zenith_grid = Linspace {
+                start,
+                end,
+                spacing,
+            };
+        } else if marker.contains("END OF FREQUENCY") {
+            inner.insert(frequency, freq_data.clone());
         } else if marker.contains("END OF ANTENNA") {
             break; // end of this block, considered as an `epoch`
                    // if we make a parallel with other types of RINEX
+        } else {
+            // inside phase pattern
         }
-        //    } else if marker.contains("ZEN1 / ZEN2 / DZEN") {
-        //        let (zen1, rem) = content.split_at(8);
-        //        let (zen2, rem) = rem.split_at(6);
-        //        let (dzen, _) = rem.split_at(6);
-        //        if let Ok(zen1) = f64::from_str(zen1.trim()) {
-        //            if let Ok(zen2) = f64::from_str(zen2.trim()) {
-        //                if let Ok(dzen) = f64::from_str(dzen.trim()) {
-        //                    antenna = antenna.with_zenith(zen1, zen2, dzen)
-        //                }
-        //            }
-        //        }
-        //    } else if marker.contains("VALID FROM") {
-        //        if let Ok(epoch) = Epoch::from_str(content.trim()) {
-        //            antenna = antenna.with_valid_from(epoch)
-        //        }
-        //    } else if marker.contains("VALID UNTIL") {
-        //        if let Ok(epoch) = Epoch::from_str(content.trim()) {
-        //            antenna = antenna.with_valid_until(epoch)
-        //        }
         //    } else if marker.contains("SINEX CODE") {
         //        let sinex = content.split_at(10).0;
         //        antenna = antenna.with_sinex_code(sinex.trim())
-        //    } else if marker.contains("START OF FREQUENCY") {
-        //        let svnn = content.split_at(10).0;
-        //        let carrier = carrier::Carrier::from_sv(SV::from_str(svnn.trim())?)?;
-        //        frequency = Frequency::default().with_carrier(carrier);
-        //    } else if marker.contains("NORTH / EAST / UP") {
-        //        let (north, rem) = content.split_at(10);
-        //        let (east, rem) = rem.split_at(10);
-        //        let (up, _) = rem.split_at(10);
-        //        if let Ok(north) = f64::from_str(north.trim()) {
-        //            if let Ok(east) = f64::from_str(east.trim()) {
-        //                if let Ok(up) = f64::from_str(up.trim()) {
-        //                    frequency = frequency
-        //                        .with_northern_eccentricity(north)
-        //                        .with_eastern_eccentricity(east)
-        //                        .with_upper_eccentricity(up)
-        //                }
-        //            }
-        //        }
-        //    } else if marker.contains("END OF FREQUENCY") {
-        //        frequencies.push(frequency.clone())
-        //    } else {
-        //        // Inside frequency
-        //        // Determine type of pattern
-        //        let (content, rem) = line.split_at(8);
-        //        let values: Vec<f64> = rem
-        //            .split_ascii_whitespace()
-        //            .map(|item| {
-        //                if let Ok(f) = f64::from_str(item.trim()) {
-        //                    f
-        //                } else {
-        //                    panic!("failed to \"{}\" \"{}\"", content, marker);
-        //                }
-        //            })
-        //            .collect();
         //        if line.contains("NOAZI") {
         //            frequency = frequency.add_pattern(Pattern::NonAzimuthDependent(values.clone()))
         //        } else {
@@ -224,8 +309,7 @@ pub(crate) fn parse_antenna(
         //    }
     }
 
-    //Ok((antenna, frequencies))
-    panic!("not yet")
+    Ok((antenna, inner))
 }
 
 #[cfg(test)]

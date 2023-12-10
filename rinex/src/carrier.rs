@@ -654,10 +654,11 @@ impl Carrier {
             },
         }
     }
-
-    /// Builds a Carrier Frequency from an SV 3 letter code descriptor,
-    /// mainly used in `ATX` RINEX for so called `frequency` field
-    pub fn from_sv(sv: SV) -> Result<Self, Error> {
+    /*
+     * Build a frequency from standard SV description.
+     * This is used in ATX records to identify the antenna frequency
+     */
+    pub(crate) fn from_sv(sv: SV) -> Result<Self, Error> {
         match sv.constellation {
             Constellation::GPS => match sv.prn {
                 1 => Ok(Self::L1),

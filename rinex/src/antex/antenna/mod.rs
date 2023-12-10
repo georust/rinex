@@ -13,8 +13,8 @@ pub use sv::{Cospar, SvAntenna, SvAntennaParsingError};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum CalibrationMethod {
     #[strum(serialize = "")]
-    Unknown,
     #[default]
+    Unknown,
     #[strum(serialize = "CHAMBER")]
     Chamber,
     #[strum(serialize = "FIELD")]
@@ -39,24 +39,8 @@ pub struct Calibration {
     pub agency: String,
     /// Date of calibration
     pub date: Epoch,
-}
-
-impl Calibration {
-    fn with_method(&self, method: CalibrationMethod) -> Self {
-        let mut s = self.clone();
-        s.method = method;
-        s
-    }
-    fn with_agency(&self, agency: &str) -> Self {
-        let mut s = self.clone();
-        s.agency = agency.to_string();
-        s
-    }
-    fn with_date(&self, epoch: Epoch) -> Self {
-        let mut s = self.clone();
-        s.date = epoch;
-        s
-    }
+    /// Number of calibrated antennas
+    pub number: u16,
 }
 
 /// Antenna description, as contained in ATX records
@@ -66,22 +50,20 @@ pub struct Antenna {
     /// Antenna specific field, either a
     /// spacecraft antenna or a receiver antenna
     pub specific: AntennaSpecific,
-    /// calibration information
-    calibration: Calibration,
+    /// Information on the calibration process.
+    pub calibration: Calibration,
     /// Zenith grid definition.
     /// The grid is expressed in zenith angles for RxAntenneas,
     /// or in nadir Angle for SvAntennas.
     pub zenith_grid: Linspace,
     /// Azmiuth increment
     pub azi_inc: f64,
-    /// Number of frequencies for which we have a phase pattern.
-    pub nb_frequencies: usize,
     /// Start of validity period of this information.
     pub valid_from: Epoch,
     /// End of validity period of this information.
     pub valid_until: Epoch,
     /// SINEX code normalization
-    pub sinexcode: String,
+    pub sinex_code: String,
 }
 
 impl Antenna {
@@ -116,12 +98,6 @@ impl Antenna {
         let mut a = self.clone();
         a.valid_from = start;
         a.valid_until = end;
-        a
-    }
-    /// Builds an Antenna with given SINEX code
-    pub fn with_sinex_code(&self, code: &str) -> Self {
-        let mut a = self.clone();
-        a.sinexcode = code.to_string();
         a
     }
     /// Builds an Antenna with given Azimuth increment

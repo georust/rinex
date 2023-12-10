@@ -4,12 +4,14 @@ pub mod frequency;
 pub mod pcv;
 pub mod record;
 
+pub use pcv::Pcv;
+// pub use frequency::{Frequency, Pattern};
+
 pub use antenna::{
     Antenna, AntennaSpecific, Calibration, CalibrationMethod, Cospar, RxAntenna, SvAntenna,
 };
-pub use frequency::{Frequency, Pattern};
-pub use pcv::Pcv;
-pub use record::Record;
+
+pub use record::{FrequencyDependentData, Record};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

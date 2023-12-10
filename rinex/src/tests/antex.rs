@@ -2,7 +2,10 @@
 mod test {
     use crate::antex::pcv::Pcv;
     use crate::antex::CalibrationMethod;
+    use crate::carrier::Carrier;
+    use crate::linspace::Linspace;
     use crate::prelude::*;
+    use std::str::FromStr;
     #[test]
     fn v1_trosar_25r4_leit_2020_09_23() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
@@ -25,32 +28,62 @@ mod test {
         assert!(record.is_some());
         let record = record.unwrap();
 
-        //assert_eq!(record.len(), 1); // Only 1 antenna
-        //let (antenna, frequencies) = record.first().unwrap();
-        //assert_eq!(antenna.ant_type, "TROSAR25.R4");
-        //assert_eq!(antenna.sn, "LEIT727259");
-        //let cal = &antenna.calibration;
-        //assert_eq!(cal.method, CalibrationMethod::Chamber);
-        //assert_eq!(cal.agency, "IGG, Univ. Bonn");
-        //assert_eq!(cal.date, "23-SEP-20");
-        //assert_eq!(antenna.dazi, 5.0);
-        //assert_eq!(antenna.zen, (0.0, 90.0));
-        //assert_eq!(antenna.dzen, 5.0);
-        //assert!(antenna.valid_from.is_none());
-        //assert!(antenna.valid_until.is_none());
-        //for freq in frequencies.iter() {
-        //    let first = freq.patterns.first();
-        //    assert!(first.is_some());
-        //    let first = first.unwrap();
-        //    assert!(!first.is_azimuth_dependent());
-        //    let mut angle = 0.0_f64;
-        //    for i in 1..freq.patterns.len() {
-        //        let p = &freq.patterns[i];
-        //        assert!(p.is_azimuth_dependent());
-        //        let (a, _) = p.azimuth_pattern().unwrap();
-        //        assert_eq!(angle, a);
-        //        angle += antenna.dzen;
-        //    }
-        //}
+        assert_eq!(record.len(), 1);
+        let (antenna, freq_data) = record.first().unwrap();
+
+        assert_eq!(antenna.calibration.method, CalibrationMethod::Chamber);
+        assert_eq!(antenna.calibration.agency, "IGG, Univ. Bonn");
+        assert_eq!(antenna.calibration.number, 1);
+        assert_eq!(
+            antenna.calibration.date,
+            Epoch::from_str("2023-09-20T00:00:00 UTC").unwrap()
+        );
+        assert_eq!(
+            antenna.zenith_grid,
+            Linspace {
+                start: 0.0,
+                end: 90.0,
+                spacing: 5.0,
+            }
+        );
+
+        // specs for 3 freqz
+        assert_eq!(freq_data.len(), 3);
+
+        // L1 frequency
+        assert!(
+            freq_data.get(&Carrier::L1).is_some(),
+            "missing specs for L1 frequency"
+        );
+        let l1_specs = freq_data.get(&Carrier::L1).unwrap();
+        assert_eq!(
+            l1_specs.apc_eccentricity,
+            (-0.22, -0.01, 154.88),
+            "bad APC for L1 frequency"
+        );
+
+        // L5 frequency
+        assert!(
+            freq_data.get(&Carrier::L5).is_some(),
+            "missing specs for L5 frequency"
+        );
+        let l5_specs = freq_data.get(&Carrier::L5).unwrap();
+        assert_eq!(
+            l5_specs.apc_eccentricity,
+            (0.34, -0.62, 164.34),
+            "bad APC for L5 frequency"
+        );
+
+        // B2B frequency
+        assert!(
+            freq_data.get(&Carrier::B2B).is_some(),
+            "missing specs for B2B frequency"
+        );
+        let b2b_specs = freq_data.get(&Carrier::B2B).unwrap();
+        assert_eq!(
+            b2b_specs.apc_eccentricity,
+            (0.32, -0.63, 160.39),
+            "bad APC for B2B frequency"
+        );
     }
 }
