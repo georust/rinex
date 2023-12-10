@@ -133,7 +133,7 @@ fn build_context(cli: &Cli) -> RnxContext {
  * Returns true if Skyplot view if feasible and allowed
  */
 fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() || cli.positioning_only() {
+    if cli.quality_check_only() || cli.positioning() {
         /*
          * Special modes: no plots allowed
          */
@@ -240,12 +240,7 @@ pub fn main() -> Result<(), Error> {
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
-    let positioning_only = cli.positioning_only();
-    let positioning = cli.positioning() || positioning_only;
-
-    if !positioning {
-        warn!("position solver currently turned off");
-    }
+    let positioning = cli.positioning();
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -431,7 +426,7 @@ pub fn main() -> Result<(), Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !positioning_only && !no_graph {
+    if !qc_only && !positioning && !no_graph {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
 

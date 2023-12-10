@@ -7,8 +7,8 @@ use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolatedPosition,
-    InterpolationResult, IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution,
+    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, Filter, InterpolatedPosition,
+    InterpolationResult, IonosphericBias, KbModel, Method, NgModel, Observation, PVTSolution,
     PVTSolutionType, Solver, TroposphericBias, Vector3,
 };
 
@@ -142,19 +142,15 @@ fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 }
 
 pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolution>, Error> {
-    // custom strategy
-    let mode = cli.solver_mode().unwrap(); // infaillible
-
-    match mode {
-        Mode::SPP => info!("single point positioning"),
-        Mode::LSQSPP => info!("recursive lsq single point positioning"),
-        Mode::PPP => info!("precise point positioning"),
-    };
-
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,
-        None => Config::default(mode),
+        None => Config::default(),
+    };
+
+    match cfg.method {
+        Method::SPP => info!("single point positioning"),
+        Method::PPP => info!("precise point positioning"),
     };
 
     let pos = match cli.manual_position() {
@@ -196,9 +192,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
-        mode,
-        apriori,
         &cfg,
+        apriori,
         /* state vector interpolator */
         |t, sv, order| {
             /* SP3 source is prefered */

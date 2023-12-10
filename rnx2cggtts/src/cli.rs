@@ -10,7 +10,7 @@ pub struct Cli {
 }
 
 use cggtts::{prelude::ReferenceTime, track::Scheduler};
-use gnss_rtk::prelude::{Config, Mode as SolverMode};
+use gnss_rtk::prelude::Config;
 use rinex::prelude::*;
 
 impl Cli {
@@ -201,21 +201,6 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     }
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
-    }
-    /* returns RTK solver mode to implement */
-    pub fn solver_mode(&self) -> SolverMode {
-        if self.matches.get_flag("spp") {
-            SolverMode::SPP
-        } else if self.matches.get_flag("ppp") {
-            SolverMode::PPP
-        } else {
-            SolverMode::LSQSPP
-        }
-    }
-    pub fn positioning(&self) -> bool {
-        self.matches.get_flag("spp")
-            || self.matches.get_flag("lsqspp")
-            || self.matches.get_flag("ppp")
     }
     /// Returns the manualy defined RFDLY (in nanoseconds!)
     pub fn rf_delay(&self) -> Option<HashMap<Observable, f64>> {

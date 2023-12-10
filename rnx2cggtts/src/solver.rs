@@ -18,11 +18,12 @@ use rtk::prelude::{
     Config,
     Duration,
     Epoch,
+    Filter,
     InterpolatedPosition,
     InterpolationResult,
     IonosphericBias,
     KbModel,
-    Mode,
+    Method,
     NgModel,
     Observation,
     PVTSolutionType,
@@ -186,18 +187,15 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     let trk_duration = cli.tracking_duration();
     info!("tracking duration set to {}", trk_duration);
 
-    // custom strategy
-    let mode = cli.solver_mode();
-    match mode {
-        Mode::SPP => info!("single point positioning"),
-        Mode::LSQSPP => info!("recursive lsq single point positioning"),
-        Mode::PPP => info!("precise point positioning"),
-    };
-
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,
-        None => Config::default(mode),
+        None => Config::default(),
+    };
+
+    match cfg.method {
+        Method::SPP => info!("single point positioning"),
+        Method::PPP => info!("precise point positioning"),
     };
 
     let pos = match cli.manual_apc() {
@@ -238,9 +236,8 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
-        mode,
-        apriori,
         &cfg,
+        apriori,
         /* state vector interpolator */
         |t, sv, order| {
             /* SP3 source is prefered */
