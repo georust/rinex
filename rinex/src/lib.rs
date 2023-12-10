@@ -26,6 +26,7 @@ pub mod version;
 mod bibliography;
 mod ground_position;
 mod leap;
+mod linspace;
 mod observable;
 
 #[cfg(test)]
@@ -1642,6 +1643,8 @@ impl Rinex {
                 .flat_map(|record| record.iter()),
         )
     }
+    // /// ANTEX antennas description browsing
+    // pub fn antex_antennas(&self) -> Box<dyn Iterator<Item = (&
 }
 
 // #[cfg(feature = "obs")]
@@ -3232,6 +3235,19 @@ impl Rinex {
         ))
     }
 }
+
+/*
+ * ANTEX specific feature
+ */
+//#[cfg(feature = "antex")]
+//#[cfg_attr(docrs, doc(cfg(feature = "antex")))]
+//impl Rinex {
+//    /// Iterates over calibration that are still valid
+//    pub fn antex_valid_calibrations(&self, now: Epoch) -> Box<dyn Iterator<Item = (Epoch, Antenna)> + '_> {
+//        self.antex_antennas()
+//            .filter_map(|ant| ant.is_valid(now))
+//    }
+//}
 
 #[cfg(test)]
 mod test {

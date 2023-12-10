@@ -1,8 +1,16 @@
-use super::{Antenna, Calibration, CalibrationMethod, Frequency, Pattern};
-use crate::{carrier, merge, merge::Merge, Epoch};
 use gnss::prelude::SV;
+use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
+
+use super::{
+    antenna::SvAntennaParsingError, Antenna, AntennaSpecific, Calibration, CalibrationMethod,
+    Cospar, Frequency, Pattern, RxAntenna, SvAntenna,
+};
+use crate::{carrier, merge, merge::Merge, Carrier, Epoch};
+
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 /// Returns true if this line matches
 /// the beginning of a `epoch` for ATX file (special files),
@@ -10,6 +18,26 @@ use thiserror::Error;
 /// for this given antenna, there is no sampling data attached to it.
 pub(crate) fn is_new_epoch(content: &str) -> bool {
     content.contains("START OF ANTENNA")
+}
+
+/// We currently do not support azimuth dependent phase patterns.
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum AntennaPhasePattern {
+    AzimuthIndependentPattern(Vec<f64>),
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct FrequencyDependentData {
+    /// Eccentricities of the mean APC as NEU coordinates in millimeters.
+    /// The offset position is either relative to
+    /// Antenna Reference point (ARP), if this is an [`RxAntenna`],
+    /// or the Spacecraft Mass Center, if this is an [`SvAntenna`].
+    pub apc_eccentricity: (f64, f64, f64),
+    /// Antenna Phase Pattern.
+    /// We currently do not support Azimuth Dependent phase patterns.
+    pub phase_pattern: AntennaPhasePattern,
 }
 
 /// ANTEX RINEX record content.
@@ -52,7 +80,7 @@ pub(crate) fn is_new_epoch(content: &str) -> bool {
 /// }
 /// ```
 */
-pub type Record = Vec<(Antenna, Vec<Frequency>)>;
+pub type Record = Vec<(Antenna, HashMap<Carrier, FrequencyDependentData>)>;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -62,35 +90,50 @@ pub enum Error {
     ParseCarrierError(#[from] carrier::Error),
     #[error("sv parsing error")]
     SvParsing(#[from] gnss::sv::ParsingError),
+    #[error("sv antenna parsing error")]
+    SvAntennaParsing(#[from] SvAntennaParsingError),
 }
 
 /// Parses entire Antenna block
 /// and all inner frequency entries
-pub(crate) fn parse_epoch(content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
+pub(crate) fn parse_antenna(
+    content: &str,
+) -> Result<(Antenna, HashMap<Carrier, FrequencyDependentData>), Error> {
     let lines = content.lines();
     let mut antenna = Antenna::default();
-    let mut frequency = Frequency::default();
-    let mut frequencies: Vec<Frequency> = Vec::new();
+
+    //let mut frequency = Frequency::default();
+    //let mut frequencies: Vec<Frequency> = Vec::new();
     for line in lines {
         let (content, marker) = line.split_at(60);
-        if marker.contains("START OF ANTENNA") {
-            antenna = Antenna::default(); // pointless
-                                          // because we're parsing a single START OF antenna block
-                                          // but it helps the else {} condition
-                                          // at the very bottom, where we consider to be
-                                          // in the Frequency payload
-        } else if marker.contains("# OF FREQUENCIES") {
-            continue; // we don't care about this information,
-                      // because it can be retrieved with
-                      // an record.antenna.len() ;)
-        } else if marker.contains("END OF ANTENNA") {
-            break; // end of this block, considered as an `epoch`
-                   // if we make a parallel with other types of RINEX
-        } else if marker.contains("TYPE / SERIAL NO") {
-            let (ant_type, rem) = content.split_at(17);
-            let (sn, _) = rem.split_at(20);
-            antenna = antenna.with_type(ant_type.trim());
-            antenna = antenna.with_serial_num(sn.trim())
+        if marker.contains("TYPE / SERIAL NO") {
+            let (ant_igs, rem) = content.split_at(20);
+            let (block1, rem) = rem.split_at(20);
+            let (block2, rem) = rem.split_at(10);
+            let (block3, rem) = rem.split_at(10);
+
+            let (block1, block2, block3) = (block1.trim(), block2.trim(), block3.trim());
+            /*
+             * SV/RX antenna determination
+             */
+            let specificities = match block2.is_empty() && block3.is_empty() {
+                false => AntennaSpecific::SvAntenna(SvAntenna {
+                    igs_type: ant_igs.trim().to_string(),
+                    sv: SV::from_str(block1)?,
+                    cospar: Cospar::from_str(block3)?,
+                }),
+                true => AntennaSpecific::RxAntenna(RxAntenna {
+                    igs_type: ant_igs.trim().to_string(),
+                    serial_number: {
+                        if !block1.is_empty() && !block1.eq("NONE") {
+                            Some(block1.to_string())
+                        } else {
+                            None
+                        }
+                    },
+                }),
+            };
+            antenna = antenna.with_specificities(specificities);
         } else if marker.contains("METH / BY / # / DATE") {
             let (method, rem) = content.split_at(20);
             let (agency, rem) = rem.split_at(20);
@@ -99,7 +142,7 @@ pub(crate) fn parse_epoch(content: &str) -> Result<(Antenna, Vec<Frequency>), Er
             let cal = Calibration {
                 method: CalibrationMethod::from_str(method.trim()).unwrap(),
                 agency: agency.trim().to_string(),
-                date: date.trim().to_string(),
+                date: Epoch::default(), // TODO
             };
             antenna = antenna.with_calibration(cal)
         } else if marker.contains("DAZI") {
@@ -107,73 +150,82 @@ pub(crate) fn parse_epoch(content: &str) -> Result<(Antenna, Vec<Frequency>), Er
             if let Ok(dazi) = f64::from_str(dazi) {
                 antenna = antenna.with_dazi(dazi)
             }
-        } else if marker.contains("ZEN1 / ZEN2 / DZEN") {
-            let (zen1, rem) = content.split_at(8);
-            let (zen2, rem) = rem.split_at(6);
-            let (dzen, _) = rem.split_at(6);
-            if let Ok(zen1) = f64::from_str(zen1.trim()) {
-                if let Ok(zen2) = f64::from_str(zen2.trim()) {
-                    if let Ok(dzen) = f64::from_str(dzen.trim()) {
-                        antenna = antenna.with_zenith(zen1, zen2, dzen)
-                    }
-                }
+        } else if marker.contains("# OF FREQUENCIES") {
+            if let Ok(nb) = marker.parse::<u32>() {
+                antenna.nb_frequencies = nb as usize;
             }
-        } else if marker.contains("VALID FROM") {
-            if let Ok(epoch) = Epoch::from_str(content.trim()) {
-                antenna = antenna.with_valid_from(epoch)
-            }
-        } else if marker.contains("VALID UNTIL") {
-            if let Ok(epoch) = Epoch::from_str(content.trim()) {
-                antenna = antenna.with_valid_until(epoch)
-            }
-        } else if marker.contains("SINEX CODE") {
-            let sinex = content.split_at(10).0;
-            antenna = antenna.with_sinex_code(sinex.trim())
-        } else if marker.contains("START OF FREQUENCY") {
-            let svnn = content.split_at(10).0;
-            let carrier = carrier::Carrier::from_sv(SV::from_str(svnn.trim())?)?;
-            frequency = Frequency::default().with_carrier(carrier);
-        } else if marker.contains("NORTH / EAST / UP") {
-            let (north, rem) = content.split_at(10);
-            let (east, rem) = rem.split_at(10);
-            let (up, _) = rem.split_at(10);
-            if let Ok(north) = f64::from_str(north.trim()) {
-                if let Ok(east) = f64::from_str(east.trim()) {
-                    if let Ok(up) = f64::from_str(up.trim()) {
-                        frequency = frequency
-                            .with_northern_eccentricity(north)
-                            .with_eastern_eccentricity(east)
-                            .with_upper_eccentricity(up)
-                    }
-                }
-            }
-        } else if marker.contains("END OF FREQUENCY") {
-            frequencies.push(frequency.clone())
-        } else {
-            // Inside frequency
-            // Determine type of pattern
-            let (content, rem) = line.split_at(8);
-            let values: Vec<f64> = rem
-                .split_ascii_whitespace()
-                .map(|item| {
-                    if let Ok(f) = f64::from_str(item.trim()) {
-                        f
-                    } else {
-                        panic!("failed to \"{}\" \"{}\"", content, marker);
-                    }
-                })
-                .collect();
-            if line.contains("NOAZI") {
-                frequency = frequency.add_pattern(Pattern::NonAzimuthDependent(values.clone()))
-            } else {
-                let angle = f64::from_str(content.trim()).unwrap();
-                frequency =
-                    frequency.add_pattern(Pattern::AzimuthDependent((angle, values.clone())))
-            }
+        } else if marker.contains("END OF ANTENNA") {
+            break; // end of this block, considered as an `epoch`
+                   // if we make a parallel with other types of RINEX
         }
+        //    } else if marker.contains("ZEN1 / ZEN2 / DZEN") {
+        //        let (zen1, rem) = content.split_at(8);
+        //        let (zen2, rem) = rem.split_at(6);
+        //        let (dzen, _) = rem.split_at(6);
+        //        if let Ok(zen1) = f64::from_str(zen1.trim()) {
+        //            if let Ok(zen2) = f64::from_str(zen2.trim()) {
+        //                if let Ok(dzen) = f64::from_str(dzen.trim()) {
+        //                    antenna = antenna.with_zenith(zen1, zen2, dzen)
+        //                }
+        //            }
+        //        }
+        //    } else if marker.contains("VALID FROM") {
+        //        if let Ok(epoch) = Epoch::from_str(content.trim()) {
+        //            antenna = antenna.with_valid_from(epoch)
+        //        }
+        //    } else if marker.contains("VALID UNTIL") {
+        //        if let Ok(epoch) = Epoch::from_str(content.trim()) {
+        //            antenna = antenna.with_valid_until(epoch)
+        //        }
+        //    } else if marker.contains("SINEX CODE") {
+        //        let sinex = content.split_at(10).0;
+        //        antenna = antenna.with_sinex_code(sinex.trim())
+        //    } else if marker.contains("START OF FREQUENCY") {
+        //        let svnn = content.split_at(10).0;
+        //        let carrier = carrier::Carrier::from_sv(SV::from_str(svnn.trim())?)?;
+        //        frequency = Frequency::default().with_carrier(carrier);
+        //    } else if marker.contains("NORTH / EAST / UP") {
+        //        let (north, rem) = content.split_at(10);
+        //        let (east, rem) = rem.split_at(10);
+        //        let (up, _) = rem.split_at(10);
+        //        if let Ok(north) = f64::from_str(north.trim()) {
+        //            if let Ok(east) = f64::from_str(east.trim()) {
+        //                if let Ok(up) = f64::from_str(up.trim()) {
+        //                    frequency = frequency
+        //                        .with_northern_eccentricity(north)
+        //                        .with_eastern_eccentricity(east)
+        //                        .with_upper_eccentricity(up)
+        //                }
+        //            }
+        //        }
+        //    } else if marker.contains("END OF FREQUENCY") {
+        //        frequencies.push(frequency.clone())
+        //    } else {
+        //        // Inside frequency
+        //        // Determine type of pattern
+        //        let (content, rem) = line.split_at(8);
+        //        let values: Vec<f64> = rem
+        //            .split_ascii_whitespace()
+        //            .map(|item| {
+        //                if let Ok(f) = f64::from_str(item.trim()) {
+        //                    f
+        //                } else {
+        //                    panic!("failed to \"{}\" \"{}\"", content, marker);
+        //                }
+        //            })
+        //            .collect();
+        //        if line.contains("NOAZI") {
+        //            frequency = frequency.add_pattern(Pattern::NonAzimuthDependent(values.clone()))
+        //        } else {
+        //            let angle = f64::from_str(content.trim()).unwrap();
+        //            frequency =
+        //                frequency.add_pattern(Pattern::AzimuthDependent((angle, values.clone())))
+        //        }
+        //    }
     }
 
-    Ok((antenna, frequencies))
+    //Ok((antenna, frequencies))
+    panic!("not yet")
 }
 
 #[cfg(test)]
@@ -204,24 +256,24 @@ impl Merge for Record {
     }
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for antenna in rhs.iter() {
-            if self.contains(antenna) {
-                let (antenna, frequencies) = antenna;
-                for (aantenna, ffrequencies) in self.iter_mut() {
-                    if antenna == aantenna {
-                        // for this antenna
-                        // add missing frequencies
-                        for frequency in frequencies {
-                            if !ffrequencies.contains(frequency) {
-                                ffrequencies.push(frequency.clone());
-                            }
-                        }
-                    }
-                }
-            } else {
-                self.push(antenna.clone());
-            }
-        }
+        //for antenna in rhs.iter() {
+        //    if self.contains(antenna) {
+        //        let (antenna, frequencies) = antenna;
+        //        for (aantenna, ffrequencies) in self.iter_mut() {
+        //            if antenna == aantenna {
+        //                // for this antenna
+        //                // add missing frequencies
+        //                for frequency in frequencies {
+        //                    if !ffrequencies.contains(frequency) {
+        //                        ffrequencies.push(frequency.clone());
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    } else {
+        //        self.push(antenna.clone());
+        //    }
+        //}
         Ok(())
     }
 }

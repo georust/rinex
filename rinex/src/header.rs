@@ -6,7 +6,9 @@ use crate::{
     clocks::{ClockAnalysisAgency, ClockDataType},
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
-    ionex, leap, meteo, observation,
+    ionex, leap,
+    linspace::Linspace,
+    meteo, observation,
     observation::Crinex,
     reader::BufferedReader,
     types::Type,
@@ -218,7 +220,7 @@ pub enum ParsingError {
     #[error("failed to parse ionex grid {0} from \"{1}\"")]
     InvalidIonexGrid(String, String),
     #[error("invalid ionex grid definition")]
-    InvalidIonexGridDefinition(#[from] ionex::grid::Error),
+    InvalidIonexGridDefinition(#[from] linspace::Error),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -412,10 +414,10 @@ impl Header {
                             pcv = pcv.with_relative_type(rel_type.trim());
                         }
                     }
-                    antex = antex.with_pcv(pcv);
+                    antex = antex.with_pcv_type(pcv);
                 }
                 if !ref_sn.trim().is_empty() {
-                    antex = antex.with_serial_number(ref_sn.trim())
+                    antex = antex.with_reference_antenna_sn(ref_sn.trim());
                 }
             } else if marker.contains("TYPE / SERIAL NO") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
@@ -1047,14 +1049,14 @@ impl Header {
                     let grid = match spacing == 0.0 {
                         true => {
                             // special case, 2D fixed altitude
-                            ionex::GridLinspace {
+                            Linspace {
                                 // avoid verifying the Linspace in this case
                                 start,
                                 end,
                                 spacing: 0.0,
                             }
                         },
-                        _ => ionex::GridLinspace::new(start, end, spacing)?,
+                        _ => Linspace::new(start, end, spacing)?,
                     };
 
                     ionex = ionex.with_altitude_grid(grid);
@@ -1082,8 +1084,7 @@ impl Header {
                         spacing
                     )))?;
 
-                    ionex =
-                        ionex.with_latitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                    ionex = ionex.with_latitude_grid(Linspace::new(start, end, spacing)?);
                 } else {
                     return Err(grid_format_error!("LAT1 / LAT2 / DLAT", content));
                 }
@@ -1108,8 +1109,7 @@ impl Header {
                         spacing
                     )))?;
 
-                    ionex =
-                        ionex.with_longitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                    ionex = ionex.with_longitude_grid(Linspace::new(start, end, spacing)?);
                 } else {
                     return Err(grid_format_error!("LON1 / LON2 / DLON", content));
                 }
@@ -1905,12 +1905,12 @@ impl Merge for Header {
             if let Some(rhs) = &rhs.antex {
                 // ANTEX records can only be merged together
                 // if they have the same type of inner phase data
-                let mut mixed_antex = lhs.pcv.is_relative() && !rhs.pcv.is_relative();
-                mixed_antex |= !lhs.pcv.is_relative() && rhs.pcv.is_relative();
+                let mut mixed_antex = lhs.pcv_type.is_relative() && !rhs.pcv_type.is_relative();
+                mixed_antex |= !lhs.pcv_type.is_relative() && rhs.pcv_type.is_relative();
                 if mixed_antex {
                     return Err(merge::Error::AntexAbsoluteRelativeMismatch);
                 }
-                merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
+                // merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
         }
         if let Some(lhs) = &mut self.clocks {
