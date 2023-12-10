@@ -454,10 +454,13 @@ pub fn parse_record(
                         }
                     },
                     Type::AntennaData => {
-                        if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content)
-                        {
-                            atx_rec.push((antenna, content));
-                        }
+                        let (antenna, content) =
+                            antex::record::parse_antenna(&epoch_content).unwrap();
+                        atx_rec.push((antenna, content));
+                        //if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content)
+                        //{
+                        //    atx_rec.push((antenna, content));
+                        //}
                     },
                     Type::IonosphereMaps => {
                         if let Ok((epoch, altitude, plane)) =
@@ -598,9 +601,11 @@ pub fn parse_record(
             }
         },
         Type::AntennaData => {
-            if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content) {
-                atx_rec.push((antenna, content));
-            }
+            //if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content) {
+            //    atx_rec.push((antenna, content));
+            //}
+            let (antenna, content) = antex::record::parse_antenna(&epoch_content).unwrap();
+            atx_rec.push((antenna, content));
         },
     }
     // new comments ?

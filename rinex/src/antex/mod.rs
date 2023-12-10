@@ -8,7 +8,8 @@ pub use pcv::Pcv;
 // pub use frequency::{Frequency, Pattern};
 
 pub use antenna::{
-    Antenna, AntennaSpecific, Calibration, CalibrationMethod, Cospar, RxAntenna, SvAntenna,
+    Antenna, AntennaMatcher, AntennaSpecific, Calibration, CalibrationMethod, Cospar, RxAntenna,
+    SvAntenna,
 };
 
 pub use record::{FrequencyDependentData, Record};

@@ -146,6 +146,25 @@ impl AntennaSpecific {
     }
 }
 
+/// Antenna Matcher is used to easily locate the (RX) antenna
+/// you're interested in, in an ATX record.
+#[derive(Clone, Debug)]
+pub enum AntennaMatcher {
+    /// Identify an (RX) antenna model by its IGS code
+    IGSCode(String),
+    /// Identify an (RX) antenna model by its serial number
+    SerialNumber(String),
+}
+
+impl AntennaMatcher {
+    pub(crate) fn to_lowercase(&self) -> Self {
+        match self {
+            Self::IGSCode(code) => Self::IGSCode(code.to_lowercase()),
+            Self::SerialNumber(sn) => Self::SerialNumber(sn.to_lowercase()),
+        }
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct RxAntenna {

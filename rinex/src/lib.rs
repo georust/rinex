@@ -53,6 +53,7 @@ use writer::BufferedWriter;
 use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
+use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
 use hifitime::Duration;
 use ionex::TECPlane;
 use observable::Observable;
@@ -61,6 +62,8 @@ use version::Version;
 
 /// Package to include all basic structures
 pub mod prelude {
+    #[cfg(feature = "antex")]
+    pub use crate::antex::AntennaMatcher;
     #[cfg(feature = "sp3")]
     pub use crate::context::RnxContext;
     pub use crate::epoch::EpochFlag;
@@ -1643,8 +1646,17 @@ impl Rinex {
                 .flat_map(|record| record.iter()),
         )
     }
-    // /// ANTEX antennas description browsing
-    // pub fn antex_antennas(&self) -> Box<dyn Iterator<Item = (&
+    /// ANTEX antennas specifications browsing
+    pub fn antennas(
+        &self,
+    ) -> Box<dyn Iterator<Item = &(Antenna, HashMap<Carrier, FrequencyDependentData>)> + '_> {
+        Box::new(
+            self.record
+                .as_antex()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
 }
 
 // #[cfg(feature = "obs")]
@@ -3239,15 +3251,89 @@ impl Rinex {
 /*
  * ANTEX specific feature
  */
-//#[cfg(feature = "antex")]
-//#[cfg_attr(docrs, doc(cfg(feature = "antex")))]
-//impl Rinex {
-//    /// Iterates over calibration that are still valid
-//    pub fn antex_valid_calibrations(&self, now: Epoch) -> Box<dyn Iterator<Item = (Epoch, Antenna)> + '_> {
-//        self.antex_antennas()
-//            .filter_map(|ant| ant.is_valid(now))
-//    }
-//}
+#[cfg(feature = "antex")]
+#[cfg_attr(docrs, doc(cfg(feature = "antex")))]
+impl Rinex {
+    /// Iterates over antenna specifications that are still valid
+    pub fn antex_valid_calibrations(
+        &self,
+        now: Epoch,
+    ) -> Box<dyn Iterator<Item = (&Antenna, &HashMap<Carrier, FrequencyDependentData>)> + '_> {
+        Box::new(self.antennas().filter_map(move |(ant, data)| {
+            if ant.is_valid(now) {
+                Some((ant, data))
+            } else {
+                None
+            }
+        }))
+    }
+    /// Returns APC offset for given spacecraft, expressed in NEU coordinates [mm] for given
+    /// frequency. "now" is used to determine calibration validity (in time).
+    pub fn sv_antenna_apc_offset(
+        &self,
+        now: Epoch,
+        sv: SV,
+        freq: Carrier,
+    ) -> Option<(f64, f64, f64)> {
+        self.antex_valid_calibrations(now)
+            .filter_map(|(ant, freqdata)| match &ant.specific {
+                AntennaSpecific::SvAntenna(sv_ant) => {
+                    if sv_ant.sv == sv {
+                        if let Some(freqdata) = freqdata.get(&freq) {
+                            Some(freqdata.apc_eccentricity)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                },
+                _ => None,
+            })
+            .reduce(|k, _| k) // we're expecting a single match here
+    }
+    /// Returns APC offset for given RX Antenna model (ground station model).
+    /// Model name is the IGS code, which has to match exactly but we're case insensitive.
+    /// The APC offset is expressed in NEU coordinates
+    /// [mm]. "now" is used to determine calibration validity (in time).
+    pub fn rx_antenna_apc_offset(
+        &self,
+        now: Epoch,
+        matcher: AntennaMatcher,
+        freq: Carrier,
+    ) -> Option<(f64, f64, f64)> {
+        let to_match = matcher.to_lowercase();
+        self.antex_valid_calibrations(now)
+            .filter_map(|(ant, freqdata)| match &ant.specific {
+                AntennaSpecific::RxAntenna(rx_ant) => match &to_match {
+                    AntennaMatcher::IGSCode(code) => {
+                        if rx_ant.igs_type.to_lowercase().eq(code) {
+                            if let Some(freqdata) = freqdata.get(&freq) {
+                                Some(freqdata.apc_eccentricity)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    },
+                    AntennaMatcher::SerialNumber(sn) => {
+                        if rx_ant.igs_type.to_lowercase().eq(sn) {
+                            if let Some(freqdata) = freqdata.get(&freq) {
+                                Some(freqdata.apc_eccentricity)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    },
+                },
+                _ => None,
+            })
+            .reduce(|k, _| k) // we're expecting a single match here
+    }
+}
 
 #[cfg(test)]
 mod test {

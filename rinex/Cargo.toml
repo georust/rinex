@@ -30,6 +30,7 @@ sp3 = ["dep:sp3", "walkdir"]
 
 # enable everything
 full = [
+    "antex",
     "flate2",
     "horrorshow",
     "ionex",
