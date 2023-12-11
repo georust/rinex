@@ -236,6 +236,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                 }
             }
         },
+        /* APC corrections provider */
+        |t, sv, freq| None,
     )?;
 
     // resolved PVT solutions

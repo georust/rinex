@@ -233,6 +233,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     };
 
     let sp3_data = ctx.sp3_data();
+    let atx_data = ctx.atx_data();
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
@@ -279,6 +280,11 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     None
                 }
             }
+        },
+        /* APC corrections provider */
+        |t, sv, freq| {
+            let atx = atx_data?;
+            None
         },
     )?;
 
