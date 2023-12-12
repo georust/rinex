@@ -66,8 +66,10 @@ pub struct Antenna {
 
 impl Antenna {
     /// Returns whether this calibration is valid at the current Epoch
-    /// or not. Antenna Calibrations with unknown validity period
-    /// (which you rarely encounter), are considered invalid.
+    /// or not. Antenna Calibrations with undetermined validity period
+    /// (which you rarely encounter), are considered valid.
+    /// You then need to refer to the date of that calibration (always given)
+    /// and should only consider recently calibrated data.
     pub fn is_valid(&self, now: Epoch) -> bool {
         if let Some((from, until)) = self.calibration.validity_period {
             now > from && now < until
@@ -149,8 +151,8 @@ impl AntennaSpecific {
     }
 }
 
-/// Antenna Matcher is used to easily locate the (RX) antenna
-/// you're interested in, in an ATX record.
+/// Antenna Matcher is used to easily locate RX antennas
+/// contained in ATX records. AntennaMatcher is case insensitive.
 #[derive(Clone, Debug)]
 pub enum AntennaMatcher {
     /// Identify an (RX) antenna model by its IGS code

@@ -6,6 +6,7 @@ mod test {
     use crate::linspace::Linspace;
     use crate::prelude::*;
     use std::str::FromStr;
+    #[cfg(feature = "antex")]
     #[test]
     fn v1_trosar_25r4_leit_2020_09_23() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
@@ -14,10 +15,12 @@ mod test {
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         assert!(rinex.is_antex());
-        let header = rinex.header;
+
+        let header = &rinex.header;
         assert_eq!(header.version.major, 1);
         assert_eq!(header.version.minor, 4);
         assert!(header.antex.is_some());
+
         let atx_header = header.antex.as_ref().unwrap();
         assert_eq!(atx_header.pcv_type, Pcv::Absolute);
 
@@ -85,5 +88,20 @@ mod test {
             (0.32, -0.63, 160.39),
             "bad APC for B2B frequency"
         );
+
+        /*
+         * test crate feature
+         */
+        let fake_now = Epoch::from_gregorian_utc_at_midnight(2023, 01, 01);
+        let apc = rinex.rx_antenna_apc_offset(
+            fake_now,
+            AntennaMatcher::IGSCode("trosar25.r4".to_string()),
+            Carrier::L1,
+        );
+        assert!(
+            apc.is_some(),
+            "failed to locate APC for TROSAR25.R4 antenna"
+        );
+        assert_eq!(apc.unwrap(), (-0.22, -0.01, 154.88));
     }
 }
