@@ -41,6 +41,8 @@ pub struct Calibration {
     pub date: Epoch,
     /// Number of calibrated antennas
     pub number: u16,
+    /// Calibration Validity Period: (Start, End) inclusive
+    pub validity_period: Option<(Epoch, Epoch)>,
 }
 
 /// Antenna description, as contained in ATX records
@@ -58,18 +60,20 @@ pub struct Antenna {
     pub zenith_grid: Linspace,
     /// Azmiuth increment
     pub azi_inc: f64,
-    /// Start of validity period of this information.
-    pub valid_from: Epoch,
-    /// End of validity period of this information.
-    pub valid_until: Epoch,
     /// SINEX code normalization
     pub sinex_code: String,
 }
 
 impl Antenna {
-    /// Returns whether this calibration is valid or not
+    /// Returns whether this calibration is valid at the current Epoch
+    /// or not. Antenna Calibrations with unknown validity period
+    /// (which you rarely encounter), are considered invalid.
     pub fn is_valid(&self, now: Epoch) -> bool {
-        now > self.valid_from && now < self.valid_until
+        if let Some((from, until)) = self.calibration.validity_period {
+            now > from && now < until
+        } else {
+            false
+        }
     }
     /// Returns the mean phase center position.
     /// If Self is a Receiver Antenna ([`RxAntenna`]),
@@ -96,8 +100,7 @@ impl Antenna {
     /// Builds an Antenna with given Validity period
     pub fn with_validity_period(&self, start: Epoch, end: Epoch) -> Self {
         let mut a = self.clone();
-        a.valid_from = start;
-        a.valid_until = end;
+        a.calibration.validity_period = Some((start, end));
         a
     }
     /// Builds an Antenna with given Azimuth increment

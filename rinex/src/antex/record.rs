@@ -112,12 +112,32 @@ pub enum Error {
     StartOfValidityPeriodParsing,
     #[error("failed to parse end of validity period")]
     EndOfValidityPeriodParsing,
+    #[error("calibration period missing year field")]
+    DatetimeParsingMissingYear,
+    #[error("calibration period missing month field")]
+    DatetimeParsingMissingMonth,
+    #[error("calibration period missing day field")]
+    DatetimeParsingMissingDay,
+    #[error("calibration period missing hours field")]
+    DatetimeParsingMissingHours,
+    #[error("calibration period missing minutes field")]
+    DatetimeParsingMissingMinutes,
+    #[error("calibration period missing seconds field")]
+    DatetimeParsingMissingSeconds,
     #[error("failed to parse year of this calibration")]
     DatetimeYearParsing,
     #[error("failed to parse month of this calibration")]
     DatetimeMonthParsing,
     #[error("failed to parse day of this calibration")]
     DatetimeDayParsing,
+    #[error("failed to parse hours of this calibration")]
+    DatetimeHoursParsing,
+    #[error("failed to parse minutes of this calibration")]
+    DatetimeMinutesParsing,
+    #[error("failed to parse seconds of this calibration")]
+    DatetimeSecondsParsing,
+    #[error("failed to parse nanos of this calibration")]
+    DatetimeNanosParsing,
     #[error("failed to parse start of zenith grid")]
     ZenithGridStartParsing,
     #[error("failed to parse end of zenith grid")]
@@ -137,18 +157,18 @@ fn parse_datetime(content: &str) -> Result<Epoch, Error> {
     let month = parser.next().ok_or(Error::DatetimeMonthParsing)?;
 
     let month = match month {
-        "JAN" => 1,
-        "FEB" => 2,
-        "MAR" => 3,
-        "APR" => 4,
-        "MAY" => 5,
-        "JUN" => 6,
-        "JUL" => 7,
-        "AUG" => 8,
-        "SEP" => 9,
-        "OCT" => 10,
-        "NOV" => 11,
-        "DEC" => 12,
+        "JAN" | "Jan" => 1,
+        "FEB" | "Feb" => 2,
+        "MAR" | "Mar" => 3,
+        "APR" | "Apr" => 4,
+        "MAY" | "May" => 5,
+        "JUN" | "Jun" => 6,
+        "JUL" | "Jul" => 7,
+        "AUG" | "Aug" => 8,
+        "SEP" | "Sep" => 9,
+        "OCT" | "Oct" => 10,
+        "NOV" | "Nov" => 11,
+        "DEC" | "Dec" => 12,
         _ => {
             return Err(Error::DatetimeMonthParsing);
         },
@@ -161,6 +181,58 @@ fn parse_datetime(content: &str) -> Result<Epoch, Error> {
         2000 + year,
         month,
         day,
+    ))
+}
+
+/*
+ * Parses the calibration validity FROM/UNTIL field
+ */
+fn parse_validity_epoch(content: &str) -> Result<Epoch, Error> {
+    let mut items = content.split_ascii_whitespace();
+
+    let year = items.next().ok_or(Error::DatetimeParsingMissingYear)?;
+    let year = year
+        .parse::<i32>()
+        .map_err(|_| Error::DatetimeYearParsing)?;
+
+    let month = items.next().ok_or(Error::DatetimeParsingMissingMonth)?;
+    let month = month
+        .parse::<u8>()
+        .map_err(|_| Error::DatetimeMonthParsing)?;
+
+    let day = items.next().ok_or(Error::DatetimeParsingMissingDay)?;
+    let day = day.parse::<u8>().map_err(|_| Error::DatetimeDayParsing)?;
+
+    let hh = items.next().ok_or(Error::DatetimeParsingMissingHours)?;
+    let hh = hh.parse::<u8>().map_err(|_| Error::DatetimeHoursParsing)?;
+
+    let mm = items.next().ok_or(Error::DatetimeParsingMissingMinutes)?;
+    let mm = mm
+        .parse::<u8>()
+        .map_err(|_| Error::DatetimeMinutesParsing)?;
+
+    let ss = items.next().ok_or(Error::DatetimeParsingMissingSeconds)?;
+
+    let (mut secs, mut nanos) = (0_u8, 0_u32);
+
+    if let Some(dot) = ss.find('.') {
+        secs = ss[..dot]
+            .trim()
+            .parse::<u8>()
+            .map_err(|_| Error::DatetimeSecondsParsing)?;
+
+        nanos = ss[dot + 1..]
+            .trim()
+            .parse::<u32>()
+            .map_err(|_| Error::DatetimeNanosParsing)?;
+    } else {
+        secs = ss
+            .parse::<u8>()
+            .map_err(|_| Error::DatetimeSecondsParsing)?;
+    }
+
+    Ok(Epoch::from_gregorian_utc(
+        year, month, day, hh, mm, secs, nanos,
     ))
 }
 
@@ -220,15 +292,14 @@ pub(crate) fn parse_antenna(
                     .map_err(|_| Error::NumberOfCalibratedAntennasParsing)?,
                 agency: agency.trim().to_string(),
                 date: parse_datetime(date.trim())?,
+                validity_period: None,
             };
 
             antenna.calibration = cal.clone();
         } else if marker.contains("VALID FROM") {
-            valid_from =
-                Epoch::from_str(content.trim()).map_err(|_| Error::StartOfValidityPeriodParsing)?;
+            valid_from = parse_validity_epoch(content.trim())?;
         } else if marker.contains("VALID UNTIL") {
-            let valid_until =
-                Epoch::from_str(content.trim()).map_err(|_| Error::EndOfValidityPeriodParsing)?;
+            let valid_until = parse_validity_epoch(content.trim())?;
 
             antenna = antenna.with_validity_period(valid_from, valid_until);
         } else if marker.contains("SINEX CODE") {
