@@ -21,4 +21,3 @@ thiserror = "1"
 strum = { version = "0.25", features = ["derive"] }
 strum_macros = "0.25"
 gnss-rs = { version = "2.1.2", features = ["serde"] }
-# rinex = { path = "../rinex", version = "=0.15.1", features = ["serde"] }
