@@ -100,7 +100,7 @@ impl RnxContext {
      */
     fn from_file(path: PathBuf) -> Result<Self, Error> {
         let mut ctx = Self::default();
-        ctx.load(&path.to_string_lossy().to_string())?;
+        ctx.load(path.to_string_lossy().as_ref())?;
         Ok(ctx)
     }
     /*
@@ -108,7 +108,7 @@ impl RnxContext {
      */
     fn from_directory(path: PathBuf) -> Result<Self, Error> {
         let mut ret = RnxContext::default();
-        let walkdir = WalkDir::new(&path.to_string_lossy().to_string()).max_depth(5);
+        let walkdir = WalkDir::new(path.to_string_lossy().to_string()).max_depth(5);
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
             if !entry.path().is_dir() {
                 let fullpath = entry.path().to_string_lossy().to_string();
@@ -160,15 +160,15 @@ impl RnxContext {
     /// 5. ATX Data if provided
     fn provided_rinex(&self) -> Option<&ProvidedData<Rinex>> {
         if let Some(data) = &self.obs {
-            Some(&data)
+            Some(data)
         } else if let Some(data) = &self.nav {
-            Some(&data)
+            Some(data)
         } else if let Some(data) = &self.meteo {
-            Some(&data)
+            Some(data)
         } else if let Some(data) = &self.ionex {
-            Some(&data)
+            Some(data)
         } else if let Some(data) = &self.atx {
-            Some(&data)
+            Some(data)
         } else {
             None
         }
@@ -375,7 +375,7 @@ impl RnxContext {
     }
     fn load_obs(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
         if let Some(obs) = &mut self.obs {
-            obs.data.merge_mut(&rnx)?;
+            obs.data.merge_mut(rnx)?;
             obs.paths.push(path.to_path_buf());
         } else {
             self.obs = Some(ProvidedData {
@@ -387,7 +387,7 @@ impl RnxContext {
     }
     fn load_nav(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
         if let Some(nav) = &mut self.nav {
-            nav.data.merge_mut(&rnx)?;
+            nav.data.merge_mut(rnx)?;
             nav.paths.push(path.to_path_buf());
         } else {
             self.nav = Some(ProvidedData {
@@ -399,7 +399,7 @@ impl RnxContext {
     }
     fn load_meteo(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
         if let Some(meteo) = &mut self.meteo {
-            meteo.data.merge_mut(&rnx)?;
+            meteo.data.merge_mut(rnx)?;
             meteo.paths.push(path.to_path_buf());
         } else {
             self.meteo = Some(ProvidedData {
@@ -411,7 +411,7 @@ impl RnxContext {
     }
     fn load_ionex(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
         if let Some(ionex) = &mut self.ionex {
-            ionex.data.merge_mut(&rnx)?;
+            ionex.data.merge_mut(rnx)?;
             ionex.paths.push(path.to_path_buf());
         } else {
             self.ionex = Some(ProvidedData {
@@ -423,7 +423,7 @@ impl RnxContext {
     }
     fn load_antex(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
         if let Some(atx) = &mut self.atx {
-            atx.data.merge_mut(&rnx)?;
+            atx.data.merge_mut(rnx)?;
             atx.paths.push(path.to_path_buf());
         } else {
             self.atx = Some(ProvidedData {
@@ -436,7 +436,7 @@ impl RnxContext {
     fn load_sp3(&mut self, path: &Path, sp3: &SP3) -> Result<(), Error> {
         if let Some(data) = &mut self.sp3 {
             /* extend existing context */
-            data.data.merge_mut(&sp3)?;
+            data.data.merge_mut(sp3)?;
             data.paths.push(path.to_path_buf());
         } else {
             self.sp3 = Some(ProvidedData {

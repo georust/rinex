@@ -3,6 +3,12 @@ pub struct TextDiff {
     pub buffer: String,
 }
 
+impl Default for TextDiff {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextDiff {
     /// Creates a new `Text` differentiator.
     /// Text compression has no limitations

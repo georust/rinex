@@ -91,7 +91,7 @@ impl ObservationData {
     ///    + SNR must match the .is_ok() criteria, refer to API
     pub fn is_ok(self) -> bool {
         let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
-        let snr_ok = self.snr.unwrap_or(SNR::default()).strong();
+        let snr_ok = self.snr.unwrap_or_default().strong();
         lli_ok && snr_ok
     }
 
@@ -1363,7 +1363,7 @@ fn dual_freq_combination(
 
                 // consider anything but L1
                 let lhs_code = lhs_observable.to_string();
-                let lhs_is_l1 = lhs_code.contains("1");
+                let lhs_is_l1 = lhs_code.contains('1');
                 if lhs_is_l1 {
                     continue;
                 }
@@ -1380,7 +1380,7 @@ fn dual_freq_combination(
                     }
 
                     let refcode = ref_observable.to_string();
-                    if refcode.contains("1") {
+                    if refcode.contains('1') {
                         reference = Some((ref_observable.clone(), ref_data.obs));
                         break; // DONE searching
                     }
@@ -1392,7 +1392,7 @@ fn dual_freq_combination(
                 let (ref_observable, ref_data) = reference.unwrap();
 
                 // determine frequencies
-                let lhs_carrier = Carrier::from_observable(sv.constellation, &lhs_observable);
+                let lhs_carrier = Carrier::from_observable(sv.constellation, lhs_observable);
                 let ref_carrier = Carrier::from_observable(sv.constellation, &ref_observable);
                 if lhs_carrier.is_err() | ref_carrier.is_err() {
                     continue; // undetermined frequency
@@ -1467,7 +1467,7 @@ fn dual_freq_combination(
 
                 let combination = (lhs_observable.clone(), ref_observable.clone());
                 if let Some(data) = ret.get_mut(&combination) {
-                    if let Some(data) = data.get_mut(&sv) {
+                    if let Some(data) = data.get_mut(sv) {
                         data.insert(*epoch, value);
                     } else {
                         let mut map: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
@@ -1503,14 +1503,14 @@ fn mw_combination(
         if lhs_obs.is_phase_observable() {
             if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
                 phase_wide.retain(|sv, phase_data| {
-                    if let Some(code_data) = code_data.get(&sv) {
-                        phase_data.retain(|epoch, _| code_data.get(&epoch).is_some());
-                        phase_data.len() > 0
+                    if let Some(code_data) = code_data.get(sv) {
+                        phase_data.retain(|epoch, _| code_data.get(epoch).is_some());
+                        !phase_data.is_empty()
                     } else {
                         false
                     }
                 });
-                phase_wide.len() > 0
+                !phase_wide.is_empty()
             } else {
                 false
             }
@@ -1527,9 +1527,9 @@ fn mw_combination(
 
         if let Some(code_data) = code_narrow.get(&(lhs_code_obs, rhs_code_obs)) {
             for (phase_sv, data) in phase_data {
-                if let Some(code_data) = code_data.get(&phase_sv) {
+                if let Some(code_data) = code_data.get(phase_sv) {
                     for (epoch, phase_wide) in data {
-                        if let Some(narrow_code) = code_data.get(&epoch) {
+                        if let Some(narrow_code) = code_data.get(epoch) {
                             *phase_wide -= narrow_code;
                         }
                     }
@@ -1721,7 +1721,7 @@ pub(crate) fn code_multipath(
 
                 let code = observable.to_string();
                 let carrier = &code[1..2].to_string();
-                let code_is_l1 = code.contains("1");
+                let code_is_l1 = code.contains('1');
 
                 let mut phase_i = Option::<f64>::None;
                 let mut phase_j = Option::<f64>::None;
@@ -1735,7 +1735,7 @@ pub(crate) fn code_multipath(
                     let rhs_code = rhs_observable.to_string();
 
                     // identify carrier signal
-                    let rhs_carrier = Carrier::from_observable(sv.constellation, &rhs_observable);
+                    let rhs_carrier = Carrier::from_observable(sv.constellation, rhs_observable);
                     if rhs_carrier.is_err() {
                         continue;
                     }
@@ -1743,21 +1743,19 @@ pub(crate) fn code_multipath(
                     let lambda = rhs_carrier.wavelength();
 
                     if code_is_l1 {
-                        if rhs_code.contains("2") {
+                        if rhs_code.contains('2') {
                             f_j = Some(rhs_carrier.frequency());
                             phase_j = Some(rhs_data.obs * lambda);
                         } else if rhs_code.contains(carrier) {
                             f_i = Some(rhs_carrier.frequency());
                             phase_i = Some(rhs_data.obs * lambda);
                         }
-                    } else {
-                        if rhs_code.contains("1") {
-                            f_j = Some(rhs_carrier.frequency());
-                            phase_j = Some(rhs_data.obs * lambda);
-                        } else if rhs_code.contains(carrier) {
-                            f_i = Some(rhs_carrier.frequency());
-                            phase_i = Some(rhs_data.obs * lambda);
-                        }
+                    } else if rhs_code.contains('1') {
+                        f_j = Some(rhs_carrier.frequency());
+                        phase_j = Some(rhs_data.obs * lambda);
+                    } else if rhs_code.contains(carrier) {
+                        f_i = Some(rhs_carrier.frequency());
+                        phase_i = Some(rhs_data.obs * lambda);
                     }
 
                     if phase_i.is_some() && phase_j.is_some() {
@@ -1774,8 +1772,8 @@ pub(crate) fn code_multipath(
                 let beta = 2.0 / (gamma - 1.0);
                 let value = obsdata.obs - alpha * phase_i.unwrap() + beta * phase_j.unwrap();
 
-                if let Some(data) = ret.get_mut(&observable) {
-                    if let Some(data) = data.get_mut(&sv) {
+                if let Some(data) = ret.get_mut(observable) {
+                    if let Some(data) = data.get_mut(sv) {
                         data.insert(*epoch, value);
                     } else {
                         let mut map: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();

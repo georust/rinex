@@ -5,7 +5,7 @@ use std::path::Path;
 fn build_nav_database() {
     let outdir = env::var("OUT_DIR").unwrap();
     let nav_path = Path::new(&outdir).join("nav_orbits.rs");
-    let mut nav_file = std::fs::File::create(&nav_path).unwrap();
+    let mut nav_file = std::fs::File::create(nav_path).unwrap();
 
     // read helper descriptor
     let nav_descriptor = std::fs::read_to_string("db/NAV/orbits.json").unwrap();

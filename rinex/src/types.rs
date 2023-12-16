@@ -76,7 +76,7 @@ impl std::str::FromStr for Type {
         } else if s.eq("ionosphere maps") {
             Ok(Self::IonosphereMaps)
         } else {
-            Err(ParsingError::TypeParsing(String::from(s)))
+            Err(ParsingError::TypeParsing(s))
         }
     }
 }

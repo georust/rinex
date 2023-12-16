@@ -1,5 +1,5 @@
 use gnss::prelude::SV;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{HashMap};
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -254,7 +254,7 @@ pub(crate) fn parse_antenna(
             let (ant_igs, rem) = content.split_at(20);
             let (block1, rem) = rem.split_at(20);
             let (block2, rem) = rem.split_at(10);
-            let (block3, rem) = rem.split_at(10);
+            let (block3, _rem) = rem.split_at(10);
 
             let (block1, block2, block3) = (block1.trim(), block2.trim(), block3.trim());
             /*
@@ -411,7 +411,7 @@ impl Merge for Record {
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, _rhs: &Self) -> Result<(), merge::Error> {
         //for antenna in rhs.iter() {
         //    if self.contains(antenna) {
         //        let (antenna, frequencies) = antenna;

@@ -14,7 +14,7 @@ fn workspace(cli: &Cli) -> PathBuf {
 }
 
 fn create_workspace(path: &PathBuf) {
-    std::fs::create_dir_all(&path).unwrap_or_else(|_| {
+    std::fs::create_dir_all(path).unwrap_or_else(|_| {
         panic!(
             "failed to create workspace \"{}\": permission denied",
             path.to_string_lossy(),
@@ -39,7 +39,7 @@ fn input_name(path: &PathBuf) -> String {
 }
 
 // deduce output name, from input name
-fn output_filename<'a>(stem: &'a str, path: &PathBuf) -> String {
+fn output_filename(stem: &str, path: &PathBuf) -> String {
     let filename = path
         .file_name()
         .expect("failed to determine input file name")
@@ -52,14 +52,12 @@ fn output_filename<'a>(stem: &'a str, path: &PathBuf) -> String {
             .expect("failed to determine output file name")
             .replace("crx", "rnx")
             .to_string()
+    } else if filename.ends_with('d') {
+        filename.replace('d', "o").to_string()
+    } else if filename.ends_with('D') {
+        filename.replace('D', "O").to_string()
     } else {
-        if filename.ends_with('d') {
-            filename.replace('d', "o").to_string()
-        } else if filename.ends_with('D') {
-            filename.replace('D', "O").to_string()
-        } else {
-            format!("{}.rnx", stem)
-        }
+        format!("{}.rnx", stem)
     }
 }
 

@@ -2,7 +2,7 @@ use gnss_rs::prelude::SV;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 
 #[derive(Debug, Clone, Error)]
 pub enum SvAntennaParsingError {
@@ -47,7 +47,7 @@ impl std::str::FromStr for Cospar {
             .parse::<u16>()
             .map_err(|_| SvAntennaParsingError::CosparLaunchYearParsing)?;
 
-        let launch_code = s[8..9]
+        let _launch_code = s[8..9]
             .chars()
             .next()
             .ok_or(SvAntennaParsingError::CosparLaunchCodeParsing)?;

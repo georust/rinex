@@ -3,7 +3,7 @@ use crate::Epoch;
 use strum_macros::EnumString;
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 
 mod sv;
 pub use sv::{Cospar, SvAntenna, SvAntennaParsingError};
@@ -84,7 +84,7 @@ impl Antenna {
     /// If Self is a Spacecraft Antenna ([`SvAntenna`]),
     /// the returned position is expressed as an offset to the Spacecraft
     /// Mass Center.
-    fn mean_phase_center(&self, reference: (f64, f64, f64)) -> (f64, f64, f64) {
+    fn mean_phase_center(&self, _reference: (f64, f64, f64)) -> (f64, f64, f64) {
         (0.0_f64, 0.0_f64, 0.0_f64)
     }
     /// Builds an Antenna with given Calibration infos

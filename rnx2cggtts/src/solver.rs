@@ -531,7 +531,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                     dominant_sampling_period,
                                     trk_midpoint,
                                 ) {
-                                    Ok(((trk_elev, trk_azi), trk_data)) => {
+                                    Ok(((trk_elev, trk_azi), trk_data, iono_data)) => {
                                         info!(
                                             "{:?} - new {} track: elev {:.2}° - azi {:.2}° - REFSV {:.3E} REFSYS {:.3E}",
                                             t,

@@ -109,6 +109,12 @@ fn format_epoch(
     Ok(result)
 }
 
+impl Default for Decompressor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Decompressor {
     /// Creates a new decompression structure
     pub fn new() -> Self {
