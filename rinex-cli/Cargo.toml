@@ -41,6 +41,6 @@ plotly =  "0.8.4"
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "density-mapbox" }
 
 # solver
-gnss-rtk = { version = "0.4.0", features = ["serde"] }
+# gnss-rtk = { version = "0.4.0", features = ["serde"] }
 # gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
-# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }

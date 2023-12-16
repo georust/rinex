@@ -18,8 +18,6 @@ use rtk::prelude::{
     Config,
     Duration,
     Epoch,
-    Filter,
-    InterpolatedPosition,
     InterpolationResult,
     IonosphericBias,
     KbModel,
@@ -132,9 +130,7 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
         .klobuchar_models()
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
 
-    match kb_model {
-        Some((_, sv, kb_model)) => {
-            Some(KbModel {
+    kb_model.map(|(_, sv, kb_model)| KbModel {
                 h_km: {
                     match sv.constellation {
                         Constellation::BeiDou => 375.0,
@@ -146,9 +142,6 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
                 alpha: kb_model.alpha,
                 beta: kb_model.beta,
             })
-        },
-        None => None,
-    }
 }
 
 fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
@@ -266,24 +259,22 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         None
                     }
                 }
+            } else if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                let (elevation, azimuth) =
+                    Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
+                Some(
+                    InterpolationResult::from_apc_position((x, y, z))
+                        .with_elevation_azimuth((elevation, azimuth)),
+                )
             } else {
-                if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                    let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(
-                        InterpolationResult::from_apc_position((x, y, z))
-                            .with_elevation_azimuth((elevation, azimuth)),
-                    )
-                } else {
-                    // debug!("{:?} ({}): nav interpolation failed", t, sv);
-                    None
-                }
+                // debug!("{:?} ({}): nav interpolation failed", t, sv);
+                None
             }
         },
         /* APC corrections provider */
-        |t, sv, freq| {
-            let atx = atx_data?;
+        |_t, _sv, _freq| {
+            let _atx = atx_data?;
             None
         },
     )?;
@@ -350,11 +341,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     code = Some(Observation {
                         frequency,
                         snr: {
-                            if let Some(snr) = data.snr {
-                                Some(snr.into())
-                            } else {
-                                None
-                            }
+                            data.snr.map(|snr| snr.into())
                         },
                         value: data.obs,
                     });
@@ -362,11 +349,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     phase = Some(Observation {
                         frequency,
                         snr: {
-                            if let Some(snr) = data.snr {
-                                Some(snr.into())
-                            } else {
-                                None
-                            }
+                            data.snr.map(|snr| snr.into())
                         },
                         value: data.obs,
                     });
@@ -385,11 +368,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                         assoc_doppler = Some(Observation {
                             frequency,
                             snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
+                                data.snr.map(|snr| snr.into())
                             },
                             value: data.obs,
                         });
@@ -467,15 +446,9 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                             None => 0.0_f64,
                         };
 
-                        let mdio = match pvt_data.iono_bias.modeled {
-                            Some(iono) => Some(iono),
-                            None => None,
-                        };
+                        let mdio = pvt_data.iono_bias.modeled;
 
-                        let msio = match pvt_data.iono_bias.measured {
-                            Some(iono) => Some(iono),
-                            None => None,
-                        };
+                        let msio = pvt_data.iono_bias.measured;
 
                         debug!(
                             "{:?} : new {}:{} PVT solution (elev={:.2}°, azi={:.2}°, REFSV={:.3E}, REFSYS={:.3E})",
@@ -531,7 +504,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                     dominant_sampling_period,
                                     trk_midpoint,
                                 ) {
-                                    Ok(((trk_elev, trk_azi), trk_data, iono_data)) => {
+                                    Ok(((trk_elev, trk_azi), trk_data, _iono_data)) => {
                                         info!(
                                             "{:?} - new {} track: elev {:.2}° - azi {:.2}° - REFSV {:.3E} REFSYS {:.3E}",
                                             t,

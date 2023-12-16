@@ -14,6 +14,12 @@ pub struct Cli {
     matches: ArgMatches,
 }
 
+impl Default for Cli {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cli {
     /// Build new command line interface
     pub fn new() -> Self {

@@ -204,9 +204,7 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     }
     /// Returns the manualy defined RFDLY (in nanoseconds!)
     pub fn rf_delay(&self) -> Option<HashMap<Observable, f64>> {
-        if let Some(delays) = self.matches.get_many::<String>("rfdly") {
-            Some(
-                delays
+        self.matches.get_many::<String>("rfdly").map(|delays| delays
                     .into_iter()
                     .filter_map(|string| {
                         let items: Vec<_> = string.split(':').collect();
@@ -231,11 +229,7 @@ Refer to rinex-cli Preprocessor documentation for more information"))
                             }
                         }
                     })
-                    .collect(),
-            )
-        } else {
-            None
-        }
+                    .collect())
     }
     /// Returns the manualy defined REFDLY (in nanoseconds!)
     pub fn reference_time_delay(&self) -> Option<f64> {

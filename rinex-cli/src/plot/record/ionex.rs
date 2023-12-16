@@ -41,7 +41,7 @@ pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: 
                 },
             )
             .collect();
-        let tec: Vec<_> = data
+        let _tec: Vec<_> = data
             .tec()
             .filter_map(
                 |(t, _, _, _, tec)| {

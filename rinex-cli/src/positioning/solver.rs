@@ -7,7 +7,7 @@ use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, Filter, InterpolatedPosition,
+    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch,
     InterpolationResult, IonosphericBias, KbModel, Method, NgModel, Observation, PVTSolution,
     PVTSolutionType, Solver, TroposphericBias, Vector3,
 };
@@ -110,9 +110,7 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
         .klobuchar_models()
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
 
-    match kb_model {
-        Some((_, sv, kb_model)) => {
-            Some(KbModel {
+    kb_model.map(|(_, sv, kb_model)| KbModel {
                 h_km: {
                     match sv.constellation {
                         Constellation::BeiDou => 375.0,
@@ -124,9 +122,6 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
                 alpha: kb_model.alpha,
                 beta: kb_model.beta,
             })
-        },
-        None => None,
-    }
 }
 
 fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
@@ -221,23 +216,21 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                         None
                     }
                 }
+            } else if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                let (elevation, azimuth) =
+                    Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
+                Some(
+                    InterpolationResult::from_apc_position((x, y, z))
+                        .with_elevation_azimuth((elevation, azimuth)),
+                )
             } else {
-                if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                    let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(
-                        InterpolationResult::from_apc_position((x, y, z))
-                            .with_elevation_azimuth((elevation, azimuth)),
-                    )
-                } else {
-                    // debug!("{:?} ({}): nav interpolation failed", t, sv);
-                    None
-                }
+                // debug!("{:?} ({}): nav interpolation failed", t, sv);
+                None
             }
         },
         /* APC corrections provider */
-        |t, sv, freq| None,
+        |_t, _sv, _freq| None,
     )?;
 
     // resolved PVT solutions
@@ -277,7 +270,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             let clock_state = match sp3_has_clock {
                 true => {
                     let sp3 = sp3_data.unwrap();
-                    if let Some(clk) = sp3
+                    if let Some(_clk) = sp3
                         .sv_clock()
                         .filter_map(|(sp3_t, sp3_sv, clk)| {
                             if sp3_t == *t && sp3_sv == *sv {
@@ -324,11 +317,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                         codes.push(Observation {
                             frequency,
                             snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
+                                data.snr.map(|snr| snr.into())
                             },
                             value: data.obs,
                         });
@@ -336,11 +325,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                         phases.push(Observation {
                             frequency,
                             snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
+                                data.snr.map(|snr| snr.into())
                             },
                             value: data.obs,
                         });
@@ -348,11 +333,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                         dopplers.push(Observation {
                             frequency,
                             snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
+                                data.snr.map(|snr| snr.into())
                             },
                             value: data.obs,
                         });

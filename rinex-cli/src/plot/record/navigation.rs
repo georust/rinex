@@ -234,17 +234,15 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
      */
     if let Some(sp3) = ctx.sp3_data() {
         for (sv_index, sv) in sp3.sv().enumerate() {
-            if sv_index == 0 {
-                if !pos_plot_created {
-                    plot_ctx.add_cartesian3d_plot(
-                        "SV Orbit (broadcast)",
-                        "x [km]",
-                        "y [km]",
-                        "z [km]",
-                    );
-                    trace!("broadcast orbit plot");
-                    pos_plot_created = true;
-                }
+            if sv_index == 0 && !pos_plot_created {
+                plot_ctx.add_cartesian3d_plot(
+                    "SV Orbit (broadcast)",
+                    "x [km]",
+                    "y [km]",
+                    "z [km]",
+                );
+                trace!("broadcast orbit plot");
+                pos_plot_created = true;
             }
             let epochs: Vec<_> = sp3
                 .sv_position()
@@ -334,7 +332,7 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                     .collect();
                 let clock_corr: Vec<_> = obsdata
                     .observation()
-                    .filter_map(|((t, flag), (_, vehicles))| {
+                    .filter_map(|((t, flag), (_, _vehicles))| {
                         if flag.is_ok() {
                             let (toe, sv_eph) = navdata.sv_ephemeris(sv, *t)?;
                             /*

@@ -77,11 +77,11 @@ pub(crate) fn context_stem(ctx: &RnxContext) -> String {
  */
 pub fn workspace_path(ctx: &RnxContext, cli: &Cli) -> PathBuf {
     match cli.workspace() {
-        Some(w) => Path::new(w).join(&context_stem(ctx)),
+        Some(w) => Path::new(w).join(context_stem(ctx)),
         None => Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("WORKSPACE")
-            .join(&context_stem(ctx)),
+            .join(context_stem(ctx)),
     }
 }
 
@@ -332,7 +332,7 @@ pub fn main() -> Result<(), Error> {
             None => String::from("merged.rnx"),
         };
 
-        let path = workspace.clone().join(&filename);
+        let path = workspace.clone().join(filename);
 
         let path = path
             .as_path()
@@ -401,10 +401,8 @@ pub fn main() -> Result<(), Error> {
             let ground_pos = ctx.ground_position().unwrap(); // infaillible
             plot::skyplot(nav, ground_pos, &mut plot_ctx);
             info!("skyplot view generated");
-        } else {
-            if !no_graph {
-                info!("skyplot view is not feasible");
-            }
+        } else if !no_graph {
+            info!("skyplot view is not feasible");
         }
     }
     /*

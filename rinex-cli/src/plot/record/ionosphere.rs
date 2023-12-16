@@ -2,7 +2,7 @@ use crate::plot::PlotContext;
 use hifitime::{Epoch, TimeScale};
 
 use rinex::navigation::KbModel;
-use rinex::prelude::{Constellation, GroundPosition, RnxContext, SV};
+use rinex::prelude::{Constellation, RnxContext, SV};
 use std::f64::consts::PI;
 
 fn klob_ionospheric_delay(
@@ -73,7 +73,7 @@ fn klob_ionospheric_delay(
 }
 
 pub fn plot_ionospheric_delay(ctx: &RnxContext, _plot_ctx: &mut PlotContext) {
-    let ref_pos = ctx.ground_position().unwrap_or(GroundPosition::default());
+    let ref_pos = ctx.ground_position().unwrap_or_default();
 
     let ref_geo = ref_pos.to_geodetic();
     let _lat_lon_ddeg = (ref_geo.0, ref_geo.1);

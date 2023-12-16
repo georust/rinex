@@ -297,7 +297,7 @@ pub fn post_process(
     }
     info!("\"{}\" generated", txtfile);
     if cli.gpx() {
-        let gpxpath = workspace.join(&format!("{}.gpx", context_stem(&ctx)));
+        let gpxpath = workspace.join(format!("{}.gpx", context_stem(ctx)));
         let gpxfile = gpxpath.to_string_lossy().to_string();
         let fd = File::create(&gpxfile)?;
 
@@ -311,7 +311,7 @@ pub fn post_process(
         info!("{} gpx track generated", gpxfile);
     }
     if cli.kml() {
-        let kmlpath = workspace.join(&format!("{}.kml", context_stem(&ctx)));
+        let kmlpath = workspace.join(format!("{}.kml", context_stem(ctx)));
         let kmlfile = kmlpath.to_string_lossy().to_string();
         let mut fd = File::create(&kmlfile)?;
 
