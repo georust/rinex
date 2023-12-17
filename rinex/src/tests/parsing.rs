@@ -116,7 +116,7 @@ mod test {
                             /*
                              * Verify ION logical correctness
                              */
-                            for (_, (msg, sv, ion_msg)) in rinex.ionosphere_models() {
+                            for (_, (msg, sv, ion_msg)) in rinex.ionod_correction_models() {
                                 match sv.constellation {
                                     Constellation::GPS => {
                                         assert!(

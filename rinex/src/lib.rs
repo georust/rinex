@@ -54,7 +54,7 @@ use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
 use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
-use hifitime::Duration;
+use hifitime::{Duration, Unit};
 use ionex::TECPlane;
 use observable::Observable;
 use observation::Crinex;
@@ -1617,7 +1617,7 @@ impl Rinex {
     }
     /// Returns Navigation Data interator (any type of message).
     /// NAV records may contain several different types of frames.
-    /// You should prefer narrowed down methods, like [ephemeris] or
+    /// You should prefer more precise methods, like [ephemeris] or
     /// [ionosphere_models] but those require the "nav" feature.
     /// ```
     /// use rinex::prelude::*;
@@ -2474,8 +2474,11 @@ impl Rinex {
                 }),
         )
     }
-    /// Returns [`IonMessage`] frames Iterator
-    pub fn ionosphere_models(
+    /// [`IonMessage`] (Ionospheric corrections) frames Iterator.
+    /// Prefer the [ionod_correction] method down below, to determine the
+    /// Ionospheric correction to apply at a given time and for a given system.
+    /// This will only return correction models in RINEX4, as they're regularly updated.
+    pub fn ionod_correction_models(
         &self,
     ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &IonMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
@@ -2502,7 +2505,7 @@ impl Rinex {
     /// ```
     pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, SV, KbModel)> + '_> {
         Box::new(
-            self.ionosphere_models()
+            self.ionod_correction_models()
                 .filter_map(|(e, (_, sv, ion))| ion.as_klobuchar().map(|model| (*e, sv, *model))),
         )
     }
@@ -2518,7 +2521,7 @@ impl Rinex {
     /// ```
     pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
         Box::new(
-            self.ionosphere_models()
+            self.ionod_correction_models()
                 .filter_map(|(e, (_, _, ion))| ion.as_nequick_g().map(|model| (*e, *model))),
         )
     }
@@ -2533,12 +2536,19 @@ impl Rinex {
     /// ```
     pub fn bdgim_models(&self) -> Box<dyn Iterator<Item = (Epoch, BdModel)> + '_> {
         Box::new(
-            self.ionosphere_models()
+            self.ionod_correction_models()
                 .filter_map(|(e, (_, _, ion))| ion.as_bdgim().map(|model| (*e, *model))),
         )
     }
-    /// Returns Ionospheric Delay Model (as meters of delay) to use
-    pub fn ionod_model(
+    /// Returns Ionospheric delay correction to apply at given Epoch
+    /// and given location on Earth.
+    /// The correction is expressed as meters of delay.
+    /// If Self is a RINEX3, it can only describe a correction for a 24H time frame.
+    /// If "t" is not close enough to T0 of this file, we will not propose its model.
+    /// The same correction will also apply for that entire day.
+    /// Only RINEX4 can truly represent regularly updated correction models. This method
+    /// will return the closest correction in time.
+    pub fn ionod_correction(
         &self,
         t: Epoch,
         sv_elevation: f64,
@@ -2547,11 +2557,30 @@ impl Rinex {
         user_lon_ddeg: f64,
         carrier: Carrier,
     ) -> Option<f64> {
-        // grab nearest model ; in time
-        let (_, model) = self
-            .ionosphere_models()
+        // determine nearest in time
+        let nearest_model = self
+            .ionod_correction_models()
             .map(|(t, (_, sv, msg))| (t, (sv, msg)))
-            .min_by_key(|(t_i, _)| (t - **t_i).abs())?;
+            .min_by_key(|(t_i, _)| (t - **t_i).abs());
+
+        let (t, model) = match nearest_model {
+            Some((t, (model_sv, model))) => (*t, (model_sv, *model)),
+            None => {
+                // RINEX3 possible case: depicted in the header
+                let ionod_corr = self.header.ionod_correction?;
+                /*
+                 * can only apply to a 24H time frame
+                 */
+                let t0 = self.first_epoch()?;
+                let dt = t - t0;
+                let total_seconds = dt.to_seconds();
+                if total_seconds >= 0.0 && dt < 24 * Unit::Hour {
+                    (t0, (SV::default(), ionod_corr))
+                } else {
+                    return None;
+                }
+            },
+        };
 
         let (model_sv, model) = model;
 

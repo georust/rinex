@@ -8,7 +8,9 @@ use crate::{
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap,
     linspace::Linspace,
-    meteo, observation,
+    meteo,
+    navigation::IonMessage,
+    observation,
     observation::Crinex,
     reader::BufferedReader,
     types::Type,
@@ -25,7 +27,7 @@ use thiserror::Error;
 use crate::{fmt_comment, fmt_rinex};
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -101,7 +103,7 @@ pub struct PcvCompensation {
 
 /// Describes `RINEX` file header
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: Version,
@@ -160,6 +162,10 @@ pub struct Header {
     /// attached to a specifid SV, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
+    /// Possible Ionospheric Delay correction model.
+    /// Only exists in NAV V3 headers. In modern NAV, this
+    /// is regularly updated in the file's body.
+    pub ionod_correction: Option<IonMessage>,
     /// Possible DCBs compensation information
     pub dcb_compensations: Vec<DcbCompensation>,
     /// Possible PCVs compensation information
@@ -297,6 +303,7 @@ impl Header {
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
+        let mut ionod_correction = Option::<IonMessage>::None;
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
         let mut scaling_count = 0_u16;
         // RINEX specific fields
@@ -964,9 +971,32 @@ impl Header {
                 //TODO
                 //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA
             } else if marker.contains("IONOSPHERIC CORR") {
-                // TODO
-                // GPSA 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
-                // GPSB 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
+                /*
+                 * RINEX < 4 IONOSPHERIC Correction
+                 * we still use the IonMessage (V4 compatible),
+                 * the record will just contain a single model for the entire day course
+                 */
+                if let Ok(model) = IonMessage::from_rinex3_header(content) {
+                    // The Klobuchar model needs two lines to be entirely described.
+                    if let Some(kb_model) = model.as_klobuchar() {
+                        let correction_type = content.split_at(5).0.trim();
+                        if correction_type.ends_with("B") {
+                            let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
+                            let (beta, region) = (kb_model.beta, kb_model.region);
+                            ionod_correction = Some(IonMessage::KlobucharModel(KbModel {
+                                alpha,
+                                beta,
+                                region,
+                            }));
+                        } else {
+                            ionod_correction = Some(IonMessage::KlobucharModel(*kb_model));
+                        }
+                    } else {
+                        // The NequickG model fits on a single line.
+                        // The BDGIM does not exist until RINEX4
+                        ionod_correction = Some(model);
+                    }
+                }
             } else if marker.contains("TIME SYSTEM CORR") {
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
                 /*
@@ -1139,6 +1169,7 @@ impl Header {
             glo_channels,
             leap,
             ground_position,
+            ionod_correction,
             dcb_compensations,
             pcv_compensations,
             wavelengths: None,
