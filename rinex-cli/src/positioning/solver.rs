@@ -110,18 +110,32 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
         .klobuchar_models()
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
 
-    kb_model.map(|(_, sv, kb_model)| KbModel {
-        h_km: {
-            match sv.constellation {
-                Constellation::BeiDou => 375.0,
-                // we only expect GPS or BDS here,
-                // badly formed RINEX will generate errors in the solutions
-                _ => 350.0,
-            }
-        },
-        alpha: kb_model.alpha,
-        beta: kb_model.beta,
-    })
+    if let Some((_, sv, kb_model)) = kb_model {
+        Some(KbModel {
+            h_km: {
+                match sv.constellation {
+                    Constellation::BeiDou => 375.0,
+                    // we only expect GPS or BDS here,
+                    // badly formed RINEX will generate errors in the solutions
+                    _ => 350.0,
+                }
+            },
+            alpha: kb_model.alpha,
+            beta: kb_model.beta,
+        })
+    } else {
+        /* RINEX 3 case */
+        let iono_corr = nav.header.ionod_correction?;
+        if let Some(kb_model) = iono_corr.as_klobuchar() {
+            Some(KbModel {
+                h_km: 350.0, //TODO improve this
+                alpha: kb_model.alpha,
+                beta: kb_model.beta,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
