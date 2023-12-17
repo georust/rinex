@@ -140,7 +140,10 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,
-        None => Config::default(),
+        None => {
+            /* no manual config: we use the optimal known to this day */
+            Config::preset(Method::SPP)
+        },
     };
 
     match cfg.method {
