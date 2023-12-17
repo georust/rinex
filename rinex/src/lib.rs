@@ -2569,7 +2569,7 @@ impl Rinex {
                 // RINEX3 possible case: depicted in the header
                 let ionod_corr = self.header.ionod_correction?;
                 /*
-                 * can only apply to a 24H time frame
+                 * only valid for 24 hours, at publication time
                  */
                 let t0 = self.first_epoch()?;
                 let dt = t - t0;
