@@ -204,32 +204,32 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     }
     /// Returns the manualy defined RFDLY (in nanoseconds!)
     pub fn rf_delay(&self) -> Option<HashMap<Observable, f64>> {
-        self.matches.get_many::<String>("rfdly").map(|delays| delays
-                    .into_iter()
-                    .filter_map(|string| {
-                        let items: Vec<_> = string.split(':').collect();
-                        if items.len() < 2 {
-                            error!("format error, command should be --rf-delay CODE:[nanos]");
-                            None
-                        } else {
-                            let code = items[0].trim();
-                            let nanos = items[0].trim();
-                            if let Ok(code) = Observable::from_str(code) {
-                                if let Ok(f) = nanos.parse::<f64>() {
-                                    Some((code, f))
-                                } else {
-                                    error!("invalid nanos: expecting valid f64");
-                                    None
-                                }
+        self.matches.get_many::<String>("rfdly").map(|delays| {
+            delays
+                .into_iter()
+                .filter_map(|string| {
+                    let items: Vec<_> = string.split(':').collect();
+                    if items.len() < 2 {
+                        error!("format error, command should be --rf-delay CODE:[nanos]");
+                        None
+                    } else {
+                        let code = items[0].trim();
+                        let nanos = items[0].trim();
+                        if let Ok(code) = Observable::from_str(code) {
+                            if let Ok(f) = nanos.parse::<f64>() {
+                                Some((code, f))
                             } else {
-                                error!(
-                                    "invalid pseudo range CODE, expecting codes like \"L1C\",..."
-                                );
+                                error!("invalid nanos: expecting valid f64");
                                 None
                             }
+                        } else {
+                            error!("invalid pseudo range CODE, expecting codes like \"L1C\",...");
+                            None
                         }
-                    })
-                    .collect())
+                    }
+                })
+                .collect()
+        })
     }
     /// Returns the manualy defined REFDLY (in nanoseconds!)
     pub fn reference_time_delay(&self) -> Option<f64> {

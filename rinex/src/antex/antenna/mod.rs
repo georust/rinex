@@ -3,7 +3,7 @@ use crate::Epoch;
 use strum_macros::EnumString;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize};
+use serde::Serialize;
 
 mod sv;
 pub use sv::{Cospar, SvAntenna, SvAntennaParsingError};

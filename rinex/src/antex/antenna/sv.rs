@@ -2,7 +2,7 @@ use gnss_rs::prelude::SV;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize};
+use serde::Serialize;
 
 #[derive(Debug, Clone, Error)]
 pub enum SvAntennaParsingError {

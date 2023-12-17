@@ -131,17 +131,17 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
 
     kb_model.map(|(_, sv, kb_model)| KbModel {
-                h_km: {
-                    match sv.constellation {
-                        Constellation::BeiDou => 375.0,
-                        // we only expect GPS or BDS here,
-                        // badly formed RINEX will generate errors in the solutions
-                        _ => 350.0,
-                    }
-                },
-                alpha: kb_model.alpha,
-                beta: kb_model.beta,
-            })
+        h_km: {
+            match sv.constellation {
+                Constellation::BeiDou => 375.0,
+                // we only expect GPS or BDS here,
+                // badly formed RINEX will generate errors in the solutions
+                _ => 350.0,
+            }
+        },
+        alpha: kb_model.alpha,
+        beta: kb_model.beta,
+    })
 }
 
 fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
@@ -261,8 +261,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                 }
             } else if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
                 let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                let (elevation, azimuth) =
-                    Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
+                let (elevation, azimuth) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
                 Some(
                     InterpolationResult::from_apc_position((x, y, z))
                         .with_elevation_azimuth((elevation, azimuth)),
@@ -340,17 +339,13 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                 if observable.is_pseudorange_observable() {
                     code = Some(Observation {
                         frequency,
-                        snr: {
-                            data.snr.map(|snr| snr.into())
-                        },
+                        snr: { data.snr.map(|snr| snr.into()) },
                         value: data.obs,
                     });
                 } else if observable.is_phase_observable() {
                     phase = Some(Observation {
                         frequency,
-                        snr: {
-                            data.snr.map(|snr| snr.into())
-                        },
+                        snr: { data.snr.map(|snr| snr.into()) },
                         value: data.obs,
                     });
                 }
@@ -367,9 +362,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     if observable.is_doppler_observable() && observable == &doppler_to_match {
                         assoc_doppler = Some(Observation {
                             frequency,
-                            snr: {
-                                data.snr.map(|snr| snr.into())
-                            },
+                            snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,
                         });
                     }

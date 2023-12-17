@@ -3279,7 +3279,9 @@ impl Rinex {
             .filter_map(|(ant, freqdata)| match &ant.specific {
                 AntennaSpecific::SvAntenna(sv_ant) => {
                     if sv_ant.sv == sv {
-                        freqdata.get(&freq).map(|freqdata| freqdata.apc_eccentricity)
+                        freqdata
+                            .get(&freq)
+                            .map(|freqdata| freqdata.apc_eccentricity)
                     } else {
                         None
                     }
@@ -3304,14 +3306,18 @@ impl Rinex {
                 AntennaSpecific::RxAntenna(rx_ant) => match &to_match {
                     AntennaMatcher::IGSCode(code) => {
                         if rx_ant.igs_type.to_lowercase().eq(code) {
-                            freqdata.get(&freq).map(|freqdata| freqdata.apc_eccentricity)
+                            freqdata
+                                .get(&freq)
+                                .map(|freqdata| freqdata.apc_eccentricity)
                         } else {
                             None
                         }
                     },
                     AntennaMatcher::SerialNumber(sn) => {
                         if rx_ant.igs_type.to_lowercase().eq(sn) {
-                            freqdata.get(&freq).map(|freqdata| freqdata.apc_eccentricity)
+                            freqdata
+                                .get(&freq)
+                                .map(|freqdata| freqdata.apc_eccentricity)
                         } else {
                             None
                         }

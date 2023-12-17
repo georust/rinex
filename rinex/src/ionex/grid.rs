@@ -1,5 +1,3 @@
-
-
 use crate::linspace::Linspace;
 
 #[cfg(feature = "serde")]
