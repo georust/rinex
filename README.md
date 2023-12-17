@@ -52,6 +52,8 @@ In other term, positioning is not feasible and you're limited to basic analysis.
 - These tools are oriented towards the latest revisions of the RINEX format.
 RINEX4 is out and we already support it. 
 Some minor features in the RINEX2 or 3 revisions may not be supported.
+- We currently do not support the Channel Number Pseudo Observable, to very precisely
+describe how the signals were sampled.
 - Our command line applications do not accept BINEX or other proprietary formats
 - File production is not fully concluded to this day. We're currently focused
 on RINEX post processing rather than RINEX data production. Do not hesitate to fork and submit
