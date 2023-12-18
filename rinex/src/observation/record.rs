@@ -1412,34 +1412,15 @@ fn dual_freq_combination(
 
                 let beta = match combination {
                     Combination::GeometryFree => 1.0_f64,
-                    Combination::IonosphereFree => {
-                        if ref_observable.is_pseudorange_observable() {
-                            fi.powi(2)
-                        } else {
-                            SPEED_OF_LIGHT * fi
-                        }
-                    },
-                    Combination::WideLane | Combination::NarrowLane => {
-                        if ref_observable.is_pseudorange_observable() {
-                            1.0_f64
-                        } else {
-                            SPEED_OF_LIGHT
-                        }
-                    },
+                    Combination::IonosphereFree => fi.powi(2),
+                    Combination::WideLane | Combination::NarrowLane => fi,
                     Combination::MelbourneWubbena => unreachable!("mw combination"),
                 };
 
                 let gamma = match combination {
                     Combination::GeometryFree => 1.0_f64,
-                    Combination::IonosphereFree => {
-                        if ref_observable.is_pseudorange_observable() {
-                            fj.powi(2) / fi.powi(2)
-                        } else {
-                            fj / fi
-                        }
-                    },
-                    Combination::WideLane => 1.0_f64,
-                    Combination::NarrowLane => 1.0_f64,
+                    Combination::IonosphereFree => fj.powi(2),
+                    Combination::WideLane | Combination::NarrowLane => fj,
                     Combination::MelbourneWubbena => unreachable!("mw combination"),
                 };
 
@@ -1461,8 +1442,8 @@ fn dual_freq_combination(
                 };
 
                 let value = match combination {
-                    Combination::NarrowLane => alpha * beta * (v_i + gamma * v_j),
-                    _ => alpha * beta * (v_i - gamma * v_j),
+                    Combination::NarrowLane => alpha * (beta * v_i + gamma * v_j),
+                    _ => alpha * (beta * v_i - gamma * v_j),
                 };
 
                 let combination = (lhs_observable.clone(), ref_observable.clone());
