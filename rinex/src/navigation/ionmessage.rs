@@ -369,7 +369,7 @@ impl IonMessage {
             "GAL" => {
                 let (a0, rem) = rem.split_at(12);
                 let (a1, rem) = rem.split_at(12);
-                let (a2, rem) = rem.split_at(12);
+                let (a2, _) = rem.split_at(12);
                 let a0 = f64::from_str(a0.trim()).map_err(|_| Error::NgValueError)?;
                 let a1 = f64::from_str(a1.trim()).map_err(|_| Error::NgValueError)?;
                 let a2 = f64::from_str(a2.trim()).map_err(|_| Error::NgValueError)?;
@@ -385,7 +385,7 @@ impl IonMessage {
                 let (a0, rem) = rem.split_at(12);
                 let (a1, rem) = rem.split_at(12);
                 let (a2, rem) = rem.split_at(12);
-                let (a3, rem) = rem.split_at(12);
+                let (a3, _) = rem.split_at(12);
                 // World or QZSS special orbital plan
                 let region = match corr_type.contains("QZS") {
                     true => KbRegionCode::JapanArea,

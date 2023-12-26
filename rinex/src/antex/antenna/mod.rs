@@ -77,16 +77,16 @@ impl Antenna {
             true
         }
     }
-    /// Returns the mean phase center position.
-    /// If Self is a Receiver Antenna ([`RxAntenna`]),
-    /// the returned position is expressed as an offset to the
-    /// Antenna Reference Position (ARP).
-    /// If Self is a Spacecraft Antenna ([`SvAntenna`]),
-    /// the returned position is expressed as an offset to the Spacecraft
-    /// Mass Center.
-    fn mean_phase_center(&self, _reference: (f64, f64, f64)) -> (f64, f64, f64) {
-        (0.0_f64, 0.0_f64, 0.0_f64)
-    }
+    // /// Returns the mean phase center position.
+    // /// If Self is a Receiver Antenna ([`RxAntenna`]),
+    // /// the returned position is expressed as an offset to the
+    // /// Antenna Reference Position (ARP).
+    // /// If Self is a Spacecraft Antenna ([`SvAntenna`]),
+    // /// the returned position is expressed as an offset to the Spacecraft
+    // /// Mass Center.
+    // fn mean_phase_center(&self, _reference: (f64, f64, f64)) -> (f64, f64, f64) {
+    //     (0.0_f64, 0.0_f64, 0.0_f64)
+    // }
     /// Builds an Antenna with given Calibration infos
     pub fn with_calibration(&self, calib: Calibration) -> Self {
         let mut a = self.clone();
@@ -131,23 +131,6 @@ pub enum AntennaSpecific {
 impl Default for AntennaSpecific {
     fn default() -> Self {
         Self::RxAntenna(RxAntenna::default())
-    }
-}
-
-impl AntennaSpecific {
-    /* unwrap as SVAntenna, if possible */
-    pub(crate) fn as_sv_antenna(&self) -> Option<&SvAntenna> {
-        match self {
-            Self::SvAntenna(ant) => Some(ant),
-            _ => None,
-        }
-    }
-    /* unwrap as RxAntenna, if possible */
-    pub(crate) fn as_rx_antenna(&self) -> Option<&RxAntenna> {
-        match self {
-            Self::RxAntenna(ant) => Some(ant),
-            _ => None,
-        }
     }
 }
 

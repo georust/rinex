@@ -1347,7 +1347,6 @@ fn dual_freq_combination(
     rec: &Record,
     combination: Combination,
 ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-    const SPEED_OF_LIGHT: f64 = 2.99792458E8;
     let mut ret: HashMap<
         (Observable, Observable),
         BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>,

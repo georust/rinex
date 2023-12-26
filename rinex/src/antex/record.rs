@@ -213,7 +213,8 @@ fn parse_validity_epoch(content: &str) -> Result<Epoch, Error> {
 
     let ss = items.next().ok_or(Error::DatetimeParsingMissingSeconds)?;
 
-    let (mut secs, mut nanos) = (0_u8, 0_u32);
+    let secs: u8;
+    let mut nanos = 0_u32;
 
     if let Some(dot) = ss.find('.') {
         secs = ss[..dot]

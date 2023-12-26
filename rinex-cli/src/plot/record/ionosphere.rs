@@ -1,10 +1,15 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext};
-use hifitime::{Epoch, TimeScale};
-use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
+// use hifitime::{Epoch, TimeScale};
+use plotly::common::{
+    //Marker,
+    //MarkerSymbol,
+    Mode,
+    Visible,
+};
 
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
-use rinex::navigation::KbModel;
+// use rinex::navigation::KbModel;
 use rinex::prelude::RnxContext;
 
 pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
