@@ -178,16 +178,17 @@ fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>)
     }
 }
 
-fn reset_sv_sig_tracker(
-    sv_sig: (SV, Observable),
-    trackers: &mut HashMap<(SV, Observable), SVTracker>,
-) {
-    for (k, tracker) in trackers {
-        if k == &sv_sig {
-            tracker.reset();
-        }
-    }
-}
+//TODO: see TODO down below
+// fn reset_sv_sig_tracker(
+//     sv_sig: (SV, Observable),
+//     trackers: &mut HashMap<(SV, Observable), SVTracker>,
+// ) {
+//     for (k, tracker) in trackers {
+//         if k == &sv_sig {
+//             tracker.reset();
+//         }
+//     }
+// }
 
 pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // custom tracking duration
@@ -558,7 +559,10 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                         }; // match constellation
                                         tracks.push(track);
                                     },
-                                    Err(e) => warn!("{:?} - track fitting error: \"{}\"", t, e),
+                                    Err(e) => {
+                                        warn!("{:?} - track fitting error: \"{}\"", t, e);
+                                        // TODO: most likely we should reset the SV signal tracker here
+                                    },
                                 } //.fit()
 
                                 // reset so we start a new track
