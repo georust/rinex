@@ -423,7 +423,7 @@ impl Merge for Record {
                 for (lhs_ant, subset) in self.iter_mut() {
                     if lhs_ant == antenna {
                         has_ant |= true;
-                        for (lhs_carrier, lhs_freq_data) in subset.iter_mut() {
+                        for (lhs_carrier, _) in subset.iter_mut() {
                             if lhs_carrier == carrier {
                                 has_signal |= true;
                                 break;

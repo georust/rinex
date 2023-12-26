@@ -9,7 +9,7 @@ use crate::{
     ionex, leap,
     linspace::Linspace,
     meteo,
-    navigation::IonMessage,
+    navigation::{IonMessage, KbModel},
     observation,
     observation::Crinex,
     reader::BufferedReader,
