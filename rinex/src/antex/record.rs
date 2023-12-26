@@ -412,25 +412,35 @@ impl Merge for Record {
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, _rhs: &Self) -> Result<(), merge::Error> {
-        //for antenna in rhs.iter() {
-        //    if self.contains(antenna) {
-        //        let (antenna, frequencies) = antenna;
-        //        for (aantenna, ffrequencies) in self.iter_mut() {
-        //            if antenna == aantenna {
-        //                // for this antenna
-        //                // add missing frequencies
-        //                for frequency in frequencies {
-        //                    if !ffrequencies.contains(frequency) {
-        //                        ffrequencies.push(frequency.clone());
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    } else {
-        //        self.push(antenna.clone());
-        //    }
-        //}
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for (antenna, subset) in rhs.iter() {
+            for (carrier, freqdata) in subset.iter() {
+                /*
+                 * determine whether self contains this antenna & signal or not
+                 */
+                let mut has_ant = false;
+                let mut has_signal = false;
+                for (lhs_ant, subset) in self.iter_mut() {
+                    if lhs_ant == antenna {
+                        has_ant |= true;
+                        for (lhs_carrier, lhs_freq_data) in subset.iter_mut() {
+                            if lhs_carrier == carrier {
+                                has_signal |= true;
+                                break;
+                            }
+                        }
+                        if !has_signal {
+                            subset.insert(carrier.clone(), freqdata.clone());
+                        }
+                    }
+                }
+                if !has_ant {
+                    let mut inner = HashMap::<Carrier, FrequencyDependentData>::new();
+                    inner.insert(carrier.clone(), freqdata.clone());
+                    self.push((antenna.clone(), inner));
+                }
+            }
+        }
         Ok(())
     }
 }

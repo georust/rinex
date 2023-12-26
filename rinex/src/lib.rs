@@ -2930,10 +2930,15 @@ impl Merge for Rinex {
     /// Merges `rhs` into `Self` in place
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         self.header.merge_mut(&rhs.header)?;
-        if self.epoch().count() == 0 {
-            // lhs is empty : overwrite
-            self.record = rhs.record.clone();
-        } else if rhs.epoch().count() != 0 {
+        if !self.is_antex() {
+            if self.epoch().count() == 0 {
+                // lhs is empty : overwrite
+                self.record = rhs.record.clone();
+            } else if rhs.epoch().count() != 0 {
+                // real merge
+                self.record.merge_mut(&rhs.record)?;
+            }
+        } else {
             // real merge
             self.record.merge_mut(&rhs.record)?;
         }
