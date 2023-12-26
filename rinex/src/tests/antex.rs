@@ -90,7 +90,7 @@ mod test {
         );
 
         /*
-         * test crate feature
+         * crate feature: RX antenna location
          */
         let fake_now = Epoch::from_gregorian_utc_at_midnight(2023, 01, 01);
         let apc = rinex.rx_antenna_apc_offset(
@@ -103,5 +103,29 @@ mod test {
             "failed to locate APC for TROSAR25.R4 antenna"
         );
         assert_eq!(apc.unwrap(), (-0.22, -0.01, 154.88));
+    }
+    #[cfg(feature = "flate2")]
+    #[cfg(feature = "antex")]
+    #[test]
+    fn v1_4_igs_atx() {
+        let test_resource =
+            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/ATX/V1/igs14_small.atx.gz";
+
+        let rinex = Rinex::from_file(&test_resource).unwrap();
+
+        let fake_now = Epoch::from_gregorian_utc_at_midnight(2023, 01, 01);
+
+        for (antenna, expected) in [
+            ("JPSLEGANT_E", (1.36, -0.43, 35.44)),
+            ("JPSODYSSEY_I", (1.06, -2.43, 70.34)),
+        ] {
+            let apc = rinex.rx_antenna_apc_offset(
+                fake_now,
+                AntennaMatcher::IGSCode(antenna.to_string()),
+                Carrier::L1,
+            );
+            assert!(apc.is_some(), "failed to locate APC {} antenna", antenna,);
+            assert_eq!(apc.unwrap(), expected);
+        }
     }
 }

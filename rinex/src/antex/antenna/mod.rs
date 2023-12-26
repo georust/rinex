@@ -66,15 +66,15 @@ pub struct Antenna {
 
 impl Antenna {
     /// Returns whether this calibration is valid at the current Epoch
-    /// or not. Antenna Calibrations with undetermined validity period
-    /// (which you rarely encounter), are considered valid.
+    /// or not. Note that specs that did not come with a calibration
+    /// certificate validity are always considered valid.
     /// You then need to refer to the date of that calibration (always given)
     /// and should only consider recently calibrated data.
     pub fn is_valid(&self, now: Epoch) -> bool {
         if let Some((from, until)) = self.calibration.validity_period {
             now > from && now < until
         } else {
-            false
+            true
         }
     }
     /// Returns the mean phase center position.

@@ -251,8 +251,8 @@ pub(crate) fn parse_antenna(
     for line in lines {
         let (content, marker) = line.split_at(60);
         if marker.contains("TYPE / SERIAL NO") {
-            let (ant_igs, rem) = content.split_at(20);
-            let (block1, rem) = rem.split_at(20);
+            let (ant_igs, rem) = content.split_at(16); // IGS V.1.4 does not follow the specs ?
+            let (block1, rem) = rem.split_at(20 + 4);
             let (block2, rem) = rem.split_at(10);
             let (block3, _rem) = rem.split_at(10);
 
