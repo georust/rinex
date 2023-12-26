@@ -11,37 +11,36 @@ RINEX
 
 Rust tool suites to parse, analyze and process [RINEX Data](https://en.wikipedia.org/wiki/RINEX).
 
-Our Wiki contains [several tutorials and applications](https://github.com/georust/rinex/wiki): it will get you started quickly.
+The [Wiki pages](https://github.com/georust/rinex/wiki) contain all the documentation of this project, including several examples spanning different applications of GNSS.
 
-For any question or problems you may experience:
-
-- open a new issue
-- drop us a message [on Discord](https://discord.gg/Fp2aape)
+If you have any question or experience any problems, feel free to open an issue on Github.  
+You can also contact us [on our Discord channel](https://discord.gg/Fp2aape)
 
 ## Advantages :rocket: 
 
-- Fast
+- Fast :crab:
 - Open sources
-- Native Hatanaka decompression and compression
-- Seamless .gzip decompression with `flate2` compilation feature
-- RINEX V4 full support, that includes modern Navigation messages
+- Seamless Hatanaka compression and decompression
+- Seamless Gzip decompression with `flate2` build option
+- RINEX V4 full support
 - Meteo RINEX full support
-- IONEX (2D) support, partial 3D support
+- IONEX 2D support. Partial IONEX 3D support.
 - Clock RINEX partial support: to be concluded soon
-- File merging, splitting and pre processing
-- Modern constellations like BeiDou, Galileo and IRNSS
-- Supported time scales are GPST, BDT, GST, UTC
+- Several pre processing operations:
+  - File merging
+  - Time beaning 
+  - Filtering.. 
+- Several post processing operations
+- All modern GNSS constellations
+- Modern GNSS codes and signals
+- Time scales: GPST, BDT, GST, UTC
 - Supports many SBAS, refer to online documentation
-- Full support of Military codes : if you're working with such signals you can
-at least run a -qc analysis, and possibly the position solver once it is merged 
-- Supports high precision RINEX (scaled phase data with micro cycle precision)
-- RINEX post processing like SNR, DCB analysis, Broadcast ephemeris interpolation,
-high precision orbit interpolation (SP3)..
-- RINEX-qc: statistical analysis that you can request in the "cli" application directly.
-Analysis can run on modern GNSS signals and SP3 high precision data.
-Emulates "teqc" historical application.
-- An SPP/PPP position solver (under development), in the form of the "gnss-rtk" library that you can
-summon from the "cli" application directly.
+- High precision RINEX (carrier phase micro cycle precision)
+- High precision orbit support (SP3)
+- Quality Check (QC): file quality and statistical analysis to help precise positioning
+(historical `teqc` function).
+- SPP: Single Point Positioning
+- PPP: Precise Point Positioning is work in progress :warning:
 
 ## Disadvantages :warning:
 
