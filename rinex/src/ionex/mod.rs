@@ -8,7 +8,8 @@ pub mod record;
 pub use record::{Record, TECPlane, TEC};
 
 pub mod grid;
-pub use grid::{Grid, GridLinspace};
+use crate::linspace::Linspace;
+pub use grid::Grid;
 
 pub mod system;
 pub use system::RefSystem;
@@ -170,19 +171,19 @@ impl HeaderFields {
         s
     }
     /// Adds latitude grid definition
-    pub fn with_latitude_grid(&self, grid: GridLinspace) -> Self {
+    pub fn with_latitude_grid(&self, grid: Linspace) -> Self {
         let mut s = self.clone();
         s.grid.latitude = grid;
         s
     }
     /// Adds longitude grid definition
-    pub fn with_longitude_grid(&self, grid: GridLinspace) -> Self {
+    pub fn with_longitude_grid(&self, grid: Linspace) -> Self {
         let mut s = self.clone();
         s.grid.longitude = grid;
         s
     }
     /// Adds altitude grid definition
-    pub fn with_altitude_grid(&self, grid: GridLinspace) -> Self {
+    pub fn with_altitude_grid(&self, grid: Linspace) -> Self {
         let mut s = self.clone();
         s.grid.height = grid;
         s

@@ -454,23 +454,13 @@ pub fn parse_record(
                         }
                     },
                     Type::AntennaData => {
-                        if let Ok((antenna, frequencies)) =
-                            antex::record::parse_epoch(&epoch_content)
-                        {
-                            let mut found = false;
-                            for (ant, freqz) in atx_rec.iter_mut() {
-                                if *ant == antenna {
-                                    for f in frequencies.iter() {
-                                        freqz.push(f.clone());
-                                    }
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if !found {
-                                atx_rec.push((antenna, frequencies));
-                            }
-                        }
+                        let (antenna, content) =
+                            antex::record::parse_antenna(&epoch_content).unwrap();
+                        atx_rec.push((antenna, content));
+                        //if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content)
+                        //{
+                        //    atx_rec.push((antenna, content));
+                        //}
                     },
                     Type::IonosphereMaps => {
                         if let Ok((epoch, altitude, plane)) =
@@ -611,21 +601,11 @@ pub fn parse_record(
             }
         },
         Type::AntennaData => {
-            if let Ok((antenna, frequencies)) = antex::record::parse_epoch(&epoch_content) {
-                let mut found = false;
-                for (ant, freqz) in atx_rec.iter_mut() {
-                    if *ant == antenna {
-                        for f in frequencies.iter() {
-                            freqz.push(f.clone());
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    atx_rec.push((antenna, frequencies));
-                }
-            }
+            //if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content) {
+            //    atx_rec.push((antenna, content));
+            //}
+            let (antenna, content) = antex::record::parse_antenna(&epoch_content).unwrap();
+            atx_rec.push((antenna, content));
         },
     }
     // new comments ?

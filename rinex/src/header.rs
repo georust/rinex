@@ -6,7 +6,11 @@ use crate::{
     clocks::{ClockAnalysisAgency, ClockDataType},
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
-    ionex, leap, meteo, observation,
+    ionex, leap,
+    linspace::Linspace,
+    meteo,
+    navigation::{IonMessage, KbModel},
+    observation,
     observation::Crinex,
     reader::BufferedReader,
     types::Type,
@@ -23,7 +27,7 @@ use thiserror::Error;
 use crate::{fmt_comment, fmt_rinex};
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -99,7 +103,7 @@ pub struct PcvCompensation {
 
 /// Describes `RINEX` file header
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: Version,
@@ -158,6 +162,10 @@ pub struct Header {
     /// attached to a specifid SV, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
+    /// Possible Ionospheric Delay correction model.
+    /// Only exists in NAV V3 headers. In modern NAV, this
+    /// is regularly updated in the file's body.
+    pub ionod_correction: Option<IonMessage>,
     /// Possible DCBs compensation information
     pub dcb_compensations: Vec<DcbCompensation>,
     /// Possible PCVs compensation information
@@ -218,7 +226,7 @@ pub enum ParsingError {
     #[error("failed to parse ionex grid {0} from \"{1}\"")]
     InvalidIonexGrid(String, String),
     #[error("invalid ionex grid definition")]
-    InvalidIonexGridDefinition(#[from] ionex::grid::Error),
+    InvalidIonexGridDefinition(#[from] linspace::Error),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -295,6 +303,7 @@ impl Header {
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
+        let mut ionod_correction = Option::<IonMessage>::None;
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
         let mut scaling_count = 0_u16;
         // RINEX specific fields
@@ -412,10 +421,10 @@ impl Header {
                             pcv = pcv.with_relative_type(rel_type.trim());
                         }
                     }
-                    antex = antex.with_pcv(pcv);
+                    antex = antex.with_pcv_type(pcv);
                 }
                 if !ref_sn.trim().is_empty() {
-                    antex = antex.with_serial_number(ref_sn.trim())
+                    antex = antex.with_reference_antenna_sn(ref_sn.trim());
                 }
             } else if marker.contains("TYPE / SERIAL NO") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
@@ -962,9 +971,32 @@ impl Header {
                 //TODO
                 //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA
             } else if marker.contains("IONOSPHERIC CORR") {
-                // TODO
-                // GPSA 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
-                // GPSB 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
+                /*
+                 * RINEX < 4 IONOSPHERIC Correction
+                 * we still use the IonMessage (V4 compatible),
+                 * the record will just contain a single model for the entire day course
+                 */
+                if let Ok(model) = IonMessage::from_rinex3_header(content) {
+                    // The Klobuchar model needs two lines to be entirely described.
+                    if let Some(kb_model) = model.as_klobuchar() {
+                        let correction_type = content.split_at(5).0.trim();
+                        if correction_type.ends_with("B") {
+                            let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
+                            let (beta, region) = (kb_model.beta, kb_model.region);
+                            ionod_correction = Some(IonMessage::KlobucharModel(KbModel {
+                                alpha,
+                                beta,
+                                region,
+                            }));
+                        } else {
+                            ionod_correction = Some(IonMessage::KlobucharModel(*kb_model));
+                        }
+                    } else {
+                        // The NequickG model fits on a single line.
+                        // The BDGIM does not exist until RINEX4
+                        ionod_correction = Some(model);
+                    }
+                }
             } else if marker.contains("TIME SYSTEM CORR") {
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
                 /*
@@ -1047,14 +1079,14 @@ impl Header {
                     let grid = match spacing == 0.0 {
                         true => {
                             // special case, 2D fixed altitude
-                            ionex::GridLinspace {
+                            Linspace {
                                 // avoid verifying the Linspace in this case
                                 start,
                                 end,
                                 spacing: 0.0,
                             }
                         },
-                        _ => ionex::GridLinspace::new(start, end, spacing)?,
+                        _ => Linspace::new(start, end, spacing)?,
                     };
 
                     ionex = ionex.with_altitude_grid(grid);
@@ -1082,8 +1114,7 @@ impl Header {
                         spacing
                     )))?;
 
-                    ionex =
-                        ionex.with_latitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                    ionex = ionex.with_latitude_grid(Linspace::new(start, end, spacing)?);
                 } else {
                     return Err(grid_format_error!("LAT1 / LAT2 / DLAT", content));
                 }
@@ -1108,8 +1139,7 @@ impl Header {
                         spacing
                     )))?;
 
-                    ionex =
-                        ionex.with_longitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                    ionex = ionex.with_longitude_grid(Linspace::new(start, end, spacing)?);
                 } else {
                     return Err(grid_format_error!("LON1 / LON2 / DLON", content));
                 }
@@ -1139,6 +1169,7 @@ impl Header {
             glo_channels,
             leap,
             ground_position,
+            ionod_correction,
             dcb_compensations,
             pcv_compensations,
             wavelengths: None,
@@ -1905,12 +1936,12 @@ impl Merge for Header {
             if let Some(rhs) = &rhs.antex {
                 // ANTEX records can only be merged together
                 // if they have the same type of inner phase data
-                let mut mixed_antex = lhs.pcv.is_relative() && !rhs.pcv.is_relative();
-                mixed_antex |= !lhs.pcv.is_relative() && rhs.pcv.is_relative();
+                let mut mixed_antex = lhs.pcv_type.is_relative() && !rhs.pcv_type.is_relative();
+                mixed_antex |= !lhs.pcv_type.is_relative() && rhs.pcv_type.is_relative();
                 if mixed_antex {
                     return Err(merge::Error::AntexAbsoluteRelativeMismatch);
                 }
-                merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
+                // merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
         }
         if let Some(lhs) = &mut self.clocks {

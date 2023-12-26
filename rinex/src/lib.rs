@@ -26,6 +26,7 @@ pub mod version;
 mod bibliography;
 mod ground_position;
 mod leap;
+mod linspace;
 mod observable;
 
 #[cfg(test)]
@@ -52,7 +53,8 @@ use writer::BufferedWriter;
 use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
-use hifitime::Duration;
+use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
+use hifitime::{Duration, Unit};
 use ionex::TECPlane;
 use observable::Observable;
 use observation::Crinex;
@@ -60,6 +62,8 @@ use version::Version;
 
 /// Package to include all basic structures
 pub mod prelude {
+    #[cfg(feature = "antex")]
+    pub use crate::antex::AntennaMatcher;
     #[cfg(feature = "sp3")]
     pub use crate::context::RnxContext;
     pub use crate::epoch::EpochFlag;
@@ -1613,7 +1617,7 @@ impl Rinex {
     }
     /// Returns Navigation Data interator (any type of message).
     /// NAV records may contain several different types of frames.
-    /// You should prefer narrowed down methods, like [ephemeris] or
+    /// You should prefer more precise methods, like [ephemeris] or
     /// [ionosphere_models] but those require the "nav" feature.
     /// ```
     /// use rinex::prelude::*;
@@ -1638,6 +1642,17 @@ impl Rinex {
         Box::new(
             self.record
                 .as_nav()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
+    /// ANTEX antennas specifications browsing
+    pub fn antennas(
+        &self,
+    ) -> Box<dyn Iterator<Item = &(Antenna, HashMap<Carrier, FrequencyDependentData>)> + '_> {
+        Box::new(
+            self.record
+                .as_antex()
                 .into_iter()
                 .flat_map(|record| record.iter()),
         )
@@ -2459,8 +2474,11 @@ impl Rinex {
                 }),
         )
     }
-    /// Returns [`IonMessage`] frames Iterator
-    pub fn ionosphere_models(
+    /// [`IonMessage`] (Ionospheric corrections) frames Iterator.
+    /// Prefer the [ionod_correction] method down below, to determine the
+    /// Ionospheric correction to apply at a given time and for a given system.
+    /// This will only return correction models in RINEX4, as they're regularly updated.
+    pub fn ionod_correction_models(
         &self,
     ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &IonMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
@@ -2487,7 +2505,7 @@ impl Rinex {
     /// ```
     pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, SV, KbModel)> + '_> {
         Box::new(
-            self.ionosphere_models()
+            self.ionod_correction_models()
                 .filter_map(|(e, (_, sv, ion))| ion.as_klobuchar().map(|model| (*e, sv, *model))),
         )
     }
@@ -2503,7 +2521,7 @@ impl Rinex {
     /// ```
     pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
         Box::new(
-            self.ionosphere_models()
+            self.ionod_correction_models()
                 .filter_map(|(e, (_, _, ion))| ion.as_nequick_g().map(|model| (*e, *model))),
         )
     }
@@ -2518,12 +2536,19 @@ impl Rinex {
     /// ```
     pub fn bdgim_models(&self) -> Box<dyn Iterator<Item = (Epoch, BdModel)> + '_> {
         Box::new(
-            self.ionosphere_models()
+            self.ionod_correction_models()
                 .filter_map(|(e, (_, _, ion))| ion.as_bdgim().map(|model| (*e, *model))),
         )
     }
-    /// Returns Ionospheric Delay Model (as meters of delay) to use
-    pub fn ionod_model(
+    /// Returns Ionospheric delay correction to apply at given Epoch
+    /// and given location on Earth.
+    /// The correction is expressed as meters of delay.
+    /// If Self is a RINEX3, it can only describe a correction for a 24H time frame.
+    /// If "t" is not close enough to T0 of this file, we will not propose its model.
+    /// The same correction will also apply for that entire day.
+    /// Only RINEX4 can truly represent regularly updated correction models. This method
+    /// will return the closest correction in time.
+    pub fn ionod_correction(
         &self,
         t: Epoch,
         sv_elevation: f64,
@@ -2532,11 +2557,30 @@ impl Rinex {
         user_lon_ddeg: f64,
         carrier: Carrier,
     ) -> Option<f64> {
-        // grab nearest model ; in time
-        let (_, model) = self
-            .ionosphere_models()
+        // determine nearest in time
+        let nearest_model = self
+            .ionod_correction_models()
             .map(|(t, (_, sv, msg))| (t, (sv, msg)))
-            .min_by_key(|(t_i, _)| (t - **t_i).abs())?;
+            .min_by_key(|(t_i, _)| (t - **t_i).abs());
+
+        let (t, model) = match nearest_model {
+            Some((t, (model_sv, model))) => (*t, (model_sv, *model)),
+            None => {
+                // RINEX3 possible case: depicted in the header
+                let ionod_corr = self.header.ionod_correction?;
+                /*
+                 * only valid for 24 hours, at publication time
+                 */
+                let t0 = self.first_epoch()?;
+                let dt = t - t0;
+                let total_seconds = dt.to_seconds();
+                if total_seconds >= 0.0 && dt < 24 * Unit::Hour {
+                    (t0, (SV::default(), ionod_corr))
+                } else {
+                    return None;
+                }
+            },
+        };
 
         let (model_sv, model) = model;
 
@@ -2886,10 +2930,15 @@ impl Merge for Rinex {
     /// Merges `rhs` into `Self` in place
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         self.header.merge_mut(&rhs.header)?;
-        if self.epoch().count() == 0 {
-            // lhs is empty : overwrite
-            self.record = rhs.record.clone();
-        } else if rhs.epoch().count() != 0 {
+        if !self.is_antex() {
+            if self.epoch().count() == 0 {
+                // lhs is empty : overwrite
+                self.record = rhs.record.clone();
+            } else if rhs.epoch().count() != 0 {
+                // real merge
+                self.record.merge_mut(&rhs.record)?;
+            }
+        } else {
             // real merge
             self.record.merge_mut(&rhs.record)?;
         }
@@ -3230,6 +3279,87 @@ impl Rinex {
             (ionex.grid.latitude.start, ionex.grid.longitude.start),
             (ionex.grid.latitude.end, ionex.grid.longitude.end),
         ))
+    }
+}
+
+/*
+ * ANTEX specific feature
+ */
+#[cfg(feature = "antex")]
+#[cfg_attr(docrs, doc(cfg(feature = "antex")))]
+impl Rinex {
+    /// Iterates over antenna specifications that are still valid
+    pub fn antex_valid_calibrations(
+        &self,
+        now: Epoch,
+    ) -> Box<dyn Iterator<Item = (&Antenna, &HashMap<Carrier, FrequencyDependentData>)> + '_> {
+        Box::new(self.antennas().filter_map(move |(ant, data)| {
+            if ant.is_valid(now) {
+                Some((ant, data))
+            } else {
+                None
+            }
+        }))
+    }
+    /// Returns APC offset for given spacecraft, expressed in NEU coordinates [mm] for given
+    /// frequency. "now" is used to determine calibration validity (in time).
+    pub fn sv_antenna_apc_offset(
+        &self,
+        now: Epoch,
+        sv: SV,
+        freq: Carrier,
+    ) -> Option<(f64, f64, f64)> {
+        self.antex_valid_calibrations(now)
+            .filter_map(|(ant, freqdata)| match &ant.specific {
+                AntennaSpecific::SvAntenna(sv_ant) => {
+                    if sv_ant.sv == sv {
+                        freqdata
+                            .get(&freq)
+                            .map(|freqdata| freqdata.apc_eccentricity)
+                    } else {
+                        None
+                    }
+                },
+                _ => None,
+            })
+            .reduce(|k, _| k) // we're expecting a single match here
+    }
+    /// Returns APC offset for given RX Antenna model (ground station model).
+    /// Model name is the IGS code, which has to match exactly but we're case insensitive.
+    /// The APC offset is expressed in NEU coordinates
+    /// [mm]. "now" is used to determine calibration validity (in time).
+    pub fn rx_antenna_apc_offset(
+        &self,
+        now: Epoch,
+        matcher: AntennaMatcher,
+        freq: Carrier,
+    ) -> Option<(f64, f64, f64)> {
+        let to_match = matcher.to_lowercase();
+        self.antex_valid_calibrations(now)
+            .filter_map(|(ant, freqdata)| match &ant.specific {
+                AntennaSpecific::RxAntenna(rx_ant) => match &to_match {
+                    AntennaMatcher::IGSCode(code) => {
+                        if rx_ant.igs_type.to_lowercase().eq(code) {
+                            freqdata
+                                .get(&freq)
+                                .map(|freqdata| freqdata.apc_eccentricity)
+                        } else {
+                            None
+                        }
+                    },
+                    AntennaMatcher::SerialNumber(sn) => {
+                        if rx_ant.igs_type.to_lowercase().eq(sn) {
+                            freqdata
+                                .get(&freq)
+                                .map(|freqdata| freqdata.apc_eccentricity)
+                        } else {
+                            None
+                        }
+                    },
+                },
+                _ => None,
+            })
+            .reduce(|k, _| k) // we're expecting a single match here
     }
 }
 

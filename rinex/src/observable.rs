@@ -23,6 +23,10 @@ pub enum Observable {
     SSI(String),
     /// Pseudo range observation
     PseudoRange(String),
+    /// Channel number Pseudo Observable.
+    /// Attached to Pahse or PseudoRange observable to accurately
+    /// described how they were sampled.
+    ChannelNumber(String),
     /// Pressure observation in hPa
     Pressure,
     /// Dry temperature measurement in Celcius degrees
@@ -64,6 +68,9 @@ impl Observable {
     }
     pub fn is_ssi_observable(&self) -> bool {
         matches!(self, Self::SSI(_))
+    }
+    pub fn is_channel_number(&self) -> bool {
+        matches!(self, Self::ChannelNumber(_))
     }
     pub fn code(&self) -> Option<String> {
         match self {
@@ -279,9 +286,11 @@ impl std::fmt::Display for Observable {
             Self::WindSpeed => write!(f, "WS"),
             Self::RainIncrement => write!(f, "RI"),
             Self::HailIndicator => write!(f, "HI"),
-            Self::SSI(c) | Self::Phase(c) | Self::Doppler(c) | Self::PseudoRange(c) => {
-                write!(f, "{}", c)
-            },
+            Self::PseudoRange(c) => write!(f, "{}", c),
+            Self::Phase(c) => write!(f, "{}", c),
+            Self::Doppler(c) => write!(f, "{}", c),
+            Self::SSI(c) => write!(f, "{}", c),
+            Self::ChannelNumber(x) => write!(f, "{}", x),
         }
     }
 }

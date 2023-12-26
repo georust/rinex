@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use crate::carrier::Carrier;
     use crate::navigation::*;
     use crate::prelude::*;
     use gnss_rs::prelude::SV;
@@ -1175,7 +1176,7 @@ mod test {
                 }
             }
         }
-        for (epoch, (msg, sv, iondata)) in rinex.ionosphere_models() {
+        for (epoch, (msg, sv, iondata)) in rinex.ionod_correction_models() {
             if sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::LNAV);
                 if *epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
@@ -1437,6 +1438,63 @@ mod test {
                     rinex.sv_ephemeris(expected_sv, toe),
                     Some((expected_toe, ephemeris)),
                     "sv_ephemeris(sv,t) @ toe should strictly identical ephemeris"
+                );
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "nav")]
+    fn v3_ionospheric_corr() {
+        let path = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V3")
+            .join("CBW100NLD_R_20210010000_01D_MN.rnx");
+        let rinex = Rinex::from_file(&path.to_string_lossy());
+        assert!(
+            rinex.is_ok(),
+            "failed to parse NAV/V3/BCW100NLD_R_2021, error: {:?}",
+            rinex.err()
+        );
+        let rinex = rinex.unwrap();
+
+        for (t0, should_work) in [
+            // MIDNIGHT T0 exact match
+            (Epoch::from_gregorian_utc_at_midnight(2021, 01, 01), true),
+            // VALID day course : 1sec into that day
+            (Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 1, 0), true),
+            // VALID day course : random into that dat
+            (Epoch::from_gregorian_utc(2021, 01, 01, 05, 33, 24, 0), true),
+            // VALID day course : 1 sec prior next day
+            (Epoch::from_str("2021-01-01T23:59:59 GPST").unwrap(), true),
+            // TOO LATE : MIDNIGHT DAY +1
+            (Epoch::from_str("2021-01-02T00:00:00 GPST").unwrap(), false),
+            // TOO LATE : MIDNIGHT DAY +1
+            (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
+            // TOO EARLY
+            (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
+        ] {
+            let ionod_corr = rinex.ionod_correction(
+                t0,
+                30.0,               // fake elev: DONT CARE
+                30.0,               // fake azim: DONT CARE
+                10.0,               // fake latitude: DONT CARE
+                20.0,               // fake longitude: DONT CARE
+                Carrier::default(), // fake signal: DONT CARE
+            );
+            if should_work {
+                assert!(
+                    ionod_corr.is_some(),
+                    "v3 ionod corr: should have returned a correction model for datetime {:?}",
+                    t0
+                );
+            } else {
+                assert!(
+                    ionod_corr.is_none(),
+                    "v3 ionod corr: should not have returned a correction model for datetime {:?}",
+                    t0
                 );
             }
         }

@@ -18,11 +18,10 @@ use rtk::prelude::{
     Config,
     Duration,
     Epoch,
-    InterpolatedPosition,
     InterpolationResult,
     IonosphericBias,
     KbModel,
-    Mode,
+    Method,
     NgModel,
     Observation,
     PVTSolutionType,
@@ -131,22 +130,31 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
         .klobuchar_models()
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
 
-    match kb_model {
-        Some((_, sv, kb_model)) => {
+    if let Some((_, sv, kb_model)) = kb_model {
+        Some(KbModel {
+            h_km: {
+                match sv.constellation {
+                    Constellation::BeiDou => 375.0,
+                    // we only expect GPS or BDS here,
+                    // badly formed RINEX will generate errors in the solutions
+                    _ => 350.0,
+                }
+            },
+            alpha: kb_model.alpha,
+            beta: kb_model.beta,
+        })
+    } else {
+        /* RINEX 3 case */
+        let iono_corr = nav.header.ionod_correction?;
+        if let Some(kb_model) = iono_corr.as_klobuchar() {
             Some(KbModel {
-                h_km: {
-                    match sv.constellation {
-                        Constellation::BeiDou => 375.0,
-                        // we only expect GPS or BDS here,
-                        // badly formed RINEX will generate errors in the solutions
-                        _ => 350.0,
-                    }
-                },
+                h_km: 350.0, //TODO improve this
                 alpha: kb_model.alpha,
                 beta: kb_model.beta,
             })
-        },
-        None => None,
+        } else {
+            None
+        }
     }
 }
 
@@ -170,34 +178,35 @@ fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>)
     }
 }
 
-fn reset_sv_sig_tracker(
-    sv_sig: (SV, Observable),
-    trackers: &mut HashMap<(SV, Observable), SVTracker>,
-) {
-    for (k, tracker) in trackers {
-        if k == &sv_sig {
-            tracker.reset();
-        }
-    }
-}
+//TODO: see TODO down below
+// fn reset_sv_sig_tracker(
+//     sv_sig: (SV, Observable),
+//     trackers: &mut HashMap<(SV, Observable), SVTracker>,
+// ) {
+//     for (k, tracker) in trackers {
+//         if k == &sv_sig {
+//             tracker.reset();
+//         }
+//     }
+// }
 
 pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     // custom tracking duration
     let trk_duration = cli.tracking_duration();
     info!("tracking duration set to {}", trk_duration);
 
-    // custom strategy
-    let mode = cli.solver_mode();
-    match mode {
-        Mode::SPP => info!("single point positioning"),
-        Mode::LSQSPP => info!("recursive lsq single point positioning"),
-        Mode::PPP => info!("precise point positioning"),
-    };
-
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,
-        None => Config::default(mode),
+        None => {
+            /* no manual config: we use the optimal known to this day */
+            Config::preset(Method::SPP)
+        },
+    };
+
+    match cfg.method {
+        Method::SPP => info!("single point positioning"),
+        Method::PPP => info!("precise point positioning"),
     };
 
     let pos = match cli.manual_apc() {
@@ -235,12 +244,12 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
     };
 
     let sp3_data = ctx.sp3_data();
+    let atx_data = ctx.atx_data();
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
-        mode,
-        apriori,
         &cfg,
+        apriori,
         /* state vector interpolator */
         |t, sv, order| {
             /* SP3 source is prefered */
@@ -249,47 +258,41 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                     let (elevation, azimuth) =
                         Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(InterpolationResult {
-                        azimuth,
-                        elevation,
-                        velocity: None,
-                        position: InterpolatedPosition::MassCenter(Vector3::new(x, y, z)),
-                    })
+                    Some(
+                        InterpolationResult::from_mass_center_position((x, y, z))
+                            .with_elevation_azimuth((elevation, azimuth)),
+                    )
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
                     if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
                         let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                         let (elevation, azimuth) =
                             Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                        Some(InterpolationResult {
-                            azimuth,
-                            elevation,
-                            velocity: None,
-                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(
-                                x, y, z,
-                            )),
-                        })
+                        Some(
+                            InterpolationResult::from_apc_position((x, y, z))
+                                .with_elevation_azimuth((elevation, azimuth)),
+                        )
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
                         None
                     }
                 }
+            } else if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                let (elevation, azimuth) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
+                Some(
+                    InterpolationResult::from_apc_position((x, y, z))
+                        .with_elevation_azimuth((elevation, azimuth)),
+                )
             } else {
-                if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                    let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(InterpolationResult {
-                        azimuth,
-                        elevation,
-                        velocity: None,
-                        position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
-                    })
-                } else {
-                    // debug!("{:?} ({}): nav interpolation failed", t, sv);
-                    None
-                }
+                // debug!("{:?} ({}): nav interpolation failed", t, sv);
+                None
             }
+        },
+        /* APC corrections provider */
+        |_t, _sv, _freq| {
+            let _atx = atx_data?;
+            None
         },
     )?;
 
@@ -354,25 +357,13 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                 if observable.is_pseudorange_observable() {
                     code = Some(Observation {
                         frequency,
-                        snr: {
-                            if let Some(snr) = data.snr {
-                                Some(snr.into())
-                            } else {
-                                None
-                            }
-                        },
+                        snr: { data.snr.map(|snr| snr.into()) },
                         value: data.obs,
                     });
                 } else if observable.is_phase_observable() {
                     phase = Some(Observation {
                         frequency,
-                        snr: {
-                            if let Some(snr) = data.snr {
-                                Some(snr.into())
-                            } else {
-                                None
-                            }
-                        },
+                        snr: { data.snr.map(|snr| snr.into()) },
                         value: data.obs,
                     });
                 }
@@ -389,13 +380,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     if observable.is_doppler_observable() && observable == &doppler_to_match {
                         assoc_doppler = Some(Observation {
                             frequency,
-                            snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
-                            },
+                            snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,
                         });
                     }
@@ -472,15 +457,9 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                             None => 0.0_f64,
                         };
 
-                        let mdio = match pvt_data.iono_bias.modeled {
-                            Some(iono) => Some(iono),
-                            None => None,
-                        };
+                        let mdio = pvt_data.iono_bias.modeled;
 
-                        let msio = match pvt_data.iono_bias.measured {
-                            Some(iono) => Some(iono),
-                            None => None,
-                        };
+                        let msio = pvt_data.iono_bias.measured;
 
                         debug!(
                             "{:?} : new {}:{} PVT solution (elev={:.2}°, azi={:.2}°, REFSV={:.3E}, REFSYS={:.3E})",
@@ -536,7 +515,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                     dominant_sampling_period,
                                     trk_midpoint,
                                 ) {
-                                    Ok(((trk_elev, trk_azi), trk_data)) => {
+                                    Ok(((trk_elev, trk_azi), trk_data, _iono_data)) => {
                                         info!(
                                             "{:?} - new {} track: elev {:.2}° - azi {:.2}° - REFSV {:.3E} REFSYS {:.3E}",
                                             t,
@@ -580,7 +559,10 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                                         }; // match constellation
                                         tracks.push(track);
                                     },
-                                    Err(e) => warn!("{:?} - track fitting error: \"{}\"", t, e),
+                                    Err(e) => {
+                                        warn!("{:?} - track fitting error: \"{}\"", t, e);
+                                        // TODO: most likely we should reset the SV signal tracker here
+                                    },
                                 } //.fit()
 
                                 // reset so we start a new track

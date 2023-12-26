@@ -1,7 +1,5 @@
 use crate::{merge, merge::Merge, prelude::*, split, split::Split};
 
-use super::grid;
-
 use crate::epoch;
 use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
@@ -67,7 +65,7 @@ pub enum Error {
     #[error("faulty epoch description")]
     EpochDescriptionError,
     #[error("bad grid definition")]
-    BadGridDefinition(#[from] grid::Error),
+    BadGridDefinition(#[from] crate::linspace::Error),
     #[error("failed to parse {0} coordinates from \"{1}\"")]
     CoordinatesParsing(String, String),
     #[error("failed to parse epoch")]

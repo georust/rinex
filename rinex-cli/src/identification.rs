@@ -105,7 +105,7 @@ struct SSIReport {
 
 fn report_sampling_histogram(data: &Vec<(Duration, usize)>) {
     let data: HashMap<String, usize> = data
-        .into_iter()
+        .iter()
         .map(|(dt, pop)| (dt.to_string(), *pop))
         .collect();
     println!("{:#?}", data);

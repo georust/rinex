@@ -77,11 +77,11 @@ pub(crate) fn context_stem(ctx: &RnxContext) -> String {
  */
 pub fn workspace_path(ctx: &RnxContext, cli: &Cli) -> PathBuf {
     match cli.workspace() {
-        Some(w) => Path::new(w).join(&context_stem(ctx)),
+        Some(w) => Path::new(w).join(context_stem(ctx)),
         None => Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("WORKSPACE")
-            .join(&context_stem(ctx)),
+            .join(context_stem(ctx)),
     }
 }
 
@@ -133,7 +133,7 @@ fn build_context(cli: &Cli) -> RnxContext {
  * Returns true if Skyplot view if feasible and allowed
  */
 fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() || cli.positioning_only() {
+    if cli.quality_check_only() || cli.positioning() {
         /*
          * Special modes: no plots allowed
          */
@@ -240,12 +240,7 @@ pub fn main() -> Result<(), Error> {
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
-    let positioning_only = cli.positioning_only();
-    let positioning = cli.positioning() || positioning_only;
-
-    if !positioning {
-        warn!("position solver currently turned off");
-    }
+    let positioning = cli.positioning();
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -337,7 +332,7 @@ pub fn main() -> Result<(), Error> {
             None => String::from("merged.rnx"),
         };
 
-        let path = workspace.clone().join(&filename);
+        let path = workspace.clone().join(filename);
 
         let path = path
             .as_path()
@@ -406,10 +401,8 @@ pub fn main() -> Result<(), Error> {
             let ground_pos = ctx.ground_position().unwrap(); // infaillible
             plot::skyplot(nav, ground_pos, &mut plot_ctx);
             info!("skyplot view generated");
-        } else {
-            if !no_graph {
-                info!("skyplot view is not feasible");
-            }
+        } else if !no_graph {
+            info!("skyplot view is not feasible");
         }
     }
     /*
@@ -431,7 +424,7 @@ pub fn main() -> Result<(), Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only && !positioning_only && !no_graph {
+    if !qc_only && !positioning && !no_graph {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
 

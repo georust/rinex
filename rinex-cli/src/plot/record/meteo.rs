@@ -22,7 +22,7 @@ pub fn plot_meteo(rnx: &Rinex, plot_context: &mut PlotContext) {
             Observable::HailIndicator => "",
             _ => unreachable!(),
         };
-        plot_context.add_cartesian2d_plot(
+        plot_context.add_timedomain_plot(
             &format!("{} Observations", observable),
             &format!("{} [{}]", observable, unit),
         );

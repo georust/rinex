@@ -13,7 +13,7 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
          */
         for (sv_index, sv) in nav.sv().enumerate() {
             if sv_index == 0 {
-                plot_ctx.add_cartesian2d_2y_plot(
+                plot_ctx.add_timedomain_2y_plot(
                     "SV Clock Bias",
                     "Clock Bias [s]",
                     "Clock Drift [s/s]",
@@ -105,7 +105,7 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     if let Some(sp3) = ctx.sp3_data() {
         for (sv_index, sv) in sp3.sv().enumerate() {
             if sv_index == 0 && !clock_plot_created {
-                plot_ctx.add_cartesian2d_2y_plot(
+                plot_ctx.add_timedomain_2y_plot(
                     "SV Clock Bias",
                     "Clock Bias [s]",
                     "Clock Drift [s/s]",
@@ -234,17 +234,10 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
      */
     if let Some(sp3) = ctx.sp3_data() {
         for (sv_index, sv) in sp3.sv().enumerate() {
-            if sv_index == 0 {
-                if !pos_plot_created {
-                    plot_ctx.add_cartesian3d_plot(
-                        "SV Orbit (broadcast)",
-                        "x [km]",
-                        "y [km]",
-                        "z [km]",
-                    );
-                    trace!("broadcast orbit plot");
-                    pos_plot_created = true;
-                }
+            if sv_index == 0 && !pos_plot_created {
+                plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
+                trace!("broadcast orbit plot");
+                pos_plot_created = true;
             }
             let epochs: Vec<_> = sp3
                 .sv_position()
@@ -319,7 +312,7 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
         if let Some(obsdata) = ctx.obs_data() {
             for (sv_index, sv) in obsdata.sv().enumerate() {
                 if sv_index == 0 {
-                    plot_ctx.add_cartesian2d_plot("SV Clock Correction", "Correction [s]");
+                    plot_ctx.add_timedomain_plot("SV Clock Correction", "Correction [s]");
                     trace!("sv clock correction plot");
                 }
                 let epochs: Vec<_> = obsdata
@@ -334,7 +327,7 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                     .collect();
                 let clock_corr: Vec<_> = obsdata
                     .observation()
-                    .filter_map(|((t, flag), (_, vehicles))| {
+                    .filter_map(|((t, flag), (_, _vehicles))| {
                         if flag.is_ok() {
                             let (toe, sv_eph) = navdata.sv_ephemeris(sv, *t)?;
                             /*

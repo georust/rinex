@@ -1,6 +1,6 @@
 [package]
 name = "rinex"
-version = "0.15.1"
+version = "0.15.2"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze RINEX data"
@@ -19,6 +19,7 @@ obs = []
 meteo = []
 nav = []
 ionex = []
+antex = []
 processing = []
 
 # rinex Quality Check (mainly OBS RINEX) 
@@ -29,6 +30,7 @@ sp3 = ["dep:sp3", "walkdir"]
 
 # enable everything
 full = [
+    "antex",
     "flate2",
     "horrorshow",
     "ionex",

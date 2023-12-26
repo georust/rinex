@@ -78,7 +78,7 @@ pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
     }
 
     if !clk_offset.is_empty() {
-        plot_context.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
+        plot_context.add_timedomain_plot("Receiver Clock Offset", "Clock Offset [s]");
         let data_x: Vec<Epoch> = clk_offset.iter().map(|(k, _)| *k).collect();
         let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();
         let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, data_x, data_y)
@@ -101,14 +101,14 @@ pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
         if ctx.has_navigation_data() {
             // Augmented context, we plot data on two Y axes
             // one for physical observation, one for sat elevation
-            plot_context.add_cartesian2d_2y_plot(
+            plot_context.add_timedomain_2y_plot(
                 &format!("{} Observations", physics),
                 y_label,
                 "Elevation Angle [°]",
             );
         } else {
             // standard mode: one axis
-            plot_context.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
+            plot_context.add_timedomain_plot(&format!("{} Observations", physics), y_label);
         }
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier

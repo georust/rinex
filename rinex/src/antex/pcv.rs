@@ -11,10 +11,10 @@ pub enum Error {
 #[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Pcv {
-    /// Given data is absolute
+    /// PCV is absolute
     #[default]
     Absolute,
-    /// Given data is relative, with type of relativity
+    /// PCV is relative to attached reference
     Relative(String),
 }
 

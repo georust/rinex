@@ -7,11 +7,17 @@ use std::str::FromStr;
 use rinex::prelude::*;
 use rinex_qc::QcOpts;
 
-use gnss_rtk::prelude::{Config, Mode as SolverMode};
+use gnss_rtk::prelude::Config;
 
 pub struct Cli {
     /// Arguments passed by user
     matches: ArgMatches,
+}
+
+impl Default for Cli {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Cli {
@@ -238,36 +244,12 @@ The summary report by default is integrated to the global HTML report."))
                         .action(ArgAction::SetTrue)
                         .help("Activates QC mode and disables all other features: quickest qc rendition."))
                 .next_help_heading("Positioning")
-                    .arg(Arg::new("spp")
-                        .long("spp")
-                        .conflicts_with("ppp")
-                        .conflicts_with("lsqspp")
-                        .action(ArgAction::SetTrue)
-                        .help("Enable Single Point Positioning.
-Use with ${RUST_LOG} env logger for more information.
-Refer to the positioning documentation."))
-                    .arg(Arg::new("lsqspp")
-                        .long("lsqspp")
-                        .conflicts_with("ppp")
-                        .conflicts_with("spp")
-                        .action(ArgAction::SetTrue)
-                        .help("Recursive Weighted Least Square SPP strategy.
-Use with ${RUST_LOG} env logger for more information.
-Refer to the positioning documentation."))
-                    .arg(Arg::new("ppp")
-                        .long("ppp")
-                        .conflicts_with("spp")
-                        .conflicts_with("lsqspp")
-                        .action(ArgAction::SetTrue)
-                        .help("Enable Precise Point Positioning.
-Use with ${RUST_LOG} env logger for more information.
-Refer to the positioning documentation."))
-                    .arg(Arg::new("pos-only")
-                        .long("pos-only")
+                    .arg(Arg::new("positioning")
                         .short('p')
                         .action(ArgAction::SetTrue)
-                        .help("Disable context analysis and run position solver only.
-This is the most performant mode to solve a position."))
+                        .help("Activate positioning mode. Disables all other modes.
+Use with ${RUST_LOG} env logger for more information.
+Refer to the positioning documentation."))
 					.arg(Arg::new("config")
 						.long("cfg")
                         .short('c')
@@ -453,25 +435,8 @@ Primary RINEX was either loaded with `-f`, or is Observation RINEX loaded with `
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
-    /* returns RTK solver mode to implement */
-    pub fn solver_mode(&self) -> Option<SolverMode> {
-        if self.matches.get_flag("spp") {
-            Some(SolverMode::SPP)
-        } else if self.matches.get_flag("lsqspp") {
-            Some(SolverMode::LSQSPP)
-        } else if self.matches.get_flag("ppp") {
-            Some(SolverMode::PPP)
-        } else {
-            None
-        }
-    }
     pub fn positioning(&self) -> bool {
-        self.matches.get_flag("spp")
-            || self.matches.get_flag("lsqspp")
-            || self.matches.get_flag("ppp")
-    }
-    pub fn positioning_only(&self) -> bool {
-        self.matches.get_flag("pos-only")
+        self.matches.get_flag("positioning")
     }
     pub fn gpx(&self) -> bool {
         self.matches.get_flag("gpx")

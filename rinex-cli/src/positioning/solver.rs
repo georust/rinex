@@ -7,9 +7,9 @@ use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolatedPosition,
-    InterpolationResult, IonosphericBias, KbModel, Mode, NgModel, Observation, PVTSolution,
-    PVTSolutionType, Solver, TroposphericBias, Vector3,
+    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
+    IonosphericBias, KbModel, Method, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
+    TroposphericBias, Vector3,
 };
 
 use map_3d::{ecef2geodetic, Ellipsoid};
@@ -110,22 +110,31 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
         .klobuchar_models()
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
 
-    match kb_model {
-        Some((_, sv, kb_model)) => {
+    if let Some((_, sv, kb_model)) = kb_model {
+        Some(KbModel {
+            h_km: {
+                match sv.constellation {
+                    Constellation::BeiDou => 375.0,
+                    // we only expect GPS or BDS here,
+                    // badly formed RINEX will generate errors in the solutions
+                    _ => 350.0,
+                }
+            },
+            alpha: kb_model.alpha,
+            beta: kb_model.beta,
+        })
+    } else {
+        /* RINEX 3 case */
+        let iono_corr = nav.header.ionod_correction?;
+        if let Some(kb_model) = iono_corr.as_klobuchar() {
             Some(KbModel {
-                h_km: {
-                    match sv.constellation {
-                        Constellation::BeiDou => 375.0,
-                        // we only expect GPS or BDS here,
-                        // badly formed RINEX will generate errors in the solutions
-                        _ => 350.0,
-                    }
-                },
+                h_km: 350.0, //TODO improve this
                 alpha: kb_model.alpha,
                 beta: kb_model.beta,
             })
-        },
-        None => None,
+        } else {
+            None
+        }
     }
 }
 
@@ -142,19 +151,18 @@ fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 }
 
 pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolution>, Error> {
-    // custom strategy
-    let mode = cli.solver_mode().unwrap(); // infaillible
-
-    match mode {
-        Mode::SPP => info!("single point positioning"),
-        Mode::LSQSPP => info!("recursive lsq single point positioning"),
-        Mode::PPP => info!("precise point positioning"),
-    };
-
     // parse custom config, if any
     let cfg = match cli.config() {
         Some(cfg) => cfg,
-        None => Config::default(mode),
+        None => {
+            /* no manual config: we use the optimal known to this day */
+            Config::preset(Method::SPP)
+        },
+    };
+
+    match cfg.method {
+        Method::SPP => info!("single point positioning"),
+        Method::PPP => info!("precise point positioning"),
     };
 
     let pos = match cli.manual_position() {
@@ -196,9 +204,8 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
     let meteo_data = ctx.meteo_data();
 
     let mut solver = Solver::new(
-        mode,
-        apriori,
         &cfg,
+        apriori,
         /* state vector interpolator */
         |t, sv, order| {
             /* SP3 source is prefered */
@@ -207,48 +214,39 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                     let (elevation, azimuth) =
                         Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(InterpolationResult {
-                        azimuth,
-                        elevation,
-                        velocity: None,
-                        position: InterpolatedPosition::MassCenter(Vector3::new(x, y, z)),
-                    })
+                    Some(
+                        InterpolationResult::from_mass_center_position((x, y, z))
+                            .with_elevation_azimuth((elevation, azimuth)),
+                    )
                 } else {
                     // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
                     if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
                         let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                         let (elevation, azimuth) =
                             Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                        Some(InterpolationResult {
-                            azimuth,
-                            elevation,
-                            velocity: None,
-                            position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(
-                                x, y, z,
-                            )),
-                        })
+                        Some(
+                            InterpolationResult::from_apc_position((x, y, z))
+                                .with_elevation_azimuth((elevation, azimuth)),
+                        )
                     } else {
                         // debug!("{:?} ({}): nav interpolation failed", t, sv);
                         None
                     }
                 }
+            } else if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
+                let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                let (elevation, azimuth) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
+                Some(
+                    InterpolationResult::from_apc_position((x, y, z))
+                        .with_elevation_azimuth((elevation, azimuth)),
+                )
             } else {
-                if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                    let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(InterpolationResult {
-                        azimuth,
-                        elevation,
-                        position: InterpolatedPosition::AntennaPhaseCenter(Vector3::new(x, y, z)),
-                        velocity: None,
-                    })
-                } else {
-                    // debug!("{:?} ({}): nav interpolation failed", t, sv);
-                    None
-                }
+                // debug!("{:?} ({}): nav interpolation failed", t, sv);
+                None
             }
         },
+        /* APC corrections provider */
+        |_t, _sv, _freq| None,
     )?;
 
     // resolved PVT solutions
@@ -288,7 +286,7 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
             let clock_state = match sp3_has_clock {
                 true => {
                     let sp3 = sp3_data.unwrap();
-                    if let Some(clk) = sp3
+                    if let Some(_clk) = sp3
                         .sv_clock()
                         .filter_map(|(sp3_t, sp3_sv, clk)| {
                             if sp3_t == *t && sp3_sv == *sv {
@@ -334,37 +332,19 @@ pub fn solver(ctx: &mut RnxContext, cli: &Cli) -> Result<BTreeMap<Epoch, PVTSolu
                     if observable.is_pseudorange_observable() {
                         codes.push(Observation {
                             frequency,
-                            snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
-                            },
+                            snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,
                         });
                     } else if observable.is_phase_observable() {
                         phases.push(Observation {
                             frequency,
-                            snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
-                            },
+                            snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,
                         });
                     } else if observable.is_doppler_observable() {
                         dopplers.push(Observation {
                             frequency,
-                            snr: {
-                                if let Some(snr) = data.snr {
-                                    Some(snr.into())
-                                } else {
-                                    None
-                                }
-                            },
+                            snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,
                         });
                     }

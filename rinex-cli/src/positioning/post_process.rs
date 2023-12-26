@@ -28,10 +28,9 @@ use plotly::common::{Marker, MarkerSymbol};
 use plotly::layout::MapboxStyle;
 use plotly::ScatterMapbox;
 
-use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
-
 use crate::fops::open_with_web_browser;
 use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
+use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -68,9 +67,9 @@ pub fn post_process(
 
         let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
         for result in results.values() {
-            let px = x + result.p.x;
-            let py = y + result.p.y;
-            let pz = z + result.p.z;
+            let px = x + result.pos.x;
+            let py = y + result.pos.y;
+            let pz = z + result.pos.z;
             let (lat_ddeg, lon_ddeg, _) = ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
             lat.push(rad2deg(lat_ddeg));
             lon.push(rad2deg(lon_ddeg));
@@ -108,9 +107,9 @@ pub fn post_process(
             "error",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|e| e.p.x).collect::<Vec<f64>>(),
-            results.values().map(|e| e.p.y).collect::<Vec<f64>>(),
-            results.values().map(|e| e.p.z).collect::<Vec<f64>>(),
+            results.values().map(|e| e.pos.x).collect::<Vec<f64>>(),
+            results.values().map(|e| e.pos.y).collect::<Vec<f64>>(),
+            results.values().map(|e| e.pos.z).collect::<Vec<f64>>(),
         );
 
         /*
@@ -128,12 +127,12 @@ pub fn post_process(
         );
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
+        plot_ctx.add_timedomain_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
         let trace = build_chart_epoch_axis(
             "velocity (x)",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|p| p.v.x).collect::<Vec<f64>>(),
+            results.values().map(|p| p.vel.x).collect::<Vec<f64>>(),
         );
         plot_ctx.add_trace(trace);
 
@@ -141,21 +140,21 @@ pub fn post_process(
             "velocity (y)",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|p| p.v.y).collect::<Vec<f64>>(),
+            results.values().map(|p| p.vel.y).collect::<Vec<f64>>(),
         )
         .y_axis("y2");
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_plot("Velocity (Z)", "Speed [m/s]");
+        plot_ctx.add_timedomain_plot("Velocity (Z)", "Speed [m/s]");
         let trace = build_chart_epoch_axis(
             "velocity (z)",
             Mode::Markers,
             epochs.clone(),
-            results.values().map(|p| p.v.z).collect::<Vec<f64>>(),
+            results.values().map(|p| p.vel.z).collect::<Vec<f64>>(),
         );
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_plot("GDOP", "GDOP [m]");
+        plot_ctx.add_timedomain_plot("GDOP", "GDOP [m]");
         let trace = build_chart_epoch_axis(
             "gdop",
             Mode::Markers,
@@ -164,7 +163,7 @@ pub fn post_process(
         );
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
+        plot_ctx.add_timedomain_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
         let trace = build_chart_epoch_axis(
             "hdop",
             Mode::Markers,
@@ -188,7 +187,7 @@ pub fn post_process(
         .y_axis("y2");
         plot_ctx.add_trace(trace);
 
-        plot_ctx.add_cartesian2d_2y_plot("Clock offset", "dt [s]", "TDOP [s]");
+        plot_ctx.add_timedomain_2y_plot("Clock offset", "dt [s]", "TDOP [s]");
         let trace = build_chart_epoch_axis(
             "dt",
             Mode::Markers,
@@ -231,7 +230,7 @@ pub fn post_process(
     )?;
 
     for (epoch, solution) in results {
-        let (px, py, pz) = (x + solution.p.x, y + solution.p.y, z + solution.p.z);
+        let (px, py, pz) = (x + solution.pos.x, y + solution.pos.y, z + solution.pos.z);
         let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, map_3d::Ellipsoid::WGS84);
         let (hdop, vdop, tdop) = (
             solution.hdop(lat_ddeg, lon_ddeg),
@@ -242,15 +241,15 @@ pub fn post_process(
             fd,
             "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
             epoch,
-            solution.p.x,
-            solution.p.y,
-            solution.p.z,
+            solution.pos.x,
+            solution.pos.y,
+            solution.pos.z,
             px,
             py,
             pz,
-            solution.v.x,
-            solution.v.y,
-            solution.v.z,
+            solution.vel.x,
+            solution.vel.y,
+            solution.vel.z,
             hdop,
             vdop,
             solution.dt,
@@ -298,7 +297,7 @@ pub fn post_process(
     }
     info!("\"{}\" generated", txtfile);
     if cli.gpx() {
-        let gpxpath = workspace.join(&format!("{}.gpx", context_stem(&ctx)));
+        let gpxpath = workspace.join(format!("{}.gpx", context_stem(ctx)));
         let gpxfile = gpxpath.to_string_lossy().to_string();
         let fd = File::create(&gpxfile)?;
 
@@ -312,7 +311,7 @@ pub fn post_process(
         info!("{} gpx track generated", gpxfile);
     }
     if cli.kml() {
-        let kmlpath = workspace.join(&format!("{}.kml", context_stem(&ctx)));
+        let kmlpath = workspace.join(format!("{}.kml", context_stem(ctx)));
         let kmlfile = kmlpath.to_string_lossy().to_string();
         let mut fd = File::create(&kmlfile)?;
 

@@ -169,4 +169,44 @@ mod test {
         // remove file we just generated
         let _ = std::fs::remove_file("merge.txt");
     }
+    #[cfg(feature = "antex")]
+    use crate::antex::antenna::AntennaMatcher;
+    #[cfg(feature = "antex")]
+    use crate::Carrier;
+    #[test]
+    #[cfg(feature = "flate2")]
+    #[cfg(feature = "antex")]
+    fn merge_atx() {
+        let fp = env!("CARGO_MANIFEST_DIR").to_owned()
+            + "/../test_resources/ATX/V1/TROSAR25.R4__LEIT_2020_09_23.atx";
+        let rinex_a = Rinex::from_file(&fp);
+        let rinex_a = rinex_a.unwrap();
+
+        let fp =
+            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/ATX/V1/igs14_small.atx.gz";
+        let rinex_b = Rinex::from_file(&fp);
+        let rinex_b = rinex_b.unwrap();
+
+        let merged = rinex_a.merge(&rinex_b);
+        assert!(merged.is_ok(), "merged atx(a,b) failed");
+        let merged = merged.unwrap();
+
+        let antennas: Vec<_> = merged.antennas().collect();
+        assert_eq!(antennas.len(), 7, "bad number of antennas");
+
+        for (name, expected_apc) in [
+            ("JPSLEGANT_E", (1.36, -0.43, 35.44)),
+            ("JPSODYSSEY_I", (1.06, -2.43, 70.34)),
+            ("TROSAR25.R4", (-0.22, -0.01, 154.88)),
+        ] {
+            let fakenow = Epoch::from_gregorian_utc_at_midnight(2023, 01, 01);
+            let apc = merged.rx_antenna_apc_offset(
+                fakenow,
+                AntennaMatcher::IGSCode(name.to_string()),
+                Carrier::L1,
+            );
+            assert!(apc.is_some(), "APC should still be contained after merge()");
+            assert_eq!(apc.unwrap(), expected_apc);
+        }
+    }
 }

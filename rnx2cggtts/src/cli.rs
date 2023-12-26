@@ -10,7 +10,7 @@ pub struct Cli {
 }
 
 use cggtts::{prelude::ReferenceTime, track::Scheduler};
-use gnss_rtk::prelude::{Config, Mode as SolverMode};
+use gnss_rtk::prelude::Config;
 use rinex::prelude::*;
 
 impl Cli {
@@ -202,55 +202,34 @@ Refer to rinex-cli Preprocessor documentation for more information"))
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
     }
-    /* returns RTK solver mode to implement */
-    pub fn solver_mode(&self) -> SolverMode {
-        if self.matches.get_flag("spp") {
-            SolverMode::SPP
-        } else if self.matches.get_flag("ppp") {
-            SolverMode::PPP
-        } else {
-            SolverMode::LSQSPP
-        }
-    }
-    pub fn positioning(&self) -> bool {
-        self.matches.get_flag("spp")
-            || self.matches.get_flag("lsqspp")
-            || self.matches.get_flag("ppp")
-    }
     /// Returns the manualy defined RFDLY (in nanoseconds!)
     pub fn rf_delay(&self) -> Option<HashMap<Observable, f64>> {
-        if let Some(delays) = self.matches.get_many::<String>("rfdly") {
-            Some(
-                delays
-                    .into_iter()
-                    .filter_map(|string| {
-                        let items: Vec<_> = string.split(':').collect();
-                        if items.len() < 2 {
-                            error!("format error, command should be --rf-delay CODE:[nanos]");
-                            None
-                        } else {
-                            let code = items[0].trim();
-                            let nanos = items[0].trim();
-                            if let Ok(code) = Observable::from_str(code) {
-                                if let Ok(f) = nanos.parse::<f64>() {
-                                    Some((code, f))
-                                } else {
-                                    error!("invalid nanos: expecting valid f64");
-                                    None
-                                }
+        self.matches.get_many::<String>("rfdly").map(|delays| {
+            delays
+                .into_iter()
+                .filter_map(|string| {
+                    let items: Vec<_> = string.split(':').collect();
+                    if items.len() < 2 {
+                        error!("format error, command should be --rf-delay CODE:[nanos]");
+                        None
+                    } else {
+                        let code = items[0].trim();
+                        let nanos = items[0].trim();
+                        if let Ok(code) = Observable::from_str(code) {
+                            if let Ok(f) = nanos.parse::<f64>() {
+                                Some((code, f))
                             } else {
-                                error!(
-                                    "invalid pseudo range CODE, expecting codes like \"L1C\",..."
-                                );
+                                error!("invalid nanos: expecting valid f64");
                                 None
                             }
+                        } else {
+                            error!("invalid pseudo range CODE, expecting codes like \"L1C\",...");
+                            None
                         }
-                    })
-                    .collect(),
-            )
-        } else {
-            None
-        }
+                    }
+                })
+                .collect()
+        })
     }
     /// Returns the manualy defined REFDLY (in nanoseconds!)
     pub fn reference_time_delay(&self) -> Option<f64> {

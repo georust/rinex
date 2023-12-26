@@ -7,7 +7,7 @@ use rinex::prelude::RnxContext;
  * Sampling histogram
  */
 pub fn histogram(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
-    plot_ctx.add_cartesian2d_plot("Sampling Histogram", "Count");
+    plot_ctx.add_timedomain_plot("Sampling Histogram", "Count");
     if let Some(data) = ctx.obs_data() {
         let histogram = data.sampling_histogram().sorted();
         let durations: Vec<_> = histogram.clone().map(|(dt, _)| dt.to_string()).collect();

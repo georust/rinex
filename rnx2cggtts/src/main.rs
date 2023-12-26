@@ -63,7 +63,7 @@ pub fn workspace_path(ctx: &RnxContext) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("WORKSPACE")
-        .join(&context_stem(ctx))
+        .join(context_stem(ctx))
 }
 
 /*
@@ -132,7 +132,7 @@ pub fn main() -> Result<(), Error> {
 
     // Workspace
     let workspace = match cli.custom_workspace() {
-        Some(workspace) => Path::new(workspace).join(&context_stem(&ctx)).to_path_buf(),
+        Some(workspace) => Path::new(workspace).join(context_stem(&ctx)).to_path_buf(),
         None => workspace_path(&ctx),
     };
     create_workspace(workspace.clone());
@@ -253,7 +253,7 @@ pub fn main() -> Result<(), Error> {
      * Create file
      */
     let filename = match cli.custom_filename() {
-        Some(filename) => workspace.join(filename.to_string()),
+        Some(filename) => workspace.join(filename),
         None => workspace.join(cggtts.filename()),
     };
 
