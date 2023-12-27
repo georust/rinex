@@ -1,6 +1,6 @@
 [package]
 name = "rnx2cggtts"
-version = "1.0.1"
+version = "1.0.2"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "CGGTTS data generation from RINEX"
