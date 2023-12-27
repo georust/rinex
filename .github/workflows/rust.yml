@@ -36,8 +36,8 @@ jobs:
         cargo install cargo-audit
         cargo audit
 
-  tests:
-    name: Tests 
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -46,20 +46,33 @@ jobs:
       with:
         toolchain: stable
         override: true
+    
     - name: UBX2RNX dependencies 
       run: |
         sudo apt-get update
         sudo apt-get install -y libudev-dev
+    
     - uses: actions-rs/cargo@v1
       name: Test
       with:
         command: test
         args: --verbose
+    
     - uses: actions-rs/cargo@v1
       name: Test (all features)
       with:
         command: test
         args: --verbose --all-features
+  
+    - uses: actions-rs/cargo@v1
+      name: Build (all features)
+      with:
+        command: build
+        args: --verbose --all-features
+  
+    - name: Test binaries
+      run: |
+        ./tools/test-binaries.sh
   
   windows-build:
     runs-on: windows-latest
@@ -120,3 +133,6 @@ jobs:
       with: 
         command: build
         args: -p crx2rnx --all-features --release --verbose
+    - name: Test binaries
+      run: |
+        ./tools/test-binaries.sh
