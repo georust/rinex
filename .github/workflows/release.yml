@@ -133,8 +133,14 @@ jobs:
         name: ${{ env.ASSET }}
         path: |
           ${{ env.ASSET }}
+    
+    - name: Upload artifacts (cksum)
+      uses: actions/upload-artifact@v3     
+      with:
+        name: ${{ env.ASSET_SUM }}
+        path: |
           ${{ env.ASSET_SUM }}
-  
+          
   release:
     runs-on: ubuntu-latest
     needs: ['build']
