@@ -27,18 +27,19 @@ use rinex::prelude::RnxContext;
 use rinex::prelude::*;
 
 mod record;
+use record::plot_residual_ephemeris;
 
 mod context;
 pub use context::PlotContext;
 
 mod skyplot;
-pub use skyplot::skyplot;
+use skyplot::skyplot;
 
 mod naviplot;
-pub use naviplot::naviplot;
+use naviplot::naviplot;
 
 mod combination;
-pub use combination::{plot_gnss_code_mp, plot_gnss_combination, plot_gnss_dcb};
+use combination::{plot_gnss_code_mp, plot_gnss_combination, plot_gnss_dcb};
 
 /*
  * Generates N marker symbols to be used
@@ -637,6 +638,37 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         write!(fd, "{}", plot_ctx.to_html())
             .expect("failed to render multiath (HTML): permission denied");
+        info!("code multipath rendered in \"{}\"", path.display());
+        if !ctx.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
+        }
+    }
+    if matches.get_flag("skyplot") {
+        let mut plot_ctx = PlotContext::new();
+
+        if matches.get_flag("skyplot") {
+            let rx_ecef = ctx
+                .rx_ecef
+                .expect("skyplot requires the receiver location to be defined.");
+            if ctx.data.sp3_data().is_none() && ctx.data.nav_data().is_none() {
+                panic!("skyplot requires either BRDC or SP3.");
+            }
+            skyplot(&ctx.data, rx_ecef, &mut plot_ctx);
+        }
+        if matches.get_flag("sp3-res") {
+            if ctx.data.sp3_data().is_none() || ctx.data.nav_data().is_none() {
+                panic!("skyplot requires both BRDC or SP3.");
+            }
+            plot_residual_ephemeris(&ctx.data, &mut plot_ctx);
+        }
+
+        /* save navigation (HTML) */
+        let path = ctx.workspace.join("navigation.html");
+        let mut fd =
+            File::create(&path).expect("failed to render navigation (HTML): permission denied");
+
+        write!(fd, "{}", plot_ctx.to_html())
+            .expect("failed to render navigation (HTML): permission denied");
         info!("code multipath rendered in \"{}\"", path.display());
         if !ctx.quiet {
             open_with_web_browser(&path.to_string_lossy().to_string());

@@ -84,6 +84,32 @@ or we post processed determined a CS.",
                 .action(ArgAction::SetTrue)
                 .help("SV clock bias (offset, drift, drift changes)."),
         )
+        .next_help_heading("Navigation (requires NAV RINEX and/or SP3)")
+        .arg(
+            Arg::new("skyplot")
+                .short('s')
+                .long("sky")
+                .action(ArgAction::SetTrue)
+                .help("Skyplot: SV position in the sky, on a compass."),
+        )
+        .arg(
+            Arg::new("sp3-res")
+                .long("sp3-res")
+                .action(ArgAction::SetTrue)
+                .help(
+                    "SV orbital attitude residual analysis |BRDC - SP3|.
+Requires both NAV RINEX and SP3 that overlap in time.",
+                ),
+        )
+        .arg(
+            Arg::new("naviplot")
+                .long("naviplot")
+                .action(ArgAction::SetTrue)
+                .help(
+                    "SV orbital attitude projected in 3D.
+Ideal for precise positioning decision making.",
+                ),
+        )
         .next_help_heading("Atmospheric Conditions")
         .arg(Arg::new("tec").long("tec").action(ArgAction::SetTrue).help(
             "Plot the TEC map. This is only feasible if at least one 

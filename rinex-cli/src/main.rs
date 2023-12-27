@@ -147,13 +147,6 @@ pub fn main() -> Result<(), Error> {
         }
     }
      */
-    /*
-     * 3D NAVI plot
-    if naviplot_allowed(&ctx, &cli) && !no_graph {
-        plot::naviplot(&ctx, &mut plot_ctx);
-        info!("navi plot generated");
-    }
-     */
     // if positioning {
     //     let results = positioning::solver(&mut ctx, &cli)?;
     //     positioning::post_process(workspace, &cli, &ctx, results)?;
