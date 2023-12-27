@@ -38,10 +38,6 @@ jobs:
           os: windows-latest
           rust: stable
           target: x86_64-pc-windows-msvc
-        - build: win64-gnu
-          os: windows-latest
-          rust: stable-x86_64-gnu
-          target: x86_64-pc-windows-gnu
 
     steps:
     - name: Checkout repository
@@ -276,34 +272,4 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: rinex-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip.sha256
         asset_name: rinex-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip.sha256
-        asset_content_type: application/zip
-
-    - name: x86_64-pc-windows-gnu
-      uses: actions/download-artifact@v3
-      with: 
-        name: rinex-${{ github.ref_name }}-x86_64-pc-windows-gnu.zip
-    
-    - name: Download x86_64-pc-windows-gnu (cksum)
-      uses: actions/download-artifact@v3
-      with: 
-        name: rinex-${{ github.ref_name }}-x86_64-pc-windows-gnu.zip.sha256
-        
-    - name: Upload x86_64-pc-windows-gnu
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: rinex-${{ github.ref_name }}-x86_64-pc-windows-gnu.zip
-        asset_name: rinex-${{ github.ref_name }}-x86_64-pc-windows-gnu.zip
-        asset_content_type: application/zip
-        
-    - name: Upload x86_64-pc-windows-gnu (cksum)
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: rinex-${{ github.ref_name }}-x86_64-pc-windows-gnu.zip.sha256
-        asset_name: rinex-${{ github.ref_name }}-x86_64-pc-windows-gnu.zip.sha256
         asset_content_type: application/zip
