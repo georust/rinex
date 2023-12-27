@@ -1,11 +1,11 @@
-use crate::plot::{build_chart_epoch_axis, PlotContext}; //generate_markers};
+use crate::graph::{build_chart_epoch_axis, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
 use rinex::prelude::*;
 
 /*
- * Plots Meteo RINEX
+ * Plots Meteo observations
  */
-pub fn plot_meteo(rnx: &Rinex, plot_context: &mut PlotContext) {
+pub fn plot_meteo_observations(rnx: &Rinex, plot_context: &mut PlotContext) {
     /*
      * 1 plot per physics
      */

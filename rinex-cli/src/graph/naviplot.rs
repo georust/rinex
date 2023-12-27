@@ -1,4 +1,4 @@
-use crate::plot::PlotContext;
+use crate::graph::PlotContext;
 // use plotly::{
 //     common::{Mode, Visible},
 //     ScatterPolar,

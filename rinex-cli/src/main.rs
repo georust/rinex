@@ -5,9 +5,9 @@
 mod analysis; // basic analysis
 mod cli; // command line interface
 mod fops;
+mod graph;
 mod identification; // high level identification/macros
-mod plot;
-mod qc; // QC report generator // plotting operations // file operation helpers
+mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -15,12 +15,7 @@ use preprocessing::preprocess;
 // mod positioning;
 
 //use horrorshow::Template;
-use rinex::{
-    observation::{Combination, Combine},
-    prelude::*,
-};
-
-use rinex_qc::*;
+use rinex::prelude::*;
 
 extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
@@ -87,72 +82,6 @@ fn naviplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
 }
  */
 
-/*
- * Plots requested combinations
-fn plot_combinations(obs: &Rinex, cli: &Cli, plot_ctx: &mut PlotContext) {
-    //if cli.dcb() {
-    //    let data = obs.dcb();
-    //    plot::plot_gnss_dcb(
-    //        plot_ctx,
-    //        "Differential Code Biases",
-    //        "Differential Code Bias [s]",
-    //        &data,
-    //    );
-    //    info!("dcb analysis");
-    //}
-    if cli.multipath() {
-        let data = obs.code_multipath();
-        plot::plot_gnss_dcb_mp(&data, plot_ctx, "Code Multipath", "Meters of delay");
-        info!("code multipath analysis");
-    }
-    if cli.if_combination() {
-        let data = obs.combine(Combination::IonosphereFree);
-        plot::plot_gnss_combination(
-            &data,
-            plot_ctx,
-            "Ionosphere Free combination",
-            "Meters of delay",
-        );
-        info!("iono free combination");
-    }
-    if cli.gf_combination() {
-        let data = obs.combine(Combination::GeometryFree);
-        plot::plot_gnss_combination(
-            &data,
-            plot_ctx,
-            "Geometry Free combination",
-            "Meters of delay",
-        );
-        info!("geo free combination");
-    }
-    if cli.wl_combination() {
-        let data = obs.combine(Combination::WideLane);
-        plot::plot_gnss_combination(&data, plot_ctx, "Wide Lane combination", "Meters of delay");
-        info!("wide lane combination");
-    }
-    if cli.nl_combination() {
-        let data = obs.combine(Combination::NarrowLane);
-        plot::plot_gnss_combination(
-            &data,
-            plot_ctx,
-            "Narrow Lane combination",
-            "Meters of delay",
-        );
-        info!("wide lane combination");
-    }
-    if cli.mw_combination() {
-        let data = obs.combine(Combination::MelbourneWubbena);
-        plot::plot_gnss_combination(
-            &data,
-            plot_ctx,
-            "Melbourne-Wübbena signal combination",
-            "Meters of Li-Lj delay",
-        );
-        info!("melbourne-wubbena combination");
-    }
-}
- */
-
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
@@ -174,6 +103,9 @@ pub fn main() -> Result<(), Error> {
      * Exclusive opmodes
      */
     match cli.matches.subcommand() {
+        Some(("graph", submatches)) => {
+            graph::graph_opmode(&ctx, submatches)?;
+        },
         Some(("identify", submatches)) => {
             identification::dataset_identification(&ctx.data, submatches);
         },
@@ -220,29 +152,6 @@ pub fn main() -> Result<(), Error> {
     if naviplot_allowed(&ctx, &cli) && !no_graph {
         plot::naviplot(&ctx, &mut plot_ctx);
         info!("navi plot generated");
-    }
-     */
-    /*
-     * Record analysis / visualization
-     * analysis depends on the provided record type
-    if !qc_only && !positioning && !no_graph {
-        info!("entering record analysis");
-        plot::plot_record(&ctx, &mut plot_ctx);
-
-        /*
-         * Render Graphs (HTML)
-         */
-        let html_path = workspace_path(&ctx, &cli).join("graphs.html");
-        let html_path = html_path.to_str().unwrap();
-
-        let mut html_fd = std::fs::File::create(html_path)
-            .unwrap_or_else(|_| panic!("failed to create \"{}\"", &html_path));
-        write!(html_fd, "{}", plot_ctx.to_html()).expect("failed to render graphs");
-
-        info!("graphs rendered in $WORKSPACE/graphs.html");
-        if !quiet {
-            open_with_web_browser(html_path);
-        }
     }
      */
     // if positioning {

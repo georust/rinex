@@ -20,6 +20,8 @@ mod split;
 mod time_binning;
 // QC mode
 mod qc;
+// positioning mode
+mod positioning;
 
 use gnss_rtk::prelude::Config;
 
@@ -258,6 +260,7 @@ Otherwise it gets automatically picked up."))
                 .subcommand(graph::subcommand())
                 .subcommand(identify::subcommand())
                 .subcommand(merge::subcommand())
+                .subcommand(positioning::subcommand())
                 .subcommand(qc::subcommand())
                 .subcommand(split::subcommand())
                 .subcommand(time_binning::subcommand())

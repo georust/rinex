@@ -1,4 +1,4 @@
-use crate::plot::PlotContext;
+use crate::graph::PlotContext;
 use itertools::Itertools;
 use plotly::Histogram; //.sorted()
 use rinex::prelude::RnxContext;

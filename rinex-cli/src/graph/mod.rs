@@ -1,3 +1,9 @@
+use crate::{cli::Context, fops::open_with_web_browser, Error};
+use clap::ArgMatches;
+use rinex::observation::{Combination, Combine, Dcb};
+use std::fs::File;
+use std::io::Write;
+
 use plotly::{
     common::{
         AxisSide,
@@ -32,7 +38,7 @@ mod naviplot;
 pub use naviplot::naviplot;
 
 mod combination;
-pub use combination::{plot_gnss_combination, plot_gnss_dcb_mp};
+pub use combination::{plot_gnss_code_mp, plot_gnss_combination, plot_gnss_dcb};
 
 /*
  * Generates N marker symbols to be used
@@ -495,28 +501,158 @@ pub fn build_3d_chart_epoch_label<T: Clone + Default + Serialize>(
         .hover_info(HoverInfo::All)
 }
 
-pub fn plot_record(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     /*
-     * Run feasible record analysis
+     * Observations graphs
      */
-    if ctx.has_observation_data() {
-        record::plot_observation(ctx, plot_ctx);
-    }
-    if let Some(data) = ctx.meteo_data() {
-        record::plot_meteo(data, plot_ctx);
-    }
-    if let Some(data) = ctx.ionex_data() {
-        if let Some(borders) = data.tec_map_borders() {
-            record::plot_tec_map(data, borders, plot_ctx);
+    if matches.get_flag("obs") {
+        let mut plot_ctx = PlotContext::new();
+        if ctx.data.has_observation_data() {
+            record::plot_observations(&ctx.data, &mut plot_ctx);
+        }
+        if let Some(data) = ctx.data.meteo_data() {
+            record::plot_meteo_observations(data, &mut plot_ctx);
+        }
+
+        /* save observations (HTML) */
+        let path = ctx.workspace.join("observations.html");
+        let mut fd =
+            File::create(&path).expect("failed to render observations (HTML): permission denied");
+
+        write!(fd, "{}", plot_ctx.to_html())
+            .expect("failed to render observations (HTML): permission denied");
+
+        info!("observations rendered in \"{}\"", path.display());
+        if !ctx.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
         }
     }
-    if ctx.has_navigation_data() || ctx.has_sp3() {
-        record::plot_navigation(ctx, plot_ctx);
+    /*
+     * GNSS combinations graphs
+     */
+    if matches.get_flag("if")
+        || matches.get_flag("gf")
+        || matches.get_flag("wl")
+        || matches.get_flag("nl")
+        || matches.get_flag("mw")
+    {
+        let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
+
+        let mut plot_ctx = PlotContext::new();
+        if matches.get_flag("if") {
+            let combination = data.combine(Combination::IonosphereFree);
+            plot_gnss_combination(
+                &combination,
+                &mut plot_ctx,
+                "Ionosphere Free combination",
+                "Meters of delay",
+            );
+        }
+        if matches.get_flag("gf") {
+            let combination = data.combine(Combination::GeometryFree);
+            plot_gnss_combination(
+                &combination,
+                &mut plot_ctx,
+                "Ionosphere Free combination",
+                "Meters of delay",
+            );
+        }
+        if matches.get_flag("wl") {
+            let combination = data.combine(Combination::WideLane);
+            plot_gnss_combination(
+                &combination,
+                &mut plot_ctx,
+                "Ionosphere Free combination",
+                "Meters of delay",
+            );
+        }
+        if matches.get_flag("nl") {
+            let combination = data.combine(Combination::NarrowLane);
+            plot_gnss_combination(
+                &combination,
+                &mut plot_ctx,
+                "Ionosphere Free combination",
+                "Meters of delay",
+            );
+        }
+        if matches.get_flag("mw") {
+            let combination = data.combine(Combination::MelbourneWubbena);
+            plot_gnss_combination(
+                &combination,
+                &mut plot_ctx,
+                "Ionosphere Free combination",
+                "Meters of delay",
+            );
+        }
+
+        /* save combinations (HTML) */
+        let path = ctx.workspace.join("combinations.html");
+        let mut fd = File::create(&path)
+            .expect("failed to render gnss combinations (HTML): permission denied");
+
+        write!(fd, "{}", plot_ctx.to_html())
+            .expect("failed to render gnss combinations (HTML): permission denied");
+        info!("gnss combinations rendered in \"{}\"", path.display());
+        if !ctx.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
+        }
     }
-    if ctx.has_sp3() && ctx.has_navigation_data() {
-        record::plot_residual_ephemeris(ctx, plot_ctx);
+    /*
+     * DCB visualization
+     */
+    if matches.get_flag("dcb") {
+        let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
+
+        let mut plot_ctx = PlotContext::new();
+        let data = data.dcb();
+        plot_gnss_dcb(
+            &data,
+            &mut plot_ctx,
+            "Differential Code Bias",
+            "Differential Code Bias [s]",
+        );
+
+        /* save dcb (HTML) */
+        let path = ctx.workspace.join("dcb.html");
+        let mut fd = File::create(&path).expect("failed to render dcb (HTML): permission denied");
+
+        write!(fd, "{}", plot_ctx.to_html())
+            .expect("failed to render dcb (HTML): permission denied");
+        info!("dcb visualization rendered in \"{}\"", path.display());
+        if !ctx.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
+        }
     }
-    if ctx.has_navigation_data() {
-        record::plot_ionospheric_delay(ctx, plot_ctx);
+    if matches.get_flag("mp") {
+        let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
+
+        let mut plot_ctx = PlotContext::new();
+        let data = data.code_multipath();
+        plot_gnss_code_mp(&data, &mut plot_ctx, "Code Multipath", "Meters of delay");
+
+        /* save multipath (HTML) */
+        let path = ctx.workspace.join("multipath.html");
+        let mut fd =
+            File::create(&path).expect("failed to render multipath (HTML): permission denied");
+
+        write!(fd, "{}", plot_ctx.to_html())
+            .expect("failed to render multiath (HTML): permission denied");
+        info!("code multipath rendered in \"{}\"", path.display());
+        if !ctx.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
+        }
     }
+    Ok(())
 }
+
+// pub fn plot_record(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+//     if ctx.has_navigation_data() || ctx.has_sp3() {
+//         record::plot_navigation(ctx, plot_ctx);
+//     }
+//     if ctx.has_sp3() && ctx.has_navigation_data() {
+//         record::plot_residual_ephemeris(ctx, plot_ctx);
+//     }
+//     if ctx.has_navigation_data() {
+//         record::plot_ionospheric_delay(ctx, plot_ctx);
+//     }
+// }

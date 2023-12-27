@@ -1,4 +1,4 @@
-use crate::plot::{build_3d_chart_epoch_label, PlotContext};
+use crate::graph::{build_3d_chart_epoch_label, PlotContext};
 use plotly::common::{Mode, Visible}; //Marker, MarkerSymbol
 use rinex::prelude::Epoch;
 use rinex::prelude::RnxContext;

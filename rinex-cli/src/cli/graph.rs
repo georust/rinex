@@ -12,6 +12,26 @@ pub fn subcommand() -> Command {
             "RINEX dependent visualizations. 
         Will only generate graphs if related dataset is present.",
         )
+        .next_help_heading("GNSS observations (requires either Meteo or OBS RINEX)")
+        .arg(
+            Arg::new("obs")
+                .short('o')
+                .long("obs")
+                .action(ArgAction::SetTrue)
+                .help("Plot all observables."),
+        )
+        .arg(
+            Arg::new("dcb")
+                .long("dcb")
+                .action(ArgAction::SetTrue)
+                .help("Plot Differential Code Bias. Requires OBS RINEX."),
+        )
+        .arg(
+            Arg::new("mp")
+                .long("mp")
+                .action(ArgAction::SetTrue)
+                .help("Plot Code Multipath. Requires OBS RINEX."),
+        )
         .next_help_heading("GNSS combinations (requires OBS RINEX)")
         .arg(
             Arg::new("if")
@@ -50,21 +70,6 @@ pub fn subcommand() -> Command {
                 .action(ArgAction::SetTrue)
                 .conflicts_with("no-graph")
                 .help("Plot Melbourne-Wübbena (MW) signal combination."),
-        )
-        .arg(
-            Arg::new("dcb")
-                .long("dcb")
-                .short('d')
-                .action(ArgAction::SetTrue)
-                .conflicts_with("no-graph")
-                .help("Differential Code Bias (DCB) visualization."),
-        )
-        .arg(
-            Arg::new("multipath")
-                .long("mp")
-                .action(ArgAction::SetTrue)
-                .conflicts_with("no-graph")
-                .help("Code Multipath analysis"),
         )
         .arg(Arg::new("cs").long("cs").action(ArgAction::SetTrue).help(
             "Phase / Cycle Slip graph.

@@ -1,4 +1,4 @@
-use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
+use crate::graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::navigation::Ephemeris;
 use rinex::prelude::*;

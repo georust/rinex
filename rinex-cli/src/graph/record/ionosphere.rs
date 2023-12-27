@@ -1,4 +1,4 @@
-use crate::plot::{build_chart_epoch_axis, PlotContext};
+use crate::graph::{build_chart_epoch_axis, PlotContext};
 // use hifitime::{Epoch, TimeScale};
 use plotly::common::{
     //Marker,
