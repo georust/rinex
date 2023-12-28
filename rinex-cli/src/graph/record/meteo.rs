@@ -74,7 +74,7 @@ pub fn plot_meteo_observations(rnx: &Rinex, plot_context: &mut PlotContext) {
         .map(|(_, angle)| angle)
         .collect::<Vec<_>>();
 
-    let has_wind_direction = theta.len() > 0;
+    let has_wind_direction = !theta.is_empty();
 
     let rho = rnx
         .wind_direction()

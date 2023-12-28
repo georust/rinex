@@ -980,7 +980,7 @@ impl Header {
                     // The Klobuchar model needs two lines to be entirely described.
                     if let Some(kb_model) = model.as_klobuchar() {
                         let correction_type = content.split_at(5).0.trim();
-                        if correction_type.ends_with("B") {
+                        if correction_type.ends_with('B') {
                             let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
                             let (beta, region) = (kb_model.beta, kb_model.region);
                             ionod_correction = Some(IonMessage::KlobucharModel(KbModel {

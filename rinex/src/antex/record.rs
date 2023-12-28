@@ -430,13 +430,13 @@ impl Merge for Record {
                             }
                         }
                         if !has_signal {
-                            subset.insert(carrier.clone(), freqdata.clone());
+                            subset.insert(*carrier, freqdata.clone());
                         }
                     }
                 }
                 if !has_ant {
                     let mut inner = HashMap::<Carrier, FrequencyDependentData>::new();
-                    inner.insert(carrier.clone(), freqdata.clone());
+                    inner.insert(*carrier, freqdata.clone());
                     self.push((antenna.clone(), inner));
                 }
             }

@@ -544,13 +544,13 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         info!("observations rendered in \"{}\"", path.display());
         if !ctx.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
     /*
      * GNSS combinations graphs
      */
-    if gnss_combination_plot(&matches) {
+    if gnss_combination_plot(matches) {
         let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
 
         let mut plot_ctx = PlotContext::new();
@@ -609,7 +609,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             .expect("failed to render gnss combinations (HTML): permission denied");
         info!("gnss combinations rendered in \"{}\"", path.display());
         if !ctx.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
     /*
@@ -635,7 +635,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             .expect("failed to render dcb (HTML): permission denied");
         info!("dcb graph rendered in \"{}\"", path.display());
         if !ctx.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
     if matches.get_flag("mp") {
@@ -654,10 +654,10 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             .expect("failed to render multiath (HTML): permission denied");
         info!("code multipath rendered in \"{}\"", path.display());
         if !ctx.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
-    if navigation_plot(&matches) {
+    if navigation_plot(matches) {
         let mut plot_ctx = PlotContext::new();
 
         if matches.get_flag("skyplot") {
@@ -687,7 +687,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             .expect("failed to render navigation (HTML): permission denied");
         info!("code multipath rendered in \"{}\"", path.display());
         if !ctx.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
     if matches.get_flag("sv-clock") {
@@ -702,12 +702,12 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             .expect("failed to render clock states (HTML): permission denied");
         info!("clock graphs rendered in \"{}\"", path.display());
         if !ctx.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
-    if atmosphere_plot(&matches) {
+    if atmosphere_plot(matches) {
         let mut plot_ctx = PlotContext::new();
-        plot_atmosphere_conditions(&ctx, &mut plot_ctx, matches);
+        plot_atmosphere_conditions(ctx, &mut plot_ctx, matches);
         /* save (HTML) */
         let path = ctx.workspace.join("atmosphere.html");
         let mut fd = File::create(&path)
@@ -717,7 +717,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             .expect("failed to render atmosphere graphs (HTML): permission denied");
         info!("atmosphere graphs rendered in \"{}\"", path.display());
         if !ctx.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
     Ok(())

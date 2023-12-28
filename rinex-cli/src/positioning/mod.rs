@@ -133,15 +133,11 @@ pub fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
     } else {
         /* RINEX 3 case */
         let iono_corr = nav.header.ionod_correction?;
-        if let Some(kb_model) = iono_corr.as_klobuchar() {
-            Some(KbModel {
-                h_km: 350.0, //TODO improve this
-                alpha: kb_model.alpha,
-                beta: kb_model.beta,
-            })
-        } else {
-            None
-        }
+        iono_corr.as_klobuchar().map(|kb_model| KbModel {
+            h_km: 350.0, //TODO improve this
+            alpha: kb_model.alpha,
+            beta: kb_model.beta,
+        })
     }
 }
 
@@ -260,13 +256,13 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
 
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
-        let tracks = cggtts::resolve(&ctx, solver, rx_lat_ddeg, matches)?;
-        cggtts_post_process(&ctx, tracks, matches)?;
+        let tracks = cggtts::resolve(ctx, solver, rx_lat_ddeg, matches)?;
+        cggtts_post_process(ctx, tracks, matches)?;
     } else {
         /* PPP */
-        let pvt_solutions = ppp::resolve(&ctx, solver, rx_lat_ddeg);
+        let pvt_solutions = ppp::resolve(ctx, solver, rx_lat_ddeg);
         /* save solutions (graphs, reports..) */
-        ppp_post_process(&ctx, pvt_solutions, matches)?;
+        ppp_post_process(ctx, pvt_solutions, matches)?;
     }
     Ok(())
 }

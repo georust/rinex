@@ -36,7 +36,7 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         .to_string_lossy()
         .to_string();
 
-    let output_path = ctx.workspace.join(&suffix).to_string_lossy().to_string();
+    let output_path = ctx.workspace.join(suffix).to_string_lossy().to_string();
 
     rinex_c.to_file(&output_path)?;
 
@@ -80,7 +80,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         let mut extension = String::new();
 
-        let filename = if filename.contains(".") {
+        let filename = if filename.contains('.') {
             /* .crx.gz case */
             let mut iter = filename.split('.');
             let filename = iter
@@ -88,7 +88,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 .expect("failed to determine output file name")
                 .to_string();
             extension.push_str(iter.next().expect("failed to determine output file name"));
-            extension.push_str(".");
+            extension.push('.');
             filename
         } else {
             filename.clone()
@@ -104,7 +104,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         let output = ctx
             .workspace
-            .join(&format!("{}-{}.{}", filename, file_suffix, extension))
+            .join(format!("{}-{}.{}", filename, file_suffix, extension))
             .to_string_lossy()
             .to_string();
 
@@ -136,7 +136,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         let output = ctx
             .workspace
-            .join(&format!("{}-{}.{}", filename, file_suffix, extension))
+            .join(format!("{}-{}.{}", filename, file_suffix, extension))
             .to_string_lossy()
             .to_string();
 
@@ -183,7 +183,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         let mut extension = String::new();
 
-        let filename = if filename.contains(".") {
+        let filename = if filename.contains('.') {
             /* .crx.gz case */
             let mut iter = filename.split('.');
             let filename = iter
@@ -191,7 +191,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 .expect("failed to determine output file name")
                 .to_string();
             extension.push_str(iter.next().expect("failed to determine output file name"));
-            extension.push_str(".");
+            extension.push('.');
             filename
         } else {
             filename.clone()
@@ -237,14 +237,14 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let path_b = matches.get_one::<PathBuf>("file").unwrap();
 
     let path_b = path_b.to_string_lossy().to_string();
-    let rinex_b =
-        Rinex::from_file(&path_b).expect(&format!("failed to load {}: invalid RINEX", path_b));
+    let rinex_b = Rinex::from_file(&path_b)
+        .unwrap_or_else(|_| panic!("failed to load {}: invalid RINEX", path_b));
 
     let rinex_c = match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
             let rinex_a = ctx.data.obs_data().expect("no OBS RINEX previously loaded");
-            let rinex_c = rinex_a.substract(&rinex_b)?;
-            rinex_c
+
+            rinex_a.substract(&rinex_b)?
         },
         t => panic!("operation not feasible for {}", t),
     };
@@ -264,15 +264,15 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         .to_string_lossy()
         .to_string();
 
-    if filename.contains(".") {
+    if filename.contains('.') {
         /* .crx.gz case */
         let mut iter = filename.split('.');
-        let filename = iter
+        let _filename = iter
             .next()
             .expect("failed to determine output file name")
             .to_string();
         extension.push_str(iter.next().expect("failed to determine output file name"));
-        extension.push_str(".");
+        extension.push('.');
     }
 
     let file_ext = obs_path
@@ -285,7 +285,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     let fullpath = ctx
         .workspace
-        .join(&format!("DIFFERENCED.{}", extension))
+        .join(format!("DIFFERENCED.{}", extension))
         .to_string_lossy()
         .to_string();
 

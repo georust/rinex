@@ -181,7 +181,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
                 },
                 sampling: {
                     [(
-                        format!("dt={}s", data.epoch_interval.to_seconds().to_string()),
+                        format!("dt={}s", data.epoch_interval.to_seconds()),
                         data.nb_epochs(),
                     )]
                     .into()
@@ -235,7 +235,7 @@ impl EpochReport {
             },
             sampling: {
                 data.sampling_histogram()
-                    .map(|(dt, pop)| (format!("dt={}s", dt.to_seconds().to_string()), pop))
+                    .map(|(dt, pop)| (format!("dt={}s", dt.to_seconds()), pop))
                     .collect()
             },
             system: {
