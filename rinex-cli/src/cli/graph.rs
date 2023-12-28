@@ -1,4 +1,4 @@
-use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use clap::{Arg, ArgAction, Command};
 
 pub fn subcommand() -> Command {
     Command::new("graph")

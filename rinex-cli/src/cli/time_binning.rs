@@ -1,5 +1,5 @@
 // tbin opmode
-use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use clap::{value_parser, Arg, ArgAction, Command};
 use rinex::prelude::Duration;
 
 pub fn subcommand() -> Command {

@@ -1,5 +1,5 @@
 // Merge opmode
-use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use clap::{value_parser, Arg, ArgAction, Command};
 use std::path::PathBuf;
 
 pub fn subcommand() -> Command {

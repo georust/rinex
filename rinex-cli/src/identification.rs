@@ -1,12 +1,12 @@
-use crate::Cli;
+
 use clap::ArgMatches;
 
 use rinex::{
     observation::SNR,
-    prelude::{Constellation, Duration, Epoch, Observable, Rinex, RnxContext, SV},
+    prelude::{Constellation, Duration, Epoch, Observable, Rinex, RnxContext},
     preprocessing::*,
 };
-use sp3::SP3;
+
 use std::str::FromStr;
 
 use itertools::Itertools;

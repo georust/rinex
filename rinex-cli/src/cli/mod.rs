@@ -1,5 +1,5 @@
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use log::{error, info};
+use log::{info};
 use map_3d::{ecef2geodetic, geodetic2ecef, Ellipsoid};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -23,7 +23,7 @@ mod qc;
 // positioning mode
 mod positioning;
 
-use gnss_rtk::prelude::Config;
+
 
 pub struct Cli {
     /// Arguments passed by user
@@ -247,15 +247,6 @@ Otherwise it gets automatically picked up."))
                     .long("rx-geo")
                     .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
                     .help("Define the (RX) antenna position manualy, in decimal degrees."))
-                .next_help_heading("Data generation")
-					.arg(Arg::new("gpx")
-						.long("gpx")
-                        .action(ArgAction::SetTrue)
-						.help("Enable GPX formatting. In RTK mode, a GPX track is generated."))
-					.arg(Arg::new("kml")
-						.long("kml")
-                        .action(ArgAction::SetTrue)
-						.help("Enable KML formatting. In RTK mode, a KML track is generated."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
                 .subcommand(graph::subcommand())
                 .subcommand(identify::subcommand())

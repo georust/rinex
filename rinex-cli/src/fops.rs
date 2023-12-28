@@ -1,7 +1,7 @@
 use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::{Duration, Epoch, Rinex, RinexType, RnxContext};
+use rinex::prelude::{Duration, Epoch, Rinex, RinexType};
 use rinex::preprocessing::*;
 use rinex::{Merge, Split};
 use std::path::PathBuf;

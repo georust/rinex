@@ -8,6 +8,7 @@ mod fops;
 mod graph;
 mod identification; // high level identification/macros
 mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis
+mod positioning; // positioning + CGGTTS opmode
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -15,7 +16,7 @@ use preprocessing::preprocess;
 // mod positioning;
 
 //use horrorshow::Template;
-use rinex::prelude::*;
+
 
 extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
@@ -29,21 +30,15 @@ use env_logger::{Builder, Target};
 #[macro_use]
 extern crate log;
 
-use fops::open_with_web_browser;
-
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("rinex error")]
     RinexError(#[from] rinex::Error),
-    // #[error("positioning solver error")]
-    // PositioningSolverError(#[from] positioning::solver::Error),
-    // #[error("post processing error")]
-    // PositioningPostProcError(#[from] positioning::post_process::Error),
     #[error("missing OBS RINEX")]
     MissingObservationRinex,
-    #[error("missing NAV RINEX")]
+    #[error("missing (BRDC) NAV RINEX")]
     MissingNavigationRinex,
     #[error("merge ops failure")]
     MergeError(#[from] rinex::merge::Error),
@@ -51,6 +46,8 @@ pub enum Error {
     SplitError(#[from] rinex::split::Error),
     #[error("failed to create QC report: permission denied!")]
     QcReportCreationError,
+    #[error("positioning solver error")]
+    PositioningSolverError(#[from] positioning::Error),
 }
 
 /*
@@ -118,37 +115,13 @@ pub fn main() -> Result<(), Error> {
         Some(("qc", submatches)) => {
             qc::qc_report(&ctx, submatches)?;
         },
+        Some(("positioning", submatches)) => {
+            positioning::precise_positioning(&ctx, submatches)?;
+        },
         Some(("tbin", submatches)) => {
             fops::time_binning(&ctx, submatches)?;
         },
         _ => error!("no opmode specified!"),
     }
     Ok(())
-    /*
-     * plot combinations (if any)
-    if !no_graph {
-        if let Some(obs) = ctx.obs_data() {
-            plot_combinations(obs, &cli, &mut plot_ctx);
-        } else {
-            error!("GNSS combinations requires Observation Data");
-        }
-    }
-     */
-    /*
-     * skyplot
-    if !no_graph {
-        if skyplot_allowed(&ctx, &cli) {
-            let nav = ctx.nav_data().unwrap(); // infaillble
-            let ground_pos = ctx.ground_position().unwrap(); // infaillible
-            plot::skyplot(nav, ground_pos, &mut plot_ctx);
-            info!("skyplot view generated");
-        } else if !no_graph {
-            info!("skyplot view is not feasible");
-        }
-    }
-     */
-    // if positioning {
-    //     let results = positioning::solver(&mut ctx, &cli)?;
-    //     positioning::post_process(workspace, &cli, &ctx, results)?;
-    // }
 } // main

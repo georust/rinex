@@ -1,5 +1,5 @@
 // Data identification opmode
-use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use clap::{Arg, ArgAction, Command};
 
 pub fn subcommand() -> Command {
     Command::new("identify")

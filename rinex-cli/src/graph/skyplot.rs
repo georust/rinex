@@ -3,7 +3,7 @@ use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
 };
-use rinex::prelude::{Epoch, GroundPosition, Rinex, RnxContext};
+use rinex::prelude::{Epoch, GroundPosition, RnxContext};
 
 /*
  * Skyplot view
