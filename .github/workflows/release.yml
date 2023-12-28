@@ -98,7 +98,6 @@ jobs:
         cp "$CRX2RNX" "$ARCHIVE"/
         cp "$RNX2CRX" "$ARCHIVE"/
         cp "$RNXCLI" "$ARCHIVE"/
-        cp "$RNX2CGGTTS" "$ARCHIVE"/
         cp "$UBX2RNX" "$ARCHIVE"/
 
     - name: Gzip archive (Unix)
