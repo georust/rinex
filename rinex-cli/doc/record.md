@@ -15,7 +15,7 @@ rinex-cli \
 
 The received signal power analysis for example, extracted from the analysis report
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ssi.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_ssi.png">
 
 It is rapidly necessary to determine which vehicles can be encountered in a file.  
 For this reason, we developped the `--sv-epoch` analysis, which helps determine which vehicle to focus on.
@@ -28,7 +28,7 @@ rinex-cli \
 
 With the Sv per Epoch analysis, you know R01,R02 were both seen at 21:00UTC
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_sv_epoch.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_sv_epoch.png">
 
 
 When dealing with Observation RINEX, the following operations are most useful:
@@ -57,7 +57,7 @@ for easy phase variations comparison.
 We also emphasize _possible_ cycle slips when plotting with a black symbol. 
 For example L5 of G10 in `GRAS00FRA_R_2022` is affected:
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/gras00fra_g10phase.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/gras00fra_g10phase.png">
 
 4 micro (1 tick long) possible corruptions over this channel, which was used to sample L5 at high rate. 
 
@@ -86,7 +86,7 @@ rinex-cli \
 
 From the resuling "sv.png" product:
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gps_obs_nav_sv.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_gps_obs_nav_sv.png">
 
 Triangles mark ephemeris frames (low rate) and circles mark observations (high rate).   
 G25, G29, G31 and G12 in 20% to 35% portion of that day, have enough elevation angle information for the enhancement

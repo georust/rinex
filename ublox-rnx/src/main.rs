@@ -1,6 +1,6 @@
 //! Application to generate RINEX data in standard format
 //! using a Ublox receiver.   
-//! Homepage: <https://github.com/gwbres/rinex>
+//! Homepage: <https://github.com/georust/rinex>
 use std::str::FromStr;
 
 use thiserror::Error;

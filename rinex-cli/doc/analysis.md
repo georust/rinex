@@ -16,7 +16,7 @@ rinex-cli \
     --retain-sv G01,G08,R04,R08,R09 --sv-epoch
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_esbc00dnk.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/sv_esbc00dnk.png">
 
 
 In case Differential context is activated (`--nav`) determining
@@ -39,7 +39,7 @@ rinex-cli \
     -P G01,G08,R04,R08,R09 --sv
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_diff_esbc00dnk.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/sv_diff_esbc00dnk.png">
 
 With this command, user can rapidly determine which vehicle is eligible for
 RINEX differential processing. In this example, R04, R08 and R09 are excellent candidates,
@@ -47,7 +47,7 @@ because most of the Observation context is covered by Ephemeris.
 
 To learn more about differential processing, refer to the 
 Differential proceesing operations described
-[in this page](https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/processing.md).
+[in this page](https://github.com/georust/rinex/blob/main/rinex-cli/doc/processing.md).
 
 Sample rate analysis
 ====================
@@ -61,9 +61,9 @@ For example, `ESBC00DNK_R_20201` is a large file with steady 30s sample rate.
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz --epoch-hist
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_hist.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_hist.png">
 
 When applying to non-steady files, this plot emphasizes the average (dominant) sample rate and the amount of anomalies.   
 In this example, 16 epochs were generated, dominant sample rate is 30s and 2 epochs are missing.
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/hist2.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/hist2.png">

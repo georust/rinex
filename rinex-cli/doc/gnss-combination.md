@@ -76,7 +76,7 @@ rinex-cli \
         --gf
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_gf.png">
 
 Several combinations were formed, like C1W-C2W meaning PR 1W against PR 2W,
 both L1 and L2 signals were sampled for both vehicles, but L5 is also sampled for G08.
@@ -93,7 +93,7 @@ Let's focus on Phase data only:
             --gf
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
 
 GF and atmospheric delay
 ========================
@@ -123,7 +123,7 @@ rinex-cli \
             --gf
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gfcs.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_gfcs.png">
 
 Discontinuities in GF slopes indicate bad reception conditions and CSs.  
 You can see that this one is not reported by the receiver.  
