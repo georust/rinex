@@ -81,8 +81,7 @@ pub fn plot_meteo_observations(rnx: &Rinex, plot_context: &mut PlotContext) {
         .map(|(t, _)| {
             if let Some(speed) = rnx
                 .wind_speed()
-                .filter(|(ts, _)| *ts == t)
-                .reduce(|k, _| k)
+                .find(|(ts, _)| *ts == t)
                 .map(|(_, speed)| speed)
             {
                 speed / wind_speed_max
