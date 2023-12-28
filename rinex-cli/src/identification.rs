@@ -93,14 +93,6 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
                 .collect::<Vec<_>>();
             println!("Observables: {:?}", observables);
         }
-        if matches.get_flag("all") || matches.get_flag("anomalies") {
-            let anomalies = data.epoch_anomalies().collect::<Vec<_>>();
-            if anomalies.is_empty() {
-                println!("No anomalies reported.");
-            } else {
-                println!("Anomalies: {:#?}", anomalies);
-            }
-        }
     }
 
     if let Some(files) = ctx.nav_paths() {
