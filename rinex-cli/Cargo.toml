@@ -1,6 +1,6 @@
 [package]
 name = "rinex-cli"
-version = "0.9.7"
+version = "0.10.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Command line tool parse and analyze RINEX data"
