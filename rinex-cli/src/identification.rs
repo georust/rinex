@@ -2,7 +2,7 @@ use clap::ArgMatches;
 
 use rinex::{
     observation::SNR,
-    prelude::{Constellation, Duration, Epoch, Observable, Rinex, RnxContext},
+    prelude::{Constellation, Epoch, Observable, Rinex, RnxContext},
     preprocessing::*,
 };
 
@@ -17,7 +17,7 @@ use std::collections::HashMap;
  */
 pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
     /*
-     * Browse all possible types of data, and apply relavant ID operation
+     * Browse all possible types of data, and apply relevant ID operation
      */
     if let Some(files) = ctx.obs_paths() {
         let files = files
@@ -60,6 +60,38 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         if matches.get_flag("all") || matches.get_flag("snr") {
             let report = SNRReport::from_data(data);
             println!("SNR: {:#?}", report);
+        }
+        if matches.get_flag("all") || matches.get_flag("anomalies") {
+            let anomalies = data.epoch_anomalies().collect::<Vec<_>>();
+            if anomalies.is_empty() {
+                println!("No anomalies reported.");
+            } else {
+                println!("Anomalies: {:#?}", anomalies);
+            }
+        }
+    }
+
+    if let Some(files) = ctx.meteo_paths() {
+        let files = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        println!("\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+        println!("%%%%%%%%%%%% Meteo Data %%%%%%%%%");
+        println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+        println!("{:?}", files);
+    }
+    if let Some(data) = ctx.meteo_data() {
+        if matches.get_flag("all") || matches.get_flag("epochs") {
+            println!("{:#?}", EpochReport::from_data(data));
+        }
+        if matches.get_flag("all") || matches.get_flag("observables") {
+            let observables = data
+                .observable()
+                .sorted()
+                .map(|obs| obs.to_string())
+                .collect::<Vec<_>>();
+            println!("Observables: {:?}", observables);
         }
         if matches.get_flag("all") || matches.get_flag("anomalies") {
             let anomalies = data.epoch_anomalies().collect::<Vec<_>>();
@@ -233,53 +265,3 @@ impl SNRReport {
         }
     }
 }
-
-fn report_sampling_histogram(data: &Vec<(Duration, usize)>) {
-    let data: HashMap<String, usize> = data
-        .iter()
-        .map(|(dt, pop)| (dt.to_string(), *pop))
-        .collect();
-    println!("{:#?}", data);
-}
-
-/*
- * Method dedicated to sampling "identification"
- */
-fn sampling_identification(rnx: &Rinex) {
-    if rnx.is_navigation_rinex() {
-        /*
-         * with NAV RINEX, we're interested in
-         * differentiating the BRDC NAV/ION and basically all messages time frames
-         */
-        let data: Vec<(Duration, usize)> = rnx
-            .filter(Filter::from_str("EPH").unwrap())
-            .sampling_histogram()
-            .collect();
-        println!("BRDC ephemeris:");
-        report_sampling_histogram(&data);
-    } else {
-        // Other RINEX types: run sampling histogram analysis
-        let data: Vec<(Duration, usize)> = rnx.sampling_histogram().collect();
-        report_sampling_histogram(&data);
-    }
-}
-
-//        } else if op.eq("gnss") && (rnx.is_observation_rinex() || rnx.is_navigation_rinex()) {
-//            let mut data: Vec<_> = rnx.constellation().collect();
-//            data.sort();
-//            let content = match pretty_json {
-//                true => serde_json::to_string_pretty(&data).unwrap(),
-//                false => serde_json::to_string(&data).unwrap(),
-//            };
-//            println!("[{}]: {}", path, content);
-//            println!("[{}]: {}", path, content);
-//        } else if op.eq("orbits") && rnx.is_navigation_rinex() {
-//            error!("nav::orbits not available yet");
-//            //let data: Vec<_> = rnx.orbit_fields();
-//            //let content = match pretty_json {
-//            //    true => serde_json::to_string_pretty(&data).unwrap(),
-//            //    false => serde_json::to_string(&data).unwrap(),
-//            //};
-//            //println!("{}", content);
-//    }
-//}
