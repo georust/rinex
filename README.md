@@ -25,7 +25,8 @@ You can also contact us [on our Discord channel](https://discord.gg/Fp2aape)
 - RINEX V4 full support
 - Meteo RINEX full support
 - IONEX 2D support. Partial IONEX 3D support.
-- Clock RINEX partial support: to be concluded soon
+- Partial ANTEX support
+- Parial Clock RINEX support
 - Several pre processing operations:
   - File merging
   - Time beaning 
@@ -60,15 +61,14 @@ your improvements
 
 * [`rinex`](rinex/) is the core library 
 * [`rinex-cli`](rinex-cli/) : an application dedicated to RINEX post processing.
-It supports some of `teqc` operations.   
+It supports some of `teqc` operations.
+It integrates a position solver and can format CGGTTS tracks for clock comparison.
 The application is auto-generated for a few architectures, download it from the 
 [release portal](https://github.com/gwbres/rinex/releases)
 
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
-* [`rnx2cggtts`](rnx2cggtts/) post processes RINEX data and resolves PVT that we
-wrap in CGGTTS format which is dedicated to (remote) clock comparison 
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
 * [`qc-traits`](qc-traits/) declares Traits that are shared between `rinex` and `rinex-qc`
 * [`sinex`](sinex/) SNX dedicated core library

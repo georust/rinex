@@ -1,9 +1,9 @@
-use crate::plot::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
+use crate::graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::navigation::Ephemeris;
 use rinex::prelude::*;
 
-pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let mut clock_plot_created = false;
     if let Some(nav) = ctx.nav_data() {
         /*
@@ -152,9 +152,64 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
         }
     }
     /*
+     * Plot BRDC Clock correction
+     */
+    if let Some(navdata) = ctx.nav_data() {
+        if let Some(obsdata) = ctx.obs_data() {
+            for (sv_index, sv) in obsdata.sv().enumerate() {
+                if sv_index == 0 {
+                    plot_ctx.add_timedomain_plot("SV Clock Correction", "Correction [s]");
+                    trace!("brdc clock correction plot");
+                }
+                let epochs: Vec<_> = obsdata
+                    .observation()
+                    .filter_map(|((t, flag), (_, vehicles))| {
+                        if flag.is_ok() && vehicles.contains_key(&sv) {
+                            Some(*t)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                let clock_corr: Vec<_> = obsdata
+                    .observation()
+                    .filter_map(|((t, flag), (_, _vehicles))| {
+                        if flag.is_ok() {
+                            let (toe, sv_eph) = navdata.sv_ephemeris(sv, *t)?;
+                            /*
+                             * TODO prefer SP3 (if any)
+                             */
+                            let clock_state = sv_eph.sv_clock();
+                            let clock_corr = Ephemeris::sv_clock_corr(sv, clock_state, *t, toe);
+                            Some(clock_corr.to_seconds())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let trace =
+                    build_chart_epoch_axis(&format!("{}", sv), Mode::Markers, epochs, clock_corr)
+                        .visible({
+                            if sv_index < 3 {
+                                Visible::True
+                            } else {
+                                Visible::LegendOnly
+                            }
+                        });
+                plot_ctx.add_trace(trace);
+            }
+        } else {
+            warn!("cannot plot brdc clock correction: needs OBS RINEX");
+        }
+    }
+}
+
+pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+    let mut pos_plot_created = false;
+    /*
      * Plot Broadcast Orbit (x, y, z)
      */
-    let mut pos_plot_created = false;
     if let Some(nav) = ctx.nav_data() {
         for (sv_index, sv) in nav.sv().enumerate() {
             if sv_index == 0 {
@@ -303,56 +358,6 @@ pub fn plot_navigation(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                 }
             });
             plot_ctx.add_trace(trace);
-        }
-    }
-    /*
-     * Plot BRDC Clock correction
-     */
-    if let Some(navdata) = ctx.nav_data() {
-        if let Some(obsdata) = ctx.obs_data() {
-            for (sv_index, sv) in obsdata.sv().enumerate() {
-                if sv_index == 0 {
-                    plot_ctx.add_timedomain_plot("SV Clock Correction", "Correction [s]");
-                    trace!("sv clock correction plot");
-                }
-                let epochs: Vec<_> = obsdata
-                    .observation()
-                    .filter_map(|((t, flag), (_, vehicles))| {
-                        if flag.is_ok() && vehicles.contains_key(&sv) {
-                            Some(*t)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                let clock_corr: Vec<_> = obsdata
-                    .observation()
-                    .filter_map(|((t, flag), (_, _vehicles))| {
-                        if flag.is_ok() {
-                            let (toe, sv_eph) = navdata.sv_ephemeris(sv, *t)?;
-                            /*
-                             * TODO prefer SP3 (if any)
-                             */
-                            let clock_state = sv_eph.sv_clock();
-                            let clock_corr = Ephemeris::sv_clock_corr(sv, clock_state, *t, toe);
-                            Some(clock_corr.to_seconds())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                let trace =
-                    build_chart_epoch_axis(&format!("{}", sv), Mode::Markers, epochs, clock_corr)
-                        .visible({
-                            if sv_index < 3 {
-                                Visible::True
-                            } else {
-                                Visible::LegendOnly
-                            }
-                        });
-                plot_ctx.add_trace(trace);
-            }
         }
     }
 }

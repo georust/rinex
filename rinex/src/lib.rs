@@ -587,6 +587,67 @@ impl Rinex {
     pub fn is_observation_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::ObservationData
     }
+
+    /// Generates a new RINEX = Self(=RINEX(A)) - RHS(=RINEX(B)).
+    /// Therefore RHS is considered reference.
+    /// This operation is typically used to compare two GNSS receivers.
+    /// Both RINEX formats must match otherwise this will panic.
+    /// This is only available to Observation RINEX files.
+    pub fn substract(&self, rhs: &Self) -> Result<Self, Error> {
+        let mut record = observation::Record::default();
+        let lhs_rec = self
+            .record
+            .as_obs()
+            .expect("can't substract other rinex format");
+
+        let rhs_rec = rhs
+            .record
+            .as_obs()
+            .expect("can't substract other rinex format");
+
+        for ((epoch, flag), (_, svnn)) in lhs_rec {
+            if let Some((_, ref_svnn)) = rhs_rec.get(&(*epoch, *flag)) {
+                for (sv, observables) in svnn {
+                    if let Some(ref_observables) = ref_svnn.get(sv) {
+                        for (observable, observation) in observables {
+                            if let Some(ref_observation) = ref_observables.get(observable) {
+                                if let Some((_, c_svnn)) = record.get_mut(&(*epoch, *flag)) {
+                                    if let Some(c_observables) = c_svnn.get_mut(sv) {
+                                        c_observables.insert(
+                                            observable.clone(),
+                                            ObservationData {
+                                                obs: observation.obs - ref_observation.obs,
+                                                lli: None,
+                                                snr: None,
+                                            },
+                                        );
+                                    } else {
+                                        // new observable
+                                        let mut inner =
+                                            HashMap::<Observable, ObservationData>::new();
+                                        inner.insert(observable.clone(), *observation);
+                                        c_svnn.insert(*sv, inner);
+                                    }
+                                } else {
+                                    // new epoch
+                                    let mut map = HashMap::<Observable, ObservationData>::new();
+                                    map.insert(observable.clone(), *observation);
+                                    let mut inner =
+                                        BTreeMap::<SV, HashMap<Observable, ObservationData>>::new();
+                                    inner.insert(*sv, map);
+                                    record.insert((*epoch, *flag), (None, inner));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let rinex = Rinex::new(self.header.clone(), record::Record::ObsRecord(record));
+        Ok(rinex)
+    }
+
     /// Returns true if Differential Code Biases (DCBs)
     /// are compensated for, in this file, for this GNSS constellation.
     /// DCBs are biases due to tiny frequency differences,

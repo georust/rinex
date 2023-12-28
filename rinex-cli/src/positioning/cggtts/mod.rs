@@ -1,28 +1,21 @@
-use crate::Cli;
+//! CGGTTS special resolution opmoode.
+use clap::ArgMatches;
 use std::collections::HashMap;
 use std::str::FromStr;
-use thiserror::Error;
+
+mod post_process;
+pub use post_process::{post_process, Error as PostProcessingError};
 
 use gnss::prelude::{Constellation, SV};
 
-use rinex::{
-    carrier::Carrier,
-    navigation::Ephemeris,
-    prelude::{Observable, Rinex, RnxContext},
-};
+use rinex::{carrier::Carrier, navigation::Ephemeris, prelude::Observable};
 
 use rtk::prelude::{
-    AprioriPosition,
-    BdModel,
     Candidate,
-    Config,
     Duration,
     Epoch,
     InterpolationResult,
     IonosphericBias,
-    KbModel,
-    Method,
-    NgModel,
     Observation,
     PVTSolutionType,
     Solver,
@@ -35,140 +28,10 @@ use cggtts::{
     track::{FitData, GlonassChannel, SVTracker, Scheduler},
 };
 
-//use statrs::statistics::Statistics;
-use map_3d::{ecef2geodetic, Ellipsoid};
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("solver error")]
-    SolverError(#[from] rtk::Error),
-    #[error("missing observations")]
-    MissingObservationData,
-    #[error("missing brdc navigation")]
-    MissingBroadcastNavigationData,
-    #[error("undefined apriori position")]
-    UndefinedAprioriPosition,
-}
-
-fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
-    const MAX_LATDDEG_DELTA: f64 = 15.0;
-    let max_dt = Duration::from_hours(24.0);
-    let rnx = meteo?;
-    let meteo = rnx.header.meteo.as_ref().unwrap();
-
-    let delays: Vec<(Observable, f64)> = meteo
-        .sensors
-        .iter()
-        .filter_map(|s| match s.observable {
-            Observable::ZenithDryDelay => {
-                let (x, y, z, _) = s.position?;
-                let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
-                    let value = rnx
-                        .zenith_dry_delay()
-                        .filter(|(t_sens, _)| (*t_sens - t).abs() < max_dt)
-                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-                    let (_, value) = value?;
-                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
-                    Some((s.observable.clone(), value))
-                } else {
-                    None
-                }
-            },
-            Observable::ZenithWetDelay => {
-                let (x, y, z, _) = s.position?;
-                let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
-                    let value = rnx
-                        .zenith_wet_delay()
-                        .filter(|(t_sens, _)| (*t_sens - t).abs() < max_dt)
-                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-                    let (_, value) = value?;
-                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
-                    Some((s.observable.clone(), value))
-                } else {
-                    None
-                }
-            },
-            _ => None,
-        })
-        .collect();
-
-    if delays.len() < 2 {
-        None
-    } else {
-        let zdd = delays
-            .iter()
-            .filter_map(|(obs, value)| {
-                if obs == &Observable::ZenithDryDelay {
-                    Some(*value)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-            .unwrap();
-
-        let zwd = delays
-            .iter()
-            .filter_map(|(obs, value)| {
-                if obs == &Observable::ZenithWetDelay {
-                    Some(*value)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-            .unwrap();
-
-        Some((zwd, zdd))
-    }
-}
-
-fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
-    let kb_model = nav
-        .klobuchar_models()
-        .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
-
-    if let Some((_, sv, kb_model)) = kb_model {
-        Some(KbModel {
-            h_km: {
-                match sv.constellation {
-                    Constellation::BeiDou => 375.0,
-                    // we only expect GPS or BDS here,
-                    // badly formed RINEX will generate errors in the solutions
-                    _ => 350.0,
-                }
-            },
-            alpha: kb_model.alpha,
-            beta: kb_model.beta,
-        })
-    } else {
-        /* RINEX 3 case */
-        let iono_corr = nav.header.ionod_correction?;
-        if let Some(kb_model) = iono_corr.as_klobuchar() {
-            Some(KbModel {
-                h_km: 350.0, //TODO improve this
-                alpha: kb_model.alpha,
-                beta: kb_model.beta,
-            })
-        } else {
-            None
-        }
-    }
-}
-
-fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
-    nav.bdgim_models()
-        .min_by_key(|(t_i, _)| (t - *t_i).abs())
-        .map(|(_, model)| BdModel { alpha: model.alpha })
-}
-
-fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
-    nav.nequick_g_models()
-        .min_by_key(|(t_i, _)| (t - *t_i).abs())
-        .map(|(_, model)| NgModel { a: model.a })
-}
+use crate::cli::Context;
+use crate::positioning::{
+    bd_model, kb_model, ng_model, tropo_components, Error as PositioningError,
+};
 
 fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
     for ((k_sv, _), tracker) in trackers {
@@ -190,111 +53,40 @@ fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>)
 //     }
 // }
 
-pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
+/*
+ * Resolves CGGTTS tracks from input context
+ */
+pub fn resolve<APC, I>(
+    ctx: &Context,
+    mut solver: Solver<APC, I>,
+    rx_lat_ddeg: f64,
+    matches: &ArgMatches,
+) -> Result<Vec<Track>, PositioningError>
+where
+    APC: Fn(Epoch, SV, f64) -> Option<(f64, f64, f64)>,
+    I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
+{
     // custom tracking duration
-    let trk_duration = cli.tracking_duration();
-    info!("tracking duration set to {}", trk_duration);
-
-    // parse custom config, if any
-    let cfg = match cli.config() {
-        Some(cfg) => cfg,
-        None => {
-            /* no manual config: we use the optimal known to this day */
-            Config::preset(Method::SPP)
+    let trk_duration = match matches.get_one::<Duration>("tracking") {
+        Some(tracking) => {
+            info!("Using custom tracking duration {:?}", *tracking);
+            *tracking
+        },
+        _ => {
+            let tracking = Duration::from_seconds(Scheduler::BIPM_TRACKING_DURATION_SECONDS.into());
+            info!("Using default tracking duration {:?}", tracking);
+            tracking
         },
     };
 
-    match cfg.method {
-        Method::SPP => info!("single point positioning"),
-        Method::PPP => info!("precise point positioning"),
-    };
-
-    let pos = match cli.manual_apc() {
-        Some(pos) => pos,
-        None => ctx
-            .ground_position()
-            .ok_or(Error::UndefinedAprioriPosition)?,
-    };
-
-    let apriori_ecef = pos.to_ecef_wgs84();
-    let apriori = Vector3::<f64>::new(apriori_ecef.0, apriori_ecef.1, apriori_ecef.2);
-    let apriori = AprioriPosition::from_ecef(apriori);
-
-    let lat_ddeg = apriori.geodetic[0];
-
-    // print config to be used
-    info!("{:#?}", cfg);
-
-    let obs_data = match ctx.obs_data() {
-        Some(data) => data,
-        None => {
-            return Err(Error::MissingObservationData);
-        },
-    };
+    // infaillible, at this point
+    let obs_data = ctx.data.obs_data().unwrap();
+    let nav_data = ctx.data.nav_data().unwrap();
+    let meteo_data = ctx.data.meteo_data();
 
     let dominant_sampling_period = obs_data
         .dominant_sample_rate()
-        .expect("RNX2CGGTTS requires steady RINEX observations");
-
-    let nav_data = match ctx.nav_data() {
-        Some(data) => data,
-        None => {
-            return Err(Error::MissingBroadcastNavigationData);
-        },
-    };
-
-    let sp3_data = ctx.sp3_data();
-    let atx_data = ctx.atx_data();
-    let meteo_data = ctx.meteo_data();
-
-    let mut solver = Solver::new(
-        &cfg,
-        apriori,
-        /* state vector interpolator */
-        |t, sv, order| {
-            /* SP3 source is prefered */
-            if let Some(sp3) = sp3_data {
-                if let Some((x, y, z)) = sp3.sv_position_interpolate(sv, t, order) {
-                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                    let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(
-                        InterpolationResult::from_mass_center_position((x, y, z))
-                            .with_elevation_azimuth((elevation, azimuth)),
-                    )
-                } else {
-                    // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
-                    if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                        let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                        let (elevation, azimuth) =
-                            Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                        Some(
-                            InterpolationResult::from_apc_position((x, y, z))
-                                .with_elevation_azimuth((elevation, azimuth)),
-                        )
-                    } else {
-                        // debug!("{:?} ({}): nav interpolation failed", t, sv);
-                        None
-                    }
-                }
-            } else if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                let (elevation, azimuth) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                Some(
-                    InterpolationResult::from_apc_position((x, y, z))
-                        .with_elevation_azimuth((elevation, azimuth)),
-                )
-            } else {
-                // debug!("{:?} ({}): nav interpolation failed", t, sv);
-                None
-            }
-        },
-        /* APC corrections provider */
-        |_t, _sv, _freq| {
-            let _atx = atx_data?;
-            None
-        },
-    )?;
+        .expect("RNX2CGGTTS requires steady GNSS observations");
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
@@ -312,7 +104,7 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
         }
 
         // Nearest TROPO
-        let zwd_zdd = tropo_components(meteo_data, *t, lat_ddeg);
+        let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
@@ -352,7 +144,6 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
 
                 let mut code = Option::<Observation>::None;
                 let mut phase = Option::<Observation>::None;
-                let mut assoc_doppler = Option::<Observation>::None;
 
                 if observable.is_pseudorange_observable() {
                     code = Some(Observation {
@@ -368,17 +159,18 @@ pub fn resolve(ctx: &mut RnxContext, cli: &Cli) -> Result<Vec<Track>, Error> {
                     });
                 }
 
+                // we only one phase or code here
                 if code.is_none() && phase.is_none() {
                     continue;
                 }
 
-                let doppler = Option::<Observation>::None;
+                let mut doppler = Option::<Observation>::None;
                 let doppler_to_match =
                     Observable::from_str(&format!("D{}", &observable.to_string()[..1])).unwrap();
 
                 for (observable, data) in observations {
                     if observable.is_doppler_observable() && observable == &doppler_to_match {
-                        assoc_doppler = Some(Observation {
+                        doppler = Some(Observation {
                             frequency,
                             snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,

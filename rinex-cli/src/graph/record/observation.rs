@@ -1,4 +1,4 @@
-use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
+use crate::graph::{build_chart_epoch_axis, generate_markers, PlotContext};
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
 use rinex::prelude::RnxContext;
 use rinex::{observation::*, prelude::*};
@@ -19,7 +19,7 @@ fn observable_to_physics(observable: &Observable) -> String {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(ctx: &RnxContext, plot_context: &mut PlotContext) {
+pub fn plot_observations(ctx: &RnxContext, plot_context: &mut PlotContext) {
     let record = ctx
         .obs_data()
         .unwrap() // infaillible

@@ -1,5 +1,5 @@
 //use itertools::Itertools;
-use crate::plot::PlotContext;
+use crate::graph::PlotContext;
 use plotly::color::NamedColor;
 use plotly::common::{Marker, MarkerSymbol};
 use plotly::layout::MapboxStyle;

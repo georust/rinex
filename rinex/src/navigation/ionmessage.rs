@@ -392,7 +392,7 @@ impl IonMessage {
                     false => KbRegionCode::WideArea,
                 };
                 /* determine which field we're dealing with */
-                if corr_type.ends_with("A") {
+                if corr_type.ends_with('A') {
                     let a0 = f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?;
                     let a1 = f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?;
                     let a2 = f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?;

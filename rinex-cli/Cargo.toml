@@ -1,6 +1,6 @@
 [package]
 name = "rinex-cli"
-version = "0.9.7"
+version = "0.10.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Command line tool parse and analyze RINEX data"
@@ -28,11 +28,11 @@ map_3d = "0.1.5"
 # ndarray = "0.15"
 colorous = "1.0"
 horrorshow = "0.8"
-clap = { version = "4.4.10", features = ["derive", "color"] }
+clap = { version = "4.4.11", features = ["derive", "color"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
-rinex = { path = "../rinex", version = "=0.15.2", features = ["full"] }
-rinex-qc = { path = "../rinex-qc", version = "=0.1.7", features = ["serde"] } 
+rinex = { path = "../rinex", version = "=0.15.3", features = ["full"] }
+rinex-qc = { path = "../rinex-qc", version = "=0.1.8", features = ["serde"] } 
 sp3 = { path = "../sp3", version = "=1.0.6",  features = ["serde", "flate2"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
@@ -44,3 +44,8 @@ plotly =  "0.8.4"
 gnss-rtk = { version = "0.4.1", features = ["serde"] }
 # gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+
+# cggtts
+cggtts = { version = "4.1.2", features = ["serde", "scheduler"] }
+# cggtts = { git = "https://github.com/gwbres/cggtts", branch = "develop", features = ["serde", "scheduler"] }
+# cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
