@@ -84,7 +84,7 @@ impl Context {
             Some(value) => *value as usize,
             None => 5usize,
         };
-            
+
         /* load all directories recursively, one by one */
         for dir in cli.input_directories() {
             let walkdir = WalkDir::new(dir).max_depth(max_depth);
