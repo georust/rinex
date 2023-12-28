@@ -12,6 +12,8 @@ use itertools::Itertools;
 use serde::Serialize;
 use std::collections::HashMap;
 
+use map_3d::{ecef2geodetic, Ellipsoid};
+
 /*
  * Dataset identification operations
  */
@@ -92,6 +94,28 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
                 .map(|obs| obs.to_string())
                 .collect::<Vec<_>>();
             println!("Observables: {:?}", observables);
+        }
+        if let Some(header) = &data.header.meteo {
+            for sensor in &header.sensors {
+                println!("{} sensor: ", sensor.observable);
+                if let Some(model) = &sensor.model {
+                    println!("model: \"{}\"", model);
+                }
+                if let Some(sensor_type) = &sensor.sensor_type {
+                    println!("type: \"{}\"", sensor_type);
+                }
+                if let Some(ecef) = &sensor.position {
+                    let (lat, lon, alt) = ecef2geodetic(ecef.0, ecef.1, ecef.2, Ellipsoid::WGS84);
+                    if !lat.is_nan() && !lon.is_nan() {
+                        println!("coordinates: lat={}°, lon={}°", lat, lon);
+                    }
+                    if alt.is_nan() {
+                        println!("altitude above sea: {}m", ecef.3);
+                    } else {
+                        println!("altitude above sea: {}m", alt + ecef.3);
+                    }
+                }
+            }
         }
     }
 
