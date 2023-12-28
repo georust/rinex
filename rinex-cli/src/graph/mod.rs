@@ -26,7 +26,9 @@ use serde::Serialize;
 use rinex::prelude::*;
 
 mod record;
-use record::{plot_residual_ephemeris, plot_sv_nav_clock, plot_sv_nav_orbits};
+use record::{
+    plot_atmosphere_conditions, plot_residual_ephemeris, plot_sv_nav_clock, plot_sv_nav_orbits,
+};
 
 mod context;
 pub use context::PlotContext;
@@ -514,6 +516,11 @@ fn navigation_plot(matches: &ArgMatches) -> bool {
     matches.get_flag("skyplot") || matches.get_flag("sp3-res") || matches.get_flag("sv-clock")
 }
 
+/* Returns True if Atmosphere conditions is to be generated */
+fn atmosphere_plot(matches: &ArgMatches) -> bool {
+    matches.get_flag("tropo") || matches.get_flag("tec") || matches.get_flag("ionod")
+}
+
 pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     /*
      * Observations graphs
@@ -626,7 +633,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         write!(fd, "{}", plot_ctx.to_html())
             .expect("failed to render dcb (HTML): permission denied");
-        info!("dcb visualization rendered in \"{}\"", path.display());
+        info!("dcb graph rendered in \"{}\"", path.display());
         if !ctx.quiet {
             open_with_web_browser(&path.to_string_lossy().to_string());
         }
@@ -693,16 +700,25 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
         write!(fd, "{}", plot_ctx.to_html())
             .expect("failed to render clock states (HTML): permission denied");
-        info!("code multipath rendered in \"{}\"", path.display());
+        info!("clock graphs rendered in \"{}\"", path.display());
+        if !ctx.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
+        }
+    }
+    if atmosphere_plot(&matches) {
+        let mut plot_ctx = PlotContext::new();
+        plot_atmosphere_conditions(&ctx, &mut plot_ctx, matches);
+        /* save (HTML) */
+        let path = ctx.workspace.join("atmosphere.html");
+        let mut fd = File::create(&path)
+            .expect("failed to render atmosphere graphs (HTML): permission denied");
+
+        write!(fd, "{}", plot_ctx.to_html())
+            .expect("failed to render atmosphere graphs (HTML): permission denied");
+        info!("atmosphere graphs rendered in \"{}\"", path.display());
         if !ctx.quiet {
             open_with_web_browser(&path.to_string_lossy().to_string());
         }
     }
     Ok(())
 }
-
-// pub fn plot_record(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
-//     if ctx.has_navigation_data() {
-//         record::plot_ionospheric_delay(ctx, plot_ctx);
-//     }
-// }

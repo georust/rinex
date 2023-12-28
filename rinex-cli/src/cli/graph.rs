@@ -12,13 +12,17 @@ pub fn subcommand() -> Command {
             "RINEX dependent visualizations. 
         Will only generate graphs if related dataset is present.",
         )
-        .next_help_heading("GNSS observations (requires either Meteo or OBS RINEX)")
+        .next_help_heading("GNSS observations (requires OBS RINEX)")
         .arg(
             Arg::new("obs")
                 .short('o')
                 .long("obs")
                 .action(ArgAction::SetTrue)
-                .help("Plot all observables."),
+                .help(
+                    "Plot all observables.
+When OBS RINEX is provided, this will plot raw phase, dopplers and SSI.
+When METEO RINEX is provided, data from meteo sensors is plotted too.",
+                ),
         )
         .arg(
             Arg::new("dcb")
@@ -108,7 +112,7 @@ Requires both NAV RINEX and SP3 that overlap in time.",
 Ideal for precise positioning decision making.",
                 ),
         )
-        .next_help_heading("Clock states (requires: NAV RINEX, and/or CLK RINEX, and/or SP3)")
+        .next_help_heading("Clock states (requires either NAV RINEX, CLK RINEX or SP3)")
         .arg(
             Arg::new("sv-clock")
                 .short('c')
@@ -116,9 +120,23 @@ Ideal for precise positioning decision making.",
                 .action(ArgAction::SetTrue)
                 .help("SV clock bias (offset, drift, drift changes)."),
         )
-        .next_help_heading("Atmospheric Conditions")
-        .arg(Arg::new("tec").long("tec").action(ArgAction::SetTrue).help(
-            "Plot the TEC map. This is only feasible if at least one 
-IONEX file is present in the context.",
-        ))
+        .next_help_heading("Atmosphere conditions")
+        .arg(
+            Arg::new("tropo")
+                .long("tropo")
+                .action(ArgAction::SetTrue)
+                .help("Plot trospheric delay from meteo sensors estimation. Requires METEO RINEX."),
+        )
+        .arg(
+            Arg::new("tec")
+                .long("tec")
+                .action(ArgAction::SetTrue)
+                .help("Plot the TEC map. Requires at least one IONEX file."),
+        )
+        .arg(
+            Arg::new("ionod")
+                .long("ionod")
+                .action(ArgAction::SetTrue)
+                .help("Plot ionospheric delay per signal & SV, at latitude and longitude of signal sampling."),
+        )
 }
