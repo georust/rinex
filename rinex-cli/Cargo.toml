@@ -31,7 +31,7 @@ horrorshow = "0.8"
 clap = { version = "4.4.11", features = ["derive", "color"] }
 hifitime = { version = "3.8.4", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.2" , features = ["serde"] }
-rinex = { path = "../rinex", version = "=0.15.2", features = ["full"] }
+rinex = { path = "../rinex", version = "=0.15.3", features = ["full"] }
 rinex-qc = { path = "../rinex-qc", version = "=0.1.7", features = ["serde"] } 
 sp3 = { path = "../sp3", version = "=1.0.6",  features = ["serde", "flate2"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
