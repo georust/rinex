@@ -230,6 +230,71 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     Ok(())
 }
 
+/*
+ * Substract RINEX[A]-RINEX[B]
+ */
+pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+    let path_b = matches.get_one::<PathBuf>("file").unwrap();
+
+    let path_b = path_b.to_string_lossy().to_string();
+    let rinex_b =
+        Rinex::from_file(&path_b).expect(&format!("failed to load {}: invalid RINEX", path_b));
+
+    let rinex_c = match rinex_b.header.rinex_type {
+        RinexType::ObservationData => {
+            let rinex_a = ctx.data.obs_data().expect("no OBS RINEX previously loaded");
+            let rinex_c = rinex_a.substract(&rinex_b)?;
+            rinex_c
+        },
+        t => panic!("operation not feasible for {}", t),
+    };
+
+    let mut extension = String::new();
+
+    let obs_path = ctx
+        .data
+        .obs_paths()
+        .expect("failed to determine output file name")
+        .get(0)
+        .unwrap();
+
+    let filename = obs_path
+        .file_stem()
+        .expect("failed to determine output file name")
+        .to_string_lossy()
+        .to_string();
+
+    if filename.contains(".") {
+        /* .crx.gz case */
+        let mut iter = filename.split('.');
+        let filename = iter
+            .next()
+            .expect("failed to determine output file name")
+            .to_string();
+        extension.push_str(iter.next().expect("failed to determine output file name"));
+        extension.push_str(".");
+    }
+
+    let file_ext = obs_path
+        .extension()
+        .expect("failed to determine output file name")
+        .to_string_lossy()
+        .to_string();
+
+    extension.push_str(&file_ext);
+
+    let fullpath = ctx
+        .workspace
+        .join(&format!("DIFFERENCED.{}", extension))
+        .to_string_lossy()
+        .to_string();
+
+    rinex_c.to_file(&fullpath)?;
+
+    info!("\"{}\" has been generated", fullpath);
+    Ok(())
+}
+
 #[cfg(target_os = "linux")]
 pub fn open_with_web_browser(path: &str) {
     let web_browsers = vec!["firefox", "chromium"];

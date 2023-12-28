@@ -13,17 +13,11 @@ mod qc; // QC report generator // plotting operations // file operation helpers 
 mod preprocessing;
 use preprocessing::preprocess;
 
-// mod positioning;
-
-//use horrorshow::Template;
-
 extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
 use cli::{Cli, Context};
-// use plot::PlotContext;
 
-//extern crate pretty_env_logger;
 use env_logger::{Builder, Target};
 
 #[macro_use]
@@ -116,6 +110,9 @@ pub fn main() -> Result<(), Error> {
         },
         Some(("positioning", submatches)) => {
             positioning::precise_positioning(&ctx, submatches)?;
+        },
+        Some(("sub", submatches)) => {
+            fops::substract(&ctx, submatches)?;
         },
         Some(("tbin", submatches)) => {
             fops::time_binning(&ctx, submatches)?;
