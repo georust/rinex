@@ -1,5 +1,6 @@
 #! /bin/sh
 set -e
+export RINEX_WORKSPACE=/tmp
 ##############################################
 # binaries tester: to be used in CI and
 # provide at least basic means to test our CLI
