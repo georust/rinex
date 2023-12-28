@@ -125,7 +125,7 @@ Ideal for precise positioning decision making.",
             Arg::new("tropo")
                 .long("tropo")
                 .action(ArgAction::SetTrue)
-                .help("Plot trospheric delay from meteo sensors estimation. Requires METEO RINEX."),
+                .help("Plot tropospheric delay from meteo sensors estimation. Requires METEO RINEX."),
         )
         .arg(
             Arg::new("tec")
