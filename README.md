@@ -25,7 +25,8 @@ You can also contact us [on our Discord channel](https://discord.gg/Fp2aape)
 - RINEX V4 full support
 - Meteo RINEX full support
 - IONEX 2D support. Partial IONEX 3D support.
-- Clock RINEX partial support: to be concluded soon
+- Partial ANTEX support
+- Parial Clock RINEX support
 - Several pre processing operations:
   - File merging
   - Time beaning 
