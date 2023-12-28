@@ -1,14 +1,13 @@
 // tbin opmode
 use clap::{Arg, ArgAction, Command};
 
-
 pub fn subcommand() -> Command {
-    Command::new("qc")
+    Command::new("quality-check")
         .short_flag('Q')
         .long_flag("qc")
         .about(
             "File Quality analysis (statistical evaluation) of the dataset.
-This is typically used prior precise point positioning.",
+Typically used prior precise point positioning.",
         )
         .arg(
             Arg::new("spp")

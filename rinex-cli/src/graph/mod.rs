@@ -23,7 +23,6 @@ use plotly::{
 use rand::Rng;
 use serde::Serialize;
 
-
 use rinex::prelude::*;
 
 mod record;
@@ -36,7 +35,6 @@ mod skyplot;
 use skyplot::skyplot;
 
 mod naviplot;
-
 
 mod combination;
 use combination::{plot_gnss_code_mp, plot_gnss_combination, plot_gnss_dcb};

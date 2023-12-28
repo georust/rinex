@@ -5,9 +5,9 @@ pub fn subcommand() -> Command {
     Command::new("positioning")
         .short_flag('p')
         .arg_required_else_help(false)
-        .about("Precise positioning opmode.
+        .about("Precise Positioning opmode.
 Use this mode to resolve precise positions and local time from RINEX dataset.
-Expectes Observation RINEX from a single (unique) receiver.")
+You should provide Observations from a unique receiver.")
         .arg(Arg::new("cfg")
             .short('c')
             .long("cfg")
@@ -17,6 +17,12 @@ Expectes Observation RINEX from a single (unique) receiver.")
             .help("Pass a Position Solver configuration file (JSON).
 [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/struct.Config.html] is the structure to represent in JSON.
 See [] for meaningful examples."))
+        .arg(Arg::new("spp")
+            .long("spp")
+            .action(ArgAction::SetTrue)
+            .help("Force resolution method to Single Point Positioning (SPP).
+Otherwise, the Default method is used.
+Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html]."))
         .arg(Arg::new("cggtts")
             .long("cggtts")
             .action(ArgAction::SetTrue)

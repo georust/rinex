@@ -7,8 +7,8 @@ mod cli; // command line interface
 mod fops;
 mod graph;
 mod identification; // high level identification/macros
-mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis
-mod positioning; // positioning + CGGTTS opmode
+mod positioning;
+mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis // positioning + CGGTTS opmode
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -16,7 +16,6 @@ use preprocessing::preprocess;
 // mod positioning;
 
 //use horrorshow::Template;
-
 
 extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
@@ -112,7 +111,7 @@ pub fn main() -> Result<(), Error> {
         Some(("split", submatches)) => {
             fops::split(&ctx, submatches)?;
         },
-        Some(("qc", submatches)) => {
+        Some(("quality-check", submatches)) => {
             qc::qc_report(&ctx, submatches)?;
         },
         Some(("positioning", submatches)) => {

@@ -1,4 +1,3 @@
-
 use clap::ArgMatches;
 
 use rinex::{

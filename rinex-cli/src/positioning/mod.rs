@@ -3,12 +3,14 @@ use std::fs::{read_to_string, File};
 //use statrs::statistics::Statistics;
 
 mod ppp; // precise point positioning
+use ppp::post_process as ppp_post_process;
+use ppp::PostProcessingError as PPPPostProcessingError;
 
+use clap::ArgMatches;
 use gnss::prelude::Constellation; // SV};
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex, RnxContext};
-use clap::ArgMatches;
 
 use rtk::prelude::{
     AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
@@ -26,9 +28,11 @@ pub enum Error {
     SolverError(#[from] rtk::Error),
     #[error("undefined apriori position")]
     UndefinedAprioriPosition,
+    #[error("solutions post processing error")]
+    PostProcessingError(#[from] PPPPostProcessingError),
 }
 
-fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
+pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
     const MAX_LATDDEG_DELTA: f64 = 15.0;
     let max_dt = Duration::from_hours(24.0);
     let rnx = meteo?;
@@ -103,7 +107,10 @@ fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f
     }
 }
 
-fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
+/*
+ * Grabs nearest KB model (in time)
+ */
+pub fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
     let kb_model = nav
         .klobuchar_models()
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
@@ -136,20 +143,25 @@ fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
     }
 }
 
-fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
+/*
+ * Grabs nearest BD model (in time)
+ */
+pub fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
     nav.bdgim_models()
         .min_by_key(|(t_i, _)| (t - *t_i).abs())
         .map(|(_, model)| BdModel { alpha: model.alpha })
 }
 
-fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
+/*
+ * Grabs nearest NG model (in time)
+ */
+pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
     nav.nequick_g_models()
         .min_by_key(|(t_i, _)| (t - *t_i).abs())
         .map(|(_, model)| NgModel { a: model.a })
 }
 
 pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
-    
     let method = match matches.get_flag("spp") {
         true => Method::SPP,
         false => Method::PPP,
@@ -171,35 +183,28 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         },
     };
 
-    let apriori_ecef = ctx.rx_ecef
-        .ok_or(Error::UndefinedAprioriPosition)?;
-
-    let apriori = Vector3::<f64>::new(apriori_ecef.0, apriori_ecef.1, apriori_ecef.2);
-    let apriori = AprioriPosition::from_ecef(apriori);
-    let lat_ddeg = apriori.geodetic[0];
-
     /*
      * verify requirements
      */
+    let apriori_ecef = ctx.rx_ecef.ok_or(Error::UndefinedAprioriPosition)?;
+
+    let apriori = Vector3::<f64>::new(apriori_ecef.0, apriori_ecef.1, apriori_ecef.2);
+    let apriori = AprioriPosition::from_ecef(apriori);
+    let rx_lat_ddeg = apriori.geodetic[0];
+
     if ctx.data.obs_data().is_none() {
         panic!("positioning requires Observation RINEX");
     }
 
-    let nav_data = ctx.data.nav_data()
+    let nav_data = ctx
+        .data
+        .nav_data()
         .expect("positioning requires Navigation RINEX");
 
-    let meteo_data = ctx.data.meteo_data();
-
-    let sp3_data = ctx.data.sp3_data()
-    let sp3_has_clock = match sp3_data {
-        Some(sp3) => sp3.sv_clock().count() > 0,
-        None => false,
-    };
-        
+    let sp3_data = ctx.data.sp3_data();
     if sp3_data.is_none() {
-        panic!(
-        "High precision orbits (SP3) are unfortunately mandatory at the moment..");
-    };
+        panic!("High precision orbits (SP3) are unfortunately mandatory at the moment..");
+    }
 
     // print config to be used
     info!("Using solver {:?} method", method);
@@ -253,9 +258,12 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
 
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
+        // cggtts::resolve(&ctx, solver, rx_lat_ddeg);
     } else {
         /* PPP */
-        let pvt_solutions = ppp::resolve(&ctx, solver);
+        let pvt_solutions = ppp::resolve(&ctx, solver, rx_lat_ddeg);
+        /* save solutions (graphs, reports..) */
+        ppp_post_process(&ctx, pvt_solutions, matches)?;
     }
     Ok(())
 }

@@ -1,8 +1,41 @@
 use crate::cli::Context;
-use rtk::prelude::Solver;
+use crate::positioning::{bd_model, kb_model, ng_model, tropo_components};
+use rinex::carrier::Carrier;
+use rinex::navigation::Ephemeris;
+use rinex::prelude::SV;
+use std::collections::BTreeMap;
 
-pub fn resolve(ctx: &Context, solver: Solver<APC, I>) -> BTreeMap<Epoch, PVTSolution> {
+mod post_process;
+pub use post_process::{post_process, Error as PostProcessingError};
+
+use rtk::prelude::{
+    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
+    IonosphericBias, KbModel, Method, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
+    TroposphericBias, Vector3,
+};
+
+pub fn resolve<APC, I>(
+    ctx: &Context,
+    mut solver: Solver<APC, I>,
+    rx_lat_ddeg: f64,
+) -> BTreeMap<Epoch, PVTSolution>
+where
+    APC: Fn(Epoch, SV, f64) -> Option<(f64, f64, f64)>,
+    I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
+{
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
+
+    let obs_data = ctx.data.obs_data().unwrap(); // infaillible @ this point
+
+    let nav_data = ctx.data.nav_data().unwrap(); // infaillible @ this point
+
+    let meteo_data = ctx.data.meteo_data();
+
+    let sp3_data = ctx.data.sp3_data();
+    let sp3_has_clock = match sp3_data {
+        Some(sp3) => sp3.sv_clock().count() > 0,
+        None => false,
+    };
 
     for ((t, flag), (clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -117,7 +150,7 @@ pub fn resolve(ctx: &Context, solver: Solver<APC, I>) -> BTreeMap<Epoch, PVTSolu
         }
 
         // grab possible tropo components
-        let zwd_zdd = tropo_components(meteo_data, *t, lat_ddeg);
+        let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         let iono_bias = IonosphericBias {
             kb_model: kb_model(nav_data, *t),
