@@ -244,7 +244,11 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         RinexType::ObservationData => {
             let rinex_a = ctx.data.obs_data().expect("no OBS RINEX previously loaded");
 
-            rinex_a.substract(&rinex_b)?
+            rinex_a
+                .crnx2rnx() //TODO remove this in future please
+                .substract(
+                    &rinex_b.crnx2rnx(), //TODO: remove this in future please
+                )?
         },
         t => panic!("operation not feasible for {}", t),
     };
