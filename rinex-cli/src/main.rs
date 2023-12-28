@@ -43,35 +43,6 @@ pub enum Error {
     PositioningSolverError(#[from] positioning::Error),
 }
 
-/*
- * Returns true if Skyplot view if feasible and allowed
-fn skyplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() || cli.positioning() {
-        /*
-         * Special modes: no plots allowed
-         */
-        return false;
-    }
-
-    let has_nav = ctx.has_navigation_data();
-    let has_ref_position = ctx.ground_position().is_some() || cli.manual_position().is_some();
-    if has_nav && !has_ref_position {
-        info!("missing a reference position for the skyplot view.");
-        info!("see rinex-cli -h : antenna positions.");
-    }
-
-    has_nav && has_ref_position
-}
- */
-
-/*
- * Returns true if NAVI plot is both feasible and allowed
-fn naviplot_allowed(ctx: &RnxContext, cli: &Cli) -> bool {
-    // TODO: this need to change once RnxContext gets improved
-    skyplot_allowed(ctx, cli)
-}
- */
-
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
