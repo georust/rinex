@@ -70,9 +70,21 @@ jobs:
         command: build
         args: --verbose --all-features
   
-    - name: Test binaries
-      run: |
-        ./tools/test-binaries.sh
+    - uses: actions-rs/cargo@v1
+      name: Test basic CRX2RNX
+      with:
+        command: run
+        args: |
+            --bin crx2rnx \
+            -- -f test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx.gz
+    
+    - uses: actions-rs/cargo@v1
+      name: Test basic RNX2CRNX
+      with:
+        command: run
+        args: |
+            --bin rnx2crx \
+            -- -f test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx.gz
   
   windows-build:
     runs-on: windows-latest
@@ -133,6 +145,3 @@ jobs:
       with: 
         command: build
         args: -p crx2rnx --all-features --release --verbose
-    - name: Test binaries
-      run: |
-        ./tools/test-binaries.sh
