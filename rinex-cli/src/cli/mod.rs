@@ -18,6 +18,8 @@ mod merge;
 mod split;
 // tbin mode
 mod time_binning;
+// substraction mode
+mod substract;
 // QC mode
 mod qc;
 // positioning mode
@@ -78,9 +80,14 @@ impl Context {
      */
     pub fn from_cli(cli: &Cli) -> Result<Self, Error> {
         let mut data = RnxContext::default();
+        let max_depth = match cli.matches.get_one::<u8>("depth") {
+            Some(value) => *value as usize,
+            None => 5usize,
+        };
+            
         /* load all directories recursively, one by one */
         for dir in cli.input_directories() {
-            let walkdir = WalkDir::new(dir).max_depth(5);
+            let walkdir = WalkDir::new(dir).max_depth(max_depth);
             for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
                 if !entry.path().is_dir() {
                     let filepath = entry.path().to_string_lossy().to_string();
@@ -182,8 +189,15 @@ impl Cli {
                         .value_name("DIRECTORY")
                         .action(ArgAction::Append)
                         .required_unless_present("filepath")
-                        .help("Load directory recursively. We use a maximal recursive depth of 5.
+                        .help("Load directory recursively. Default recursive depth is set to 5,
+but you can extend that with --depth.
 Again any RINEX, and SP3 are accepted. You can load as many directories as you need."))
+                    .arg(Arg::new("depth")
+                        .long("depth")
+                        .action(ArgAction::Set)
+                        .required(false)
+                        .value_parser(value_parser!(u8))
+                        .help("Extend maximal recursive search depth of -d. The default is 5."))
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
@@ -252,6 +266,7 @@ Otherwise it gets automatically picked up."))
                 .subcommand(positioning::subcommand())
                 .subcommand(qc::subcommand())
                 .subcommand(split::subcommand())
+                .subcommand(substract::subcommand())
                 .subcommand(time_binning::subcommand())
                 .get_matches()
             },
