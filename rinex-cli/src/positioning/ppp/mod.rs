@@ -1,3 +1,4 @@
+//! PPP solver
 use crate::cli::Context;
 use crate::positioning::{bd_model, kb_model, ng_model, tropo_components};
 use rinex::carrier::Carrier;
@@ -24,10 +25,9 @@ where
 {
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
-    let obs_data = ctx.data.obs_data().unwrap(); // infaillible @ this point
-
-    let nav_data = ctx.data.nav_data().unwrap(); // infaillible @ this point
-
+    // infaillible, at this point
+    let obs_data = ctx.data.obs_data().unwrap();
+    let nav_data = ctx.data.nav_data().unwrap();
     let meteo_data = ctx.data.meteo_data();
 
     let sp3_data = ctx.data.sp3_data();

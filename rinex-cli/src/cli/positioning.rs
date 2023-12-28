@@ -1,5 +1,6 @@
 // Positioning OPMODE
-use clap::{Arg, ArgAction, Command};
+use clap::{value_parser, Arg, ArgAction, Command};
+use rinex::prelude::Duration;
 
 pub fn subcommand() -> Command {
     Command::new("positioning")
@@ -23,10 +24,6 @@ See [] for meaningful examples."))
             .help("Force resolution method to Single Point Positioning (SPP).
 Otherwise, the Default method is used.
 Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html]."))
-        .arg(Arg::new("cggtts")
-            .long("cggtts")
-            .action(ArgAction::SetTrue)
-            .help("Post processed PVT solutions wrapped in CGGTTS format for remote clock comparison (time transfer)."))
         .arg(Arg::new("gpx")
             .long("gpx")
             .action(ArgAction::SetTrue)
@@ -35,4 +32,34 @@ Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html]."))
             .long("kml")
             .action(ArgAction::SetTrue)
             .help("Format PVT solutions as KML track."))
+        .next_help_heading("CGGTTS (special resolution for clock comparison / time transfer)")
+        .arg(Arg::new("cggtts")
+            .long("cggtts")
+            .action(ArgAction::SetTrue)
+            .help("Activate CGGTTS special solver.
+Wrapps PVT solutions as CGGTTS file(s) for remote clock comparison (time transfer)."))
+        .arg(Arg::new("tracking")
+            .long("trk")
+            .short('t')
+            .value_parser(value_parser!(Duration))
+            .action(ArgAction::Set)
+            .help("CGGTTS custom tracking duration.
+Otherwise, the default tracking duration is used.
+Refer to []"))
+        .arg(Arg::new("lab")
+            .long("lab")
+            .action(ArgAction::Set)
+            .help("Define the name of your station or laboratory here."))
+        .arg(Arg::new("utck")
+            .long("utck")
+            .action(ArgAction::Set)
+            .conflicts_with("clock")
+            .help("If the local clock tracks a local UTC replica, you can define the name
+of this replica here."))
+        .arg(Arg::new("clock") 
+            .long("clk")
+            .action(ArgAction::Set)
+            .conflicts_with("utck")
+            .help("If the local clock is not a UTC replica and has a specific name, you
+can define it here."))
 }

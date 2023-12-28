@@ -5,6 +5,10 @@ mod ppp; // precise point positioning
 use ppp::post_process as ppp_post_process;
 use ppp::PostProcessingError as PPPPostProcessingError;
 
+mod cggtts; // CGGTTS special solver
+use cggtts::post_process as cggtts_post_process;
+use cggtts::PostProcessingError as CGGTTSPostProcessingError;
+
 use clap::ArgMatches;
 use gnss::prelude::Constellation; // SV};
 use rinex::navigation::Ephemeris;
@@ -24,8 +28,10 @@ pub enum Error {
     SolverError(#[from] rtk::Error),
     #[error("undefined apriori position")]
     UndefinedAprioriPosition,
-    #[error("solutions post processing error")]
-    PostProcessingError(#[from] PPPPostProcessingError),
+    #[error("ppp post processing error")]
+    PPPPostProcessingError(#[from] PPPPostProcessingError),
+    #[error("cggtts post processing error")]
+    CGGTTSPostProcessingError(#[from] CGGTTSPostProcessingError),
 }
 
 pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
@@ -254,7 +260,8 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
 
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
-        // cggtts::resolve(&ctx, solver, rx_lat_ddeg);
+        let tracks = cggtts::resolve(&ctx, solver, rx_lat_ddeg, matches)?;
+        cggtts_post_process(&ctx, tracks, matches)?;
     } else {
         /* PPP */
         let pvt_solutions = ppp::resolve(&ctx, solver, rx_lat_ddeg);
