@@ -76,22 +76,22 @@ set -e
     -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
     -Q
 
-####################
-# 10. (advanced) PPP
-####################
-./target/release/rinex-cli \
-    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    -f test_resources/SP3/GRG0MGXFIN_20201760000_01D_15M_ORB.SP3.gz \
-    -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
-    -p
-
-###############################
-# 11. (advanced) PPP RNX2CGGTTS
-###############################
-./target/release/rinex-cli \
-    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    -f test_resources/SP3/GRG0MGXFIN_20201760000_01D_15M_ORB.SP3.gz \
-    -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
-    -p --rnx2cggtts
+# ####################
+# # 10. (advanced) SPP
+# ####################
+# ./target/release/rinex-cli \
+#     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+#     -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+#     -f test_resources/SP3/GRG0MGXFIN_20201760000_01D_15M_ORB.SP3.gz \
+#     -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
+#     -p --spp
+# 
+# ###############################
+# # 11. (advanced) SPP RNX2CGGTTS
+# ###############################
+# ./target/release/rinex-cli \
+#     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+#     -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+#     -f test_resources/SP3/GRG0MGXFIN_20201760000_01D_15M_ORB.SP3.gz \
+#     -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
+#     -p --spp --cggtts

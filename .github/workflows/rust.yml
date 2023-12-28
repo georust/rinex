@@ -63,27 +63,18 @@ jobs:
       with:
         command: test
         args: --verbose --all-features
-  
-    - uses: actions-rs/cargo@v1
-      name: Build (all features)
-      with:
-        command: build
-        args: --verbose --all-features
-  
-    - uses: actions-rs/cargo@v1
-      name: Test basic CRX2RNX
-      with:
-        command: run
-        args: |
-            --bin crx2rnx -- -f test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx.gz
     
     - uses: actions-rs/cargo@v1
-      name: Test basic RNX2CRNX
+      name: Build (release)
       with:
-        command: run
-        args: |
-            --bin rnx2crx -- -f test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx.gz
+        command: test
+        args: --all-features --release
   
+    - uses: actions-rs/cargo@v1
+      name: Test Binaries
+      run: |
+        ./tools/test-binaries.sh
+
   windows-build:
     runs-on: windows-latest
     steps:
@@ -123,23 +114,38 @@ jobs:
       with:
         toolchain: stable
         override: true
+    
     - uses: actions-rs/cargo@v1
       name: RINEXCLI 
       with:
         command: build
         args: -p rinex-cli --all-features --release --verbose
+    
     - uses: actions-rs/cargo@v1
       name: RNX2CGGTS
       with:
         command: build
         args: -p rnx2cggtts --all-features --release --verbose
+    
     - uses: actions-rs/cargo@v1
       name: RNX2CRNX
       with: 
         command: build 
         args: -p rnx2crx --all-features --release --verbose
+    
     - uses: actions-rs/cargo@v1
       name: CRX2RNX
       with: 
         command: build
         args: -p crx2rnx --all-features --release --verbose
+    
+    - uses: actions-rs/cargo@v1
+      name: Build (release)
+      with:
+        command: test
+        args: --all-features --release
+  
+    - uses: actions-rs/cargo@v1
+      name: Test Binaries
+      run: |
+        ./tools/test-binaries.sh
