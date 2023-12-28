@@ -26,7 +26,7 @@ use serde::Serialize;
 use rinex::prelude::*;
 
 mod record;
-use record::plot_residual_ephemeris;
+use record::{plot_residual_ephemeris, plot_sv_nav_clock, plot_sv_nav_orbits};
 
 mod context;
 pub use context::PlotContext;
@@ -500,6 +500,20 @@ pub fn build_3d_chart_epoch_label<T: Clone + Default + Serialize>(
         .hover_info(HoverInfo::All)
 }
 
+/* Returns True if GNSS combination is to be plotted */
+fn gnss_combination_plot(matches: &ArgMatches) -> bool {
+    matches.get_flag("if")
+        || matches.get_flag("gf")
+        || matches.get_flag("wl")
+        || matches.get_flag("nl")
+        || matches.get_flag("mw")
+}
+
+/* Returns True if Navigation plot is to be generated */
+fn navigation_plot(matches: &ArgMatches) -> bool {
+    matches.get_flag("skyplot") || matches.get_flag("sp3-res") || matches.get_flag("sv-clock")
+}
+
 pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     /*
      * Observations graphs
@@ -529,12 +543,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     /*
      * GNSS combinations graphs
      */
-    if matches.get_flag("if")
-        || matches.get_flag("gf")
-        || matches.get_flag("wl")
-        || matches.get_flag("nl")
-        || matches.get_flag("mw")
-    {
+    if gnss_combination_plot(&matches) {
         let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
 
         let mut plot_ctx = PlotContext::new();
@@ -641,7 +650,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             open_with_web_browser(&path.to_string_lossy().to_string());
         }
     }
-    if matches.get_flag("skyplot") {
+    if navigation_plot(&matches) {
         let mut plot_ctx = PlotContext::new();
 
         if matches.get_flag("skyplot") {
@@ -653,13 +662,15 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             }
             skyplot(&ctx.data, rx_ecef, &mut plot_ctx);
         }
+        if matches.get_flag("orbits") {
+            plot_sv_nav_orbits(&ctx.data, &mut plot_ctx);
+        }
         if matches.get_flag("sp3-res") {
             if ctx.data.sp3_data().is_none() || ctx.data.nav_data().is_none() {
                 panic!("skyplot requires both BRDC or SP3.");
             }
             plot_residual_ephemeris(&ctx.data, &mut plot_ctx);
         }
-
         /* save navigation (HTML) */
         let path = ctx.workspace.join("navigation.html");
         let mut fd =
@@ -672,16 +683,25 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             open_with_web_browser(&path.to_string_lossy().to_string());
         }
     }
+    if matches.get_flag("sv-clock") {
+        let mut plot_ctx = PlotContext::new();
+        plot_sv_nav_clock(&ctx.data, &mut plot_ctx);
+        /* save clock states (HTML) */
+        let path = ctx.workspace.join("clocks.html");
+        let mut fd =
+            File::create(&path).expect("failed to render clock states (HTML): permission denied");
+
+        write!(fd, "{}", plot_ctx.to_html())
+            .expect("failed to render clock states (HTML): permission denied");
+        info!("code multipath rendered in \"{}\"", path.display());
+        if !ctx.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
+        }
+    }
     Ok(())
 }
 
 // pub fn plot_record(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
-//     if ctx.has_navigation_data() || ctx.has_sp3() {
-//         record::plot_navigation(ctx, plot_ctx);
-//     }
-//     if ctx.has_sp3() && ctx.has_navigation_data() {
-//         record::plot_residual_ephemeris(ctx, plot_ctx);
-//     }
 //     if ctx.has_navigation_data() {
 //         record::plot_ionospheric_delay(ctx, plot_ctx);
 //     }

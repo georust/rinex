@@ -76,14 +76,6 @@ pub fn subcommand() -> Command {
 Plots raw phase signal with blackened sample where either CS was declared by receiver,
 or we post processed determined a CS.",
         ))
-        .next_help_heading("Clock states (requires: NAV RINEX, and/or CLK RINEX, and/or SP3)")
-        .arg(
-            Arg::new("sv-clock")
-                .short('c')
-                .long("clk")
-                .action(ArgAction::SetTrue)
-                .help("SV clock bias (offset, drift, drift changes)."),
-        )
         .next_help_heading("Navigation (requires NAV RINEX and/or SP3)")
         .arg(
             Arg::new("skyplot")
@@ -91,6 +83,12 @@ or we post processed determined a CS.",
                 .long("sky")
                 .action(ArgAction::SetTrue)
                 .help("Skyplot: SV position in the sky, on a compass."),
+        )
+        .arg(
+            Arg::new("orbits")
+                .long("orbits")
+                .action(ArgAction::SetTrue)
+                .help("SV position in the sky, on 2D cartesian plots."),
         )
         .arg(
             Arg::new("sp3-res")
@@ -109,6 +107,14 @@ Requires both NAV RINEX and SP3 that overlap in time.",
                     "SV orbital attitude projected in 3D.
 Ideal for precise positioning decision making.",
                 ),
+        )
+        .next_help_heading("Clock states (requires: NAV RINEX, and/or CLK RINEX, and/or SP3)")
+        .arg(
+            Arg::new("sv-clock")
+                .short('c')
+                .long("clk")
+                .action(ArgAction::SetTrue)
+                .help("SV clock bias (offset, drift, drift changes)."),
         )
         .next_help_heading("Atmospheric Conditions")
         .arg(Arg::new("tec").long("tec").action(ArgAction::SetTrue).help(
