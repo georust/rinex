@@ -145,6 +145,7 @@ pub enum AntennaMatcher {
 }
 
 impl AntennaMatcher {
+    #[cfg(feature = "antex")]
     pub(crate) fn to_lowercase(&self) -> Self {
         match self {
             Self::IGSCode(code) => Self::IGSCode(code.to_lowercase()),
