@@ -1,6 +1,5 @@
 use crate::cli::Context;
-use std::fs::{read_to_string, File};
-//use statrs::statistics::Statistics;
+use std::fs::read_to_string;
 
 mod ppp; // precise point positioning
 use ppp::post_process as ppp_post_process;
@@ -8,18 +7,15 @@ use ppp::PostProcessingError as PPPPostProcessingError;
 
 use clap::ArgMatches;
 use gnss::prelude::Constellation; // SV};
-use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
-use rinex::prelude::{Observable, Rinex, RnxContext};
+use rinex::prelude::{Observable, Rinex};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
-    IonosphericBias, KbModel, Method, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
-    TroposphericBias, Vector3,
+    AprioriPosition, BdModel, Config, Duration, Epoch, InterpolationResult, KbModel, Method,
+    NgModel, Solver, Vector3,
 };
 
 use map_3d::{ecef2geodetic, Ellipsoid};
-use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -210,7 +206,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     info!("Using solver {:?} method", method);
     info!("Using solver configuration {:#?}", cfg);
 
-    let mut solver = Solver::new(
+    let solver = Solver::new(
         &cfg,
         apriori,
         /* state vector interpolator */

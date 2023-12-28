@@ -301,9 +301,6 @@ Otherwise it gets automatically picked up."))
     pub fn irnss_filter(&self) -> bool {
         self.matches.get_flag("irnss-filter")
     }
-    fn get_flag(&self, flag: &str) -> bool {
-        self.matches.get_flag(flag)
-    }
     /*
      * faillible 3D coordinates parsing
      * it's better to panic if the descriptor is badly format

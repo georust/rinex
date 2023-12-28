@@ -3,7 +3,6 @@ use clap::ArgMatches;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
 use thiserror::Error;
 
 use hifitime::Epoch;

@@ -9,9 +9,8 @@ mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Candidate, Config, Duration, Epoch, InterpolationResult,
-    IonosphericBias, KbModel, Method, NgModel, Observation, PVTSolution, PVTSolutionType, Solver,
-    TroposphericBias, Vector3,
+    Candidate, Epoch, InterpolationResult, IonosphericBias, Observation, PVTSolution,
+    PVTSolutionType, Solver, TroposphericBias, Vector3,
 };
 
 pub fn resolve<APC, I>(
@@ -37,7 +36,7 @@ where
         None => false,
     };
 
-    for ((t, flag), (clk, vehicles)) in obs_data.observation() {
+    for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
