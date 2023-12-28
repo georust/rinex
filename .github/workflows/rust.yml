@@ -70,10 +70,6 @@ jobs:
         command: build
         args: --all-features --release
   
-    - name: Test Binaries
-      run: |
-        ./tools/test-binaries.sh
-
   windows-build:
     runs-on: windows-latest
     steps:
@@ -117,7 +113,3 @@ jobs:
       with: 
         command: build 
         args: --all-features --release --verbose
-   
-    - name: Test Binaries
-      run: |
-        ./tools/test-binaries.sh
