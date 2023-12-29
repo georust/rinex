@@ -24,7 +24,7 @@ rinex-cli \
        -P R21,R12 ">=2020-06-25T00:00:00 UTC" "<=2020-06-25T12:00:00 UTC"
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_cs_zoom.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_glo_cs_zoom.png">
 
 Almost all epochs at the beginning of the day were affected for R12(L3) and one or two for R21(L2).  
 All GPS vehicles are sane, 95% of Glonass vehicles are sane too.

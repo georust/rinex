@@ -58,7 +58,7 @@ rinex-cli \
         -P G07 --dcb
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ph_dcbs.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_ph_dcbs.png">
 
 
 Code Multipath biases
@@ -89,7 +89,7 @@ rinex-cli \
         -P G13 --dcb --mp
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_g13_dcb_mp.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_g13_dcb_mp.png">
 
 Differential Processing
 =======================

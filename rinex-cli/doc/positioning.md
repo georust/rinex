@@ -135,11 +135,11 @@ you set the `-q` quite option.
 
 One output is the local GNSS receiver time and the dilution of precision on the time component :
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/clk_tdop.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/clk_tdop.png">
 
 The vertical and horizontal dilution of precision are also depicted :
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/hdop_vdop.png">
+<img align="center" width="650" src="https://github.com/georust/rinex/blob/main/doc/plots/hdop_vdop.png">
 
 ## Current limitations
 
