@@ -201,7 +201,11 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 /// // value, but that will soon change
 /// assert_eq!(rnx.header.date, "20210102 00:01:40UTC");
 /// assert_eq!(rnx.header.observer, "H. VAN DER MAREL");
-/// assert_eq!(rnx.header.station_id, "13502M004");
+///
+/// let marker = rnx.header.geodetic_marker
+///         .as_ref()
+///         .unwrap();
+/// assert_eq!(marker.number(), Some("13502M004".to_string()));
 ///
 /// // Constellation describes which kind of vehicles
 /// // are to be encountered in the record, or which
