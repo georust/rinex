@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::hatanaka::Decompressor;
+    use crate::tests::toolkit::obsrinex_check_observables;
     use crate::tests::toolkit::random_name;
     use crate::tests::toolkit::test_observation_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
@@ -481,6 +482,37 @@ mod test {
             ),
         );
 
+        /* G +R +E +C */
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::GPS,
+            &[
+                "C1C", "L1C", "S1C", "C2S", "L2S", "S2S", "C2W", "L2W", "S2W", "C5Q", "L5Q", "S5Q",
+            ],
+        );
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::Galileo,
+            &[
+                "C1C", "L1C", "S1C", "C5Q", "L5Q", "S5Q", "C6C", "L6C", "S6C", "C7Q", "L7Q", "S7Q",
+                "C8Q", "L8Q", "S8Q",
+            ],
+        );
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::Glonass,
+            &[
+                "C1C", "L1C", "S1C", "C2P", "L2P", "S2P", "C2C", "L2C", "S2C", "C3Q", "L3Q", "S3Q",
+            ],
+        );
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::BeiDou,
+            &[
+                "C2I", "L2I", "S2I", "C6I", "L6I", "S6I", "C7I", "L7I", "S7I",
+            ],
+        );
+
         /*
          * record test
          */
@@ -702,5 +734,65 @@ mod test {
         for (_epoch, (clk_offset, _svs)) in record {
             assert!(clk_offset.is_none());
         }
+    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v3_mojn00dnk() {
+        let crnx =
+            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
+        assert!(crnx.is_ok());
+        let rnx = crnx.unwrap();
+
+        /* C +E +G +I +J +R +S */
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::BeiDou,
+            &[
+                "C2I", "C6I", "C7I", "D2I", "D6I", "D7I", "L2I", "L6I", "L7I", "S2I", "S6I", "S7I",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::Galileo,
+            &[
+                "C1C", "C5Q", "C6C", "C7Q", "C8Q", "D1C", "D5Q", "D6C", "D7Q", "D8Q", "L1C", "L5Q",
+                "L6C", "L7Q", "L8Q", "S1C", "S5Q", "S6C", "S7Q", "S8Q",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::GPS,
+            &[
+                "C1C", "C1W", "C2L", "C2W", "C5Q", "D1C", "D2L", "D2W", "D5Q", "L1C", "L2L", "L2W",
+                "L5Q", "S1C", "S1W", "S2L", "S2W", "S5Q",
+            ],
+        );
+
+        obsrinex_check_observables(&rnx, Constellation::IRNSS, &["C5A", "D5A", "L5A", "S5A"]);
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::QZSS,
+            &[
+                "C1C", "C2L", "C5Q", "D1C", "D2L", "D5Q", "L1C", "L2L", "L5Q", "S1C", "S2L", "S5Q",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::Glonass,
+            &[
+                "C1C", "C1P", "C2C", "C2P", "C3Q", "D1C", "D1P", "D2C", "D2P", "D3Q", "L1C", "L1P",
+                "L2C", "L2P", "L3Q", "S1C", "S1P", "S2C", "S2P", "S3Q",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::SBAS,
+            &["C1C", "C5I", "D1C", "D5I", "L1C", "L5I", "S1C", "S5I"],
+        );
     }
 }

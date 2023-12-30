@@ -2,6 +2,7 @@
 mod test {
     use crate::navigation::NavMsgType;
     use crate::prelude::*;
+    use crate::tests::toolkit::is_null_rinex;
     use std::path::PathBuf;
     #[test]
     fn test_parser() {
@@ -206,9 +207,10 @@ mod test {
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.observation().count() > 0); // all files have content
-                                                                      /*
-                                                                       * test timescale validity
-                                                                       */
+                                                                      /* Self - Self is null RINEX */
+                            is_null_rinex(&rinex.substract(&rinex), 1.0E-9);
+
+                            /* Timescale validity */
                             for ((e, _), _) in rinex.observation() {
                                 let ts = e.time_scale;
                                 if let Some(e0) = obs_header.time_of_first_obs {
