@@ -485,7 +485,7 @@ impl Rinex {
             .day_of_year()
             .round() as u16;
 
-        doy = doy % 365; // FIXME hifitime DOY(GNSS)
+        doy %= 365; // FIXME hifitime DOY(GNSS)
         if doy == 0 {
             doy += 1; // FIXME: hifitime DOY(GNSS)
         }
@@ -583,7 +583,7 @@ impl Rinex {
             .day_of_year()
             .round() as u16;
 
-        ddd = ddd % 365; // FIXME: hifitime DOY(GNSS)
+        ddd %= 365; // FIXME: hifitime DOY(GNSS)
         if ddd == 0 {
             ddd += 1; // FIXME: hifitime DOY(GNSS)
         }

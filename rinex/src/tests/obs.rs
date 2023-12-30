@@ -8,7 +8,7 @@ mod test {
     use crate::tests::toolkit::obsrinex_check_observables;
     use crate::tests::toolkit::test_observation_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
-    use crate::{header::*, observation::*, prelude::*};
+    use crate::{observation::*, prelude::*};
     use gnss_rs::prelude::SV;
     use gnss_rs::sv;
     use itertools::Itertools;

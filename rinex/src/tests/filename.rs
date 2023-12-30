@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // Test our standardized name generator does follow the specs
 #[test]
@@ -29,9 +29,9 @@ fn short_filename_conventions() {
             .join("test_resources")
             .join(testfile);
 
-        let rinex = Rinex::from_file(&fp.to_string_lossy().to_string()).unwrap();
+        let rinex = Rinex::from_file(fp.to_string_lossy().as_ref()).unwrap();
 
-        let standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
+        let _standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
 
         let output = rinex
             .standardized_short_filename(lowercase, batch_num, None)
@@ -72,9 +72,9 @@ fn long_filename_conventions() {
             .join("test_resources")
             .join(testfile);
 
-        let rinex = Rinex::from_file(&fp.to_string_lossy().to_string()).unwrap();
+        let rinex = Rinex::from_file(fp.to_string_lossy().as_ref()).unwrap();
 
-        let standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
+        let _standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
 
         let output = rinex.standardized_filename(custom_suffix).unwrap();
 

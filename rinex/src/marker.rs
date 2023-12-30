@@ -82,13 +82,11 @@ impl GeodeticMarker {
     /// Returns a GeodeticMarker with "number" only if it matches standardized format.
     pub fn with_number(&self, content: &str) -> Self {
         let mut s = self.clone();
-        if content.len() == 9 {
-            if content.chars().nth(5) == Some('M') {
-                if let Ok(id) = u32::from_str_radix(&content[..5], 10) {
-                    if let Ok(monument) = u16::from_str_radix(&content[7..], 10) {
-                        s.identification = Some(id);
-                        s.monument = Some(monument);
-                    }
+        if content.len() == 9 && content.chars().nth(5) == Some('M') {
+            if let Ok(id) = u32::from_str_radix(&content[..5], 10) {
+                if let Ok(monument) = u16::from_str_radix(&content[7..], 10) {
+                    s.identification = Some(id);
+                    s.monument = Some(monument);
                 }
             }
         }
