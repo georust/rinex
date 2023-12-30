@@ -1,5 +1,5 @@
 //! RINEX post processing context
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 use walkdir::WalkDir;
 
@@ -26,6 +26,8 @@ use rinex_qc_traits::HtmlReport;
 pub enum Error {
     #[error("can only form a RINEX context from a directory, not a single file")]
     NotADirectory,
+    #[error("failed to determine filename")]
+    FileNameDetermination,
     #[error("parsing error")]
     RinexError(#[from] crate::Error),
     #[error("invalid file type")]
@@ -86,47 +88,55 @@ pub struct RnxContext {
 
 impl RnxContext {
     /// Build a RINEX post processing context from either a directory or a single file
-    pub fn new(path: PathBuf) -> Result<Self, Error> {
+    pub fn new(path: &PathBuf) -> Result<Self, Error> {
         if path.is_dir() {
             /* recursive builder */
             Self::from_directory(path)
         } else {
             /* load a single file */
-            Self::from_file(path)
+            Self::from_path(path)
         }
     }
     /*
      * Builds Self from a single file
      */
-    fn from_file(path: PathBuf) -> Result<Self, Error> {
+    fn from_path(path: &PathBuf) -> Result<Self, Error> {
         let mut ctx = Self::default();
-        ctx.load(path.to_string_lossy().as_ref())?;
+        ctx.load(path)?;
         Ok(ctx)
     }
     /*
      * Builds Self by recursive browsing
      */
-    fn from_directory(path: PathBuf) -> Result<Self, Error> {
+    fn from_directory(path: &PathBuf) -> Result<Self, Error> {
         let mut ret = RnxContext::default();
         let walkdir = WalkDir::new(path.to_string_lossy().to_string()).max_depth(5);
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-            if !entry.path().is_dir() {
-                let fullpath = entry.path().to_string_lossy().to_string();
-                match ret.load(&fullpath) {
-                    Ok(_) => trace!(
-                        "loaded \"{}\"",
-                        entry.path().file_name().unwrap().to_string_lossy()
-                    ),
-                    Err(e) => error!("failed to load \"{}\", {:?}", fullpath, e),
+            let path = entry.path().to_path_buf();
+            let filename = path
+                .file_name()
+                .ok_or(Error::FileNameDetermination)?
+                .to_string_lossy()
+                .to_string();
+
+            if !path.is_dir() {
+                match ret.load(&path) {
+                    Ok(_) => trace!("loaded \"{}\"", filename),
+                    Err(e) => error!("failed to load \"{}\", {:?}", path.display(), e),
                 }
             }
         }
         Ok(ret)
     }
     /// Load individual file into Context
-    pub fn load(&mut self, filename: &str) -> Result<(), Error> {
-        if let Ok(rnx) = Rinex::from_file(filename) {
-            let path = Path::new(filename);
+    pub fn load(&mut self, path: &PathBuf) -> Result<(), Error> {
+        let fullpath = path.to_string_lossy().to_string();
+        let filename = path
+            .file_name()
+            .ok_or(Error::FileNameDetermination)?
+            .to_string_lossy()
+            .to_string();
+        if let Ok(rnx) = Rinex::from_path(path) {
             if rnx.is_observation_rinex() {
                 self.load_obs(path, &rnx)?;
                 trace!("loaded observations \"{}\"", filename);
@@ -145,8 +155,7 @@ impl RnxContext {
             } else {
                 return Err(Error::NonSupportedType);
             }
-        } else if let Ok(sp3) = SP3::from_file(filename) {
-            let path = Path::new(filename);
+        } else if let Ok(sp3) = SP3::from_file(&fullpath) {
             self.load_sp3(path, &sp3)?;
             trace!("loaded sp3 \"{}\"", filename);
         }
@@ -373,7 +382,7 @@ impl RnxContext {
         }
         None
     }
-    fn load_obs(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
+    fn load_obs(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
         if let Some(obs) = &mut self.obs {
             obs.data.merge_mut(rnx)?;
             obs.paths.push(path.to_path_buf());
@@ -385,7 +394,7 @@ impl RnxContext {
         }
         Ok(())
     }
-    fn load_nav(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
+    fn load_nav(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
         if let Some(nav) = &mut self.nav {
             nav.data.merge_mut(rnx)?;
             nav.paths.push(path.to_path_buf());
@@ -397,7 +406,7 @@ impl RnxContext {
         }
         Ok(())
     }
-    fn load_meteo(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
+    fn load_meteo(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
         if let Some(meteo) = &mut self.meteo {
             meteo.data.merge_mut(rnx)?;
             meteo.paths.push(path.to_path_buf());
@@ -409,7 +418,7 @@ impl RnxContext {
         }
         Ok(())
     }
-    fn load_ionex(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
+    fn load_ionex(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
         if let Some(ionex) = &mut self.ionex {
             ionex.data.merge_mut(rnx)?;
             ionex.paths.push(path.to_path_buf());
@@ -421,7 +430,7 @@ impl RnxContext {
         }
         Ok(())
     }
-    fn load_antex(&mut self, path: &Path, rnx: &Rinex) -> Result<(), Error> {
+    fn load_antex(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
         if let Some(atx) = &mut self.atx {
             atx.data.merge_mut(rnx)?;
             atx.paths.push(path.to_path_buf());
@@ -433,7 +442,7 @@ impl RnxContext {
         }
         Ok(())
     }
-    fn load_sp3(&mut self, path: &Path, sp3: &SP3) -> Result<(), Error> {
+    fn load_sp3(&mut self, path: &PathBuf, sp3: &SP3) -> Result<(), Error> {
         if let Some(data) = &mut self.sp3 {
             /* extend existing context */
             data.data.merge_mut(sp3)?;

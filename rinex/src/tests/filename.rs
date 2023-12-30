@@ -20,6 +20,9 @@ fn short_filename_conventions() {
         ("CRNX/V3/DUTH0630.22D", "DUTH0620.22D", false, None),
         // FIXME on next hifitime release
         ("CRNX/V3/VLNS0010.22D", "VLNS0010.21D", false, None),
+        ("MET/V2/abvi0010.15m", "abvi0010.15m", true, None),
+        // FIXME on next hifitime release
+        ("MET/V2/clar0020.00m", "clar0010.00m", true, None),
     ] {
         let fp = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -41,12 +44,27 @@ fn short_filename_conventions() {
 // Test our standardized name generator does follow the specs
 #[test]
 fn long_filename_conventions() {
-    for (testfile, expected) in [
+    for (testfile, expected, custom_suffix) in [
         //FIXME: hifitime DOY(GNSS)
         //       remove expected completely, use PathBuf.file_name() directly
         (
             "OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
             "ACOR00XXX_R_20213542359_01D_30S_MO.rnx",
+            None,
+        ),
+        //FIXME: hifitime DOY(GNSS)
+        //       remove expected completely, use PathBuf.file_name() directly
+        (
+            "OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx",
+            "ALAC00XXX_R_20220082359_01D_13M_MO.rnx",
+            None,
+        ),
+        //FIXME: hifitime DOY(GNSS)
+        //       remove expected completely, use PathBuf.file_name() directly
+        (
+            "CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+            "ESBC00XXX_R_20201762359_01D_30S_MO.crx.gz",
+            Some(".gz"),
         ),
     ] {
         let fp = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -58,7 +76,7 @@ fn long_filename_conventions() {
 
         let standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
 
-        let output = rinex.standardized_filename(None).unwrap();
+        let output = rinex.standardized_filename(custom_suffix).unwrap();
 
         assert_eq!(output, expected, "bad filename generated");
     }

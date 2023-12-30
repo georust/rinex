@@ -1,5 +1,4 @@
 //! Geodetic marker description
-use std::str::FromStr;
 use strum_macros::EnumString;
 
 #[cfg(feature = "serde")]

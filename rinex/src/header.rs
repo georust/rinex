@@ -21,7 +21,6 @@ use crate::{
 use hifitime::Epoch;
 use std::io::prelude::*;
 use std::str::FromStr;
-use strum_macros::EnumString;
 use thiserror::Error;
 
 use crate::marker::{GeodeticMarker, MarkerType};

@@ -3,7 +3,7 @@ mod test {
     use crate::navigation::NavMsgType;
     use crate::prelude::*;
     use crate::tests::toolkit::is_null_rinex;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     #[test]
     fn test_parser() {
         let test_resources = PathBuf::new()

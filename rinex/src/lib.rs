@@ -25,10 +25,11 @@ pub mod types;
 pub mod version;
 
 mod bibliography;
+mod filename;
 mod ground_position;
 mod leap;
 mod linspace;
-mod observable;
+mod observable; // filename attributes
 
 #[cfg(test)]
 mod tests;
@@ -46,22 +47,26 @@ extern crate lazy_static;
 
 pub mod reader;
 use reader::BufferedReader;
-use std::io::Write; //, Read};
 
 pub mod writer;
 use writer::BufferedWriter;
 
 use std::collections::{BTreeMap, HashMap};
+use std::io::Write; //, Read};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+
 use thiserror::Error;
 
 use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
+use filename::FilenameAttributes;
 use ionex::TECPlane;
 use observable::Observable;
 use observation::Crinex;
 use version::Version;
 
-use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
-use std::str::FromStr;
+use hifitime::Unit;
+//use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
 
 /// Package to include all basic structures
 pub mod prelude {
@@ -108,24 +113,24 @@ pub use split::Split;
 #[macro_use]
 extern crate serde;
 
-/// File creation helper.
-/// Returns `str` description, as one letter
-/// lowercase, used in RINEX file name to describe
-/// the sampling period. RINEX specifications:   
-/// “a” = 00:00:00 - 00:59:59   
-/// “b” = 01:00:00 - 01:59:59   
-/// [...]   
-/// "x" = 23:00:00 - 23:59:59
-macro_rules! hourly_session {
-    ($hour: expr) => {
-        if $hour == 23 {
-            "x".to_string()
-        } else {
-            let c: char = ($hour + 97).into();
-            String::from(c)
-        }
-    };
-}
+// /// File creation helper.
+// /// Returns `str` description, as one letter
+// /// lowercase, used in RINEX file name to describe
+// /// the sampling period. RINEX specifications:
+// /// “a” = 00:00:00 - 00:59:59
+// /// “b” = 01:00:00 - 01:59:59
+// /// [...]
+// /// "x" = 23:00:00 - 23:59:59
+// Macro_rules! hourly_session {
+//     ($hour: expr) => {
+//         if $hour == 23 {
+//             "x".to_string()
+//         } else {
+//             let c: char = ($hour + 97).into();
+//             String::from(c)
+//         }
+//     };
+// }
 
 #[cfg(docrs)]
 pub use bibliography::Bibliography;
@@ -238,6 +243,17 @@ pub struct Rinex {
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent
     pub record: record::Record,
+    /*
+     * filename attributes.
+     * Some attributes can only be determined from the file name.
+     * Example of such information would be:
+     *  - the agency country code
+     *  - the geodetic marker in Meteo or NAV RINEX
+     * Missing such information is not important.
+     * It just means it will be impossible to fully follow the naming conventions
+     * when naming Self.
+     */
+    filename_attr: Option<FilenameAttributes>,
 }
 
 #[derive(Error, Debug)]
@@ -258,6 +274,7 @@ impl Rinex {
             header,
             record,
             comments: record::Comments::new(),
+            filename_attr: None,
         }
     }
 
@@ -267,6 +284,7 @@ impl Rinex {
             header,
             record: self.record.clone(),
             comments: self.comments.clone(),
+            filename_attr: self.filename_attr.clone(),
         }
     }
 
@@ -281,6 +299,7 @@ impl Rinex {
             header: self.header.clone(),
             comments: self.comments.clone(),
             record,
+            filename_attr: self.filename_attr.clone(),
         }
     }
 
@@ -457,7 +476,7 @@ impl Rinex {
         // FIXME: Waiting on hifitime release (DOY(GNSS))
         //   we should use EpochFormat::from_str("%j") but not yet released
         let mut yy = first_epoch.to_gregorian_utc().0;
-        if yy > 2000 {
+        if yy >= 2000 {
             yy -= 2000;
         }
 
@@ -603,50 +622,48 @@ impl Rinex {
             xxxx, m, r, ccc, src, yyyy, ddd, hh, mm, ppu, ffu, fmt, ext, suffix
         ))
     }
-    /// Builds a `RINEX` from given file.
+    /// Builds a `RINEX` from given file fullpath.
     /// Header section must respect labelization standards,
     /// some are mandatory.   
     /// Parses record (file body) for supported `RINEX` types.
-    pub fn from_file(path: &str) -> Result<Rinex, Error> {
-        /* This will be required if we ever make the BufferedReader Hatanaka compliant
-        // Grab first 80 bytes to fully determine the BufferedReader attributes.
-        // We use the `BufferedReader` wrapper for efficient file browsing (.lines())
-        // and builtin CRINEX decompression
-        let mut reader = BufferedReader::new(path)?;
-        let mut buffer = [0; 80]; // 1st line mandatory size
-        let mut line = String::new(); // first line
-        if let Ok(n) = reader.read(&mut buffer[..]) {
-            if n < 80 {
-                panic!("corrupt header 1st line")
-            }
-            if let Ok(s) = String::from_utf8(buffer.to_vec()) {
-                line = s.clone()
-            } else {
-                panic!("header 1st line is not valid Utf8 encoding")
-            }
-        }*/
+    pub fn from_file(fullpath: &str) -> Result<Rinex, Error> {
+        Self::from_path(&Path::new(fullpath).to_path_buf())
+    }
 
-        /*
-         *      deflate (.gzip) fd pointer does not work / is not fully supported
-         *      at the moment. Let's recreate a new object, it's a little bit
-         *      silly, because we actually analyze the 1st line twice,
-         *      but Header builder already deduces several things from this line.
+    /// See [Self::from_file]
+    pub fn from_path(path: &PathBuf) -> Result<Rinex, Error> {
+        let fullpath = path.to_string_lossy().to_string();
 
-                reader.seek(SeekFrom::Start(0))
-                    .unwrap();
-        */
         // create buffered reader
-        let mut reader = BufferedReader::new(path)?;
-        // --> parse header fields
+        let mut reader = BufferedReader::new(&fullpath)?;
+
+        // Parse header fields
         let mut header = Header::new(&mut reader)?;
-        // --> parse record (file body)
-        //     we also grab encountered comments,
-        //     they might serve some fileops like `splice` / `merge`
+
+        // Parse file body (record content)
+        // Comments might serve some fileops like "splice".
         let (record, comments) = record::parse_record(&mut reader, &mut header)?;
+
+        // Some attributes can only be determined from the filename
+        // This help following standard naming conventions
+        // when dumping Self into a file.
+        let filename_attr = match path.file_name() {
+            Some(filename) => {
+                let filename = filename.to_string_lossy().to_string();
+                if let Ok(attrs) = FilenameAttributes::from_str(&filename) {
+                    Some(attrs)
+                } else {
+                    None
+                }
+            },
+            _ => None,
+        };
+
         Ok(Rinex {
             header,
             record,
             comments,
+            filename_attr,
         })
     }
 
@@ -3138,11 +3155,13 @@ impl Split for Rinex {
                 header: self.header.clone(),
                 comments: self.comments.clone(),
                 record: r0,
+                filename_attr: self.filename_attr.clone(),
             },
             Self {
                 header: self.header.clone(),
                 comments: self.comments.clone(),
                 record: r1,
+                filename_attr: self.filename_attr.clone(),
             },
         ))
     }
