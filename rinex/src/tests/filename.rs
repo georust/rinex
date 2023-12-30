@@ -49,21 +49,21 @@ fn long_filename_conventions() {
         //       remove expected completely, use PathBuf.file_name() directly
         (
             "OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
-            "ACOR00XXX_R_20213542359_01D_30S_MO.rnx",
+            "ACOR00ESP_R_20213542359_01D_30S_MO.rnx",
             None,
         ),
         //FIXME: hifitime DOY(GNSS)
         //       remove expected completely, use PathBuf.file_name() directly
         (
             "OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx",
-            "ALAC00XXX_R_20220082359_01D_13M_MO.rnx",
+            "ALAC00ESP_R_20220082359_01D_13M_MO.rnx",
             None,
         ),
         //FIXME: hifitime DOY(GNSS)
         //       remove expected completely, use PathBuf.file_name() directly
         (
             "CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
-            "ESBC00XXX_R_20201762359_01D_30S_MO.crx.gz",
+            "ESBC00DNK_R_20201762359_01D_30S_MO.crx.gz",
             Some(".gz"),
         ),
     ] {

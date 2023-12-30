@@ -7,11 +7,13 @@
  * to fully reconstruct a file that follows standard naming conventions.
  */
 use hifitime::Epoch;
-use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum Error {}
+pub(crate) enum Error {
+    #[error("Filename does not follow naming conventions")]
+    NonStandardFilename,
+}
 
 /// Data Source as described in standard filenames.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -59,12 +61,55 @@ impl FilenameAttributes {}
 impl std::str::FromStr for FilenameAttributes {
     type Err = Error;
     fn from_str(fname: &str) -> Result<Self, Self::Err> {
-        Ok(Self::default())
+        if fname.len() < 34 {
+            return Err(Error::NonStandardFilename);
+        }
+        if fname.chars().nth(9) != Some('_') {
+            return Err(Error::NonStandardFilename);
+        }
+        if fname.chars().nth(11) != Some('_') {
+            return Err(Error::NonStandardFilename);
+        }
+        if fname.chars().nth(23) != Some('_') {
+            return Err(Error::NonStandardFilename);
+        }
+        Ok(Self {
+            station: fname[..6].trim().to_string(),
+            country: fname[6..9].trim().to_string(),
+            // data_src parsing is infaillible
+            data_src: DataSource::from_str(&fname[10..11]).unwrap(),
+            production_epoch: Epoch::default(),
+        })
     }
 }
 
 #[cfg(test)]
-fn test_from_str() {
-    let attrs = FilenameAttributes::from_str("");
-    assert!(attrs.is_ok());
+mod test {
+    use super::DataSource;
+    use super::FilenameAttributes;
+    use std::str::FromStr;
+    #[test]
+    fn file_attributes() {
+        for (filename, station, country, data_src) in [
+            (
+                "ACOR00ESP_R_20213550000_01D_30S_MO",
+                "ACOR00",
+                "ESP",
+                DataSource::Receiver,
+            ),
+            (
+                "ESBC00DNK_R_20201770000_01D_30S_MO",
+                "ESBC00",
+                "DNK",
+                DataSource::Receiver,
+            ),
+        ] {
+            let attrs = FilenameAttributes::from_str(filename);
+            assert!(attrs.is_ok());
+            let attrs = attrs.unwrap();
+            assert_eq!(attrs.country, country);
+            assert_eq!(attrs.station, station);
+            assert_eq!(attrs.data_src, data_src);
+        }
+    }
 }
