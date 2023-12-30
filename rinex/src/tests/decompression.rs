@@ -795,4 +795,62 @@ mod test {
             &["C1C", "C5I", "D1C", "D5I", "L1C", "L5I", "S1C", "S5I"],
         );
     }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v3_esbc00dnk() {
+        let crnx =
+            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz");
+        assert!(crnx.is_ok());
+        let rnx = crnx.unwrap();
+
+        /* C +E +G +J +R +S */
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::BeiDou,
+            &[
+                "C2I", "C6I", "C7I", "D2I", "D6I", "D7I", "L2I", "L6I", "L7I", "S2I", "S6I", "S7I",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::Galileo,
+            &[
+                "C1C", "C5Q", "C6C", "C7Q", "C8Q", "D1C", "D5Q", "D6C", "D7Q", "D8Q", "L1C", "L5Q",
+                "L6C", "L7Q", "L8Q", "S1C", "S5Q", "S6C", "S7Q", "S8Q",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::GPS,
+            &[
+                "C1C", "C1W", "C2L", "C2W", "C5Q", "D1C", "D2L", "D2W", "D5Q", "L1C", "L2L", "L2W",
+                "L5Q", "S1C", "S1W", "S2L", "S2W", "S5Q",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::QZSS,
+            &[
+                "C1C", "C2L", "C5Q", "D1C", "D2L", "D5Q", "L1C", "L2L", "L5Q", "S1C", "S2L", "S5Q",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::Glonass,
+            &[
+                "C1C", "C1P", "C2C", "C2P", "C3Q", "D1C", "D1P", "D2C", "D2P", "D3Q", "L1C", "L1P",
+                "L2C", "L2P", "L3Q", "S1C", "S1P", "S2C", "S2P", "S3Q",
+            ],
+        );
+
+        obsrinex_check_observables(
+            &rnx,
+            Constellation::SBAS,
+            &["C1C", "C5I", "D1C", "D5I", "L1C", "L5I", "S1C", "S5I"],
+        );
+    }
 }
