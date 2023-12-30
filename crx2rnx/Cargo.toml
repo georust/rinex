@@ -1,6 +1,6 @@
 [package]
 name = "crx2rnx"
-version = "2.2.1"
+version = "2.3.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX data decompressor"

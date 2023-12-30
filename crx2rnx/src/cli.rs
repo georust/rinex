@@ -1,4 +1,4 @@
-use clap::{Arg, ArgMatches, ColorChoice, Command};
+use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use std::path::{Path, PathBuf};
 
 pub struct Cli {
@@ -12,7 +12,7 @@ impl Cli {
             matches: {
                 Command::new("crx2rnx")
                     .author("Guillaume W. Bres <guillaume.bressaix@gmail.com>")
-                    .version("2.0")
+                    .version(env!("CARGO_PKG_VERSION"))
                     .about("Compact RINEX decompression tool")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
@@ -24,9 +24,23 @@ impl Cli {
                             .required(true),
                     )
                     .arg(
+                        Arg::new("short")
+                            .short('s')
+                            .long("short")
+                            .action(ArgAction::SetTrue)
+                            .conflicts_with("output")
+                            .help(
+                                "Prefer shortened filename convention.
+Otherwise, we default to modern (V3+) long filenames.
+Both will not work well if your input does not follow standard conventions at all.",
+                            ),
+                    )
+                    .arg(
                         Arg::new("output")
                             .short('o')
                             .long("output")
+                            .action(ArgAction::Set)
+                            .conflicts_with_all(["short"])
                             .help("Custom output file name"),
                     )
                     .arg(

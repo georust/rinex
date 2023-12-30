@@ -208,6 +208,19 @@ mod test {
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.observation().count() > 0); // all files have content
                             is_null_rinex(&rinex.substract(&rinex), 1.0E-9); // Self - Self should always be null
+                            if data == "OBS" {
+                                let compressed = rinex.rnx2crnx();
+                                assert!(
+                                    compressed.header.is_crinex(),
+                                    "is_crinex() should always be true for compressed rinex!"
+                                );
+                            } else if data == "CRNX" {
+                                let decompressed = rinex.crnx2rnx();
+                                assert!(
+                                    !decompressed.header.is_crinex(),
+                                    "is_crinex() should always be false for readable rinex!"
+                                );
+                            }
 
                             /* Timescale validity */
                             for ((e, _), _) in rinex.observation() {

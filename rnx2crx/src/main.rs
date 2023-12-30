@@ -4,10 +4,11 @@ use rinex::{prelude::*, Error};
 fn main() -> Result<(), Error> {
     let cli = Cli::new();
     let input_path = cli.input_path();
+
+    let mut rinex = Rinex::from_file(input_path)?; // parse
+
     println!("Compressing \"{}\"..", input_path);
-    // parse
-    let mut rinex = Rinex::from_file(input_path)?;
-    rinex.rnx2crnx();
+    rinex.rnx2crnx_mut();
 
     // compression attributes
     if cli.crx1() {
@@ -49,21 +50,24 @@ fn main() -> Result<(), Error> {
 
     // output path
     let output_path = match cli.output_path() {
-        Some(path) => path.clone(),
+        Some(path) => path.clone(), // use customized name
         _ => {
-            // deduce from input
-            match input_path.strip_suffix('o') {
-                Some(prefix) => prefix.to_owned() + "d",
-                _ => match input_path.strip_suffix('O') {
-                    Some(prefix) => prefix.to_owned() + "D",
-                    _ => match input_path.strip_suffix("rnx") {
-                        Some(prefix) => prefix.to_owned() + "crx",
-                        _ => String::from("output.crx"),
-                    },
-                },
+            if cli.matches.get_flag("short") {
+                // short name requested
+                rinex.standardized_short_filename(false, None, None).expect(
+                    "Input file does not follow naming conventions.
+You should use --output then.",
+                )
+            } else {
+                // always prefer standardized & modern format
+                rinex.standardized_filename(None).expect(
+                    "Input file does not follow naming conventions.
+You should use --output then.",
+                )
             }
         },
     };
+
     rinex.to_file(&output_path)?;
     println!("{} generated", output_path);
     Ok(())
