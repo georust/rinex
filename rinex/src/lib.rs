@@ -593,7 +593,7 @@ impl Rinex {
     /// This operation is typically used to compare two GNSS receivers.
     /// Both RINEX formats must match otherwise this will panic.
     /// This is only available to Observation RINEX files.
-    pub fn substract(&self, rhs: &Self) -> Result<Self, Error> {
+    pub fn substract(&self, rhs: &Self) -> Self {
         let mut record = observation::Record::default();
         let lhs_rec = self
             .record
@@ -605,8 +605,8 @@ impl Rinex {
             .as_obs()
             .expect("can't substract other rinex format");
 
-        for ((epoch, flag), (_, svnn)) in lhs_rec {
-            if let Some((_, ref_svnn)) = rhs_rec.get(&(*epoch, *flag)) {
+        for ((epoch, flag), (clk, svnn)) in lhs_rec {
+            if let Some((ref_clk, ref_svnn)) = rhs_rec.get(&(*epoch, *flag)) {
                 for (sv, observables) in svnn {
                     if let Some(ref_observables) = ref_svnn.get(sv) {
                         for (observable, observation) in observables {
@@ -635,7 +635,18 @@ impl Rinex {
                                     let mut inner =
                                         BTreeMap::<SV, HashMap<Observable, ObservationData>>::new();
                                     inner.insert(*sv, map);
-                                    record.insert((*epoch, *flag), (None, inner));
+                                    if let Some(clk) = clk {
+                                        if let Some(refclk) = ref_clk {
+                                            record.insert(
+                                                (*epoch, *flag),
+                                                (Some(clk - refclk), inner),
+                                            );
+                                        } else {
+                                            record.insert((*epoch, *flag), (None, inner));
+                                        }
+                                    } else {
+                                        record.insert((*epoch, *flag), (None, inner));
+                                    }
                                 }
                             }
                         }
@@ -644,8 +655,7 @@ impl Rinex {
             }
         }
 
-        let rinex = Rinex::new(self.header.clone(), record::Record::ObsRecord(record));
-        Ok(rinex)
+        Rinex::new(self.header.clone(), record::Record::ObsRecord(record))
     }
 
     /// Returns true if Differential Code Biases (DCBs)
