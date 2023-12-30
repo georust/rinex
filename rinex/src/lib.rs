@@ -741,12 +741,12 @@ impl Rinex {
         let lhs_rec = self
             .record
             .as_obs()
-            .expect("can't substract other rinex format");
+            .expect("can only substract observation data");
 
         let rhs_rec = rhs
             .record
             .as_obs()
-            .expect("can't substract other rinex format");
+            .expect("can only substract observation data");
 
         for ((epoch, flag), (clk, svnn)) in lhs_rec {
             if let Some((ref_clk, ref_svnn)) = rhs_rec.get(&(*epoch, *flag)) {
@@ -768,13 +768,23 @@ impl Rinex {
                                         // new observable
                                         let mut inner =
                                             HashMap::<Observable, ObservationData>::new();
-                                        inner.insert(observable.clone(), *observation);
+                                        let observation = ObservationData {
+                                            obs: observation.obs - ref_observation.obs,
+                                            lli: None,
+                                            snr: None,
+                                        };
+                                        inner.insert(observable.clone(), observation);
                                         c_svnn.insert(*sv, inner);
                                     }
                                 } else {
                                     // new epoch
                                     let mut map = HashMap::<Observable, ObservationData>::new();
-                                    map.insert(observable.clone(), *observation);
+                                    let observation = ObservationData {
+                                        obs: observation.obs - ref_observation.obs,
+                                        lli: None,
+                                        snr: None,
+                                    };
+                                    map.insert(observable.clone(), observation);
                                     let mut inner =
                                         BTreeMap::<SV, HashMap<Observable, ObservationData>>::new();
                                     inner.insert(*sv, map);
