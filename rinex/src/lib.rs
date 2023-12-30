@@ -14,6 +14,7 @@ pub mod hardware;
 pub mod hatanaka;
 pub mod header;
 pub mod ionex;
+pub mod marker;
 pub mod merge;
 pub mod meteo;
 pub mod navigation;
@@ -406,7 +407,7 @@ impl Rinex {
     ///            to be contained in Self.
     /// suffix: custom filename suffix. Use this for example to append ".gz".
     /// NB: this will not work properly for production < J2000.
-    pub fn standardized_shortname(
+    pub fn standardized_short_filename(
         &self,
         lowercase: bool,
         batch_num: Option<u8>,
@@ -448,7 +449,8 @@ impl Rinex {
             _ => {},
         }
 
-        let station = &header.station.as_str()[..4];
+        let marker = header.geodetic_marker.clone()?;
+        let station = &marker.name[..4];
         let first_epoch = self.first_epoch()?;
         let batch_num = batch_num.unwrap_or(0);
 
@@ -459,7 +461,7 @@ impl Rinex {
             yy -= 2000;
         }
 
-        //FIXME: Waiting on Hifitime release (DOy(GNSS))
+        //FIXME: Waiting on Hifitime release (DOY(GNSS))
         let mut doy = Epoch::from_duration(first_epoch.to_utc_duration(), TimeScale::UTC)
             .day_of_year()
             .round() as u16;
@@ -494,12 +496,113 @@ impl Rinex {
             // EpochFormatter::new(first_epoch, EpochFormat::from_str("%y").unwrap()),
             t
         );
+        if let Some(suffix) = suffix {
+            filename.push_str(suffix);
+        }
         if lowercase {
             filename = filename.to_lowercase();
         }
         Some(filename)
     }
+    /// Returns standardized filename that should be used
+    /// when dumping Self standardized modern RINEX files.
+    /// Use custom suffix, for example to append ".gz" for gzip'ed files.
+    pub fn standardized_filename(&self, suffix: Option<&str>) -> Option<String> {
+        /*
+         * modern v3+ format
+         * format is "XXXXMRCCC_R_YYYYDDDHHMM_PPU_FFU_ZZ.
+         */
+        let header = &self.header;
+        let rinex_type = header.rinex_type;
+        let constellation = header.constellation?;
+        let marker = header.geodetic_marker.clone()?;
+        let xxxx = &marker.name[..4];
 
+        let m = match marker.number() {
+            Some(number) => {
+                let offset = number.find('M').unwrap() + 1;
+                number.chars().nth(offset).unwrap()
+            },
+            None => '0',
+        };
+
+        //FIXME: improve this by studying the filename
+        //       after successful RINEX parsing
+        let r = '0'; // receiver number
+
+        //FIXME: improve this by studying the filename
+        //      after successful RINEX parsing
+        let ccc = "XXX";
+
+        let src = if header.rcvr.is_some() {
+            'R'
+        } else {
+            //FIXME: improve this by studying the filename
+            //      after successful RINEX parsing
+            'U'
+        };
+
+        let first_epoch = self.first_epoch()?;
+        let (yyyy, _, _, hh, mm, _, _) = first_epoch.to_gregorian_utc();
+
+        //FIXME: Waiting on Hifitime release (DOY(GNSS))
+        let mut ddd = Epoch::from_duration(first_epoch.to_utc_duration(), TimeScale::UTC)
+            .day_of_year()
+            .round() as u16;
+
+        ddd = ddd % 365; // FIXME: hifitime DOY(GNSS)
+        if ddd == 0 {
+            ddd += 1; // FIXME: hifitime DOY(GNSS)
+        }
+
+        let ppu = "01D"; //FIXME: study filename after successful parsing
+
+        //TODO: not required on NAV RINEX
+        let ffu = match self.dominant_sample_rate() {
+            Some(sample_rate) => {
+                let sample_rate_secs = sample_rate.to_seconds().round() as u32;
+
+                if sample_rate_secs < 60 {
+                    format!("{:02}S", sample_rate_secs)
+                } else if sample_rate_secs < 3_600 {
+                    format!("{:02}M", sample_rate_secs / 60)
+                } else if sample_rate_secs < 86_400 {
+                    format!("{:02}H", sample_rate_secs / 3_600)
+                } else {
+                    format!("{:02}D", sample_rate_secs / 86_400)
+                }
+            },
+            None => "XXU".to_string(),
+        };
+
+        let fmt = match rinex_type {
+            RinexType::ObservationData => {
+                if constellation == Constellation::Mixed {
+                    "MO".to_string()
+                } else {
+                    format!("{:x}O", constellation)
+                }
+            },
+            RinexType::NavigationData => {
+                if constellation == Constellation::Mixed {
+                    "MN".to_string()
+                } else {
+                    format!("{:x}N", constellation)
+                }
+            },
+            RinexType::MeteoData => "MM".to_string(),
+            _ => unimplemented!(),
+        };
+
+        let ext = if header.is_crinex() { "crx" } else { "rnx" };
+
+        let suffix = suffix.unwrap_or("");
+
+        Some(format!(
+            "{}{}{}{}_{}_{:04}{:03}{:02}{:02}_{}_{}_{}.{}{}",
+            xxxx, m, r, ccc, src, yyyy, ddd, hh, mm, ppu, ffu, fmt, ext, suffix
+        ))
+    }
     /// Builds a `RINEX` from given file.
     /// Header section must respect labelization standards,
     /// some are mandatory.   

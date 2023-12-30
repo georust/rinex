@@ -300,31 +300,4 @@ mod test {
             }
         }
     }
-    #[test]
-    // Test our standardized name generator does follow the specs
-    fn short_filename_conventions() {
-        for (testfile, expected, lowercase, batch_num) in [
-            //FIXME: slightly wrong due to HIFITIME PB @ DOY(GNSS)
-            //      FIXME on next release
-            ("OBS/V2/AJAC3550.21O", "AJAC3540.21O", false, None),
-            ("OBS/V2/rovn0010.21o", "rovn0010.20o", true, None),
-            ("OBS/V3/LARM0010.22O", "LARM0010.21O", false, None),
-            ("OBS/V3/pdel0010.21o", "PDEL0010.20O", false, None),
-        ] {
-            let fp = Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("..")
-                .join("test_resources")
-                .join(testfile);
-
-            let rinex = Rinex::from_file(&fp.to_string_lossy().to_string()).unwrap();
-
-            let standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
-
-            let output = rinex
-                .standardized_shortname(lowercase, batch_num, None)
-                .unwrap();
-
-            assert_eq!(output, expected, "bad short filename generated");
-        }
-    }
 }

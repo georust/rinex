@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::filter;
+    use crate::marker::MarkerType;
     use crate::observable;
     use crate::observation::SNR;
     use crate::preprocessing::*;
@@ -339,7 +340,11 @@ mod test {
                 5044091.5729
             )))
         );
-        assert_eq!(header.station_id, "13544M001");
+
+        let marker = &header.geodetic_marker;
+        assert!(marker.is_some(), "failed to parse geodetic marker");
+        let marker = marker.as_ref().unwrap();
+        assert_eq!(marker.number(), Some("13544M001".to_string()));
         assert_eq!(header.observer, "Hans van der Marel");
         assert_eq!(header.agency, "TU Delft for Deltares");
 
@@ -1086,9 +1091,15 @@ mod test {
          * Header tb
          */
         let header = rnx.header.clone();
-        assert_eq!(header.station, "ESBC00DNK");
-        assert_eq!(header.station_id, "10118M001");
-        assert_eq!(header.marker_type, Some(MarkerType::Geodetic));
+
+        assert!(
+            header.geodetic_marker.is_some(),
+            "failed to parse geodetic marker"
+        );
+        let marker = header.geodetic_marker.unwrap();
+        assert_eq!(marker.name, "ESBC00DNK");
+        assert_eq!(marker.number(), Some("10118M001".to_string()));
+        assert_eq!(marker.marker_type, Some(MarkerType::Geodetic));
 
         /*
          * Test preprocessing
