@@ -54,11 +54,13 @@ use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
 use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
-use hifitime::{Duration, Unit};
 use ionex::TECPlane;
 use observable::Observable;
 use observation::Crinex;
 use version::Version;
+
+use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
+use std::str::FromStr;
 
 /// Package to include all basic structures
 pub mod prelude {
@@ -394,101 +396,108 @@ impl Rinex {
                        //ret.to_uppercase(); //TODO
         ret
     }
-
-    /// File creation helper, returns a filename that would respect
-    /// naming conventions, based on self attributes.
-    pub fn filename(&self) -> String {
-        if self.is_ionex() {
-            return self.ionex_filename();
-        }
+    /// Returns standardized filename, in short form, that should be used
+    /// when dumping Self as standardized RINEX file.
+    /// Set lowercase = "true" if you prefer a lowercase output,
+    /// otherwised uppercase is prefered.
+    /// Batch num: used when current day is subdivided into several RINEX
+    ///            usually when sample rate is very high.
+    ///            Otherwise, "0" is implied, and we're expecting the entire day
+    ///            to be contained in Self.
+    /// suffix: custom filename suffix. Use this for example to append ".gz".
+    /// NB: this will not work properly for production < J2000.
+    pub fn standardized_shortname(
+        &self,
+        lowercase: bool,
+        batch_num: Option<u8>,
+        suffix: Option<&str>,
+    ) -> Option<String> {
+        /*
+         * historical v2 format, now longname V3 is prefered.
+         * format is "%ssss%ddd%f.%yy%t
+         * %ssss: shortened station name
+         * %ddd: day of year of first record entry (in given timescale)
+         * %f: file sequence within the day.
+         *     0: "complete day course"
+         *     1: first bach of that day
+         *     2: second batch of that day
+         *
+         * %yy: production year on two digits
+         * %t:
+         *      O: OBS
+         *      D: COMPRESSED OBS
+         *      N: NAV
+         *      M: MET
+         *      G: GLO NAS
+         */
         let header = &self.header;
-        let rtype = header.rinex_type;
-        let nnnn = header.station.as_str()[0..4].to_lowercase();
-        //TODO:
-        //self.header.date should be a datetime object
-        //but it is complex to parse..
-        let ddd = String::from("DDD");
-        let epoch: Epoch = match rtype {
-            types::Type::ObservationData
-            | types::Type::NavigationData
-            | types::Type::MeteoData
-            | types::Type::ClockData => self.epoch().next().unwrap(),
-            _ => todo!(), // other files require a dedicated procedure
-        };
-        if header.version.major < 3 {
-            //TODO
-            let (_, _, _, h, _, _, _) = epoch.to_gregorian_utc();
-            let s = hourly_session!(h);
-            let yy = "YY";
-            //let yy = format!("{:02}", epoch.date.year());
-            let t: String = match rtype {
-                types::Type::ObservationData => {
-                    if header.is_crinex() {
-                        String::from("d")
-                    } else {
-                        String::from("o")
-                    }
-                },
-                types::Type::NavigationData => {
-                    if let Some(c) = header.constellation {
-                        if c == Constellation::Glonass {
-                            String::from("g")
-                        } else {
-                            String::from("n")
-                        }
-                    } else {
-                        String::from("x")
-                    }
-                },
-                types::Type::MeteoData => String::from("m"),
-                _ => todo!(),
-            };
-            format!("{}{}{}.{}{}", nnnn, ddd, s, yy, t)
-        } else {
-            let m = String::from("0");
-            let r = String::from("0");
-            //TODO: 3 letter contry code, example: "GBR"
-            let ccc = String::from("CCC");
-            //TODO: data source
-            // R: Receiver (hw)
-            // S: Stream
-            // U: Unknown
-            let s = String::from("R");
-            let yyyy = "YYYY"; //TODO
-            let hh = "HH"; //TODO
-            let mm = "MM"; //TODO
-                           //let yyyy = format!("{:04}", epoch.date.year());
-                           //let hh = format!("{:02}", epoch.date.hour());
-                           //let mm = format!("{:02}", epoch.date.minute());
-            let pp = String::from("00"); //TODO 02d file period, interval ?
-            let up = String::from("H"); //TODO: file period unit
-            let ff = String::from("00"); //TODO: 02d observation frequency 02d
-                                         //TODO
-                                         //Units of frequency FF. “C” = 100Hz; “Z” = Hz; “S” = sec; “M” = min;
-                                         //“H” = hour; “D” = day; “U” = unspecified
-                                         //NB - _FFU is omitted for files containing navigation data
-            let uf = String::from("Z");
-            let c: String = match header.constellation {
-                Some(c) => format!("{:x}", c).to_uppercase(),
-                _ => String::from("X"),
-            };
-            let t: String = match rtype {
-                types::Type::ObservationData => String::from("O"),
-                types::Type::NavigationData => String::from("N"),
-                types::Type::MeteoData => String::from("M"),
-                types::Type::ClockData => todo!(),
-                types::Type::AntennaData => todo!(),
-                types::Type::IonosphereMaps => todo!(),
-            };
-            let fmt = match header.is_crinex() {
-                true => String::from("crx"),
-                false => String::from("rnx"),
-            };
-            format!(
-                "{}{}{}{}_{}_{}{}{}{}_{}{}_{}{}_{}{}.{}",
-                nnnn, m, r, ccc, s, yyyy, ddd, hh, mm, pp, up, ff, uf, c, t, fmt
-            )
+        let is_crinex = header.is_crinex();
+        let rinex_type = header.rinex_type;
+        let constellation = header.constellation;
+
+        /*
+         * handle special cases seperatly
+         */
+        match rinex_type {
+            RinexType::IonosphereMaps => {
+                panic!("oops");
+            },
+            RinexType::ClockData => {
+                panic!("oops");
+            },
+            _ => {},
         }
+
+        let station = &header.station.as_str()[..4];
+        let first_epoch = self.first_epoch()?;
+        let batch_num = batch_num.unwrap_or(0);
+
+        // FIXME: Waiting on hifitime release (DOY(GNSS))
+        //   we should use EpochFormat::from_str("%j") but not yet released
+        let mut yy = first_epoch.to_gregorian_utc().0;
+        if yy > 2000 {
+            yy -= 2000;
+        }
+
+        //FIXME: Waiting on Hifitime release (DOy(GNSS))
+        let mut doy = Epoch::from_duration(first_epoch.to_utc_duration(), TimeScale::UTC)
+            .day_of_year()
+            .round() as u16;
+
+        doy = doy % 365; // FIXME hifitime DOY(GNSS)
+        if doy == 0 {
+            doy += 1; // FIXME: hifitime DOY(GNSS)
+        }
+
+        let t = match rinex_type {
+            types::Type::ObservationData => {
+                if is_crinex {
+                    'D'
+                } else {
+                    'O'
+                }
+            },
+            types::Type::NavigationData => match constellation {
+                Some(Constellation::Glonass) => 'G',
+                _ => 'N',
+            },
+            types::Type::MeteoData => 'M',
+            _ => return None, // unreachable: other types handled externally
+        };
+        let mut filename = format!(
+            "{}{:03}{}.{:02}{}",
+            station,
+            doy,
+            batch_num,
+            yy,
+            // TODO: once a new Hifitime is released
+            // EpochFormatter::new(first_epoch, EpochFormat::from_str("%y").unwrap()),
+            t
+        );
+        if lowercase {
+            filename = filename.to_lowercase();
+        }
+        Some(filename)
     }
 
     /// Builds a `RINEX` from given file.
