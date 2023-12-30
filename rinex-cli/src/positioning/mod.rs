@@ -19,7 +19,7 @@ use rtk::prelude::{
     NgModel, Solver, Vector3,
 };
 
-use map_3d::{ecef2geodetic, Ellipsoid};
+use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -47,6 +47,7 @@ pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Optio
             Observable::ZenithDryDelay => {
                 let (x, y, z, _) = s.position?;
                 let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                let lat = rad2deg(lat);
                 if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
                     let value = rnx
                         .zenith_dry_delay()
@@ -61,7 +62,8 @@ pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Optio
             },
             Observable::ZenithWetDelay => {
                 let (x, y, z, _) = s.position?;
-                let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                let (mut lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                lat = rad2deg(lat);
                 if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
                     let value = rnx
                         .zenith_wet_delay()

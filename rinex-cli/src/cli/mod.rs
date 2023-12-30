@@ -1,6 +1,6 @@
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::info;
-use map_3d::{ecef2geodetic, geodetic2ecef, Ellipsoid};
+use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -90,17 +90,21 @@ impl Context {
             let walkdir = WalkDir::new(dir).max_depth(max_depth);
             for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
                 if !entry.path().is_dir() {
-                    let filepath = entry.path().to_string_lossy().to_string();
-                    let ret = data.load(&filepath);
+                    let path = entry.path();
+                    let ret = data.load(&path.to_path_buf());
                     if ret.is_err() {
-                        warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
+                        warn!(
+                            "failed to load \"{}\": {}",
+                            path.display(),
+                            ret.err().unwrap()
+                        );
                     }
                 }
             }
         }
         // load individual files, if any
         for filepath in cli.input_files() {
-            let ret = data.load(filepath);
+            let ret = data.load(&Path::new(filepath).to_path_buf());
             if ret.is_err() {
                 warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
             }
@@ -131,7 +135,9 @@ impl Context {
             rx_ecef: {
                 match cli.manual_position() {
                     Some((x, y, z)) => {
-                        let (lat, lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                        let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                        lat = rad2deg(lat);
+                        lon = rad2deg(lon);
                         info!(
                             "using manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
                             (x, y, z),
@@ -143,7 +149,9 @@ impl Context {
                     None => {
                         if let Some(data_pos) = data_position {
                             let (x, y, z) = data_pos.to_ecef_wgs84();
-                            let (lat, lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                            let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                            lat = rad2deg(lat);
+                            lon = rad2deg(lon);
                             info!(
                                 "position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
                                 (x, y, z),
