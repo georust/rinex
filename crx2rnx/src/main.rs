@@ -38,29 +38,6 @@ fn input_name(path: &PathBuf) -> String {
     }
 }
 
-// deduce output name, from input name
-fn output_filename(stem: &str, path: &PathBuf) -> String {
-    let filename = path
-        .file_name()
-        .expect("failed to determine input file name")
-        .to_str()
-        .expect("failed to determine input file name");
-
-    if filename.ends_with("gz") {
-        filename
-            .strip_suffix(".gz")
-            .expect("failed to determine output file name")
-            .replace("crx", "rnx")
-            .to_string()
-    } else if filename.ends_with('d') {
-        filename.replace('d', "o").to_string()
-    } else if filename.ends_with('D') {
-        filename.replace('D', "O").to_string()
-    } else {
-        format!("{}.rnx", stem)
-    }
-}
-
 fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
 
@@ -77,17 +54,26 @@ fn main() -> Result<(), rinex::Error> {
     let mut rinex = Rinex::from_file(&filepath)?;
     rinex.crnx2rnx_mut(); // convert to RINEX
 
+    // if input was gzip'ed: preserve it
+    let suffix = if input_name.ends_with(".gz") {
+        Some(".gz")
+    } else {
+        None
+    };
+
     let output_name = match cli.output_name() {
         Some(name) => name.clone(),
         _ => {
             if cli.matches.get_flag("short") {
-                rinex.standardized_short_filename(false, None, None).expect(
-                    "Failed to generate a standardized filename.
+                rinex
+                    .standardized_short_filename(false, None, suffix)
+                    .expect(
+                        "Failed to generate a standardized filename.
 Your input is too far from standard naming conventions.
 You should use --output then.",
-                )
+                    )
             } else {
-                rinex.standardized_filename(None).expect(
+                rinex.standardized_filename(suffix).expect(
                     "Failed to generate a standardized filename.
 Your input is too far from standard naming conventions.
 You should use --output then.",
