@@ -1,6 +1,6 @@
-use crate::graph::{build_chart_epoch_axis, generate_markers, PlotContext};
+use crate::cli::Context;
+use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, generate_markers, PlotContext};
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::prelude::RnxContext;
 use rinex::{observation::*, prelude::*};
 use std::collections::HashMap;
 
@@ -19,13 +19,12 @@ fn observable_to_physics(observable: &Observable) -> String {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observations(ctx: &RnxContext, plot_context: &mut PlotContext) {
-    let record = ctx
-        .obs_data()
-        .unwrap() // infaillible
-        .record
-        .as_obs()
-        .unwrap(); // infaillible
+pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_export: bool) {
+    let obs_data = ctx.data.obs_data().unwrap(); // infaillible
+
+    let header = &obs_data.header;
+
+    let record = obs_data.record.as_obs().unwrap(); // infaillible
 
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
@@ -81,9 +80,34 @@ pub fn plot_observations(ctx: &RnxContext, plot_context: &mut PlotContext) {
         plot_context.add_timedomain_plot("Receiver Clock Offset", "Clock Offset [s]");
         let data_x: Vec<Epoch> = clk_offset.iter().map(|(k, _)| *k).collect();
         let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();
-        let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, data_x, data_y)
-            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
+        let trace = build_chart_epoch_axis(
+            "Clk Offset",
+            Mode::LinesMarkers,
+            data_x.clone(),
+            data_y.clone(),
+        )
+        .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
         plot_context.add_trace(trace);
+
+        if csv_export {
+            let fullpath = ctx.workspace.join("clock-offset.csv");
+
+            let title = match header.rcvr.as_ref() {
+                Some(rcvr) => {
+                    format!("{} (#{}) Clock Offset", rcvr.model, rcvr.sn)
+                },
+                _ => "Receiver Clock Offset".to_string(),
+            };
+            csv_export_timedomain(
+                &fullpath,
+                &title,
+                "Epoch, Clock Offset [s]",
+                &data_x,
+                &data_y,
+            )
+            .expect("failed to render data as CSV");
+        }
+
         trace!("receiver clock offsets");
     }
     /*
@@ -98,7 +122,7 @@ pub fn plot_observations(ctx: &RnxContext, plot_context: &mut PlotContext) {
             _ => unreachable!(),
         };
 
-        if ctx.has_navigation_data() {
+        if ctx.data.has_navigation_data() {
             // Augmented context, we plot data on two Y axes
             // one for physical observation, one for sat elevation
             plot_context.add_timedomain_2y_plot(
@@ -120,8 +144,8 @@ pub fn plot_observations(ctx: &RnxContext, plot_context: &mut PlotContext) {
                 let trace = build_chart_epoch_axis(
                     &format!("{:X}({})", sv, observable),
                     Mode::Markers,
-                    data_x,
-                    data_y,
+                    data_x.clone(),
+                    data_y.clone(),
                 )
                 .marker(Marker::new().symbol(markers[index].clone()))
                 //.web_gl_mode(true)
@@ -134,13 +158,25 @@ pub fn plot_observations(ctx: &RnxContext, plot_context: &mut PlotContext) {
                 });
                 plot_context.add_trace(trace);
 
+                if csv_export {
+                    let fullpath = ctx.workspace.join(&format!("{}-{}.csv", sv, observable));
+                    csv_export_timedomain(
+                        &fullpath,
+                        &format!("{} observations", observable),
+                        "Epoch, Observation",
+                        &data_x.clone(),
+                        &data_y.clone(),
+                    )
+                    .expect("failed to render data as CSV");
+                }
+
                 if index == 0 && physics == "Signal Strength" {
                     // 1st Carrier encountered: plot SV only once
                     // we also only augment the SSI plot when NAV context is provided
-                    if let Some(nav) = &ctx.nav_data() {
+                    if let Some(nav) = &ctx.data.nav_data() {
                         // grab elevation angle
                         let data: Vec<(Epoch, f64)> = nav
-                            .sv_elevation_azimuth(ctx.ground_position())
+                            .sv_elevation_azimuth(ctx.data.ground_position())
                             .map(|(epoch, _sv, (elev, _a))| (epoch, elev))
                             .collect();
                         // plot (Epoch, Elev)

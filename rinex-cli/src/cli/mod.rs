@@ -1,12 +1,17 @@
-use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::info;
-use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::{
+    fs::create_dir_all,
+    io::Write,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
-use crate::Error;
+use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 use rinex::prelude::*;
 use walkdir::WalkDir;
+
+use crate::{fops::open_with_web_browser, Error};
 
 // identification mode
 mod identify;
@@ -75,6 +80,36 @@ impl Context {
         primary_stem[0].to_string()
     }
     /*
+     * Utility to prepare subdirectories in the session workspace
+     */
+    pub fn create_subdir(&self, suffix: &str) {
+        create_dir_all(self.workspace.join(suffix).to_path_buf())
+            .unwrap_or_else(|e| panic!("failed to generate session dir {}: {:?}", suffix, e));
+    }
+    /*
+     * Utility to create a file in this session
+     */
+    fn create_file(&self, path: &Path) -> std::fs::File {
+        std::fs::File::create(path).unwrap_or_else(|e| {
+            panic!("failed to create {}: {:?}", path.display(), e);
+        })
+    }
+    /*
+     * Save HTML content, auto opens it if quiet (-q) is not turned on
+     */
+    pub fn render_html(&self, filename: &str, html: String) {
+        let path = self.workspace.join(filename);
+        let mut fd = self.create_file(&path);
+        write!(fd, "{}", html).unwrap_or_else(|e| {
+            panic!("failed to render HTML content: {:?}", e);
+        });
+        info!("html rendered in \"{}\"", path.display());
+
+        if !self.quiet {
+            open_with_web_browser(&path.to_string_lossy().to_string());
+        }
+    }
+    /*
      * Creates File/Data context defined by user.
      * Regroups all provided files/folders,
      */
@@ -123,10 +158,11 @@ impl Context {
                     },
                 };
                 // make sure the workspace is viable and exists, otherwise panic
-                std::fs::create_dir_all(&path).unwrap_or_else(|_| {
+                create_dir_all(&path).unwrap_or_else(|e| {
                     panic!(
-                        "failed to create session workspace \"{}\": permission denied!",
-                        path.to_string_lossy()
+                        "failed to create session workspace \"{}\": {:?}",
+                        path.display(),
+                        e
                     )
                 });
                 info!("session workspace is \"{}\"", path.to_string_lossy());

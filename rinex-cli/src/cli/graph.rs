@@ -6,7 +6,13 @@ pub fn subcommand() -> Command {
         .long_flag("graph")
         .arg_required_else_help(true)
         .about(
-            "RINEX dataset visualization (signals, orbits..), rendered as HTML in the workspace.",
+            "RINEX data visualization (signals, orbits..), rendered as HTML or CSV in the workspace.",
+        )
+        .arg(
+            Arg::new("csv")
+                .long("csv")
+                .action(ArgAction::SetTrue)
+                .help("Generate CSV files along HTML plots.")
         )
         .next_help_heading(
             "RINEX dependent visualizations. 
