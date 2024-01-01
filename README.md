@@ -29,7 +29,7 @@ You can also contact us [on our Discord channel](https://discord.gg/Fp2aape)
 - Parial Clock RINEX support
 - Several pre processing operations:
   - File merging
-  - Time beaning 
+  - Time binning 
   - Filtering.. 
 - Several post processing operations
 - All modern GNSS constellations
