@@ -15,6 +15,7 @@
  *   2. In our file production API, we can pass ProductionAttributes
  *      to customize the production of this context.
  */
+use crate::Constellation;
 use crate::RinexType;
 use thiserror::Error;
 
@@ -55,33 +56,15 @@ pub struct ProductionAttributes {
     pub name: String,
     /// Year of production
     pub year: u32,
-    /// File type dependent specific information
-    pub specific: SpecificProductionAttributes,
+    /// Production Day of Year (DOY)
+    pub doy: u32,
     /// Detailed production attributes only apply to NAV + OBS RINEX
     /// files. They can only be attached from filenames that follow
     /// the current standardized long format.
     pub details: Option<DetailedProductionAttributes>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-/// Type dependent, production attributes.
-pub enum SpecificProductionAttributes {
-    /// RINEX production attributes.
-    Rinex(RinexProductionAttributes),
-    /// IONEX production attributes.
-    Ionex(IonexProductionAttributes),
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct RinexProductionAttributes {
-    /// Production Day of Year (DOY)
-    pub doy: u32,
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct IonexProductionAttributes {
-    /// Regional code. 'G' means Global (world wide) TEC map(s).
-    pub region: char,
+    /// Optional Regional code present in IONEX file names.
+    /// 'G' means Global (World wide) TEC map(s).
+    pub region: Option<char>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -94,27 +77,47 @@ pub struct DetailedProductionAttributes {
     pub ppu: PPU,
     /// FFU gives information on Observation sampling rate.
     pub ffu: Option<FFU>,
+    /// Hour of first symbol (sampling, not publication)
+    pub hh: u8,
+    /// Minute of first symbol (sampling, not publication)
+    pub mm: u8,
 }
 
 impl ProductionAttributes {
-    //pub(crate) fn detailed(&self) -> Option<&DetailedProductionAttributes> {
-    //    match self {
-    //        Self::Detailed(a) => Some(&a),
-    //        _ => None,
-    //    }
-    //}
-    //pub(crate) fn short(&self) -> Option<&ProductionAttributes> {
-    //    match self {
-    //        Self::Short(a) => Some(&a),
-    //        _ => None,
-    //    }
-    //}
-    //pub(crate) fn shorten(&self) -> ProductionAttributes {
-    //    match self {
-    //        Self::Short(a) => a.clone(),
-    //        Self::Detailed(a) => a.shorten(),
-    //    }
-    //}
+    /* filename generator */
+    pub(crate) fn ionex_format(name: &str, region: char, ddd: &str, yy: &str) -> String {
+        format!("{}{}{}0.{}I", name, region, ddd, yy,)
+    }
+    /* filename generator */
+    pub(crate) fn rinex_short_format(name: &str, ddd: &str, yy: &str, ext: char) -> String {
+        format!("{}{}0.{}{}", &name, ddd, yy, ext,)
+    }
+    /* filename generator */
+    pub(crate) fn rinex_long_format(
+        name: &str,
+        country: &str,
+        src: char,
+        yyyy: &str,
+        ddd: &str,
+        hh: &str,
+        mm: &str,
+        ppu: &str,
+        ffu: Option<&str>,
+        fmt: &str,
+        ext: &str,
+    ) -> String {
+        if let Some(ffu) = ffu {
+            format!(
+                "{}00{}_{}_{}{}{}{}_{}_{}_{}.{}",
+                name, country, src, yyyy, ddd, hh, mm, ppu, ffu, fmt, ext,
+            )
+        } else {
+            format!(
+                "{}00{}_{}_{}{}{}{}_{}_{}.{}",
+                name, country, src, yyyy, ddd, hh, mm, ppu, fmt, ext,
+            )
+        }
+    }
 }
 
 impl std::str::FromStr for ProductionAttributes {
@@ -142,15 +145,14 @@ impl std::str::FromStr for ProductionAttributes {
             Ok(Self {
                 year: year + 2_000, // year uses 2 digit in old format
                 name: fname[..name_offset].to_string(),
-                specific: match rtype {
-                    "I" => SpecificProductionAttributes::Ionex(IonexProductionAttributes {
-                        region: fname.chars().nth(3).unwrap(),
-                    }),
-                    _ => SpecificProductionAttributes::Rinex(RinexProductionAttributes {
-                        doy: fname[4..7]
-                            .parse::<u32>()
-                            .map_err(|_| Error::NonStandardFileName)?,
-                    }),
+                doy: {
+                    fname[4..7]
+                        .parse::<u32>()
+                        .map_err(|_| Error::NonStandardFileName)?
+                },
+                region: match rtype {
+                    "I" => fname.chars().nth(3),
+                    _ => None,
                 },
                 details: None,
             })
@@ -175,21 +177,26 @@ impl std::str::FromStr for ProductionAttributes {
             Ok(Self {
                 year,
                 name: fname[..name_offset].to_string(),
-                specific: match rtype {
-                    "I" => {
-                        /* IONEX files how only use short format */
-                        return Err(Error::NonStandardFileName);
-                    },
-                    _ => SpecificProductionAttributes::Rinex(RinexProductionAttributes {
-                        doy: fname[16..19]
-                            .parse::<u32>()
-                            .map_err(|_| Error::NonStandardFileName)?,
-                    }),
+                doy: {
+                    fname[16..19]
+                        .parse::<u32>()
+                        .map_err(|_| Error::NonStandardFileName)?
                 },
+                region: None, // IONEX files only use a short format
                 details: Some(DetailedProductionAttributes {
                     country: fname[6..9].to_string(),
                     data_src: DataSource::from_str(&fname[10..11])?,
                     ppu: PPU::from_str(&fname[24..27])?,
+                    hh: {
+                        fname[20..22]
+                            .parse::<u8>()
+                            .map_err(|_| Error::NonStandardFileName)?
+                    },
+                    mm: {
+                        fname[23..25]
+                            .parse::<u8>()
+                            .map_err(|_| Error::NonStandardFileName)?
+                    },
                     ffu: match offset {
                         34 => Some(FFU::from_str(&fname[28..32])?),
                         _ => None, // NAV FILE case
@@ -203,75 +210,42 @@ impl std::str::FromStr for ProductionAttributes {
 #[cfg(test)]
 mod test {
     use super::DetailedProductionAttributes;
-    use super::IonexProductionAttributes;
     use super::ProductionAttributes;
-    use super::RinexProductionAttributes;
-    use super::SpecificProductionAttributes;
     use super::{DataSource, FFU, PPU};
+    use crate::RinexType;
     use hifitime::Unit;
     use std::str::FromStr;
     #[test]
     fn short_rinex_filenames() {
-        for (filename, name, year, specific) in [
-            (
-                "AJAC3550.21O",
-                "AJAC",
-                2021,
-                RinexProductionAttributes { doy: 355 },
-            ),
-            (
-                "AJAC3550.21D",
-                "AJAC",
-                2021,
-                RinexProductionAttributes { doy: 355 },
-            ),
-            (
-                "KOSG0010.15O",
-                "KOSG",
-                2015,
-                RinexProductionAttributes { doy: 1 },
-            ),
-            (
-                "rovn0010.21o",
-                "ROVN",
-                2021,
-                RinexProductionAttributes { doy: 1 },
-            ),
-            (
-                "barq071q.19o",
-                "BARQ",
-                2019,
-                RinexProductionAttributes { doy: 71 },
-            ),
-            (
-                "VLNS0010.22D",
-                "VLNS",
-                2022,
-                RinexProductionAttributes { doy: 1 },
-            ),
+        for (filename, name, year, doy) in [
+            ("AJAC3550.21O", "AJAC", 2021, 355),
+            ("AJAC3550.21D", "AJAC", 2021, 355),
+            ("KOSG0010.15O", "KOSG", 2015, 1),
+            ("rovn0010.21o", "ROVN", 2021, 1),
+            ("barq071q.19o", "BARQ", 2019, 71),
+            ("VLNS0010.22D", "VLNS", 2022, 1),
         ] {
             println!("Testing RINEX filename \"{}\"", filename);
             let attrs = ProductionAttributes::from_str(filename).unwrap();
             assert_eq!(attrs.name, name);
             assert_eq!(attrs.year, year);
-            assert_eq!(
-                attrs.specific,
-                SpecificProductionAttributes::Rinex(specific)
-            );
+            assert_eq!(attrs.doy, doy);
         }
     }
     #[test]
     fn long_rinex_filenames() {
-        for (filename, name, year, specific, detail) in [
+        for (filename, name, year, doy, detail) in [
             (
                 "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
                 "ACOR",
                 2021,
-                RinexProductionAttributes { doy: 355 },
+                355,
                 DetailedProductionAttributes {
                     country: "ESP".to_string(),
                     data_src: DataSource::Receiver,
                     ppu: PPU::Daily,
+                    hh: 0,
+                    mm: 0,
                     ffu: Some(FFU {
                         val: 30,
                         unit: Unit::Second,
@@ -282,11 +256,13 @@ mod test {
                 "KMS300DNK_R_20221591000_01H_30S_MO.crx",
                 "KMS3",
                 2022,
-                RinexProductionAttributes { doy: 159 },
+                159,
                 DetailedProductionAttributes {
                     country: "DNK".to_string(),
                     data_src: DataSource::Receiver,
                     ppu: PPU::Hourly,
+                    hh: 10,
+                    mm: 0,
                     ffu: Some(FFU {
                         val: 30,
                         unit: Unit::Second,
@@ -297,10 +273,12 @@ mod test {
                 "AMEL00NLD_R_20210010000_01D_MN.rnx",
                 "AMEL",
                 2021,
-                RinexProductionAttributes { doy: 1 },
+                1,
                 DetailedProductionAttributes {
                     country: "NLD".to_string(),
                     data_src: DataSource::Receiver,
+                    hh: 0,
+                    mm: 0,
                     ppu: PPU::Daily,
                     ffu: None,
                 },
@@ -309,11 +287,13 @@ mod test {
                 "MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
                 "MOJN",
                 2020,
-                RinexProductionAttributes { doy: 177 },
+                177,
                 DetailedProductionAttributes {
                     country: "DNK".to_string(),
                     data_src: DataSource::Receiver,
                     ppu: PPU::Daily,
+                    hh: 0,
+                    mm: 0,
                     ffu: Some(FFU {
                         val: 30,
                         unit: Unit::Second,
@@ -325,43 +305,23 @@ mod test {
             let attrs = ProductionAttributes::from_str(filename).unwrap();
             assert_eq!(attrs.name, name);
             assert_eq!(attrs.year, year);
-            assert_eq!(
-                attrs.specific,
-                SpecificProductionAttributes::Rinex(specific)
-            );
+            assert_eq!(attrs.doy, doy);
             assert_eq!(attrs.details, Some(detail));
         }
     }
     #[test]
     fn ionex_filenames() {
-        for (filename, name, year, specific) in [
-            (
-                "CKMG0020.22I",
-                "CKM",
-                2022,
-                IonexProductionAttributes { region: 'G' },
-            ),
-            (
-                "CKMG0090.21I",
-                "CKM",
-                2021,
-                IonexProductionAttributes { region: 'G' },
-            ),
-            (
-                "jplg0010.17i",
-                "JPL",
-                2017,
-                IonexProductionAttributes { region: 'G' },
-            ),
+        for (filename, name, year, doy, region) in [
+            ("CKMG0020.22I", "CKM", 2022, 2, 'G'),
+            ("CKMG0090.21I", "CKM", 2021, 9, 'G'),
+            ("jplg0010.17i", "JPL", 2017, 1, 'G'),
         ] {
             println!("Testing IONEX filename \"{}\"", filename);
             let attrs = ProductionAttributes::from_str(filename).unwrap();
             assert_eq!(attrs.name, name);
             assert_eq!(attrs.year, year);
-            assert_eq!(
-                attrs.specific,
-                SpecificProductionAttributes::Ionex(specific)
-            );
+            assert_eq!(attrs.doy, doy);
+            assert_eq!(attrs.region, Some(region));
         }
     }
 }

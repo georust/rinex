@@ -4,25 +4,25 @@ use std::path::Path;
 // Test our standardized name generator does follow the specs
 #[test]
 fn short_filename_conventions() {
-    for (testfile, expected, short) in [
+    for (testfile, expected) in [
         //FIXME: slightly wrong due to HIFITIME PB @ DOY(GNSS)
-        ("OBS/V2/AJAC3550.21O", "AJAC3540.21O", true),
-        ("OBS/V2/rovn0010.21o", "rovn0010.20o", true),
+        ("OBS/V2/AJAC3550.21O", "AJAC3550.21O"),
+        ("OBS/V2/rovn0010.21o", "ROVN0020.20O"),
         // FIXME on next hifitime release
-        ("OBS/V3/LARM0010.22O", "LARM0010.21O", true),
+        ("OBS/V3/LARM0010.22O", "LARM0010.21O"),
         // FIXME on next hifitime release
-        ("OBS/V3/pdel0010.21o", "PDEL0010.20O", true),
+        ("OBS/V3/pdel0010.21o", "PDEL0020.20O"),
         // FIXME on next hifitime release
-        ("CRNX/V1/delf0010.21d", "delf0010.20d", true),
+        ("CRNX/V1/delf0010.21d", "DELF0020.20D"),
         // FIXME on next hifitime release
-        ("CRNX/V1/zegv0010.21d", "ZEGV0010.20D", false),
+        ("CRNX/V1/zegv0010.21d", "ZEGV0020.20D"),
         // FIXME on next hifitime release
-        ("CRNX/V3/DUTH0630.22D", "DUTH0620.22D", false),
+        ("CRNX/V3/DUTH0630.22D", "DUTH0630.22D"),
         // FIXME on next hifitime release
-        ("CRNX/V3/VLNS0010.22D", "VLNS0010.21D", false),
-        ("MET/V2/abvi0010.15m", "abvi0010.15m", true),
+        ("CRNX/V3/VLNS0010.22D", "VLNS0010.21D"),
+        ("MET/V2/abvi0010.15m", "ABVI0010.15M"),
         // FIXME on next hifitime release
-        ("MET/V2/clar0020.00m", "clar0010.00m", true),
+        ("MET/V2/clar0020.00m", "CLAR0020.00M"),
     ] {
         let fp = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -33,7 +33,7 @@ fn short_filename_conventions() {
 
         let _actual_filename = fp.file_name().unwrap().to_string_lossy().to_string();
 
-        let output = rinex.standard_filename(short, None, None);
+        let output = rinex.standard_filename(true, None, None); // force short
 
         assert_eq!(output, expected, "bad short filename generated");
     }

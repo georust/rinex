@@ -5,7 +5,7 @@ use hifitime::{Duration, Unit};
 use serde::Serialize;
 
 /// PPU Gives information on file periodicity.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum PPU {
     /// A Daily file is the standard and will contain 24h of data

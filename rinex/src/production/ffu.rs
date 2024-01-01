@@ -1,7 +1,7 @@
 use super::Error;
 use hifitime::{Duration, Unit};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct FFU {
     /// Sample rate
     pub val: u32,

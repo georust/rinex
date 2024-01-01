@@ -64,7 +64,7 @@ use observable::Observable;
 use observation::Crinex;
 use version::Version;
 
-use production::ProductionAttributes;
+use production::{ProductionAttributes, FFU, PPU};
 
 use hifitime::Unit;
 //use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
@@ -378,205 +378,264 @@ impl Rinex {
                 });
         }
     }
-    /*
-     * Generates a standardized file name for Self,
-     * but in short form (deprecated, long form is prefered).
-     * See [Self::standard_filename] for more information
-     */
-    fn standard_short_filename(
-        &self,
-        suffix: Option<&str>,
-        custom: Option<ProductionAttributes>,
-    ) -> String {
-        "NOT_IMPLEMENTED".to_string()
-        // /*
-        //  * historical v2 format, now longname V3 is prefered.
-        //  * format is "%ssss%ddd%f.%yy%t
-        //  * %ssss: shortened station name
-        //  * %ddd: day of year of first record entry (in given timescale)
-        //  * %f: file sequence within the day.
-        //  *     0: "complete day course"
-        //  *     1: first bach of that day
-        //  *     2: second batch of that day
-        //  *
-        //  * %yy: production year on two digits
-        //  * %t:
-        //  *      O: OBS
-        //  *      D: COMPRESSED OBS
-        //  *      N: NAV
-        //  *      M: MET
-        //  *      G: GLO NAS
-        //  */
-        // let header = &self.header;
-        // let is_crinex = header.is_crinex();
-        // let rinex_type = header.rinex_type;
-        // let constellation = header.constellation;
-
-        // /*
-        //  * handle special cases seperatly
-        //  */
-        // match rinex_type {
-        //     RinexType::IonosphereMaps => {
-        //         unimplemented!("standard ionex name");
-        //         return self.ionex_filename();
-        //     },
-        //     RinexType::ClockData => {
-        //         unimplemented!("standard clock rinex name");
-        //     },
-        //     _ => {},
-        // }
-
-        // let marker = header.geodetic_marker.clone()?;
-        // let station = &marker.name[..4];
-        // let first_epoch = self.first_epoch()?;
-        // let batch_num = batch_num.unwrap_or(0);
-
-        // // FIXME: Waiting on hifitime release (DOY(GNSS))
-        // //   we should use EpochFormat::from_str("%j") but not yet released
-        // let mut yy = first_epoch.to_gregorian_utc().0;
-        // if yy >= 2000 {
-        //     yy -= 2000;
-        // }
-
-        // //FIXME: Waiting on Hifitime release (DOY(GNSS))
-        // let mut doy = Epoch::from_duration(first_epoch.to_utc_duration(), TimeScale::UTC)
-        //     .day_of_year()
-        //     .round() as u16;
-
-        // doy %= 365; // FIXME hifitime DOY(GNSS)
-        // if doy == 0 {
-        //     doy += 1; // FIXME: hifitime DOY(GNSS)
-        // }
-
-        // let t = match rinex_type {
-        //     types::Type::ObservationData => {
-        //         if is_crinex {
-        //             'D'
-        //         } else {
-        //             'O'
-        //         }
-        //     },
-        //     types::Type::NavigationData => match constellation {
-        //         Some(Constellation::Glonass) => 'G',
-        //         _ => 'N',
-        //     },
-        //     types::Type::MeteoData => 'M',
-        //     _ => return None, // unreachable: other types handled externally
-        // };
-        // let mut filename = format!(
-        //     "{}{:03}{}.{:02}{}",
-        //     station,
-        //     doy,
-        //     batch_num,
-        //     yy,
-        //     // TODO: once a new Hifitime is released
-        //     // EpochFormatter::new(first_epoch, EpochFormat::from_str("%y").unwrap()),
-        //     t
-        // );
-        // if let Some(suffix) = suffix {
-        //     filename.push_str(suffix);
-        // }
-        // Some(filename)
-    }
-    /// Returns a filename that would follow standard (modern) naming conventions,
-    /// to describe Self. For this information to be 100% complete,
-    /// Self must be formed from a file that follows naming conventions itself.
+    /// Returns a filename that would describe Self according to naming conventions.
+    /// For this information to be 100% complete, Self must come from a file
+    /// that follows these conventions itself.
     /// Otherwise you must provide [ProductionAttributes] yourself with "custom".
-    /// In any case, this is infaillible, you will just lack more or less information
-    /// depending on the previous point.
-    /// Use "short" if you prefer shortened (but deprecated) RINEX filenames.
-    /// Use "suffix" to append a custom suffix to the auto generated filename.
+    /// In any case, this method is infaillible. You will just lack more or
+    /// less information, depending on current context.
+    /// If you're working with Observation, Navigation or Meteo data,
+    /// and prefered shorter filenames (V2 like format): force short to "true".
+    /// Otherwse, we will prefer modern V3 like formats.
+    /// Use "suffix" to append a custom suffix like ".gz" for example.
+    /// NB this will only output uppercase filenames (as per standard specs).
     pub fn standard_filename(
         &self,
         short: bool,
         suffix: Option<&str>,
         custom: Option<ProductionAttributes>,
     ) -> String {
-        "NOT IMPLEMENTED".to_string()
-        //if short {
-        //    return self.standard_short_filename(suffix, custom);
-        //}
-        // /*
-        // * modern v3+ format
-        // * format is "XXXXMRCCC_R_YYYYDDDHHMM_PPU_FFU_ZZ.
-        // */
-        //let header = &self.header;
-        //let rinex_type = header.rinex_type;
+        let header = &self.header;
+        let rinextype = header.rinex_type;
+        let is_crinex = header.is_crinex();
+        let constellation = header.constellation;
 
-        //let mut filename = if self.is_ionex() {
-        //    // we must have valid ionex attributes, otherwise use defaults.
-        //    let ionex = match &self.prod_attr {
-        //        Some(attr) => {
-        //            if let Some(attr) = attr.as_ionex() {
-        //                attr.clone()
-        //            } else {
-        //                unimplemented!("not yet");
-        //            }
-        //        },
-        //        None => unimplemented!("not yet"),
-        //    };
-        //    unimplemented!("not yet");
-        //} else {
-        //    // we must have valid rinex attributes, otherwise use defaults.
-        //    let rinex = match &self.prod_attr {
-        //        Some(attr) => {
-        //            if let Some(attr) = attr.as_rinex() {
-        //                attr.clone()
-        //            } else {
-        //                RinexProductionAttributes::default()
-        //            }
-        //        },
-        //        None => RinexProductionAttributes::default(),
-        //    };
-
-        //    match rinex_type {
-        //        RinexType::ObservationData => {
-        //            let constellation = header.constellation;
-        //            let r = 0; // TODO: improve this ? (receiver number)
-        //            let country_code = rinex.country;
-
-        //            let src = if header.rcvr.is_some() {
-        //                /*
-        //                 * Receiver infos: obvious source of data
-        //                 */
-        //                DataSource::Receiver
-        //            } else {
-        //                /*
-        //                 * If receiver infos are not present
-        //                 * and Self was parsed from a file that follows naming conventions:
-        //                 * we can still determine that.
-        //                 */
-        //                rinex.data_src
-        //            };
-
-        //            let ppu = rinex.ppu;
-        //            let ext = if header.is_crinex() { "crx" } else { "rnx" };
-
-        //            RinexProductionAttributes::obs_filename(
-        //                header.geodetic_marker.as_ref(),
-        //                r,
-        //                &country_code,
-        //                src,
-        //                self.first_epoch(),
-        //                ppu,
-        //                self.dominant_sample_rate().unwrap_or(Duration::default()),
-        //                header.is_crinex(),
-        //            )
-        //        },
-        //        RinexType::MeteoData => {
-        //            let r = 'R'; // always sensor source in MeteoData
-        //            unimplemented!("standard meteo filename");
-        //        },
-        //        RinexType::ClockData => unimplemented!("standard clk filename"),
-        //        RinexType::NavigationData => unimplemented!("standard nav filename"),
-        //        RinexType::AntennaData => unimplemented!("standard atx filename"),
-        //        RinexType::IonosphereMaps => unreachable!("handled elsewhere"),
-        //    }
-        //};
-        //if let Some(suffix) = suffix {
-        //    filename.push_str(suffix);
-        //}
-        //filename
+        let mut filename = match rinextype {
+            RinexType::IonosphereMaps => {
+                let name = match custom {
+                    Some(ref custom) => custom.name.clone(),
+                    None => {
+                        if let Some(attr) = &self.prod_attr {
+                            attr.name.clone()
+                        } else {
+                            "XXX".to_string()
+                        }
+                    },
+                };
+                let region = match &custom {
+                    Some(ref custom) => custom.region.unwrap_or('G'),
+                    None => {
+                        if let Some(attr) = &self.prod_attr {
+                            attr.region.unwrap_or('G')
+                        } else {
+                            'G'
+                        }
+                    },
+                };
+                let ddd = match &custom {
+                    Some(ref custom) => format!("{:03}", custom.doy),
+                    None => {
+                        if let Some(epoch) = self.first_epoch() {
+                            //FIXME: hifitime release (DOY+GNSS)
+                            let mut ddd = Epoch::from_duration(
+                                epoch.to_duration_in_time_scale(TimeScale::UTC),
+                                TimeScale::UTC,
+                            )
+                            .day_of_year()
+                            .round() as u32
+                                + 1;
+                            ddd = ddd % 365;
+                            format!("{:03}", ddd)
+                        } else {
+                            "DDD".to_string()
+                        }
+                    },
+                };
+                let yy = match &custom {
+                    Some(ref custom) => format!("{:02}", custom.year - 2_000),
+                    None => {
+                        if let Some(epoch) = self.first_epoch() {
+                            format!("{:02}", epoch.to_gregorian_utc().0 - 2_000)
+                        } else {
+                            "YY".to_string()
+                        }
+                    },
+                };
+                ProductionAttributes::ionex_format(&name, region, &ddd, &yy)
+            },
+            RinexType::ObservationData | RinexType::MeteoData | RinexType::NavigationData => {
+                let name = match custom {
+                    Some(ref custom) => custom.name.clone(),
+                    None => {
+                        if let Some(attr) = &self.prod_attr {
+                            attr.name.clone()
+                        } else {
+                            "XXXX".to_string()
+                        }
+                    },
+                };
+                let ddd = match &custom {
+                    Some(ref custom) => format!("{:03}", custom.doy),
+                    None => {
+                        if let Some(epoch) = self.first_epoch() {
+                            //FIXME: hifitime release (DOY+GNSS)
+                            let mut ddd = Epoch::from_duration(
+                                epoch.to_duration_in_time_scale(TimeScale::UTC),
+                                TimeScale::UTC,
+                            )
+                            .day_of_year()
+                            .round() as u32
+                                + 1;
+                            ddd = ddd % 365;
+                            format!("{:03}", ddd)
+                        } else {
+                            "DDD".to_string()
+                        }
+                    },
+                };
+                if short {
+                    let yy = match &custom {
+                        Some(ref custom) => format!("{:02}", custom.year - 2_000),
+                        None => {
+                            if let Some(epoch) = self.first_epoch() {
+                                format!("{:02}", epoch.to_gregorian_utc().0 - 2_000)
+                            } else {
+                                "YY".to_string()
+                            }
+                        },
+                    };
+                    let ext = match rinextype {
+                        RinexType::ObservationData => {
+                            if is_crinex {
+                                'D'
+                            } else {
+                                'O'
+                            }
+                        },
+                        RinexType::MeteoData => 'M',
+                        RinexType::NavigationData => match constellation {
+                            Some(Constellation::Glonass) => 'G',
+                            _ => 'N',
+                        },
+                        _ => unreachable!("unreachable"),
+                    };
+                    ProductionAttributes::rinex_short_format(&name, &ddd, &yy, ext)
+                } else {
+                    /* long /V3 like format */
+                    let country = match &custom {
+                        Some(ref custom) => {
+                            if let Some(details) = &custom.details {
+                                details.country.to_string()
+                            } else {
+                                "CCC".to_string()
+                            }
+                        },
+                        None => "CCC".to_string(),
+                    };
+                    let src = match &header.rcvr {
+                        Some(_) => 'R', // means GNSS rcvr
+                        None => {
+                            if let Some(attr) = &self.prod_attr {
+                                if let Some(details) = &attr.details {
+                                    details.data_src.to_char()
+                                } else {
+                                    'U' // means unspecified
+                                }
+                            } else {
+                                'U' // means unspecified
+                            }
+                        },
+                    };
+                    let yyyy = match &custom {
+                        Some(ref custom) => format!("{:04}", custom.year),
+                        None => {
+                            if let Some(epoch) = self.first_epoch() {
+                                format!("{:04}", epoch.to_gregorian_utc().0)
+                            } else {
+                                "YYYY".to_string()
+                            }
+                        },
+                    };
+                    let (hh, mm) = match &custom {
+                        Some(ref custom) => {
+                            if let Some(details) = &custom.details {
+                                (format!("{:02}", details.hh), format!("{:02}", details.mm))
+                            } else {
+                                ("HH".to_string(), "MM".to_string())
+                            }
+                        },
+                        None => {
+                            if let Some(epoch) = self.first_epoch() {
+                                let (_, _, _, hh, mm, _, _) = epoch.to_gregorian_utc();
+                                (format!("{:02}", hh), format!("{:02}", mm))
+                            } else {
+                                ("HH".to_string(), "MM".to_string())
+                            }
+                        },
+                    };
+                    // FFU sampling rate
+                    let ffu = match self.dominant_sample_rate() {
+                        Some(duration) => FFU::from(duration).to_string(),
+                        None => {
+                            if let Some(ref custom) = custom {
+                                if let Some(details) = &custom.details {
+                                    if let Some(ffu) = details.ffu {
+                                        ffu.to_string()
+                                    } else {
+                                        "XXX".to_string()
+                                    }
+                                } else {
+                                    "XXX".to_string()
+                                }
+                            } else {
+                                "XXX".to_string()
+                            }
+                        },
+                    };
+                    // ffu only in OBS file names
+                    let ffu = match rinextype {
+                        RinexType::ObservationData => Some(ffu),
+                        _ => None,
+                    };
+                    // PPU periodicity
+                    let ppu = if let Some(ref custom) = custom {
+                        if let Some(details) = &custom.details {
+                            details.ppu
+                        } else {
+                            PPU::Unspecified
+                        }
+                    } else {
+                        if let Some(ref attr) = self.prod_attr {
+                            if let Some(details) = &attr.details {
+                                details.ppu
+                            } else {
+                                PPU::Unspecified
+                            }
+                        } else {
+                            PPU::Unspecified
+                        }
+                    };
+                    let fmt = match rinextype {
+                        RinexType::ObservationData => "MO".to_string(),
+                        RinexType::MeteoData => "MM".to_string(),
+                        RinexType::NavigationData => match constellation {
+                            Some(constell) => format!("M{:x}", constell),
+                            Some(Constellation::Mixed) | None => "MN".to_string(),
+                        },
+                        _ => unreachable!("unreachable fmt"),
+                    };
+                    let ext = if is_crinex { ".crx" } else { ".rnx" };
+                    ProductionAttributes::rinex_long_format(
+                        &name,
+                        &country,
+                        src,
+                        &yyyy,
+                        &ddd,
+                        &hh,
+                        &mm,
+                        &ppu.to_string(),
+                        ffu.as_deref(),
+                        &fmt,
+                        &ext,
+                    )
+                }
+            },
+            rinex => unimplemented!("{} format", rinex),
+        };
+        if let Some(suffix) = suffix {
+            filename.push_str(suffix);
+        }
+        filename
     }
     /// Builds a `RINEX` from given file fullpath.
     /// Header section must respect labelization standards,

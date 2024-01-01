@@ -29,12 +29,12 @@ impl std::str::FromStr for DataSource {
     }
 }
 
-impl std::fmt::Display for DataSource {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl DataSource {
+    pub(crate) fn to_char(&self) -> char {
         match self {
-            Self::Receiver => write!(f, "{}", 'R'),
-            Self::Stream => write!(f, "{}", 'S'),
-            Self::Unknown => write!(f, "{}", 'U'),
+            Self::Receiver => 'R',
+            Self::Stream => 'S',
+            Self::Unknown => 'U',
         }
     }
 }
