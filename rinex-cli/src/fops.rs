@@ -248,7 +248,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 .crnx2rnx() //TODO remove this in future please
                 .substract(
                     &rinex_b.crnx2rnx(), //TODO: remove this in future please
-                )?
+                )
         },
         t => panic!("operation not feasible for {}", t),
     };

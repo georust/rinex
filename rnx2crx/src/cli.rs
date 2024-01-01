@@ -12,7 +12,7 @@ impl Cli {
             matches: {
                 Command::new("rnx2crx")
                     .author("Guillaume W. Bres <guillaume.bressaix@gmail.com>")
-                    .version("1.0")
+                    .version(env!("CARGO_PKG_VERSION"))
                     .about("RINEX compression tool")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
@@ -25,25 +25,35 @@ impl Cli {
                             .required(true),
                     )
                     .arg(
+                        Arg::new("short")
+                            .short('s')
+                            .long("short")
+                            .conflicts_with("output")
+                            .action(ArgAction::SetTrue)
+                            .help("Prefer shortened filename convention.
+Otherwise, we default to modern (V3+) long filenames.
+Both will not work well if your input does not follow standard conventions at all."))
+                    .arg(
                         Arg::new("output")
                             .short('o')
                             .long("output")
-                            .help("Output RINEX file"),
-                    )
+                            .action(ArgAction::Set)
+                            .conflicts_with_all(["short"])
+                            .help("Custom output filename. Otherwise, we follow standard conventions, which will not work correctly if your input does not follow standard conventions."))
                     .next_help_heading("Compression")
                     .arg(
                         Arg::new("crx1")
                             .long("crx1")
                             .conflicts_with("crx3")
                             .action(ArgAction::SetTrue)
-                            .help("Force to CRINEX1 compression"),
+                            .help("Force to CRINEX1 compression."),
                     )
                     .arg(
                         Arg::new("crx3")
                             .long("crx3")
                             .conflicts_with("crx1")
                             .action(ArgAction::SetTrue)
-                            .help("Force to CRINEX3 compression"),
+                            .help("Force to CRINEX3 compression."),
                     )
                     .arg(
                         Arg::new("date")

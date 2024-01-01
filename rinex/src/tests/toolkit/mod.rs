@@ -4,6 +4,14 @@ use rand::{distributions::Alphanumeric, Rng};
 
 use hifitime::TimeSeries;
 
+/* OBS RINEX dedicated tools */
+mod observation;
+pub use observation::check_observables as obsrinex_check_observables;
+
+/* ANY RINEX == constant (special ops) */
+mod constant;
+pub use constant::{is_constant_rinex, is_null_rinex};
+
 //#[macro_use]
 #[macro_export]
 macro_rules! erratic_time_frame {

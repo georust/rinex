@@ -2,6 +2,7 @@
 mod test {
     use crate::navigation::NavMsgType;
     use crate::prelude::*;
+    use crate::tests::toolkit::is_null_rinex;
     use std::path::PathBuf;
     #[test]
     fn test_parser() {
@@ -206,9 +207,22 @@ mod test {
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.observation().count() > 0); // all files have content
-                                                                      /*
-                                                                       * test timescale validity
-                                                                       */
+                            is_null_rinex(&rinex.substract(&rinex), 1.0E-9); // Self - Self should always be null
+                            if data == "OBS" {
+                                let compressed = rinex.rnx2crnx();
+                                assert!(
+                                    compressed.header.is_crinex(),
+                                    "is_crinex() should always be true for compressed rinex!"
+                                );
+                            } else if data == "CRNX" {
+                                let decompressed = rinex.crnx2rnx();
+                                assert!(
+                                    !decompressed.header.is_crinex(),
+                                    "is_crinex() should always be false for readable rinex!"
+                                );
+                            }
+
+                            /* Timescale validity */
                             for ((e, _), _) in rinex.observation() {
                                 let ts = e.time_scale;
                                 if let Some(e0) = obs_header.time_of_first_obs {

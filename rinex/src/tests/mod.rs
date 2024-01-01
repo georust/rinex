@@ -5,6 +5,7 @@ mod antex;
 mod clocks;
 mod compression;
 mod decompression;
+mod filename;
 mod merge;
 mod nav;
 mod obs;

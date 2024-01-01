@@ -38,29 +38,6 @@ fn input_name(path: &PathBuf) -> String {
     }
 }
 
-// deduce output name, from input name
-fn output_filename(stem: &str, path: &PathBuf) -> String {
-    let filename = path
-        .file_name()
-        .expect("failed to determine input file name")
-        .to_str()
-        .expect("failed to determine input file name");
-
-    if filename.ends_with("gz") {
-        filename
-            .strip_suffix(".gz")
-            .expect("failed to determine output file name")
-            .replace("crx", "rnx")
-            .to_string()
-    } else if filename.ends_with('d') {
-        filename.replace('d', "o").to_string()
-    } else if filename.ends_with('D') {
-        filename.replace('D', "O").to_string()
-    } else {
-        format!("{}.rnx", stem)
-    }
-}
-
 fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
 
@@ -72,15 +49,22 @@ fn main() -> Result<(), rinex::Error> {
 
     create_workspace(&workspace_path);
 
-    let output_name = match cli.output_name() {
-        Some(name) => name.clone(),
-        _ => output_filename(&input_name, &input_path),
-    };
-
     let filepath = input_path.to_string_lossy();
 
     let mut rinex = Rinex::from_file(&filepath)?;
     rinex.crnx2rnx_mut(); // convert to RINEX
+
+    // if input was gzip'ed: preserve it
+    let suffix = if input_name.ends_with(".gz") {
+        Some(".gz")
+    } else {
+        None
+    };
+
+    let output_name = match cli.output_name() {
+        Some(name) => name.clone(),
+        _ => rinex.standard_filename(cli.matches.get_flag("short"), suffix, None),
+    };
 
     let outputpath = format!("{}/{}", workspace_path.to_string_lossy(), output_name);
 

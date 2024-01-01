@@ -4,18 +4,39 @@ set -e
 # binaries tester: to be used in CI and
 # provide at least basic means to test our CLI
 ##############################################
+cargo build --all-features -r
 
-############
-# 1. CRX2RNX
-############
+#################
+# CRX2RNX (V1)
+#################
 ./target/release/crx2rnx \
-    -f test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx.gz
+    -f test_resources/CRNX/V1/delf0010.21d
 
-############
-# 2. RNX2CRX
-############
+echo "CRN2RNX (V1) OK"
+
+#################
+# CRX2RNX (V3)
+#################
+./target/release/crx2rnx \
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+
+echo "CRN2RNX (V3) OK"
+
+#################
+# RNX2CRX (V2)
+#################
+./target/release/rnx2crx \
+    -f test_resources/OBS/V2/delf0010.21o
+
+echo "RNX2CRX (V2) OK"
+
+#################
+# RNX2CRX (V3)
+#################
 ./target/release/rnx2crx \
     -f test_resources/OBS/V3/pdel0010.21o
+
+echo "RNX2CRX (V3) OK"
 
 #############################
 # 3. OBS RINEX identification

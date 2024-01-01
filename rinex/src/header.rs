@@ -21,61 +21,14 @@ use crate::{
 use hifitime::Epoch;
 use std::io::prelude::*;
 use std::str::FromStr;
-use strum_macros::EnumString;
 use thiserror::Error;
+
+use crate::marker::{GeodeticMarker, MarkerType};
 
 use crate::{fmt_comment, fmt_rinex};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
-
-#[derive(Default, Clone, Debug, PartialEq, Eq, EnumString)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum MarkerType {
-    /// Earth fixed & high precision
-    #[strum(serialize = "GEODETIC", serialize = "Geodetic")]
-    #[default]
-    Geodetic,
-    /// Earth fixed & low precision
-    #[strum(serialize = "NON GEODETIC", serialize = "NonGeodetic")]
-    NonGeodetic,
-    /// Generated from network
-    #[strum(serialize = "NON PHYSICAL", serialize = "NonPhysical")]
-    NonPhysical,
-    /// Orbiting space vehicle
-    #[strum(serialize = "SPACE BORNE", serialize = "Spaceborne")]
-    Spaceborne,
-    /// Aircraft, balloon..
-    #[strum(serialize = "AIR BORNE", serialize = "Airborne")]
-    Airborne,
-    /// Mobile water craft
-    #[strum(serialize = "WATER CRAFT", serialize = "Watercraft")]
-    Watercraft,
-    /// Mobile terrestrial vehicle
-    #[strum(serialize = "GROUND CRAFT", serialize = "Groundcraft")]
-    Groundcraft,
-    /// Fixed on water surface
-    #[strum(serialize = "FIXED BUOY", serialize = "FixedBuoy")]
-    FixedBuoy,
-    /// Floating on water surface
-    #[strum(serialize = "FLOATING BUOY", serialize = "FloatingBuoy")]
-    FloatingBuoy,
-    /// Floating on ice
-    #[strum(serialize = "FLOATING ICE", serialize = "FloatingIce")]
-    FloatingIce,
-    /// Fixed on glacier
-    #[strum(serialize = "GLACIER", serialize = "Glacier")]
-    Glacier,
-    /// Rockets, shells, etc..
-    #[strum(serialize = "BALLISTIC", serialize = "Ballistic")]
-    Ballistic,
-    /// Animal carrying a receiver
-    #[strum(serialize = "ANIMAL", serialize = "Animal")]
-    Animal,
-    /// Human being carrying a receiver
-    #[strum(serialize = "HUMAN", serialize = "Human")]
-    Human,
-}
 
 /// DCB compensation description
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -120,18 +73,14 @@ pub struct Header {
     pub run_by: String,
     /// program's `date`
     pub date: String,
-    /// station label
-    pub station: String,
-    /// station identifier
-    pub station_id: String,
-    /// optionnal station URL
+    /// optionnal station/marker/agency URL
     pub station_url: String,
     /// name of observer
     pub observer: String,
     /// name of production agency
     pub agency: String,
-    /// optionnal receiver placement infos
-    pub marker_type: Option<MarkerType>,
+    /// optionnal [GeodeticMarker]
+    pub geodetic_marker: Option<GeodeticMarker>,
     /// Glonass FDMA channels
     pub glo_channels: HashMap<SV, i8>,
     /// optionnal leap seconds infos
@@ -195,8 +144,6 @@ pub enum ParsingError {
     VersionNotSupported(String),
     #[error("unknown RINEX type \"{0}\"")]
     TypeParsing(String),
-    #[error("unknown marker type \"{0}\"")]
-    MarkerType(String),
     #[error("failed to parse observable")]
     ObservableParsing(#[from] observable::ParsingError),
     #[error("constellation parsing error")]
@@ -287,14 +234,12 @@ impl Header {
         let mut program = String::new();
         let mut run_by = String::new();
         let mut date = String::new();
-        let mut station = String::new();
-        let mut station_id = String::new();
         let mut observer = String::new();
         let mut agency = String::new();
         let mut license: Option<String> = None;
         let mut doi: Option<String> = None;
         let mut station_url = String::new();
-        let mut marker_type: Option<MarkerType> = None;
+        let mut geodetic_marker = Option::<GeodeticMarker>::None;
         let mut glo_channels: HashMap<SV, i8> = HashMap::new();
         let mut rcvr: Option<Rcvr> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
@@ -531,13 +476,19 @@ impl Header {
                 let (date_str, _) = rem.split_at(20);
                 date = date_str.trim().to_string();
             } else if marker.contains("MARKER NAME") {
-                station = content.split_at(20).0.trim().to_string()
+                let name = content.split_at(20).0.trim();
+                geodetic_marker = Some(GeodeticMarker::default().with_name(name));
             } else if marker.contains("MARKER NUMBER") {
-                station_id = content.split_at(20).0.trim().to_string()
+                let number = content.split_at(20).0.trim();
+                if let Some(ref mut marker) = geodetic_marker {
+                    *marker = marker.with_number(number);
+                }
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
-                if let Ok(marker) = MarkerType::from_str(code) {
-                    marker_type = Some(marker);
+                if let Ok(mtype) = MarkerType::from_str(code) {
+                    if let Some(ref mut marker) = geodetic_marker {
+                        marker.marker_type = Some(mtype);
+                    }
                 }
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
@@ -1157,14 +1108,12 @@ impl Header {
             program,
             run_by,
             date,
-            station,
-            station_id,
+            geodetic_marker,
             agency,
             observer,
             license,
             doi,
             station_url,
-            marker_type,
             rcvr,
             glo_channels,
             leap,
@@ -1724,8 +1673,12 @@ impl std::fmt::Display for Header {
             )
         )?;
 
-        writeln!(f, "{}", fmt_rinex(&self.station, "MARKER NAME"))?;
-        writeln!(f, "{}", fmt_rinex(&self.station_id, "MARKER NUMBER"))?;
+        if let Some(marker) = &self.geodetic_marker {
+            writeln!(f, "{}", fmt_rinex(&marker.name, "MARKER NAME"))?;
+            if let Some(number) = marker.number() {
+                writeln!(f, "{}", fmt_rinex(&number, "MARKER NUMBER"))?;
+            }
+        }
 
         // APRIORI POS
         if let Some(position) = self.ground_position {
@@ -1884,7 +1837,7 @@ impl Merge for Header {
         }
 
         merge::merge_mut_vec(&mut self.comments, &rhs.comments);
-        merge::merge_mut_option(&mut self.marker_type, &rhs.marker_type);
+        merge::merge_mut_option(&mut self.geodetic_marker, &rhs.geodetic_marker);
         merge::merge_mut_option(&mut self.license, &rhs.license);
         merge::merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
         merge::merge_mut_option(&mut self.doi, &rhs.doi);

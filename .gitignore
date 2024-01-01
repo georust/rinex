@@ -16,5 +16,6 @@ Cargo.lock
 
 rinex/merge.rnx
 rinex/test.crx
+rinex/test.rnx
 DATA/
 WORKSPACE/

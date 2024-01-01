@@ -1,16 +1,18 @@
-use crate::graph::{build_chart_epoch_axis, PlotContext}; //generate_markers};
+use crate::cli::Context;
+use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
 use plotly::ScatterPolar;
-use rinex::prelude::*;
+use rinex::prelude::Observable;
 use statrs::statistics::Statistics;
 
 /*
  * Plots Meteo observations
  */
-pub fn plot_meteo_observations(rnx: &Rinex, plot_context: &mut PlotContext) {
-    /*
-     * 1 plot per physics
-     */
+pub fn plot_meteo_observations(ctx: &Context, plot_context: &mut PlotContext, csv_export: bool) {
+    let rnx = ctx.data.meteo_data().unwrap(); // infaillible
+                                              /*
+                                               * 1 plot per physics
+                                               */
     for observable in rnx.observable() {
         let unit = match observable {
             Observable::Pressure => "hPa",
@@ -58,10 +60,30 @@ pub fn plot_meteo_observations(rnx: &Rinex, plot_context: &mut PlotContext) {
                 })
             })
             .collect();
-        let trace =
-            build_chart_epoch_axis(&observable.to_string(), Mode::LinesMarkers, data_x, data_y)
-                .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
+        let trace = build_chart_epoch_axis(
+            &observable.to_string(),
+            Mode::LinesMarkers,
+            data_x.clone(),
+            data_y.clone(),
+        )
+        .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
         plot_context.add_trace(trace);
+        if csv_export {
+            let fullpath = ctx
+                .workspace
+                .join("CSV")
+                .join(&format!("{}.csv", observable));
+
+            let title = format!("{} observations", observable);
+            csv_export_timedomain(
+                &fullpath,
+                &title,
+                &format!("Epoch, {} [{}]", observable, unit),
+                &data_x,
+                &data_y,
+            )
+            .expect("failed to render data as CSV");
+        }
     }
     /*
      * Plot Wind Direction

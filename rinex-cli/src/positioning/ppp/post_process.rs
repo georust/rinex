@@ -49,7 +49,9 @@ pub fn post_process(
 
     let (x, y, z) = ctx.rx_ecef.unwrap(); // cannot fail at this point
 
-    let (lat_ddeg, lon_ddeg, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+    let (lat_rad, lon_rad, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+    let lat_ddeg = rad2deg(lat_rad);
+    let lon_ddeg = rad2deg(lon_rad);
 
     let epochs = results.keys().copied().collect::<Vec<Epoch>>();
 
