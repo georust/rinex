@@ -28,8 +28,8 @@ pub use ppu::PPU;
 mod ffu;
 pub use ffu::FFU;
 
-mod src;
-pub use src::DataSource;
+mod source;
+pub use source::DataSource;
 
 #[derive(Error, Debug)]
 /// File Production errors
