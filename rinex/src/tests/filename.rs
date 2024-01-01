@@ -4,25 +4,25 @@ use std::path::Path;
 // Test our standardized name generator does follow the specs
 #[test]
 fn short_filename_conventions() {
-    for (testfile, expected, lowercase, batch_num) in [
+    for (testfile, expected, short) in [
         //FIXME: slightly wrong due to HIFITIME PB @ DOY(GNSS)
-        ("OBS/V2/AJAC3550.21O", "AJAC3540.21O", false, None),
-        ("OBS/V2/rovn0010.21o", "rovn0010.20o", true, None),
+        ("OBS/V2/AJAC3550.21O", "AJAC3540.21O", true),
+        ("OBS/V2/rovn0010.21o", "rovn0010.20o", true),
         // FIXME on next hifitime release
-        ("OBS/V3/LARM0010.22O", "LARM0010.21O", false, None),
+        ("OBS/V3/LARM0010.22O", "LARM0010.21O", true),
         // FIXME on next hifitime release
-        ("OBS/V3/pdel0010.21o", "PDEL0010.20O", false, None),
+        ("OBS/V3/pdel0010.21o", "PDEL0010.20O", true),
         // FIXME on next hifitime release
-        ("CRNX/V1/delf0010.21d", "delf0010.20d", true, None),
+        ("CRNX/V1/delf0010.21d", "delf0010.20d", true),
         // FIXME on next hifitime release
-        ("CRNX/V1/zegv0010.21d", "ZEGV0010.20D", false, None),
+        ("CRNX/V1/zegv0010.21d", "ZEGV0010.20D", false),
         // FIXME on next hifitime release
-        ("CRNX/V3/DUTH0630.22D", "DUTH0620.22D", false, None),
+        ("CRNX/V3/DUTH0630.22D", "DUTH0620.22D", false),
         // FIXME on next hifitime release
-        ("CRNX/V3/VLNS0010.22D", "VLNS0010.21D", false, None),
-        ("MET/V2/abvi0010.15m", "abvi0010.15m", true, None),
+        ("CRNX/V3/VLNS0010.22D", "VLNS0010.21D", false),
+        ("MET/V2/abvi0010.15m", "abvi0010.15m", true),
         // FIXME on next hifitime release
-        ("MET/V2/clar0020.00m", "clar0010.00m", true, None),
+        ("MET/V2/clar0020.00m", "clar0010.00m", true),
     ] {
         let fp = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -31,11 +31,9 @@ fn short_filename_conventions() {
 
         let rinex = Rinex::from_file(fp.to_string_lossy().as_ref()).unwrap();
 
-        let _standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
+        let _actual_filename = fp.file_name().unwrap().to_string_lossy().to_string();
 
-        let output = rinex
-            .standardized_short_filename(lowercase, batch_num, None)
-            .unwrap();
+        let output = rinex.standard_filename(short, None, None);
 
         assert_eq!(output, expected, "bad short filename generated");
     }
@@ -76,8 +74,7 @@ fn long_filename_conventions() {
 
         let _standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
 
-        let output = rinex.standardized_filename(custom_suffix).unwrap();
-
+        let output = rinex.standard_filename(false, custom_suffix, None);
         assert_eq!(output, expected, "bad filename generated");
     }
 }

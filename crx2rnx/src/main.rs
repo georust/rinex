@@ -63,23 +63,7 @@ fn main() -> Result<(), rinex::Error> {
 
     let output_name = match cli.output_name() {
         Some(name) => name.clone(),
-        _ => {
-            if cli.matches.get_flag("short") {
-                rinex
-                    .standardized_short_filename(false, None, suffix)
-                    .expect(
-                        "Failed to generate a standardized filename.
-Your input is too far from standard naming conventions.
-You should use --output then.",
-                    )
-            } else {
-                rinex.standardized_filename(suffix).expect(
-                    "Failed to generate a standardized filename.
-Your input is too far from standard naming conventions.
-You should use --output then.",
-                )
-            }
-        },
+        _ => rinex.standard_filename(cli.matches.get_flag("short"), suffix, None),
     };
 
     let outputpath = format!("{}/{}", workspace_path.to_string_lossy(), output_name);

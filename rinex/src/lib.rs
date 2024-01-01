@@ -25,11 +25,11 @@ pub mod types;
 pub mod version;
 
 mod bibliography;
-mod filename;
 mod ground_position;
-mod leap;
-mod linspace;
-mod observable; // filename attributes
+mod leap; // leap second
+mod linspace; // grid and linear spacing
+mod observable;
+mod production; // RINEX production infrastructure // physical observations
 
 #[cfg(test)]
 mod tests;
@@ -59,11 +59,14 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
-use filename::{DataSource, FilenameAttributes};
 use ionex::TECPlane;
 use observable::Observable;
 use observation::Crinex;
 use version::Version;
+
+use production::{
+    DataSource, IonexProductionAttributes, ProductionAttributes, RinexProductionAttributes,
+};
 
 use hifitime::Unit;
 //use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
@@ -112,25 +115,6 @@ pub use split::Split;
 #[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
-
-// /// File creation helper.
-// /// Returns `str` description, as one letter
-// /// lowercase, used in RINEX file name to describe
-// /// the sampling period. RINEX specifications:
-// /// “a” = 00:00:00 - 00:59:59
-// /// “b” = 01:00:00 - 01:59:59
-// /// [...]
-// /// "x" = 23:00:00 - 23:59:59
-// Macro_rules! hourly_session {
-//     ($hour: expr) => {
-//         if $hour == 23 {
-//             "x".to_string()
-//         } else {
-//             let c: char = ($hour + 97).into();
-//             String::from(c)
-//         }
-//     };
-// }
 
 #[cfg(docrs)]
 pub use bibliography::Bibliography;
@@ -248,16 +232,19 @@ pub struct Rinex {
     /// and is type and constellation dependent
     pub record: record::Record,
     /*
-     * filename attributes.
-     * Some attributes can only be determined from the file name.
-     * Example of such information would be:
-     *  - the agency country code
-     *  - the geodetic marker in Meteo or NAV RINEX
-     * Missing such information is not important.
-     * It just means it will be impossible to fully follow the naming conventions
-     * when naming Self.
+     * File Production attributes.
+     * When parsing,
+     * When parsing: these are actually retrieved from the filename itself.
+     * Indeed, a RINEX header does not describe some information
+     * about its production context.
+     * Only filenames that follow standard naming convetions will allow 100%
+     * information reconstruction.
+     * This makes our standardized filename generation API feasible.
+     * Incomplete or failure to determine this field is not critical,
+     * it just interferes with the filename generator: which will then be most likely incomplete.
+     * We also offer an API to customize this field.
      */
-    filename_attr: Option<FilenameAttributes>,
+    prod_attr: Option<ProductionAttributes>,
 }
 
 #[derive(Error, Debug)]
@@ -278,40 +265,35 @@ impl Rinex {
             header,
             record,
             comments: record::Comments::new(),
-            filename_attr: None,
+            prod_attr: None,
         }
     }
-
     /// Returns a copy of self with given header attributes.
     pub fn with_header(&self, header: Header) -> Self {
-        Rinex {
+        Self {
             header,
             record: self.record.clone(),
             comments: self.comments.clone(),
-            filename_attr: self.filename_attr.clone(),
+            prod_attr: self.prod_attr.clone(),
         }
     }
-
     /// Replaces header section.
     pub fn replace_header(&mut self, header: Header) {
         self.header = header.clone();
     }
-
     /// Returns a copy of self with given internal record.
     pub fn with_record(&self, record: record::Record) -> Self {
         Rinex {
             header: self.header.clone(),
             comments: self.comments.clone(),
             record,
-            filename_attr: self.filename_attr.clone(),
+            prod_attr: self.prod_attr.clone(),
         }
     }
-
     /// Replaces internal record.
     pub fn replace_record(&mut self, record: record::Record) {
         self.record = record.clone();
     }
-
     /// Converts self to CRINEX (compressed RINEX) format.
     /// If current revision is < 3 then file gets converted to CRINEX1
     /// format, otherwise, modern Observations are converted to CRINEX3.
@@ -324,14 +306,13 @@ impl Rinex {
     ///
     /// // convert to CRINEX
     /// let crinex = rinex.rnx2crnx();
-    /// assert!(crinex.to_file("test.crx").is_ok(), "failed to generate file");
+    /// assert!(crinex.to_file("test.crx").is_ok());
     /// ```
     pub fn rnx2crnx(&self) -> Self {
         let mut s = self.clone();
         s.rnx2crnx_mut();
         s
     }
-
     /// [`Self::rnx2crnx`] mutable implementation
     pub fn rnx2crnx_mut(&mut self) {
         if self.is_observation_rinex() {
@@ -408,237 +389,204 @@ impl Rinex {
                 });
         }
     }
-
-    /// IONEX specific filename convention
-    fn ionex_filename(&self) -> String {
-        let mut ret: String = "ccc".to_string(); // 3 figue Analysis center
-        ret.push('e'); // extension or region code "G" for global ionosphere maps
-        ret.push_str("ddd"); // day of the year of first record
-        ret.push('h'); // file sequence number (1,2,...) or hour (A, B.., Z) within day
-        ret.push_str("yy"); // 2 digit year
-        ret.push('I'); // ionex
-                       //ret.to_uppercase(); //TODO
-        ret
-    }
-    /// Returns standardized filename, in short form, that should be used
-    /// when dumping Self as standardized RINEX file.
-    /// Set lowercase = "true" if you prefer a lowercase output,
-    /// otherwised uppercase is prefered.
-    /// Batch num: used when current day is subdivided into several RINEX
-    ///            usually when sample rate is very high.
-    ///            Otherwise, "0" is implied, and we're expecting the entire day
-    ///            to be contained in Self.
-    /// suffix: custom filename suffix. Use this for example to append ".gz".
-    /// NB: this will not work properly for production < J2000.
-    pub fn standardized_short_filename(
+    /*
+     * Generates a standardized file name for Self,
+     * but in short form (deprecated, long form is prefered).
+     * See [Self::standard_filename] for more information
+     */
+    fn standard_short_filename(
         &self,
-        lowercase: bool,
-        batch_num: Option<u8>,
         suffix: Option<&str>,
-    ) -> Option<String> {
-        /*
-         * historical v2 format, now longname V3 is prefered.
-         * format is "%ssss%ddd%f.%yy%t
-         * %ssss: shortened station name
-         * %ddd: day of year of first record entry (in given timescale)
-         * %f: file sequence within the day.
-         *     0: "complete day course"
-         *     1: first bach of that day
-         *     2: second batch of that day
-         *
-         * %yy: production year on two digits
-         * %t:
-         *      O: OBS
-         *      D: COMPRESSED OBS
-         *      N: NAV
-         *      M: MET
-         *      G: GLO NAS
-         */
-        let header = &self.header;
-        let is_crinex = header.is_crinex();
-        let rinex_type = header.rinex_type;
-        let constellation = header.constellation;
+        custom: Option<ProductionAttributes>,
+    ) -> String {
+        "NOT_IMPLEMENTED".to_string()
+        // /*
+        //  * historical v2 format, now longname V3 is prefered.
+        //  * format is "%ssss%ddd%f.%yy%t
+        //  * %ssss: shortened station name
+        //  * %ddd: day of year of first record entry (in given timescale)
+        //  * %f: file sequence within the day.
+        //  *     0: "complete day course"
+        //  *     1: first bach of that day
+        //  *     2: second batch of that day
+        //  *
+        //  * %yy: production year on two digits
+        //  * %t:
+        //  *      O: OBS
+        //  *      D: COMPRESSED OBS
+        //  *      N: NAV
+        //  *      M: MET
+        //  *      G: GLO NAS
+        //  */
+        // let header = &self.header;
+        // let is_crinex = header.is_crinex();
+        // let rinex_type = header.rinex_type;
+        // let constellation = header.constellation;
 
-        /*
-         * handle special cases seperatly
-         */
-        match rinex_type {
-            RinexType::IonosphereMaps => {
-                panic!("oops");
-            },
-            RinexType::ClockData => {
-                panic!("oops");
-            },
-            _ => {},
-        }
+        // /*
+        //  * handle special cases seperatly
+        //  */
+        // match rinex_type {
+        //     RinexType::IonosphereMaps => {
+        //         unimplemented!("standard ionex name");
+        //         return self.ionex_filename();
+        //     },
+        //     RinexType::ClockData => {
+        //         unimplemented!("standard clock rinex name");
+        //     },
+        //     _ => {},
+        // }
 
-        let marker = header.geodetic_marker.clone()?;
-        let station = &marker.name[..4];
-        let first_epoch = self.first_epoch()?;
-        let batch_num = batch_num.unwrap_or(0);
+        // let marker = header.geodetic_marker.clone()?;
+        // let station = &marker.name[..4];
+        // let first_epoch = self.first_epoch()?;
+        // let batch_num = batch_num.unwrap_or(0);
 
-        // FIXME: Waiting on hifitime release (DOY(GNSS))
-        //   we should use EpochFormat::from_str("%j") but not yet released
-        let mut yy = first_epoch.to_gregorian_utc().0;
-        if yy >= 2000 {
-            yy -= 2000;
-        }
+        // // FIXME: Waiting on hifitime release (DOY(GNSS))
+        // //   we should use EpochFormat::from_str("%j") but not yet released
+        // let mut yy = first_epoch.to_gregorian_utc().0;
+        // if yy >= 2000 {
+        //     yy -= 2000;
+        // }
 
-        //FIXME: Waiting on Hifitime release (DOY(GNSS))
-        let mut doy = Epoch::from_duration(first_epoch.to_utc_duration(), TimeScale::UTC)
-            .day_of_year()
-            .round() as u16;
+        // //FIXME: Waiting on Hifitime release (DOY(GNSS))
+        // let mut doy = Epoch::from_duration(first_epoch.to_utc_duration(), TimeScale::UTC)
+        //     .day_of_year()
+        //     .round() as u16;
 
-        doy %= 365; // FIXME hifitime DOY(GNSS)
-        if doy == 0 {
-            doy += 1; // FIXME: hifitime DOY(GNSS)
-        }
+        // doy %= 365; // FIXME hifitime DOY(GNSS)
+        // if doy == 0 {
+        //     doy += 1; // FIXME: hifitime DOY(GNSS)
+        // }
 
-        let t = match rinex_type {
-            types::Type::ObservationData => {
-                if is_crinex {
-                    'D'
-                } else {
-                    'O'
-                }
-            },
-            types::Type::NavigationData => match constellation {
-                Some(Constellation::Glonass) => 'G',
-                _ => 'N',
-            },
-            types::Type::MeteoData => 'M',
-            _ => return None, // unreachable: other types handled externally
-        };
-        let mut filename = format!(
-            "{}{:03}{}.{:02}{}",
-            station,
-            doy,
-            batch_num,
-            yy,
-            // TODO: once a new Hifitime is released
-            // EpochFormatter::new(first_epoch, EpochFormat::from_str("%y").unwrap()),
-            t
-        );
-        if let Some(suffix) = suffix {
-            filename.push_str(suffix);
-        }
-        if lowercase {
-            filename = filename.to_lowercase();
-        }
-        Some(filename)
+        // let t = match rinex_type {
+        //     types::Type::ObservationData => {
+        //         if is_crinex {
+        //             'D'
+        //         } else {
+        //             'O'
+        //         }
+        //     },
+        //     types::Type::NavigationData => match constellation {
+        //         Some(Constellation::Glonass) => 'G',
+        //         _ => 'N',
+        //     },
+        //     types::Type::MeteoData => 'M',
+        //     _ => return None, // unreachable: other types handled externally
+        // };
+        // let mut filename = format!(
+        //     "{}{:03}{}.{:02}{}",
+        //     station,
+        //     doy,
+        //     batch_num,
+        //     yy,
+        //     // TODO: once a new Hifitime is released
+        //     // EpochFormatter::new(first_epoch, EpochFormat::from_str("%y").unwrap()),
+        //     t
+        // );
+        // if let Some(suffix) = suffix {
+        //     filename.push_str(suffix);
+        // }
+        // Some(filename)
     }
-    /// Returns standardized filename that should be used
-    /// when dumping Self standardized modern RINEX files.
-    /// Use custom suffix, for example to append ".gz" for gzip'ed files.
-    pub fn standardized_filename(&self, suffix: Option<&str>) -> Option<String> {
+    /// Returns a filename that would follow standard (modern) naming conventions,
+    /// to describe Self. For this information to be 100% complete,
+    /// Self must be formed from a file that follows naming conventions itself.
+    /// Otherwise you must provide [ProductionAttributes] yourself with "custom".
+    /// In any case, this is infaillible, you will just lack more or less information
+    /// depending on the previous point.
+    /// Use "short" if you prefer shortened (but deprecated) RINEX filenames.
+    /// Use "suffix" to append a custom suffix to the auto generated filename.
+    pub fn standard_filename(
+        &self,
+        short: bool,
+        suffix: Option<&str>,
+        custom: Option<ProductionAttributes>,
+    ) -> String {
+        if short {
+            return self.standard_short_filename(suffix, custom);
+        }
         /*
          * modern v3+ format
          * format is "XXXXMRCCC_R_YYYYDDDHHMM_PPU_FFU_ZZ.
          */
         let header = &self.header;
         let rinex_type = header.rinex_type;
-        let constellation = header.constellation?;
-        let marker = header.geodetic_marker.clone()?;
-        let xxxx = &marker.name[..4];
 
-        let m = match marker.number() {
-            Some(number) => {
-                let offset = number.find('M').unwrap() + 1;
-                number.chars().nth(offset).unwrap()
-            },
-            None => '0',
-        };
-
-        //FIXME: improve this by studying the filename
-        //       after successful RINEX parsing
-        let r = '0'; // receiver number
-
-        let ccc = match &self.filename_attr {
-            Some(attrs) => &attrs.country,
-            _ => "XXX",
-        };
-
-        let src = if header.rcvr.is_some() {
-            /*
-             * Receiver infos: obvious source of data
-             */
-            'R'
-        } else {
-            /*
-             * If receiver infos are not present
-             * and Self was parsed from a file that follows naming conventions:
-             * we can still determine that.
-             */
-            match &self.filename_attr {
-                Some(attrs) => match attrs.data_src {
-                    DataSource::Receiver => 'R',
-                    DataSource::Stream => 'S',
-                    _ => 'U',
+        let mut filename = if self.is_ionex() {
+            // we must have valid ionex attributes, otherwise use defaults.
+            let ionex = match &self.prod_attr {
+                Some(attr) => {
+                    if let Some(attr) = attr.as_ionex() {
+                        attr.clone()
+                    } else {
+                        unimplemented!("not yet");
+                    }
                 },
-                None => 'U',
+                None => unimplemented!("not yet"),
+            };
+            unimplemented!("not yet");
+        } else {
+            // we must have valid rinex attributes, otherwise use defaults.
+            let rinex = match &self.prod_attr {
+                Some(attr) => {
+                    if let Some(attr) = attr.as_rinex() {
+                        attr.clone()
+                    } else {
+                        RinexProductionAttributes::default()
+                    }
+                },
+                None => RinexProductionAttributes::default(),
+            };
+
+            match rinex_type {
+                RinexType::ObservationData => {
+                    let constellation = header.constellation;
+                    let r = 0; // TODO: improve this ? (receiver number)
+                    let country_code = rinex.country;
+
+                    let src = if header.rcvr.is_some() {
+                        /*
+                         * Receiver infos: obvious source of data
+                         */
+                        DataSource::Receiver
+                    } else {
+                        /*
+                         * If receiver infos are not present
+                         * and Self was parsed from a file that follows naming conventions:
+                         * we can still determine that.
+                         */
+                        rinex.data_src
+                    };
+
+                    let ppu = rinex.ppu;
+                    let ext = if header.is_crinex() { "crx" } else { "rnx" };
+
+                    RinexProductionAttributes::obs_filename(
+                        header.geodetic_marker.as_ref(),
+                        r,
+                        &country_code,
+                        src,
+                        self.first_epoch(),
+                        ppu,
+                        self.dominant_sample_rate().unwrap_or(Duration::default()),
+                        header.is_crinex(),
+                    )
+                },
+                RinexType::MeteoData => {
+                    let r = 'R'; // always sensor source in MeteoData
+                    unimplemented!("standard meteo filename");
+                },
+                RinexType::ClockData => unimplemented!("standard clk filename"),
+                RinexType::NavigationData => unimplemented!("standard nav filename"),
+                RinexType::AntennaData => unimplemented!("standard atx filename"),
+                RinexType::IonosphereMaps => unreachable!("handled elsewhere"),
             }
         };
-
-        let first_epoch = self.first_epoch()?;
-        let (yyyy, _, _, hh, mm, _, _) = first_epoch.to_gregorian_utc();
-
-        //FIXME: Waiting on Hifitime release (DOY(GNSS))
-        let mut ddd = Epoch::from_duration(first_epoch.to_utc_duration(), TimeScale::UTC)
-            .day_of_year()
-            .round() as u16;
-
-        ddd %= 365; // FIXME: hifitime DOY(GNSS)
-        if ddd == 0 {
-            ddd += 1; // FIXME: hifitime DOY(GNSS)
+        if let Some(suffix) = suffix {
+            filename.push_str(suffix);
         }
-
-        let ppu = "01D"; //FIXME: study filename after successful parsing
-
-        //TODO: not required on NAV RINEX
-        let ffu = match self.dominant_sample_rate() {
-            Some(sample_rate) => {
-                let sample_rate_secs = sample_rate.to_seconds().round() as u32;
-
-                if sample_rate_secs < 60 {
-                    format!("{:02}S", sample_rate_secs)
-                } else if sample_rate_secs < 3_600 {
-                    format!("{:02}M", sample_rate_secs / 60)
-                } else if sample_rate_secs < 86_400 {
-                    format!("{:02}H", sample_rate_secs / 3_600)
-                } else {
-                    format!("{:02}D", sample_rate_secs / 86_400)
-                }
-            },
-            None => "XXU".to_string(),
-        };
-
-        let fmt = match rinex_type {
-            RinexType::ObservationData => {
-                if constellation == Constellation::Mixed {
-                    "MO".to_string()
-                } else {
-                    format!("{:x}O", constellation)
-                }
-            },
-            RinexType::NavigationData => {
-                if constellation == Constellation::Mixed {
-                    "MN".to_string()
-                } else {
-                    format!("{:x}N", constellation)
-                }
-            },
-            RinexType::MeteoData => "MM".to_string(),
-            _ => unimplemented!(),
-        };
-
-        let ext = if header.is_crinex() { "crx" } else { "rnx" };
-
-        let suffix = suffix.unwrap_or("");
-
-        Some(format!(
-            "{}{}{}{}_{}_{:04}{:03}{:02}{:02}_{}_{}_{}.{}{}",
-            xxxx, m, r, ccc, src, yyyy, ddd, hh, mm, ppu, ffu, fmt, ext, suffix
-        ))
+        filename
     }
     /// Builds a `RINEX` from given file fullpath.
     /// Header section must respect labelization standards,
@@ -665,10 +613,10 @@ impl Rinex {
         // Some attributes can only be determined from the filename
         // This help following standard naming conventions
         // when dumping Self into a file.
-        let filename_attr = match path.file_name() {
+        let prod_attr = match path.file_name() {
             Some(filename) => {
                 let filename = filename.to_string_lossy().to_string();
-                if let Ok(attrs) = FilenameAttributes::from_str(&filename) {
+                if let Ok(attrs) = ProductionAttributes::from_str(&filename) {
                     Some(attrs)
                 } else {
                     None
@@ -681,7 +629,7 @@ impl Rinex {
             header,
             record,
             comments,
-            filename_attr,
+            prod_attr,
         })
     }
 
@@ -1292,7 +1240,16 @@ impl Rinex {
     }
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
-    /// Record: refer to supported RINEX types
+    /// Record: refer to supported RINEX types.
+    /// ```
+    /// // Read a RINEX and dump it without any modifications
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///   .unwrap();
+    /// assert!(rnx.to_file("test.rnx").is_ok());
+    /// ```
+    /// Other useful links are:
+    ///   * our Production settings customization infrastructure [Self::
     pub fn to_file(&self, path: &str) -> Result<(), Error> {
         let mut writer = BufferedWriter::new(path)?;
         write!(writer, "{}", self.header)?;
@@ -3183,13 +3140,13 @@ impl Split for Rinex {
                 header: self.header.clone(),
                 comments: self.comments.clone(),
                 record: r0,
-                filename_attr: self.filename_attr.clone(),
+                prod_attr: self.prod_attr.clone(),
             },
             Self {
                 header: self.header.clone(),
                 comments: self.comments.clone(),
                 record: r1,
-                filename_attr: self.filename_attr.clone(),
+                prod_attr: self.prod_attr.clone(),
             },
         ))
     }
@@ -3603,16 +3560,6 @@ mod test {
         let _ = filter!("GPS");
         let _ = filter!("G08, G09");
     }
-    // #[test]
-    // fn test_hourly_session() {
-    //     assert_eq!(hourly_session!(0), "a");
-    //     assert_eq!(hourly_session!(1), "b");
-    //     assert_eq!(hourly_session!(2), "c");
-    //     assert_eq!(hourly_session!(3), "d");
-    //     assert_eq!(hourly_session!(4), "e");
-    //     assert_eq!(hourly_session!(5), "f");
-    //     assert_eq!(hourly_session!(23), "x");
-    // }
     use crate::{fmt_comment, is_rinex_comment};
     #[test]
     fn fmt_comments_singleline() {

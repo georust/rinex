@@ -51,21 +51,7 @@ fn main() -> Result<(), Error> {
     // output path
     let output_path = match cli.output_path() {
         Some(path) => path.clone(), // use customized name
-        _ => {
-            if cli.matches.get_flag("short") {
-                // short name requested
-                rinex.standardized_short_filename(false, None, None).expect(
-                    "Input file does not follow naming conventions.
-You should use --output then.",
-                )
-            } else {
-                // always prefer standardized & modern format
-                rinex.standardized_filename(None).expect(
-                    "Input file does not follow naming conventions.
-You should use --output then.",
-                )
-            }
-        },
+        _ => rinex.standard_filename(cli.matches.get_flag("short"), None, None),
     };
 
     rinex.to_file(&output_path)?;
