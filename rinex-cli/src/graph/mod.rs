@@ -540,8 +540,8 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         if ctx.data.has_observation_data() {
             record::plot_observations(ctx, &mut plot_ctx, csv_export);
         }
-        if let Some(data) = ctx.data.meteo_data() {
-            record::plot_meteo_observations(data, &mut plot_ctx);
+        if ctx.data.has_meteo_data() {
+            record::plot_meteo_observations(ctx, &mut plot_ctx, csv_export);
         }
 
         /* save observations */

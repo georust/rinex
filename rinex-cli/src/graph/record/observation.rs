@@ -90,7 +90,7 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
         plot_context.add_trace(trace);
 
         if csv_export {
-            let fullpath = ctx.workspace.join("clock-offset.csv");
+            let fullpath = ctx.workspace.join("CSV").join("clock-offset.csv");
 
             let title = match header.rcvr.as_ref() {
                 Some(rcvr) => {
@@ -159,7 +159,10 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                 plot_context.add_trace(trace);
 
                 if csv_export {
-                    let fullpath = ctx.workspace.join(&format!("{}-{}.csv", sv, observable));
+                    let fullpath = ctx
+                        .workspace
+                        .join("CSV")
+                        .join(&format!("{}-{}.csv", sv, observable));
                     csv_export_timedomain(
                         &fullpath,
                         &format!("{} observations", observable),
