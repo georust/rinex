@@ -1,9 +1,8 @@
-/*
- * IONEX File Production attributes.
- * Attached to IONEX files that follow standard naming conventions.
- * Also used in customized IONEX file production API.
- */
+/* File sequence: used to describe batch or day course some files represent. */
 use super::Error;
+
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 /// FileSequence is used to describe whether this
 /// file is part of a batch of files or
@@ -47,29 +46,9 @@ impl std::str::FromStr for FileSequence {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct IonexProductionAttributes {}
-
-impl IonexProductionAttributes {
-    /*
-     * This is used to generate a V1+ compliant filename
-     */
-    pub(crate) fn filename(&self) -> String {
-        String::new()
-    }
-}
-
-impl std::str::FromStr for IonexProductionAttributes {
-    type Err = Error;
-    fn from_str(fname: &str) -> Result<Self, Self::Err> {
-        unimplemented!("unimplemented");
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::FileSequence;
-    use super::IonexProductionAttributes;
     use std::str::FromStr;
     #[test]
     fn file_sequence_parsing() {

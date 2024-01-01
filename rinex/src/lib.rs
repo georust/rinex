@@ -64,9 +64,7 @@ use observable::Observable;
 use observation::Crinex;
 use version::Version;
 
-use production::{
-    DataSource, IonexProductionAttributes, ProductionAttributes, RinexProductionAttributes,
-};
+use production::ProductionAttributes;
 
 use hifitime::Unit;
 //use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
@@ -232,17 +230,8 @@ pub struct Rinex {
     /// and is type and constellation dependent
     pub record: record::Record,
     /*
-     * File Production attributes.
-     * When parsing,
-     * When parsing: these are actually retrieved from the filename itself.
-     * Indeed, a RINEX header does not describe some information
-     * about its production context.
-     * Only filenames that follow standard naming convetions will allow 100%
-     * information reconstruction.
-     * This makes our standardized filename generation API feasible.
-     * Incomplete or failure to determine this field is not critical,
-     * it just interferes with the filename generator: which will then be most likely incomplete.
-     * We also offer an API to customize this field.
+     * File Production attributes, attached to Self
+     * parsed from files that follow stadard naming conventions
      */
     prod_attr: Option<ProductionAttributes>,
 }
@@ -503,90 +492,91 @@ impl Rinex {
         suffix: Option<&str>,
         custom: Option<ProductionAttributes>,
     ) -> String {
-        if short {
-            return self.standard_short_filename(suffix, custom);
-        }
-        /*
-         * modern v3+ format
-         * format is "XXXXMRCCC_R_YYYYDDDHHMM_PPU_FFU_ZZ.
-         */
-        let header = &self.header;
-        let rinex_type = header.rinex_type;
+        "NOT IMPLEMENTED".to_string()
+        //if short {
+        //    return self.standard_short_filename(suffix, custom);
+        //}
+        // /*
+        // * modern v3+ format
+        // * format is "XXXXMRCCC_R_YYYYDDDHHMM_PPU_FFU_ZZ.
+        // */
+        //let header = &self.header;
+        //let rinex_type = header.rinex_type;
 
-        let mut filename = if self.is_ionex() {
-            // we must have valid ionex attributes, otherwise use defaults.
-            let ionex = match &self.prod_attr {
-                Some(attr) => {
-                    if let Some(attr) = attr.as_ionex() {
-                        attr.clone()
-                    } else {
-                        unimplemented!("not yet");
-                    }
-                },
-                None => unimplemented!("not yet"),
-            };
-            unimplemented!("not yet");
-        } else {
-            // we must have valid rinex attributes, otherwise use defaults.
-            let rinex = match &self.prod_attr {
-                Some(attr) => {
-                    if let Some(attr) = attr.as_rinex() {
-                        attr.clone()
-                    } else {
-                        RinexProductionAttributes::default()
-                    }
-                },
-                None => RinexProductionAttributes::default(),
-            };
+        //let mut filename = if self.is_ionex() {
+        //    // we must have valid ionex attributes, otherwise use defaults.
+        //    let ionex = match &self.prod_attr {
+        //        Some(attr) => {
+        //            if let Some(attr) = attr.as_ionex() {
+        //                attr.clone()
+        //            } else {
+        //                unimplemented!("not yet");
+        //            }
+        //        },
+        //        None => unimplemented!("not yet"),
+        //    };
+        //    unimplemented!("not yet");
+        //} else {
+        //    // we must have valid rinex attributes, otherwise use defaults.
+        //    let rinex = match &self.prod_attr {
+        //        Some(attr) => {
+        //            if let Some(attr) = attr.as_rinex() {
+        //                attr.clone()
+        //            } else {
+        //                RinexProductionAttributes::default()
+        //            }
+        //        },
+        //        None => RinexProductionAttributes::default(),
+        //    };
 
-            match rinex_type {
-                RinexType::ObservationData => {
-                    let constellation = header.constellation;
-                    let r = 0; // TODO: improve this ? (receiver number)
-                    let country_code = rinex.country;
+        //    match rinex_type {
+        //        RinexType::ObservationData => {
+        //            let constellation = header.constellation;
+        //            let r = 0; // TODO: improve this ? (receiver number)
+        //            let country_code = rinex.country;
 
-                    let src = if header.rcvr.is_some() {
-                        /*
-                         * Receiver infos: obvious source of data
-                         */
-                        DataSource::Receiver
-                    } else {
-                        /*
-                         * If receiver infos are not present
-                         * and Self was parsed from a file that follows naming conventions:
-                         * we can still determine that.
-                         */
-                        rinex.data_src
-                    };
+        //            let src = if header.rcvr.is_some() {
+        //                /*
+        //                 * Receiver infos: obvious source of data
+        //                 */
+        //                DataSource::Receiver
+        //            } else {
+        //                /*
+        //                 * If receiver infos are not present
+        //                 * and Self was parsed from a file that follows naming conventions:
+        //                 * we can still determine that.
+        //                 */
+        //                rinex.data_src
+        //            };
 
-                    let ppu = rinex.ppu;
-                    let ext = if header.is_crinex() { "crx" } else { "rnx" };
+        //            let ppu = rinex.ppu;
+        //            let ext = if header.is_crinex() { "crx" } else { "rnx" };
 
-                    RinexProductionAttributes::obs_filename(
-                        header.geodetic_marker.as_ref(),
-                        r,
-                        &country_code,
-                        src,
-                        self.first_epoch(),
-                        ppu,
-                        self.dominant_sample_rate().unwrap_or(Duration::default()),
-                        header.is_crinex(),
-                    )
-                },
-                RinexType::MeteoData => {
-                    let r = 'R'; // always sensor source in MeteoData
-                    unimplemented!("standard meteo filename");
-                },
-                RinexType::ClockData => unimplemented!("standard clk filename"),
-                RinexType::NavigationData => unimplemented!("standard nav filename"),
-                RinexType::AntennaData => unimplemented!("standard atx filename"),
-                RinexType::IonosphereMaps => unreachable!("handled elsewhere"),
-            }
-        };
-        if let Some(suffix) = suffix {
-            filename.push_str(suffix);
-        }
-        filename
+        //            RinexProductionAttributes::obs_filename(
+        //                header.geodetic_marker.as_ref(),
+        //                r,
+        //                &country_code,
+        //                src,
+        //                self.first_epoch(),
+        //                ppu,
+        //                self.dominant_sample_rate().unwrap_or(Duration::default()),
+        //                header.is_crinex(),
+        //            )
+        //        },
+        //        RinexType::MeteoData => {
+        //            let r = 'R'; // always sensor source in MeteoData
+        //            unimplemented!("standard meteo filename");
+        //        },
+        //        RinexType::ClockData => unimplemented!("standard clk filename"),
+        //        RinexType::NavigationData => unimplemented!("standard nav filename"),
+        //        RinexType::AntennaData => unimplemented!("standard atx filename"),
+        //        RinexType::IonosphereMaps => unreachable!("handled elsewhere"),
+        //    }
+        //};
+        //if let Some(suffix) = suffix {
+        //    filename.push_str(suffix);
+        //}
+        //filename
     }
     /// Builds a `RINEX` from given file fullpath.
     /// Header section must respect labelization standards,
@@ -610,9 +600,8 @@ impl Rinex {
         // Comments might serve some fileops like "splice".
         let (record, comments) = record::parse_record(&mut reader, &mut header)?;
 
-        // Some attributes can only be determined from the filename
-        // This help following standard naming conventions
-        // when dumping Self into a file.
+        // Parse / identify production attributes
+        // that only exist in the filename.
         let prod_attr = match path.file_name() {
             Some(filename) => {
                 let filename = filename.to_string_lossy().to_string();
