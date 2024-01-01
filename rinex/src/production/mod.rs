@@ -15,8 +15,7 @@
  *   2. In our file production API, we can pass ProductionAttributes
  *      to customize the production of this context.
  */
-use crate::Constellation;
-use crate::RinexType;
+
 use thiserror::Error;
 
 mod sequence;
@@ -188,12 +187,12 @@ impl std::str::FromStr for ProductionAttributes {
                     data_src: DataSource::from_str(&fname[10..11])?,
                     ppu: PPU::from_str(&fname[24..27])?,
                     hh: {
-                        fname[20..22]
+                        fname[19..21]
                             .parse::<u8>()
                             .map_err(|_| Error::NonStandardFileName)?
                     },
                     mm: {
-                        fname[23..25]
+                        fname[21..23]
                             .parse::<u8>()
                             .map_err(|_| Error::NonStandardFileName)?
                     },
@@ -212,7 +211,7 @@ mod test {
     use super::DetailedProductionAttributes;
     use super::ProductionAttributes;
     use super::{DataSource, FFU, PPU};
-    use crate::RinexType;
+
     use hifitime::Unit;
     use std::str::FromStr;
     #[test]
@@ -284,6 +283,23 @@ mod test {
                 },
             ),
             (
+                "ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+                "ESBC",
+                2020,
+                177,
+                DetailedProductionAttributes {
+                    country: "DNK".to_string(),
+                    data_src: DataSource::Receiver,
+                    ppu: PPU::Daily,
+                    hh: 0,
+                    mm: 0,
+                    ffu: Some(FFU {
+                        val: 30,
+                        unit: Unit::Second,
+                    }),
+                },
+            ),
+            (
                 "MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
                 "MOJN",
                 2020,
@@ -294,6 +310,23 @@ mod test {
                     ppu: PPU::Daily,
                     hh: 0,
                     mm: 0,
+                    ffu: Some(FFU {
+                        val: 30,
+                        unit: Unit::Second,
+                    }),
+                },
+            ),
+            (
+                "ESBC00DNK_R_20201772223_01D_30S_MO.crx.gz",
+                "ESBC",
+                2020,
+                177,
+                DetailedProductionAttributes {
+                    country: "DNK".to_string(),
+                    data_src: DataSource::Receiver,
+                    ppu: PPU::Daily,
+                    hh: 22,
+                    mm: 23,
                     ffu: Some(FFU {
                         val: 30,
                         unit: Unit::Second,

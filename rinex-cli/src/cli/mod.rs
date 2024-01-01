@@ -83,7 +83,7 @@ impl Context {
      * Utility to prepare subdirectories in the session workspace
      */
     pub fn create_subdir(&self, suffix: &str) {
-        create_dir_all(self.workspace.join(suffix).to_path_buf())
+        create_dir_all(self.workspace.join(suffix))
             .unwrap_or_else(|e| panic!("failed to generate session dir {}: {:?}", suffix, e));
     }
     /*
@@ -106,7 +106,7 @@ impl Context {
         info!("html rendered in \"{}\"", path.display());
 
         if !self.quiet {
-            open_with_web_browser(&path.to_string_lossy().to_string());
+            open_with_web_browser(path.to_string_lossy().as_ref());
         }
     }
     /*

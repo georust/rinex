@@ -434,7 +434,7 @@ impl Rinex {
                             .day_of_year()
                             .round() as u32
                                 + 1;
-                            ddd = ddd % 365;
+                            ddd %= 365;
                             format!("{:03}", ddd)
                         } else {
                             "DDD".to_string()
@@ -476,7 +476,7 @@ impl Rinex {
                             .day_of_year()
                             .round() as u32
                                 + 1;
-                            ddd = ddd % 365;
+                            ddd %= 365;
                             format!("{:03}", ddd)
                         } else {
                             "DDD".to_string()
@@ -520,7 +520,17 @@ impl Rinex {
                                 "CCC".to_string()
                             }
                         },
-                        None => "CCC".to_string(),
+                        None => {
+                            if let Some(attr) = &self.prod_attr {
+                                if let Some(details) = &attr.details {
+                                    details.country.to_string()
+                                } else {
+                                    "CCC".to_string()
+                                }
+                            } else {
+                                "CCC".to_string()
+                            }
+                        },
                     };
                     let src = match &header.rcvr {
                         Some(_) => 'R', // means GNSS rcvr
@@ -594,16 +604,14 @@ impl Rinex {
                         } else {
                             PPU::Unspecified
                         }
-                    } else {
-                        if let Some(ref attr) = self.prod_attr {
-                            if let Some(details) = &attr.details {
-                                details.ppu
-                            } else {
-                                PPU::Unspecified
-                            }
+                    } else if let Some(ref attr) = self.prod_attr {
+                        if let Some(details) = &attr.details {
+                            details.ppu
                         } else {
                             PPU::Unspecified
                         }
+                    } else {
+                        PPU::Unspecified
                     };
                     let fmt = match rinextype {
                         RinexType::ObservationData => "MO".to_string(),
@@ -626,7 +634,7 @@ impl Rinex {
                         &ppu.to_string(),
                         ffu.as_deref(),
                         &fmt,
-                        &ext,
+                        ext,
                     )
                 }
             },

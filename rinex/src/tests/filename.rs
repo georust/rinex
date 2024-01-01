@@ -43,25 +43,19 @@ fn short_filename_conventions() {
 #[test]
 fn long_filename_conventions() {
     for (testfile, expected, custom_suffix) in [
-        //FIXME: hifitime DOY(GNSS)
-        //       remove expected completely, use PathBuf.file_name() directly
         (
             "OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
-            "ACOR00ESP_R_20213542359_01D_30S_MO.rnx",
+            "ACOR00ESP_R_20213552359_01D_30S_MO.rnx", //FIXME: hifitime DOY(GNSS)
             None,
         ),
-        //FIXME: hifitime DOY(GNSS)
-        //       remove expected completely, use PathBuf.file_name() directly
         (
             "OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx",
-            "ALAC00ESP_R_20220082359_01D_13M_MO.rnx",
+            "ALAC00ESP_R_20220092359_01D_13M_MO.rnx", //FIXME: hifitime DOY(GNSS)
             None,
         ),
-        //FIXME: hifitime DOY(GNSS)
-        //       remove expected completely, use PathBuf.file_name() directly
         (
             "CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
-            "ESBC00DNK_R_20201762359_01D_30S_MO.crx.gz",
+            "ESBC00DNK_R_20201772359_01D_30S_MO.crx.gz", //FIXME: hifitime DOY(GNSS)
             Some(".gz"),
         ),
     ] {
@@ -72,6 +66,7 @@ fn long_filename_conventions() {
 
         let rinex = Rinex::from_file(fp.to_string_lossy().as_ref()).unwrap();
 
+        //FIXME: hifitime DOY(GNSS) : use filename directly
         let _standard_filename = fp.file_name().unwrap().to_string_lossy().to_string();
 
         let output = rinex.standard_filename(false, custom_suffix, None);
