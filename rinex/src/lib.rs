@@ -614,7 +614,7 @@ impl Rinex {
                         },
                         _ => unreachable!("unreachable fmt"),
                     };
-                    let ext = if is_crinex { ".crx" } else { ".rnx" };
+                    let ext = if is_crinex { "crx" } else { "rnx" };
                     ProductionAttributes::rinex_long_format(
                         &name,
                         &country,
