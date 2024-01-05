@@ -1,5 +1,5 @@
 use crate::types::Type;
-use hifitime::{Duration, Epoch, TimeScale};
+use hifitime::{Duration, Epoch, TimeScale, Unit};
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -254,10 +254,26 @@ pub(crate) fn parse_utc(s: &str) -> Result<(Epoch, EpochFlag), ParsingError> {
     parse_in_timescale(s, TimeScale::UTC)
 }
 
+/*
+ * Until Hifitime provides a decomposition method in timescale other than UTC
+ * we have this tweak to decompose %Y %M %D %HH %MM %SS %NS
+ */
+pub(crate) fn epoch_decompose(e: Epoch) -> (i32, u8, u8, u8, u8, u8, u32) {
+    let ts = e.time_scale;
+    let offset = if ts.is_gnss() {
+        37 * Unit::Second
+    } else {
+        Duration::ZERO
+    };
+    (e + offset).to_gregorian_utc()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use hifitime::Epoch;
     use hifitime::TimeScale;
+    use std::str::FromStr;
     #[test]
     fn epoch_parse_nav_v2() {
         let e = parse_utc("20 12 31 23 45  0.0");
@@ -579,5 +595,26 @@ mod test {
         assert_eq!(ss, 00);
         assert_eq!(ns, 0);
         //assert_eq!(format!("{}", e), "2022 03 04 00 02 30.0000000  0");
+    }
+    #[test]
+    fn epoch_decomposition() {
+        for (epoch, y, m, d, hh, mm, ss, ns) in [
+            ("2021-01-01T00:00:00 GPST", 2021, 1, 1, 0, 0, 0, 0),
+            ("2021-01-01T00:00:01 GPST", 2021, 1, 1, 0, 0, 1, 0),
+            ("2021-01-01T23:59:58 GPST", 2021, 1, 1, 23, 59, 58, 0),
+            ("2021-01-01T23:59:59 GPST", 2021, 1, 1, 23, 59, 59, 0),
+            ("2021-01-01T00:00:00 GST", 2021, 1, 1, 0, 0, 0, 0),
+            ("2021-01-01T00:00:01 GST", 2021, 1, 1, 0, 0, 1, 0),
+            ("2021-01-01T23:59:58 GST", 2021, 1, 1, 23, 59, 58, 0),
+            ("2021-01-01T23:59:59 GST", 2021, 1, 1, 23, 59, 59, 0),
+        ] {
+            let e = Epoch::from_str(epoch).unwrap();
+            assert_eq!(
+                epoch_decompose(e),
+                (y, m, d, hh, mm, ss, ns),
+                "failed for {}",
+                epoch
+            );
+        }
     }
 }

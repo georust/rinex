@@ -59,6 +59,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
+use epoch::epoch_decompose;
 use ionex::TECPlane;
 use observable::Observable;
 use observation::Crinex;
@@ -426,15 +427,7 @@ impl Rinex {
                     Some(ref custom) => format!("{:03}", custom.doy),
                     None => {
                         if let Some(epoch) = self.first_epoch() {
-                            //FIXME: hifitime release (DOY+GNSS)
-                            let mut ddd = Epoch::from_duration(
-                                epoch.to_duration_in_time_scale(TimeScale::UTC),
-                                TimeScale::UTC,
-                            )
-                            .day_of_year()
-                            .round() as u32
-                                + 1;
-                            ddd %= 365;
+                            let ddd = epoch.day_of_year().round() as u32;
                             format!("{:03}", ddd)
                         } else {
                             "DDD".to_string()
@@ -445,7 +438,8 @@ impl Rinex {
                     Some(ref custom) => format!("{:02}", custom.year - 2_000),
                     None => {
                         if let Some(epoch) = self.first_epoch() {
-                            format!("{:02}", epoch.to_gregorian_utc().0 - 2_000)
+                            let yy = epoch_decompose(epoch).0;
+                            format!("{:02}", yy - 2_000)
                         } else {
                             "YY".to_string()
                         }
@@ -468,15 +462,7 @@ impl Rinex {
                     Some(ref custom) => format!("{:03}", custom.doy),
                     None => {
                         if let Some(epoch) = self.first_epoch() {
-                            //FIXME: hifitime release (DOY+GNSS)
-                            let mut ddd = Epoch::from_duration(
-                                epoch.to_duration_in_time_scale(TimeScale::UTC),
-                                TimeScale::UTC,
-                            )
-                            .day_of_year()
-                            .round() as u32
-                                + 1;
-                            ddd %= 365;
+                            let ddd = epoch.day_of_year().round() as u32;
                             format!("{:03}", ddd)
                         } else {
                             "DDD".to_string()
@@ -488,7 +474,8 @@ impl Rinex {
                         Some(ref custom) => format!("{:02}", custom.year - 2_000),
                         None => {
                             if let Some(epoch) = self.first_epoch() {
-                                format!("{:02}", epoch.to_gregorian_utc().0 - 2_000)
+                                let yy = epoch_decompose(epoch).0;
+                                format!("{:02}", yy - 2_000)
                             } else {
                                 "YY".to_string()
                             }
@@ -550,7 +537,8 @@ impl Rinex {
                         Some(ref custom) => format!("{:04}", custom.year),
                         None => {
                             if let Some(epoch) = self.first_epoch() {
-                                format!("{:04}", epoch.to_gregorian_utc().0)
+                                let yy = epoch_decompose(epoch).0;
+                                format!("{:04}", yy)
                             } else {
                                 "YYYY".to_string()
                             }
@@ -566,7 +554,7 @@ impl Rinex {
                         },
                         None => {
                             if let Some(epoch) = self.first_epoch() {
-                                let (_, _, _, hh, mm, _, _) = epoch.to_gregorian_utc();
+                                let (_, _, _, hh, mm, _, _) = epoch_decompose(epoch);
                                 (format!("{:02}", hh), format!("{:02}", mm))
                             } else {
                                 ("HH".to_string(), "MM".to_string())
