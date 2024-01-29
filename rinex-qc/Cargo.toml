@@ -21,7 +21,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [dependencies]
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 hifitime = "3.9.0"
-strum = "0.25"
+strum = "0.26"
 strum_macros = "0.25"
 horrorshow = "0.8"
 itertools = "0.12.0"
