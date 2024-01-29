@@ -19,5 +19,5 @@ readme = "README.md"
 chrono = "0.4"
 thiserror = "1"
 strum = { version = "0.26", features = ["derive"] }
-strum_macros = "0.25"
+strum_macros = "0.26"
 gnss-rs = { version = "2.1.2", features = ["serde"] }
