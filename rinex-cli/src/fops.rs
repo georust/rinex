@@ -9,6 +9,49 @@ use std::process::Command;
 use std::str::FromStr;
 
 /*
+ * Dumps current context (usually preprocessed)
+ * into RINEX format maintaining consistent format
+ */
+pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+    // output name
+    let filename = if let Some(name) = matches.get_one::<String>("name") {
+        name.to_string()
+    } else if let Some(paths) = ctx.data.obs_paths() {
+        paths
+            .get(0)
+            .expect("failed to determine output filename")
+            .to_string_lossy()
+            .to_string()
+    } else if let Some(paths) = ctx.data.meteo_paths() {
+        paths
+            .get(0)
+            .expect("failed to determine output filename")
+            .to_string_lossy()
+            .to_string()
+    } else if let Some(paths) = ctx.data.nav_paths() {
+        paths
+            .get(0)
+            .expect("failed to determine output filename")
+            .to_string_lossy()
+            .to_string()
+    } else {
+        panic!("filegen not supported for this type of RINEX");
+    };
+    let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+
+    let rinex = ctx.data.obs_data().unwrap_or(
+        ctx.data.meteo_data().unwrap_or(
+            ctx.data
+                .nav_data()
+                .unwrap_or_else(|| panic!("filegen not supported for this type of RINEX")),
+        ),
+    );
+
+    rinex.to_file(&output_path)?;
+    Ok(())
+}
+
+/*
  * Merges proposed (single) file and generates resulting output, into the workspace
  */
 pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {

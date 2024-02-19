@@ -64,6 +64,9 @@ pub fn main() -> Result<(), Error> {
      * Exclusive opmodes
      */
     match cli.matches.subcommand() {
+        Some(("filegen", submatches)) => {
+            fops::filegen(&ctx, submatches)?;
+        },
         Some(("graph", submatches)) => {
             graph::graph_opmode(&ctx, submatches)?;
         },
