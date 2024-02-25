@@ -399,7 +399,7 @@ impl Preprocessing for Record {
                     decimate_data_subset(self, &subset, &item);
                 },
             },
-            Filter::Smoothing(_) => todo!(),
+            Filter::Smoothing(_) => todo!("smoothing filter"),
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
         }
     }
@@ -413,6 +413,6 @@ impl Interpolate for Record {
         s
     }
     fn interpolate_mut(&mut self, _series: TimeSeries) {
-        unimplemented!("meteo:record:interpolate_mut()")
+        todo!("meteo:record:interpolate_mut()")
     }
 }

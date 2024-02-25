@@ -1,6 +1,6 @@
 [package]
 name = "rinex-cli"
-version = "0.10.1"
+version = "0.10.2"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Command line tool parse and analyze RINEX data"
@@ -31,8 +31,8 @@ horrorshow = "0.8"
 clap = { version = "4.4.13", features = ["derive", "color"] }
 hifitime = { version = "3.9.0", features = ["serde", "std"] }
 gnss-rs = { version = "2.1.3" , features = ["serde"] }
-rinex = { path = "../rinex", version = "=0.15.5", features = ["full"] }
-rinex-qc = { path = "../rinex-qc", version = "=0.1.10", features = ["serde"] } 
+rinex = { path = "../rinex", version = "=0.15.6", features = ["full"] }
+rinex-qc = { path = "../rinex-qc", version = "=0.1.11", features = ["serde"] } 
 sp3 = { path = "../sp3", version = "=1.0.7",  features = ["serde", "flate2"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
