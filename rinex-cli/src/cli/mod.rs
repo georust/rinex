@@ -29,6 +29,8 @@ mod substract;
 mod qc;
 // positioning mode
 mod positioning;
+// filegen mode
+mod filegen;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -304,6 +306,7 @@ Otherwise it gets automatically picked up."))
                     .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
                     .help("Define the (RX) antenna position manualy, in decimal degrees."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
+                .subcommand(filegen::subcommand())
                 .subcommand(graph::subcommand())
                 .subcommand(identify::subcommand())
                 .subcommand(merge::subcommand())

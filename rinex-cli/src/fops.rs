@@ -9,6 +9,77 @@ use std::process::Command;
 use std::str::FromStr;
 
 /*
+ * Dumps current context (usually preprocessed)
+ * into RINEX format maintaining consistent format
+ */
+pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
+    // OBS RINEX processing
+    if let Some(rinex) = ctx.data.obs_data() {
+        let filename = ctx
+            .data
+            .obs_paths()
+            .expect("failed to determine observation output")
+            .get(0)
+            .expect("failed to determine observation output")
+            .file_name()
+            .expect("failed to determine observation output")
+            .to_string_lossy()
+            .to_string();
+
+        let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+
+        rinex.to_file(&output_path).unwrap_or_else(|_| {
+            panic!("failed to generate rinex observations \"{}\"", output_path)
+        });
+
+        info!("generated RINEX observations \"{}\"", output_path);
+    }
+    // METEO RINEX processing
+    if let Some(rinex) = ctx.data.meteo_data() {
+        let filename = ctx
+            .data
+            .meteo_paths()
+            .expect("failed to determine meteo output")
+            .get(0)
+            .expect("failed to determine meteo output")
+            .file_name()
+            .expect("failed to determine meteo output")
+            .to_string_lossy()
+            .to_string();
+
+        let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+
+        rinex.to_file(&output_path).unwrap_or_else(|_| {
+            panic!("failed to generate meteo observations \"{}\"", output_path)
+        });
+
+        info!("generated meteo observations \"{}\"", output_path);
+    }
+    // NAV RINEX processing
+    if let Some(rinex) = ctx.data.nav_data() {
+        let filename = ctx
+            .data
+            .nav_paths()
+            .expect("failed to determine nav output")
+            .get(0)
+            .expect("failed to determine nav output")
+            .file_name()
+            .expect("failed to determine nav output")
+            .to_string_lossy()
+            .to_string();
+
+        let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+
+        rinex
+            .to_file(&output_path)
+            .unwrap_or_else(|_| panic!("failed to generate navigation data\"{}\"", output_path));
+
+        info!("generated navigation data \"{}\"", output_path);
+    }
+    Ok(())
+}
+
+/*
  * Merges proposed (single) file and generates resulting output, into the workspace
  */
 pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
@@ -158,75 +229,89 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         panic!("invalid duration");
     }
 
-    if let Some(rinex) = ctx.data.obs_data() {
-        let (mut first, end) = (
-            rinex
-                .first_epoch()
-                .expect("failed to determine first epoch"),
-            rinex.last_epoch().expect("failed to determine last epoch"),
-        );
+    // input data determination
+    let rinex = if let Some(data) = ctx.data.obs_data() {
+        data
+    } else if let Some(data) = ctx.data.meteo_data() {
+        data
+    } else if let Some(data) = ctx.data.nav_data() {
+        data
+    } else {
+        panic!("time binning is not supported on this file format (yet)");
+    };
 
-        let mut last = first + *duration;
+    // time framing determination
+    let (mut first, end) = (
+        rinex
+            .first_epoch()
+            .expect("failed to determine first epoch"),
+        rinex.last_epoch().expect("failed to determine last epoch"),
+    );
 
-        let obs_path = ctx
-            .data
-            .obs_paths()
+    let mut last = first + *duration;
+
+    // filename determination
+    let data_path = if let Some(paths) = ctx.data.obs_paths() {
+        paths.get(0).expect("failed to determine OBS filename")
+    } else if let Some(paths) = ctx.data.meteo_paths() {
+        paths.get(0).expect("failed to determine OBS filename")
+    } else if let Some(paths) = ctx.data.nav_paths() {
+        paths.get(0).expect("failed to determine OBS filename")
+    } else {
+        unreachable!("non supported file format");
+    };
+
+    let filename = data_path
+        .file_stem()
+        .expect("failed to determine output file name")
+        .to_string_lossy()
+        .to_string();
+
+    let mut extension = String::new();
+
+    let filename = if filename.contains('.') {
+        /* .crx.gz case */
+        let mut iter = filename.split('.');
+        let filename = iter
+            .next()
             .expect("failed to determine output file name")
-            .get(0)
-            .unwrap();
+            .to_string();
+        extension.push_str(iter.next().expect("failed to determine output file name"));
+        extension.push('.');
+        filename
+    } else {
+        filename.clone()
+    };
 
-        let filename = obs_path
-            .file_stem()
-            .expect("failed to determine output file name")
+    let file_ext = data_path
+        .extension()
+        .expect("failed to determine output file name")
+        .to_string_lossy()
+        .to_string();
+
+    extension.push_str(&file_ext);
+
+    // run time binning algorithm
+    while last <= end {
+        let rinex = rinex
+            .filter(Filter::from_str(&format!("< {:?}", last)).unwrap())
+            .filter(Filter::from_str(&format!(">= {:?}", first)).unwrap());
+
+        let (y, m, d, hh, mm, ss, _) = first.to_gregorian_utc();
+        let file_suffix = format!("{}{}{}_{}{}{}{}", y, m, d, hh, mm, ss, first.time_scale);
+
+        let output = ctx
+            .workspace
+            .join(&format!("{}-{}.{}", filename, file_suffix, extension))
             .to_string_lossy()
             .to_string();
 
-        let mut extension = String::new();
+        rinex.to_file(&output)?;
+        info!("\"{}\" has been generated", output);
 
-        let filename = if filename.contains('.') {
-            /* .crx.gz case */
-            let mut iter = filename.split('.');
-            let filename = iter
-                .next()
-                .expect("failed to determine output file name")
-                .to_string();
-            extension.push_str(iter.next().expect("failed to determine output file name"));
-            extension.push('.');
-            filename
-        } else {
-            filename.clone()
-        };
-
-        let file_ext = obs_path
-            .extension()
-            .expect("failed to determine output file name")
-            .to_string_lossy()
-            .to_string();
-
-        extension.push_str(&file_ext);
-
-        while last <= end {
-            let rinex = rinex
-                .filter(Filter::from_str(&format!("< {:?}", last)).unwrap())
-                .filter(Filter::from_str(&format!(">= {:?}", first)).unwrap());
-
-            let (y, m, d, hh, mm, ss, _) = first.to_gregorian_utc();
-            let file_suffix = format!("{}{}{}_{}{}{}{}", y, m, d, hh, mm, ss, first.time_scale);
-
-            let output = ctx
-                .workspace
-                .join(&format!("{}-{}.{}", filename, file_suffix, extension))
-                .to_string_lossy()
-                .to_string();
-
-            rinex.to_file(&output)?;
-            info!("\"{}\" has been generated", output);
-
-            first += *duration;
-            last += *duration;
-        }
+        first += *duration;
+        last += *duration;
     }
-
     Ok(())
 }
 

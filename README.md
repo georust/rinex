@@ -11,7 +11,8 @@ RINEX
 
 Rust tool suites to parse, analyze and process [RINEX Data](https://en.wikipedia.org/wiki/RINEX).
 
-The [Wiki pages](https://github.com/georust/rinex/wiki) contain all the documentation of this project, including several examples spanning different applications of GNSS.
+The [Wiki pages](https://github.com/georust/rinex/wiki) is the main documentation portal. It contains
+several examples spanning different GNSS applications.
 
 If you have any question or experience any problems, feel free to open an issue on Github.  
 You can also contact us [on our Discord channel](https://discord.gg/Fp2aape)
@@ -57,7 +58,7 @@ Some minor features in the RINEX2 or 3 revisions may not be supported.
 on RINEX post processing rather than RINEX data production. Do not hesitate to fork and submit
 your improvements
 
-## Architecture 
+## Repository 
 
 * [`rinex`](rinex/) is the core library 
 * [`rinex-cli`](rinex-cli/) : an application dedicated to RINEX post processing.
@@ -82,6 +83,16 @@ from raw uBlox GNSS receiver frames. This application is work in progress at the
 * [Hifitime](https://github.com/nyx-space/hifitime)
 * [CGGTTS](https://github.com/gwbres/cggtts)
 * [GNSS definitions in Rust](https://github.com/rtk-rs/gnss)
+
+Formats & revisions
+===================
+
+The core library supports parsing RINEX V4.00 and the current behavior is to fail
+on higher revisions. NAV V4 is correctly supported as described in the following table.
+
+We support the latest revisions for both IONEX and Clock RINEX.
+
+We support the latest (rev D) SP3 format.
 
 RINEX formats & applications
 ============================
@@ -118,22 +129,6 @@ File formats
 | gzip compressed SP3    | Name must end with `.gz`          | `--flate2` feature must be enabled | 
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
-
-Benchmarking
-============
-
-Test           | Results 
----------------|-------------------------|
-textdiff/decompression/epoch | 979.55 ns |
-textdiff/decompression/flag  | 147.16 ns | 
-numdiff/decompression/small  | 191.86 ns |
-numdiff/decompression/big    | 1.0973 µs |
-parsing/OBSv2/zegv0010.21o   | 951.40 µs |
-parsing/OBSv3/ACOR00ESP      | 4.1139 ms |
-processing/esbc00dnkr2021/mask:gnss | 352.81 ms |
-processing/esbc00dnkr2021/mask:obs |  438.73 ms |
-processing/esbc00dnkr2021/mask:sv | 341.42 ms | 
-processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms | 
 
 Special Thanks
 ==============

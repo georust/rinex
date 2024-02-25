@@ -49,10 +49,16 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
     }
 
     for filt_str in cli.preprocessing() {
-        /* special case : only apply to observ dataset */
-        let only_obs = filt_str.starts_with("observ:");
-        let offset: usize = match only_obs {
-            true => 7, // "observ:"
+        /*
+         * TODO
+         * special case : apply to specific file format only
+         */
+        let only_obs = filt_str.starts_with("obs:");
+        let only_met = filt_str.starts_with("met:");
+        let only_nav = filt_str.starts_with("nav:");
+        let special_prefix = only_obs || only_met || only_nav;
+        let offset: usize = match special_prefix {
+            true => 4, // "obs:","met:",..,"ion:"
             false => 0,
         };
         if let Ok(filt) = Filter::from_str(&filt_str[offset..]) {
