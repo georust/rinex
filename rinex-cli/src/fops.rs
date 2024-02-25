@@ -13,41 +13,69 @@ use std::str::FromStr;
  * into RINEX format maintaining consistent format
  */
 pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
-    // output name
-    let filename = if let Some(name) = matches.get_one::<String>("name") {
-        name.to_string()
-    } else if let Some(paths) = ctx.data.obs_paths() {
-        paths
+    // OBS RINEX processing
+    if let Some(rinex) = ctx.data.obs_data() {
+        let filename = ctx
+            .data
+            .obs_paths()
+            .expect("failed to determine observation output")
             .get(0)
-            .expect("failed to determine output filename")
+            .expect("failed to determine observation output")
+            .file_name()
+            .expect("failed to determine observation output")
             .to_string_lossy()
-            .to_string()
-    } else if let Some(paths) = ctx.data.meteo_paths() {
-        paths
-            .get(0)
-            .expect("failed to determine output filename")
-            .to_string_lossy()
-            .to_string()
-    } else if let Some(paths) = ctx.data.nav_paths() {
-        paths
-            .get(0)
-            .expect("failed to determine output filename")
-            .to_string_lossy()
-            .to_string()
-    } else {
-        panic!("filegen not supported for this type of RINEX");
-    };
-    let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+            .to_string();
 
-    let rinex = ctx.data.obs_data().unwrap_or(
-        ctx.data.meteo_data().unwrap_or(
-            ctx.data
-                .nav_data()
-                .unwrap_or_else(|| panic!("filegen not supported for this type of RINEX")),
-        ),
-    );
+        let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
 
-    rinex.to_file(&output_path)?;
+        rinex.to_file(&output_path).unwrap_or_else(|_| {
+            panic!("failed to generate rinex observations \"{}\"", output_path)
+        });
+
+        info!("generated RINEX observations \"{}\"", output_path);
+    }
+    // METEO RINEX processing
+    if let Some(rinex) = ctx.data.meteo_data() {
+        let filename = ctx
+            .data
+            .meteo_paths()
+            .expect("failed to determine meteo output")
+            .get(0)
+            .expect("failed to determine meteo output")
+            .file_name()
+            .expect("failed to determine meteo output")
+            .to_string_lossy()
+            .to_string();
+
+        let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+
+        rinex.to_file(&output_path).unwrap_or_else(|_| {
+            panic!("failed to generate meteo observations \"{}\"", output_path)
+        });
+
+        info!("generated meteo observations \"{}\"", output_path);
+    }
+    // NAV RINEX processing
+    if let Some(rinex) = ctx.data.nav_data() {
+        let filename = ctx
+            .data
+            .nav_paths()
+            .expect("failed to determine nav output")
+            .get(0)
+            .expect("failed to determine nav output")
+            .file_name()
+            .expect("failed to determine nav output")
+            .to_string_lossy()
+            .to_string();
+
+        let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+
+        rinex
+            .to_file(&output_path)
+            .unwrap_or_else(|_| panic!("failed to generate navigation data\"{}\"", output_path));
+
+        info!("generated navigation data \"{}\"", output_path);
+    }
     Ok(())
 }
 

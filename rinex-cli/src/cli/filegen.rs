@@ -10,10 +10,4 @@ pub fn subcommand() -> Command {
 modify and dump resulting context in preserved RINEX format. 
 You can use this for example, to generate a decimated RINEX file from an input Observations file.",
         )
-        .arg(
-            Arg::new("name")
-                .value_parser(value_parser!(String))
-                .value_name("FILENAME")
-                .help("Set a custom filename, otherwise, the output is named after primary file."),
-        )
 }
