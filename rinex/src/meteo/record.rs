@@ -316,12 +316,16 @@ impl Decimate for Record {
         s
     }
     fn decimate_by_interval_mut(&mut self, interval: Duration) {
-        let mut last_retained: Option<Epoch> = None;
+        let mut last_retained = Option::<Epoch>::None;
         self.retain(|e, _| {
-            if last_retained.is_some() {
-                let dt = *e - last_retained.unwrap();
-                last_retained = Some(*e);
-                dt > interval
+            if let Some(last) = last_retained {
+                let dt = *e - last;
+                if dt > interval {
+                    last_retained = Some(*e);
+                    true
+                } else {
+                    false
+                }
             } else {
                 last_retained = Some(*e);
                 true // always retain 1st epoch

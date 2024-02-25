@@ -50,9 +50,9 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
 
     for filt_str in cli.preprocessing() {
         /* special case : only apply to observ dataset */
-        let only_obs = filt_str.starts_with("observ:");
+        let only_obs = filt_str.starts_with("obs:");
         let offset: usize = match only_obs {
-            true => 7, // "observ:"
+            true => 4, // "obs:"
             false => 0,
         };
         if let Ok(filt) = Filter::from_str(&filt_str[offset..]) {

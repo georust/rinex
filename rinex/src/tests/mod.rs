@@ -4,6 +4,8 @@ pub mod toolkit;
 mod antex;
 mod clocks;
 mod compression;
+#[cfg(feature = "processing")]
+mod decimation;
 mod decompression;
 mod filename;
 mod merge;

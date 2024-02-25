@@ -6,7 +6,7 @@ mod sampling {
     use std::path::Path;
     use std::str::FromStr;
     #[test]
-    fn nav() {
+    fn obs_sampling() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -46,7 +46,7 @@ mod sampling {
         assert_eq!(decimated.epoch().count(), 1, "decim by 2 failed");
     }
     #[test]
-    fn meteo() {
+    fn meteo_sampling() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
         let rinex = Rinex::from_file(&path).unwrap();
         assert_eq!(
