@@ -1,5 +1,5 @@
 // filegen opmode
-use clap::{value_parser, Arg, Command};
+use clap::Command;
 
 pub fn subcommand() -> Command {
     Command::new("filegen")

@@ -12,7 +12,7 @@ use std::str::FromStr;
  * Dumps current context (usually preprocessed)
  * into RINEX format maintaining consistent format
  */
-pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
     // OBS RINEX processing
     if let Some(rinex) = ctx.data.obs_data() {
         let filename = ctx
