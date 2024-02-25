@@ -22,27 +22,18 @@ mod decimation {
 
         let mut rinex = rinex.unwrap();
         let len = rinex.epoch().count();
-        
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, len / 2,
-            "decimate(1'): error",
-        );
-        
+        assert_eq!(count, len / 2, "decimate(1'): error",);
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, len / 2,
-            "decimate(1'): error",
-        );
-        
+        assert_eq!(count, len / 2, "decimate(1'): error",);
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(120.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, len / 4,
-            "decimate(2'): error",
-        );
+        assert_eq!(count, len / 4, "decimate(2'): error",);
     }
     #[test]
     #[cfg(feature = "flate2")]
@@ -60,27 +51,18 @@ mod decimation {
 
         let mut rinex = rinex.unwrap();
         let len = rinex.epoch().count();
-        
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, len,
-            "decimate(1'): error",
-        );
-        
+        assert_eq!(count, len, "decimate(1'): error",);
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(360.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, len / 2,
-            "decimate(6'): error",
-        );
-        
+        assert_eq!(count, len / 2, "decimate(6'): error",);
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(900.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, len / 4,
-            "decimate(15'): error",
-        );
+        assert_eq!(count, len / 4, "decimate(15'): error",);
     }
     #[test]
     #[cfg(feature = "flate2")]
@@ -98,19 +80,13 @@ mod decimation {
 
         let mut rinex = rinex.unwrap();
         let len = rinex.epoch().count();
-        
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, 1016,
-            "decimate(1'): error",
-        );
-        
+        assert_eq!(count, 1016, "decimate(1'): error",);
+
         rinex.decimate_by_interval_mut(Duration::from_seconds(61.0));
         let count = rinex.epoch().count();
-        assert_eq!(
-            count, 1016,
-            "decimate(1'+1s): error",
-        );
+        assert_eq!(count, 1016, "decimate(1'+1s): error",);
     }
 }
