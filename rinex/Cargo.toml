@@ -13,33 +13,56 @@ readme = "README.md"
 rust-version = "1.64"
 
 [features]
-default = [] # no features by default
-sbas = ["geo", "wkt"]
+default = []
+
+# Unlock OBS RINEX full support.
+# Unlocks dedicated browsing methods and post processing algorithms.
 obs = []
-meteo = []
+
+# Unlock NAV RINEX full support. 
+# Unlocks dedicated browsing methods and navigation dedicated methods.
 nav = []
+
+# Unlock METEO RINEX full support.
+# Unlocks dedicated browsing methods and dedicated analysis.
+meteo = []
+
+# Unlock IONEX full support.
+# Unlocks dedicated browsing methods and dedicated analysis.
 ionex = []
+
+# Unlock CLOCK RINEX full support.
+# Unlocks dedicated browsing methods and dedicated analysis.
+clock = []
+
+# Unlock IONEX full support.
+# Unlocks dedicated browsing methods and antenna compensation methods.
 antex = []
+
+# Unlock Processing package.
+# Unlocks the preprocessing toolkit, Filtering methods and preprocessing algorithms.
 processing = []
 
-# rinex Quality Check (mainly OBS RINEX) 
+# Unlock Quality Check (QC) methods and traits.
+# Allows to generate complete QC reports for RINEX or entire contexts.
 qc = ["rinex-qc-traits", "horrorshow"] 
 
-# SP3 enables the RINEX context structure
+# Unlock SP3 support to be able to integrate SP3 precise orbits
+# into a complete Context.
 sp3 = ["dep:sp3", "walkdir"] 
 
-# enable everything
+# Unlock all features, all at once
 full = [
     "antex",
     "flate2",
     "horrorshow",
     "ionex",
     "meteo",
+    "clock",
     "nav",
     "obs",
     "processing",
     "qc",
-    "sbas",
     "serde",
     "sp3",
 ]

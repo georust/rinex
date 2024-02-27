@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::io::prelude::*;
 use thiserror::Error;
 
@@ -6,8 +6,7 @@ use thiserror::Error;
 use serde::Serialize;
 
 use super::{
-    antex, clocks,
-    clocks::{ClockData, ClockDataType},
+    antex, clock,
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_rinex_comment, merge,
     merge::Merge,
@@ -26,8 +25,8 @@ use hifitime::Duration;
 pub enum Record {
     /// ATX record, see [antex::record::Record]
     AntexRecord(antex::Record),
-    /// Clock record, see [clocks::record::Record]
-    ClockRecord(clocks::Record),
+    /// Clock record, see [clock::record::Record]
+    ClockRecord(clock::Record),
     /// IONEX (Ionosphere maps) record, see [ionex::record::Record]
     IonexRecord(ionex::Record),
     /// Meteo record, see [meteo::record::Record]
@@ -59,14 +58,14 @@ impl Record {
         }
     }
     /// Unwraps self as CLK record
-    pub fn as_clock(&self) -> Option<&clocks::Record> {
+    pub fn as_clock(&self) -> Option<&clock::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable CLK record
-    pub fn as_mut_clock(&mut self) -> Option<&mut clocks::Record> {
+    pub fn as_mut_clock(&mut self) -> Option<&mut clock::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
@@ -176,10 +175,11 @@ impl Record {
                 }
             },
             Type::ClockData => {
-                if let Some(r) = self.as_clock() {
-                    for (epoch, data) in r {
-                        if let Ok(epoch) = clocks::record::fmt_epoch(epoch, data) {
-                            let _ = write!(writer, "{}", epoch);
+                if let Some(rec) = self.as_clock() {
+                    for (epoch, keys) in rec {
+                        for (key, prof) in keys {
+                            let _ =
+                                write!(writer, "{}", clock::record::fmt_epoch(epoch, key, prof));
                         }
                     }
                 }
@@ -240,7 +240,7 @@ pub enum Error {
     #[error("failed to produce Navigation epoch")]
     NavEpochError(#[from] navigation::Error),
     #[error("failed to produce Clock epoch")]
-    ClockEpochError(#[from] clocks::Error),
+    ClockEpochError(#[from] clock::Error),
     #[error("missing TIME OF FIRST OBS")]
     BadObservationDataDefinition,
     #[error("failed to identify timescale")]
@@ -255,7 +255,7 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
     }
     match &header.rinex_type {
         Type::AntennaData => antex::record::is_new_epoch(line),
-        Type::ClockData => clocks::record::is_new_epoch(line),
+        Type::ClockData => clock::record::is_new_epoch(line),
         Type::IonosphereMaps => {
             ionex::record::is_new_tec_plane(line) || ionex::record::is_new_rms_plane(line)
         },
@@ -286,7 +286,7 @@ pub fn parse_record(
     let mut nav_rec = navigation::Record::new(); // NAV
     let mut obs_rec = observation::Record::new(); // OBS
     let mut met_rec = meteo::Record::new(); // MET
-    let mut clk_rec = clocks::Record::new(); // CLK
+    let mut clk_rec = clock::Record::new(); // CLK
 
     // OBSERVATION case
     //  timescale is defined either
@@ -426,29 +426,15 @@ pub fn parse_record(
                         }
                     },
                     Type::ClockData => {
-                        if let Ok((epoch, dtype, system, data)) =
-                            clocks::record::parse_epoch(header.version, &epoch_content)
+                        if let Ok((epoch, key, profile)) =
+                            clock::record::parse_epoch(header.version, &epoch_content)
                         {
                             if let Some(e) = clk_rec.get_mut(&epoch) {
-                                if let Some(d) = e.get_mut(&dtype) {
-                                    d.insert(system, data);
-                                } else {
-                                    // --> new system entry for this `epoch`
-                                    let mut inner: HashMap<clocks::System, ClockData> =
-                                        HashMap::new();
-                                    inner.insert(system, data);
-                                    e.insert(dtype, inner);
-                                }
+                                e.insert(key, profile);
                             } else {
-                                // --> new epoch entry
-                                let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
-                                inner.insert(system, data);
-                                let mut map: HashMap<
-                                    ClockDataType,
-                                    HashMap<clocks::System, ClockData>,
-                                > = HashMap::new();
-                                map.insert(dtype, inner);
-                                clk_rec.insert(epoch, map);
+                                let mut inner: BTreeMap<ClockKey, ClockProfile> = BTreeMap::new();
+                                inner.insert(key, profile);
+                                clk_rec.insert(epoch, inner);
                             }
                             comment_ts = epoch; // for comments classification & management
                         }
@@ -457,10 +443,6 @@ pub fn parse_record(
                         let (antenna, content) =
                             antex::record::parse_antenna(&epoch_content).unwrap();
                         atx_rec.push((antenna, content));
-                        //if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content)
-                        //{
-                        //    atx_rec.push((antenna, content));
-                        //}
                     },
                     Type::IonosphereMaps => {
                         if let Ok((epoch, altitude, plane)) =
@@ -543,36 +525,17 @@ pub fn parse_record(
             }
         },
         Type::ClockData => {
-            if let Ok((e, dtype, system, data)) =
-                clocks::record::parse_epoch(header.version, &epoch_content)
+            if let Ok((epoch, key, profile)) =
+                clock::record::parse_epoch(header.version, &epoch_content)
             {
-                // Clocks `RINEX` files are handled a little different,
-                // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
-                // One line may contribute to a previously existing epoch in the record
-                // (different type of measurements etc..etc..)
-                if let Some(e) = clk_rec.get_mut(&e) {
-                    if let Some(d) = e.get_mut(&dtype) {
-                        d.insert(system, data);
-                    } else {
-                        // --> new system entry for this `epoch`
-                        let mut map: HashMap<
-                            ClockDataType,
-                            HashMap<clocks::System, clocks::ClockData>,
-                        > = HashMap::new();
-                        let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
-                        inner.insert(system, data);
-                        map.insert(dtype, inner);
-                    }
+                if let Some(e) = clk_rec.get_mut(&epoch) {
+                    e.insert(key, profile);
                 } else {
-                    // --> new epoch entry
-                    let mut map: HashMap<ClockDataType, HashMap<clocks::System, ClockData>> =
-                        HashMap::new();
-                    let mut inner: HashMap<clocks::System, ClockData> = HashMap::new();
-                    inner.insert(system, data);
-                    map.insert(dtype, inner);
-                    clk_rec.insert(e, map);
+                    let mut inner: BTreeMap<ClockKey, ClockProfile> = BTreeMap::new();
+                    inner.insert(key, profile);
+                    clk_rec.insert(epoch, inner);
                 }
-                comment_ts = e; // for comments classification & management
+                comment_ts = epoch; // for comments classification & management
             }
         },
         Type::IonosphereMaps => {

@@ -2,8 +2,8 @@
 //! rinex header parser and associated methods
 use super::*;
 use crate::{
-    antex, clocks,
-    clocks::{ClockAnalysisAgency, ClockDataType},
+    antex, clock,
+    clock::WorkClock,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap,
@@ -127,7 +127,7 @@ pub struct Header {
     pub meteo: Option<meteo::HeaderFields>,
     /// Clocks record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub clocks: Option<clocks::HeaderFields>,
+    pub clock: Option<clock::HeaderFields>,
     /// ANTEX record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub antex: Option<antex::HeaderFields>,
@@ -255,7 +255,7 @@ impl Header {
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
         let mut meteo = meteo::HeaderFields::default();
-        let mut clocks = clocks::HeaderFields::default();
+        let mut clock = clock::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
         let mut ionex = ionex::HeaderFields::default();
 
@@ -859,10 +859,11 @@ impl Header {
                 }
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
-                clocks = clocks.with_agency(ClockAnalysisAgency {
-                    code: code.trim().to_string(),
-                    name: agency.trim().to_string(),
-                });
+                clock = clock.igs(code.trim());
+                clock = clock.full_name(agency.trim());
+            } else if marker.contains("ANALYSIS CLK REF") {
+                let ck = WorkClock::parse(version, content);
+                clock = clock.work_clock(ck);
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
                 let n = n.trim();
@@ -873,19 +874,17 @@ impl Header {
                 let mut rem = r;
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
-                    if let Ok(c) = ClockDataType::from_str(code.trim()) {
-                        clocks.codes.push(c);
+                    if let Ok(c) = ClockProfileType::from_str(code.trim()) {
+                        clock.codes.push(c);
                     }
                     rem = r;
                 }
             } else if marker.contains("STATION NAME / NUM") {
                 let (name, num) = content.split_at(4);
-                clocks = clocks.with_ref_station(clocks::Station {
-                    id: num.trim().to_string(),
-                    name: name.trim().to_string(),
-                });
+                clock = clock.site(name.trim());
+                clock = clock.site_id(num.trim());
             } else if marker.contains("STATION CLK REF") {
-                clocks = clocks.with_ref_clock(content.trim());
+                clock = clock.refclock(content.trim());
             } else if marker.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
             } else if marker.contains("INTERVAL") {
@@ -960,7 +959,7 @@ impl Header {
                 let timescale = content.trim();
                 let ts = TimeScale::from_str(timescale)
                     .or(Err(ParsingError::TimescaleParsing(timescale.to_string())))?;
-                clocks = clocks.with_timescale(ts);
+                clock = clock.timescale(ts);
             } else if marker.contains("DELTA-UTC") {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
@@ -1142,9 +1141,9 @@ impl Header {
                     None
                 }
             },
-            clocks: {
+            clock: {
                 if rinex_type == Type::ClockData {
-                    Some(clocks)
+                    Some(clock)
                 } else {
                     None
                 }
@@ -1422,11 +1421,11 @@ impl Header {
      * Clock Data fields formatting
      */
     fn fmt_clock_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(clocks) = &self.clocks {
+        if let Some(clock) = &self.clock {
             // Types of data: observables equivalent
             let mut descriptor = String::new();
-            descriptor.push_str(&format!("{:6}", clocks.codes.len()));
-            for (i, observable) in clocks.codes.iter().enumerate() {
+            descriptor.push_str(&format!("{:6}", clock.codes.len()));
+            for (i, observable) in clock.codes.iter().enumerate() {
                 if (i % 9) == 0 && i > 0 {
                     descriptor.push_str("      "); // TAB
                 }
@@ -1435,7 +1434,7 @@ impl Header {
             writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF DATA"))?;
 
             // possible timescale
-            if let Some(ts) = clocks.timescale {
+            if let Some(ts) = clock.timescale {
                 writeln!(
                     f,
                     "{}",
@@ -1443,17 +1442,17 @@ impl Header {
                 )?;
             }
 
-            // possible agency
-            if let Some(agency) = &clocks.agency {
-                writeln!(
-                    f,
-                    "{}",
-                    fmt_rinex(
-                        &format!("{:<5} {}", agency.code, agency.name),
-                        "ANALYSIS CENTER"
-                    )
-                )?;
-            }
+            //// possible agency
+            //if let Some(agency) = &clock.agency {
+            //    writeln!(
+            //        f,
+            //        "{}",
+            //        fmt_rinex(
+            //            &format!("{:<5} {}", agency.code, agency.name),
+            //            "ANALYSIS CENTER"
+            //        )
+            //    )?;
+            //}
         }
         Ok(())
     }
@@ -1897,12 +1896,14 @@ impl Merge for Header {
                 // merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
         }
-        if let Some(lhs) = &mut self.clocks {
-            if let Some(rhs) = &rhs.clocks {
+        if let Some(lhs) = &mut self.clock {
+            if let Some(rhs) = &rhs.clock {
                 merge::merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
-                merge::merge_mut_option(&mut lhs.agency, &rhs.agency);
-                merge::merge_mut_option(&mut lhs.station, &rhs.station);
-                merge::merge_mut_option(&mut lhs.clock_ref, &rhs.clock_ref);
+                merge::merge_mut_option(&mut lhs.igs, &rhs.igs);
+                merge::merge_mut_option(&mut lhs.site, &rhs.site);
+                merge::merge_mut_option(&mut lhs.site_id, &rhs.site_id);
+                merge::merge_mut_option(&mut lhs.full_name, &rhs.full_name);
+                merge::merge_mut_option(&mut lhs.ref_clock, &rhs.ref_clock);
                 merge::merge_mut_option(&mut lhs.timescale, &rhs.timescale);
             }
         }

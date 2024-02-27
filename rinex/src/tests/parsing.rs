@@ -285,7 +285,8 @@ mod test {
                             }
                         },
                         "CLK" => {
-                            assert!(rinex.is_clocks_rinex());
+                            assert!(rinex.is_clock_rinex(), "badly identified CLK RINEX");
+                            assert!(rinex.header.clock.is_some(), "badly formed CLK RINEX");
                             assert!(rinex.epoch().count() > 0); // all files have content
                             let record = rinex.record.as_clock().unwrap();
                             for (e, _) in record {

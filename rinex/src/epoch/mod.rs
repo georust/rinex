@@ -220,7 +220,7 @@ pub(crate) fn parse_in_timescale(
     match ts {
         TimeScale::UTC => {
             // in case provided content is totally invalid,
-            // we end up here with. And Epoch::from_gregorian will panic
+            // Epoch::from_gregorian may panic
             if y == 0 {
                 return Err(ParsingError::FormatError);
             }
@@ -230,7 +230,7 @@ pub(crate) fn parse_in_timescale(
         },
         _ => {
             // in case provided content is totally invalid,
-            // we end up here with. And Epoch::from_string may panic
+            // Epoch::from_string may panic
             if y == 0 {
                 return Err(ParsingError::FormatError);
             }
