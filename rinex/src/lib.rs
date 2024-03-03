@@ -2123,7 +2123,7 @@ impl Rinex {
                     None
                 }
             })
-            .min_by_key(|(toe_i, _)| (t - *toe_i).abs())
+            .min_by_key(|(toe_i, _)| (t - *toe_i))
     }
     /// Returns an Iterator over SV (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)
@@ -3024,15 +3024,25 @@ impl Rinex {
             .reduce(|k, _| k)?;
         let (before_t, clk_type, before_prof) = before;
         let (after_t, _, after_prof) = after;
-        let mut y =
+        let mut bias =
             (after_t - t).to_seconds() / (after_t - before_t).to_seconds() * before_prof.bias;
-        y += (t - before_t).to_seconds() / (after_t - before_t).to_seconds() * after_prof.bias;
+        bias += (t - before_t).to_seconds() / (after_t - before_t).to_seconds() * after_prof.bias;
+        let drift: Option<f64> = match (before_prof.drift, after_prof.drift) {
+            (Some(before_drift), Some(after_drift)) => {
+                let mut drift =
+                    (after_t - t).to_seconds() / (after_t - before_t).to_seconds() * before_drift;
+                drift +=
+                    (t - before_t).to_seconds() / (after_t - before_t).to_seconds() * after_drift;
+                Some(drift)
+            },
+            _ => None,
+        };
         Some((
             clk_type,
             ClockProfile {
-                bias: y,
+                bias,
+                drift,
                 bias_dev: None,
-                drift: None, //TODO
                 drift_dev: None,
                 drift_change: None,
                 drift_change_dev: None,
