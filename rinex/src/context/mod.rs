@@ -278,6 +278,14 @@ impl RnxContext {
     pub fn has_clock(&self) -> bool {
         self.clk.is_some()
     }
+    /// Returns CLK files source path
+    pub fn clk_paths(&self) -> Option<&[PathBuf]> {
+        if let Some(ref clk) = self.clk {
+            Some(clk.paths())
+        } else {
+            None
+        }
+    }
     /// Returns reference to Clock data specifically
     pub fn clk_data(&self) -> Option<&Rinex> {
         if let Some(ref clk) = self.clk {
