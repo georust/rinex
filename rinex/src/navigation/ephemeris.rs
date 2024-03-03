@@ -144,7 +144,14 @@ impl Ephemeris {
                 todo!("sv_clock_corr not supported for glonass @ the moment");
             },
             _ => {
-                let dt = (t - toe).to_seconds();
+                let mut dt = (t - toe).to_seconds();
+                // GPST ephemeris logic..
+                // TODO: does this apply to others like GST ?
+                if dt > 302400.0 {
+                    dt -= 604800.0;
+                } else if dt < -302400.0 {
+                    dt += 604800.0;
+                }
                 Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
             },
         }
