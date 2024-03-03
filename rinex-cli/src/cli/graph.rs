@@ -102,7 +102,7 @@ or we post processed determined a CS.",
         )
         .arg(
             Arg::new("sp3-res")
-                .long("sp3-residual")
+                .long("orbit-residual")
                 .action(ArgAction::SetTrue)
                 .help(
                     "SV orbital attitude residual analysis |BRDC - SP3|.

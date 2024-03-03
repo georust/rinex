@@ -78,7 +78,7 @@ where
             let clock_state = if has_clk_data {
                 let clk = clk_data.unwrap();
 
-                if let Some((_, profile)) = clk.sv_embedded_clock_interpolate(*t, *sv) {
+                if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
                     (
                         profile.bias,
                         profile.drift.unwrap_or(0.0),

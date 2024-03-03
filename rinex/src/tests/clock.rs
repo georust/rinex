@@ -11,7 +11,7 @@ mod test {
         let rinex = rinex.unwrap();
         assert_eq!(rinex.epoch().count(), 10);
 
-        for (epoch, content) in rinex.clock() {
+        for (epoch, content) in rinex.precise_clock() {
             let (y, m, d, hh, mm, ss, _) = epoch.to_gregorian_utc();
             for (key, profile) in content {
                 if let Some(sv) = key.clock_type.as_sv() {
@@ -153,7 +153,7 @@ mod test {
 
         assert_eq!(rinex.epoch().count(), 1);
 
-        for (epoch, content) in rinex.clock() {
+        for (epoch, content) in rinex.precise_clock() {
             assert_eq!(*epoch, Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap());
             for (key, profile) in content {
                 match key.profile_type {

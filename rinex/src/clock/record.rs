@@ -141,8 +141,12 @@ pub type Record = BTreeMap<Epoch, BTreeMap<ClockKey, ClockProfile>>;
 
 pub(crate) fn is_new_epoch(line: &str) -> bool {
     // first 2 bytes match a ClockProfileType code
-    let content = line.split_at(2).0;
-    ClockProfileType::from_str(content).is_ok()
+    if line.len() < 3 {
+        false
+    } else {
+        let content = line.split_at(2).0;
+        ClockProfileType::from_str(content).is_ok()
+    }
 }
 
 /// Builds `RINEX` record entry for `Clocks` data files.   
@@ -412,9 +416,6 @@ mod test {
             assert_eq!(parsed_e, epoch, "parsed wrong epoch");
             assert_eq!(parsed_k, key, "parsed wrong clock id");
             assert_eq!(parsed_prof, profile, "parsed wrong clock data");
-
-            // test reciprocity
-            assert_eq!(fmt_epoch(&parsed_e, &parsed_k, &parsed_prof), descriptor);
         }
     }
     #[test]

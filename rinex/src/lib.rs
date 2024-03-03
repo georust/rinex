@@ -2969,7 +2969,7 @@ use crate::clock::{ClockKey, ClockProfile, ClockProfileType};
 #[cfg_attr(docrs, doc(cfg(feature = "clock")))]
 impl Rinex {
     /// Returns Iterator over Clock RINEX content.
-    pub fn clock(
+    pub fn precise_clock(
         &self,
     ) -> Box<dyn Iterator<Item = (&Epoch, &BTreeMap<ClockKey, ClockProfile>)> + '_> {
         Box::new(
@@ -2980,10 +2980,10 @@ impl Rinex {
         )
     }
     /// Returns Iterator over Clock RINEX content for Space Vehicles only (not ground stations).
-    pub fn sv_embedded_clock(
+    pub fn precise_sv_clock(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, ClockProfileType, ClockProfile)> + '_> {
-        Box::new(self.clock().flat_map(|(epoch, rec)| {
+        Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
             rec.iter().filter_map(|(key, profile)| {
                 if let Some(sv) = key.clock_type.as_sv() {
                     Some((*epoch, sv, key.profile_type.clone(), profile.clone()))
@@ -2994,16 +2994,18 @@ impl Rinex {
         }))
     }
     /// Interpolates Clock state at desired "t" expressed in the timescale you want.
-    /// Clock RINEX are expressed in UTC, this will do the required conversion internally.
-    /// You should only use this on Clock RINEX files that have a high sample rate (<= 30s),
-    /// otherwise results will not be correct.
-    pub fn sv_embedded_clock_interpolate(
+    /// Clock RINEX usually have a high sample rate, this has two consequences
+    ///  - it kind of allows clock states to be interpolated, as long as the
+    ///  sample rate is <= 30s (be careful with the end results)
+    ///   - they usually match the signal observation sampling.
+    ///  If you Clock RINEX matches your OBS RINEX, you don't need interpolation at all.
+    pub fn precise_sv_clock_interpolate(
         &self,
         t: Epoch,
         sv: SV,
     ) -> Option<(ClockProfileType, ClockProfile)> {
         let before = self
-            .sv_embedded_clock()
+            .precise_sv_clock()
             .filter_map(|(clk_t, clk_sv, clk, prof)| {
                 if clk_t <= t && clk_sv == sv {
                     Some((clk_t, clk, prof))
@@ -3013,7 +3015,7 @@ impl Rinex {
             })
             .reduce(|k, _| k)?;
         let after = self
-            .sv_embedded_clock()
+            .precise_sv_clock()
             .filter_map(|(clk_t, clk_sv, clk, prof)| {
                 if clk_t > t && clk_sv == sv {
                     Some((clk_t, clk, prof))
@@ -3050,10 +3052,10 @@ impl Rinex {
         ))
     }
     /// Returns Iterator over Clock RINEX content for Ground Station clocks only (not onboard clocks)
-    pub fn ground_station_clock(
+    pub fn precise_station_clock(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, String, ClockProfileType, ClockProfile)> + '_> {
-        Box::new(self.clock().flat_map(|(epoch, rec)| {
+        Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
             rec.iter().filter_map(|(key, profile)| {
                 if let Some(clk_name) = key.clock_type.as_station() {
                     Some((
