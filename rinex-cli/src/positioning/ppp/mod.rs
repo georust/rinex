@@ -67,98 +67,36 @@ where
                 continue; // can't proceed further
             }
 
+            // determine TOE
             let (toe, sv_eph) = sv_eph.unwrap();
-            let clock_state = sv_eph.sv_clock();
-
             /*
              * Clock state
              *   1. Prefer CLK product
              *   2. Prefer SP3 product
              *   3. Radio last option: always feasible
              */
-            //let clock_state = if has_clk_data {
-            //    let clk = clk_data.unwrap();
-
-            //    if let Some(profile) = clk
-            //        .sv_embedded_clock()
-            //        .filter_map(|(clk_t, clk_sv, _, clk_prof)| {
-            //            if clk_t == *t && clk_sv == *sv {
-            //                Some(clk_prof)
-            //            } else {
-            //                None
-            //            }
-            //        })
-            //        .reduce(|clk, _| clk)
-            //    {
-            //        (
-            //            profile.bias,
-            //            profile.drift.unwrap_or(0.0),
-            //            profile.drift_change.unwrap_or(0.0),
-            //        )
-            //    } else {
-            //        /*
-            //         * do not interpolate precise products:
-            //         * we simply abort resolution on this "t"
-            //         */
-            //        continue;
-            //    }
-            //} else if sp3_has_clock {
-            //    let sp3 = sp3_data.unwrap();
-
-            //    if let Some(clk) = sp3
-            //        .sv_clock()
-            //        .filter_map(|(sp3_t, sp3_sv, clk)| {
-            //            if sp3_t == *t && sp3_sv == *sv {
-            //                Some(clk * 1.0E-6)
-            //            } else {
-            //                None
-            //            }
-            //        })
-            //        .reduce(|clk, _| clk)
-            //    {
-            //        (
-            //            clk, 0.0_f64, //TODO: clk drift in SP3
-            //            0.0_f64, //TODO: drift changes in SP3
-            //        )
-            //    } else {
-            //        /*
-            //         * do not interpolate precise products:
-            //         * we simply abort resolution on this "t"
-            //         */
-            //        continue;
-            //    }
-            //} else {
-            //    /* BRDC case */
-            //    sv_eph.sv_clock()
-            //};
-
-            // let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            let clock_corr = if has_clk_data {
+            let clock_state = if has_clk_data {
                 let clk = clk_data.unwrap();
-                if let Some(profile) = clk
-                    .sv_embedded_clock()
-                    .filter_map(|(clk_t, clk_sv, _, clk_prof)| {
-                        if clk_t == *t && clk_sv == *sv {
-                            Some(clk_prof)
-                        } else {
-                            None
-                        }
-                    })
-                    .reduce(|clk, _| clk)
-                {
-                    hifitime::Duration::from_seconds(profile.bias)
+
+                if let Some((_, profile)) = clk.sv_embedded_clock_interpolate(*t, *sv) {
+                    (
+                        profile.bias,
+                        profile.drift.unwrap_or(0.0),
+                        profile.drift_change.unwrap_or(0.0),
+                    )
                 } else {
                     /*
-                     * do not interpolate precise products:
-                     * we simply abort resolution on this "t"
+                     * do not interpolate other products: abort
                      */
                     continue;
                 }
             } else if sp3_has_clock {
-                continue;
+                unimplemented!("unhandled case");
             } else {
-                Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe)
+                sv_eph.sv_clock() // BRDC case
             };
+            // determine clock correction
+            let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
 
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();

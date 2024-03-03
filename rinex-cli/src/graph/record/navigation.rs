@@ -296,7 +296,7 @@ fn plot_sv_clock_corrections(
                     if let Some(clk) = clk {
                         let (_, profile) = clk
                             .sv_embedded_clock_interpolate(*t, sv)?;
-                        (profile.bias, 0.0_f64, 0.0_f64) //TODO
+                        (profile.bias, 0.0_f64, 0.0_f64) //TODO: handle drift + drift change
                     } else if let Some(sp3) = sp3 {
                         sp3
                             .sv_clock()
@@ -312,6 +312,12 @@ fn plot_sv_clock_corrections(
                         sv_eph.sv_clock()
                     };
                     let clock_corr = Ephemeris::sv_clock_corr(sv, clock_state, *t, toe);
+                    debug!(
+                        "{:?} - toe: {:?} - clock_corr: {:.6E}",
+                        t,
+                        toe,
+                        clock_corr.to_seconds()
+                    );
                     Some(clock_corr.to_seconds())
                 } else {
                     None
