@@ -2858,6 +2858,7 @@ impl Split for Rinex {
 use preprocessing::Smooth;
 
 #[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Smooth for Rinex {
     fn moving_average(&self, window: Duration) -> Self {
         let mut s = self.clone();
@@ -2885,6 +2886,7 @@ impl Smooth for Rinex {
 use crate::algorithm::{Filter, Preprocessing};
 
 #[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Preprocessing for Rinex {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -2900,6 +2902,7 @@ impl Preprocessing for Rinex {
 use crate::algorithm::Decimate;
 
 #[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Decimate for Rinex {
     fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
@@ -2931,6 +2934,7 @@ impl Decimate for Rinex {
 use observation::Dcb;
 
 #[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Dcb for Rinex {
     fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
@@ -3013,7 +3017,7 @@ impl Rinex {
                     None
                 }
             })
-            .reduce(|k, _| k)?;
+            .last()?;
         let after = self
             .precise_sv_clock()
             .filter_map(|(clk_t, clk_sv, clk, prof)| {
@@ -3026,15 +3030,14 @@ impl Rinex {
             .reduce(|k, _| k)?;
         let (before_t, clk_type, before_prof) = before;
         let (after_t, _, after_prof) = after;
-        let mut bias =
-            (after_t - t).to_seconds() / (after_t - before_t).to_seconds() * before_prof.bias;
-        bias += (t - before_t).to_seconds() / (after_t - before_t).to_seconds() * after_prof.bias;
+        let dt = (after_t - before_t).to_seconds();
+        let mut bias = (after_t - t).to_seconds() / dt * before_prof.bias;
+        bias += (t - before_t).to_seconds() / dt * after_prof.bias;
         let drift: Option<f64> = match (before_prof.drift, after_prof.drift) {
             (Some(before_drift), Some(after_drift)) => {
-                let mut drift =
-                    (after_t - t).to_seconds() / (after_t - before_t).to_seconds() * before_drift;
-                drift +=
-                    (t - before_t).to_seconds() / (after_t - before_t).to_seconds() * after_drift;
+                let dt = (after_t - before_t).to_seconds();
+                let mut drift = (after_t - t).to_seconds() / dt * before_drift;
+                drift += (t - before_t).to_seconds() / dt * after_drift;
                 Some(drift)
             },
             _ => None,

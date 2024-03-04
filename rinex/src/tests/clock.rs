@@ -18,6 +18,31 @@ mod test {
                     match sv {
                         SV {
                             constellation: Constellation::Glonass,
+                            prn: 10,
+                        } => {
+                            assert_eq!(key.profile_type, ClockProfileType::AS);
+                            match (y, m, d, hh, mm, ss) {
+                                (2019, 1, 8, 0, 1, 30) => {
+                                    assert_eq!(profile.bias, 0.391709678221E-04);
+                                    assert!(profile.bias_dev.is_none());
+                                    assert!(profile.drift.is_none());
+                                    assert!(profile.drift_dev.is_none());
+                                    assert!(profile.drift_change.is_none());
+                                    assert!(profile.drift_change_dev.is_none());
+                                },
+                                (2019, 1, 8, 0, 2, 0) => {
+                                    assert_eq!(profile.bias, 0.391708653726E-04);
+                                    assert!(profile.bias_dev.is_none());
+                                    assert!(profile.drift.is_none());
+                                    assert!(profile.drift_dev.is_none());
+                                    assert!(profile.drift_change.is_none());
+                                    assert!(profile.drift_change_dev.is_none());
+                                },
+                                _ => {},
+                            }
+                        },
+                        SV {
+                            constellation: Constellation::Glonass,
                             prn: 21,
                         } => {
                             assert_eq!(key.profile_type, ClockProfileType::AS);
@@ -241,5 +266,86 @@ mod test {
         let rinex = rinex.unwrap();
 
         assert_eq!(rinex.epoch().count(), 1);
+    }
+    #[test]
+    fn clk_precise_interp() {
+        let fp = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V2/COD20352.CLK";
+        let rinex = Rinex::from_file(&fp).unwrap();
+
+        for sv_str in ["R08", "R10", "G15", "G30"] {
+            let sv = SV::from_str(sv_str).unwrap();
+            match sv_str {
+                "R08" => {
+                    for (epoch_str, expected) in [
+                        (
+                            "2019-01-08T00:00:01 UTC",
+                            29.0 / 30.0 * 0.196700157094E-04 + 1.0 / 30.0 * 0.196699240287E-04,
+                        ),
+                        (
+                            "2019-01-08T00:00:15 UTC",
+                            15.0 / 30.0 * 0.196700157094E-04 + 15.0 / 30.0 * 0.196699240287E-04,
+                        ),
+                        (
+                            "2019-01-08T00:00:29 UTC",
+                            1.0 / 30.0 * 0.196700157094E-04 + 29.0 / 30.0 * 0.196699240287E-04,
+                        ),
+                    ] {
+                        let epoch = Epoch::from_str(epoch_str).unwrap();
+                        let (prof_type, profile) = rinex
+                            .precise_sv_clock_interpolate(epoch, sv)
+                            .expect(&format!("precise_sv_clock_interp failed @{}", epoch_str));
+                        assert_eq!(prof_type, ClockProfileType::AS);
+                        assert_eq!(profile.bias, expected, "invalid results @{}", epoch_str);
+                    }
+                },
+                "G30" => {
+                    for (epoch_str, expected) in [
+                        (
+                            "2019-01-08T00:00:01 UTC",
+                            29.0 / 30.0 * -0.323009083512E-04 + 1.0 / 30.0 * -0.323010911710E-04,
+                        ),
+                        (
+                            "2019-01-08T00:00:15 UTC",
+                            15.0 / 30.0 * -0.323009083512E-04 + 15.0 / 30.0 * -0.323010911710E-04,
+                        ),
+                        (
+                            "2019-01-08T00:00:29 UTC",
+                            1.0 / 30.0 * -0.323009083512E-04 + 29.0 / 30.0 * -0.323010911710E-04,
+                        ),
+                    ] {
+                        let epoch = Epoch::from_str(epoch_str).unwrap();
+                        let (prof_type, profile) = rinex
+                            .precise_sv_clock_interpolate(epoch, sv)
+                            .expect(&format!("precise_sv_clock_interp failed @{}", epoch_str));
+                        assert_eq!(prof_type, ClockProfileType::AS);
+                        assert_eq!(profile.bias, expected, "invalid results @{}", epoch_str);
+                    }
+                },
+                "R10" => {
+                    for (epoch_str, expected) in [
+                        (
+                            "2019-01-08T00:01:33 UTC",
+                            27.0 / 30.0 * 0.391709678221E-04 + 3.0 / 30.0 * 0.391708653726E-04,
+                        ),
+                        (
+                            "2019-01-08T00:01:44 UTC",
+                            16.0 / 30.0 * 0.391709678221E-04 + 14.0 / 30.0 * 0.391708653726E-04,
+                        ),
+                        (
+                            "2019-01-08T00:01:57 UTC",
+                            3.0 / 30.0 * 0.391709678221E-04 + 27.0 / 30.0 * 0.391708653726E-04,
+                        ),
+                    ] {
+                        let epoch = Epoch::from_str(epoch_str).unwrap();
+                        let (prof_type, profile) = rinex
+                            .precise_sv_clock_interpolate(epoch, sv)
+                            .expect(&format!("precise_sv_clock_interp failed @{}", epoch_str));
+                        assert_eq!(prof_type, ClockProfileType::AS);
+                        assert_eq!(profile.bias, expected, "invalid results @{}", epoch_str);
+                    }
+                },
+                _ => {},
+            }
+        }
     }
 }
