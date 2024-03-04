@@ -514,7 +514,9 @@ fn gnss_combination_plot(matches: &ArgMatches) -> bool {
 
 /* Returns True if Navigation plot is to be generated */
 fn navigation_plot(matches: &ArgMatches) -> bool {
-    matches.get_flag("skyplot") || matches.get_flag("sp3-res") || matches.get_flag("sv-clock")
+    matches.get_flag("skyplot")
+        || matches.get_flag("orbit-residual")
+        || matches.get_flag("sv-clock")
 }
 
 /* Returns True if Atmosphere conditions is to be generated */
@@ -643,12 +645,12 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             }
             skyplot(&ctx.data, rx_ecef, &mut plot_ctx);
         }
-        if matches.get_flag("orbits") {
+        if matches.get_flag("orbit") {
             plot_sv_nav_orbits(&ctx.data, &mut plot_ctx);
         }
-        if matches.get_flag("sp3-res") {
+        if matches.get_flag("orbit-residual") {
             if ctx.data.sp3_data().is_none() || ctx.data.nav_data().is_none() {
-                panic!("skyplot requires both BRDC or SP3.");
+                panic!("requires both BRDC and SP3.");
             }
             plot_residual_ephemeris(&ctx.data, &mut plot_ctx);
         }
