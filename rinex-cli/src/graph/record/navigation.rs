@@ -19,20 +19,19 @@ enum ProductType {
 type CtxClockStates = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, (f64, f64, f64))>>>;
 /// Clock Corrections from all products provided by User
 type CtxClockCorrections = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, Duration)>>>;
-// /// Resolved system time from all products provided by User
-// type CtxSystemTime = HashMap<ProductType, HashMap<(TimeScale, SV), Vec<Epoch>>>;
 
 pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     if let Some(nav) = ctx.nav_data() {
+        let nav_sv = nav.sv().collect::<Vec<_>>();
         let clk = ctx.clk_data();
         let sp3 = ctx.sp3_data();
-        let clock_states = ctx_sv_clock_states(nav, clk, sp3);
-        plot_sv_clock_states(&clock_states, plot_ctx);
+        let clock_states = ctx_sv_clock_states(nav, &nav_sv, clk, sp3);
+        plot_sv_clock_states(&clock_states, &nav_sv, plot_ctx);
 
         if let Some(obs) = ctx.obs_data() {
             let clock_corrections = ctx_sv_clock_corrections(obs, nav, clk, sp3);
             plot_sv_clock_corrections(&clock_corrections, plot_ctx);
-            plot_system_time(&clock_states, &clock_corrections, plot_ctx);
+            plot_system_time(&clock_states, &clock_corrections, &nav_sv, plot_ctx);
         } else {
             info!("adding OBS RINEX will provide clock corrections graphs");
         }
@@ -44,7 +43,12 @@ pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
 /*
  * Determines all clock states
  */
-fn ctx_sv_clock_states(nav: &Rinex, clk: Option<&Rinex>, sp3: Option<&SP3>) -> CtxClockStates {
+fn ctx_sv_clock_states(
+    nav: &Rinex,
+    nav_sv: &Vec<SV>,
+    clk: Option<&Rinex>,
+    sp3: Option<&SP3>,
+) -> CtxClockStates {
     let mut states = CtxClockStates::new();
     for product in [
         ProductType::Radio,
@@ -67,6 +71,9 @@ fn ctx_sv_clock_states(nav: &Rinex, clk: Option<&Rinex>, sp3: Option<&SP3>) -> C
                 if let Some(sp3) = sp3 {
                     let mut tree = BTreeMap::<SV, Vec<(Epoch, (f64, f64, f64))>>::new();
                     for (t, sv, bias) in sp3.sv_clock() {
+                        if !nav_sv.contains(&sv) {
+                            continue;
+                        }
                         if let Some(inner) = tree.get_mut(&sv) {
                             inner.push((t, (bias, 0.0_f64, 0.0_f64)));
                         } else {
@@ -74,6 +81,9 @@ fn ctx_sv_clock_states(nav: &Rinex, clk: Option<&Rinex>, sp3: Option<&SP3>) -> C
                         }
                     }
                     for (t, sv, drift) in sp3.sv_clock_change() {
+                        if !nav_sv.contains(&sv) {
+                            continue;
+                        }
                         if let Some(inner) = tree.get_mut(&sv) {
                             //TODO augment with drift
                         } else {
@@ -87,6 +97,9 @@ fn ctx_sv_clock_states(nav: &Rinex, clk: Option<&Rinex>, sp3: Option<&SP3>) -> C
                 if let Some(clk) = clk {
                     let mut tree = BTreeMap::<SV, Vec<(Epoch, (f64, f64, f64))>>::new();
                     for (t, sv, _, profile) in clk.precise_sv_clock() {
+                        if !nav_sv.contains(&sv) {
+                            continue;
+                        }
                         let ck = (
                             profile.bias,
                             profile.drift.unwrap_or(0.0_f64),
@@ -111,7 +124,7 @@ fn ctx_sv_clock_states(nav: &Rinex, clk: Option<&Rinex>, sp3: Option<&SP3>) -> C
  * one plot (2 Y axes) for both Clock biases
  * and clock drift
  */
-fn plot_sv_clock_states(ctx: &CtxClockStates, plot_ctx: &mut PlotContext) {
+fn plot_sv_clock_states(ctx: &CtxClockStates, nav_sv: &Vec<SV>, plot_ctx: &mut PlotContext) {
     trace!("sv clock states plot");
     for (product, vehicles) in ctx {
         match product {
@@ -126,6 +139,9 @@ fn plot_sv_clock_states(ctx: &CtxClockStates, plot_ctx: &mut PlotContext) {
             },
         };
         for (index, (sv, results)) in vehicles.iter().enumerate() {
+            if !nav_sv.contains(&sv) {
+                continue;
+            }
             let sv_epochs = results.iter().map(|(t, _)| *t).collect::<Vec<_>>();
             let sv_bias = results
                 .iter()
@@ -323,6 +339,7 @@ fn plot_sv_clock_corrections(ctx: &CtxClockCorrections, plot_ctx: &mut PlotConte
 fn plot_system_time(
     states: &CtxClockStates,
     corrections: &CtxClockCorrections,
+    nav_sv: &Vec<SV>,
     plot_ctx: &mut PlotContext,
 ) {
     trace!("time system plot");
@@ -362,11 +379,13 @@ fn plot_system_time(
 
 pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let mut pos_plot_created = false;
+    let mut nav_sv = Vec::<SV>::with_capacity(32);
     /*
      * Plot Broadcast Orbit (x, y, z)
      */
     if let Some(nav) = ctx.nav_data() {
         for (sv_index, sv) in nav.sv().enumerate() {
+            nav_sv.push(sv);
             if sv_index == 0 {
                 plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
                 trace!("broadcast orbit plot");
@@ -444,6 +463,9 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
      */
     if let Some(sp3) = ctx.sp3_data() {
         for (sv_index, sv) in sp3.sv().enumerate() {
+            if !nav_sv.contains(&sv) {
+                continue;
+            }
             if sv_index == 0 && !pos_plot_created {
                 plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
                 trace!("broadcast orbit plot");
