@@ -36,7 +36,7 @@ where
     let sp3_data = ctx.data.sp3_data();
 
     let sp3_has_clock = if has_clk_data {
-        false // always prefer clk data
+        false // always prefer CLK product
     } else {
         match sp3_data {
             Some(sp3) => sp3.sv_clock().count() > 0,
@@ -77,7 +77,6 @@ where
              */
             let clock_state = if has_clk_data {
                 let clk = clk_data.unwrap();
-
                 if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
                     (
                         profile.bias,
@@ -91,7 +90,7 @@ where
                     continue;
                 }
             } else if sp3_has_clock {
-                unimplemented!("unhandled case");
+                panic!("sp3 (clock) interpolation not ready yet: prefer broadcast or clk product");
             } else {
                 sv_eph.sv_clock() // BRDC case
             };
