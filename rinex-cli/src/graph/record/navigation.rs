@@ -59,7 +59,7 @@ fn ctx_sv_clock_states(
             ProductType::Radio => {
                 let mut tree = BTreeMap::<SV, Vec<(Epoch, (f64, f64, f64))>>::new();
                 for (t, sv, (bias, drift, driftr)) in nav.sv_clock() {
-                    tree.entry(sv).or_default().push((t, (bias, drift, drift)));
+                    tree.entry(sv).or_default().push((t, (bias, drift, driftr)));
                 }
                 states.insert(product, tree);
             },
