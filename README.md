@@ -89,7 +89,7 @@ from raw uBlox GNSS receiver frames. This application is work in progress at the
 
 If you need to reference this work, please use the following model:
 
-`GeoRust RINEX Team (2023), RINEX: analysis and processing (Apache2/MIT), https://georust.org`
+`GeoRust RINEX Team (2023), RINEX: analysis and processing (Apache-2/MIT), https://georust.org`
 
 Formats & revisions
 ===================
