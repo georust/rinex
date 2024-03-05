@@ -89,16 +89,10 @@ impl RnxContext {
             Self::from_directory(path)
         } else {
             /* load a single file */
-            Self::from_path(path)
+            let mut ctx = Self::default();
+            ctx.load(path)?;
+            Ok(ctx)
         }
-    }
-    /*
-     * Builds Self from a single file
-     */
-    fn from_path(path: &PathBuf) -> Result<Self, Error> {
-        let mut ctx = Self::default();
-        ctx.load(path)?;
-        Ok(ctx)
     }
     /*
      * Builds Self by recursive browsing
@@ -274,8 +268,8 @@ impl RnxContext {
             None
         }
     }
-    /// Returns true if provided context contains high precision Clock data
-    pub fn has_clock(&self) -> bool {
+    /// Returns true if high precision temporal data is contained.
+    pub fn has_clock_data(&self) -> bool {
         self.clk.is_some()
     }
     /// Returns CLK files source path
@@ -294,8 +288,7 @@ impl RnxContext {
             None
         }
     }
-    /// Returns true if provided context contains SP3 high precision
-    /// orbits data
+    /// Returns true if high precision orbital data is contained.
     pub fn has_sp3(&self) -> bool {
         self.sp3.is_some()
     }
@@ -486,6 +479,40 @@ impl RnxContext {
             });
         }
         Ok(())
+    }
+    /// Returns true if High Precision Orbital data also contains temporal information.
+    pub fn sp3_has_clock(&self) -> bool {
+        if let Some(sp3) = &self.sp3 {
+            sp3.data.sv_clock().count() > 0
+        } else {
+            false
+        }
+    }
+    /// Returns true if High precision Clock product needs interpolation
+    pub fn needs_clock_interpolation(&self) -> bool {
+        if let Some(obs) = &self.obs {
+            let obs = obs.data();
+            if let Some(clk) = &self.clk {
+                let clk = clk.data();
+                // 1. OBS time frame must be totally contained
+                // 2. OBS / CLK sampling must be strictly identical
+                let (first_obs_epoch, last_obs_epoch) = (obs.first_epoch(), obs.last_epoch());
+                let (first_clk_epoch, last_clk_epoch) = (clk.first_epoch(), clk.last_epoch());
+                if first_obs_epoch >= first_clk_epoch && last_obs_epoch <= last_clk_epoch {
+                    if obs.steady_sampling() && clk.steady_sampling() {
+                        obs.dominant_sample_rate() == clk.dominant_sample_rate()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
     // /// Removes "incomplete" Epochs from OBS Data
     // pub fn complete_epoch_filter(&mut self, min_snr: Option<Snr>) {
@@ -679,6 +706,34 @@ impl HtmlReport for RnxContext {
                     }
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::path::Path;
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn test_clk_needs_interp() {
+        let obs_path = env!("CARGO_MANIFEST_DIR").to_owned()
+            + "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz";
+
+        for (clk_path, needs_interp) in [
+            ("V2/COD20352.CLK", true),
+            ("V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz", false),
+        ] {
+            let obs_path = Path::new(&obs_path).to_path_buf();
+            let mut ctx = RnxContext::new(&obs_path).unwrap();
+            let clk_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join("test_resources")
+                .join("CLK")
+                .join(clk_path)
+                .to_path_buf();
+            ctx.load(&clk_path).unwrap();
+            assert_eq!(ctx.needs_clock_interpolation(), needs_interp);
         }
     }
 }

@@ -28,21 +28,11 @@ where
     // infaillible, at this point
     let obs_data = ctx.data.obs_data().unwrap();
     let nav_data = ctx.data.nav_data().unwrap();
-    let meteo_data = ctx.data.meteo_data();
 
     let clk_data = ctx.data.clk_data();
-    let has_clk_data = clk_data.is_some();
-
+    let meteo_data = ctx.data.meteo_data();
     let sp3_data = ctx.data.sp3_data();
-
-    let sp3_has_clock = if has_clk_data {
-        false // always prefer CLK product
-    } else {
-        match sp3_data {
-            Some(sp3) => sp3.sv_clock().count() > 0,
-            None => false,
-        }
-    };
+    let sp3_has_clock = ctx.data.sp3_has_clock();
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -75,8 +65,7 @@ where
              *   2. Prefer SP3 product
              *   3. Radio last option: always feasible
              */
-            let clock_state = if has_clk_data {
-                let clk = clk_data.unwrap();
+            let clock_state = if let Some(clk) = clk_data {
                 if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
                     (
                         profile.bias,

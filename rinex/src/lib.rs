@@ -1050,7 +1050,11 @@ impl Rinex {
                 .into_iter(),
         )
     }
-
+    /// Returns True if Self has a steady sampling, ie., all epoch interval
+    /// are evenly spaced
+    pub fn steady_sampling(&self) -> bool {
+        self.sampling_histogram().count() == 1
+    }
     /// Returns an iterator over unexpected data gaps,
     /// in the form ([`Epoch`], [`Duration`]), where
     /// epoch is the starting datetime, and its related duration.
