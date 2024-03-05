@@ -31,7 +31,7 @@ pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
         if let Some(obs) = ctx.obs_data() {
             let clock_corrections = ctx_sv_clock_corrections(obs, nav, clk, sp3);
             plot_sv_clock_corrections(&clock_corrections, plot_ctx);
-            plot_system_time(&clock_states, &clock_corrections, &nav_sv, plot_ctx);
+            plot_system_time(&clock_states, &clock_corrections, plot_ctx);
         } else {
             info!("adding OBS RINEX will provide clock corrections graphs");
         }
@@ -330,7 +330,6 @@ fn plot_sv_clock_corrections(ctx: &CtxClockCorrections, plot_ctx: &mut PlotConte
 fn plot_system_time(
     states: &CtxClockStates,
     corrections: &CtxClockCorrections,
-    nav_sv: &Vec<SV>,
     plot_ctx: &mut PlotContext,
 ) {
     trace!("time system plot");

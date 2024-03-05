@@ -22,6 +22,8 @@ use horrorshow::{box_html, helper::doctype, html, RenderBox};
 #[cfg(feature = "qc")]
 use rinex_qc_traits::HtmlReport;
 
+use hifitime::TimeScale;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("can only form a RINEX context from a directory, not a single file")]
@@ -488,25 +490,40 @@ impl RnxContext {
             false
         }
     }
-    /// Returns true if High precision Clock product needs interpolation
+    /// Returns true if High precision Clock product(s) will have to to be interpolated.
+    /// Clock products do not have to be interpolated if they strictly match signals observations.
+    /// That is true if you're using overlapping and state of the art Clock and OBS RINEX files.
     pub fn needs_clock_interpolation(&self) -> bool {
         if let Some(obs) = &self.obs {
             let obs = obs.data();
             if let Some(clk) = &self.clk {
                 let clk = clk.data();
-                // 1. OBS time frame must be totally contained
-                // 2. OBS / CLK sampling must be strictly identical
-                let (first_obs_epoch, last_obs_epoch) = (obs.first_epoch(), obs.last_epoch());
-                let (first_clk_epoch, last_clk_epoch) = (clk.first_epoch(), clk.last_epoch());
-                if first_obs_epoch >= first_clk_epoch && last_obs_epoch <= last_clk_epoch {
-                    if obs.steady_sampling() && clk.steady_sampling() {
-                        obs.dominant_sample_rate() == clk.dominant_sample_rate()
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
+                let (first_obs_epoch, last_obs_epoch) =
+                    (obs.first_epoch(), obs.last_epoch().unwrap_or_default());
+                let (first_clk_epoch, last_clk_epoch) =
+                    (clk.first_epoch(), clk.last_epoch().unwrap_or_default());
+
+                let (obs_sampling, clk_sampling) = (
+                    obs.dominant_sample_rate().unwrap_or_default(),
+                    clk.dominant_sample_rate().unwrap_or_default(),
+                );
+
+                let last_delta = (last_clk_epoch.to_duration()
+                    - last_obs_epoch.to_duration_in_time_scale(TimeScale::UTC))
+                .to_seconds();
+
+                !(
+                    // [a] CLK should start prior or at the same time as observations.
+                    first_obs_epoch < first_clk_epoch
+                    // [b] tolerate one symbol difference at the end of each file, no more.
+                    && last_delta <= 2.0 * obs_sampling.to_seconds()
+                    // [c] sampling should be steady: no gaps
+                    && obs.steady_sampling()
+                    // [c] sampling should be steady: no gaps
+                    && clk.steady_sampling()
+                    // [d] sampling should be identical: c+d <=> strict equaliy
+                    && obs.dominant_sample_rate() == clk.dominant_sample_rate()
+                )
             } else {
                 false
             }
@@ -718,7 +735,7 @@ mod test {
     #[cfg(feature = "flate2")]
     fn test_clk_needs_interp() {
         let obs_path = env!("CARGO_MANIFEST_DIR").to_owned()
-            + "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz";
+            + "/../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz";
 
         for (clk_path, needs_interp) in [
             ("V2/COD20352.CLK", true),
@@ -726,6 +743,11 @@ mod test {
         ] {
             let obs_path = Path::new(&obs_path).to_path_buf();
             let mut ctx = RnxContext::new(&obs_path).unwrap();
+            assert!(
+                ctx.has_observation_data(),
+                "OBS product not correctly latched"
+            );
+
             let clk_path = Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("..")
                 .join("test_resources")
@@ -733,7 +755,14 @@ mod test {
                 .join(clk_path)
                 .to_path_buf();
             ctx.load(&clk_path).unwrap();
-            assert_eq!(ctx.needs_clock_interpolation(), needs_interp);
+            assert!(ctx.has_clock_data(), "CLK product not correctly latched");
+
+            assert_eq!(
+                ctx.needs_clock_interpolation(),
+                needs_interp,
+                "test failed for CLK \"{}\"",
+                clk_path.display()
+            );
         }
     }
 }

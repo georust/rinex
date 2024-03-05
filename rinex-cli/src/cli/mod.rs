@@ -219,7 +219,7 @@ impl Cli {
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
-                    .about("RINEX post processing (command line)")
+                    .about("RINEX post processing")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
                     .arg(Arg::new("filepath")
