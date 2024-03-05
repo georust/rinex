@@ -1441,8 +1441,7 @@ impl Header {
                     fmt_rinex(&format!("   {:x}", ts), "TIME SYSTEM ID")
                 )?;
             }
-
-            //// possible agency
+            // TODO: missing fields
             //if let Some(agency) = &clock.agency {
             //    writeln!(
             //        f,

@@ -59,11 +59,7 @@ fn ctx_sv_clock_states(
             ProductType::Radio => {
                 let mut tree = BTreeMap::<SV, Vec<(Epoch, (f64, f64, f64))>>::new();
                 for (t, sv, (bias, drift, driftr)) in nav.sv_clock() {
-                    if let Some(inner) = tree.get_mut(&sv) {
-                        inner.push((t, (bias, drift, driftr)));
-                    } else {
-                        tree.insert(sv, vec![(t, (bias, drift, driftr))]);
-                    }
+                    tree.entry(sv).or_default().push((t, (bias, drift, drift)));
                 }
                 states.insert(product, tree);
             },
@@ -74,22 +70,21 @@ fn ctx_sv_clock_states(
                         if !nav_sv.contains(&sv) {
                             continue;
                         }
-                        if let Some(inner) = tree.get_mut(&sv) {
-                            inner.push((t, (bias, 0.0_f64, 0.0_f64)));
-                        } else {
-                            tree.insert(sv, vec![(t, (bias, 0.0_f64, 0.0_f64))]);
-                        }
+                        tree.entry(sv)
+                            .or_default()
+                            .push((t, (bias, 0.0_f64, 0.0_f64)));
                     }
-                    for (t, sv, drift) in sp3.sv_clock_change() {
-                        if !nav_sv.contains(&sv) {
-                            continue;
-                        }
-                        if let Some(inner) = tree.get_mut(&sv) {
-                            //TODO augment with drift
-                        } else {
-                            tree.insert(sv, vec![(t, (0.0_f64, drift, 0.0_f64))]);
-                        }
-                    }
+                    // TODO: augment clock offset with possible drift
+                    //for (t, sv, drift) in sp3.sv_clock_change() {
+                    //    if !nav_sv.contains(&sv) {
+                    //        continue;
+                    //    }
+                    //    if let Some(inner) = tree.get_mut(&sv) {
+                    //        //TODO augment with drift
+                    //    } else {
+                    //        tree.insert(sv, vec![(t, (0.0_f64, drift, 0.0_f64))]);
+                    //    }
+                    //}
                     states.insert(product, tree);
                 }
             },
@@ -105,11 +100,7 @@ fn ctx_sv_clock_states(
                             profile.drift.unwrap_or(0.0_f64),
                             profile.drift_change.unwrap_or(0.0_f64),
                         );
-                        if let Some(inner) = tree.get_mut(&sv) {
-                            inner.push((t, ck));
-                        } else {
-                            tree.insert(sv, vec![(t, ck)]);
-                        }
+                        tree.entry(sv).or_default().push((t, ck));
                     }
                     states.insert(product, tree);
                 }
@@ -370,7 +361,9 @@ fn plot_system_time(
                         .iter()
                         .filter(|(state_sv, data)| *state_sv == sv)
                         .reduce(|k, _| k)
-                    {}
+                    {
+                        //FIXME: conclude this graph
+                    }
                 }
             }
         }

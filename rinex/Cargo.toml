@@ -35,7 +35,7 @@ ionex = []
 # Unlocks dedicated browsing methods and dedicated analysis.
 clock = []
 
-# Unlock IONEX full support.
+# Unlock ANTEX full support.
 # Unlocks dedicated browsing methods and antenna compensation methods.
 antex = []
 

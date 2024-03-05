@@ -145,12 +145,12 @@ impl Ephemeris {
             },
             _ => {
                 let mut dt = (t - toe).to_seconds();
-                // GPST ephemeris logic..
                 // TODO: does this apply to others like GST ?
-                if dt > 302400.0 {
-                    dt -= 604800.0;
-                } else if dt < -302400.0 {
-                    dt += 604800.0;
+                const WEEK_SECONDS: f64 = 604800.0;
+                if dt > WEEK_SECONDS / 2.0 {
+                    dt -= WEEK_SECONDS;
+                } else if dt < -WEEK_SECONDS / 2.0 {
+                    dt += WEEK_SECONDS;
                 }
                 Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
             },

@@ -144,7 +144,7 @@ pub(crate) fn is_new_epoch(line: &str) -> bool {
     if line.len() < 3 {
         false
     } else {
-        let content = line.split_at(2).0;
+        let content = &line[..2];
         ClockProfileType::from_str(content).is_ok()
     }
 }
@@ -190,15 +190,10 @@ pub(crate) fn parse_epoch(
         },
     };
 
-    // Epoch
-    let offset = 4+1 // Y always a 4 digit number, even on RINEX2
-       +2+1 // m
-       +2+1  // d
-       +2+1  // h
-       +2+1  // m
-        +11; // s
+    // Epoch: Y on 4 digits, even on RINEX2
+    const OFFSET: usize = "yyyy mm dd hh mm sssssssssss".len();
 
-    let (epoch, rem) = rem.split_at(offset);
+    let (epoch, rem) = rem.split_at(OFFSET);
     let (epoch, _) = epoch::parse_utc(epoch.trim())?;
 
     // nb of data fields

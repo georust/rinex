@@ -1226,10 +1226,7 @@ impl Rinex {
                                     None
                                 }
                             })
-                            .fold(vec![], |mut list, sv| {
-                                list.push(sv);
-                                list
-                            })
+                            .collect::<Vec<_>>()
                             .into_iter()
                     })
                     .unique(),
@@ -1241,17 +1238,8 @@ impl Rinex {
                     .iter()
                     .flat_map(|(_, keys)| {
                         keys.iter()
-                            .filter_map(|(key, _)| {
-                                if let Some(sv) = key.clock_type.as_sv() {
-                                    Some(sv)
-                                } else {
-                                    None
-                                }
-                            })
-                            .fold(vec![], |mut list, sv| {
-                                list.push(sv);
-                                list
-                            })
+                            .filter_map(|(key, _)| key.clock_type.as_sv())
+                            .collect::<Vec<_>>()
                             .into_iter()
                     })
                     .unique(),
@@ -3035,7 +3023,6 @@ impl Rinex {
         bias += (t - before_t).to_seconds() / dt * after_prof.bias;
         let drift: Option<f64> = match (before_prof.drift, after_prof.drift) {
             (Some(before_drift), Some(after_drift)) => {
-                let dt = (after_t - before_t).to_seconds();
                 let mut drift = (after_t - t).to_seconds() / dt * before_drift;
                 drift += (t - before_t).to_seconds() / dt * after_drift;
                 Some(drift)
