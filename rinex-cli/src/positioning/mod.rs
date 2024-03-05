@@ -226,7 +226,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
                             .with_elevation_azimuth((elevation, azimuth)),
                     )
                 } else {
-                    // debug!("{:?} ({}): sp3 interpolation failed", t, sv);
+                    error!("{:?} ({}): sp3 interpolation failed", t, sv);
                     if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
                         let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
                         let (elevation, azimuth) =
@@ -236,7 +236,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
                                 .with_elevation_azimuth((elevation, azimuth)),
                         )
                     } else {
-                        // debug!("{:?} ({}): nav interpolation failed", t, sv);
+                        error!("{:?} ({}): nav interpolation failed", t, sv);
                         None
                     }
                 }
@@ -248,7 +248,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
                         .with_elevation_azimuth((elevation, azimuth)),
                 )
             } else {
-                // debug!("{:?} ({}): nav interpolation failed", t, sv);
+                error!("{:?} ({}): nav interpolation failed", t, sv);
                 None
             }
         },

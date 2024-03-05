@@ -3,70 +3,154 @@ use plotly::common::{Mode, Visible};
 use rinex::navigation::Ephemeris;
 use rinex::prelude::*;
 
-pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
-    let mut clock_plot_created = false;
-    if let Some(nav) = ctx.nav_data() {
-        /*
-         * Plot SV Clock Offset/Drift
-         * one plot (2 Y axes) for both Clock biases
-         * and clock drift
-         */
-        for (sv_index, sv) in nav.sv().enumerate() {
-            if sv_index == 0 {
-                plot_ctx.add_timedomain_2y_plot(
-                    "SV Clock Bias",
-                    "Clock Bias [s]",
-                    "Clock Drift [s/s]",
-                );
-                trace!("sv clock plot");
-                clock_plot_created = true;
-            }
-            let sv_epochs: Vec<_> = nav
-                .sv_clock()
-                .filter_map(
-                    |(epoch, svnn, (_, _, _))| {
-                        if svnn == sv {
-                            Some(epoch)
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect();
-            let sv_clock: Vec<_> = nav
-                .sv_clock()
-                .filter_map(
-                    |(_epoch, svnn, (clk, _, _))| {
-                        if svnn == sv {
-                            Some(clk)
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect();
+use itertools::Itertools;
+use std::collections::{BTreeMap, HashMap};
 
-            let sv_drift: Vec<_> = nav
-                .sv_clock()
-                .filter_map(
-                    |(_epoch, svnn, (_, drift, _))| {
-                        if svnn == sv {
-                            Some(drift)
-                        } else {
-                            None
+use sp3::SP3;
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum ProductType {
+    Radio,
+    HighPrecisionSp3,
+    HighPrecisionClk,
+}
+
+/// Clock states from all products provided by User
+type CtxClockStates = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, (f64, f64, f64))>>>;
+/// Clock Corrections from all products provided by User
+type CtxClockCorrections = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, Duration)>>>;
+
+pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+    if let Some(nav) = ctx.nav_data() {
+        let nav_sv = nav.sv().collect::<Vec<_>>();
+        let clk = ctx.clk_data();
+        let sp3 = ctx.sp3_data();
+        let clock_states = ctx_sv_clock_states(nav, &nav_sv, clk, sp3);
+        plot_sv_clock_states(&clock_states, &nav_sv, plot_ctx);
+
+        if let Some(obs) = ctx.obs_data() {
+            let clock_corrections = ctx_sv_clock_corrections(obs, nav, clk, sp3);
+            plot_sv_clock_corrections(&clock_corrections, plot_ctx);
+            plot_system_time(&clock_states, &clock_corrections, &nav_sv, plot_ctx);
+        } else {
+            info!("adding OBS RINEX will provide clock corrections graphs");
+        }
+    } else {
+        warn!("missing navigation (orbits) data");
+    }
+}
+
+/*
+ * Determines all clock states
+ */
+fn ctx_sv_clock_states(
+    nav: &Rinex,
+    nav_sv: &Vec<SV>,
+    clk: Option<&Rinex>,
+    sp3: Option<&SP3>,
+) -> CtxClockStates {
+    let mut states = CtxClockStates::new();
+    for product in [
+        ProductType::Radio,
+        ProductType::HighPrecisionSp3,
+        ProductType::HighPrecisionClk,
+    ] {
+        match product {
+            ProductType::Radio => {
+                let mut tree = BTreeMap::<SV, Vec<(Epoch, (f64, f64, f64))>>::new();
+                for (t, sv, (bias, drift, driftr)) in nav.sv_clock() {
+                    tree.entry(sv).or_default().push((t, (bias, drift, drift)));
+                }
+                states.insert(product, tree);
+            },
+            ProductType::HighPrecisionSp3 => {
+                if let Some(sp3) = sp3 {
+                    let mut tree = BTreeMap::<SV, Vec<(Epoch, (f64, f64, f64))>>::new();
+                    for (t, sv, bias) in sp3.sv_clock() {
+                        if !nav_sv.contains(&sv) {
+                            continue;
                         }
-                    },
-                )
-                .collect();
+                        tree.entry(sv)
+                            .or_default()
+                            .push((t, (bias, 0.0_f64, 0.0_f64)));
+                    }
+                    // TODO: augment clock offset with possible drift
+                    //for (t, sv, drift) in sp3.sv_clock_change() {
+                    //    if !nav_sv.contains(&sv) {
+                    //        continue;
+                    //    }
+                    //    if let Some(inner) = tree.get_mut(&sv) {
+                    //        //TODO augment with drift
+                    //    } else {
+                    //        tree.insert(sv, vec![(t, (0.0_f64, drift, 0.0_f64))]);
+                    //    }
+                    //}
+                    states.insert(product, tree);
+                }
+            },
+            ProductType::HighPrecisionClk => {
+                if let Some(clk) = clk {
+                    let mut tree = BTreeMap::<SV, Vec<(Epoch, (f64, f64, f64))>>::new();
+                    for (t, sv, _, profile) in clk.precise_sv_clock() {
+                        if !nav_sv.contains(&sv) {
+                            continue;
+                        }
+                        let ck = (
+                            profile.bias,
+                            profile.drift.unwrap_or(0.0_f64),
+                            profile.drift_change.unwrap_or(0.0_f64),
+                        );
+                        tree.entry(sv).or_default().push((t, ck));
+                    }
+                    states.insert(product, tree);
+                }
+            },
+        }
+    }
+    states
+}
+
+/*
+ * Plot SV Clock Offset/Drift
+ * one plot (2 Y axes) for both Clock biases
+ * and clock drift
+ */
+fn plot_sv_clock_states(ctx: &CtxClockStates, nav_sv: &Vec<SV>, plot_ctx: &mut PlotContext) {
+    trace!("sv clock states plot");
+    for (product, vehicles) in ctx {
+        match product {
+            ProductType::Radio => {
+                plot_ctx.add_timedomain_2y_plot("BRDC SV Clock", "Offset [s]", "Drift [s/s]");
+            },
+            ProductType::HighPrecisionSp3 => {
+                plot_ctx.add_timedomain_2y_plot("SP3 SV Clock", "Offset [s]", "Drift [s/s]");
+            },
+            ProductType::HighPrecisionClk => {
+                plot_ctx.add_timedomain_2y_plot("CLK SV Clock", "Offset [s]", "Drift [s/s]");
+            },
+        };
+        for (index, (sv, results)) in vehicles.iter().enumerate() {
+            if !nav_sv.contains(&sv) {
+                continue;
+            }
+            let sv_epochs = results.iter().map(|(t, _)| *t).collect::<Vec<_>>();
+            let sv_bias = results
+                .iter()
+                .map(|(_, (bias, _, _))| *bias)
+                .collect::<Vec<_>>();
+            let sv_drift = results
+                .iter()
+                .map(|(_, (_, drift, _))| *drift)
+                .collect::<Vec<_>>();
 
             let trace = build_chart_epoch_axis(
-                &format!("{:X}(clk)", sv),
+                &format!("{:X}(offset)", sv),
                 Mode::LinesMarkers,
                 sv_epochs.clone(),
-                sv_clock,
+                sv_bias,
             )
             .visible({
-                if sv_index == 0 {
+                if index == 0 {
                     /*
                      * Clock data differs too much,
                      * looks better if we only present one by default
@@ -86,7 +170,7 @@ pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
             )
             .y_axis("y2")
             .visible({
-                if sv_index == 0 {
+                if index == 0 {
                     /*
                      * Clock data differs too much,
                      * looks better if we only present one by default
@@ -99,99 +183,136 @@ pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
             plot_ctx.add_trace(trace);
         }
     }
-    /*
-     * Plot similar SP3 data (if any)
-     */
-    if let Some(sp3) = ctx.sp3_data() {
-        for (sv_index, sv) in sp3.sv().enumerate() {
-            if sv_index == 0 && !clock_plot_created {
-                plot_ctx.add_timedomain_2y_plot(
-                    "SV Clock Bias",
-                    "Clock Bias [s]",
-                    "Clock Drift [s/s]",
-                );
-                trace!("sv clock plot");
-                clock_plot_created = true;
+}
+
+/*
+/ * Determines all clock corrections from context
+/ */
+fn ctx_sv_clock_corrections(
+    obs: &Rinex,
+    nav: &Rinex,
+    clk: Option<&Rinex>,
+    sp3: Option<&SP3>,
+) -> CtxClockCorrections {
+    let mut clock_corr = CtxClockCorrections::new();
+    for ((t, flag), (_, vehicles)) in obs.observation() {
+        if !flag.is_ok() {
+            continue;
+        }
+        for (sv, _) in vehicles {
+            let sv_eph = nav.sv_ephemeris(*sv, *t);
+            if sv_eph.is_none() {
+                continue;
             }
 
-            let epochs: Vec<_> = sp3
-                .sv_clock()
-                .filter_map(
-                    |(epoch, svnn, _clk)| {
-                        if svnn == sv {
-                            Some(epoch)
+            let (toe, sv_eph) = sv_eph.unwrap();
+
+            for product in [
+                ProductType::Radio,
+                ProductType::HighPrecisionSp3,
+                ProductType::HighPrecisionClk,
+            ] {
+                let clock_state: Option<(f64, f64, f64)> = match product {
+                    ProductType::Radio => Some(sv_eph.sv_clock()),
+                    ProductType::HighPrecisionSp3 => {
+                        //TODO: sv_clock interpolate please
+                        None
+                    },
+                    ProductType::HighPrecisionClk => {
+                        if let Some(clk) = clk {
+                            clk.precise_sv_clock()
+                                .filter_map(|(clk_t, clk_sv, _, prof)| {
+                                    if clk_t == *t && clk_sv == *sv {
+                                        Some((
+                                            prof.bias,
+                                            prof.drift.unwrap_or(0.0_f64),
+                                            prof.drift_change.unwrap_or(0.0_f64),
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .reduce(|k, _| k)
+                            //if let Some((_, profile)) = clk
+                            //    .precise_sv_clock_interpolate(*t, *sv)
+                            //{
+                            //    Some((profile.bias, profile.drift.unwrap_or(0.0_f64), profile.drift_change.unwrap_or(0.0_f64)))
+                            //} else {
+                            //    None
+                            //}
                         } else {
                             None
                         }
                     },
-                )
-                .collect();
-            let data: Vec<_> = sp3
-                .sv_clock()
-                .filter_map(
-                    |(_, svnn, clk)| {
-                        if svnn == sv {
-                            Some(clk * 1.0E-6)
+                };
+
+                if let Some(clock_state) = clock_state {
+                    let correction = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
+
+                    // insert result
+                    if let Some(inner) = clock_corr.get_mut(&product) {
+                        if let Some(inner) = inner.get_mut(&sv) {
+                            inner.push((*t, correction));
                         } else {
-                            None
+                            inner.insert(*sv, vec![(*t, correction)]);
                         }
-                    },
-                )
-                .collect();
-            let trace =
-                build_chart_epoch_axis(&format!("{:X}(sp3_clk)", sv), Mode::Markers, epochs, data)
-                    .visible({
-                        if sv_index == 0 {
-                            // Clock data differs too much: plot only one to begin with
-                            Visible::True
-                        } else {
-                            Visible::LegendOnly
-                        }
-                    });
-            plot_ctx.add_trace(trace);
+                    } else {
+                        let mut inner = BTreeMap::<SV, Vec<(Epoch, Duration)>>::new();
+                        inner.insert(*sv, vec![(*t, correction)]);
+                        clock_corr.insert(product, inner);
+                    }
+                }
+            }
         }
     }
-    /*
-     * Plot BRDC Clock correction
-     */
-    if let Some(navdata) = ctx.nav_data() {
-        if let Some(obsdata) = ctx.obs_data() {
-            for (sv_index, sv) in obsdata.sv().enumerate() {
-                if sv_index == 0 {
-                    plot_ctx.add_timedomain_plot("SV Clock Correction", "Correction [s]");
-                    trace!("brdc clock correction plot");
-                }
-                let epochs: Vec<_> = obsdata
-                    .observation()
-                    .filter_map(|((t, flag), (_, vehicles))| {
-                        if flag.is_ok() && vehicles.contains_key(&sv) {
-                            Some(*t)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                let clock_corr: Vec<_> = obsdata
-                    .observation()
-                    .filter_map(|((t, flag), (_, _vehicles))| {
-                        if flag.is_ok() {
-                            let (toe, sv_eph) = navdata.sv_ephemeris(sv, *t)?;
-                            /*
-                             * TODO prefer SP3 (if any)
-                             */
-                            let clock_state = sv_eph.sv_clock();
-                            let clock_corr = Ephemeris::sv_clock_corr(sv, clock_state, *t, toe);
-                            Some(clock_corr.to_seconds())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
+    clock_corr
+}
 
+/*
+/ * Plot SV clock corrections
+*/
+fn plot_sv_clock_corrections(ctx: &CtxClockCorrections, plot_ctx: &mut PlotContext) {
+    trace!("sv clock corrections plot");
+    for (product, vehicles) in ctx {
+        for ts in vehicles
+            .iter()
+            .map(|(sv, _)| sv.constellation.timescale().unwrap())
+            .unique()
+        {
+            match product {
+                ProductType::Radio => {
+                    plot_ctx.add_timedomain_plot(
+                        &format!("|{} - SV| BRDC Correction", ts),
+                        "Offset [s]",
+                    );
+                },
+                ProductType::HighPrecisionSp3 => {
+                    plot_ctx.add_timedomain_plot(
+                        &format!("|{} - SV| SP3 Correction", ts),
+                        "Offset [s]",
+                    );
+                },
+                ProductType::HighPrecisionClk => {
+                    plot_ctx.add_timedomain_plot(
+                        &format!("|{} - SV| CLK Correction", ts),
+                        "Offset [s]",
+                    );
+                },
+            }
+            for (index, (sv, data)) in vehicles
+                .iter()
+                .filter(|(sv, data)| sv.constellation.timescale().unwrap() == ts)
+                .enumerate()
+            {
+                let epochs = data.iter().map(|(t, _)| *t).collect::<Vec<_>>();
+                let offset = data
+                    .iter()
+                    .map(|(_, dt)| dt.to_seconds())
+                    .collect::<Vec<_>>();
                 let trace =
-                    build_chart_epoch_axis(&format!("{}", sv), Mode::Markers, epochs, clock_corr)
+                    build_chart_epoch_axis(&format!("{}", sv), Mode::Markers, epochs, offset)
                         .visible({
-                            if sv_index < 3 {
+                            if index == 0 {
                                 Visible::True
                             } else {
                                 Visible::LegendOnly
@@ -199,19 +320,65 @@ pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                         });
                 plot_ctx.add_trace(trace);
             }
-        } else {
-            warn!("cannot plot brdc clock correction: needs OBS RINEX");
+        }
+    }
+}
+
+/*
+ * Plot System time as resolved from all provided products
+ */
+fn plot_system_time(
+    states: &CtxClockStates,
+    corrections: &CtxClockCorrections,
+    nav_sv: &Vec<SV>,
+    plot_ctx: &mut PlotContext,
+) {
+    trace!("time system plot");
+    for (product, vehicles) in corrections {
+        for ts in vehicles
+            .iter()
+            .map(|(sv, _)| sv.constellation.timescale().unwrap())
+            .unique()
+        {
+            match product {
+                ProductType::Radio => {
+                    plot_ctx.add_timedomain_plot(&format!("{} from BRDC", ts), "Epoch");
+                },
+                ProductType::HighPrecisionSp3 => {
+                    plot_ctx.add_timedomain_plot(&format!("{} from SP3", ts), "Epoch");
+                },
+                ProductType::HighPrecisionClk => {
+                    plot_ctx.add_timedomain_plot(&format!("{} from CLK", ts), "Epoch");
+                },
+            }
+            for (_, state_vehicles) in states.iter().filter(|(k, _)| *k == product) {
+                for (index, (sv, corrections)) in vehicles
+                    .iter()
+                    .filter(|(sv, data)| sv.constellation.timescale() == Some(ts))
+                    .enumerate()
+                {
+                    if let Some((_, data)) = state_vehicles
+                        .iter()
+                        .filter(|(state_sv, data)| *state_sv == sv)
+                        .reduce(|k, _| k)
+                    {
+                        //FIXME: conclude this graph
+                    }
+                }
+            }
         }
     }
 }
 
 pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let mut pos_plot_created = false;
+    let mut nav_sv = Vec::<SV>::with_capacity(32);
     /*
      * Plot Broadcast Orbit (x, y, z)
      */
     if let Some(nav) = ctx.nav_data() {
         for (sv_index, sv) in nav.sv().enumerate() {
+            nav_sv.push(sv);
             if sv_index == 0 {
                 plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
                 trace!("broadcast orbit plot");
@@ -289,6 +456,9 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
      */
     if let Some(sp3) = ctx.sp3_data() {
         for (sv_index, sv) in sp3.sv().enumerate() {
+            if !nav_sv.contains(&sv) {
+                continue;
+            }
             if sv_index == 0 && !pos_plot_created {
                 plot_ctx.add_cartesian3d_plot("SV Orbit (broadcast)", "x [km]", "y [km]", "z [km]");
                 trace!("broadcast orbit plot");

@@ -95,20 +95,19 @@ or we post processed determined a CS.",
                 .help("Skyplot: SV position in the sky, on a compass."),
         )
         .arg(
-            Arg::new("orbits")
-                .long("orbits")
+            Arg::new("orbit")
+                .long("orbit")
                 .action(ArgAction::SetTrue)
                 .help("SV position in the sky, on 2D cartesian plots."),
         )
         .arg(
-            Arg::new("sp3-res")
-                .long("sp3-res")
+            Arg::new("orbit-residual")
+                .long("orbit-residual")
                 .action(ArgAction::SetTrue)
                 .help(
-                    "SV orbital attitude residual analysis |BRDC - SP3|.
-Requires both NAV RINEX and SP3 that overlap in time.",
-                ),
-        )
+                    "Broadcast versus High Precision orbital product comparison |BRDC - SP3|.
+Requires both NAV RINEX and SP3 that overlap in time.
+It is the orbital equuivalent to |BRDC-CLK| requested with --clk-residual."))
         .arg(
             Arg::new("naviplot")
                 .long("naviplot")
@@ -124,7 +123,15 @@ Ideal for precise positioning decision making.",
                 .short('c')
                 .long("clk")
                 .action(ArgAction::SetTrue)
-                .help("SV clock bias (offset, drift, drift changes)."),
+                .help("SV clock bias (offset, drift, drift changes).")
+        )
+        .arg(
+            Arg::new("clk-residual")
+                .long("clk-residual")
+                .action(ArgAction::SetTrue)
+                .help("Broadcast versus High Precision clock product comparison |BRDC - CLK|.
+Requires both NAV RINEX and Clock RINEX that overlap in time.
+It is the temporal equuivalent to |BRDC-SP3| requested with --sp3-residual.")
         )
         .next_help_heading("Atmosphere conditions")
         .arg(

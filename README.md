@@ -27,22 +27,22 @@ You can also contact us [on our Discord channel](https://discord.gg/Fp2aape)
 - Meteo RINEX full support
 - IONEX 2D support. Partial IONEX 3D support.
 - Partial ANTEX support
-- Parial Clock RINEX support
-- Several pre processing operations:
-  - File merging
-  - Time binning 
-  - Filtering.. 
+- Full support of High Precision Clock RINEX products
+- Full support of [SP3](https://docs.rs/sp3/1.0.7/sp3/) High precision orbit products
+- Several pre processing algorithms:
+  - [File merging](https://github.com/georust/rinex/wiki/file-merging)
+  - [Time binning](https://github.com/georust/rinex/wiki/time-binning)
+  - [Filtering](https://github.com/georust/rinex/wiki/Preprocessing)
 - Several post processing operations
-- All modern GNSS constellations
-- Modern GNSS codes and signals
+  - [Position solver](https://github.com/georust/rinex/wiki/Positioning)
+  - [Graphical analysis](https://github.com/georust/rinex/wiki/Graph-Mode)
+  - [CGGTTS solutions solver](https://github.com/georust/rinex/wiki/CGGTTS)
+- All modern GNSS constellations, codes and signals
 - Time scales: GPST, BDT, GST, UTC
-- Supports many SBAS, refer to online documentation
-- High precision RINEX (carrier phase micro cycle precision)
-- High precision orbit support (SP3)
-- Quality Check (QC): file quality and statistical analysis to help precise positioning
+- [SBAS support](https://docs.rs/gnss-rs/2.1.3/gnss_rs/constellation/enum.Constellation.html)
+- High precision phase data (micro cycle precision) theoretically supported but not tested yet
+- [Quality Check (QC)](https://github.com/georust/rinex/wiki/Quality-Check): file quality and statistical analysis to help precise positioning
 (historical `teqc` function).
-- SPP: Single Point Positioning
-- PPP: Precise Point Positioning is work in progress :warning:
 
 ## Disadvantages :warning:
 
@@ -103,7 +103,7 @@ RINEX formats & applications
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Phase, Pseudo Range, Doppler, SSI | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:  | Phase, Pseudo Range, Doppler, SSI | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Meteo sensors data (Temperature, Moisture..) | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Clock comparison |  Epoch iteration |
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Precise Clock product |  Epoch iteration |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Antenna calibration data | Sorted by `antex::Antenna` |
 |  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: |:construction: | Ionosphere Electron density | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch iteration |
@@ -114,7 +114,8 @@ RINEX formats & applications
 :construction: : Work in Progress   
 __CLI__ + :chart_with_upwards_trend: means the [cli app](rinex-cli/README.md) provides one or several visualizations
 
-The [cli app](rinex-cli/README.md) accepts more than RINEX input, for example SP3 (high precision orbits) are accepted.
+`RINEX-Cli` accepts more than RINEX input, for example SP3 (high precision orbits) are accepted.   
+Read [how to load your GNSS context](https://github.com/georust/rinex/wiki/file-loading) in our Wiki.
 
 File formats
 ============
@@ -127,6 +128,8 @@ File formats
 | gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
 | SP3                    | :heavy_minus_sign:                | :heavy_check_mark:                 | 
 | gzip compressed SP3    | Name must end with `.gz`          | `--flate2` feature must be enabled | 
+| BINEX                  | :heavy_minus_sign:                | :heavy_minus_sign: We do not support proprietary formats |
+| UBX                    | :heavy_minus_sign:                | :construction: This is work in progress |
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
 

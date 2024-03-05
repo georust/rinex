@@ -473,7 +473,7 @@ pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f
         observation_against_model(dut, model, filename, epsilon);
     } else if dut.is_meteo_rinex() {
         meteo_against_model(dut, model, filename, epsilon);
-    } else if dut.is_clocks_rinex() {
+    } else if dut.is_clock_rinex() {
         clocks_against_model(dut, model, filename, epsilon);
     } else if dut.is_navigation_rinex() {
         navigation_against_model(dut, model, filename, epsilon);
@@ -530,7 +530,7 @@ pub fn test_meteo_rinex(
         "should not contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_none(),
+        dut.header.clock.is_none(),
         "should not contain specific CLOCK fields"
     );
 
@@ -559,7 +559,7 @@ pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&
         "should not contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_none(),
+        dut.header.clock.is_none(),
         "should not contain specific CLOCK fields"
     );
 }
@@ -569,7 +569,7 @@ pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&
  */
 pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
     test_rinex(dut, version, constellation);
-    assert!(dut.is_clocks_rinex(), "should be declared as CLK RINEX");
+    assert!(dut.is_clock_rinex(), "should be declared as CLK RINEX");
     /*
      * Header specific fields
      */
@@ -586,7 +586,7 @@ pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>)
         "should not contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_some(),
+        dut.header.clock.is_some(),
         "should contain specific CLOCK fields"
     );
 }
@@ -613,7 +613,7 @@ pub fn test_ionex(dut: &Rinex, version: &str, constellation: Option<&str>) {
         "should contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_none(),
+        dut.header.clock.is_none(),
         "should not contain specific CLOCK fields"
     );
 }
@@ -663,7 +663,7 @@ pub fn test_observation_rinex(
         "should not contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_none(),
+        dut.header.clock.is_none(),
         "should not contain specific CLOCK fields"
     );
 

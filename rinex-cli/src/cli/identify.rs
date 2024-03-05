@@ -74,4 +74,17 @@ pub fn subcommand() -> Command {
                 .action(ArgAction::SetTrue)
                 .help("Identify Navigation frame types."),
         )
+        .next_help_heading("Clock RINEX")
+        .arg(
+            Arg::new("station")
+                .long("station")
+                .action(ArgAction::SetTrue)
+                .help("Identify all ground stations contained in CLK RINEX file(s)"),
+        )
+        .arg(
+            Arg::new("station")
+                .long("station")
+                .action(ArgAction::SetTrue)
+                .help("Identify all ground stations contained in CLK RINEX file(s)"),
+        )
 }

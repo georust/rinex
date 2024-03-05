@@ -93,6 +93,9 @@ pub fn post_process(
         .name("PVT");
     plot_ctx.add_trace(pvt_scatter);
 
+    /*
+     * 3D position residues visualization
+     */
     let trace = build_3d_chart_epoch_label(
         "error",
         Mode::Markers,
@@ -102,13 +105,6 @@ pub fn post_process(
         results.values().map(|e| e.pos.z).collect::<Vec<f64>>(),
     );
 
-    /*
-     * Create graphical visualization
-     * dx, dy : one dual plot
-     * hdop, vdop : one dual plot
-     * dz : dedicated plot
-     * dt, tdop : one dual plot
-     */
     plot_ctx.add_cartesian3d_plot(
         "Position errors",
         "x error [m]",
@@ -117,6 +113,27 @@ pub fn post_process(
     );
     plot_ctx.add_trace(trace);
 
+    let mut worst_radius = 1000.0_f64;
+    /*
+     * Add Spherical mesh with radius being the
+     * largest error
+     */
+    for error in results
+        .iter()
+        .map(|(_, pvt)| (pvt.pos.x.powi(2) + pvt.pos.y.powi(2) + pvt.pos.z.powi(2)).sqrt())
+    {
+        if error > worst_radius {
+            worst_radius = error;
+        }
+    }
+
+    /*
+     * Create graphical visualization
+     * vel(x), vel(yy : dual plot
+     * vel(z) : dedicated plot
+     * hdop, vdop : dual plot
+     * dt, tdop : dual plot
+     */
     plot_ctx.add_timedomain_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
     let trace = build_chart_epoch_axis(
         "velocity (x)",

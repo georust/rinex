@@ -7,7 +7,7 @@ extern crate gnss_rs as gnss;
 
 pub mod antex;
 pub mod carrier;
-pub mod clocks;
+pub mod clock;
 pub mod epoch;
 pub mod gnss_time;
 pub mod hardware;
@@ -74,6 +74,8 @@ use hifitime::Unit;
 pub mod prelude {
     #[cfg(feature = "antex")]
     pub use crate::antex::AntennaMatcher;
+    #[cfg(feature = "clock")]
+    pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
     #[cfg(feature = "sp3")]
     pub use crate::context::RnxContext;
     pub use crate::epoch::EpochFlag;
@@ -605,8 +607,8 @@ impl Rinex {
                         RinexType::ObservationData => "MO".to_string(),
                         RinexType::MeteoData => "MM".to_string(),
                         RinexType::NavigationData => match constellation {
-                            Some(constell) => format!("M{:x}", constell),
                             Some(Constellation::Mixed) | None => "MN".to_string(),
+                            Some(constell) => format!("M{:x}", constell),
                         },
                         _ => unreachable!("unreachable fmt"),
                     };
@@ -683,7 +685,7 @@ impl Rinex {
     }
 
     /// Returns true if this is a CLOCK RINEX
-    pub fn is_clocks_rinex(&self) -> bool {
+    pub fn is_clock_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::ClockData
     }
 
@@ -852,45 +854,6 @@ impl Rinex {
         self.lli_and_mask_mut(observation::LliFlags::LOCK_LOSS)
     }
 
-    /// List [clocks::record::System] (reference systems) contained in this CLK RINEX.   
-    /// Reference systems can either be an SV or a ground station.
-    pub fn clock_ref_systems(&self) -> Vec<clocks::record::System> {
-        let mut map: Vec<clocks::record::System> = Vec::new();
-        if let Some(r) = self.record.as_clock() {
-            for dtypes in r.values() {
-                for systems in dtypes.values() {
-                    for system in systems.keys() {
-                        if !map.contains(system) {
-                            map.push(system.clone());
-                        }
-                    }
-                }
-            }
-        }
-        map.sort();
-        map
-    }
-
-    /// List Reference Ground Stations only, used in this CLK RINEX.  
-    /// To list reference SV, simply use [Rinex::sv].
-    pub fn clock_ref_stations(&self) -> Vec<String> {
-        let mut ret: Vec<String> = Vec::with_capacity(32);
-        if let Some(r) = self.record.as_clock() {
-            for dtypes in r.values() {
-                for systems in dtypes.values() {
-                    for system in systems.keys() {
-                        if let clocks::System::Station(station) = system {
-                            if !ret.contains(station) {
-                                ret.push(station.clone());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
     /// Applies given AND mask in place, to all observations.
     /// This has no effect on non observation records.
     /// This also drops observations that did not come with an LLI flag.  
@@ -977,311 +940,6 @@ impl Rinex {
         s
     }
 
-    /*
-        /// Single step /stage, in high order phase differencing
-        /// algorithm, which we use in case of old receiver data / old RINEX
-        /// to cancel geometric and atmospheric biases.
-        /// See [high_order_phase_difference]
-        fn high_order_phase_difference_step(&self) -> Result<BTreeMap<Epoch, HashMap<SV, HashMap<String, f64>>> {
-            let mut ret: BTreeMap<Epoch, HashMap<String, f64>> = BTreeMap::new();
-        }
-
-        /// Computes High Order Phase Difference
-        /// accross vehicles and epochs,
-        /// until differencing order is reached.
-        /// This is used in Geometric biases estimation,
-        /// in case of single channel receivers / old RINEX, where
-        /// only one carrier signal was sampled.
-        /// Final order is determined from the epoch interval
-        /// (the smallest the better), the phase data quality and so on.
-        fn high_order_phase_difference(&self, order: usize) -> Result<BTreeMap<Epoch, HashMap<SV, HashMap<String, f64>>> {
-            let mut ret: BTreeMap<Epoch, HashMap<String, f64>> = BTreeMap::new();
-            if let Some(rec) = self.record.as_obs() {
-                for (epoch, (_, vehicles)) in rec {
-                    for (sv, observations) in vehicles {
-                        for (code, data) in observations {
-                            if is_phase_observation(code) {
-
-                            }
-                        }
-                    }
-                }
-            }
-            ret
-        }
-
-        /// Estimates geometric biases () in Eq(2) page 2
-        /// of <>, which is the dominant bias in the cycle slip
-        /// determination. This is performed by substracting
-        /// raw phase data measurement for a given observation,
-        /// against the same observation along separate carrier frequency.
-        /// It is said to
-    */
-    /*
-        /// Extracts Pseudo Ranges without Ionospheric path delay contributions,
-        /// by extracting [pseudo_ranges] and using the differential (dual frequency) compensation.
-        /// We can only compute such information if pseudo range was evaluted
-        /// on at least two seperate carrier frequencies, for a given space vehicle at a certain epoch.
-        /// Does not produce anything if self is not an Observation RINEX.
-        pub fn iono_free_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<SV, f64>> {
-            let pr = self.observation_pseudo_ranges();
-            let mut results : BTreeMap<Epoch, BTreeMap<SV, f64>> = BTreeMap::new();
-            for (e, sv) in pr.iter() {
-                let mut map :BTreeMap<SV, f64> = BTreeMap::new();
-                for (sv, obs) in sv.iter() {
-                    let mut result :Option<f64> = None;
-                    let mut retained : Vec<(String, f64)> = Vec::new();
-                    for (code, value) in obs.iter() {
-                        if is_pseudorange_observation(code) {
-                            retained.push((code.clone(), *value));
-                        }
-                    }
-                    if retained.len() > 1 { // got a dual frequency scenario
-                        // we only care about 2 carriers
-                        let retained = &retained[0..2];
-                        // only left with two observables at this point
-                        // (obscode, data) mapping
-                        let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
-                        let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
-                        // need to determine frequencies involved
-                        let mut channels :Vec<Carrier> = Vec::with_capacity(2);
-                        for i in 0..codes.len() {
-                            if let Ok(channel) = Carrier::from_observable(sv.constellation, &codes[i]) {
-                                channels.push(channel)
-                            }
-                        }
-                        if channels.len() == 2 { // frequency identification passed, twice
-                            // --> compute
-                            let f0 = (channels[0].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
-                            let f1 = (channels[1].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
-                            let diff = (f0 * data[0] - f1 * data[1] ) / (f0 - f1) ;
-                            result = Some(diff)
-                        }
-                    }
-                    if let Some(result) = result {
-                        // conditions were met for this vehicle
-                        // at this epoch
-                        map.insert(*sv, result);
-                    }
-                }
-                if map.len() > 0 { // did produce something
-                    results.insert(*e, map);
-                }
-            }
-            results
-        }
-    */
-    /*
-        /// Extracts Carrier phases without Ionospheric path delay contributions,
-        /// by extracting [carrier_phases] and using the differential (dual frequency) compensation.
-        /// We can only compute such information if carrier phase was evaluted
-        /// on at least two seperate carrier frequencies, for a given space vehicle at a certain epoch.
-        /// Does not produce anything if self is not an Observation RINEX.
-        pub fn iono_free_observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<SV, f64>> {
-            let pr = self.observation_pseudoranges();
-            let mut results : BTreeMap<Epoch, BTreeMap<SV, f64>> = BTreeMap::new();
-            for (e, sv) in pr.iter() {
-                let mut map :BTreeMap<SV, f64> = BTreeMap::new();
-                for (sv, obs) in sv.iter() {
-                    let mut result :Option<f64> = None;
-                    let mut retained : Vec<(String, f64)> = Vec::new();
-                    for (code, value) in obs.iter() {
-                        if is_phase_observation(code) {
-                            retained.push((code.clone(), *value));
-                        }
-                    }
-                    if retained.len() > 1 { // got a dual frequency scenario
-                        // we only care about 2 carriers
-                        let retained = &retained[0..2];
-                        // only left with two observables at this point
-                        // (obscode, data) mapping
-                        let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
-                        let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
-                        // need to determine frequencies involved
-                        let mut channels :Vec<Carrier> = Vec::with_capacity(2);
-                        for i in 0..codes.len() {
-                            if let Ok(channel) = Carrier::from_observable(sv.constellation, &codes[i]) {
-                                channels.push(channel)
-                            }
-                        }
-                        if channels.len() == 2 { // frequency identification passed, twice
-                            // --> compute
-                            let f0 = (channels[0].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
-                            let f1 = (channels[1].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
-                            let diff = (f0 * data[0] - f1 * data[1] ) / (f0 - f1) ;
-                            result = Some(diff)
-                        }
-                    }
-                    if let Some(result) = result {
-                        // conditions were met for this vehicle
-                        // at this epoch
-                        map.insert(*sv, result);
-                    }
-                }
-                if map.len() > 0 { // did produce something
-                    results.insert(*e, map);
-                }
-            }
-            results
-        }
-    */
-    /*
-        /// Returns all Pseudo Range observations
-        /// converted to Real Distance (in [m]),
-        /// by compensating for the difference between
-        /// local clock offset and distant clock offsets.
-        /// We can only produce such data if local clock offset was found
-        /// for a given epoch, and related distant clock offsets were given.
-        /// Distant clock offsets can be obtained with [space_vehicles_clock_offset].
-        /// Real distances are extracted on an epoch basis, and per space vehicle.
-        /// This method has no effect on non observation data.
-        ///
-        /// Example:
-        /// ```
-        /// use rinex::prelude::*;
-        /// // obtain distance clock offsets, by analyzing a related NAV file
-        /// // (this is only an example..)
-        /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-        ///     .unwrap();
-        /// // Retain G07 + G08 vehicles
-        /// // to perform further calculations on these vehicles data (GPS + SVnn filter)
-        /// let filter = vec![
-        ///     SV {
-        ///         constellation: Constellation::GPS,
-        ///         prn: 7,
-        ///     },
-        ///     SV {
-        ///         constellation: Constellation::GPS,
-        ///         prn: 8,
-        ///     },
-        /// ];
-        /// rinex
-        ///     .retain_space_vehicle_mut(filter.clone());
-        /// // extract distant clock offsets
-        /// let sv_clk_offsets = rinex.space_vehicles_clock_offset();
-        /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
-        /// let mut rinex = rinex.unwrap();
-        /// // apply the same filter
-        /// rinex
-        ///     .retain_space_vehicle_mut(filter.clone());
-        /// let distances = rinex.observation_pseudodistances(sv_clk_offsets);
-        /// // exploit distances
-        /// for (e, sv) in distances.iter() { // (epoch, vehicles)
-        ///     for (sv, obs) in sv.iter() { // (vehicle, distance)
-        ///         for ((code, distance)) in obs.iter() { // obscode, distance
-        ///             // use the 3 letter code here,
-        ///             // to determine the carrier you're dealing with.
-        ///             let d = distance * 10.0; // consume, post process...
-        ///         }
-        ///     }
-        /// }
-        /// ```
-        pub fn observation_pseudodistances(
-            &self,
-            sv_clk_offsets: BTreeMap<Epoch, BTreeMap<SV, f64>>,
-        ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<SV, Vec<(String, f64)>>> {
-            let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<SV, Vec<(String, f64)>>> =
-                BTreeMap::new();
-            if let Some(r) = self.record.as_obs() {
-                for ((e, flag), (clk, sv)) in r {
-                    if let Some(distant_e) = sv_clk_offsets.get(e) {
-                        // got related distant epoch
-                        if let Some(clk) = clk {
-                            // got local clock offset
-                            let mut map: BTreeMap<SV, Vec<(String, f64)>> = BTreeMap::new();
-                            for (sv, obs) in sv.iter() {
-                                if let Some(sv_offset) = distant_e.get(sv) {
-                                    // got related distant offset
-                                    let mut v: Vec<(String, f64)> = Vec::new();
-                                    for (observable, data) in obs.iter() {
-                                        if observable.is_pseudorange_observation() {
-                                            // We currently do not support the compensation for biases
-                                            // than clock induced ones. ie., Ionospheric delays ??
-                                            v.push((
-                                                observable.code().unwrap(),
-                                                data.pr_real_distance(*clk, *sv_offset, 0.0),
-                                            ));
-                                        }
-                                    }
-                                    if v.len() > 0 {
-                                        // did come with at least 1 PR
-                                        map.insert(*sv, v);
-                                    }
-                                } // got related distant offset
-                            } // per sv
-                            if map.len() > 0 {
-                                // did produce something
-                                results.insert((*e, *flag), map);
-                            }
-                        } // got local clock offset attached to this epoch
-                    } //got related distance epoch
-                } // per epoch
-            }
-            results
-        }
-    */
-    /*
-        /// Returns epochs where a so called "cycle slip" has been confirmed.
-        /// We confirm a cycle slip by computing the double difference
-        /// between self and `rhs` Observation RINEX.
-        /// This does not produce anything if both are not
-        /// Observation RINEX files, ideally sampled at same epochs,
-        /// by two seperate but stationnary receivers. Refer to [diff_mut]
-        /// for further explanations on those computations.
-        ///
-        /// Example:
-        /// ```
-        /// use rinex::*;
-        /// // grab an observation rinex
-        /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
-        /// let cycle_slips = rnx.cycle_slips();
-        ///
-        /// // now we will confirm those cycle slip events by computing the double diff,
-        /// // assuming this secondary rinex recorded the same data
-        /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o").unwrap();
-        /// let confirmed_slips = rnx.confirmed_cycle_slips(&rnx_b);
-        /// ```
-        pub fn observation_confirmed_cycle_slip_epochs (&self, rhs: &Self) -> Result<Vec<Epoch>, DiffError> {
-            if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
-                return Err(DiffError::NotObsRinex) ;
-            }
-            let rnx = self.double_diff(rhs);
-            let vec : Vec<Epoch> = Vec::new();
-            Ok(vec)
-        }
-    CYCLE SLIPS CONFIRMATION
-    */
-
-    /// Filters out data that was not produced by given agency / station.
-    /// This has no effect on records other than CLK RINEX.
-    /// Example:
-    /// ```
-    /// use rinex::*;
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/CLK/V2/COD20352.CLK")
-    ///         .unwrap();
-    /// rinex
-    ///     .clock_agency_retain_mut(vec!["GUAM","GODE","USN7"]);
-    /// ```
-    pub fn clock_agency_retain_mut(&mut self, filter: Vec<&str>) {
-        if !self.is_clocks_rinex() {
-            return; // does not apply
-        }
-        let record = self.record.as_mut_clock().unwrap();
-        record.retain(|_, dtypes| {
-            dtypes.retain(|_dtype, systems| {
-                systems.retain(|system, _| {
-                    if let Some(agency) = system.as_station() {
-                        filter.contains(&agency.as_str())
-                    } else {
-                        false
-                    }
-                });
-                !systems.is_empty()
-            });
-            !dtypes.is_empty()
-        })
-    }
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: refer to supported RINEX types.
@@ -1568,20 +1226,23 @@ impl Rinex {
                                     None
                                 }
                             })
-                            .fold(vec![], |mut list, sv| {
-                                list.push(sv);
-                                list
-                            })
+                            .collect::<Vec<_>>()
                             .into_iter()
                     })
-                    .unique(), /*.fold(vec![], |mut list, sv| {
-                                   if !list.contains(&sv) {
-                                       list.push(sv);
-                                   }
-                                   list
-                               })
-                               .into_iter(),
-                               */
+                    .unique(),
+            )
+        } else if let Some(record) = self.record.as_clock() {
+            Box::new(
+                // grab all embedded sv clocks
+                record
+                    .iter()
+                    .flat_map(|(_, keys)| {
+                        keys.iter()
+                            .filter_map(|(key, _)| key.clock_type.as_sv())
+                            .collect::<Vec<_>>()
+                            .into_iter()
+                    })
+                    .unique(),
             )
         } else {
             panic!(
@@ -1589,24 +1250,6 @@ impl Rinex {
                 self.header.rinex_type
             );
         }
-        //} else if let Some(r) = self.record.as_clock() {
-        //    for (_, dtypes) in r {
-        //        for (_, systems) in dtypes {
-        //            for (system, _) in systems {
-        //                match system {
-        //                    clocks::System::SV(sv) => {
-        //                        if !map.contains(sv) {
-        //                            map.push(*sv);
-        //                        }
-        //                    },
-        //                    _ => {},
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
-        //map.sort();
-        //map
     }
 
     /// List all [`SV`] per epoch of appearance.
@@ -2468,7 +2111,7 @@ impl Rinex {
                     None
                 }
             })
-            .min_by_key(|(toe_i, _)| (t - *toe_i).abs())
+            .min_by_key(|(toe_i, _)| (t - *toe_i))
     }
     /// Returns an Iterator over SV (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)
@@ -3203,6 +2846,7 @@ impl Split for Rinex {
 use preprocessing::Smooth;
 
 #[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Smooth for Rinex {
     fn moving_average(&self, window: Duration) -> Self {
         let mut s = self.clone();
@@ -3230,6 +2874,7 @@ impl Smooth for Rinex {
 use crate::algorithm::{Filter, Preprocessing};
 
 #[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Preprocessing for Rinex {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -3245,6 +2890,7 @@ impl Preprocessing for Rinex {
 use crate::algorithm::Decimate;
 
 #[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Decimate for Rinex {
     fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
@@ -3276,6 +2922,7 @@ impl Decimate for Rinex {
 use observation::Dcb;
 
 #[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Dcb for Rinex {
     fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
@@ -3285,89 +2932,6 @@ impl Dcb for Rinex {
         }
     }
 }
-
-//#[cfg(feature = "obs")]
-//use observation::Mp;
-//
-//#[cfg(feature = "obs")]
-//impl Mp for Rinex {
-//    fn mp(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-//        /*
-//         * Determine mean value of all observed Phase and Pseudo Range
-//         * observations, for all SV
-//         */
-//        let mut mean: HashMap<SV, HashMap<Observable, f64>> = HashMap::new();
-//        /*
-//         * Associate a Phase code to all PR codes
-//         */
-//        let mut associations: HashMap<Observable, Observable> = HashMap::new();
-//
-//        let pr_codes: Vec<Observable> = self.observable()
-//            .filter_map(|obs|
-//                if obs.is_pseudorange_observable() {
-//                    Some(obs.clone())
-//                } else {
-//                    None
-//                })
-//            .collect();
-//
-//        for observable in self.observable() {
-//            if !observable.is_phase_observable() {
-//                if !observable.is_pseudorange_observable() {
-//                    continue;
-//                }
-//            }
-//            // code associations (for future combianations)
-//            if observable.is_phase_observable() {
-//                for pr_code in &pr_codes {
-//
-//                }
-//            }
-//
-//            for sv in self.sv() {
-//                /*
-//                 * average phase values
-//                 */
-//                let phases: Vec<f64> = self.carrier_phase()
-//                    .filter_map(|(_, svnn, obs, ph)| {
-//                        if sv == svnn && observable == obs {
-//                            Some(ph)
-//                        } else {
-//                            None
-//                        }
-//                    })
-//                    .collect();
-//                if let Some(data) = mean.get_mut(&sv) {
-//                    data.insert(observable.clone(), phases.mean());
-//                } else {
-//                    let mut map: HashMap<Observable, f64> = HashMap::new();
-//                    map.insert(observable.clone(), phases.mean());
-//                    mean.insert(sv, map);
-//                }
-//                /*
-//                 * average PR values
-//                 */
-//                let pr: Vec<f64> = self.pseudo_range()
-//                    .filter_map(|(_, svnn, obs, pr)| {
-//                        if sv == svnn && observable == obs {
-//                            Some(pr)
-//                        } else {
-//                            None
-//                        }
-//                    })
-//                    .collect();
-//                if let Some(data) = mean.get_mut(&sv) {
-//                    data.insert(observable.clone(), pr.mean());
-//                } else {
-//                    let mut map: HashMap<Observable, f64> = HashMap::new();
-//                    map.insert(observable.clone(), pr.mean());
-//                    mean.insert(sv, map);
-//                }
-//            }
-//        }
-//        HashMap::new()
-//    }
-//}
 
 #[cfg(feature = "obs")]
 use observation::{Combination, Combine};
@@ -3384,6 +2948,117 @@ impl Combine for Rinex {
         } else {
             HashMap::new()
         }
+    }
+}
+
+#[cfg(feature = "clock")]
+use crate::clock::{ClockKey, ClockProfile, ClockProfileType};
+
+/*
+ * Clock RINEX specific feature
+ */
+#[cfg(feature = "clock")]
+#[cfg_attr(docrs, doc(cfg(feature = "clock")))]
+impl Rinex {
+    /// Returns Iterator over Clock RINEX content.
+    pub fn precise_clock(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Epoch, &BTreeMap<ClockKey, ClockProfile>)> + '_> {
+        Box::new(
+            self.record
+                .as_clock()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
+    /// Returns Iterator over Clock RINEX content for Space Vehicles only (not ground stations).
+    pub fn precise_sv_clock(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, ClockProfileType, ClockProfile)> + '_> {
+        Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
+            rec.iter().filter_map(|(key, profile)| {
+                if let Some(sv) = key.clock_type.as_sv() {
+                    Some((*epoch, sv, key.profile_type.clone(), profile.clone()))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Interpolates Clock state at desired "t" expressed in the timescale you want.
+    /// Clock RINEX usually have a high sample rate, this has two consequences
+    ///  - it kind of allows clock states to be interpolated, as long as the
+    ///  sample rate is <= 30s (be careful with the end results)
+    ///   - they usually match the signal observation sampling.
+    ///  If you Clock RINEX matches your OBS RINEX, you don't need interpolation at all.
+    pub fn precise_sv_clock_interpolate(
+        &self,
+        t: Epoch,
+        sv: SV,
+    ) -> Option<(ClockProfileType, ClockProfile)> {
+        let before = self
+            .precise_sv_clock()
+            .filter_map(|(clk_t, clk_sv, clk, prof)| {
+                if clk_t <= t && clk_sv == sv {
+                    Some((clk_t, clk, prof))
+                } else {
+                    None
+                }
+            })
+            .last()?;
+        let after = self
+            .precise_sv_clock()
+            .filter_map(|(clk_t, clk_sv, clk, prof)| {
+                if clk_t > t && clk_sv == sv {
+                    Some((clk_t, clk, prof))
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)?;
+        let (before_t, clk_type, before_prof) = before;
+        let (after_t, _, after_prof) = after;
+        let dt = (after_t - before_t).to_seconds();
+        let mut bias = (after_t - t).to_seconds() / dt * before_prof.bias;
+        bias += (t - before_t).to_seconds() / dt * after_prof.bias;
+        let drift: Option<f64> = match (before_prof.drift, after_prof.drift) {
+            (Some(before_drift), Some(after_drift)) => {
+                let mut drift = (after_t - t).to_seconds() / dt * before_drift;
+                drift += (t - before_t).to_seconds() / dt * after_drift;
+                Some(drift)
+            },
+            _ => None,
+        };
+        Some((
+            clk_type,
+            ClockProfile {
+                bias,
+                drift,
+                bias_dev: None,
+                drift_dev: None,
+                drift_change: None,
+                drift_change_dev: None,
+            },
+        ))
+    }
+    /// Returns Iterator over Clock RINEX content for Ground Station clocks only (not onboard clocks)
+    pub fn precise_station_clock(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, String, ClockProfileType, ClockProfile)> + '_> {
+        Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
+            rec.iter().filter_map(|(key, profile)| {
+                if let Some(clk_name) = key.clock_type.as_station() {
+                    Some((
+                        *epoch,
+                        clk_name.clone(),
+                        key.profile_type.clone(),
+                        profile.clone(),
+                    ))
+                } else {
+                    None
+                }
+            })
+        }))
     }
 }
 

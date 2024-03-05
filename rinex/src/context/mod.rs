@@ -65,24 +65,19 @@ impl<T> ProvidedData<T> {
 /// like precise timing, positioning or atmosphere analysis.
 #[derive(Default, Debug, Clone)]
 pub struct RnxContext {
-    /// Optional Observation data, to provide
-    /// sampled GNSS signals. Allows precise point
-    /// positioning.
+    /// Optional OBS RINEX: provides GNSS signals, allows precise positioning.
     pub obs: Option<ProvidedData<Rinex>>,
-    /// Optional NAV RINEX Data, allows precise point
-    /// positioning.
+    /// Optional NAV RINEX: allows precise positioning.
     pub nav: Option<ProvidedData<Rinex>>,
-    /// Optional ATX RINEX Data
+    /// Optional CLK RINEX
+    pub clk: Option<ProvidedData<Rinex>>,
+    /// Optional ATX RINEX
     pub atx: Option<ProvidedData<Rinex>>,
-    /// Optional SP3 Orbit Data. Allows precise point
-    /// positioning.
+    /// Optional SP3 Orbits. Allows precise positioning.
     pub sp3: Option<ProvidedData<SP3>>,
-    /// Optional Meteo file, can serve
-    /// for either detailed Meteorological survey,
-    /// or high accuracy troposphere modeling
+    /// Optional Meteo file. Provides detailed modeling and meteo surveying.
     pub meteo: Option<ProvidedData<Rinex>>,
-    /// Optional IONEX file for accurate ionospheric
-    /// delay modeling
+    /// Optional IONEX for accurate Ionosphere compensation.
     pub ionex: Option<ProvidedData<Rinex>>,
 }
 
@@ -146,6 +141,9 @@ impl RnxContext {
             } else if rnx.is_meteo_rinex() {
                 self.load_meteo(path, &rnx)?;
                 trace!("loaded meteo observations \"{}\"", filename);
+            } else if rnx.is_clock_rinex() {
+                self.load_clock(path, &rnx)?;
+                trace!("loaded clock data \"{}\"", filename);
             } else if rnx.is_ionex() {
                 self.load_ionex(path, &rnx)?;
                 trace!("loaded ionex \"{}\"", filename);
@@ -177,6 +175,8 @@ impl RnxContext {
         } else if let Some(data) = &self.ionex {
             Some(data)
         } else if let Some(data) = &self.atx {
+            Some(data)
+        } else if let Some(data) = &self.clk {
             Some(data)
         } else {
             None
@@ -270,6 +270,26 @@ impl RnxContext {
     pub fn nav_data_mut(&mut self) -> Option<&mut Rinex> {
         if let Some(ref mut nav) = self.nav {
             Some(&mut nav.data)
+        } else {
+            None
+        }
+    }
+    /// Returns true if provided context contains high precision Clock data
+    pub fn has_clock(&self) -> bool {
+        self.clk.is_some()
+    }
+    /// Returns CLK files source path
+    pub fn clk_paths(&self) -> Option<&[PathBuf]> {
+        if let Some(ref clk) = self.clk {
+            Some(clk.paths())
+        } else {
+            None
+        }
+    }
+    /// Returns reference to Clock data specifically
+    pub fn clk_data(&self) -> Option<&Rinex> {
+        if let Some(ref clk) = self.clk {
+            Some(clk.data())
         } else {
             None
         }
@@ -412,6 +432,18 @@ impl RnxContext {
             meteo.paths.push(path.to_path_buf());
         } else {
             self.meteo = Some(ProvidedData {
+                data: rnx.clone(),
+                paths: vec![path.to_path_buf()],
+            });
+        }
+        Ok(())
+    }
+    fn load_clock(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
+        if let Some(clk) = &mut self.clk {
+            clk.data.merge_mut(rnx)?;
+            clk.paths.push(path.to_path_buf());
+        } else {
+            self.clk = Some(ProvidedData {
                 data: rnx.clone(),
                 paths: vec![path.to_path_buf()],
             });

@@ -144,7 +144,14 @@ impl Ephemeris {
                 todo!("sv_clock_corr not supported for glonass @ the moment");
             },
             _ => {
-                let dt = (t - toe).to_seconds();
+                let mut dt = (t - toe).to_seconds();
+                // TODO: does this apply to others like GST ?
+                const WEEK_SECONDS: f64 = 604800.0;
+                if dt > WEEK_SECONDS / 2.0 {
+                    dt -= WEEK_SECONDS;
+                } else if dt < -WEEK_SECONDS / 2.0 {
+                    dt += WEEK_SECONDS;
+                }
                 Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
             },
         }

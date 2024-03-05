@@ -76,6 +76,27 @@ pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
 
         info!("generated navigation data \"{}\"", output_path);
     }
+    // CLK RINEX processing
+    if let Some(rinex) = ctx.data.clk_data() {
+        let filename = ctx
+            .data
+            .clk_paths()
+            .expect("failed to determine clk output")
+            .get(0)
+            .expect("failed to determine clk output")
+            .file_name()
+            .expect("failed to determine clk output")
+            .to_string_lossy()
+            .to_string();
+
+        let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+
+        rinex
+            .to_file(&output_path)
+            .unwrap_or_else(|_| panic!("failed to generate clock data\"{}\"", output_path));
+
+        info!("generated clk data \"{}\"", output_path);
+    }
     Ok(())
 }
 
