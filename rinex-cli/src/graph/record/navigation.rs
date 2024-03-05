@@ -363,7 +363,7 @@ fn plot_system_time(
             for (_, state_vehicles) in states.iter().filter(|(k, _)| *k == product) {
                 for (index, (sv, corrections)) in vehicles
                     .iter()
-                    .filter(|(sv, data)| sv.constellation.timescale().unwrap() == ts)
+                    .filter(|(sv, data)| sv.constellation.timescale() == Some(ts))
                     .enumerate()
                 {
                     if let Some((_, data)) = state_vehicles
