@@ -1,6 +1,7 @@
 //! PPP solver
 use crate::cli::Context;
 use crate::positioning::{bd_model, kb_model, ng_model, tropo_components};
+use hifitime::TimeScale;
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::prelude::SV;
@@ -59,6 +60,7 @@ where
 
             // determine TOE
             let (toe, sv_eph) = sv_eph.unwrap();
+
             /*
              * Clock state
              *   1. Prefer CLK product
@@ -66,6 +68,7 @@ where
              *   3. Radio last option: always feasible
              */
             let clock_state = if let Some(clk) = clk_data {
+                //if ctx.needs_clock_interpolation {
                 if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
                     (
                         profile.bias,
@@ -74,15 +77,41 @@ where
                     )
                 } else {
                     /*
-                     * do not interpolate other products: abort
+                     * interpolation failure.
+                     * Do not interpolate other products: SV will not be presented.
                      */
                     continue;
                 }
+                //} else {
+                //    if let Some(profile) = clk.precise_sv_clock()
+                //        .filter_map(|(clk_t, clk_sv, _, profile)| {
+                //            if clk_t == *t && clk_sv == *sv {
+                //                Some(profile)
+                //            } else {
+                //                None
+                //            }
+                //        }).reduce(|k, _| k)
+                //    {
+                //        (
+                //            profile.bias,
+                //            profile.drift.unwrap_or(0.0),
+                //            profile.drift_change.unwrap_or(0.0),
+                //        )
+                //    } else {
+                //        /*
+                //         * When using high precision products it's better not to attempt
+                //         * this in other products, which would mix high and low precision products
+                //         * in the solution. We simply abort.
+                //         */
+                //        continue;
+                //    }
+                //}
             } else if sp3_has_clock {
-                panic!("sp3 (clock) interpolation not ready yet: prefer broadcast or clk product");
+                panic!("sp3 (clock) not ready yet: prefer broadcast or clk product");
             } else {
                 sv_eph.sv_clock() // BRDC case
             };
+
             // determine clock correction
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
 

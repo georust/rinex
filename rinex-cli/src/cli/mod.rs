@@ -59,6 +59,10 @@ pub struct Context {
     ///  1. manually defined by CLI
     ///  2. determined from dataset
     pub rx_ecef: Option<(f64, f64, f64)>,
+    /// True if (high precision) CLK product needs to be interpolated.
+    /// False if both CLK and OBS products are not present.
+    /// False if both are present but this is a high quality/state of the art context.
+    pub needs_clock_interpolation: bool,
 }
 
 impl Context {
@@ -148,8 +152,17 @@ impl Context {
         }
         let data_stem = Self::context_stem(&data);
         let data_position = data.ground_position();
+
+        let needs_clock_interpolation = data.needs_clock_interpolation();
+        if !needs_clock_interpolation {
+            info!("coherent precise products detected: interpolation is not required");
+        } else {
+            warn!("incoherent CLK/OBS products: interpolation will be needed");
+        }
+
         Ok(Self {
             data,
+            needs_clock_interpolation,
             quiet: cli.matches.get_flag("quiet"),
             workspace: {
                 let path = match std::env::var("RINEX_WORKSPACE") {

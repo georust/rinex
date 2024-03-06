@@ -130,16 +130,16 @@ impl RnxContext {
         if let Ok(rnx) = Rinex::from_path(path) {
             if rnx.is_observation_rinex() {
                 self.load_obs(path, &rnx)?;
-                trace!("loaded observations \"{}\"", filename);
+                trace!("loaded signal observations \"{}\"", filename);
             } else if rnx.is_navigation_rinex() {
                 self.load_nav(path, &rnx)?;
-                trace!("loaded brdc nav \"{}\"", filename);
+                trace!("loaded broadcast nav \"{}\"", filename);
             } else if rnx.is_meteo_rinex() {
                 self.load_meteo(path, &rnx)?;
                 trace!("loaded meteo observations \"{}\"", filename);
             } else if rnx.is_clock_rinex() {
                 self.load_clock(path, &rnx)?;
-                trace!("loaded clock data \"{}\"", filename);
+                trace!("loaded high precision clock product \"{}\"", filename);
             } else if rnx.is_ionex() {
                 self.load_ionex(path, &rnx)?;
                 trace!("loaded ionex \"{}\"", filename);
@@ -151,7 +151,7 @@ impl RnxContext {
             }
         } else if let Ok(sp3) = SP3::from_file(&fullpath) {
             self.load_sp3(path, &sp3)?;
-            trace!("loaded sp3 \"{}\"", filename);
+            trace!("loaded high precision oribits \"{}\"", filename);
         }
         Ok(())
     }
