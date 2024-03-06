@@ -79,10 +79,17 @@ from raw uBlox GNSS receiver frames. This application is work in progress at the
 
 ## Other tools and relevant Ecosystems
 
-* [Nyx-space](https://github.com/nyx-space/nyx)
-* [Hifitime](https://github.com/nyx-space/hifitime)
-* [CGGTTS](https://github.com/gwbres/cggtts)
-* [GNSS definitions in Rust](https://github.com/rtk-rs/gnss)
+* [Nyx-space](https://github.com/nyx-space/nyx): Navigation, Orbital attitude
+* [Hifitime](https://github.com/nyx-space/hifitime): Precise Timing, Timescales, ...
+* [CGGTTS](https://github.com/gwbres/cggtts): Common View Time Transfer
+- [RTK-RS](https://github.com/rtk-rs/gnss-rtk): Precise Positioning
+* [GNSS definitions in Rust](https://github.com/rtk-rs/gnss): GNSS library
+
+## Citation and referencing
+
+If you need to reference this work, please use the following model:
+
+`GeoRust RINEX Team (2023), RINEX: analysis and processing (Apache-2/MIT), https://georust.org`
 
 Formats & revisions
 ===================
