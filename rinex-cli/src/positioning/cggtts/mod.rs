@@ -88,15 +88,7 @@ where
     let has_clk_data = clk_data.is_some();
 
     let sp3_data = ctx.data.sp3_data();
-
-    let sp3_has_clock = if has_clk_data {
-        false // always prefer CLK product
-    } else {
-        match sp3_data {
-            Some(sp3) => sp3.sv_clock().count() > 0,
-            None => false,
-        }
-    };
+    let sp3_has_clock = ctx.data.sp3_has_clock();
 
     let dominant_sampling_period = obs_data
         .dominant_sample_rate()
@@ -137,8 +129,7 @@ where
              *  2. Prefer SP3 product
              *  3. Radio last option
              */
-            let clock_state = if has_clk_data {
-                let clk = clk_data.unwrap();
+            let clock_state = if let Some(clk) = clk_data {
                 if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
                     (
                         profile.bias,
@@ -147,15 +138,17 @@ where
                     )
                 } else {
                     /*
-                     * do not interpolate other products: abort
+                     * interpolation failure.
+                     * Do not interpolate other products: SV will not be presented.
                      */
                     continue;
                 }
             } else if sp3_has_clock {
                 panic!("sp3 (clock) interpolation not ready yet: prefer broadcast or clk product");
             } else {
-                sv_eph.sv_clock()
+                sv_eph.sv_clock() // BRDC case
             };
+
             // determine clock correction
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
             let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
