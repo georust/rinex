@@ -302,7 +302,7 @@ pub fn post_process(
     }
     info!("\"{}\" generated", txtfile);
     if matches.get_flag("gpx") {
-        let prefix = Context::context_stem(&ctx.data);
+        let prefix = ctx.name.clone();
         let gpxpath = ctx.workspace.join(format!("{}.gpx", prefix));
         let gpxfile = gpxpath.to_string_lossy().to_string();
 
@@ -318,7 +318,7 @@ pub fn post_process(
         info!("{} gpx track generated", gpxfile);
     }
     if matches.get_flag("kml") {
-        let prefix = Context::context_stem(&ctx.data);
+        let prefix = ctx.name.clone();
         let kmlpath = ctx.workspace.join(format!("{}.kml", prefix));
         let kmlfile = kmlpath.to_string_lossy().to_string();
 

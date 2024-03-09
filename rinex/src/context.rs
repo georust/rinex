@@ -134,6 +134,10 @@ impl<'a> RnxContext<'a> {
     /// Observation then Navigation files are prefered as Primary files.
     /// When a unique file had been loaded, it is obviously considered Primary.
     pub fn primary_path(&self) -> Option<&PathBuf> {
+        /*
+         * Order is important: determines what format are prioritized
+         * in the "primary" determination
+         */
         for product in [
             ProductType::Observation,
             ProductType::BroadcastNavigation,
@@ -167,6 +171,19 @@ impl<'a> RnxContext<'a> {
     }
     /// Returns reference to files loaded in given category
     pub fn files(&self, product: ProductType) -> Option<&Vec<PathBuf>> {
+        self.files
+            .iter()
+            .filter_map(|(prod_type, paths)| {
+                if *prod_type == product {
+                    Some(paths)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+    }
+    /// Returns mutable reference to files loaded in given category
+    pub fn files_mut(&mut self, product: ProductType) -> Option<&Vec<PathBuf>> {
         self.files
             .iter()
             .filter_map(|(prod_type, paths)| {

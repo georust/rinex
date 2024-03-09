@@ -16,14 +16,14 @@ use rinex::{
  * Dumps current context (usually preprocessed)
  * into RINEX format maintaining consistent format
  */
-pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
+pub fn filegen<'a>(ctx: &'a Context<'a>, _matches: &ArgMatches) -> Result<(), Error> {
     for product in [
-        Observation,
-        MeteoObservation,
-        BroadcastNavigation,
-        HighPrecisionClock,
-        Ionex,
-        Antex,
+        ProductType::Observation,
+        ProductType::MeteoObservation,
+        ProductType::BroadcastNavigation,
+        ProductType::HighPrecisionClock,
+        ProductType::Ionex,
+        ProductType::Antex,
     ] {
         if let Some(rinex) = ctx.data.rinex(product) {
             let filename = ctx
@@ -40,10 +40,10 @@ pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
             let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
 
             rinex.to_file(&output_path).unwrap_or_else(|_| {
-                panic!("failed to generate rinex observations \"{}\"", output_path)
+                panic!("failed to generate {} RINEX \"{}\"", product, output_path)
             });
 
-            info!("{} RINEX \"{}\" has been generated", output_path);
+            info!("{} RINEX \"{}\" has been generated", product, output_path);
         }
     }
     Ok(())
@@ -305,6 +305,13 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
  * Substract RINEX[A]-RINEX[B]
  */
 pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+    let path_a = ctx
+        .data
+        .files(ProductType::Observation)
+        .expect("failed to determine output file name")
+        .get(0)
+        .unwrap();
+
     let path_b = matches.get_one::<PathBuf>("file").unwrap();
 
     let path_b = path_b.to_string_lossy().to_string();
@@ -315,9 +322,10 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         RinexType::ObservationData => {
             let rinex_a = ctx
                 .data
-                .observation_mut()
+                .observation()
                 .expect("RINEX (A) - (B) requires OBS RINEX files");
 
+            //TODO: change this to crnx2rnx_mut()
             rinex_a.crnx2rnx().substract(&rinex_b.crnx2rnx())
         },
         t => panic!("operation not feasible for {}", t),
@@ -325,14 +333,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     let mut extension = String::new();
 
-    let path = ctx
-        .data
-        .files(ProductType::Observation)
-        .expect("failed to determine output file name")
-        .get(0)
-        .unwrap();
-
-    let filename = path
+    let filename = path_a
         .file_stem()
         .expect("failed to determine output file name")
         .to_string_lossy()
@@ -349,7 +350,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         extension.push('.');
     }
 
-    let file_ext = path
+    let file_ext = path_a
         .extension()
         .expect("failed to determine output file name")
         .to_string_lossy()

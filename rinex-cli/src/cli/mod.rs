@@ -7,11 +7,12 @@ use std::{
 };
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 use rinex::prelude::*;
 use walkdir::WalkDir;
 
 use crate::{fops::open_with_web_browser, Error};
+
+use map_3d::{geodetic2ecef, Ellipsoid};
 
 // identification mode
 mod identify;
@@ -44,9 +45,9 @@ impl Default for Cli {
 }
 
 /// Context defined by User.
-pub struct Context {
+pub struct Context<'a> {
     /// Data context defined by user
-    pub data: RnxContext,
+    pub data: &'a mut RnxContext<'a>,
     /// Quiet option
     pub quiet: bool,
     /// Workspace is the place where this session will generate data.
@@ -54,6 +55,9 @@ pub struct Context {
     /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
     /// $PRIMARYFILE is determined from the most major file contained in the dataset.
     pub workspace: PathBuf,
+    /// Context name is derived from the primary file loaded in Self,
+    /// and mostly used in session products generation.
+    pub name: String,
     /// (RX) reference position to be used in further analysis.
     /// It is either (priority order is important)
     ///  1. manually defined by CLI
@@ -61,14 +65,14 @@ pub struct Context {
     pub rx_ecef: Option<(f64, f64, f64)>,
 }
 
-impl Context {
+impl<'a> Context<'a> {
     /*
      * Utility to determine the most major filename stem,
      * to be used as the session workspace
      */
     pub fn context_stem(data: &RnxContext) -> String {
         let ctx_major_stem: &str = data
-            .rinex_path()
+            .primary_path()
             .expect("failed to determine a context name")
             .file_stem()
             .expect("failed to determine a context name")
@@ -110,105 +114,6 @@ impl Context {
         if !self.quiet {
             open_with_web_browser(path.to_string_lossy().as_ref());
         }
-    }
-    /*
-     * Creates File/Data context defined by user.
-     * Regroups all provided files/folders,
-     */
-    pub fn from_cli(cli: &Cli) -> Result<Self, Error> {
-        let mut data = RnxContext::default();
-        let max_depth = match cli.matches.get_one::<u8>("depth") {
-            Some(value) => *value as usize,
-            None => 5usize,
-        };
-
-        /* load all directories recursively, one by one */
-        for dir in cli.input_directories() {
-            let walkdir = WalkDir::new(dir).max_depth(max_depth);
-            for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-                if !entry.path().is_dir() {
-                    let path = entry.path();
-                    let ret = data.load(&path.to_path_buf());
-                    if ret.is_err() {
-                        warn!(
-                            "failed to load \"{}\": {}",
-                            path.display(),
-                            ret.err().unwrap()
-                        );
-                    }
-                }
-            }
-        }
-        // load individual files, if any
-        for filepath in cli.input_files() {
-            let ret = data.load(&Path::new(filepath).to_path_buf());
-            if ret.is_err() {
-                warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
-            }
-        }
-        let data_stem = Self::context_stem(&data);
-        let data_position = data.ground_position();
-
-        Ok(Self {
-            data,
-            quiet: cli.matches.get_flag("quiet"),
-            workspace: {
-                let path = match std::env::var("RINEX_WORKSPACE") {
-                    Ok(path) => Path::new(&path).join(data_stem).to_path_buf(),
-                    _ => match cli.matches.get_one::<PathBuf>("workspace") {
-                        Some(base_dir) => Path::new(base_dir).join(data_stem).to_path_buf(),
-                        None => Path::new("WORKSPACE").join(data_stem).to_path_buf(),
-                    },
-                };
-                // make sure the workspace is viable and exists, otherwise panic
-                create_dir_all(&path).unwrap_or_else(|e| {
-                    panic!(
-                        "failed to create session workspace \"{}\": {:?}",
-                        path.display(),
-                        e
-                    )
-                });
-                info!("session workspace is \"{}\"", path.to_string_lossy());
-                path
-            },
-            rx_ecef: {
-                match cli.manual_position() {
-                    Some((x, y, z)) => {
-                        let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                        lat = rad2deg(lat);
-                        lon = rad2deg(lon);
-                        info!(
-                            "using manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
-                            (x, y, z),
-                            lat,
-                            lon
-                        );
-                        Some((x, y, z))
-                    },
-                    None => {
-                        if let Some(data_pos) = data_position {
-                            let (x, y, z) = data_pos.to_ecef_wgs84();
-                            let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                            lat = rad2deg(lat);
-                            lon = rad2deg(lon);
-                            info!(
-                                "position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
-                                (x, y, z),
-                                lat,
-                                lon
-                            );
-                            Some((x, y, z))
-                        } else {
-                            // this is not a problem in basic opmodes,
-                            // but will most likely prevail advanced opmodes.
-                            // Let the user know.
-                            warn!("no RX position defined");
-                            None
-                        }
-                    },
-                }
-            },
-        })
     }
 }
 
