@@ -20,7 +20,7 @@ fn observable_to_physics(observable: &Observable) -> String {
  * Plots given Observation RINEX content
  */
 pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_export: bool) {
-    let obs_data = ctx.data.obs_data().unwrap(); // infaillible
+    let obs_data = ctx.data.observation().unwrap(); // infaillible
 
     let header = &obs_data.header;
 
@@ -122,7 +122,7 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
             _ => unreachable!(),
         };
 
-        if ctx.data.has_navigation_data() {
+        if ctx.data.has_brdc_navigation() {
             // Augmented context, we plot data on two Y axes
             // one for physical observation, one for sat elevation
             plot_context.add_timedomain_2y_plot(
@@ -176,7 +176,7 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                 if index == 0 && physics == "Signal Strength" {
                     // 1st Carrier encountered: plot SV only once
                     // we also only augment the SSI plot when NAV context is provided
-                    if let Some(nav) = &ctx.data.nav_data() {
+                    if let Some(nav) = &ctx.data.brdc_navigation() {
                         // grab elevation angle
                         let data: Vec<(Epoch, f64)> = nav
                             .sv_elevation_azimuth(ctx.data.ground_position())

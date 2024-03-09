@@ -1,8 +1,8 @@
 //! RINEX post processing context
-
 use thiserror::Error;
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use crate::{
@@ -123,8 +123,6 @@ impl<'a> BlobData<'a> {
 /// like precise timing, positioning or atmosphere analysis.
 #[derive(Default)]
 pub struct RnxContext<'a> {
-    /// Context is named after "primary" file.
-    name: String,
     /// Files merged into self
     files: HashMap<ProductType, Vec<PathBuf>>,
     /// Context blob created by merging each members of each category
@@ -132,11 +130,40 @@ pub struct RnxContext<'a> {
 }
 
 impl<'a> RnxContext<'a> {
+    /// Returns path to File considered as Primary in this Context.
+    /// Observation then Navigation files are prefered as Primary files.
+    /// When a unique file had been loaded, it is obviously considered Primary.
+    pub fn primary_path(&self) -> Option<&PathBuf> {
+        for product in [
+            ProductType::Observation,
+            ProductType::BroadcastNavigation,
+            ProductType::MeteoObservation,
+            ProductType::HighPrecisionClock,
+            ProductType::HighPrecisionOrbit,
+            ProductType::Ionex,
+            ProductType::Antex,
+        ] {
+            if let Some(paths) = self.files(product) {
+                /*
+                 * Returns Fist file loaded in this category
+                 */
+                return paths.get(0);
+            }
+        }
+        None
+    }
     /// Returns name of this context.
-    /// Context is named after "primary" file where
-    /// Observation RINEX is always prefered.
+    /// Context is named after the file considered as Primary, see [Self::primary_path].
+    /// If no files were previously loaded, simply returns "Undefined".
     pub fn name(&self) -> String {
-        self.name.clone()
+        if let Some(path) = self.primary_path() {
+            path.file_stem()
+                .unwrap_or(OsStr::new("Undefined"))
+                .to_string_lossy()
+                .to_string()
+        } else {
+            "Undefined".to_string()
+        }
     }
     /// Returns reference to files loaded in given category
     pub fn files(&self, product: ProductType) -> Option<&Vec<PathBuf>> {
@@ -185,30 +212,75 @@ impl<'a> RnxContext<'a> {
     pub fn sp3(&self) -> Option<&SP3> {
         self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
     }
-    // /// Returns mutable reference to inner RINEX data of given category
-    // pub fn rinex_mut(&'a mut self, product: ProductType) -> Option<&'a mut Rinex> {
-    //     self.data_mut(product)?.as_mut_rinex()
-    // }
-    // /// Returns mutable reference to inner SP3 data
-    // pub fn sp3_mut(&'a mut self) -> Option<&'a mut SP3> {
-    //     self.data_mut(ProductType::HighPrecisionOrbit)?
-    //         .as_mut_sp3()
-    // }
+    /// Returns mutable reference to inner RINEX data of given category
+    pub fn rinex_mut(&'a mut self, product: ProductType) -> Option<&'a mut Rinex> {
+        self.data_mut(product)?.as_mut_rinex()
+    }
     /// Returns reference to inner [ProductType::Observation] data
     pub fn observation(&self) -> Option<&Rinex> {
         self.data(ProductType::BroadcastNavigation)?.as_rinex()
     }
     /// Returns reference to inner [ProductType::BroadcastNavigation] data
-    pub fn broadcast_navigation(&self) -> Option<&Rinex> {
+    pub fn brdc_navigation(&self) -> Option<&Rinex> {
         self.data(ProductType::BroadcastNavigation)?.as_rinex()
     }
-    // /// Returns mutal reference to inner [ProductType::Observation] data
-    // pub fn observation_mut(&'a mut self) -> Option<&'a mut Rinex> {
-    //     self.data_mut(ProductType::Observation)?.as_mut_rinex()
-    // }
+    /// Returns reference to inner [ProductType::Meteo] data
+    pub fn meteo(&self) -> Option<&Rinex> {
+        self.data(ProductType::MeteoObservation)?.as_rinex()
+    }
+    /// Returns reference to inner [ProductType::HighPrecisionClock] data
+    pub fn clock(&self) -> Option<&Rinex> {
+        self.data(ProductType::HighPrecisionClock)?.as_rinex()
+    }
+    /// Returns reference to inner [ProductType::Antex] data
+    pub fn antex(&self) -> Option<&Rinex> {
+        self.data(ProductType::Antex)?.as_rinex()
+    }
+    /// Returns reference to inner [ProductType::Ionex] data
+    pub fn ionex(&self) -> Option<&Rinex> {
+        self.data(ProductType::Ionex)?.as_rinex()
+    }
+    /// Returns mutable reference to inner [ProductType::Observation] data
+    pub fn observation_mut(&'a mut self) -> Option<&'a mut Rinex> {
+        self.data_mut(ProductType::Observation)?.as_mut_rinex()
+    }
+    /// Returns mutable reference to inner [ProductType::Observation] data
+    pub fn brdc_navigation_mut(&'a mut self) -> Option<&'a mut Rinex> {
+        self.data_mut(ProductType::BroadcastNavigation)?
+            .as_mut_rinex()
+    }
+    /// Returns reference to inner [ProductType::Meteo] data
+    pub fn meteo_mut(&'a mut self) -> Option<&'a mut Rinex> {
+        self.data_mut(ProductType::MeteoObservation)?.as_mut_rinex()
+    }
+    /// Returns mutable reference to inner [ProductType::HighPrecisionClock] data
+    pub fn clock_mut(&'a mut self) -> Option<&'a mut Rinex> {
+        self.data_mut(ProductType::HighPrecisionClock)?
+            .as_mut_rinex()
+    }
+    /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
+    pub fn sp3_mut(&'a mut self) -> Option<&'a mut SP3> {
+        self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
+    }
+    /// Returns mutable reference to inner [ProductType::Antex] data
+    pub fn antex_mut(&'a mut self) -> Option<&'a mut Rinex> {
+        self.data_mut(ProductType::Antex)?.as_mut_rinex()
+    }
+    /// Returns mutable reference to inner [ProductType::Ionex] data
+    pub fn ionex_mut(&'a mut self) -> Option<&'a mut Rinex> {
+        self.data_mut(ProductType::Ionex)?.as_mut_rinex()
+    }
     /// Returns true if [ProductType::Observation] are present in Self
     pub fn has_observation(&self) -> bool {
         self.observation().is_some()
+    }
+    /// Returns true if [ProductType::BroadcastNavigation] are present in Self
+    pub fn has_brdc_navigation(&self) -> bool {
+        self.brdc_navigation().is_some()
+    }
+    /// Returns true if [ProductType::MeteoObservation] are present in Self
+    pub fn has_meteo(&self) -> bool {
+        self.meteo().is_some()
     }
     /// Returns true if High Precision Orbits also contains temporal information.
     pub fn sp3_has_clock(&self) -> bool {
@@ -221,16 +293,10 @@ impl<'a> RnxContext<'a> {
     /// Load a single RINEX file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_rinex(&mut self, path: &Path, rinex: &'a mut Rinex) -> Result<(), Error> {
+    pub fn load_rinex(&'a mut self, path: &Path, rinex: &'a mut Rinex) -> Result<(), Error> {
         let prod_type = ProductType::from(rinex.header.rinex_type);
         // extend context blob
-        //if let Some(inner) = self.rinex_mut(prod_type) {
-        //    inner.merge_mut(rinex)?;
-        //} else {
-        self.blob.insert(prod_type, BlobData::Rinex(rinex));
-        //}
-        // extend file list
-        if let Some(inner) = self
+        if let Some(paths) = self
             .files
             .iter_mut()
             .filter_map(|(prod, files)| {
@@ -242,8 +308,12 @@ impl<'a> RnxContext<'a> {
             })
             .reduce(|k, _| k)
         {
-            inner.push(path.to_path_buf());
+            if let Some(inner) = self.blob.get_mut(&prod_type).and_then(|k| k.as_mut_rinex()) {
+                inner.merge_mut(rinex)?;
+                paths.push(path.to_path_buf());
+            }
         } else {
+            self.blob.insert(prod_type, BlobData::Rinex(rinex));
             self.files.insert(prod_type, vec![path.to_path_buf()]);
         }
         Ok(())
@@ -251,20 +321,14 @@ impl<'a> RnxContext<'a> {
     /// Load a single SP3 file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_sp3(&mut self, path: &Path, sp3: &'a mut SP3) -> Result<(), Error> {
+    pub fn load_sp3(&'a mut self, path: &Path, sp3: &'a mut SP3) -> Result<(), Error> {
+        let prod_type = ProductType::HighPrecisionOrbit;
         // extend context blob
-        //if let Some(inner) = self.sp3_mut() {
-        //    inner.merge_mut(sp3)?;
-        //} else {
-        self.blob
-            .insert(ProductType::HighPrecisionOrbit, BlobData::Sp3(sp3));
-        //}
-        // extend file list
-        if let Some(inner) = self
+        if let Some(paths) = self
             .files
             .iter_mut()
             .filter_map(|(prod, files)| {
-                if *prod == ProductType::HighPrecisionOrbit {
+                if *prod == prod_type {
                     Some(files)
                 } else {
                     None
@@ -272,10 +336,14 @@ impl<'a> RnxContext<'a> {
             })
             .reduce(|k, _| k)
         {
-            inner.push(path.to_path_buf());
-        } // else {
-          //self.files.insert(ProductType::HighPrecisionOrbit, vec![path.to_path_buf()]);
-          //}
+            if let Some(inner) = self.blob.get_mut(&prod_type).and_then(|k| k.as_mut_sp3()) {
+                inner.merge_mut(sp3)?;
+                paths.push(path.to_path_buf());
+            }
+        } else {
+            self.blob.insert(prod_type, BlobData::Sp3(sp3));
+            self.files.insert(prod_type, vec![path.to_path_buf()]);
+        }
         Ok(())
     }
     /// Returns possible Reference position defined in this context.
@@ -286,7 +354,7 @@ impl<'a> RnxContext<'a> {
                 return Some(pos);
             }
         }
-        if let Some(data) = self.broadcast_navigation() {
+        if let Some(data) = self.brdc_navigation() {
             if let Some(pos) = data.header.ground_position {
                 return Some(pos);
             }

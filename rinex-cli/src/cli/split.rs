@@ -7,7 +7,7 @@ pub fn subcommand() -> Command {
         .short_flag('s')
         .long_flag("split")
         .arg_required_else_help(true)
-        .about("Split input files at specified Epoch.")
+        .about("Split input file(s) at specified Epoch")
         .arg(
             Arg::new("split")
                 .value_parser(value_parser!(Epoch))

@@ -43,6 +43,46 @@ pub enum Error {
     PositioningSolverError(#[from] positioning::Error),
 }
 
+/*
+ * Parse all input data
+ */
+fn data_parsing(cli: &Cli) -> RnxContext {
+    let mut ctx = RnxContext::default();
+
+    let recursive_depth = match cli.matches.get_one::<u8>("depth") {
+        Some(depth) => *depth as usize,
+        None => 5usize,
+    };
+
+    /* load all directories recursively, one by one */
+    for dir in cli.input_directories() {
+        let walkdir = WalkDir::new(dir).max_depth(max_depth);
+        for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+            if !entry.path().is_dir() {
+                let path = entry.path();
+                if let Ok(rnx) = Rinex::from_path(path) {
+                    if ctx.load_rinex(path, rnx).is_err() {
+                        warn!(
+                            "failed to load \"{}\": {}",
+                            path.display(),
+                            ret.err().unwrap()
+                        );
+                    }
+                } else {
+                    error!("malformed RINEX \"{}\"", path.display());
+                }
+            }
+        }
+    }
+    // load individual files, if any
+    for filepath in cli.input_files() {
+        let ret = data.load(&Path::new(filepath).to_path_buf());
+        if ret.is_err() {
+            warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
+        }
+    }
+}
+
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
@@ -53,7 +93,10 @@ pub fn main() -> Result<(), Error> {
 
     // Build context defined by user
     let cli = Cli::new();
-    let mut ctx = Context::from_cli(&cli)?;
+
+    // Form context
+    let mut data = data_parsing(&cli);
+    let ctx = Context::from_cli(&cli).with_data_context(data);
 
     /*
      * Preprocessing

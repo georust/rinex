@@ -21,14 +21,14 @@ type CtxClockStates = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, (f64, f64, f
 type CtxClockCorrections = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, Duration)>>>;
 
 pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
-    if let Some(nav) = ctx.nav_data() {
+    if let Some(nav) = ctx.brdc_navigation() {
         let nav_sv = nav.sv().collect::<Vec<_>>();
-        let clk = ctx.clk_data();
-        let sp3 = ctx.sp3_data();
+        let clk = ctx.clock();
+        let sp3 = ctx.sp3();
         let clock_states = ctx_sv_clock_states(nav, &nav_sv, clk, sp3);
         plot_sv_clock_states(&clock_states, &nav_sv, plot_ctx);
 
-        if let Some(obs) = ctx.obs_data() {
+        if let Some(obs) = ctx.observation() {
             let clock_corrections = ctx_sv_clock_corrections(obs, nav, clk, sp3);
             plot_sv_clock_corrections(&clock_corrections, plot_ctx);
             plot_system_time(&clock_states, &clock_corrections, plot_ctx);
@@ -375,7 +375,7 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     /*
      * Plot Broadcast Orbit (x, y, z)
      */
-    if let Some(nav) = ctx.nav_data() {
+    if let Some(nav) = ctx.brdc_navigation() {
         for (sv_index, sv) in nav.sv().enumerate() {
             nav_sv.push(sv);
             if sv_index == 0 {
@@ -453,7 +453,7 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     /*
      * add SP3 (x, y, z) position, if available
      */
-    if let Some(sp3) = ctx.sp3_data() {
+    if let Some(sp3) = ctx.sp3() {
         for (sv_index, sv) in sp3.sv().enumerate() {
             if !nav_sv.contains(&sv) {
                 continue;

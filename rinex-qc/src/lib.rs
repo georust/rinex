@@ -101,7 +101,7 @@ impl QcReport {
             //  Improve this:
             //   QcAnalysis::new() should construct from Context directly
             //   and we should have grouped smaller contexts here
-            if let Some(brdc) = ctx.broadcast_navigation() {
+            if let Some(brdc) = ctx.brdc_navigation() {
                 let brdc = brdc.filter(mask.clone().into());
 
                 // perform analysis on these subsets

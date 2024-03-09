@@ -11,7 +11,7 @@ use rinex::prelude::{Epoch, GroundPosition, RnxContext};
 pub fn skyplot(ctx: &RnxContext, rx_ecef: (f64, f64, f64), plot_context: &mut PlotContext) {
     plot_context.add_polar2d_plot("Skyplot");
 
-    if let Some(rnx) = ctx.nav_data() {
+    if let Some(rnx) = ctx.brdc_navigation() {
         for (svnn_index, svnn) in rnx.sv().enumerate() {
             // per sv
             // grab related elevation data

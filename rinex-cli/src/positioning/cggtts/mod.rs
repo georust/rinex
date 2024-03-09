@@ -80,14 +80,14 @@ where
     };
 
     // infaillible, at this point
-    let obs_data = ctx.data.obs_data().unwrap();
-    let nav_data = ctx.data.nav_data().unwrap();
-    let meteo_data = ctx.data.meteo_data();
+    let obs_data = ctx.data.observation().unwrap();
+    let nav_data = ctx.data.brdc_navigation().unwrap();
+    let meteo_data = ctx.data.meteo();
 
-    let clk_data = ctx.data.clk_data();
+    let clk_data = ctx.data.clock();
     let has_clk_data = clk_data.is_some();
 
-    let sp3_data = ctx.data.sp3_data();
+    let sp3_data = ctx.data.sp3();
     let sp3_has_clock = ctx.data.sp3_has_clock();
 
     let dominant_sampling_period = obs_data

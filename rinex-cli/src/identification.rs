@@ -2,7 +2,7 @@ use clap::ArgMatches;
 
 use rinex::{
     observation::SNR,
-    prelude::{Constellation, Epoch, Observable, Rinex, RnxContext},
+    prelude::{Constellation, Epoch, Observable, ProductType, Rinex, RnxContext},
     preprocessing::*,
 };
 
@@ -21,7 +21,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
     /*
      * Browse all possible types of data, and apply relevant ID operation
      */
-    if let Some(files) = ctx.obs_paths() {
+    if let Some(files) = ctx.files(ProductType::Observation) {
         let files = files
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
@@ -31,7 +31,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
         println!("{:?}", files);
     }
-    if let Some(data) = ctx.obs_data() {
+    if let Some(data) = ctx.observation() {
         if matches.get_flag("all") || matches.get_flag("epochs") {
             println!("{:#?}", EpochReport::from_data(data));
         }
@@ -73,7 +73,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         }
     }
 
-    if let Some(files) = ctx.meteo_paths() {
+    if let Some(files) = ctx.files(ProductType::MeteoObservation) {
         let files = files
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
@@ -83,7 +83,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
         println!("{:?}", files);
     }
-    if let Some(data) = ctx.meteo_data() {
+    if let Some(data) = ctx.meteo() {
         if matches.get_flag("all") || matches.get_flag("epochs") {
             println!("{:#?}", EpochReport::from_data(data));
         }
@@ -119,7 +119,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         }
     }
 
-    if let Some(files) = ctx.nav_paths() {
+    if let Some(files) = ctx.files(ProductType::BroadcastNavigation) {
         let files = files
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
@@ -129,7 +129,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
         println!("{:?}", files);
     }
-    if let Some(data) = ctx.nav_data() {
+    if let Some(data) = ctx.brdc_navigation() {
         if matches.get_flag("all") || matches.get_flag("nav-msg") {
             let msg = data.nav_msg_type().collect::<Vec<_>>();
             println!("BRDC NAV Messages: {:?}", msg);
@@ -157,7 +157,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         }
     }
 
-    if let Some(files) = ctx.sp3_paths() {
+    if let Some(files) = ctx.files(ProductType::HighPrecisionOrbit) {
         let files = files
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
@@ -167,7 +167,7 @@ pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
         println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
         println!("{:?}", files);
     }
-    if let Some(data) = ctx.sp3_data() {
+    if let Some(data) = ctx.sp3() {
         println!("SP3 orbits: ");
         if matches.get_flag("all") || matches.get_flag("epochs") {
             let report = EpochReport {
