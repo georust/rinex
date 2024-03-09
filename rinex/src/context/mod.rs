@@ -54,6 +54,20 @@ pub enum ProductType {
     Ionex,
 }
 
+impl std::fmt::Display for ProductType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Observation => write!(f, "Observation"),
+            Self::MeteoObservation => write!(f, "Meteo"),
+            Self::BroadcastNavigation => write!(f, "Broadcast Navigation"),
+            Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
+            Self::HighPrecisionClock => write!(f, "High Precision Clock"),
+            Self::Antex => write!(f, "ANTEX"),
+            Self::Ionex => write!(f, "IONEX"),
+        }
+    }
+}
+
 impl From<RinexType> for ProductType {
     fn from(rt: RinexType) -> Self {
         match rt {
@@ -67,38 +81,37 @@ impl From<RinexType> for ProductType {
     }
 }
 
-#[derive(Clone)]
 enum BlobData<'a> {
-    /// RINEX content
-    Rinex(&'a Rinex),
     /// SP3 content
-    Sp3(&'a SP3),
+    Sp3(&'a mut SP3),
+    /// RINEX content
+    Rinex(&'a mut Rinex),
 }
 
 impl<'a> BlobData<'a> {
     /// Returns reference to inner RINEX data.
-    pub fn as_rinex(&self) -> Option<&'a Rinex> {
+    pub fn as_rinex(&'a self) -> Option<&'a Rinex> {
         match self {
             Self::Rinex(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to inner RINEX data.
-    pub fn as_mut_rinex(&mut self) -> Option<&'a mut Rinex> {
+    pub fn as_mut_rinex(&'a mut self) -> Option<&'a mut Rinex> {
         match self {
             Self::Rinex(r) => Some(r),
             _ => None,
         }
     }
     /// Returns reference to inner SP3 data.
-    pub fn as_sp3(&self) -> Option<&'a SP3> {
+    pub fn as_sp3(&'a self) -> Option<&'a SP3> {
         match self {
             Self::Sp3(s) => Some(s),
             _ => None,
         }
     }
     /// Returns mutable reference to inner SP3 data.
-    pub fn as_mut_sp3(&mut self) -> Option<&'a mut SP3> {
+    pub fn as_mut_sp3(&'a mut self) -> Option<&'a mut SP3> {
         match self {
             Self::Sp3(s) => Some(s),
             _ => None,
@@ -108,7 +121,7 @@ impl<'a> BlobData<'a> {
 
 /// RnxContext is a structure dedicated to RINEX post processing workflows,
 /// like precise timing, positioning or atmosphere analysis.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct RnxContext<'a> {
     /// Context is named after "primary" file.
     name: String,
@@ -162,14 +175,14 @@ impl<'a> RnxContext<'a> {
                     None
                 }
             })
-            .reduce(|k, _| k)
+            .reduce(move |k, _| k)
     }
     /// Returns reference to inner RINEX data of given category
-    pub fn rinex(&'a self, product: ProductType) -> Option<&'a Rinex> {
+    pub fn rinex(&self, product: ProductType) -> Option<&Rinex> {
         self.data(product)?.as_rinex()
     }
     /// Returns reference to inner SP3 data
-    pub fn sp3(&'a self) -> Option<&'a SP3> {
+    pub fn sp3(&self) -> Option<&SP3> {
         self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
     }
     // /// Returns mutable reference to inner RINEX data of given category
@@ -182,11 +195,11 @@ impl<'a> RnxContext<'a> {
     //         .as_mut_sp3()
     // }
     /// Returns reference to inner [ProductType::Observation] data
-    pub fn observation(&'a self) -> Option<&'a Rinex> {
+    pub fn observation(&self) -> Option<&Rinex> {
         self.data(ProductType::BroadcastNavigation)?.as_rinex()
     }
     /// Returns reference to inner [ProductType::BroadcastNavigation] data
-    pub fn broadcast_navigation(&'a self) -> Option<&'a Rinex> {
+    pub fn broadcast_navigation(&self) -> Option<&Rinex> {
         self.data(ProductType::BroadcastNavigation)?.as_rinex()
     }
     // /// Returns mutal reference to inner [ProductType::Observation] data
@@ -208,7 +221,7 @@ impl<'a> RnxContext<'a> {
     /// Load a single RINEX file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_rinex(&'a mut self, path: &Path, rinex: &'a Rinex) -> Result<(), Error> {
+    pub fn load_rinex(&mut self, path: &Path, rinex: &'a mut Rinex) -> Result<(), Error> {
         let prod_type = ProductType::from(rinex.header.rinex_type);
         // extend context blob
         //if let Some(inner) = self.rinex_mut(prod_type) {
@@ -238,7 +251,7 @@ impl<'a> RnxContext<'a> {
     /// Load a single SP3 file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_sp3(&'a mut self, path: &Path, sp3: &'a SP3) -> Result<(), Error> {
+    pub fn load_sp3(&mut self, path: &Path, sp3: &'a mut SP3) -> Result<(), Error> {
         // extend context blob
         //if let Some(inner) = self.sp3_mut() {
         //    inner.merge_mut(sp3)?;
@@ -283,7 +296,7 @@ impl<'a> RnxContext<'a> {
 }
 
 #[cfg(feature = "qc")]
-impl HtmlReport for RnxContext<'a> {
+impl<'a> HtmlReport for RnxContext<'a> {
     fn to_html(&self) -> String {
         format!(
             "{}",
@@ -295,7 +308,7 @@ impl HtmlReport for RnxContext<'a> {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        title: self.name(),
+                        title: self.name();
                     }
                     body {
                         : self.to_inline_html()
@@ -314,71 +327,32 @@ impl HtmlReport for RnxContext<'a> {
                     : "Name"
                 }
             }
-            tr {
-                td {
-                    : "Observations"
-                }
-                td {
-                    @ if self.obs_paths().is_none() {
-                        : "None"
-                    } else {
-                        @ for path in self.obs_paths().unwrap() {
-                            br {
-                                : path.file_name()
-                                    .unwrap()
-                                    .to_string_lossy()
-                                    .to_string()
-                            }
-                        }
+            @ for product in [
+                ProductType::Observation,
+                ProductType::BroadcastNavigation,
+                ProductType::MeteoObservation,
+                ProductType::HighPrecisionOrbit,
+                ProductType::HighPrecisionClock,
+                ProductType::Ionex,
+                ProductType::Antex,
+            ] {
+                tr {
+                    td {
+                        : product.to_string()
                     }
-                }
-            }
-            tr {
-                td {
-                    : "Broadcast Navigation"
-                }
-                td {
-                    @ if self.nav_paths().is_none() {
-                        : "None"
-                    } else {
-                        @ for path in self.nav_paths().unwrap() {
-                            br {
-                                : path.file_name()
-                                    .unwrap()
-                                    .to_string_lossy()
-                                    .to_string()
-                            }
-                        }
-                    }
-                }
-            }
-            tr {
-                td {
-                    : "ANTEX"
-                }
-                td {
-                    @ if self.atx_paths().is_none() {
-                        : "None"
-                    } else {
-                        @ for path in self.atx_paths().unwrap() {
-                            br {
-                                : format!("{}", path.file_name().unwrap().to_string_lossy())
-                            }
-                        }
-                    }
-                }
-            }
-            tr {
-                td {
-                    : "SP3"
-                }
-                td {
-                    @ if self.sp3_paths().is_none() {
-                        : "None"
-                    } else {
-                        @ for path in self.sp3_paths().unwrap() {
-                            br {
-                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                    td {
+                        @ if let Some(paths) = self.files(product) {
+                            @ if paths.is_empty() {
+                                : "None"
+                            } else {
+                                @ for path in paths {
+                                    br {
+                                        : path.file_name()
+                                            .unwrap()
+                                            .to_string_lossy()
+                                            .to_string()
+                                    }
+                                }
                             }
                         }
                     }

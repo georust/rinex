@@ -10,7 +10,7 @@ pub use opts::{QcClassification, QcOpts};
 mod analysis;
 use analysis::QcAnalysis;
 
-use rinex::prelude::RnxContext;
+use rinex::prelude::{ProductType, RnxContext};
 
 /*
  * Methods used when reporting lenghty vectors or data subsets in a table.
@@ -51,9 +51,11 @@ impl QcReport {
         /*
          * QC analysis not feasible when Observations not provided
          */
-        if ctx.obs_data().is_none() {
+        if !ctx.has_observation() {
             return Vec::new();
         }
+
+        let observation = ctx.observation().unwrap();
 
         // build analysis to perform
         let mut analysis: Vec<QcAnalysis> = Vec::new();
@@ -69,19 +71,18 @@ impl QcReport {
 
         match opts.classification {
             QcClassification::GNSS => {
-                for gnss in ctx.obs_data().unwrap().constellation() {
+                for gnss in observation.constellation() {
                     filter_targets.push(TargetItem::from(gnss));
                 }
             },
             QcClassification::SV => {
-                for sv in ctx.obs_data().unwrap().sv() {
+                for sv in observation.sv() {
                     filter_targets.push(TargetItem::from(sv));
                 }
             },
             QcClassification::Physics => {
-                let mut observables: Vec<_> =
-                    ctx.obs_data().unwrap().observable().cloned().collect();
-                observables.sort(); // improves report rendering
+                let mut observables = observation.observable().cloned().collect::<Vec<_>>();
+                observables.sort(); // improves report rendition
                 for obsv in observables {
                     filter_targets.push(TargetItem::from(obsv));
                 }
@@ -94,16 +95,21 @@ impl QcReport {
                 operand: MaskOperand::Equals,
             };
 
-            let subset = ctx.obs_data().unwrap().filter(mask.clone().into());
+            let subset = observation.filter(mask.clone().into());
 
-            // also apply to possible NAV augmentation
-            let nav_subset = ctx
-                .nav_data()
-                .as_ref()
-                .map(|nav| nav.filter(mask.clone().into()));
+            // Perform analysis on all grouped subsets.
+            //  Improve this:
+            //   QcAnalysis::new() should construct from Context directly
+            //   and we should have grouped smaller contexts here
+            if let Some(brdc) = ctx.broadcast_navigation() {
+                let brdc = brdc.filter(mask.clone().into());
 
-            // perform analysis on these subsets
-            analysis.push(QcAnalysis::new(&subset, &nav_subset, opts));
+                // perform analysis on these subsets
+                analysis.push(QcAnalysis::new(&subset, &Some(brdc), opts));
+            } else {
+                // perform analysis on these subsets
+                analysis.push(QcAnalysis::new(&subset, &None, opts));
+            }
         }
         analysis
     }
@@ -121,7 +127,7 @@ impl QcReport {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        title: context.rinex_name().unwrap_or(String::from("Undefined"))
+                        title: context.name();
                     }
                     body {
                         div(id="version") {
@@ -172,7 +178,7 @@ impl QcReport {
                                         : "File Header"
                                     }
                                 }
-                                @ if let Some(data) = context.rinex_data() {
+                                @ if let Some(data) = context.rinex(ProductType::Observation) {
                                     tbody {
                                         : data.header.to_inline_html()
                                     }
@@ -197,23 +203,23 @@ impl QcReport {
                                         @ if opts.classification == QcClassification::GNSS {
                                             th {
                                                 : format!("{:X} analysis", context
-                                                    .obs_data()
-                                                    .unwrap() // infaillible, until we only accept QC with OBS
+                                                    .observation()
+                                                    .unwrap() // infaillible: QC needs observation RINEX
                                                     .constellation().nth(i).unwrap())
                                             }
                                         } else if opts.classification == QcClassification::SV {
                                             th {
                                                 : format!("{:X} analysis", context
-                                                    .obs_data()
-                                                    .unwrap() // infaillible, until we only accept QC with OBS
+                                                    .observation()
+                                                    .unwrap() // infaillible: QC needs observation RINEX
                                                     .sv().nth(i).unwrap())
                                             }
 
                                         } else if opts.classification == QcClassification::Physics {
                                             th {
                                                 : format!("{} analysis", context
-                                                    .obs_data()
-                                                    .unwrap() // infaillible, until we only accept QC with OBS
+                                                    .observation()
+                                                    .unwrap() // infaillible: QC needs observation RINEX
                                                     .observable().nth(i).unwrap())
                                             }
                                         }

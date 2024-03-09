@@ -77,7 +77,7 @@ pub mod prelude {
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
     #[cfg(feature = "sp3")]
-    pub use crate::context::RnxContext;
+    pub use crate::context::{ProductType, RnxContext};
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
