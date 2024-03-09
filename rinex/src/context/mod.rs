@@ -83,13 +83,13 @@ impl<'a> BlobData<'a> {
             _ => None,
         }
     }
-    // /// Returns mutable reference to inner RINEX data.
-    // pub fn as_mut_rinex(&mut self) -> Option<&'a mut Rinex> {
-    //     match self {
-    //         Self::Rinex(r) => Some(r),
-    //         _ => None,
-    //     }
-    // }
+    /// Returns mutable reference to inner RINEX data.
+    pub fn as_mut_rinex(&mut self) -> Option<&'a mut Rinex> {
+        match self {
+            Self::Rinex(r) => Some(r),
+            _ => None,
+        }
+    }
     /// Returns reference to inner SP3 data.
     pub fn as_sp3(&self) -> Option<&'a SP3> {
         match self {
@@ -97,13 +97,13 @@ impl<'a> BlobData<'a> {
             _ => None,
         }
     }
-    // /// Returns mutable reference to inner SP3 data.
-    // pub fn as_mut_sp3(&mut self) -> Option<&'a mut SP3> {
-    //     match self {
-    //         Self::Sp3(s) => Some(s),
-    //         _ => None,
-    //     }
-    // }
+    /// Returns mutable reference to inner SP3 data.
+    pub fn as_mut_sp3(&mut self) -> Option<&'a mut SP3> {
+        match self {
+            Self::Sp3(s) => Some(s),
+            _ => None,
+        }
+    }
 }
 
 /// RnxContext is a structure dedicated to RINEX post processing workflows,
