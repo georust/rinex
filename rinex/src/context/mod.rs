@@ -1,20 +1,18 @@
 //! RINEX post processing context
-use std::path::PathBuf;
+
 use thiserror::Error;
-use walkdir::WalkDir;
 
-use crate::{merge, merge::Merge};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
-use sp3::Merge as SP3Merge;
+use crate::{
+    merge::{Error as RinexMergeError, Merge as RinexMerge},
+    prelude::{GroundPosition, Rinex},
+    types::Type as RinexType,
+    Error as RinexError,
+};
 
-// use crate::observation::Snr;
-// use crate::prelude::Epoch;
-use crate::prelude::{GroundPosition, Rinex};
-// use gnss::prelude::SV;
-
-use sp3::prelude::SP3;
-
-use log::{error, trace};
+use sp3::{prelude::SP3, Merge as SP3Merge, MergeError as SP3MergeError};
 
 #[cfg(feature = "qc")]
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
@@ -24,562 +22,268 @@ use rinex_qc_traits::HtmlReport;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("can only form a RINEX context from a directory, not a single file")]
-    NotADirectory,
+    #[error("non supported file format")]
+    NonSupportedFileFormat,
     #[error("failed to determine filename")]
     FileNameDetermination,
-    #[error("parsing error")]
-    RinexError(#[from] crate::Error),
-    #[error("invalid file type")]
-    NonSupportedType,
+    #[error("invalid rinex format")]
+    RinexError(#[from] RinexError),
     #[error("failed to extend rinex context")]
-    RinexMergeError(#[from] merge::Error),
+    RinexMergeError(#[from] RinexMergeError),
     #[error("failed to extend sp3 context")]
-    SP3MergeError(#[from] sp3::MergeError),
+    SP3MergeError(#[from] SP3MergeError),
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct ProvidedData<T> {
-    /// Source paths
-    pub paths: Vec<PathBuf>,
-    /// Data
-    pub data: T,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Hash)]
+pub enum ProductType {
+    /// GNSS carrier signal observation in the form
+    /// of Observation RINEX data.
+    Observation,
+    /// Meteo sensors data wrapped as Meteo RINEX files.
+    MeteoObservation,
+    /// Broadcast Navigation message as contained in
+    /// Navigation RINEX files.
+    BroadcastNavigation,
+    /// High precision clock data wrapped in Clock RINEX files.
+    HighPrecisionOrbit,
+    /// High precision orbital attitudes wrapped in Clock RINEX files.
+    HighPrecisionClock,
+    /// Antenna calibration information wrapped in ANTEX special RINEX files.
+    Antex,
+    /// Precise Ionosphere state wrapped in IONEX special RINEX files.
+    Ionex,
 }
 
-impl<T> ProvidedData<T> {
-    /// Returns reference to Inner Data
-    pub fn data(&self) -> &T {
-        &self.data
+impl From<RinexType> for ProductType {
+    fn from(rt: RinexType) -> Self {
+        match rt {
+            RinexType::ObservationData => Self::Observation,
+            RinexType::NavigationData => Self::BroadcastNavigation,
+            RinexType::MeteoData => Self::MeteoObservation,
+            RinexType::ClockData => Self::HighPrecisionClock,
+            RinexType::IonosphereMaps => Self::Ionex,
+            RinexType::AntennaData => Self::Antex,
+        }
     }
-    /// Returns mutable reference to Inner Data
-    pub fn data_mut(&mut self) -> &mut T {
-        &mut self.data
+}
+
+#[derive(Clone)]
+enum BlobData<'a> {
+    /// RINEX content
+    Rinex(&'a Rinex),
+    /// SP3 content
+    Sp3(&'a SP3),
+}
+
+impl<'a> BlobData<'a> {
+    /// Returns reference to inner RINEX data.
+    pub fn as_rinex(&self) -> Option<&'a Rinex> {
+        match self {
+            Self::Rinex(r) => Some(r),
+            _ => None,
+        }
     }
-    /// Returns list of files that created this context
-    pub fn paths(&self) -> &[PathBuf] {
-        &self.paths
+    // /// Returns mutable reference to inner RINEX data.
+    // pub fn as_mut_rinex(&mut self) -> Option<&'a mut Rinex> {
+    //     match self {
+    //         Self::Rinex(r) => Some(r),
+    //         _ => None,
+    //     }
+    // }
+    /// Returns reference to inner SP3 data.
+    pub fn as_sp3(&self) -> Option<&'a SP3> {
+        match self {
+            Self::Sp3(s) => Some(s),
+            _ => None,
+        }
     }
+    // /// Returns mutable reference to inner SP3 data.
+    // pub fn as_mut_sp3(&mut self) -> Option<&'a mut SP3> {
+    //     match self {
+    //         Self::Sp3(s) => Some(s),
+    //         _ => None,
+    //     }
+    // }
 }
 
 /// RnxContext is a structure dedicated to RINEX post processing workflows,
 /// like precise timing, positioning or atmosphere analysis.
-#[derive(Default, Debug, Clone)]
-pub struct RnxContext {
-    /// Optional OBS RINEX: provides GNSS signals, allows precise positioning.
-    pub obs: Option<ProvidedData<Rinex>>,
-    /// Optional NAV RINEX: allows precise positioning.
-    pub nav: Option<ProvidedData<Rinex>>,
-    /// Optional CLK RINEX
-    pub clk: Option<ProvidedData<Rinex>>,
-    /// Optional ATX RINEX
-    pub atx: Option<ProvidedData<Rinex>>,
-    /// Optional SP3 Orbits. Allows precise positioning.
-    pub sp3: Option<ProvidedData<SP3>>,
-    /// Optional Meteo file. Provides detailed modeling and meteo surveying.
-    pub meteo: Option<ProvidedData<Rinex>>,
-    /// Optional IONEX for accurate Ionosphere compensation.
-    pub ionex: Option<ProvidedData<Rinex>>,
+#[derive(Clone, Default)]
+pub struct RnxContext<'a> {
+    /// Context is named after "primary" file.
+    name: String,
+    /// Files merged into self
+    files: HashMap<ProductType, Vec<PathBuf>>,
+    /// Context blob created by merging each members of each category
+    blob: HashMap<ProductType, BlobData<'a>>,
 }
 
-impl RnxContext {
-    /// Build a RINEX post processing context from either a directory or a single file
-    pub fn new(path: &PathBuf) -> Result<Self, Error> {
-        if path.is_dir() {
-            /* recursive builder */
-            Self::from_directory(path)
-        } else {
-            /* load a single file */
-            let mut ctx = Self::default();
-            ctx.load(path)?;
-            Ok(ctx)
-        }
+impl<'a> RnxContext<'a> {
+    /// Returns name of this context.
+    /// Context is named after "primary" file where
+    /// Observation RINEX is always prefered.
+    pub fn name(&self) -> String {
+        self.name.clone()
     }
-    /*
-     * Builds Self by recursive browsing
-     */
-    fn from_directory(path: &PathBuf) -> Result<Self, Error> {
-        let mut ret = RnxContext::default();
-        let walkdir = WalkDir::new(path.to_string_lossy().to_string()).max_depth(5);
-        for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-            let path = entry.path().to_path_buf();
-            let filename = path
-                .file_name()
-                .ok_or(Error::FileNameDetermination)?
-                .to_string_lossy()
-                .to_string();
-
-            if !path.is_dir() {
-                match ret.load(&path) {
-                    Ok(_) => trace!("loaded \"{}\"", filename),
-                    Err(e) => error!("failed to load \"{}\", {:?}", path.display(), e),
+    /// Returns reference to files loaded in given category
+    pub fn files(&self, product: ProductType) -> Option<&Vec<PathBuf>> {
+        self.files
+            .iter()
+            .filter_map(|(prod_type, paths)| {
+                if *prod_type == product {
+                    Some(paths)
+                } else {
+                    None
                 }
-            }
-        }
-        Ok(ret)
+            })
+            .reduce(|k, _| k)
     }
-    /// Load individual file into Context
-    pub fn load(&mut self, path: &PathBuf) -> Result<(), Error> {
-        let fullpath = path.to_string_lossy().to_string();
-        let filename = path
-            .file_name()
-            .ok_or(Error::FileNameDetermination)?
-            .to_string_lossy()
-            .to_string();
-        if let Ok(rnx) = Rinex::from_path(path) {
-            if rnx.is_observation_rinex() {
-                self.load_obs(path, &rnx)?;
-                trace!("loaded signal observations \"{}\"", filename);
-            } else if rnx.is_navigation_rinex() {
-                self.load_nav(path, &rnx)?;
-                trace!("loaded broadcast nav \"{}\"", filename);
-            } else if rnx.is_meteo_rinex() {
-                self.load_meteo(path, &rnx)?;
-                trace!("loaded meteo observations \"{}\"", filename);
-            } else if rnx.is_clock_rinex() {
-                self.load_clock(path, &rnx)?;
-                trace!("loaded high precision clock product \"{}\"", filename);
-            } else if rnx.is_ionex() {
-                self.load_ionex(path, &rnx)?;
-                trace!("loaded ionex \"{}\"", filename);
-            } else if rnx.is_antex() {
-                self.load_antex(path, &rnx)?;
-                trace!("loaded antex dataset \"{}\"", filename);
-            } else {
-                return Err(Error::NonSupportedType);
-            }
-        } else if let Ok(sp3) = SP3::from_file(&fullpath) {
-            self.load_sp3(path, &sp3)?;
-            trace!("loaded high precision oribits \"{}\"", filename);
+    /// Returns reference to inner data of given category
+    fn data(&'a self, product: ProductType) -> Option<&'a BlobData> {
+        self.blob
+            .iter()
+            .filter_map(|(prod_type, data)| {
+                if *prod_type == product {
+                    Some(data)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+    }
+    /// Returns mutable reference to inner data of given category
+    fn data_mut(&'a mut self, product: ProductType) -> Option<&'a mut BlobData> {
+        self.blob
+            .iter_mut()
+            .filter_map(|(prod_type, data)| {
+                if *prod_type == product {
+                    Some(data)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+    }
+    /// Returns reference to inner RINEX data of given category
+    pub fn rinex(&'a self, product: ProductType) -> Option<&'a Rinex> {
+        self.data(product)?.as_rinex()
+    }
+    /// Returns reference to inner SP3 data
+    pub fn sp3(&'a self) -> Option<&'a SP3> {
+        self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
+    }
+    // /// Returns mutable reference to inner RINEX data of given category
+    // pub fn rinex_mut(&'a mut self, product: ProductType) -> Option<&'a mut Rinex> {
+    //     self.data_mut(product)?.as_mut_rinex()
+    // }
+    // /// Returns mutable reference to inner SP3 data
+    // pub fn sp3_mut(&'a mut self) -> Option<&'a mut SP3> {
+    //     self.data_mut(ProductType::HighPrecisionOrbit)?
+    //         .as_mut_sp3()
+    // }
+    /// Returns reference to inner [ProductType::Observation] data
+    pub fn observation(&'a self) -> Option<&'a Rinex> {
+        self.data(ProductType::BroadcastNavigation)?.as_rinex()
+    }
+    /// Returns reference to inner [ProductType::BroadcastNavigation] data
+    pub fn broadcast_navigation(&'a self) -> Option<&'a Rinex> {
+        self.data(ProductType::BroadcastNavigation)?.as_rinex()
+    }
+    // /// Returns mutal reference to inner [ProductType::Observation] data
+    // pub fn observation_mut(&'a mut self) -> Option<&'a mut Rinex> {
+    //     self.data_mut(ProductType::Observation)?.as_mut_rinex()
+    // }
+    /// Returns true if [ProductType::Observation] are present in Self
+    pub fn has_observation(&self) -> bool {
+        self.observation().is_some()
+    }
+    /// Returns true if High Precision Orbits also contains temporal information.
+    pub fn sp3_has_clock(&self) -> bool {
+        if let Some(sp3) = self.sp3() {
+            sp3.sv_clock().count() > 0
+        } else {
+            false
+        }
+    }
+    /// Load a single RINEX file into Self.
+    /// File revision must be supported and must be correctly formatted
+    /// for this operation to be effective.
+    pub fn load_rinex(&'a mut self, path: &Path, rinex: &'a Rinex) -> Result<(), Error> {
+        let prod_type = ProductType::from(rinex.header.rinex_type);
+        // extend context blob
+        //if let Some(inner) = self.rinex_mut(prod_type) {
+        //    inner.merge_mut(rinex)?;
+        //} else {
+        self.blob.insert(prod_type, BlobData::Rinex(rinex));
+        //}
+        // extend file list
+        if let Some(inner) = self
+            .files
+            .iter_mut()
+            .filter_map(|(prod, files)| {
+                if *prod == prod_type {
+                    Some(files)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+        {
+            inner.push(path.to_path_buf());
+        } else {
+            self.files.insert(prod_type, vec![path.to_path_buf()]);
         }
         Ok(())
     }
-    /// Unwraps inner RINEX data, by preference order:
-    /// 1. Observation Data if provided
-    /// 2. Navigation Data if provided
-    /// 3. Meteo Data if provided
-    /// 4. Ionex Data if provided
-    /// 5. ATX Data if provided
-    fn provided_rinex(&self) -> Option<&ProvidedData<Rinex>> {
-        if let Some(data) = &self.obs {
-            Some(data)
-        } else if let Some(data) = &self.nav {
-            Some(data)
-        } else if let Some(data) = &self.meteo {
-            Some(data)
-        } else if let Some(data) = &self.ionex {
-            Some(data)
-        } else if let Some(data) = &self.atx {
-            Some(data)
-        } else if let Some(data) = &self.clk {
-            Some(data)
-        } else {
-            None
-        }
-    }
-    /// Unwraps most major RINEX data provided, by preference order:
-    /// 1. Observation Data if provided
-    /// 2. Navigation Data if provided
-    /// 3. Meteo Data if provided
-    /// 4. Ionex Data if provided
-    /// 5. ATX Data if provided
-    pub fn rinex_data(&self) -> Option<&Rinex> {
-        let rinex_source = self.provided_rinex()?;
-        Some(&rinex_source.data)
-    }
-    /// Unwraps most major file path provided, by preference order:
-    /// 1. Observation Data if provided
-    /// 2. Navigation Data if provided
-    /// 3. Meteo Data if provided
-    /// 4. Ionex Data if provided
-    /// 5. ATX Data if provided
-    pub fn rinex_path(&self) -> Option<&PathBuf> {
-        let rinex_source = self.provided_rinex()?;
-        let paths = &rinex_source.paths;
-        if !paths.is_empty() {
-            Some(&paths[0])
-        } else {
-            None
-        }
-    }
-    /// Name this context, from most major file name that has been loaded,
-    /// by preference order :
-    /// 1. Observation Data if provided
-    /// 2. Navigation Data if provided
-    /// 3. Meteo Data if provided
-    /// 4. Ionex Data if provided
-    /// 5. ATX Data if provided
-    pub fn rinex_name(&self) -> Option<String> {
-        let path = self.rinex_path()?;
-        Some(path.file_name().unwrap().to_string_lossy().to_string())
-    }
-    /// Returns possible Observation Data paths
-    pub fn obs_paths(&self) -> Option<&[PathBuf]> {
-        if let Some(ref obs) = self.obs {
-            Some(obs.paths())
-        } else {
-            None
-        }
-    }
-    /// Returns true if observations are present
-    pub fn has_observation_data(&self) -> bool {
-        self.obs.is_some()
-    }
-    /// Returns reference to Observation Data
-    pub fn obs_data(&self) -> Option<&Rinex> {
-        if let Some(ref obs) = self.obs {
-            Some(&obs.data)
-        } else {
-            None
-        }
-    }
-    /// Returns mutable reference to Observation Data
-    pub fn obs_data_mut(&mut self) -> Option<&mut Rinex> {
-        if let Some(ref mut obs) = self.obs {
-            Some(&mut obs.data)
-        } else {
-            None
-        }
-    }
-    /// Returns true if provided context contains navigation data
-    pub fn has_navigation_data(&self) -> bool {
-        self.nav.is_some()
-    }
-    /// Returns NAV files source path
-    pub fn nav_paths(&self) -> Option<&[PathBuf]> {
-        if let Some(ref nav) = self.nav {
-            Some(nav.paths())
-        } else {
-            None
-        }
-    }
-    /// Returns reference to navigation data specifically
-    pub fn nav_data(&self) -> Option<&Rinex> {
-        if let Some(ref nav) = self.nav {
-            Some(&nav.data)
-        } else {
-            None
-        }
-    }
-    /// Returns mutable reference to navigation data specifically
-    pub fn nav_data_mut(&mut self) -> Option<&mut Rinex> {
-        if let Some(ref mut nav) = self.nav {
-            Some(&mut nav.data)
-        } else {
-            None
-        }
-    }
-    /// Returns true if high precision temporal data is contained.
-    pub fn has_clock_data(&self) -> bool {
-        self.clk.is_some()
-    }
-    /// Returns CLK files source path
-    pub fn clk_paths(&self) -> Option<&[PathBuf]> {
-        if let Some(ref clk) = self.clk {
-            Some(clk.paths())
-        } else {
-            None
-        }
-    }
-    /// Returns reference to Clock data specifically
-    pub fn clk_data(&self) -> Option<&Rinex> {
-        if let Some(ref clk) = self.clk {
-            Some(clk.data())
-        } else {
-            None
-        }
-    }
-    /// Returns true if high precision orbital data is contained.
-    pub fn has_sp3(&self) -> bool {
-        self.sp3.is_some()
-    }
-    /// Returns reference to SP3 data specifically
-    pub fn sp3_data(&self) -> Option<&SP3> {
-        if let Some(ref sp3) = self.sp3 {
-            Some(sp3.data())
-        } else {
-            None
-        }
-    }
-    /// Returns SP3 files source path
-    pub fn sp3_paths(&self) -> Option<&[PathBuf]> {
-        if let Some(ref sp3) = self.sp3 {
-            Some(sp3.paths())
-        } else {
-            None
-        }
-    }
-    /// Returns true if provided context contains ATX RINEX Data
-    pub fn has_atx(&self) -> bool {
-        self.atx.is_some()
-    }
-    /// Returns reference to ATX data specifically
-    pub fn atx_data(&self) -> Option<&Rinex> {
-        if let Some(ref atx) = self.atx {
-            Some(atx.data())
-        } else {
-            None
-        }
-    }
-    /// Returns ATX files source path
-    pub fn atx_paths(&self) -> Option<&[PathBuf]> {
-        if let Some(ref atx) = self.atx {
-            Some(atx.paths())
-        } else {
-            None
-        }
-    }
-    /// Returns true if self contains meteo data
-    pub fn has_meteo_data(&self) -> bool {
-        self.meteo.is_some()
-    }
-    /// Returns reference to Meteo Data
-    pub fn meteo_data(&self) -> Option<&Rinex> {
-        if let Some(ref data) = self.meteo {
-            Some(&data.data)
-        } else {
-            None
-        }
-    }
-    /// Returns Meteo files source paths
-    pub fn meteo_paths(&self) -> Option<&[PathBuf]> {
-        if let Some(ref meteo) = self.meteo {
-            Some(meteo.paths())
-        } else {
-            None
-        }
-    }
-    /// Returns mutable reference to meteo data specifically
-    pub fn meteo_data_mut(&mut self) -> Option<&mut Rinex> {
-        if let Some(ref mut meteo) = self.meteo {
-            Some(&mut meteo.data)
-        } else {
-            None
-        }
-    }
-    /// Returns IONEX files source paths
-    pub fn ionex_paths(&self) -> Option<&[PathBuf]> {
-        if let Some(ref ionex) = self.ionex {
-            Some(ionex.paths())
-        } else {
-            None
-        }
-    }
-    /// Returns reference to IONEX Data
-    pub fn ionex_data(&self) -> Option<&Rinex> {
-        if let Some(ref data) = self.ionex {
-            Some(&data.data)
-        } else {
-            None
-        }
-    }
-    /// Returns mutable reference to ionex data specifically
-    pub fn ionex_data_mut(&mut self) -> Option<&mut Rinex> {
-        if let Some(ref mut ionex) = self.ionex {
-            Some(&mut ionex.data)
-        } else {
-            None
-        }
+    /// Load a single SP3 file into Self.
+    /// File revision must be supported and must be correctly formatted
+    /// for this operation to be effective.
+    pub fn load_sp3(&'a mut self, path: &Path, sp3: &'a SP3) -> Result<(), Error> {
+        // extend context blob
+        //if let Some(inner) = self.sp3_mut() {
+        //    inner.merge_mut(sp3)?;
+        //} else {
+        self.blob
+            .insert(ProductType::HighPrecisionOrbit, BlobData::Sp3(sp3));
+        //}
+        // extend file list
+        if let Some(inner) = self
+            .files
+            .iter_mut()
+            .filter_map(|(prod, files)| {
+                if *prod == ProductType::HighPrecisionOrbit {
+                    Some(files)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
+        {
+            inner.push(path.to_path_buf());
+        } // else {
+          //self.files.insert(ProductType::HighPrecisionOrbit, vec![path.to_path_buf()]);
+          //}
+        Ok(())
     }
     /// Returns possible Reference position defined in this context.
     /// Usually the Receiver location in the laboratory.
     pub fn ground_position(&self) -> Option<GroundPosition> {
-        if let Some(data) = self.obs_data() {
+        if let Some(data) = self.observation() {
             if let Some(pos) = data.header.ground_position {
                 return Some(pos);
             }
         }
-        if let Some(data) = self.nav_data() {
+        if let Some(data) = self.broadcast_navigation() {
             if let Some(pos) = data.header.ground_position {
                 return Some(pos);
             }
         }
         None
     }
-    fn load_obs(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
-        if let Some(obs) = &mut self.obs {
-            obs.data.merge_mut(rnx)?;
-            obs.paths.push(path.to_path_buf());
-        } else {
-            self.obs = Some(ProvidedData {
-                data: rnx.clone(),
-                paths: vec![path.to_path_buf()],
-            });
-        }
-        Ok(())
-    }
-    fn load_nav(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
-        if let Some(nav) = &mut self.nav {
-            nav.data.merge_mut(rnx)?;
-            nav.paths.push(path.to_path_buf());
-        } else {
-            self.nav = Some(ProvidedData {
-                data: rnx.clone(),
-                paths: vec![path.to_path_buf()],
-            });
-        }
-        Ok(())
-    }
-    fn load_meteo(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
-        if let Some(meteo) = &mut self.meteo {
-            meteo.data.merge_mut(rnx)?;
-            meteo.paths.push(path.to_path_buf());
-        } else {
-            self.meteo = Some(ProvidedData {
-                data: rnx.clone(),
-                paths: vec![path.to_path_buf()],
-            });
-        }
-        Ok(())
-    }
-    fn load_clock(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
-        if let Some(clk) = &mut self.clk {
-            clk.data.merge_mut(rnx)?;
-            clk.paths.push(path.to_path_buf());
-        } else {
-            self.clk = Some(ProvidedData {
-                data: rnx.clone(),
-                paths: vec![path.to_path_buf()],
-            });
-        }
-        Ok(())
-    }
-    fn load_ionex(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
-        if let Some(ionex) = &mut self.ionex {
-            ionex.data.merge_mut(rnx)?;
-            ionex.paths.push(path.to_path_buf());
-        } else {
-            self.ionex = Some(ProvidedData {
-                data: rnx.clone(),
-                paths: vec![path.to_path_buf()],
-            });
-        }
-        Ok(())
-    }
-    fn load_antex(&mut self, path: &PathBuf, rnx: &Rinex) -> Result<(), Error> {
-        if let Some(atx) = &mut self.atx {
-            atx.data.merge_mut(rnx)?;
-            atx.paths.push(path.to_path_buf());
-        } else {
-            self.atx = Some(ProvidedData {
-                data: rnx.clone(),
-                paths: vec![path.to_path_buf()],
-            });
-        }
-        Ok(())
-    }
-    fn load_sp3(&mut self, path: &PathBuf, sp3: &SP3) -> Result<(), Error> {
-        if let Some(data) = &mut self.sp3 {
-            /* extend existing context */
-            data.data.merge_mut(sp3)?;
-            data.paths.push(path.to_path_buf());
-        } else {
-            self.sp3 = Some(ProvidedData {
-                data: sp3.clone(),
-                paths: vec![path.to_path_buf()],
-            });
-        }
-        Ok(())
-    }
-    /// Returns true if High Precision Orbital data also contains temporal information.
-    pub fn sp3_has_clock(&self) -> bool {
-        if let Some(sp3) = &self.sp3 {
-            sp3.data.sv_clock().count() > 0
-        } else {
-            false
-        }
-    }
-    // /// Removes "incomplete" Epochs from OBS Data
-    // pub fn complete_epoch_filter(&mut self, min_snr: Option<Snr>) {
-    //     let total = self.primary_data().epoch().count();
-    //     let complete_epochs: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
-    //     if let Some(rec) = self.primary_data_mut().record.as_mut_obs() {
-    //         rec.retain(|(epoch, _), (_, sv)| {
-    //             let epoch_is_complete = complete_epochs.iter().find(|(e, sv_carriers)| e == epoch);
-
-    //             if epoch_is_complete.is_none() {
-    //                 false
-    //             } else {
-    //                 let (_, sv_carriers) = epoch_is_complete.unwrap();
-    //                 sv.retain(|sv, observables| {
-    //                     let carriers: Vec<Carrier> = sv_carriers
-    //                         .iter()
-    //                         .filter_map(
-    //                             |(svnn, carrier)| {
-    //                                 if sv == svnn {
-    //                                     Some(*carrier)
-    //                                 } else {
-    //                                     None
-    //                                 }
-    //                             },
-    //                         )
-    //                         .collect();
-    //                     observables.retain(|obs, _| {
-    //                         let carrier = Carrier::from_observable(sv.constellation, obs)
-    //                             .unwrap_or(Carrier::default());
-    //                         carriers.contains(&carrier)
-    //                     });
-    //                     !observables.is_empty()
-    //                 });
-    //                 !sv.is_empty()
-    //             }
-    //         });
-    //     }
-    // }
-    // /// Performs SV Orbit interpolation
-    // pub fn orbit_interpolation(&mut self, _order: usize, _min_snr: Option<Snr>) {
-    // /* NB: interpolate Complete Epochs only */
-    //let complete_epoch: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
-    //for (e, sv_signals) in complete_epoch {
-    //    for (sv, carrier) in sv_signals {
-    //        // if orbit already exists: do not interpolate
-    //        // this will make things much quicker for high quality data products
-    //        let found = self
-    //            .sv_position()
-    //            .into_iter()
-    //            .find(|(sv_e, svnn, _)| *sv_e == e && *svnn == sv);
-    //        if let Some((_, _, (x, y, z))) = found {
-    //            // store as is
-    //            self.orbits.insert((e, sv), (x, y, z));
-    //        } else {
-    //            if let Some(sp3) = self.sp3_data() {
-    //                if let Some((x_km, y_km, z_km)) = sp3.sv_position_interpolate(sv, e, order)
-    //                {
-    //                    self.orbits.insert((e, sv), (x_km, y_km, z_km));
-    //                }
-    //            } else if let Some(nav) = self.nav_data() {
-    //                if let Some((x_m, y_m, z_m)) = nav.sv_position_interpolate(sv, e, order) {
-    //                    self.orbits
-    //                        .insert((e, sv), (x_m * 1.0E-3, y_m * 1.0E-3, z_m * 1.0E-3));
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
-    //}
-    // /// Returns (unique) Iterator over SV orbit (3D positions)
-    // /// to be used in this context
-    // #[cfg(feature = "nav")]
-    // pub fn sv_position(&self) -> Vec<(Epoch, SV, (f64, f64, f64))> {
-    //     if self.interpolated {
-    //         todo!("CONCLUDE THIS PLEASE");
-    //     } else {
-    //         match self.sp3_data() {
-    //             Some(sp3) => sp3.sv_position().collect(),
-    //             _ => self
-    //                 .nav_data()
-    //                 .unwrap()
-    //                 .sv_position()
-    //                 .map(|(e, sv, (x, y, z))| {
-    //                     (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
-    //                 })
-    //                 .collect(),
-    //         }
-    //     }
-    // }
 }
 
 #[cfg(feature = "qc")]
-impl HtmlReport for RnxContext {
+impl HtmlReport for RnxContext<'a> {
     fn to_html(&self) -> String {
         format!(
             "{}",
@@ -591,7 +295,7 @@ impl HtmlReport for RnxContext {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        title: self.rinex_name().unwrap_or(String::from("Undefined"))
+                        title: self.name(),
                     }
                     body {
                         : self.to_inline_html()

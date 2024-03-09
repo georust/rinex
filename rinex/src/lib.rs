@@ -53,7 +53,7 @@ use writer::BufferedWriter;
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write; //, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -83,6 +83,7 @@ pub mod prelude {
     pub use crate::header::Header;
     pub use crate::observable::Observable;
     pub use crate::types::Type as RinexType;
+    pub use crate::Error;
     pub use crate::Rinex;
     pub use gnss::prelude::Constellation;
     pub use gnss::prelude::SV;
@@ -640,11 +641,11 @@ impl Rinex {
     /// some are mandatory.   
     /// Parses record (file body) for supported `RINEX` types.
     pub fn from_file(fullpath: &str) -> Result<Rinex, Error> {
-        Self::from_path(&Path::new(fullpath).to_path_buf())
+        Self::from_path(Path::new(fullpath))
     }
 
     /// See [Self::from_file]
-    pub fn from_path(path: &PathBuf) -> Result<Rinex, Error> {
+    pub fn from_path(path: &Path) -> Result<Rinex, Error> {
         let fullpath = path.to_string_lossy().to_string();
 
         // create buffered reader
