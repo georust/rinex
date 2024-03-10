@@ -161,9 +161,13 @@ impl RnxContext {
     /// If no files were previously loaded, simply returns "Undefined".
     pub fn name(&self) -> String {
         if let Some(path) = self.primary_path() {
-            path.file_stem()
+            path.file_name()
                 .unwrap_or(OsStr::new("Undefined"))
                 .to_string_lossy()
+                // removes possible .crx ; .gz extensions
+                .split('.')
+                .next()
+                .unwrap_or("Undefined")
                 .to_string()
         } else {
             "Undefined".to_string()
@@ -450,6 +454,7 @@ impl HtmlReport for RnxContext {
 impl std::fmt::Debug for RnxContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Primary: \"{}\"", self.name())?;
         for product in [
             ProductType::Observation,
             ProductType::BroadcastNavigation,
@@ -460,8 +465,8 @@ impl std::fmt::Debug for RnxContext {
             ProductType::Antex,
         ] {
             if let Some(files) = self.files(product) {
-                write!(f, "{}: ", product)?;
-                write!(f, "{:?}\n", files,)?;
+                write!(f, "\n{}: ", product)?;
+                write!(f, "{:?}", files,)?;
             }
         }
         Ok(())

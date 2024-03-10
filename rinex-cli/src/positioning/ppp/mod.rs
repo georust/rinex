@@ -1,7 +1,6 @@
 //! PPP solver
 use crate::cli::Context;
 use crate::positioning::{bd_model, kb_model, ng_model, tropo_components};
-use hifitime::TimeScale;
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use rinex::prelude::SV;
