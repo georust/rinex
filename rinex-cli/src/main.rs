@@ -75,7 +75,9 @@ fn user_data_parsing(cli: &Cli) -> RnxContext {
                 let path = entry.path();
                 if let Ok(rinex) = Rinex::from_path(path) {
                     let loading = ctx.load_rinex(path, rinex);
-                    if loading.is_err() {
+                    if loading.is_ok() {
+                        info!("Loading RINEX file \"{}\"", path.display());
+                    } else {
                         warn!(
                             "failed to load RINEX file \"{}\": {}",
                             path.display(),
@@ -84,7 +86,9 @@ fn user_data_parsing(cli: &Cli) -> RnxContext {
                     }
                 } else if let Ok(sp3) = SP3::from_path(path) {
                     let loading = ctx.load_sp3(path, sp3);
-                    if loading.is_err() {
+                    if loading.is_ok() {
+                        info!("Loading SP3 file \"{}\"", path.display());
+                    } else {
                         warn!(
                             "failed to load SP3 file \"{}\": {}",
                             path.display(),
@@ -130,6 +134,8 @@ fn user_data_parsing(cli: &Cli) -> RnxContext {
      * Preprocess whole context
      */
     preprocess(&mut ctx, &cli);
+
+    debug!("{:?}", ctx);
     ctx
 }
 
@@ -153,7 +159,7 @@ pub fn main() -> Result<(), Error> {
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
     // Form context
-    let mut ctx = Context {
+    let ctx = Context {
         name: ctx_stem.clone(),
         data: data_ctx,
         quiet: cli.matches.get_flag("quiet"),
@@ -198,7 +204,7 @@ pub fn main() -> Result<(), Error> {
                     lat = rad2deg(lat);
                     lon = rad2deg(lon);
                     info!(
-                        "using manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
+                        "manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
                         (x, y, z),
                         lat,
                         lon
@@ -212,7 +218,7 @@ pub fn main() -> Result<(), Error> {
                         lat = rad2deg(lat);
                         lon = rad2deg(lon);
                         info!(
-                            "position as defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
+                            "position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
                             (x, y, z),
                             lat,
                             lon

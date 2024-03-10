@@ -295,7 +295,7 @@ impl SP3 {
     /// .gz decompression, if compiled with the "flate2" feature.
     pub fn from_path(path: &Path) -> Result<Self, Errors> {
         let fullpath = path.to_string_lossy().to_string();
-        Self::from_path(Path::new(&fullpath))
+        Self::from_file(&fullpath)
     }
     /// See [Self::from_path]
     pub fn from_file(path: &str) -> Result<Self, Errors> {

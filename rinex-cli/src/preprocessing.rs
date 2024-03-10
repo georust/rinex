@@ -38,35 +38,39 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
         trace!("applying -I filter..");
     }
 
-    //for filter in gnss_filters {
-    //    let filter = Filter::from_str(filter).unwrap(); // cannot fail
-    //    if let Some(inner) = ctx.observation_mut() {
-    //        inner.filter_mut(filter.clone());
-    //    }
-    //    if let Some(inner) = ctx.brdc_navigation_mut() {
-    //        inner.filter_mut(filter.clone());
-    //    }
-    //    if let Some(inner) = ctx.clock_mut() {
-    //        inner.filter_mut(filter.clone());
-    //    }
-    //    if let Some(inner) = ctx.sp3_mut() {
-    //        //TODO
-    //    }
-    //}
-    //let mut obs_ref = ctx.observation_mut();
+    for filter in gnss_filters {
+        let filter = Filter::from_str(filter).unwrap(); // cannot fail
+        if let Some(inner) = ctx.observation_mut() {
+            inner.filter_mut(filter.clone());
+        }
+        if let Some(inner) = ctx.brdc_navigation_mut() {
+            inner.filter_mut(filter.clone());
+        }
+        if let Some(inner) = ctx.clock_mut() {
+            inner.filter_mut(filter.clone());
+        }
+        if let Some(inner) = ctx.sp3_mut() {
+            //TODO
+        }
+    }
 
     for filt_str in cli.preprocessing() {
         /*
-         * TODO
-         * special case : apply to specific file format only
+         * Apply all preprocessing filters
          */
         if let Ok(filter) = Filter::from_str(&filt_str) {
-            //if let Some(ref mut inner) = obs_ref {
-            //    inner.filter_mut(filter.clone());
-            //}
-            //if let Some(inner) = ctx.brdc_navigation_mut() {
-            //    inner.filter_mut(filter.clone());
-            //}
+            if let Some(ref mut inner) = ctx.observation_mut() {
+                inner.filter_mut(filter.clone());
+            }
+            if let Some(ref mut inner) = ctx.brdc_navigation_mut() {
+                inner.filter_mut(filter.clone());
+            }
+            if let Some(ref mut inner) = ctx.meteo_mut() {
+                inner.filter_mut(filter.clone());
+            }
+            if let Some(ref mut inner) = ctx.clock_mut() {
+                inner.filter_mut(filter.clone());
+            }
             trace!("applied filter \"{}\"", filt_str);
         } else {
             error!("invalid filter description \"{}\"", filt_str);
