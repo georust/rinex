@@ -49,7 +49,7 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
         if let Some(inner) = ctx.clock_mut() {
             inner.filter_mut(filter.clone());
         }
-        if let Some(inner) = ctx.sp3_mut() {
+        if let Some(_inner) = ctx.sp3_mut() {
             //TODO
         }
     }
@@ -58,7 +58,7 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
         /*
          * Apply all preprocessing filters
          */
-        if let Ok(filter) = Filter::from_str(&filt_str) {
+        if let Ok(filter) = Filter::from_str(filt_str) {
             if let Some(ref mut inner) = ctx.observation_mut() {
                 inner.filter_mut(filter.clone());
             }

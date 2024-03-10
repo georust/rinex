@@ -840,7 +840,7 @@ mod test {
 
         let record = rnx.record.as_obs().unwrap();
 
-        let epoch = epochs.get(0).unwrap();
+        let epoch = epochs.first().unwrap();
         let flag = EpochFlag::Ok;
         let (clk_offset, vehicles) = record.get(&(*epoch, flag)).unwrap();
         assert!(clk_offset.is_none());

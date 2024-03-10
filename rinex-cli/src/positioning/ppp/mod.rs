@@ -31,7 +31,7 @@ where
 
     let clk_data = ctx.data.clock();
     let meteo_data = ctx.data.meteo();
-    let sp3_data = ctx.data.sp3();
+    let _sp3_data = ctx.data.sp3();
     let sp3_has_clock = ctx.data.sp3_has_clock();
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {

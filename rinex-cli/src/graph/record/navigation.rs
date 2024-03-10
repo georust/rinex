@@ -130,7 +130,7 @@ fn plot_sv_clock_states(ctx: &CtxClockStates, nav_sv: &Vec<SV>, plot_ctx: &mut P
             },
         };
         for (index, (sv, results)) in vehicles.iter().enumerate() {
-            if !nav_sv.contains(&sv) {
+            if !nav_sv.contains(sv) {
                 continue;
             }
             let sv_epochs = results.iter().map(|(t, _)| *t).collect::<Vec<_>>();
@@ -192,7 +192,7 @@ fn ctx_sv_clock_corrections(
     obs: &Rinex,
     nav: &Rinex,
     clk: Option<&Rinex>,
-    sp3: Option<&SP3>,
+    _sp3: Option<&SP3>,
 ) -> CtxClockCorrections {
     let mut clock_corr = CtxClockCorrections::new();
     for ((t, flag), (_, vehicles)) in obs.observation() {
@@ -251,7 +251,7 @@ fn ctx_sv_clock_corrections(
 
                     // insert result
                     if let Some(inner) = clock_corr.get_mut(&product) {
-                        if let Some(inner) = inner.get_mut(&sv) {
+                        if let Some(inner) = inner.get_mut(sv) {
                             inner.push((*t, correction));
                         } else {
                             inner.insert(*sv, vec![(*t, correction)]);
@@ -301,7 +301,7 @@ fn plot_sv_clock_corrections(ctx: &CtxClockCorrections, plot_ctx: &mut PlotConte
             }
             for (index, (sv, data)) in vehicles
                 .iter()
-                .filter(|(sv, data)| sv.constellation.timescale().unwrap() == ts)
+                .filter(|(sv, _data)| sv.constellation.timescale().unwrap() == ts)
                 .enumerate()
             {
                 let epochs = data.iter().map(|(t, _)| *t).collect::<Vec<_>>();
@@ -351,14 +351,14 @@ fn plot_system_time(
                 },
             }
             for (_, state_vehicles) in states.iter().filter(|(k, _)| *k == product) {
-                for (index, (sv, corrections)) in vehicles
+                for (_index, (sv, _corrections)) in vehicles
                     .iter()
-                    .filter(|(sv, data)| sv.constellation.timescale() == Some(ts))
+                    .filter(|(sv, _data)| sv.constellation.timescale() == Some(ts))
                     .enumerate()
                 {
-                    if let Some((_, data)) = state_vehicles
+                    if let Some((_, _data)) = state_vehicles
                         .iter()
-                        .filter(|(state_sv, data)| *state_sv == sv)
+                        .filter(|(state_sv, _data)| *state_sv == sv)
                         .reduce(|k, _| k)
                     {
                         //FIXME: conclude this graph

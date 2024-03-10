@@ -2982,11 +2982,7 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = (Epoch, SV, ClockProfileType, ClockProfile)> + '_> {
         Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
             rec.iter().filter_map(|(key, profile)| {
-                if let Some(sv) = key.clock_type.as_sv() {
-                    Some((*epoch, sv, key.profile_type.clone(), profile.clone()))
-                } else {
-                    None
-                }
+                key.clock_type.as_sv().map(|sv| (*epoch, sv, key.profile_type.clone(), profile.clone()))
             })
         }))
     }
@@ -3052,16 +3048,12 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = (Epoch, String, ClockProfileType, ClockProfile)> + '_> {
         Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
             rec.iter().filter_map(|(key, profile)| {
-                if let Some(clk_name) = key.clock_type.as_station() {
-                    Some((
+                key.clock_type.as_station().map(|clk_name| (
                         *epoch,
                         clk_name.clone(),
                         key.profile_type.clone(),
                         profile.clone(),
                     ))
-                } else {
-                    None
-                }
             })
         }))
     }

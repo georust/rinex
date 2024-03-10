@@ -29,11 +29,10 @@ pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
         if let Some(rinex) = ctx_data.rinex(product) {
             let filename = ctx_data
                 .files(product)
-                .expect(&format!("failed to determine {} output", product))
-                .get(0)
-                .expect(&format!("failed to determine {} output", product))
+                .unwrap_or_else(|| panic!("failed to determine {} output", product)).first()
+                .unwrap_or_else(|| panic!("failed to determine {} output", product))
                 .file_name()
-                .expect(&format!("failed to determine {} output", product))
+                .unwrap_or_else(|| panic!("failed to determine {} output", product))
                 .to_string_lossy()
                 .to_string();
 
@@ -113,7 +112,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let first_epoch = rinex_a
                 .first_epoch()
-                .expect(&format!("failed to determine {} file suffix", product));
+                .unwrap_or_else(|| panic!("failed to determine {} file suffix", product));
 
             let (y, m, d, hh, mm, ss, _) = first_epoch.to_gregorian_utc();
             let file_suffix = format!(
@@ -123,13 +122,12 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let path = ctx_data
                 .files(product)
-                .expect(&format!("failed to determine output {} filename", product))
-                .get(0)
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product)).first()
                 .unwrap();
 
             let filename = path
                 .file_stem()
-                .expect(&format!("failed to determine output {} filename", product))
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product))
                 .to_string_lossy()
                 .to_string();
 
@@ -178,8 +176,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let path = ctx_data
                 .files(product)
-                .expect(&format!("failed to determine output {} filename", product))
-                .get(0)
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product)).first()
                 .unwrap();
 
             let filename = path
@@ -236,13 +233,12 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             // filename determination
             let data_path = ctx_data
                 .files(product)
-                .unwrap()
-                .get(0)
-                .expect(&format!("failed to determine output {} file name", product));
+                .unwrap().first()
+                .unwrap_or_else(|| panic!("failed to determine output {} file name", product));
 
             let filename = data_path
                 .file_stem()
-                .expect(&format!("failed to determine output {} file name", product))
+                .unwrap_or_else(|| panic!("failed to determine output {} file name", product))
                 .to_string_lossy()
                 .to_string();
 
@@ -253,11 +249,11 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 let mut iter = filename.split('.');
                 let filename = iter
                     .next()
-                    .expect(&format!("failed to determine output {} file name", product))
+                    .unwrap_or_else(|| panic!("failed to determine output {} file name", product))
                     .to_string();
                 extension.push_str(
                     iter.next()
-                        .expect(&format!("failed to determine output {} file name", product)),
+                        .unwrap_or_else(|| panic!("failed to determine output {} file name", product)),
                 );
                 extension.push('.');
                 filename
@@ -267,7 +263,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let file_ext = data_path
                 .extension()
-                .expect(&format!("failed to determine output {} file name", product))
+                .unwrap_or_else(|| panic!("failed to determine output {} file name", product))
                 .to_string_lossy()
                 .to_string();
 
@@ -306,8 +302,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let path_a = ctx_data
         .files(ProductType::Observation)
-        .expect("failed to determine output file name")
-        .get(0)
+        .expect("failed to determine output file name").first()
         .unwrap();
 
     let path_b = matches.get_one::<PathBuf>("file").unwrap();

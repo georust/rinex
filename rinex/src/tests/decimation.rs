@@ -5,7 +5,7 @@ mod decimation {
     use crate::preprocessing::*;
     //use itertools::Itertools;
     use std::path::Path;
-    use std::str::FromStr;
+    
     #[test]
     #[cfg(feature = "flate2")]
     fn obs_decimation() {
@@ -17,7 +17,7 @@ mod decimation {
             .join("ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz");
 
         let fullpath = path.to_string_lossy();
-        let mut rinex = Rinex::from_file(fullpath.as_ref());
+        let rinex = Rinex::from_file(fullpath.as_ref());
         assert!(rinex.is_ok(), "failed to parse \"{}\"", fullpath);
 
         let mut rinex = rinex.unwrap();
@@ -46,7 +46,7 @@ mod decimation {
             .join("POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz");
 
         let fullpath = path.to_string_lossy();
-        let mut rinex = Rinex::from_file(fullpath.as_ref());
+        let rinex = Rinex::from_file(fullpath.as_ref());
         assert!(rinex.is_ok(), "failed to parse \"{}\"", fullpath);
 
         let mut rinex = rinex.unwrap();
@@ -75,11 +75,11 @@ mod decimation {
             .join("ESBC00DNK_R_20201770000_01D_MN.rnx.gz");
 
         let fullpath = path.to_string_lossy();
-        let mut rinex = Rinex::from_file(fullpath.as_ref());
+        let rinex = Rinex::from_file(fullpath.as_ref());
         assert!(rinex.is_ok(), "failed to parse \"{}\"", fullpath);
 
         let mut rinex = rinex.unwrap();
-        let len = rinex.epoch().count();
+        let _len = rinex.epoch().count();
 
         rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
         let count = rinex.epoch().count();

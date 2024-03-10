@@ -9,7 +9,7 @@ use std::{
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
 
-use crate::{fops::open_with_web_browser, Error};
+use crate::{fops::open_with_web_browser};
 
 use map_3d::{geodetic2ecef, Ellipsoid};
 

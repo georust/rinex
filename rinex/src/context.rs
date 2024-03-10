@@ -151,7 +151,7 @@ impl RnxContext {
                 /*
                  * Returns Fist file loaded in this category
                  */
-                return paths.get(0);
+                return paths.first();
             }
         }
         None

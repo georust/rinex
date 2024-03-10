@@ -19,7 +19,7 @@
 use thiserror::Error;
 
 mod sequence;
-pub use sequence::FileSequence;
+
 
 mod ppu;
 pub use ppu::PPU;

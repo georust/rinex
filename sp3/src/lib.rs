@@ -475,7 +475,7 @@ impl SP3 {
     }
     /// Returns first epoch
     pub fn first_epoch(&self) -> Option<Epoch> {
-        self.epoch.get(0).copied()
+        self.epoch.first().copied()
     }
     /// Returns last epoch
     pub fn last_epoch(&self) -> Option<Epoch> {

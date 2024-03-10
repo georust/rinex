@@ -309,191 +309,6 @@ pub(crate) fn fmt_epoch(epoch: &Epoch, key: &ClockKey, prof: &ClockProfile) -> S
     lines
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::prelude::SV;
-    use crate::version::Version;
-    use std::str::FromStr;
-    #[test]
-    fn test_is_new_epoch() {
-        let c = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert!(is_new_epoch(c));
-        let c = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert!(!is_new_epoch(c));
-        let c = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert!(is_new_epoch(c));
-        let c = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert!(is_new_epoch(c));
-        let c = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
-        assert!(is_new_epoch(c));
-        let c = "CR USNO 1995 07 14 20 59 50.000000  2    0.123456789012E+00  -0.123456789012E-01";
-        assert!(is_new_epoch(c));
-        let c = "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
-        assert!(is_new_epoch(c));
-        let c = "A  G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
-        assert!(!is_new_epoch(c));
-        let c = "z";
-        assert!(!is_new_epoch(c));
-    }
-    #[test]
-    fn parse_clk_v2_epoch() {
-        for (descriptor, epoch, key, profile) in [
-            (
-                "AS R20  2019 01 08 00 03 30.000000  1   -0.364887538519E-03",
-                Epoch::from_str("2019-01-08T00:03:30 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::SV(SV::from_str("R20").unwrap()),
-                    profile_type: ClockProfileType::AS,
-                },
-                ClockProfile {
-                    bias: -0.364887538519E-03,
-                    bias_dev: None,
-                    drift: None,
-                    drift_change: None,
-                    drift_dev: None,
-                    drift_change_dev: None,
-                },
-            ),
-            (
-                "AS R18  2019 01 08 10 00  0.000000  2    0.294804625338E-04  0.835484069663E-11",
-                Epoch::from_str("2019-01-08T10:00:00 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::SV(SV::from_str("R18").unwrap()),
-                    profile_type: ClockProfileType::AS,
-                },
-                ClockProfile {
-                    bias: 0.294804625338E-04,
-                    bias_dev: Some(0.835484069663E-11),
-                    drift: None,
-                    drift_dev: None,
-                    drift_change: None,
-                    drift_change_dev: None,
-                },
-            ),
-            (
-                "AR PIE1 2019 01 08 00 04  0.000000  1   -0.434275035628E-03",
-                Epoch::from_str("2019-01-08T00:04:00 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::Station("PIE1".to_string()),
-                    profile_type: ClockProfileType::AR,
-                },
-                ClockProfile {
-                    bias: -0.434275035628E-03,
-                    bias_dev: None,
-                    drift: None,
-                    drift_dev: None,
-                    drift_change: None,
-                    drift_change_dev: None,
-                },
-            ),
-            (
-                "AR IMPZ 2019 01 08 00 00  0.000000  2   -0.331415119107E-07  0.350626190546E-10",
-                Epoch::from_str("2019-01-08T00:00:00 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::Station("IMPZ".to_string()),
-                    profile_type: ClockProfileType::AR,
-                },
-                ClockProfile {
-                    bias: -0.331415119107E-07,
-                    bias_dev: Some(0.350626190546E-10),
-                    drift: None,
-                    drift_dev: None,
-                    drift_change: None,
-                    drift_change_dev: None,
-                },
-            ),
-        ] {
-            let (parsed_e, parsed_k, parsed_prof) =
-                parse_epoch(Version { minor: 0, major: 2 }, descriptor)
-                    .expect(&format!("failed to parse \"{}\"", descriptor));
-
-            assert_eq!(parsed_e, epoch, "parsed wrong epoch");
-            assert_eq!(parsed_k, key, "parsed wrong clock id");
-            assert_eq!(parsed_prof, profile, "parsed wrong clock data");
-        }
-    }
-    #[test]
-    fn parse_clk_v3_epoch() {
-        for (descriptor, epoch, key, profile) in [
-            (
-                "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01
-    -0.123456789012E+02 -0.123456789012E+03 -0.123456789012E+04 -0.123456789012E+05",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::Station("AREQ".to_string()),
-                    profile_type: ClockProfileType::AR,
-                },
-                ClockProfile {
-                    bias: -0.123456789012E+00,
-                    bias_dev: Some(-0.123456789012E+01),
-                    drift: Some(-0.123456789012E+02),
-                    drift_dev: Some(-0.123456789012E+03),
-                    drift_change: Some(-0.123456789012E+04),
-                    drift_change_dev: Some(-0.123456789012E+05),
-                },
-            ),
-            (
-                "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::SV(SV::from_str("G16").unwrap()),
-                    profile_type: ClockProfileType::AS,
-                },
-                ClockProfile {
-                    bias: -0.123456789012E+00,
-                    bias_dev: Some(-0.123456789012E+01),
-                    drift: None,
-                    drift_dev: None,
-                    drift_change: None,
-                    drift_change_dev: None,
-                },
-            ),
-            (
-                "CR USNO 1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::Station("USNO".to_string()),
-                    profile_type: ClockProfileType::CR,
-                },
-                ClockProfile {
-                    bias: -0.123456789012E+00,
-                    bias_dev: Some(-0.123456789012E+01),
-                    drift: None,
-                    drift_dev: None,
-                    drift_change: None,
-                    drift_change_dev: None,
-                },
-            ),
-            (
-                "DR USNO 1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01
-    -0.123456789012E-03 -0.123456789012E-04",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
-                ClockKey {
-                    clock_type: ClockType::Station("USNO".to_string()),
-                    profile_type: ClockProfileType::DR,
-                },
-                ClockProfile {
-                    bias: -0.123456789012E+00,
-                    bias_dev: Some(-0.123456789012E+01),
-                    drift: Some(-0.123456789012E-03),
-                    drift_dev: Some(-0.123456789012E-04),
-                    drift_change: None,
-                    drift_change_dev: None,
-                },
-            ),
-        ] {
-            let (parsed_e, parsed_k, parsed_prof) =
-                parse_epoch(Version { minor: 0, major: 2 }, descriptor)
-                    .expect(&format!("failed to parse \"{}\"", descriptor));
-
-            assert_eq!(parsed_e, epoch, "parsed wrong epoch");
-            assert_eq!(parsed_k, key, "parsed wrong clock id");
-            assert_eq!(parsed_prof, profile, "parsed wrong clock data");
-        }
-    }
-}
-
 use crate::merge::merge_mut_option;
 
 impl Merge for Record {
@@ -506,9 +321,9 @@ impl Merge for Record {
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         for (rhs_epoch, rhs_content) in rhs.iter() {
-            if let Some(lhs_content) = self.get_mut(&rhs_epoch) {
+            if let Some(lhs_content) = self.get_mut(rhs_epoch) {
                 for (rhs_key, rhs_prof) in rhs_content.iter() {
-                    if let Some(lhs_prof) = lhs_content.get_mut(&rhs_key) {
+                    if let Some(lhs_prof) = lhs_content.get_mut(rhs_key) {
                         // enhance only, if possible
                         merge_mut_option(&mut lhs_prof.drift, &rhs_prof.drift);
                         merge_mut_option(&mut lhs_prof.drift_dev, &rhs_prof.drift_dev);
@@ -636,5 +451,190 @@ impl Interpolate for Record {
     }
     fn interpolate_mut(&mut self, _series: TimeSeries) {
         unimplemented!("clocks:record:interpolate_mut()");
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::prelude::SV;
+    use crate::version::Version;
+    use std::str::FromStr;
+    #[test]
+    fn test_is_new_epoch() {
+        let c = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
+        assert!(is_new_epoch(c));
+        let c = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
+        assert!(!is_new_epoch(c));
+        let c = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
+        assert!(is_new_epoch(c));
+        let c = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
+        assert!(is_new_epoch(c));
+        let c = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
+        assert!(is_new_epoch(c));
+        let c = "CR USNO 1995 07 14 20 59 50.000000  2    0.123456789012E+00  -0.123456789012E-01";
+        assert!(is_new_epoch(c));
+        let c = "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
+        assert!(is_new_epoch(c));
+        let c = "A  G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
+        assert!(!is_new_epoch(c));
+        let c = "z";
+        assert!(!is_new_epoch(c));
+    }
+    #[test]
+    fn parse_clk_v2_epoch() {
+        for (descriptor, epoch, key, profile) in [
+            (
+                "AS R20  2019 01 08 00 03 30.000000  1   -0.364887538519E-03",
+                Epoch::from_str("2019-01-08T00:03:30 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::SV(SV::from_str("R20").unwrap()),
+                    profile_type: ClockProfileType::AS,
+                },
+                ClockProfile {
+                    bias: -0.364887538519E-03,
+                    bias_dev: None,
+                    drift: None,
+                    drift_change: None,
+                    drift_dev: None,
+                    drift_change_dev: None,
+                },
+            ),
+            (
+                "AS R18  2019 01 08 10 00  0.000000  2    0.294804625338E-04  0.835484069663E-11",
+                Epoch::from_str("2019-01-08T10:00:00 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::SV(SV::from_str("R18").unwrap()),
+                    profile_type: ClockProfileType::AS,
+                },
+                ClockProfile {
+                    bias: 0.294804625338E-04,
+                    bias_dev: Some(0.835484069663E-11),
+                    drift: None,
+                    drift_dev: None,
+                    drift_change: None,
+                    drift_change_dev: None,
+                },
+            ),
+            (
+                "AR PIE1 2019 01 08 00 04  0.000000  1   -0.434275035628E-03",
+                Epoch::from_str("2019-01-08T00:04:00 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::Station("PIE1".to_string()),
+                    profile_type: ClockProfileType::AR,
+                },
+                ClockProfile {
+                    bias: -0.434275035628E-03,
+                    bias_dev: None,
+                    drift: None,
+                    drift_dev: None,
+                    drift_change: None,
+                    drift_change_dev: None,
+                },
+            ),
+            (
+                "AR IMPZ 2019 01 08 00 00  0.000000  2   -0.331415119107E-07  0.350626190546E-10",
+                Epoch::from_str("2019-01-08T00:00:00 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::Station("IMPZ".to_string()),
+                    profile_type: ClockProfileType::AR,
+                },
+                ClockProfile {
+                    bias: -0.331415119107E-07,
+                    bias_dev: Some(0.350626190546E-10),
+                    drift: None,
+                    drift_dev: None,
+                    drift_change: None,
+                    drift_change_dev: None,
+                },
+            ),
+        ] {
+            let (parsed_e, parsed_k, parsed_prof) =
+                parse_epoch(Version { minor: 0, major: 2 }, descriptor)
+                    .unwrap_or_else(|_| panic!("failed to parse \"{}\"", descriptor));
+
+            assert_eq!(parsed_e, epoch, "parsed wrong epoch");
+            assert_eq!(parsed_k, key, "parsed wrong clock id");
+            assert_eq!(parsed_prof, profile, "parsed wrong clock data");
+        }
+    }
+    #[test]
+    fn parse_clk_v3_epoch() {
+        for (descriptor, epoch, key, profile) in [
+            (
+                "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01
+    -0.123456789012E+02 -0.123456789012E+03 -0.123456789012E+04 -0.123456789012E+05",
+                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::Station("AREQ".to_string()),
+                    profile_type: ClockProfileType::AR,
+                },
+                ClockProfile {
+                    bias: -0.123456789012E+00,
+                    bias_dev: Some(-0.123456789012E+01),
+                    drift: Some(-0.123456789012E+02),
+                    drift_dev: Some(-0.123456789012E+03),
+                    drift_change: Some(-0.123456789012E+04),
+                    drift_change_dev: Some(-0.123456789012E+05),
+                },
+            ),
+            (
+                "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01",
+                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::SV(SV::from_str("G16").unwrap()),
+                    profile_type: ClockProfileType::AS,
+                },
+                ClockProfile {
+                    bias: -0.123456789012E+00,
+                    bias_dev: Some(-0.123456789012E+01),
+                    drift: None,
+                    drift_dev: None,
+                    drift_change: None,
+                    drift_change_dev: None,
+                },
+            ),
+            (
+                "CR USNO 1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01",
+                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::Station("USNO".to_string()),
+                    profile_type: ClockProfileType::CR,
+                },
+                ClockProfile {
+                    bias: -0.123456789012E+00,
+                    bias_dev: Some(-0.123456789012E+01),
+                    drift: None,
+                    drift_dev: None,
+                    drift_change: None,
+                    drift_change_dev: None,
+                },
+            ),
+            (
+                "DR USNO 1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01
+    -0.123456789012E-03 -0.123456789012E-04",
+                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                ClockKey {
+                    clock_type: ClockType::Station("USNO".to_string()),
+                    profile_type: ClockProfileType::DR,
+                },
+                ClockProfile {
+                    bias: -0.123456789012E+00,
+                    bias_dev: Some(-0.123456789012E+01),
+                    drift: Some(-0.123456789012E-03),
+                    drift_dev: Some(-0.123456789012E-04),
+                    drift_change: None,
+                    drift_change_dev: None,
+                },
+            ),
+        ] {
+            let (parsed_e, parsed_k, parsed_prof) =
+                parse_epoch(Version { minor: 0, major: 2 }, descriptor)
+                    .unwrap_or_else(|_| panic!("failed to parse \"{}\"", descriptor));
+
+            assert_eq!(parsed_e, epoch, "parsed wrong epoch");
+            assert_eq!(parsed_k, key, "parsed wrong clock id");
+            assert_eq!(parsed_prof, profile, "parsed wrong clock data");
+        }
     }
 }
