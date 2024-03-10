@@ -98,7 +98,7 @@ or we post processed determined a CS.",
             Arg::new("orbit")
                 .long("orbit")
                 .action(ArgAction::SetTrue)
-                .help("SV position in the sky, on 2D cartesian plots."),
+                .help("3D projection of SV attitudes in the sky."),
         )
         .arg(
             Arg::new("orbit-residual")
