@@ -159,11 +159,11 @@ impl Record {
                                 compressor.compress(major, &obs_fields.codes, constell, &line)
                             {
                                 println!("compressed \"{}\"", compressed); // DEBUG
-                                write!(writer, "{}\n", compressed)?;
+                                writeln!(writer, "{}", compressed)?;
                             }
                         }
                     } else {
-                        write!(writer, "{}\n", epoch)?;
+                        writeln!(writer, "{}", epoch)?;
                     }
                 }
             },

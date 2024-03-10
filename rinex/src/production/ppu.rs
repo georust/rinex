@@ -78,7 +78,7 @@ impl std::str::FromStr for PPU {
 #[cfg(test)]
 mod test {
     use super::PPU;
-    use hifitime::Unit;
+    use hifitime::{Unit, DAYS_PER_YEAR};
     use std::str::FromStr;
     #[test]
     fn ppu_parsing() {
@@ -86,13 +86,13 @@ mod test {
             ("15M", PPU::QuarterHour, Some(15 * Unit::Minute)),
             ("01H", PPU::Hourly, Some(1 * Unit::Hour)),
             ("01D", PPU::Daily, Some(1 * Unit::Day)),
-            ("01Y", PPU::Yearly, Some(365 * Unit::Day)),
+            ("01Y", PPU::Yearly, Some(DAYS_PER_YEAR * Unit::Day)),
             ("XX", PPU::Unspecified, None),
             ("01U", PPU::Unspecified, None),
         ] {
             let ppu = PPU::from_str(c).unwrap();
             assert_eq!(ppu, expected);
-            assert_eq!(ppu.duration(), dur);
+            assert_eq!(ppu.duration(), dur, "test failed for {}", c);
         }
     }
     #[test]

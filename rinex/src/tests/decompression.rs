@@ -163,7 +163,7 @@ mod test {
 
             // parse plain RINEX and run reciprocity
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
-            let model = Rinex::from_file(&path).unwrap();
+            let _model = Rinex::from_file(&path).unwrap();
 
             // run testbench
             // test_against_model(&rnx, &model, &path, 1.0E-6);
@@ -219,7 +219,7 @@ mod test {
 
             // parse Model for testbench
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);
-            let model = Rinex::from_file(&path).unwrap();
+            let _model = Rinex::from_file(&path).unwrap();
 
             // run testbench
             // test_against_model(&rnx, &model, &path, 1.0E-6);
