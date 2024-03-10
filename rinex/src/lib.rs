@@ -672,10 +672,7 @@ impl Rinex {
     /// ```
     pub fn guess_production_attributes(&self) -> ProductionAttributes {
         // start from content identified from the filename
-        let mut attributes = self
-            .prod_attr
-            .clone()
-            .unwrap_or_default();
+        let mut attributes = self.prod_attr.clone().unwrap_or_default();
 
         let first_epoch = self.first_epoch();
         let last_epoch = self.last_epoch();
