@@ -73,7 +73,7 @@ fn output_filename(rinex: &Rinex, matches: &ArgMatches) -> String {
         None
     };
 
-    println!("{:?}", custom);
+    debug!("{:?}", custom);
 
     // Use smart determination
     rinex.standard_filename(short, gzip, Some(custom))
