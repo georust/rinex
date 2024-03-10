@@ -5,7 +5,7 @@ mod decimation {
     use crate::preprocessing::*;
     //use itertools::Itertools;
     use std::path::Path;
-    
+
     #[test]
     #[cfg(feature = "flate2")]
     fn obs_decimation() {

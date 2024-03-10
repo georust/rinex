@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    
+
     use crate::prelude::*;
     use std::str::FromStr;
     #[test]
@@ -293,7 +293,9 @@ mod test {
                         let epoch = Epoch::from_str(epoch_str).unwrap();
                         let (prof_type, profile) = rinex
                             .precise_sv_clock_interpolate(epoch, sv)
-                            .unwrap_or_else(|| panic!("precise_sv_clock_interp failed @{}", epoch_str));
+                            .unwrap_or_else(|| {
+                                panic!("precise_sv_clock_interp failed @{}", epoch_str)
+                            });
                         assert_eq!(prof_type, ClockProfileType::AS);
                         assert_eq!(profile.bias, expected, "invalid results @{}", epoch_str);
                     }
@@ -316,7 +318,9 @@ mod test {
                         let epoch = Epoch::from_str(epoch_str).unwrap();
                         let (prof_type, profile) = rinex
                             .precise_sv_clock_interpolate(epoch, sv)
-                            .unwrap_or_else(|| panic!("precise_sv_clock_interp failed @{}", epoch_str));
+                            .unwrap_or_else(|| {
+                                panic!("precise_sv_clock_interp failed @{}", epoch_str)
+                            });
                         assert_eq!(prof_type, ClockProfileType::AS);
                         assert_eq!(profile.bias, expected, "invalid results @{}", epoch_str);
                     }
@@ -339,7 +343,9 @@ mod test {
                         let epoch = Epoch::from_str(epoch_str).unwrap();
                         let (prof_type, profile) = rinex
                             .precise_sv_clock_interpolate(epoch, sv)
-                            .unwrap_or_else(|| panic!("precise_sv_clock_interp failed @{}", epoch_str));
+                            .unwrap_or_else(|| {
+                                panic!("precise_sv_clock_interp failed @{}", epoch_str)
+                            });
                         assert_eq!(prof_type, ClockProfileType::AS);
                         assert_eq!(profile.bias, expected, "invalid results @{}", epoch_str);
                     }

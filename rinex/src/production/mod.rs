@@ -20,7 +20,6 @@ use thiserror::Error;
 
 mod sequence;
 
-
 mod ppu;
 pub use ppu::PPU;
 

@@ -29,7 +29,8 @@ pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
         if let Some(rinex) = ctx_data.rinex(product) {
             let filename = ctx_data
                 .files(product)
-                .unwrap_or_else(|| panic!("failed to determine {} output", product)).first()
+                .unwrap_or_else(|| panic!("failed to determine {} output", product))
+                .first()
                 .unwrap_or_else(|| panic!("failed to determine {} output", product))
                 .file_name()
                 .unwrap_or_else(|| panic!("failed to determine {} output", product))
@@ -122,7 +123,8 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let path = ctx_data
                 .files(product)
-                .unwrap_or_else(|| panic!("failed to determine output {} filename", product)).first()
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product))
+                .first()
                 .unwrap();
 
             let filename = path
@@ -176,7 +178,8 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let path = ctx_data
                 .files(product)
-                .unwrap_or_else(|| panic!("failed to determine output {} filename", product)).first()
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product))
+                .first()
                 .unwrap();
 
             let filename = path
@@ -233,7 +236,8 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             // filename determination
             let data_path = ctx_data
                 .files(product)
-                .unwrap().first()
+                .unwrap()
+                .first()
                 .unwrap_or_else(|| panic!("failed to determine output {} file name", product));
 
             let filename = data_path
@@ -252,8 +256,9 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                     .unwrap_or_else(|| panic!("failed to determine output {} file name", product))
                     .to_string();
                 extension.push_str(
-                    iter.next()
-                        .unwrap_or_else(|| panic!("failed to determine output {} file name", product)),
+                    iter.next().unwrap_or_else(|| {
+                        panic!("failed to determine output {} file name", product)
+                    }),
                 );
                 extension.push('.');
                 filename
@@ -302,7 +307,8 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let path_a = ctx_data
         .files(ProductType::Observation)
-        .expect("failed to determine output file name").first()
+        .expect("failed to determine output file name")
+        .first()
         .unwrap();
 
     let path_b = matches.get_one::<PathBuf>("file").unwrap();
