@@ -302,7 +302,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 /*
  * Substract RINEX[A]-RINEX[B]
  */
-pub fn substract<'a>(ctx: &Context<'a>, matches: &ArgMatches) -> Result<(), Error> {
+pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let path_a = ctx_data
         .files(ProductType::Observation)

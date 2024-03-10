@@ -81,37 +81,37 @@ impl From<RinexType> for ProductType {
     }
 }
 
-enum BlobData<'a> {
+enum BlobData {
     /// SP3 content
-    Sp3(&'a mut SP3),
+    Sp3(SP3),
     /// RINEX content
-    Rinex(&'a mut Rinex),
+    Rinex(Rinex),
 }
 
-impl<'a> BlobData<'a> {
+impl BlobData {
     /// Returns reference to inner RINEX data.
-    pub fn as_rinex(&'a self) -> Option<&'a Rinex> {
+    pub fn as_rinex(&self) -> Option<&Rinex> {
         match self {
             Self::Rinex(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to inner RINEX data.
-    pub fn as_mut_rinex(&'a mut self) -> Option<&'a mut Rinex> {
+    pub fn as_mut_rinex(&mut self) -> Option<&mut Rinex> {
         match self {
             Self::Rinex(r) => Some(r),
             _ => None,
         }
     }
     /// Returns reference to inner SP3 data.
-    pub fn as_sp3(&'a self) -> Option<&'a SP3> {
+    pub fn as_sp3(&self) -> Option<&SP3> {
         match self {
             Self::Sp3(s) => Some(s),
             _ => None,
         }
     }
     /// Returns mutable reference to inner SP3 data.
-    pub fn as_mut_sp3(&'a mut self) -> Option<&'a mut SP3> {
+    pub fn as_mut_sp3(&mut self) -> Option<&mut SP3> {
         match self {
             Self::Sp3(s) => Some(s),
             _ => None,
@@ -122,14 +122,14 @@ impl<'a> BlobData<'a> {
 /// RnxContext is a structure dedicated to RINEX post processing workflows,
 /// like precise timing, positioning or atmosphere analysis.
 #[derive(Default)]
-pub struct RnxContext<'a> {
+pub struct RnxContext {
     /// Files merged into self
     files: HashMap<ProductType, Vec<PathBuf>>,
     /// Context blob created by merging each members of each category
-    blob: HashMap<ProductType, BlobData<'a>>,
+    blob: HashMap<ProductType, BlobData>,
 }
 
-impl<'a> RnxContext<'a> {
+impl RnxContext {
     /// Returns path to File considered as Primary in this Context.
     /// Observation then Navigation files are prefered as Primary files.
     /// When a unique file had been loaded, it is obviously considered Primary.
@@ -196,7 +196,7 @@ impl<'a> RnxContext<'a> {
             .reduce(|k, _| k)
     }
     /// Returns reference to inner data of given category
-    fn data(&'a self, product: ProductType) -> Option<&'a BlobData> {
+    fn data(&self, product: ProductType) -> Option<&BlobData> {
         self.blob
             .iter()
             .filter_map(|(prod_type, data)| {
@@ -209,7 +209,7 @@ impl<'a> RnxContext<'a> {
             .reduce(|k, _| k)
     }
     /// Returns mutable reference to inner data of given category
-    fn data_mut(&'a mut self, product: ProductType) -> Option<&'a mut BlobData> {
+    fn data_mut(&mut self, product: ProductType) -> Option<&mut BlobData> {
         self.blob
             .iter_mut()
             .filter_map(|(prod_type, data)| {
@@ -230,7 +230,7 @@ impl<'a> RnxContext<'a> {
         self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
     }
     /// Returns mutable reference to inner RINEX data of given category
-    pub fn rinex_mut(&'a mut self, product: ProductType) -> Option<&'a mut Rinex> {
+    pub fn rinex_mut(&mut self, product: ProductType) -> Option<&mut Rinex> {
         self.data_mut(product)?.as_mut_rinex()
     }
     /// Returns reference to inner [ProductType::Observation] data
@@ -258,33 +258,33 @@ impl<'a> RnxContext<'a> {
         self.data(ProductType::Ionex)?.as_rinex()
     }
     /// Returns mutable reference to inner [ProductType::Observation] data
-    pub fn observation_mut(&'a mut self) -> Option<&'a mut Rinex> {
+    pub fn observation_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::Observation)?.as_mut_rinex()
     }
     /// Returns mutable reference to inner [ProductType::Observation] data
-    pub fn brdc_navigation_mut(&'a mut self) -> Option<&'a mut Rinex> {
+    pub fn brdc_navigation_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::BroadcastNavigation)?
             .as_mut_rinex()
     }
     /// Returns reference to inner [ProductType::Meteo] data
-    pub fn meteo_mut(&'a mut self) -> Option<&'a mut Rinex> {
+    pub fn meteo_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::MeteoObservation)?.as_mut_rinex()
     }
     /// Returns mutable reference to inner [ProductType::HighPrecisionClock] data
-    pub fn clock_mut(&'a mut self) -> Option<&'a mut Rinex> {
+    pub fn clock_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::HighPrecisionClock)?
             .as_mut_rinex()
     }
     /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
-    pub fn sp3_mut(&'a mut self) -> Option<&'a mut SP3> {
+    pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
         self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
     }
     /// Returns mutable reference to inner [ProductType::Antex] data
-    pub fn antex_mut(&'a mut self) -> Option<&'a mut Rinex> {
+    pub fn antex_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::Antex)?.as_mut_rinex()
     }
     /// Returns mutable reference to inner [ProductType::Ionex] data
-    pub fn ionex_mut(&'a mut self) -> Option<&'a mut Rinex> {
+    pub fn ionex_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::Ionex)?.as_mut_rinex()
     }
     /// Returns true if [ProductType::Observation] are present in Self
@@ -310,7 +310,7 @@ impl<'a> RnxContext<'a> {
     /// Load a single RINEX file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_rinex(&'a mut self, path: &Path, rinex: &'a mut Rinex) -> Result<(), Error> {
+    pub fn load_rinex(&mut self, path: &Path, rinex: Rinex) -> Result<(), Error> {
         let prod_type = ProductType::from(rinex.header.rinex_type);
         // extend context blob
         if let Some(paths) = self
@@ -326,7 +326,7 @@ impl<'a> RnxContext<'a> {
             .reduce(|k, _| k)
         {
             if let Some(inner) = self.blob.get_mut(&prod_type).and_then(|k| k.as_mut_rinex()) {
-                inner.merge_mut(rinex)?;
+                inner.merge_mut(&rinex)?;
                 paths.push(path.to_path_buf());
             }
         } else {
@@ -338,7 +338,7 @@ impl<'a> RnxContext<'a> {
     /// Load a single SP3 file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_sp3(&'a mut self, path: &Path, sp3: &'a mut SP3) -> Result<(), Error> {
+    pub fn load_sp3(&mut self, path: &Path, sp3: SP3) -> Result<(), Error> {
         let prod_type = ProductType::HighPrecisionOrbit;
         // extend context blob
         if let Some(paths) = self
@@ -354,7 +354,7 @@ impl<'a> RnxContext<'a> {
             .reduce(|k, _| k)
         {
             if let Some(inner) = self.blob.get_mut(&prod_type).and_then(|k| k.as_mut_sp3()) {
-                inner.merge_mut(sp3)?;
+                inner.merge_mut(&sp3)?;
                 paths.push(path.to_path_buf());
             }
         } else {
@@ -381,7 +381,7 @@ impl<'a> RnxContext<'a> {
 }
 
 #[cfg(feature = "qc")]
-impl<'a> HtmlReport for RnxContext<'a> {
+impl HtmlReport for RnxContext {
     fn to_html(&self) -> String {
         format!(
             "{}",

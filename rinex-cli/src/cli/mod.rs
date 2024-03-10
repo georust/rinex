@@ -8,7 +8,6 @@ use std::{
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
-use walkdir::WalkDir;
 
 use crate::{fops::open_with_web_browser, Error};
 
@@ -44,13 +43,10 @@ impl Default for Cli {
     }
 }
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 /// Context defined by User.
-pub struct Context<'a> {
+pub struct Context {
     /// Data context defined by user
-    pub data: RnxContext<'a>,
+    pub data: RnxContext,
     /// Quiet option
     pub quiet: bool,
     /// Workspace is the place where this session will generate data.
@@ -68,7 +64,7 @@ pub struct Context<'a> {
     pub rx_ecef: Option<(f64, f64, f64)>,
 }
 
-impl<'a> Context<'a> {
+impl Context {
     /*
      * Utility to determine the most major filename stem,
      * to be used as the session workspace

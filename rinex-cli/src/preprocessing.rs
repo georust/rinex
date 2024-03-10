@@ -1,14 +1,11 @@
 use log::error;
 use std::str::FromStr;
 
-use crate::{Cli, Context};
+use crate::Cli;
 use rinex::prelude::RnxContext;
 use rinex::preprocessing::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-pub fn preprocess<'a>(ctx: &mut RnxContext<'a>, cli: &Cli) {
+pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
     // GNSS filters
     let mut gnss_filters = Vec::<&str>::new();
 

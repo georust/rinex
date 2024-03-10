@@ -38,6 +38,8 @@ use version::Version;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+use std::path::Path;
+
 /*
  * 3D position
  */
@@ -291,6 +293,11 @@ fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingErr
 impl SP3 {
     /// Parses given SP3 file, with possible seamless
     /// .gz decompression, if compiled with the "flate2" feature.
+    pub fn from_path(path: &Path) -> Result<Self, Errors> {
+        let fullpath = path.to_string_lossy().to_string();
+        Self::from_path(Path::new(&fullpath))
+    }
+    /// See [Self::from_path]
     pub fn from_file(path: &str) -> Result<Self, Errors> {
         let reader = BufferedReader::new(path)?;
 
