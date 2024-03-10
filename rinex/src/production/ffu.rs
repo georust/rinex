@@ -1,5 +1,5 @@
 use super::Error;
-use hifitime::{Duration, Unit};
+use hifitime::{Duration, Unit, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct FFU {
@@ -7,6 +7,33 @@ pub struct FFU {
     pub val: u32,
     /// Period unit
     pub unit: Unit,
+}
+
+impl From<Duration> for FFU {
+    fn from(dt: Duration) -> Self {
+        let total_seconds = dt.to_seconds();
+        if dt < SECONDS_PER_MINUTE * Unit::Second {
+            Self {
+                val: total_seconds.round() as u32,
+                unit: Unit::Second,
+            }
+        } else if dt < 1.0 * Unit::Hour {
+            Self {
+                val: (total_seconds / SECONDS_PER_MINUTE).round() as u32,
+                unit: Unit::Minute,
+            }
+        } else if dt < 1 * Unit::Day {
+            Self {
+                val: (total_seconds / SECONDS_PER_HOUR).round() as u32,
+                unit: Unit::Hour,
+            }
+        } else {
+            Self {
+                val: (total_seconds / SECONDS_PER_DAY).round() as u32,
+                unit: Unit::Day,
+            }
+        }
+    }
 }
 
 impl Default for FFU {
@@ -47,37 +74,10 @@ impl std::str::FromStr for FFU {
     }
 }
 
-impl From<Duration> for FFU {
-    fn from(dur: Duration) -> Self {
-        let secs = dur.to_seconds().round() as u32;
-        if secs < 60 {
-            Self {
-                val: secs,
-                unit: Unit::Second,
-            }
-        } else if secs < 3_600 {
-            Self {
-                val: secs / 60,
-                unit: Unit::Minute,
-            }
-        } else if secs < 86_400 {
-            Self {
-                val: secs / 3_600,
-                unit: Unit::Hour,
-            }
-        } else {
-            Self {
-                val: secs / 86_400,
-                unit: Unit::Day,
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::FFU;
-    use hifitime::Unit;
+    use hifitime::{Duration, Unit, SECONDS_PER_DAY};
     use std::str::FromStr;
     #[test]
     fn ffu_parsing() {
@@ -148,6 +148,41 @@ mod test {
         ] {
             let ffu = FFU::from_str(desc).unwrap();
             assert_eq!(ffu, expected);
+        }
+    }
+    #[test]
+    fn ffu_cast() {
+        for (duration, expected) in [
+            (
+                Duration::from_seconds(30.0),
+                FFU {
+                    val: 30,
+                    unit: Unit::Second,
+                },
+            ),
+            (
+                Duration::from_seconds(60.0),
+                FFU {
+                    val: 1,
+                    unit: Unit::Minute,
+                },
+            ),
+            (
+                Duration::from_seconds(3600.0),
+                FFU {
+                    val: 1,
+                    unit: Unit::Hour,
+                },
+            ),
+            (
+                Duration::from_seconds(SECONDS_PER_DAY),
+                FFU {
+                    val: 1,
+                    unit: Unit::Day,
+                },
+            ),
+        ] {
+            assert_eq!(FFU::from(duration), expected);
         }
     }
 }
