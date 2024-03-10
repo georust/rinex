@@ -235,7 +235,7 @@ impl RnxContext {
     }
     /// Returns reference to inner [ProductType::Observation] data
     pub fn observation(&self) -> Option<&Rinex> {
-        self.data(ProductType::BroadcastNavigation)?.as_rinex()
+        self.data(ProductType::Observation)?.as_rinex()
     }
     /// Returns reference to inner [ProductType::BroadcastNavigation] data
     pub fn brdc_navigation(&self) -> Option<&Rinex> {
@@ -444,5 +444,26 @@ impl HtmlReport for RnxContext {
                 }
             }
         }
+    }
+}
+
+impl std::fmt::Debug for RnxContext {
+    /// Debug formatting, prints all loaded files per Product category.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for product in [
+            ProductType::Observation,
+            ProductType::BroadcastNavigation,
+            ProductType::MeteoObservation,
+            ProductType::HighPrecisionOrbit,
+            ProductType::HighPrecisionClock,
+            ProductType::Ionex,
+            ProductType::Antex,
+        ] {
+            if let Some(files) = self.files(product) {
+                write!(f, "{}: ", product)?;
+                write!(f, "{:?}\n", files,)?;
+            }
+        }
+        Ok(())
     }
 }
