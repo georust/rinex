@@ -2,6 +2,8 @@
 use clap::{value_parser, Arg, ArgAction, Command};
 use rinex::prelude::Epoch;
 
+use super::{SHARED_DATA_ARGS, SHARED_GENERAL_ARGS};
+
 pub fn subcommand() -> Command {
     Command::new("split")
         .short_flag('s')
@@ -16,4 +18,8 @@ pub fn subcommand() -> Command {
                 .required(true)
                 .help("Epoch (instant) to split at."),
         )
+        .next_help_heading("Production Environment")
+        .args(SHARED_GENERAL_ARGS.iter())
+        .next_help_heading("Data context")
+        .args(SHARED_DATA_ARGS.iter())
 }

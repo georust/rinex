@@ -78,7 +78,7 @@ impl std::str::FromStr for PPU {
 #[cfg(test)]
 mod test {
     use super::PPU;
-    use hifitime::{Unit};
+    use hifitime::Unit;
     use std::str::FromStr;
     #[test]
     fn ppu_parsing() {

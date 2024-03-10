@@ -9,15 +9,83 @@ use std::str::FromStr;
 use rinex::{
     prelude::{Duration, Epoch, ProductType, Rinex, RinexType},
     preprocessing::*,
+    prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     Merge, Split,
 };
+
+/*
+ * Parses share RINEX production attributes.
+ * This helps accurate file production,
+ * and also allows customization from files that did not originally follow
+ * standard naming conventions
+ */
+fn custom_prod_attributes(rinex: &Rinex, matches: &ArgMatches) -> ProductionAttributes {
+    // Start from smartly guessed attributes and replace
+    // manually customized fields
+    let mut opts = rinex.guess_production_attributes();
+    if let Some(agency) = matches.get_one::<String>("agency") {
+        opts.agency(agency);
+    }
+    if let Some(country) = matches.get_one::<String>("country") {
+        if let Some(ref mut details) = opts.details {
+            *details = details.country_code(&country[..3]);
+        } else {
+            opts.details =
+                Some(DetailedProductionAttributes::default().country_code(&country[..3]));
+        }
+    }
+    if let Some(src) = matches.get_one::<DataSource>("source") {
+        if let Some(ref mut details) = opts.details {
+            *details = details.data_source(*src);
+        } else {
+            opts.details = Some(DetailedProductionAttributes::default().data_source(*src));
+        }
+    }
+    if let Some(ppu) = matches.get_one::<PPU>("ppu") {
+        if let Some(ref mut details) = opts.details {
+            *details = details.ppu(*ppu);
+        } else {
+            opts.details = Some(DetailedProductionAttributes::default().ppu(*ppu));
+        }
+    }
+    if let Some(ffu) = matches.get_one::<FFU>("ffu") {
+        if let Some(ref mut details) = opts.details {
+            *details = details.ffu(*ffu);
+        } else {
+            opts.details = Some(DetailedProductionAttributes::default().ffu(*ffu));
+        }
+    }
+    opts
+}
+
+/*
+ * Returns output filename to be generated, for this kind of Product
+ * TODO: some customization might impact the Header section
+ *       that we should slightly rework, to be 100% correct
+ */
+fn output_filename(rinex: &Rinex, matches: &ArgMatches) -> String {
+    // Parse possible custom opts
+    let custom = custom_prod_attributes(rinex, matches);
+    let short = matches.get_flag("short");
+    let gzip = if matches.get_flag("gzip") {
+        Some(".gz")
+    } else {
+        None
+    };
+
+    println!("{:?}", custom);
+
+    // Use smart determination
+    rinex.standard_filename(short, gzip, Some(custom))
+}
 
 /*
  * Dumps current context (usually preprocessed)
  * into RINEX format maintaining consistent format
  */
-pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
+pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
+
     for product in [
         ProductType::Observation,
         ProductType::MeteoObservation,
@@ -27,15 +95,17 @@ pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
         ProductType::Antex,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
-            let filename = ctx_data
-                .files(product)
-                .unwrap_or_else(|| panic!("failed to determine {} output", product))
-                .first()
-                .unwrap_or_else(|| panic!("failed to determine {} output", product))
-                .file_name()
-                .unwrap_or_else(|| panic!("failed to determine {} output", product))
-                .to_string_lossy()
-                .to_string();
+            //let filename = ctx_data
+            //    .files(product)
+            //    .unwrap_or_else(|| panic!("failed to determine {} output", product))
+            //    .first()
+            //    .unwrap_or_else(|| panic!("failed to determine {} output", product))
+            //    .file_name()
+            //    .unwrap_or_else(|| panic!("failed to determine {} output", product))
+            //    .to_string_lossy()
+            //    .to_string();
+
+            let filename = output_filename(rinex, matches);
 
             let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
 

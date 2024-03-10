@@ -90,6 +90,13 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
+/// Package dedicated to file production.
+pub mod prod {
+    pub use crate::production::{
+        DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU,
+    };
+}
+
 #[cfg(feature = "processing")]
 mod algorithm;
 
@@ -407,7 +414,9 @@ impl Rinex {
         let mut filename = match rinextype {
             RinexType::IonosphereMaps => {
                 let name = match custom {
-                    Some(ref custom) => custom.name.clone(),
+                    Some(ref custom) => {
+                        custom.name[..std::cmp::min(3, custom.name.len())].to_string()
+                    },
                     None => {
                         if let Some(attr) = &self.prod_attr {
                             attr.name.clone()
@@ -637,150 +646,119 @@ impl Rinex {
         filename
     }
 
-    /// Guesses and possibly correct (in place with mutable access)
-    /// the File [ProductionAttributes] that were originally determined
-    /// from the file name that has just been parsed.
+    /// Guesses and possibly correct the File [ProductionAttributes]
+    /// that were originally determined from the file name we have just parsed.
     /// In case provided file does not strictly follow standard naming conventions,
-    /// the [ProductionAttributes] we deduced from this name are most likely
-    /// incomplete. This makes [Self::standard_filename] unable to completely
-    /// generate a file name that would 100% follow standard naming conventions.
-    /// By invoking this method, we can guess from the Record content the
-    /// possibly missing information regarding the production environment.
+    /// [ProductionAttributes] that were originally will most likely be incomplete.
+    /// With this method, we analyze the Record content and possibly fill
+    /// some possibly missing attributes. Note that some attributes
+    /// are only determined by the filename, so it's possible that some fields
+    /// might be impossible to recover.
     /// This is particularly interesting in scenarios where
     /// you are confident about the Record content and don't want to bother
     /// with File name generation.
-    /// Here's an example of such scenario:
+    /// Here is an example of such use case:
     /// ```
+    /// // Parse one file that does not follow naming conventions
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/CLK/V3/example1.txt")
+    ///   .unwrap();
+    /// // As previously stated, we totally accept that
+    /// assert!(rinex.is_ok());
+    /// let rinex = rinex.unwrap();
+    /// // Now if we attempt to auto generate something that would
+    /// // follow standard naming conventions, we see that it is impossible
+    /// TODO
     /// ```
-    pub fn guess_production_attributes(&mut self) {
+    pub fn guess_production_attributes(&self) -> ProductionAttributes {
+        // start from content identified from the filename
+        let mut attributes = self
+            .prod_attr
+            .clone()
+            .unwrap_or_default();
+
         let first_epoch = self.first_epoch();
         let last_epoch = self.last_epoch();
         let first_epoch_gregorian = first_epoch.map(|t0| t0.to_gregorian_utc());
-        if let Some(ref mut attributes) = self.prod_attr {
-            /*
-             * File somewhat respected the standard naming conventions
-             * => complete it
-             */
-            match first_epoch_gregorian {
-                Some((y, _, _, _, _, _, _)) => attributes.year = y as u32,
-                _ => {},
-            }
-            match first_epoch {
-                Some(t0) => attributes.year = t0.day_of_year().round() as u32,
-                _ => {},
-            }
-            // notes on attribute."name"
-            // - Non detailed OBS RINEX: this is usually the station name
-            //   which can be named after a geodetic marker
-            // - Non detailed NAV RINEX: station name
-            // - CLK RINEX: name of the local clock
-            // - IONEX: agency
-            match self.header.rinex_type {
-                RinexType::ClockData => match &self.header.clock {
-                    Some(clk) => match &clk.ref_clock {
-                        Some(refclock) => attributes.name = refclock.to_string(),
-                        _ => {
-                            if let Some(site) = &clk.site {
-                                attributes.name = site.to_string();
-                            } else {
-                                attributes.name = self.header.agency.to_string();
-                            }
-                        },
+
+        match first_epoch_gregorian {
+            Some((y, _, _, _, _, _, _)) => attributes.year = y as u32,
+            _ => {},
+        }
+        match first_epoch {
+            Some(t0) => attributes.doy = t0.day_of_year().round() as u32,
+            _ => {},
+        }
+        // notes on attribute."name"
+        // - Non detailed OBS RINEX: this is usually the station name
+        //   which can be named after a geodetic marker
+        // - Non detailed NAV RINEX: station name
+        // - CLK RINEX: name of the local clock
+        // - IONEX: agency
+        match self.header.rinex_type {
+            RinexType::ClockData => match &self.header.clock {
+                Some(clk) => match &clk.ref_clock {
+                    Some(refclock) => attributes.name = refclock.to_string(),
+                    _ => {
+                        if let Some(site) = &clk.site {
+                            attributes.name = site.to_string();
+                        } else {
+                            attributes.name = self.header.agency.to_string();
+                        }
                     },
-                    _ => attributes.name = self.header.agency.to_string(),
                 },
-                RinexType::IonosphereMaps => {
-                    attributes.name = self.header.agency.to_string();
-                },
-                _ => match &self.header.geodetic_marker {
-                    Some(marker) => attributes.name = marker.name.to_string(),
-                    _ => attributes.name = self.header.agency.to_string(),
-                },
+                _ => attributes.name = self.header.agency.to_string(),
+            },
+            RinexType::IonosphereMaps => {
+                attributes.name = self.header.agency.to_string();
+            },
+            _ => match &self.header.geodetic_marker {
+                Some(marker) => attributes.name = marker.name.to_string(),
+                _ => attributes.name = self.header.agency.to_string(),
+            },
+        }
+        if let Some(ref mut details) = attributes.details {
+            if let Some((_, _, _, hh, mm, _, _)) = first_epoch_gregorian {
+                details.hh = hh;
+                details.mm = mm;
             }
-            if let Some(ref mut details) = attributes.details {
-                if let Some((_, _, _, hh, mm, _, _)) = first_epoch_gregorian {
-                    details.hh = hh;
-                    details.mm = mm;
-                }
-                if let Some(first_epoch) = first_epoch {
-                    if let Some(last_epoch) = last_epoch {
-                        let total_dt = last_epoch - first_epoch;
-                        details.ppu = PPU::from(total_dt);
-                    }
+            if let Some(first_epoch) = first_epoch {
+                if let Some(last_epoch) = last_epoch {
+                    let total_dt = last_epoch - first_epoch;
+                    details.ppu = PPU::from(total_dt);
                 }
             }
         } else {
-            /*
-             * File name was completely random: complete what we can
-             */
-            let _prod_attr = ProductionAttributes {
-                name: {
-                    // notes on attribute."name"
-                    // - Non detailed OBS RINEX: this is usually the station name
-                    //   which can be named after a geodetic marker
-                    // - Non detailed NAV RINEX: station name
-                    // - CLK RINEX: name of the local clock
-                    // - IONEX: agency
-                    match self.header.rinex_type {
-                        RinexType::ClockData => match &self.header.clock {
-                            Some(clk) => match &clk.ref_clock {
-                                Some(refclock) => refclock.to_string(),
-                                _ => {
-                                    if let Some(site) = &clk.site {
-                                        site.to_string()
-                                    } else {
-                                        self.header.agency.to_string()
-                                    }
-                                },
-                            },
-                            _ => self.header.agency.to_string(),
-                        },
-                        RinexType::IonosphereMaps => self.header.agency.to_string(),
-                        _ => match &self.header.geodetic_marker {
-                            Some(marker) => marker.name.to_string(),
-                            _ => self.header.agency.to_string(),
-                        },
-                    }
+            attributes.details = Some(DetailedProductionAttributes {
+                country: "XXX".to_string(),    // see notes down below
+                data_src: DataSource::Unknown, // see notes down below
+                ppu: match (first_epoch, last_epoch) {
+                    (Some(first), Some(last)) => {
+                        let total_dt = last - first;
+                        PPU::from(total_dt)
+                    },
+                    _ => PPU::Unspecified,
                 },
-                year: match first_epoch_gregorian {
-                    Some((y, _, _, _, _, _, _)) => y as u32,
+                ffu: self.dominant_sample_rate().map(FFU::from),
+                hh: match first_epoch_gregorian {
+                    Some((_, _, _, hh, _, _, _)) => hh,
                     _ => 0,
                 },
-                doy: match first_epoch {
-                    Some(t0) => t0.day_of_year().round() as u32,
+                mm: match first_epoch_gregorian {
+                    Some((_, _, _, _, mm, _, _)) => mm,
                     _ => 0,
                 },
-                region: None, // see notes down below
-                details: Some(DetailedProductionAttributes {
-                    country: "XXX".to_string(),    // see notes down below
-                    data_src: DataSource::Unknown, // see notes down below
-                    ppu: match (first_epoch, last_epoch) {
-                        (Some(first), Some(last)) => {
-                            let total_dt = last - first;
-                            PPU::from(total_dt)
-                        },
-                        _ => PPU::Unspecified,
-                    },
-                    ffu: self.dominant_sample_rate().map(FFU::from),
-                    hh: match first_epoch_gregorian {
-                        Some((_, _, _, hh, _, _, _)) => hh,
-                        _ => 0,
-                    },
-                    mm: match first_epoch_gregorian {
-                        Some((_, _, _, _, mm, _, _)) => mm,
-                        _ => 0,
-                    },
-                }),
-            };
+            });
         }
         /*
-         * All other fields cannot be deduced from the actual
+         * Several fields cannot be deduced from the actual
          * Record content. If provided filename did not describe them,
-         * we have no means to determine them.
+         * we have no means to recover them.
          * Example of such fields would be:
          *    + Country Code: would require a worldwide country database
          *    + Data source: is only defined in the filename
          */
+        attributes
     }
 
     /// Builds a `RINEX` from given file fullpath.
