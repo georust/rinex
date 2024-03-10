@@ -44,10 +44,13 @@ impl Default for Cli {
     }
 }
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 /// Context defined by User.
 pub struct Context<'a> {
     /// Data context defined by user
-    pub data: &'a mut RnxContext<'a>,
+    pub data: RnxContext<'a>,
     /// Quiet option
     pub quiet: bool,
     /// Workspace is the place where this session will generate data.

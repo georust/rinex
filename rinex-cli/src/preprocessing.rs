@@ -5,7 +5,10 @@ use crate::{Cli, Context};
 use rinex::prelude::RnxContext;
 use rinex::preprocessing::*;
 
-pub fn preprocess<'a, 'b: 'a>(ctx: &'a mut Context<'b>, cli: &Cli) {
+use std::cell::RefCell;
+use std::rc::Rc;
+
+pub fn preprocess<'a>(ctx: &mut RnxContext<'a>, cli: &Cli) {
     // GNSS filters
     let mut gnss_filters = Vec::<&str>::new();
 
@@ -53,6 +56,7 @@ pub fn preprocess<'a, 'b: 'a>(ctx: &'a mut Context<'b>, cli: &Cli) {
     //        //TODO
     //    }
     //}
+    //let mut obs_ref = ctx.observation_mut();
 
     for filt_str in cli.preprocessing() {
         /*
@@ -60,9 +64,9 @@ pub fn preprocess<'a, 'b: 'a>(ctx: &'a mut Context<'b>, cli: &Cli) {
          * special case : apply to specific file format only
          */
         if let Ok(filter) = Filter::from_str(&filt_str) {
-            if let Some(inner) = ctx.data.observation_mut() {
-                inner.filter_mut(filter.clone());
-            }
+            //if let Some(ref mut inner) = obs_ref {
+            //    inner.filter_mut(filter.clone());
+            //}
             //if let Some(inner) = ctx.brdc_navigation_mut() {
             //    inner.filter_mut(filter.clone());
             //}

@@ -2,13 +2,13 @@
 //! Refer to README for command line arguments.    
 //! Homepage: <https://github.com/georust/rinex-cli>
 
-mod analysis; // basic analysis
+//mod analysis; // basic analysis
 mod cli; // command line interface
 mod fops;
-mod graph;
-mod identification; // high level identification/macros
-mod positioning;
-mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis // positioning + CGGTTS opmode
+//mod graph;
+//mod identification; // high level identification/macros
+//mod positioning;
+//mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis // positioning + CGGTTS opmode
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -46,15 +46,21 @@ pub enum Error {
     SplitError(#[from] rinex::split::Error),
     #[error("failed to create QC report: permission denied!")]
     QcReportCreationError,
-    #[error("positioning solver error")]
-    PositioningSolverError(#[from] positioning::Error),
+    //#[error("positioning solver error")]
+    //PositioningSolverError(#[from] positioning::Error),
 }
 
 /*
- * Parses all files passed by User
+ * Parses and preprepocess all files passed by User
  */
 fn user_data_parsing(cli: &Cli) -> RnxContext {
-    RnxContext::default()
+    let mut ctx = RnxContext::default();
+
+    /*
+     * Preprocessing
+     */
+    preprocess(&mut ctx, &cli);
+    ctx
 }
 
 pub fn main() -> Result<(), Error> {
@@ -79,7 +85,7 @@ pub fn main() -> Result<(), Error> {
     // Form context
     let mut ctx = Context {
         name: ctx_stem.clone(),
-        data: &mut data_ctx,
+        data: data_ctx,
         quiet: cli.matches.get_flag("quiet"),
         workspace: {
             /*
@@ -189,10 +195,6 @@ pub fn main() -> Result<(), Error> {
     // //         warn!("failed to load \"{}\": {}", filepath, ret.err().unwrap());
     // //     }
     // // }
-    /*
-     * Preprocessing
-     */
-    preprocess(&mut ctx, &cli);
 
     /*
      * Exclusive opmodes
@@ -202,22 +204,22 @@ pub fn main() -> Result<(), Error> {
             fops::filegen(&ctx, submatches)?;
         },
         Some(("graph", submatches)) => {
-            graph::graph_opmode(&ctx, submatches)?;
+            //graph::graph_opmode(&ctx, submatches)?;
         },
         Some(("identify", submatches)) => {
-            identification::dataset_identification(&ctx.data, submatches);
+            //identification::dataset_identification(&ctx.data, submatches);
         },
         Some(("merge", submatches)) => {
-            fops::merge(&ctx, submatches)?;
+            //fops::merge(&ctx, submatches)?;
         },
         Some(("split", submatches)) => {
-            fops::split(&ctx, submatches)?;
+            //fops::split(&ctx, submatches)?;
         },
         Some(("quality-check", submatches)) => {
-            qc::qc_report(&ctx, submatches)?;
+            //qc::qc_report(&ctx, submatches)?;
         },
         Some(("positioning", submatches)) => {
-            positioning::precise_positioning(&ctx, submatches)?;
+            //positioning::precise_positioning(&ctx, submatches)?;
         },
         Some(("tbin", submatches)) => {
             fops::time_binning(&ctx, submatches)?;

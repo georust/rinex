@@ -16,7 +16,8 @@ use rinex::{
  * Dumps current context (usually preprocessed)
  * into RINEX format maintaining consistent format
  */
-pub fn filegen<'a>(ctx: &'a Context<'a>, _matches: &ArgMatches) -> Result<(), Error> {
+pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
+    let ctx_data = &ctx.data;
     for product in [
         ProductType::Observation,
         ProductType::MeteoObservation,
@@ -25,9 +26,8 @@ pub fn filegen<'a>(ctx: &'a Context<'a>, _matches: &ArgMatches) -> Result<(), Er
         ProductType::Ionex,
         ProductType::Antex,
     ] {
-        if let Some(rinex) = ctx.data.rinex(product) {
-            let filename = ctx
-                .data
+        if let Some(rinex) = ctx_data.rinex(product) {
+            let filename = ctx_data
                 .files(product)
                 .expect(&format!("failed to determine {} output", product))
                 .get(0)
@@ -53,6 +53,7 @@ pub fn filegen<'a>(ctx: &'a Context<'a>, _matches: &ArgMatches) -> Result<(), Er
  * Merges proposed (single) file and generates resulting output, into the workspace
  */
 pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+    let ctx_data = &ctx.data;
     let merge_path = matches.get_one::<PathBuf>("file").unwrap();
 
     let merge_filepath = merge_path.to_string_lossy().to_string();
@@ -61,15 +62,13 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     let rinex_c = match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
-            let rinex_a = ctx
-                .data
+            let rinex_a = ctx_data
                 .observation()
                 .ok_or(Error::MissingObservationRinex)?;
             rinex_a.merge(&rinex_b)?
         },
         RinexType::NavigationData => {
-            let rinex_a = ctx
-                .data
+            let rinex_a = ctx_data
                 .brdc_navigation()
                 .ok_or(Error::MissingNavigationRinex)?;
             rinex_a.merge(&rinex_b)?
@@ -95,6 +94,7 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
  * Splits input files at specified Time Instant
  */
 pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+    let ctx_data = &ctx.data;
     let split_instant = matches
         .get_one::<Epoch>("split")
         .expect("split epoch is required");
@@ -106,7 +106,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::HighPrecisionClock,
         ProductType::Ionex,
     ] {
-        if let Some(rinex) = ctx.data.rinex(product) {
+        if let Some(rinex) = ctx_data.rinex(product) {
             let (rinex_a, rinex_b) = rinex
                 .split(*split_instant)
                 .unwrap_or_else(|e| panic!("failed to split {} RINEX: {}", product, e));
@@ -121,8 +121,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 y, m, d, hh, mm, ss, first_epoch.time_scale
             );
 
-            let path = ctx
-                .data
+            let path = ctx_data
                 .files(product)
                 .expect(&format!("failed to determine output {} filename", product))
                 .get(0)
@@ -177,8 +176,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 y, m, d, hh, mm, ss, first_epoch.time_scale
             );
 
-            let path = ctx
-                .data
+            let path = ctx_data
                 .files(product)
                 .expect(&format!("failed to determine output {} filename", product))
                 .get(0)
@@ -207,6 +205,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
  * Time reframing: subdivde a RINEX into a batch of equal duration
  */
 pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+    let ctx_data = &ctx.data;
     let duration = matches
         .get_one::<Duration>("interval")
         .expect("duration is required");
@@ -223,7 +222,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::Ionex,
     ] {
         // input data determination
-        if let Some(rinex) = ctx.data.rinex(product) {
+        if let Some(rinex) = ctx_data.rinex(product) {
             // time framing determination
             let (mut first, end) = (
                 rinex
@@ -235,8 +234,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             let mut last = first + *duration;
 
             // filename determination
-            let data_path = ctx
-                .data
+            let data_path = ctx_data
                 .files(product)
                 .unwrap()
                 .get(0)
@@ -304,9 +302,9 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 /*
  * Substract RINEX[A]-RINEX[B]
  */
-pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
-    let path_a = ctx
-        .data
+pub fn substract<'a>(ctx: &Context<'a>, matches: &ArgMatches) -> Result<(), Error> {
+    let ctx_data = &ctx.data;
+    let path_a = ctx_data
         .files(ProductType::Observation)
         .expect("failed to determine output file name")
         .get(0)
@@ -320,8 +318,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     let rinex_c = match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
-            let rinex_a = ctx
-                .data
+            let rinex_a = ctx_data
                 .observation()
                 .expect("RINEX (A) - (B) requires OBS RINEX files");
 
