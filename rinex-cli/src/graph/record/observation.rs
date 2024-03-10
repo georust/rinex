@@ -1,8 +1,10 @@
 use crate::cli::Context;
-use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, generate_markers, PlotContext};
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::{observation::*, prelude::*};
 use std::collections::HashMap;
+
+use rinex::{navigation::Ephemeris, observation::*, prelude::*};
+
+use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, generate_markers, PlotContext};
 
 fn observable_to_physics(observable: &Observable) -> String {
     if observable.is_phase_observable() {
@@ -122,7 +124,7 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
             _ => unreachable!(),
         };
 
-        if ctx.data.has_brdc_navigation() {
+        if ctx.data.has_brdc_navigation() && ctx.data.has_sp3() {
             // Augmented context, we plot data on two Y axes
             // one for physical observation, one for sat elevation
             plot_context.add_timedomain_2y_plot(
@@ -174,25 +176,34 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                 }
 
                 if index == 0 && physics == "Signal Strength" {
-                    // 1st Carrier encountered: plot SV only once
-                    // we also only augment the SSI plot when NAV context is provided
-                    if let Some(nav) = &ctx.data.brdc_navigation() {
-                        // grab elevation angle
-                        let data: Vec<(Epoch, f64)> = nav
-                            .sv_elevation_azimuth(ctx.data.ground_position())
-                            .map(|(epoch, _sv, (elev, _a))| (epoch, elev))
-                            .collect();
-                        // plot (Epoch, Elev)
-                        let epochs: Vec<Epoch> = data.iter().map(|(e, _)| *e).collect();
-                        let elev: Vec<f64> = data.iter().map(|(_, f)| *f).collect();
+                    // Draw SV elevation along SSI plot if that is feasible
+                    if let Some(sp3) = ctx.data.sp3() {
+                        // determine SV state
+                        let rx_ecef = ctx.rx_ecef.unwrap();
+                        let data = data_x
+                            .iter()
+                            .filter_map(|t| {
+                                sp3.sv_position_interpolate(*sv, *t, 5).map(|pos| (*t, Ephemeris::elevation_azimuth(pos, rx_ecef).0))
+                            })
+                            .collect::<Vec<_>>();
+                        // plot
+                        let data_x = data.iter().map(|(x, _)| *x).collect::<Vec<_>>();
+                        let data_y = data.iter().map(|(_, y)| *y).collect::<Vec<_>>();
                         let trace = build_chart_epoch_axis(
                             &format!("Elev({:X})", sv),
-                            Mode::LinesMarkers,
-                            epochs,
-                            elev,
+                            Mode::Markers,
+                            data_x,
+                            data_y,
                         )
+                        .y_axis("y2")
                         .marker(Marker::new().symbol(markers[index].clone()))
-                        .visible(Visible::LegendOnly);
+                        .visible({
+                            if index < 1 {
+                                Visible::True
+                            } else {
+                                Visible::LegendOnly
+                            }
+                        });
                         plot_context.add_trace(trace);
                     }
                 }

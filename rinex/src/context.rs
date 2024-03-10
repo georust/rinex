@@ -299,6 +299,10 @@ impl RnxContext {
     pub fn has_brdc_navigation(&self) -> bool {
         self.brdc_navigation().is_some()
     }
+    /// Returns true if [ProductType::HighPrecisionOrbit] are present in Self
+    pub fn has_sp3(&self) -> bool {
+        self.sp3().is_some()
+    }
     /// Returns true if [ProductType::MeteoObservation] are present in Self
     pub fn has_meteo(&self) -> bool {
         self.meteo().is_some()
