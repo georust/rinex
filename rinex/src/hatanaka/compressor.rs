@@ -531,6 +531,7 @@ impl Compressor {
                 },
             } //match(state)
         } //main loop
+        result.push('\n');
         Ok(result)
     }
     //notes:

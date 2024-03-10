@@ -693,7 +693,6 @@ fn fmt_epoch_v2(
             }
         }
     }
-    lines.push('\n');
     lines
 }
 
