@@ -51,7 +51,7 @@ where
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            /* we only consider "OK" epochs" */
+            /* we only consider _valid_ epochs" */
             continue;
         }
 
@@ -66,7 +66,7 @@ where
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
-                warn!("{:?} ({}) : undetermined ephemeris", t, sv);
+                debug!("{:?} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
 

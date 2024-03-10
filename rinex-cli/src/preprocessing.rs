@@ -3,8 +3,8 @@ use log::error;
 use std::str::FromStr;
 
 use crate::Cli;
+use rinex::prelude::{Epoch, RnxContext};
 use rinex::preprocessing::*;
-use rinex::prelude::{RnxContext, Epoch};
 
 use sp3::prelude::{DataType as SP3DataType, SP3};
 
