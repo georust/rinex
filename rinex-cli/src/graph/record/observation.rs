@@ -183,7 +183,8 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                         let data = data_x
                             .iter()
                             .filter_map(|t| {
-                                sp3.sv_position_interpolate(*sv, *t, 5).map(|pos| (*t, Ephemeris::elevation_azimuth(pos, rx_ecef).0))
+                                sp3.sv_position_interpolate(*sv, *t, 5)
+                                    .map(|pos| (*t, Ephemeris::elevation_azimuth(pos, rx_ecef).0))
                             })
                             .collect::<Vec<_>>();
                         // plot
