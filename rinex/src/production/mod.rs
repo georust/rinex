@@ -83,40 +83,7 @@ pub struct DetailedProductionAttributes {
     pub mm: u8,
 }
 
-impl DetailedProductionAttributes {
-    /// Defines a country code
-    pub fn country_code(&self, code: &str) -> Self {
-        let mut s = self.clone();
-        s.country = code.to_string();
-        s
-    }
-    /// Define [DataSource]
-    pub fn data_source(&self, src: DataSource) -> Self {
-        let mut s = self.clone();
-        s.data_src = src;
-        s
-    }
-    /// Define [PPU]
-    pub fn ppu(&self, ppu: PPU) -> Self {
-        let mut s = self.clone();
-        s.ppu = ppu;
-        s
-    }
-    /// Define [FFU]
-    pub fn ffu(&self, ffu: FFU) -> Self {
-        let mut s = self.clone();
-        s.ffu = Some(ffu);
-        s
-    }
-}
-
 impl ProductionAttributes {
-    /// Define your agency name
-    pub fn agency(&self, agency: &str) -> Self {
-        let mut s = self.clone();
-        s.name = agency.to_string();
-        s
-    }
     /* filename generator */
     pub(crate) fn ionex_format(name: &str, region: char, ddd: &str, yy: &str) -> String {
         format!("{}{}{}0.{}I", name, region, ddd, yy,)

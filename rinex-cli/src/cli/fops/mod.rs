@@ -16,6 +16,12 @@ use rinex::prod::{DataSource, FFU, PPU};
  */
 lazy_static! {
     pub static ref SHARED_GENERAL_ARGS : Vec<Arg> = vec![
+        Arg::new("batch")
+            .short('b')
+            .long("batch")
+            .required(false)
+            .value_parser(value_parser!(u8))
+            .help("Set # (number ID) in case this file is part of a file serie"),
         Arg::new("short")
             .short('s')
             .long("short")
