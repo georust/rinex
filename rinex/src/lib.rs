@@ -389,7 +389,7 @@ impl Rinex {
                 });
         }
     }
-    /// Returns a filename that would describe Self according to naming conventions.
+    /// Returns a filename that would describe Self according to standard naming conventions.
     /// For this information to be 100% complete, Self must come from a file
     /// that follows these conventions itself.
     /// Otherwise you must provide [ProductionAttributes] yourself with "custom".
@@ -400,6 +400,11 @@ impl Rinex {
     /// Otherwse, we will prefer modern V3 like formats.
     /// Use "suffix" to append a custom suffix like ".gz" for example.
     /// NB this will only output uppercase filenames (as per standard specs).
+    /// ```
+    /// use rinex::prelude::*;
+    /// // Parse a File that follows standard naming conventions
+    /// // and verify we generate something correct
+    /// ```
     pub fn standard_filename(
         &self,
         short: bool,
@@ -646,29 +651,34 @@ impl Rinex {
         filename
     }
 
-    /// Guesses and possibly correct the File [ProductionAttributes]
-    /// that were originally determined from the file name we have just parsed.
-    /// In case provided file does not strictly follow standard naming conventions,
-    /// [ProductionAttributes] that were originally will most likely be incomplete.
-    /// With this method, we analyze the Record content and possibly fill
-    /// some possibly missing attributes. Note that some attributes
-    /// are only determined by the filename, so it's possible that some fields
-    /// might be impossible to recover.
-    /// This is particularly interesting in scenarios where
-    /// you are confident about the Record content and don't want to bother
-    /// with File name generation.
+    /// Guesses File [ProductionAttributes] from the actual Record content.
+    /// This is particularly useful when working with datasets we are confident about,
+    /// yet that do not follow standard naming conventions.
     /// Here is an example of such use case:
     /// ```
-    /// // Parse one file that does not follow naming conventions
     /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/CLK/V3/example1.txt")
-    ///   .unwrap();
-    /// // As previously stated, we totally accept that
-    /// assert!(rinex.is_ok());
+    ///
+    /// // Parse one file that does not follow naming conventions
+    /// let rinex = Rinex::from_file("../test_resources/MET/V4/example1.txt");
+    /// assert!(rinex.is_ok()); // As previously stated, we totally accept that
     /// let rinex = rinex.unwrap();
-    /// // Now if we attempt to auto generate something that would
-    /// // follow standard naming conventions, we see that it is impossible
-    /// TODO
+    ///
+    /// // The standard file name generator has no means to generate something correct.
+    /// let standard_name = rinex.standard_filename(true, None, None);
+    /// assert_eq!(standard_name, "XXXX0070.21M");
+    ///
+    /// // We use the smart attributes detector as custom attributes
+    /// let guessed = rinex.guess_production_attributes();
+    /// let standard_name = rinex.standard_filename(true, None, Some(guessed.clone()));
+    ///
+    /// // we get a perfect shortened name
+    /// assert_eq!(standard_name, "bako0070.21M");
+    ///
+    /// // If we ask for a (modern) long standard filename, we mostly get it right,
+    /// // but some fields like the Country code can only be determined from the original filename,
+    /// // so we have no means to receover them.
+    /// let standard_name = rinex.standard_filename(false, None, Some(guessed.clone()));
+    /// assert_eq!(standard_name, "bako00XXX_U_20210070000_00U_MM.rnx");
     /// ```
     pub fn guess_production_attributes(&self) -> ProductionAttributes {
         // start from content identified from the filename
