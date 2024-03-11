@@ -281,7 +281,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         .expect("duration is required");
 
     if *duration == Duration::ZERO {
-        panic!("invalid duration");
+        panic!("invalid (null) duration");
     }
 
     for product in [

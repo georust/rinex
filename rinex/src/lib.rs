@@ -516,6 +516,28 @@ impl Rinex {
                     ProductionAttributes::rinex_short_format(&name, &ddd, &yy, ext)
                 } else {
                     /* long /V3 like format */
+                    let batch = match &custom {
+                        Some(ref custom) => {
+                            if let Some(details) = &custom.details {
+                                // details.batch
+                                0
+                            } else {
+                                0
+                            }
+                        },
+                        None => {
+                            if let Some(attr) = &self.prod_attr {
+                                if let Some(details) = &attr.details {
+                                    // details.batch
+                                    0
+                                } else {
+                                    0
+                                }
+                            } else {
+                                0
+                            }
+                        },
+                    };
                     let country = match &custom {
                         Some(ref custom) => {
                             if let Some(details) = &custom.details {
@@ -630,6 +652,7 @@ impl Rinex {
                     let ext = if is_crinex { "crx" } else { "rnx" };
                     ProductionAttributes::rinex_long_format(
                         &name,
+                        batch,
                         &country,
                         src,
                         &yyyy,
@@ -737,6 +760,7 @@ impl Rinex {
             }
         } else {
             attributes.details = Some(DetailedProductionAttributes {
+                batch: 0,                      // see notes down below
                 country: "XXX".to_string(),    // see notes down below
                 data_src: DataSource::Unknown, // see notes down below
                 ppu: match (first_epoch, last_epoch) {
