@@ -192,16 +192,16 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     let apriori = AprioriPosition::from_ecef(apriori);
     let rx_lat_ddeg = apriori.geodetic[0];
 
-    if ctx.data.obs_data().is_none() {
+    if ctx.data.observation().is_none() {
         panic!("positioning requires Observation RINEX");
     }
 
     let nav_data = ctx
         .data
-        .nav_data()
+        .brdc_navigation()
         .expect("positioning requires Navigation RINEX");
 
-    let sp3_data = ctx.data.sp3_data();
+    let sp3_data = ctx.data.sp3();
     if sp3_data.is_none() {
         panic!("High precision orbits (SP3) are unfortunately mandatory at the moment..");
     }

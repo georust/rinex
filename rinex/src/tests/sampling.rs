@@ -121,4 +121,15 @@ mod sampling {
             "data_gaps(tol=3h) failed",
         );
     }
+    #[test]
+    fn steady_sampling() {
+        let path = env!("CARGO_MANIFEST_DIR").to_owned()
+            + "/../test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz";
+        let rinex = Rinex::from_file(&path).unwrap();
+        assert!(rinex.steady_sampling());
+
+        let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
+        let rinex = Rinex::from_file(&path).unwrap();
+        assert!(!rinex.steady_sampling());
+    }
 }

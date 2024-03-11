@@ -7,7 +7,7 @@ use rinex::preprocessing::*;
 
 pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
     // GNSS filters
-    let mut gnss_filters: Vec<&str> = Vec::new();
+    let mut gnss_filters = Vec::<&str>::new();
 
     if cli.gps_filter() {
         gnss_filters.push("!=gps");
@@ -38,41 +38,38 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
         trace!("applying -I filter..");
     }
 
-    for filt in gnss_filters {
-        let filt = Filter::from_str(filt).unwrap(); // cannot fail
-        if let Some(ref mut obs) = ctx.obs_data_mut() {
-            obs.filter_mut(filt.clone());
+    for filter in gnss_filters {
+        let filter = Filter::from_str(filter).unwrap(); // cannot fail
+        if let Some(inner) = ctx.observation_mut() {
+            inner.filter_mut(filter.clone());
         }
-        if let Some(ref mut nav) = ctx.nav_data_mut() {
-            nav.filter_mut(filt.clone());
+        if let Some(inner) = ctx.brdc_navigation_mut() {
+            inner.filter_mut(filter.clone());
+        }
+        if let Some(inner) = ctx.clock_mut() {
+            inner.filter_mut(filter.clone());
+        }
+        if let Some(inner) = ctx.sp3_mut() {
+            //TODO
         }
     }
 
     for filt_str in cli.preprocessing() {
         /*
-         * TODO
-         * special case : apply to specific file format only
+         * Apply all preprocessing filters
          */
-        let only_obs = filt_str.starts_with("obs:");
-        let only_met = filt_str.starts_with("met:");
-        let only_nav = filt_str.starts_with("nav:");
-        let special_prefix = only_obs || only_met || only_nav;
-        let offset: usize = match special_prefix {
-            true => 4, // "obs:","met:",..,"ion:"
-            false => 0,
-        };
-        if let Ok(filt) = Filter::from_str(&filt_str[offset..]) {
-            if let Some(ref mut data) = ctx.obs_data_mut() {
-                data.filter_mut(filt.clone());
+        if let Ok(filter) = Filter::from_str(&filt_str) {
+            if let Some(ref mut inner) = ctx.observation_mut() {
+                inner.filter_mut(filter.clone());
             }
-            if let Some(ref mut data) = ctx.meteo_data_mut() {
-                data.filter_mut(filt.clone());
+            if let Some(ref mut inner) = ctx.brdc_navigation_mut() {
+                inner.filter_mut(filter.clone());
             }
-            if let Some(ref mut data) = ctx.nav_data_mut() {
-                data.filter_mut(filt.clone());
+            if let Some(ref mut inner) = ctx.meteo_mut() {
+                inner.filter_mut(filter.clone());
             }
-            if let Some(ref mut data) = ctx.ionex_data_mut() {
-                data.filter_mut(filt.clone());
+            if let Some(ref mut inner) = ctx.clock_mut() {
+                inner.filter_mut(filter.clone());
             }
             trace!("applied filter \"{}\"", filt_str);
         } else {

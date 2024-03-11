@@ -9,7 +9,7 @@ use std::io::BufReader; // Seek, SeekFrom};
 pub enum BufferedReader {
     /// Readable (plain) file
     PlainFile(BufReader<File>),
-    /// gzip compressed RINEX
+    /// gzip compressed filed
     #[cfg(feature = "flate2")]
     GzFile(BufReader<GzDecoder<File>>),
 }

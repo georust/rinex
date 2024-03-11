@@ -539,10 +539,10 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
      */
     if matches.get_flag("obs") {
         let mut plot_ctx = PlotContext::new();
-        if ctx.data.has_observation_data() {
+        if ctx.data.has_observation() {
             record::plot_observations(ctx, &mut plot_ctx, csv_export);
         }
-        if ctx.data.has_meteo_data() {
+        if ctx.data.has_meteo() {
             record::plot_meteo_observations(ctx, &mut plot_ctx, csv_export);
         }
 
@@ -553,7 +553,10 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
      * GNSS combinations graphs
      */
     if gnss_combination_plot(matches) {
-        let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
+        let data = ctx
+            .data
+            .observation()
+            .ok_or(Error::MissingObservationRinex)?;
 
         let mut plot_ctx = PlotContext::new();
         if matches.get_flag("if") {
@@ -609,7 +612,10 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
      * DCB visualization
      */
     if matches.get_flag("dcb") {
-        let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
+        let data = ctx
+            .data
+            .observation()
+            .ok_or(Error::MissingObservationRinex)?;
 
         let mut plot_ctx = PlotContext::new();
         let data = data.dcb();
@@ -624,7 +630,10 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ctx.render_html("DCB.html", plot_ctx.to_html());
     }
     if matches.get_flag("mp") {
-        let data = ctx.data.obs_data().ok_or(Error::MissingObservationRinex)?;
+        let data = ctx
+            .data
+            .observation()
+            .ok_or(Error::MissingObservationRinex)?;
 
         let mut plot_ctx = PlotContext::new();
         let data = data.code_multipath();
@@ -640,7 +649,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             let rx_ecef = ctx
                 .rx_ecef
                 .expect("skyplot requires the receiver location to be defined.");
-            if ctx.data.sp3_data().is_none() && ctx.data.nav_data().is_none() {
+            if ctx.data.sp3().is_none() && ctx.data.brdc_navigation().is_none() {
                 panic!("skyplot requires either BRDC or SP3.");
             }
             skyplot(&ctx.data, rx_ecef, &mut plot_ctx);
@@ -649,7 +658,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             plot_sv_nav_orbits(&ctx.data, &mut plot_ctx);
         }
         if matches.get_flag("orbit-residual") {
-            if ctx.data.sp3_data().is_none() || ctx.data.nav_data().is_none() {
+            if ctx.data.sp3().is_none() || ctx.data.brdc_navigation().is_none() {
                 panic!("requires both BRDC and SP3.");
             }
             plot_residual_ephemeris(&ctx.data, &mut plot_ctx);

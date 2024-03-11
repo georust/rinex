@@ -53,7 +53,7 @@ use writer::BufferedWriter;
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write; //, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -77,12 +77,13 @@ pub mod prelude {
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
     #[cfg(feature = "sp3")]
-    pub use crate::context::RnxContext;
+    pub use crate::context::{ProductType, RnxContext};
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;
     pub use crate::types::Type as RinexType;
+    pub use crate::Error;
     pub use crate::Rinex;
     pub use gnss::prelude::Constellation;
     pub use gnss::prelude::SV;
@@ -640,11 +641,11 @@ impl Rinex {
     /// some are mandatory.   
     /// Parses record (file body) for supported `RINEX` types.
     pub fn from_file(fullpath: &str) -> Result<Rinex, Error> {
-        Self::from_path(&Path::new(fullpath).to_path_buf())
+        Self::from_path(Path::new(fullpath))
     }
 
     /// See [Self::from_file]
-    pub fn from_path(path: &PathBuf) -> Result<Rinex, Error> {
+    pub fn from_path(path: &Path) -> Result<Rinex, Error> {
         let fullpath = path.to_string_lossy().to_string();
 
         // create buffered reader
@@ -1050,7 +1051,11 @@ impl Rinex {
                 .into_iter(),
         )
     }
-
+    /// Returns True if Self has a steady sampling, ie., all epoch interval
+    /// are evenly spaced
+    pub fn steady_sampling(&self) -> bool {
+        self.sampling_histogram().count() == 1
+    }
     /// Returns an iterator over unexpected data gaps,
     /// in the form ([`Epoch`], [`Duration`]), where
     /// epoch is the starting datetime, and its related duration.

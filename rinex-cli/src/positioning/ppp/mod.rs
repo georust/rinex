@@ -26,23 +26,13 @@ where
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
     // infaillible, at this point
-    let obs_data = ctx.data.obs_data().unwrap();
-    let nav_data = ctx.data.nav_data().unwrap();
-    let meteo_data = ctx.data.meteo_data();
+    let obs_data = ctx.data.observation().unwrap();
+    let nav_data = ctx.data.brdc_navigation().unwrap();
 
-    let clk_data = ctx.data.clk_data();
-    let has_clk_data = clk_data.is_some();
-
-    let sp3_data = ctx.data.sp3_data();
-
-    let sp3_has_clock = if has_clk_data {
-        false // always prefer CLK product
-    } else {
-        match sp3_data {
-            Some(sp3) => sp3.sv_clock().count() > 0,
-            None => false,
-        }
-    };
+    let clk_data = ctx.data.clock();
+    let meteo_data = ctx.data.meteo();
+    let sp3_data = ctx.data.sp3();
+    let sp3_has_clock = ctx.data.sp3_has_clock();
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -69,14 +59,14 @@ where
 
             // determine TOE
             let (toe, sv_eph) = sv_eph.unwrap();
+
             /*
              * Clock state
              *   1. Prefer CLK product
              *   2. Prefer SP3 product
              *   3. Radio last option: always feasible
              */
-            let clock_state = if has_clk_data {
-                let clk = clk_data.unwrap();
+            let clock_state = if let Some(clk) = clk_data {
                 if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
                     (
                         profile.bias,
@@ -85,15 +75,17 @@ where
                     )
                 } else {
                     /*
-                     * do not interpolate other products: abort
+                     * interpolation failure.
+                     * Do not interpolate other products: SV will not be presented.
                      */
                     continue;
                 }
             } else if sp3_has_clock {
-                panic!("sp3 (clock) interpolation not ready yet: prefer broadcast or clk product");
+                panic!("sp3 (clock) not ready yet: prefer broadcast or clk product");
             } else {
                 sv_eph.sv_clock() // BRDC case
             };
+
             // determine clock correction
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
 

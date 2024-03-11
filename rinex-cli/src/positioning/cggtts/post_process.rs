@@ -20,7 +20,7 @@ pub fn post_process(ctx: &Context, tracks: Vec<Track>, matches: &ArgMatches) -> 
     /*
      * CGGTTS formation and customization
      */
-    let obs_data = ctx.data.obs_data().unwrap(); // infaillible at this point
+    let obs_data = ctx.data.observation().unwrap(); // infaillible at this point
 
     // receiver customization
     let rcvr = match &obs_data.header.rcvr {

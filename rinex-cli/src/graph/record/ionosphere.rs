@@ -19,8 +19,8 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let lat_lon_ddeg = (ref_geo.0, ref_geo.1);
     let ref_ecef_wgs84 = ref_pos.to_ecef_wgs84();
 
-    if let Some(obs) = ctx.obs_data() {
-        if let Some(nav) = ctx.nav_data() {
+    if let Some(obs) = ctx.observation() {
+        if let Some(nav) = ctx.brdc_navigation() {
             for (sv_index, sv) in obs.sv().enumerate() {
                 if sv_index == 0 {
                     plot_ctx.add_timedomain_plot("Ionospheric Delay", "meters of delay");
@@ -51,7 +51,7 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                             /*
                              * prefer SP3 for the position determination
                              */
-                            let sv_position = match ctx.sp3_data() {
+                            let sv_position = match ctx.sp3() {
                                 Some(sp3) => sp3.sv_position_interpolate(sv, *t, 11),
                                 None => nav.sv_position_interpolate(sv, *t, 11),
                             };
