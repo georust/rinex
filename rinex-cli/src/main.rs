@@ -133,8 +133,7 @@ fn user_data_parsing(cli: &Cli) -> RnxContext {
     /*
      * Preprocess whole context
      */
-    preprocess(&mut ctx, &cli);
-
+    preprocess(&mut ctx, cli);
     debug!("{:?}", ctx);
     ctx
 }

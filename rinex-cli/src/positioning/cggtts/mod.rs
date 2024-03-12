@@ -85,9 +85,9 @@ where
     let meteo_data = ctx.data.meteo();
 
     let clk_data = ctx.data.clock();
-    let has_clk_data = clk_data.is_some();
+    let _has_clk_data = clk_data.is_some();
 
-    let sp3_data = ctx.data.sp3();
+    let _sp3_data = ctx.data.sp3();
     let sp3_has_clock = ctx.data.sp3_has_clock();
 
     let dominant_sampling_period = obs_data

@@ -1,5 +1,5 @@
 use super::Error;
-use hifitime::{Duration, Unit};
+use hifitime::{Duration, Unit, DAYS_PER_YEAR};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -8,7 +8,7 @@ use serde::Serialize;
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum PPU {
-    /// A Daily file is the standard and will contain 24h of data
+    /// A Daily file is the standard and contains 24h of data
     #[default]
     Daily,
     /// Contains 15' of data
@@ -21,6 +21,22 @@ pub enum PPU {
     Unspecified,
 }
 
+impl From<Duration> for PPU {
+    fn from(dt: Duration) -> Self {
+        if dt >= DAYS_PER_YEAR * Unit::Day {
+            Self::Yearly
+        } else if dt > 1.0 * Unit::Hour && dt <= 24.0 * Unit::Hour {
+            Self::Daily
+        } else if dt > 15.0 * Unit::Minute && dt <= 1.0 * Unit::Hour {
+            Self::Hourly
+        } else if dt > 5.0 * Unit::Minute && dt <= 15.0 * Unit::Minute {
+            Self::QuarterHour
+        } else {
+            Self::Unspecified
+        }
+    }
+}
+
 impl PPU {
     /// Returns this file periodicity as a [Duration]
     pub fn duration(&self) -> Option<Duration> {
@@ -28,7 +44,7 @@ impl PPU {
             Self::QuarterHour => Some(15 * Unit::Minute),
             Self::Hourly => Some(1 * Unit::Hour),
             Self::Daily => Some(1 * Unit::Day),
-            Self::Yearly => Some(365 * Unit::Day),
+            Self::Yearly => Some(DAYS_PER_YEAR * Unit::Day),
             _ => None,
         }
     }
@@ -62,7 +78,7 @@ impl std::str::FromStr for PPU {
 #[cfg(test)]
 mod test {
     use super::PPU;
-    use hifitime::Unit;
+    use hifitime::{Unit, DAYS_PER_YEAR};
     use std::str::FromStr;
     #[test]
     fn ppu_parsing() {
@@ -70,13 +86,25 @@ mod test {
             ("15M", PPU::QuarterHour, Some(15 * Unit::Minute)),
             ("01H", PPU::Hourly, Some(1 * Unit::Hour)),
             ("01D", PPU::Daily, Some(1 * Unit::Day)),
-            ("01Y", PPU::Yearly, Some(365 * Unit::Day)),
+            ("01Y", PPU::Yearly, Some(DAYS_PER_YEAR * Unit::Day)),
             ("XX", PPU::Unspecified, None),
             ("01U", PPU::Unspecified, None),
         ] {
             let ppu = PPU::from_str(c).unwrap();
             assert_eq!(ppu, expected);
-            assert_eq!(ppu.duration(), dur);
+            assert_eq!(ppu.duration(), dur, "test failed for {}", c);
+        }
+    }
+    #[test]
+    fn ppu_cast() {
+        for (duration, expected) in [
+            (15.0 * Unit::Minute, PPU::QuarterHour),
+            (0.9 * Unit::Hour, PPU::Hourly),
+            (1.0 * Unit::Hour, PPU::Hourly),
+            (0.9 * Unit::Day, PPU::Daily),
+            (1.0 * Unit::Day, PPU::Daily),
+        ] {
+            assert_eq!(PPU::from(duration), expected);
         }
     }
 }

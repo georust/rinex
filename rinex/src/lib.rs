@@ -65,7 +65,7 @@ use observable::Observable;
 use observation::Crinex;
 use version::Version;
 
-use production::{ProductionAttributes, FFU, PPU};
+use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
 
 use hifitime::Unit;
 //use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
@@ -88,6 +88,13 @@ pub mod prelude {
     pub use gnss::prelude::Constellation;
     pub use gnss::prelude::SV;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
+}
+
+/// Package dedicated to file production.
+pub mod prod {
+    pub use crate::production::{
+        DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU,
+    };
 }
 
 #[cfg(feature = "processing")]
@@ -382,7 +389,7 @@ impl Rinex {
                 });
         }
     }
-    /// Returns a filename that would describe Self according to naming conventions.
+    /// Returns a filename that would describe Self according to standard naming conventions.
     /// For this information to be 100% complete, Self must come from a file
     /// that follows these conventions itself.
     /// Otherwise you must provide [ProductionAttributes] yourself with "custom".
@@ -393,6 +400,11 @@ impl Rinex {
     /// Otherwse, we will prefer modern V3 like formats.
     /// Use "suffix" to append a custom suffix like ".gz" for example.
     /// NB this will only output uppercase filenames (as per standard specs).
+    /// ```
+    /// use rinex::prelude::*;
+    /// // Parse a File that follows standard naming conventions
+    /// // and verify we generate something correct
+    /// ```
     pub fn standard_filename(
         &self,
         short: bool,
@@ -407,7 +419,9 @@ impl Rinex {
         let mut filename = match rinextype {
             RinexType::IonosphereMaps => {
                 let name = match custom {
-                    Some(ref custom) => custom.name.clone(),
+                    Some(ref custom) => {
+                        custom.name[..std::cmp::min(3, custom.name.len())].to_string()
+                    },
                     None => {
                         if let Some(attr) = &self.prod_attr {
                             attr.name.clone()
@@ -502,6 +516,28 @@ impl Rinex {
                     ProductionAttributes::rinex_short_format(&name, &ddd, &yy, ext)
                 } else {
                     /* long /V3 like format */
+                    let batch = match &custom {
+                        Some(ref custom) => {
+                            if let Some(details) = &custom.details {
+                                // details.batch
+                                0
+                            } else {
+                                0
+                            }
+                        },
+                        None => {
+                            if let Some(attr) = &self.prod_attr {
+                                if let Some(details) = &attr.details {
+                                    // details.batch
+                                    0
+                                } else {
+                                    0
+                                }
+                            } else {
+                                0
+                            }
+                        },
+                    };
                     let country = match &custom {
                         Some(ref custom) => {
                             if let Some(details) = &custom.details {
@@ -616,6 +652,7 @@ impl Rinex {
                     let ext = if is_crinex { "crx" } else { "rnx" };
                     ProductionAttributes::rinex_long_format(
                         &name,
+                        batch,
                         &country,
                         src,
                         &yyyy,
@@ -636,6 +673,125 @@ impl Rinex {
         }
         filename
     }
+
+    /// Guesses File [ProductionAttributes] from the actual Record content.
+    /// This is particularly useful when working with datasets we are confident about,
+    /// yet that do not follow standard naming conventions.
+    /// Here is an example of such use case:
+    /// ```
+    /// use rinex::prelude::*;
+    ///
+    /// // Parse one file that does not follow naming conventions
+    /// let rinex = Rinex::from_file("../test_resources/MET/V4/example1.txt");
+    /// assert!(rinex.is_ok()); // As previously stated, we totally accept that
+    /// let rinex = rinex.unwrap();
+    ///
+    /// // The standard file name generator has no means to generate something correct.
+    /// let standard_name = rinex.standard_filename(true, None, None);
+    /// assert_eq!(standard_name, "XXXX0070.21M");
+    ///
+    /// // We use the smart attributes detector as custom attributes
+    /// let guessed = rinex.guess_production_attributes();
+    /// let standard_name = rinex.standard_filename(true, None, Some(guessed.clone()));
+    ///
+    /// // we get a perfect shortened name
+    /// assert_eq!(standard_name, "bako0070.21M");
+    ///
+    /// // If we ask for a (modern) long standard filename, we mostly get it right,
+    /// // but some fields like the Country code can only be determined from the original filename,
+    /// // so we have no means to receover them.
+    /// let standard_name = rinex.standard_filename(false, None, Some(guessed.clone()));
+    /// assert_eq!(standard_name, "bako00XXX_U_20210070000_00U_MM.rnx");
+    /// ```
+    pub fn guess_production_attributes(&self) -> ProductionAttributes {
+        // start from content identified from the filename
+        let mut attributes = self.prod_attr.clone().unwrap_or_default();
+
+        let first_epoch = self.first_epoch();
+        let last_epoch = self.last_epoch();
+        let first_epoch_gregorian = first_epoch.map(|t0| t0.to_gregorian_utc());
+
+        match first_epoch_gregorian {
+            Some((y, _, _, _, _, _, _)) => attributes.year = y as u32,
+            _ => {},
+        }
+        match first_epoch {
+            Some(t0) => attributes.doy = t0.day_of_year().round() as u32,
+            _ => {},
+        }
+        // notes on attribute."name"
+        // - Non detailed OBS RINEX: this is usually the station name
+        //   which can be named after a geodetic marker
+        // - Non detailed NAV RINEX: station name
+        // - CLK RINEX: name of the local clock
+        // - IONEX: agency
+        match self.header.rinex_type {
+            RinexType::ClockData => match &self.header.clock {
+                Some(clk) => match &clk.ref_clock {
+                    Some(refclock) => attributes.name = refclock.to_string(),
+                    _ => {
+                        if let Some(site) = &clk.site {
+                            attributes.name = site.to_string();
+                        } else {
+                            attributes.name = self.header.agency.to_string();
+                        }
+                    },
+                },
+                _ => attributes.name = self.header.agency.to_string(),
+            },
+            RinexType::IonosphereMaps => {
+                attributes.name = self.header.agency.to_string();
+            },
+            _ => match &self.header.geodetic_marker {
+                Some(marker) => attributes.name = marker.name.to_string(),
+                _ => attributes.name = self.header.agency.to_string(),
+            },
+        }
+        if let Some(ref mut details) = attributes.details {
+            if let Some((_, _, _, hh, mm, _, _)) = first_epoch_gregorian {
+                details.hh = hh;
+                details.mm = mm;
+            }
+            if let Some(first_epoch) = first_epoch {
+                if let Some(last_epoch) = last_epoch {
+                    let total_dt = last_epoch - first_epoch;
+                    details.ppu = PPU::from(total_dt);
+                }
+            }
+        } else {
+            attributes.details = Some(DetailedProductionAttributes {
+                batch: 0,                      // see notes down below
+                country: "XXX".to_string(),    // see notes down below
+                data_src: DataSource::Unknown, // see notes down below
+                ppu: match (first_epoch, last_epoch) {
+                    (Some(first), Some(last)) => {
+                        let total_dt = last - first;
+                        PPU::from(total_dt)
+                    },
+                    _ => PPU::Unspecified,
+                },
+                ffu: self.dominant_sample_rate().map(FFU::from),
+                hh: match first_epoch_gregorian {
+                    Some((_, _, _, hh, _, _, _)) => hh,
+                    _ => 0,
+                },
+                mm: match first_epoch_gregorian {
+                    Some((_, _, _, _, mm, _, _)) => mm,
+                    _ => 0,
+                },
+            });
+        }
+        /*
+         * Several fields cannot be deduced from the actual
+         * Record content. If provided filename did not describe them,
+         * we have no means to recover them.
+         * Example of such fields would be:
+         *    + Country Code: would require a worldwide country database
+         *    + Data source: is only defined in the filename
+         */
+        attributes
+    }
+
     /// Builds a `RINEX` from given file fullpath.
     /// Header section must respect labelization standards,
     /// some are mandatory.   
@@ -2982,11 +3138,9 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = (Epoch, SV, ClockProfileType, ClockProfile)> + '_> {
         Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
             rec.iter().filter_map(|(key, profile)| {
-                if let Some(sv) = key.clock_type.as_sv() {
-                    Some((*epoch, sv, key.profile_type.clone(), profile.clone()))
-                } else {
-                    None
-                }
+                key.clock_type
+                    .as_sv()
+                    .map(|sv| (*epoch, sv, key.profile_type.clone(), profile.clone()))
             })
         }))
     }
@@ -3052,16 +3206,14 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = (Epoch, String, ClockProfileType, ClockProfile)> + '_> {
         Box::new(self.precise_clock().flat_map(|(epoch, rec)| {
             rec.iter().filter_map(|(key, profile)| {
-                if let Some(clk_name) = key.clock_type.as_station() {
-                    Some((
+                key.clock_type.as_station().map(|clk_name| {
+                    (
                         *epoch,
                         clk_name.clone(),
                         key.profile_type.clone(),
                         profile.clone(),
-                    ))
-                } else {
-                    None
-                }
+                    )
+                })
             })
         }))
     }

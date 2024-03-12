@@ -119,8 +119,8 @@ pub fn post_process(
      * largest error
      */
     for error in results
-        .iter()
-        .map(|(_, pvt)| (pvt.pos.x.powi(2) + pvt.pos.y.powi(2) + pvt.pos.z.powi(2)).sqrt())
+        .values()
+        .map(|pvt| (pvt.pos.x.powi(2) + pvt.pos.y.powi(2) + pvt.pos.z.powi(2)).sqrt())
     {
         if error > worst_radius {
             worst_radius = error;

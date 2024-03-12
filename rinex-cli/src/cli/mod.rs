@@ -9,7 +9,7 @@ use std::{
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
 
-use crate::{fops::open_with_web_browser, Error};
+use crate::fops::open_with_web_browser;
 
 use map_3d::{geodetic2ecef, Ellipsoid};
 
@@ -17,20 +17,15 @@ use map_3d::{geodetic2ecef, Ellipsoid};
 mod identify;
 // graph mode
 mod graph;
-// merge mode
-mod merge;
-// split mode
-mod split;
-// tbin mode
-mod time_binning;
-// substraction mode
-mod substract;
 // QC mode
 mod qc;
 // positioning mode
 mod positioning;
-// filegen mode
-mod filegen;
+
+// file operations
+mod fops;
+
+use fops::{filegen, merge, split, substract, time_binning};
 
 pub struct Cli {
     /// Arguments passed by user

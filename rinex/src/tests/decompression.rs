@@ -4,6 +4,7 @@ mod test {
     use crate::tests::toolkit::obsrinex_check_observables;
     use crate::tests::toolkit::random_name;
     use crate::tests::toolkit::test_observation_rinex;
+    // use crate::tests::toolkit::test_against_model;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
     use crate::{observable, prelude::*};
     use itertools::Itertools;
@@ -162,12 +163,10 @@ mod test {
 
             // parse plain RINEX and run reciprocity
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
-            let model = Rinex::from_file(&path);
-            assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
+            let _model = Rinex::from_file(&path).unwrap();
 
-            //let model = model.unwrap();
             // run testbench
-            // test_toolkit::test_against_model(&rnx, &model, &path);
+            // test_against_model(&rnx, &model, &path, 1.0E-6);
 
             // remove copy
             let _ = std::fs::remove_file(filename);
@@ -220,11 +219,10 @@ mod test {
 
             // parse Model for testbench
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);
-            let model = Rinex::from_file(&path);
-            assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
+            let _model = Rinex::from_file(&path).unwrap();
 
             // run testbench
-            // test_toolkit::test_against_model(&rnx, &model, &path);
+            // test_against_model(&rnx, &model, &path, 1.0E-6);
         }
     }
     /*

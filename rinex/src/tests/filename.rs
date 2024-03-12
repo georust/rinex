@@ -61,7 +61,7 @@ fn long_filename_conventions() {
             .join("test_resources")
             .join(testfile);
 
-        let rinex = Rinex::from_file(fp.to_string_lossy().as_ref()).unwrap();
+        let rinex = Rinex::from_path(&fp).unwrap();
         let output = rinex.standard_filename(false, custom_suffix, None);
         assert_eq!(output, expected, "bad filename generated");
     }

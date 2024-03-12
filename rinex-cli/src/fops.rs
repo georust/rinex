@@ -9,15 +9,98 @@ use std::str::FromStr;
 use rinex::{
     prelude::{Duration, Epoch, ProductType, Rinex, RinexType},
     preprocessing::*,
+    prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     Merge, Split,
 };
+
+/*
+ * Parses share RINEX production attributes.
+ * This helps accurate file production,
+ * and also allows customization from files that did not originally follow
+ * standard naming conventions
+ */
+fn custom_prod_attributes(rinex: &Rinex, matches: &ArgMatches) -> ProductionAttributes {
+    // Start from smartly guessed attributes and replace
+    // manually customized fields
+    let mut opts = rinex.guess_production_attributes();
+    if let Some(agency) = matches.get_one::<String>("agency") {
+        opts.name = agency.to_string();
+    }
+    if let Some(country) = matches.get_one::<String>("country") {
+        if let Some(ref mut details) = opts.details {
+            details.country = country[..3].to_string();
+        } else {
+            let mut default = DetailedProductionAttributes::default();
+            default.country = country[..3].to_string();
+            opts.details = Some(default);
+        }
+    }
+    if let Some(batch) = matches.get_one::<u8>("batch") {
+        if let Some(ref mut details) = opts.details {
+            details.batch = *batch;
+        } else {
+            let mut default = DetailedProductionAttributes::default();
+            default.batch = *batch;
+            opts.details = Some(default);
+        }
+    }
+    if let Some(src) = matches.get_one::<DataSource>("source") {
+        if let Some(ref mut details) = opts.details {
+            details.data_src = *src;
+        } else {
+            let mut default = DetailedProductionAttributes::default();
+            default.data_src = *src;
+            opts.details = Some(default);
+        }
+    }
+    if let Some(ppu) = matches.get_one::<PPU>("ppu") {
+        if let Some(ref mut details) = opts.details {
+            details.ppu = *ppu;
+        } else {
+            let mut default = DetailedProductionAttributes::default();
+            default.ppu = *ppu;
+            opts.details = Some(default);
+        }
+    }
+    if let Some(ffu) = matches.get_one::<FFU>("ffu") {
+        if let Some(ref mut details) = opts.details {
+            details.ffu = Some(*ffu);
+        } else {
+            let mut default = DetailedProductionAttributes::default();
+            default.ffu = Some(*ffu);
+            opts.details = Some(default);
+        }
+    }
+    opts
+}
+
+/*
+ * Returns output filename to be generated, for this kind of Product
+ * TODO: some customization might impact the Header section
+ *       that we should slightly rework, to be 100% correct
+ */
+fn output_filename(rinex: &Rinex, matches: &ArgMatches, prod: ProductionAttributes) -> String {
+    // Parse possible custom opts
+    let short = matches.get_flag("short");
+    let gzip = if matches.get_flag("gzip") {
+        Some(".gz")
+    } else {
+        None
+    };
+
+    debug!("{:?}", prod);
+
+    // Use smart determination
+    rinex.standard_filename(short, gzip, Some(prod))
+}
 
 /*
  * Dumps current context (usually preprocessed)
  * into RINEX format maintaining consistent format
  */
-pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
+pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
+
     for product in [
         ProductType::Observation,
         ProductType::MeteoObservation,
@@ -27,15 +110,8 @@ pub fn filegen(ctx: &Context, _matches: &ArgMatches) -> Result<(), Error> {
         ProductType::Antex,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
-            let filename = ctx_data
-                .files(product)
-                .expect(&format!("failed to determine {} output", product))
-                .get(0)
-                .expect(&format!("failed to determine {} output", product))
-                .file_name()
-                .expect(&format!("failed to determine {} output", product))
-                .to_string_lossy()
-                .to_string();
+            let prod = custom_prod_attributes(rinex, matches);
+            let filename = output_filename(rinex, matches, prod);
 
             let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
 
@@ -113,7 +189,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let first_epoch = rinex_a
                 .first_epoch()
-                .expect(&format!("failed to determine {} file suffix", product));
+                .unwrap_or_else(|| panic!("failed to determine {} file suffix", product));
 
             let (y, m, d, hh, mm, ss, _) = first_epoch.to_gregorian_utc();
             let file_suffix = format!(
@@ -123,13 +199,13 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let path = ctx_data
                 .files(product)
-                .expect(&format!("failed to determine output {} filename", product))
-                .get(0)
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product))
+                .first()
                 .unwrap();
 
             let filename = path
                 .file_stem()
-                .expect(&format!("failed to determine output {} filename", product))
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product))
                 .to_string_lossy()
                 .to_string();
 
@@ -178,8 +254,8 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let path = ctx_data
                 .files(product)
-                .expect(&format!("failed to determine output {} filename", product))
-                .get(0)
+                .unwrap_or_else(|| panic!("failed to determine output {} filename", product))
+                .first()
                 .unwrap();
 
             let filename = path
@@ -211,7 +287,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         .expect("duration is required");
 
     if *duration == Duration::ZERO {
-        panic!("invalid duration");
+        panic!("invalid (null) duration");
     }
 
     for product in [
@@ -233,45 +309,16 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let mut last = first + *duration;
 
-            // filename determination
-            let data_path = ctx_data
-                .files(product)
-                .unwrap()
-                .get(0)
-                .expect(&format!("failed to determine output {} file name", product));
-
-            let filename = data_path
-                .file_stem()
-                .expect(&format!("failed to determine output {} file name", product))
-                .to_string_lossy()
-                .to_string();
-
-            let mut extension = String::new();
-
-            let filename = if filename.contains('.') {
-                /* .crx.gz case */
-                let mut iter = filename.split('.');
-                let filename = iter
-                    .next()
-                    .expect(&format!("failed to determine output {} file name", product))
-                    .to_string();
-                extension.push_str(
-                    iter.next()
-                        .expect(&format!("failed to determine output {} file name", product)),
-                );
-                extension.push('.');
-                filename
+            // production attributes: initialize Batch counter
+            let mut batch = 0_u8;
+            let mut prod = custom_prod_attributes(rinex, matches);
+            if let Some(ref mut details) = prod.details {
+                details.batch = batch;
             } else {
-                filename.clone()
+                let mut details = DetailedProductionAttributes::default();
+                details.batch = batch;
+                prod.details = Some(details);
             };
-
-            let file_ext = data_path
-                .extension()
-                .expect(&format!("failed to determine output {} file name", product))
-                .to_string_lossy()
-                .to_string();
-
-            extension.push_str(&file_ext);
 
             // run time binning algorithm
             while last <= end {
@@ -280,19 +327,20 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                     .filter(Filter::from_str(&format!(">= {:?}", first)).unwrap());
 
                 let (y, m, d, hh, mm, ss, _) = first.to_gregorian_utc();
-                let file_suffix = format!("{}{}{}_{}{}{}{}", y, m, d, hh, mm, ss, first.time_scale);
 
-                let output = ctx
-                    .workspace
-                    .join(&format!("{}-{}.{}", filename, file_suffix, extension))
-                    .to_string_lossy()
-                    .to_string();
+                // generate standardized name
+                let filename = output_filename(&rinex, matches, prod.clone());
+
+                let output = ctx.workspace.join(&filename).to_string_lossy().to_string();
 
                 rinex.to_file(&output)?;
                 info!("{} RINEX \"{}\" has been generated", product, output);
 
                 first += *duration;
                 last += *duration;
+                if let Some(ref mut details) = prod.details {
+                    details.batch += 1;
+                }
             }
         }
     }
@@ -307,7 +355,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let path_a = ctx_data
         .files(ProductType::Observation)
         .expect("failed to determine output file name")
-        .get(0)
+        .first()
         .unwrap();
 
     let path_b = matches.get_one::<PathBuf>("file").unwrap();

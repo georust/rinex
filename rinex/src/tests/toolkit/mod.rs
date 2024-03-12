@@ -10,7 +10,7 @@ pub use observation::check_observables as obsrinex_check_observables;
 
 /* ANY RINEX == constant (special ops) */
 mod constant;
-pub use constant::{is_constant_rinex, is_null_rinex};
+pub use constant::is_null_rinex;
 
 //#[macro_use]
 #[macro_export]

@@ -1,10 +1,13 @@
 //! PPP solver
 use crate::cli::Context;
 use crate::positioning::{bd_model, kb_model, ng_model, tropo_components};
-use rinex::carrier::Carrier;
-use rinex::navigation::Ephemeris;
-use rinex::prelude::SV;
 use std::collections::BTreeMap;
+
+use rinex::{
+    carrier::Carrier,
+    navigation::Ephemeris,
+    prelude::{Duration, SV},
+};
 
 mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
@@ -31,14 +34,24 @@ where
 
     let clk_data = ctx.data.clock();
     let meteo_data = ctx.data.meteo();
+
     let sp3_data = ctx.data.sp3();
     let sp3_has_clock = ctx.data.sp3_has_clock();
+
+    if clk_data.is_none() && sp3_has_clock {
+        if let Some(sp3) = sp3_data {
+            warn!("Using clock states defined in SP3 file: CLK product should be prefered");
+            if sp3.epoch_interval >= Duration::from_seconds(300.0) {
+                warn!("interpolating clock states from low sample rate SP3 will most likely introduce errors");
+            }
+        }
+    }
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            /* we only consider "OK" epochs" */
+            /* we only consider _valid_ epochs" */
             continue;
         }
 
@@ -53,18 +66,18 @@ where
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
-                warn!("{:?} ({}) : undetermined ephemeris", t, sv);
+                debug!("{:?} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
 
             // determine TOE
-            let (toe, sv_eph) = sv_eph.unwrap();
+            let (toe, _sv_eph) = sv_eph.unwrap();
 
             /*
              * Clock state
-             *   1. Prefer CLK product
-             *   2. Prefer SP3 product
-             *   3. Radio last option: always feasible
+             *   1. Prefer CLK product: best quality
+             *   2. Prefer SP3 product: most likely incompatible with very precise PPP
+             *   3. BRDC Radio last option: always feasible but most likely very noisy/wrong
              */
             let clock_state = if let Some(clk) = clk_data {
                 if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
@@ -81,9 +94,25 @@ where
                     continue;
                 }
             } else if sp3_has_clock {
-                panic!("sp3 (clock) not ready yet: prefer broadcast or clk product");
+                if let Some(sp3) = sp3_data {
+                    if let Some(bias) = sp3.sv_clock_interpolate(*t, *sv) {
+                        // FIXME:
+                        // slightly rework SP3 to expose drift + driftr better
+                        (bias, 0.0_f64, 0.0_f64)
+                    } else {
+                        /*
+                         * interpolation failure.
+                         * Do not interpolate other products: SV will not be presented.
+                         */
+                        continue;
+                    }
+                } else {
+                    // FIXME: BRDC interpolation
+                    continue;
+                }
             } else {
-                sv_eph.sv_clock() // BRDC case
+                // FIXME: BRDC interpolation
+                continue;
             };
 
             // determine clock correction

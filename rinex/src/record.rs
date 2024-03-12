@@ -158,11 +158,12 @@ impl Record {
                             if let Ok(compressed) =
                                 compressor.compress(major, &obs_fields.codes, constell, &line)
                             {
-                                write!(writer, "{}", compressed)?;
+                                // println!("compressed \"{}\"", compressed); // DEBUG
+                                writeln!(writer, "{}", compressed)?;
                             }
                         }
                     } else {
-                        write!(writer, "{}", epoch)?;
+                        writeln!(writer, "{}", epoch)?;
                     }
                 }
             },
