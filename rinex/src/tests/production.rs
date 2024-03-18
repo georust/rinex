@@ -4,7 +4,7 @@ mod test {
     use crate::*;
     use std::path::Path;
     fn testbench(path: &str) {
-        // parse this file
+        println!("running on \"{}\"", path);
         let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere
         let tmp_path = format!("test-{}.rnx", random_name(5));
         assert!(rnx.to_file(&tmp_path).is_ok()); // test writer

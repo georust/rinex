@@ -147,12 +147,9 @@ pub(crate) fn fmt_rinex(content: &str, marker: &str) -> String {
         for i in 0..nb_lines {
             let start_off = i * 60;
             let end_off = std::cmp::min(start_off + 60, content.len());
-            string.push_str(&format!(
-                "{:<padding$}{}",
-                &content[start_off..end_off],
-                marker,
-                padding = 60
-            ));
+            let chunk = &content[start_off..end_off];
+            let len = chunk.len();
+            string.push_str(&format!("{:<padding$}{}", chunk, marker, padding = 60));
             if i < nb_lines - 1 {
                 string.push('\n');
             }
@@ -3469,6 +3466,18 @@ mod test {
                 assert_eq!(line.find("COMMENT"), Some(60), "comment marker should located @ 60");
                 assert!(is_rinex_comment(line), "should be valid comment");
             }
+        }
+    }
+    #[test]
+    fn fmt_observables_v3() {
+        for (desc, expected) in [
+("R    9 C1C L1C S1C C2C C2P L2C L2P S2C S2P",
+"R    9 C1C L1C S1C C2C C2P L2C L2P S2C S2P                  SYS / # / OBS TYPES"),
+("G   18 C1C L1C S1C C2P C2W C2S C2L C2X L2P L2W L2S L2L L2X         S2P S2W S2S S2L S2X",
+"G   18 C1C L1C S1C C2P C2W C2S C2L C2X L2P L2W L2S L2L L2X  SYS / # / OBS TYPES
+       S2P S2W S2S S2L S2X                                  SYS / # / OBS TYPES"),
+        ] {
+            assert_eq!(fmt_rinex(desc, "SYS / # / OBS TYPES"), expected);
         }
     }
 }
