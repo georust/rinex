@@ -43,10 +43,8 @@ plotly =  "0.8.4"
 
 # solver
 gnss-rtk = { version = "0.4.2", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "develop", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
 
 # cggtts
 cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }
-# cggtts = { git = "https://github.com/gwbres/cggtts", branch = "develop", features = ["serde", "scheduler"] }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }

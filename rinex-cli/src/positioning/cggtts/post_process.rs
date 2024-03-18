@@ -13,10 +13,16 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 }
 
+use crate::fops::open_with_web_browser;
+
 /*
  * CGGTTS file generation and solutions post processing
  */
-pub fn post_process(ctx: &Context, tracks: Vec<Track>, matches: &ArgMatches) -> Result<(), Error> {
+pub fn post_process(
+    ctx: &Context,
+    mut tracks: Vec<Track>,
+    matches: &ArgMatches,
+) -> Result<(), Error> {
     /*
      * CGGTTS formation and customization
      */
@@ -51,11 +57,11 @@ pub fn post_process(ctx: &Context, tracks: Vec<Track>, matches: &ArgMatches) -> 
         .receiver(rcvr.clone())
         .ims(rcvr.clone()) // TODO : improve this ?
         .apc_coordinates({
-            // TODO: wrong, CGGTTS wants ITRF: need some conversion
+            // TODO: wrong, coordinates should be expressed in ITRF: need some conversion
             let (x, y, z) = ctx.rx_ecef.unwrap(); // infallible at this point
             Coordinates { x, y, z }
         })
-        .reference_frame("WGS84") //TODO incorrect
+        .reference_frame("WGS84") //TODO: ITRF
         .reference_time({
             if let Some(utck) = matches.get_one::<String>("utck") {
                 ReferenceTime::UTCk(utck.clone())
@@ -70,6 +76,8 @@ pub fn post_process(ctx: &Context, tracks: Vec<Track>, matches: &ArgMatches) -> 
             env!("CARGO_PKG_VERSION")
         ));
 
+    tracks.sort_by(|a, b| a.epoch.cmp(&b.epoch));
+
     for track in tracks {
         cggtts.tracks.push(track);
     }
@@ -78,6 +86,11 @@ pub fn post_process(ctx: &Context, tracks: Vec<Track>, matches: &ArgMatches) -> 
     let mut fd = File::create(&filename)?;
     write!(fd, "{}", cggtts)?;
     info!("{} has been generated", filename.to_string_lossy());
+
+    if !ctx.quiet {
+        let path = filename.to_string_lossy().to_string();
+        open_with_web_browser(&path);
+    }
 
     Ok(())
 }
