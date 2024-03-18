@@ -1610,7 +1610,7 @@ impl Header {
                     /*
                      * List of observables
                      */
-                    for (index, (constell, observables)) in obs.codes.iter().enumerate() {
+                    for (constell, observables) in &obs.codes {
                         let mut descriptor = String::new();
                         descriptor.push_str(&format!("{:x}{:5}", constell, observables.len()));
                         for (i, observable) in observables.iter().enumerate() {

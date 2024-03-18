@@ -148,7 +148,6 @@ pub(crate) fn fmt_rinex(content: &str, marker: &str) -> String {
             let start_off = i * 60;
             let end_off = std::cmp::min(start_off + 60, content.len());
             let chunk = &content[start_off..end_off];
-            let len = chunk.len();
             string.push_str(&format!("{:<padding$}{}", chunk, marker, padding = 60));
             if i < nb_lines - 1 {
                 string.push('\n');
