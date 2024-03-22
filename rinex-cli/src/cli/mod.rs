@@ -283,12 +283,12 @@ Otherwise it gets automatically picked up."))
         (x, y, z)
     }
     fn manual_ecef(&self) -> Option<(f64, f64, f64)> {
-        let desc = self.matches.get_one::<&String>("rx-ecef")?;
+        let desc = self.matches.get_one::<String>("rx-ecef")?;
         let ecef = Self::parse_3d_coordinates(desc);
         Some(ecef)
     }
     fn manual_geodetic(&self) -> Option<(f64, f64, f64)> {
-        let desc = self.matches.get_one::<&String>("rx-geo")?;
+        let desc = self.matches.get_one::<String>("rx-geo")?;
         let geo = Self::parse_3d_coordinates(desc);
         Some(geo)
     }
