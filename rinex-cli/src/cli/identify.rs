@@ -8,7 +8,7 @@ pub fn subcommand() -> Command {
         .arg_required_else_help(true)
         .about("RINEX data identification opmode")
         .arg(
-            Arg::new("all").short('a').action(ArgAction::SetTrue).help(
+            Arg::new("all").short('A').action(ArgAction::SetTrue).help(
                 "Complete RINEX dataset(s) identification. Turns on all following algorithms.",
             ),
         )
@@ -36,7 +36,6 @@ pub fn subcommand() -> Command {
         .arg(
             Arg::new("header")
                 .long("header")
-                .short('h')
                 .action(ArgAction::SetTrue)
                 .help("Extracts major header fields"),
         )
@@ -75,12 +74,6 @@ pub fn subcommand() -> Command {
                 .help("Identify Navigation frame types."),
         )
         .next_help_heading("Clock RINEX")
-        .arg(
-            Arg::new("station")
-                .long("station")
-                .action(ArgAction::SetTrue)
-                .help("Identify all ground stations contained in CLK RINEX file(s)"),
-        )
         .arg(
             Arg::new("station")
                 .long("station")
