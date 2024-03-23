@@ -11,8 +11,6 @@ use rinex::prelude::*;
 
 use crate::fops::open_with_web_browser;
 
-use map_3d::{geodetic2ecef, Ellipsoid};
-
 // identification mode
 mod identify;
 // graph mode
@@ -296,8 +294,8 @@ Otherwise it gets automatically picked up."))
     pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
         if let Some(position) = self.manual_ecef() {
             Some(position)
-        } else if let Some((lat, lon, alt)) = self.manual_geodetic() {
-            Some(geodetic2ecef(lat, lon, alt, Ellipsoid::WGS84))
+        } else if let Some(position) = self.manual_geodetic() {
+            Some(GroundPosition::from_geodetic(position).to_ecef_wgs84())
         } else {
             None
         }
