@@ -4,6 +4,7 @@ use super::*;
 use crate::{
     antex, clock,
     clock::WorkClock,
+    doris,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap,
@@ -99,8 +100,6 @@ pub struct Header {
     pub doi: Option<String>,
     /// Optionnal GPS/UTC time difference
     pub gps_utc_delta: Option<u32>,
-    /// Optionnal data scaling
-    pub data_scaling: Option<f64>,
     /// Optionnal Receiver information
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr: Option<Rcvr>,
@@ -119,21 +118,24 @@ pub struct Header {
     pub dcb_compensations: Vec<DcbCompensation>,
     /// Possible PCVs compensation information
     pub pcv_compensations: Vec<PcvCompensation>,
-    /// Observation record specific fields
+    /// Observation RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub obs: Option<observation::HeaderFields>,
-    /// Meteo record specific fields
+    /// Meteo RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub meteo: Option<meteo::HeaderFields>,
-    /// Clocks record specific fields
+    /// High Precision Clock RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub clock: Option<clock::HeaderFields>,
-    /// ANTEX record specific fields
+    /// ANTEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub antex: Option<antex::HeaderFields>,
-    /// IONEX record specific fields
+    /// IONEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub ionex: Option<ionex::HeaderFields>,
+    /// DORIS RINEX specific fields
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub doris: Option<doris::HeaderFields>,
 }
 
 #[derive(Error, Debug)]
@@ -250,7 +252,6 @@ impl Header {
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
         let mut ionod_correction = Option::<IonMessage>::None;
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
-        let mut scaling_count = 0_u16;
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
@@ -258,6 +259,7 @@ impl Header {
         let mut clock = clock::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
         let mut ionex = ionex::HeaderFields::default();
+        let mut doris = doris::HeaderFields::default();
 
         // iterate on a line basis
         let lines = reader.lines();
@@ -435,7 +437,20 @@ impl Header {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20);
                 let (constell_str, _) = rem.split_at(20);
-                rinex_type = Type::from_str(type_str.trim())?;
+
+                let type_str = type_str.trim();
+                let constell_str = constell_str.trim();
+
+                // DORIS special type
+                if type_str == "O" && constell_str == "D" {
+                    rinex_type = Type::DORIS;
+                } else {
+                    rinex_type = Type::from_str(type_str.trim())?;
+                }
+
+                // Determine (file) Constellation
+                //  1. NAV SPECIAL CASE
+                //  2. OTHER
                 if type_str.contains("GLONASS") {
                     // old GLONASS NAV : no constellation field
                     constellation = Some(Constellation::Glonass);
@@ -557,33 +572,41 @@ impl Header {
 
                 dcb_compensations.push(dcb);
             } else if marker.contains("SYS / SCALE FACTOR") {
-                //TODO: conclude other lines parsing
-                if scaling_count == 0 {
-                    // parsing first line
-                    let (gnss, rem) = content.split_at(2);
-                    let gnss = Constellation::from_str(gnss.trim())?;
+                // TODO:
+                //   This will not work in case several observables
+                //   are declaredn which will required to analyze more than 1 line
+                let (gnss, rem) = content.split_at(2);
+                let gnss = gnss.trim();
 
-                    let (factor, rem) = rem.split_at(6);
-                    let factor = factor.trim();
-                    let scaling = factor
-                        .parse::<u16>()
-                        .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
+                /*
+                 * DORIS measurement special case, otherwise, standard OBS_RINEX
+                 */
+                let constell = if gnss.eq("D") {
+                    Constellation::Mixed // scaling applies to all measurements
+                } else {
+                    Constellation::from_str(gnss)?
+                };
 
-                    let (_num, mut rem) = rem.split_at(3);
+                // Parse scaling factor
+                let (factor, rem) = rem.split_at(6);
+                let factor = factor.trim();
+                let scaling = factor
+                    .parse::<u16>()
+                    .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
-                    // parse end of line
-                    let mut len = rem.len();
+                // parse end of line
+                let (_num, remainder) = rem.split_at(3);
 
-                    while len > 0 {
-                        let (observable, r) = rem.split_at(4);
-                        let observable = Observable::from_str(observable.trim())?;
-                        // latch scaling value
-                        observation.insert_scaling(gnss, observable, scaling);
-                        // continue
-                        rem = r;
-                        len = rem.len();
+                let mut items = remainder.split_ascii_whitespace();
+                while let Some(observable_str) = items.next() {
+                    let observable = Observable::from_str(observable_str)?;
+
+                    // latch scaling value
+                    if rinex_type == Type::DORIS {
+                        doris.with_scaling(observable, scaling);
+                    } else {
+                        observation.with_scaling(constell, observable, scaling);
                     }
-                    scaling_count += 1;
                 }
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
@@ -1123,7 +1146,6 @@ impl Header {
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,
-            data_scaling: None,
             rcvr_antenna,
             sv_antenna,
             // RINEX specific
@@ -1158,6 +1180,13 @@ impl Header {
             antex: {
                 if rinex_type == Type::AntennaData {
                     Some(antex)
+                } else {
+                    None
+                }
+            },
+            doris: {
+                if rinex_type == Type::DORIS {
+                    Some(doris)
                 } else {
                     None
                 }
@@ -1313,12 +1342,19 @@ impl Header {
             .parse::<u32>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
 
-        /* timescale might be missing in OLD RINEX: we handle that externally */
+        /*
+         * We set TAI as "default" Timescale.
+         * Timescale might be omitted in Old RINEX formats,
+         * In this case, we exit with "TAI" and handle that externally.
+         */
         let mut ts = TimeScale::TAI;
-
         let rem = rem.trim();
-        if !rem.is_empty() {
-            // println!("TS \"{}\"", rem); // DBEUGts = TimeScale::from_str(rem.trim()).map_err(|_| {
+
+        /*
+         * Handles DORIS measurement special case,
+         * offset from TAI, that we will convert back to TAI later
+         */
+        if !rem.is_empty() && rem != "DOR" {
             ts = TimeScale::from_str(rem.trim()).map_err(|_| {
                 ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
             })?;
@@ -1400,8 +1436,9 @@ impl Header {
                     )
                 )
             },
-            Type::AntennaData => todo!(),
-            Type::IonosphereMaps => todo!(),
+            Type::DORIS => todo!("doris formatting"),
+            Type::AntennaData => todo!("antex formatting"),
+            Type::IonosphereMaps => todo!("ionex formatting"),
         }
     }
     /*
@@ -1414,7 +1451,8 @@ impl Header {
             Type::NavigationData => Ok(()),
             Type::ClockData => self.fmt_clock_rinex(f),
             Type::IonosphereMaps => self.fmt_ionex(f),
-            Type::AntennaData => Ok(()),
+            Type::AntennaData => Ok(()), // FIXME
+            Type::DORIS => Ok(()),       // FIXME
         }
     }
     /*
@@ -1624,7 +1662,6 @@ impl Header {
                 },
             }
             // must take place after list of observables:
-            //  TODO scaling factor
             //  TODO DCBS compensations
             //  TODO PCVs compensations
         }
@@ -1840,7 +1877,6 @@ impl Merge for Header {
         merge::merge_mut_vec(&mut self.comments, &rhs.comments);
         merge::merge_mut_option(&mut self.geodetic_marker, &rhs.geodetic_marker);
         merge::merge_mut_option(&mut self.license, &rhs.license);
-        merge::merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
         merge::merge_mut_option(&mut self.doi, &rhs.doi);
         merge::merge_mut_option(&mut self.leap, &rhs.leap);
         merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);

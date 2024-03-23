@@ -48,6 +48,8 @@ pub enum Observable {
     RainIncrement,
     /// Hail Indicator
     HailIndicator,
+    /// Frequency Offset (dimensionless)
+    FrequencyOffset,
 }
 
 impl Default for Observable {
@@ -286,6 +288,7 @@ impl std::fmt::Display for Observable {
             Self::WindSpeed => write!(f, "WS"),
             Self::RainIncrement => write!(f, "RI"),
             Self::HailIndicator => write!(f, "HI"),
+            Self::FrequencyOffset => write!(f, "F"),
             Self::PseudoRange(c) => write!(f, "{}", c),
             Self::Phase(c) => write!(f, "{}", c),
             Self::Doppler(c) => write!(f, "{}", c),
@@ -301,9 +304,10 @@ impl std::str::FromStr for Observable {
         let content = content.to_uppercase();
         let content = content.trim();
         match content {
-            "PR" => Ok(Self::Pressure),
-            "TD" => Ok(Self::Temperature),
-            "HR" => Ok(Self::HumidityRate),
+            "P" | "PR" => Ok(Self::Pressure),
+            "T" | "TD" => Ok(Self::Temperature),
+            "H" | "HR" => Ok(Self::HumidityRate),
+            "F" => Ok(Self::FrequencyOffset),
             "ZW" => Ok(Self::ZenithWetDelay),
             "ZD" => Ok(Self::ZenithDryDelay),
             "ZT" => Ok(Self::ZenithTotalDelay),
@@ -318,7 +322,7 @@ impl std::str::FromStr for Observable {
                         Ok(Self::Phase(content.to_string()))
                     } else if content.starts_with('C') || content.starts_with('P') {
                         Ok(Self::PseudoRange(content.to_string()))
-                    } else if content.starts_with('S') {
+                    } else if content.starts_with('S') || content.starts_with("W") {
                         Ok(Self::SSI(content.to_string()))
                     } else if content.starts_with('D') {
                         Ok(Self::Doppler(content.to_string()))

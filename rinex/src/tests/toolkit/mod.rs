@@ -8,6 +8,10 @@ use hifitime::TimeSeries;
 mod observation;
 pub use observation::check_observables as obsrinex_check_observables;
 
+/* DORIS RINEX dedicated tools */
+mod doris;
+pub use doris::check_observables as doris_check_observables;
+
 /* ANY RINEX == constant (special ops) */
 mod constant;
 pub use constant::is_null_rinex;

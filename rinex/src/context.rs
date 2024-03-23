@@ -41,6 +41,8 @@ pub enum ProductType {
     Observation,
     /// Meteo sensors data wrapped as Meteo RINEX files.
     MeteoObservation,
+    /// DORIS measurements wrapped as special RINEX observation file.
+    DorisRinex,
     /// Broadcast Navigation message as contained in
     /// Navigation RINEX files.
     BroadcastNavigation,
@@ -64,6 +66,7 @@ impl std::fmt::Display for ProductType {
             Self::HighPrecisionClock => write!(f, "High Precision Clock"),
             Self::Antex => write!(f, "ANTEX"),
             Self::Ionex => write!(f, "IONEX"),
+            Self::DorisRinex => write!(f, "DORIS RINEX"),
         }
     }
 }
@@ -77,6 +80,7 @@ impl From<RinexType> for ProductType {
             RinexType::ClockData => Self::HighPrecisionClock,
             RinexType::IonosphereMaps => Self::Ionex,
             RinexType::AntennaData => Self::Antex,
+            RinexType::DORIS => Self::DorisRinex,
         }
     }
 }

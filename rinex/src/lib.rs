@@ -8,6 +8,7 @@ extern crate gnss_rs as gnss;
 pub mod antex;
 pub mod carrier;
 pub mod clock;
+pub mod doris;
 pub mod epoch;
 pub mod gnss_time;
 pub mod hardware;
@@ -379,7 +380,7 @@ impl Rinex {
                     crinex: None,
                     codes: params.codes.clone(),
                     clock_offset_applied: params.clock_offset_applied,
-                    scalings: params.scalings.clone(),
+                    scaling: params.scaling.clone(),
                     time_of_first_obs: params.time_of_first_obs,
                     time_of_last_obs: params.time_of_last_obs,
                 });
