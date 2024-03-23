@@ -55,7 +55,6 @@ When METEO RINEX is provided, data from meteo sensors is plotted too.",
                 .long("gf")
                 .short('g')
                 .action(ArgAction::SetTrue)
-                .conflicts_with("no-graph")
                 .help("Plot Geometry Free (GF) signal combination."),
         )
         .arg(
@@ -70,7 +69,6 @@ When METEO RINEX is provided, data from meteo sensors is plotted too.",
                 .long("nl")
                 .short('n')
                 .action(ArgAction::SetTrue)
-                .conflicts_with("no-graph")
                 .help("Plot Narrow Lane (WL) signal combination."),
         )
         .arg(
@@ -78,7 +76,6 @@ When METEO RINEX is provided, data from meteo sensors is plotted too.",
                 .long("mw")
                 .short('m')
                 .action(ArgAction::SetTrue)
-                .conflicts_with("no-graph")
                 .help("Plot Melbourne-Wübbena (MW) signal combination."),
         )
         .arg(Arg::new("cs").long("cs").action(ArgAction::SetTrue).help(
