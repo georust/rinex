@@ -382,7 +382,7 @@ mod test {
         assert_eq!(obs.clone().unwrap().to_string(), "WS");
         assert_eq!(Observable::from_str("ws"), obs.clone());
 
-        let obs = Observable::from_str("Wa");
+        let obs = Observable::from_str("Err");
         assert!(obs.is_err());
 
         assert_eq!(

@@ -3,8 +3,9 @@ use crate::{
     antex, clock,
     clock::ClockProfileType,
     clock::WorkClock,
-    doris,
     domes::Domes,
+    doris,
+    doris::parse_station as parse_doris_station,
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
@@ -673,6 +674,11 @@ impl Header {
             } else if marker.contains("STATION INFORMATION") {
                 let url = content.split_at(40).0; //TODO confirm please
                 station_url = url.trim().to_string()
+            } else if marker.contains("STATION REFERENCE") {
+                // DORIS
+                if let Ok(station) = parse_doris_station(content.trim()) {
+                    doris.add_station(station)
+                }
             } else if marker.contains("LICENSE OF USE") {
                 let lic = content.split_at(40).0; //TODO confirm please
                 license = Some(lic.trim().to_string())
