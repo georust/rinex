@@ -38,4 +38,6 @@ pub enum Bibliography {
     /// GNSS antennas*.
     /// [DOI](https://cdn.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf).
     MpTaoglas,
+    /// [IGN/ITRF DOMES Site Identifier](https://itrf.ign.fr/en/network/domes/description)
+    IgnItrfDomes,
 }

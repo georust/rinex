@@ -1,31 +1,37 @@
-//! Describes a `RINEX` header, includes
-//! rinex header parser and associated methods
-use super::*;
+//! Describes a `RINEX` file header.
 use crate::{
     antex, clock,
+    clock::ClockProfileType,
     clock::WorkClock,
+    domes::Domes,
+    fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap,
-    linspace::Linspace,
+    linspace::{Error as LinspaceError, Linspace},
+    marker::{GeodeticMarker, MarkerType},
+    merge::{
+        merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
+        Error as MergeError, Merge,
+    },
     meteo,
     navigation::{IonMessage, KbModel},
+    observable::{Observable, ParsingError as ObsParsingError},
     observation,
     observation::Crinex,
     reader::BufferedReader,
     types::Type,
     version::Version,
-    Observable,
+    Constellation, Duration, TimeScale, SV,
 };
 
-use hifitime::Epoch;
+use std::collections::HashMap;
 use std::io::prelude::*;
 use std::str::FromStr;
+
+use gnss::constellation::ParsingError as ConstellationParsingError;
+use hifitime::Epoch;
 use thiserror::Error;
-
-use crate::marker::{GeodeticMarker, MarkerType};
-
-use crate::{fmt_comment, fmt_rinex};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -145,9 +151,9 @@ pub enum ParsingError {
     #[error("unknown RINEX type \"{0}\"")]
     TypeParsing(String),
     #[error("failed to parse observable")]
-    ObservableParsing(#[from] observable::ParsingError),
+    ObservableParsing(#[from] ObsParsingError),
     #[error("constellation parsing error")]
-    ConstellationParsing(#[from] gnss::constellation::ParsingError),
+    ConstellationParsing(#[from] ConstellationParsingError),
     #[error("timescale parsing error")]
     TimescaleParsing(String),
     #[error("failed to parse \"{0}\" coordinates from \"{1}\"")]
@@ -173,7 +179,7 @@ pub enum ParsingError {
     #[error("failed to parse ionex grid {0} from \"{1}\"")]
     InvalidIonexGrid(String, String),
     #[error("invalid ionex grid definition")]
-    InvalidIonexGridDefinition(#[from] linspace::Error),
+    InvalidIonexGridDefinition(#[from] LinspaceError),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -880,9 +886,11 @@ impl Header {
                     rem = r;
                 }
             } else if marker.contains("STATION NAME / NUM") {
-                let (name, num) = content.split_at(4);
+                let (name, domes) = content.split_at(4);
                 clock = clock.site(name.trim());
-                clock = clock.site_id(num.trim());
+                if let Ok(domes) = Domes::from_str(domes.trim()) {
+                    clock = clock.domes(domes);
+                }
             } else if marker.contains("STATION CLK REF") {
                 clock = clock.refclock(content.trim());
             } else if marker.contains("SIGNAL STRENGHT UNIT") {
@@ -1799,18 +1807,18 @@ impl Header {
 
 impl Merge for Header {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         if self.rinex_type != rhs.rinex_type {
-            return Err(merge::Error::FileTypeMismatch);
+            return Err(MergeError::FileTypeMismatch);
         }
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self` in place
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if self.rinex_type != rhs.rinex_type {
-            return Err(merge::Error::FileTypeMismatch);
+            return Err(MergeError::FileTypeMismatch);
         }
 
         let (a_cst, b_cst) = (self.constellation, rhs.constellation);
@@ -1837,19 +1845,19 @@ impl Merge for Header {
             },
         }
 
-        merge::merge_mut_vec(&mut self.comments, &rhs.comments);
-        merge::merge_mut_option(&mut self.geodetic_marker, &rhs.geodetic_marker);
-        merge::merge_mut_option(&mut self.license, &rhs.license);
-        merge::merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
-        merge::merge_mut_option(&mut self.doi, &rhs.doi);
-        merge::merge_mut_option(&mut self.leap, &rhs.leap);
-        merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
-        merge::merge_mut_option(&mut self.rcvr, &rhs.rcvr);
-        merge::merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
-        merge::merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
-        merge::merge_mut_option(&mut self.ground_position, &rhs.ground_position);
-        merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
-        merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
+        merge_mut_vec(&mut self.comments, &rhs.comments);
+        merge_mut_option(&mut self.geodetic_marker, &rhs.geodetic_marker);
+        merge_mut_option(&mut self.license, &rhs.license);
+        merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
+        merge_mut_option(&mut self.doi, &rhs.doi);
+        merge_mut_option(&mut self.leap, &rhs.leap);
+        merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
+        merge_mut_option(&mut self.rcvr, &rhs.rcvr);
+        merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
+        merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
+        merge_mut_option(&mut self.ground_position, &rhs.ground_position);
+        merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
+        merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
 
         // DCBS compensation is preserved, only if both A&B both have it
         if self.dcb_compensations.is_empty() || rhs.dcb_compensations.is_empty() {
@@ -1893,61 +1901,61 @@ impl Merge for Header {
                 let mut mixed_antex = lhs.pcv_type.is_relative() && !rhs.pcv_type.is_relative();
                 mixed_antex |= !lhs.pcv_type.is_relative() && rhs.pcv_type.is_relative();
                 if mixed_antex {
-                    return Err(merge::Error::AntexAbsoluteRelativeMismatch);
+                    return Err(MergeError::AntexAbsoluteRelativeMismatch);
                 }
-                // merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
+                // merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
         }
         if let Some(lhs) = &mut self.clock {
             if let Some(rhs) = &rhs.clock {
-                merge::merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
-                merge::merge_mut_option(&mut lhs.igs, &rhs.igs);
-                merge::merge_mut_option(&mut lhs.site, &rhs.site);
-                merge::merge_mut_option(&mut lhs.site_id, &rhs.site_id);
-                merge::merge_mut_option(&mut lhs.full_name, &rhs.full_name);
-                merge::merge_mut_option(&mut lhs.ref_clock, &rhs.ref_clock);
-                merge::merge_mut_option(&mut lhs.timescale, &rhs.timescale);
+                merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
+                merge_mut_option(&mut lhs.igs, &rhs.igs);
+                merge_mut_option(&mut lhs.site, &rhs.site);
+                merge_mut_option(&mut lhs.domes, &rhs.domes);
+                merge_mut_option(&mut lhs.full_name, &rhs.full_name);
+                merge_mut_option(&mut lhs.ref_clock, &rhs.ref_clock);
+                merge_mut_option(&mut lhs.timescale, &rhs.timescale);
             }
         }
         if let Some(lhs) = &mut self.obs {
             if let Some(rhs) = &rhs.obs {
-                merge::merge_mut_option(&mut lhs.crinex, &rhs.crinex);
-                merge::merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
+                merge_mut_option(&mut lhs.crinex, &rhs.crinex);
+                merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
                 // TODO: manage that
                 lhs.clock_offset_applied |= rhs.clock_offset_applied;
             }
         }
         if let Some(lhs) = &mut self.meteo {
             if let Some(rhs) = &rhs.meteo {
-                merge::merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
-                merge::merge_mut_unique_vec(&mut lhs.sensors, &rhs.sensors);
+                merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
+                merge_mut_unique_vec(&mut lhs.sensors, &rhs.sensors);
             }
         }
         if let Some(lhs) = &mut self.ionex {
             if let Some(rhs) = &rhs.ionex {
                 if lhs.reference != rhs.reference {
-                    return Err(merge::Error::IonexReferenceMismatch);
+                    return Err(MergeError::IonexReferenceMismatch);
                 }
                 if lhs.grid != rhs.grid {
-                    return Err(merge::Error::IonexMapGridMismatch);
+                    return Err(MergeError::IonexMapGridMismatch);
                 }
                 if lhs.map_dimension != rhs.map_dimension {
-                    return Err(merge::Error::IonexMapDimensionsMismatch);
+                    return Err(MergeError::IonexMapDimensionsMismatch);
                 }
                 if lhs.base_radius != rhs.base_radius {
-                    return Err(merge::Error::IonexBaseRadiusMismatch);
+                    return Err(MergeError::IonexBaseRadiusMismatch);
                 }
 
                 //TODO: this is not enough, need to take into account and rescale..
                 lhs.exponent = std::cmp::min(lhs.exponent, rhs.exponent);
 
-                merge::merge_mut_option(&mut lhs.description, &rhs.description);
-                merge::merge_mut_option(&mut lhs.mapping, &rhs.mapping);
+                merge_mut_option(&mut lhs.description, &rhs.description);
+                merge_mut_option(&mut lhs.mapping, &rhs.mapping);
                 if lhs.elevation_cutoff == 0.0 {
                     // means "unknown"
                     lhs.elevation_cutoff = rhs.elevation_cutoff; // => overwrite in this case
                 }
-                merge::merge_mut_option(&mut lhs.observables, &rhs.observables);
+                merge_mut_option(&mut lhs.observables, &rhs.observables);
                 lhs.nb_stations = std::cmp::max(lhs.nb_stations, rhs.nb_stations);
                 lhs.nb_satellites = std::cmp::max(lhs.nb_satellites, rhs.nb_satellites);
                 for (b, dcb) in &rhs.dcbs {
