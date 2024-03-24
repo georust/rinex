@@ -9,6 +9,7 @@ pub mod antex;
 pub mod carrier;
 pub mod clock;
 pub mod doris;
+pub mod domes;
 pub mod epoch;
 pub mod gnss_time;
 pub mod hardware;
@@ -79,6 +80,7 @@ pub mod prelude {
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
     #[cfg(feature = "sp3")]
     pub use crate::context::{ProductType, RnxContext};
+    pub use crate::domes::Domes;
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
