@@ -52,7 +52,7 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     epochs.sort();
     let time_span = epochs[epochs.len()-1].date - epochs[0].date;
     let px_secs = time_span.num_seconds() as u32 / x_width; // nb of secs per px
-    let dt_granularity = chrono::Duration::from_std(std::time::Duration::from_secs(px_secs.into())).unwrap();
+    let dt_granularity = chrono::TimeDelta::from_std(std::time::Duration::from_secs(px_secs.into())).unwrap();
     
     // list vehicles, on an epoch basis
     let mut vehicles = obs_rinex.space_vehicles();
