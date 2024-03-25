@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-
+    use crate::domes::TrackingPoint as DomesTrackingPoint;
     use crate::prelude::*;
     use std::str::FromStr;
     #[test]
@@ -150,7 +150,15 @@ mod test {
 
         assert_eq!(clock_header.igs, Some("USN".to_string()));
         assert_eq!(clock_header.site, Some("USNO".to_string()));
-        assert_eq!(clock_header.site_id, Some("40451S003".to_string()));
+        assert_eq!(
+            clock_header.domes,
+            Some(Domes {
+                area: 404,
+                site: 51,
+                point: DomesTrackingPoint::Instrument,
+                sequential: 3,
+            })
+        );
         assert_eq!(
             clock_header.full_name,
             Some("USNO USING GIPSY/OASIS-II".to_string())
@@ -165,12 +173,22 @@ mod test {
             vec![
                 WorkClock {
                     name: "USNO".to_string(),
-                    id: "40451S003".to_string(),
+                    domes: Some(Domes {
+                        area: 404,
+                        site: 51,
+                        point: DomesTrackingPoint::Instrument,
+                        sequential: 3,
+                    }),
                     constraint: Some(-0.123456789012),
                 },
                 WorkClock {
                     name: "TIBD".to_string(),
-                    id: "50103M108".to_string(),
+                    domes: Some(Domes {
+                        area: 501,
+                        site: 3,
+                        point: DomesTrackingPoint::Monument,
+                        sequential: 108,
+                    }),
                     constraint: Some(-0.123456789012),
                 },
             ]
@@ -244,12 +262,22 @@ mod test {
             vec![
                 WorkClock {
                     name: "USNO".to_string(),
-                    id: "40451S003".to_string(),
+                    domes: Some(Domes {
+                        area: 404,
+                        site: 51,
+                        point: DomesTrackingPoint::Instrument,
+                        sequential: 3,
+                    }),
                     constraint: Some(-0.123456789012),
                 },
                 WorkClock {
                     name: "TIDB".to_string(),
-                    id: "50103M108".to_string(),
+                    domes: Some(Domes {
+                        area: 501,
+                        site: 3,
+                        point: DomesTrackingPoint::Monument,
+                        sequential: 108,
+                    }),
                     constraint: Some(-0.123456789012),
                 },
             ]

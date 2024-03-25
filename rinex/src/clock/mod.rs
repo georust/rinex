@@ -5,6 +5,9 @@ pub use record::{ClockKey, ClockProfile, ClockProfileType, ClockType, Error, Rec
 
 use crate::version::Version;
 use hifitime::TimeScale;
+use std::str::FromStr;
+
+use crate::domes::Domes;
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -12,8 +15,8 @@ use hifitime::TimeScale;
 pub struct HeaderFields {
     /// Site name
     pub site: Option<String>,
-    /// Unique Site-ID (DOMES number)
-    pub site_id: Option<String>,
+    /// Site DOMES ID#
+    pub domes: Option<Domes>,
     /// IGS code
     pub igs: Option<String>,
     /// Full name
@@ -35,8 +38,8 @@ pub struct HeaderFields {
 pub struct WorkClock {
     /// Name of this local clock
     pub name: String,
-    /// Unique identifier (DOMES number)
-    pub id: String,
+    /// Clock site DOMES ID#
+    pub domes: Option<Domes>,
     /// Possible clock constraint [s]
     pub constraint: Option<f64>,
 }
@@ -46,11 +49,15 @@ impl WorkClock {
         const LIMIT: Version = Version { major: 3, minor: 4 };
         if version < LIMIT {
             let (name, rem) = content.split_at(4);
-            let (id, rem) = rem.split_at(36);
+            let (domes, rem) = rem.split_at(36);
             let constraint = rem.split_at(20).0;
             Self {
                 name: name.trim().to_string(),
-                id: id.trim().to_string(),
+                domes: if let Ok(domes) = Domes::from_str(domes.trim()) {
+                    Some(domes)
+                } else {
+                    None
+                },
                 constraint: if let Ok(value) = constraint.trim().parse::<f64>() {
                     Some(value)
                 } else {
@@ -59,11 +66,15 @@ impl WorkClock {
             }
         } else {
             let (name, rem) = content.split_at(10);
-            let (id, rem) = rem.split_at(10);
+            let (domes, rem) = rem.split_at(10);
             let constraint = rem.split_at(40).0;
             Self {
                 name: name.trim().to_string(),
-                id: id.trim().to_string(),
+                domes: if let Ok(domes) = Domes::from_str(domes.trim()) {
+                    Some(domes)
+                } else {
+                    None
+                },
                 constraint: if let Ok(value) = constraint.trim().parse::<f64>() {
                     Some(value)
                 } else {
@@ -75,37 +86,37 @@ impl WorkClock {
 }
 
 impl HeaderFields {
-    pub fn work_clock(&self, clk: WorkClock) -> Self {
+    pub(crate) fn work_clock(&self, clk: WorkClock) -> Self {
         let mut s = self.clone();
         s.work_clock.push(clk);
         s
     }
-    pub fn timescale(&self, ts: TimeScale) -> Self {
+    pub(crate) fn timescale(&self, ts: TimeScale) -> Self {
         let mut s = self.clone();
         s.timescale = Some(ts);
         s
     }
-    pub fn site(&self, site: &str) -> Self {
+    pub(crate) fn site(&self, site: &str) -> Self {
         let mut s = self.clone();
         s.site = Some(site.to_string());
         s
     }
-    pub fn site_id(&self, siteid: &str) -> Self {
+    pub(crate) fn domes(&self, domes: Domes) -> Self {
         let mut s = self.clone();
-        s.site_id = Some(siteid.to_string());
+        s.domes = Some(domes);
         s
     }
-    pub fn igs(&self, igs: &str) -> Self {
+    pub(crate) fn igs(&self, igs: &str) -> Self {
         let mut s = self.clone();
         s.igs = Some(igs.to_string());
         s
     }
-    pub fn full_name(&self, name: &str) -> Self {
+    pub(crate) fn full_name(&self, name: &str) -> Self {
         let mut s = self.clone();
         s.full_name = Some(name.to_string());
         s
     }
-    pub fn refclock(&self, clk: &str) -> Self {
+    pub(crate) fn refclock(&self, clk: &str) -> Self {
         let mut s = self.clone();
         s.ref_clock = Some(clk.to_string());
         s
