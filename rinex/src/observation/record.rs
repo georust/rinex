@@ -623,7 +623,8 @@ fn fmt_epoch_v3(
         }
         lines.push('\n');
     }
-    lines.trim_end().to_string()
+    lines.truncate(lines.trim_end().len());
+    lines
 }
 
 fn fmt_epoch_v2(
