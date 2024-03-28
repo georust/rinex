@@ -310,13 +310,12 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             let mut last = first + *duration;
 
             // production attributes: initialize Batch counter
-            let mut batch = 0_u8;
             let mut prod = custom_prod_attributes(rinex, matches);
             if let Some(ref mut details) = prod.details {
-                details.batch = batch;
+                details.batch = 0_u8;
             } else {
                 let mut details = DetailedProductionAttributes::default();
-                details.batch = batch;
+                details.batch = 0_u8;
                 prod.details = Some(details);
             };
 
@@ -325,8 +324,6 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 let rinex = rinex
                     .filter(Filter::from_str(&format!("< {:?}", last)).unwrap())
                     .filter(Filter::from_str(&format!(">= {:?}", first)).unwrap());
-
-                let (y, m, d, hh, mm, ss, _) = first.to_gregorian_utc();
 
                 // generate standardized name
                 let filename = output_filename(&rinex, matches, prod.clone());
