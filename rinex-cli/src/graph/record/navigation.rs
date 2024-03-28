@@ -192,7 +192,7 @@ fn ctx_sv_clock_corrections(
     obs: &Rinex,
     nav: &Rinex,
     clk: Option<&Rinex>,
-    _sp3: Option<&SP3>,
+    sp3: Option<&SP3>,
 ) -> CtxClockCorrections {
     let mut clock_corr = CtxClockCorrections::new();
     for ((t, flag), (_, vehicles)) in obs.observation() {
@@ -215,8 +215,15 @@ fn ctx_sv_clock_corrections(
                 let clock_state: Option<(f64, f64, f64)> = match product {
                     ProductType::Radio => Some(sv_eph.sv_clock()),
                     ProductType::HighPrecisionSp3 => {
-                        //TODO: sv_clock interpolate please
-                        None
+                        if let Some(sp3) = sp3 {
+                            if let Some(bias) = sp3.sv_clock_interpolate(*t, *sv) {
+                                Some((bias, 0.0_f64, 0.0_f64))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     },
                     ProductType::HighPrecisionClk => {
                         if let Some(clk) = clk {
@@ -233,13 +240,6 @@ fn ctx_sv_clock_corrections(
                                     }
                                 })
                                 .reduce(|k, _| k)
-                            //if let Some((_, profile)) = clk
-                            //    .precise_sv_clock_interpolate(*t, *sv)
-                            //{
-                            //    Some((profile.bias, profile.drift.unwrap_or(0.0_f64), profile.drift_change.unwrap_or(0.0_f64)))
-                            //} else {
-                            //    None
-                            //}
                         } else {
                             None
                         }

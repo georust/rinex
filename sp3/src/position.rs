@@ -40,7 +40,7 @@ impl std::str::FromStr for PositionEntry {
              */
             let clk_data = f64::from_str(line[46..60].trim())
                 .or(Err(ParsingError::Clock(line[46..60].to_string())))?;
-            clock = Some(clk_data);
+            clock = Some(clk_data * 1.0E-6);
         }
         Ok(Self {
             sv,
