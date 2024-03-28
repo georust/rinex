@@ -82,15 +82,15 @@ mod test {
         for (epoch, sv, clock) in sp3.sv_clock() {
             assert_eq!(epoch, Epoch::from_str("2019-10-27T00:00:00 GPST").unwrap());
             if sv == sv!("C01") {
-                assert_eq!(clock, 63.035497, "bad clock data");
+                assert!((clock - 63.035497E-6).abs() < 1E-9, "bad clock data");
             } else if sv == sv!("E01") {
-                assert_eq!(clock, -718.927492, "bad clock data");
+                assert!((clock - -718.927492E-6).abs() < 1E-9, "bad clock data");
             } else if sv == sv!("G01") {
-                assert_eq!(clock, -176.397152, "bad clock data");
+                assert!((clock - -176.397152E-6).abs() < 1E-9, "bad clock data");
             } else if sv == sv!("J01") {
-                assert_eq!(clock, -336.145158, "bad clock data");
+                assert!((clock - -336.145158E-6).abs() < 1E-9, "bad clock data");
             } else if sv == sv!("R01") {
-                assert_eq!(clock, 51.759894, "bad clock data");
+                assert!((clock - 51.759894E-6).abs() < 1E-9, "bad clock data");
             } else {
                 panic!("identified wrong sv");
             }
