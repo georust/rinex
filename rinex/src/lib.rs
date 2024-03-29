@@ -517,8 +517,7 @@ impl Rinex {
                     let batch = match &custom {
                         Some(ref custom) => {
                             if let Some(details) = &custom.details {
-                                // details.batch
-                                0
+                                details.batch
                             } else {
                                 0
                             }
@@ -526,8 +525,7 @@ impl Rinex {
                         None => {
                             if let Some(attr) = &self.prod_attr {
                                 if let Some(details) = &attr.details {
-                                    // details.batch
-                                    0
+                                    details.batch
                                 } else {
                                     0
                                 }
