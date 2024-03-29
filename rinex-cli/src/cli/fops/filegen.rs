@@ -1,9 +1,5 @@
 // filegen opmode
-use clap::{
-    Command,
-    //ArgAction,
-    //value_parser,
-};
+use clap::Command;
 
 use super::{SHARED_DATA_ARGS, SHARED_GENERAL_ARGS};
 
