@@ -2318,8 +2318,9 @@ impl Rinex {
         }))
     }
     /// Interpolates SV position, expressed in meters ECEF at desired Epoch `t`.
-    /// An interpolation order of at least 7 is recommended.
-    /// Operation is not feasible if sampling interval cannot be determined.
+    /// An interpolation order between 4 and 8 is recommended, depending on the
+    /// precision you are targetting. Higher orders do not make sense considering the
+    /// noise on broadcasted (real time) positions.
     /// In ideal scenarios, Broadcast Ephemeris are complete and evenly spaced in time:
     ///   - the first Epoch we an interpolate is ](N +1)/2 * τ; ...]
     ///   - the last Epoch we an interpolate is  [..;  T - (N +1)/2 * τ]
