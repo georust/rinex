@@ -144,7 +144,24 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         if line.len() < 30 {
             false
         } else {
-            epoch::parse_utc(&line[0..29]).is_ok()
+            let significant = line[0..26].trim().len() != 0;
+            let epoch = epoch::parse_utc(&line[0..26]);
+            let flag = EpochFlag::from_str(&line[26..29].trim());
+            if significant {
+                epoch.is_ok() && flag.is_ok()
+            } else {
+                if flag.is_err() {
+                    false
+                } else {
+                    match flag.unwrap() {
+                        EpochFlag::AntennaBeingMoved
+                        | EpochFlag::NewSiteOccupation
+                        | EpochFlag::HeaderInformationFollows
+                        | EpochFlag::ExternalEvent => true,
+                        _ => false,
+                    }
+                }
+            }
         }
     } else {
         // Modern RINEX
