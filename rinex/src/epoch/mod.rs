@@ -143,6 +143,10 @@ pub(crate) fn parse_in_timescale(
     let mut ns = 0_u32;
     let mut flag = EpochFlag::default();
 
+    if content.split_ascii_whitespace().count() < 6 {
+        return Err(ParsingError::FormatError);
+    }
+
     for (field_index, item) in content.split_ascii_whitespace().enumerate() {
         match field_index {
             0 => {
