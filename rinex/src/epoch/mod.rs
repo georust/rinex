@@ -435,34 +435,57 @@ mod test {
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  1");
         assert!(e.is_ok());
-        let (_e, flag) = e.unwrap();
+        let (e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::PowerFailure);
-        //assert_eq!(format!("{:o}", e), "21 12 21  0  0 30.0000000  1");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21 12 21  0  0 30.0000000  1"
+        );
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  2");
         assert!(e.is_ok());
-        let (_e, flag) = e.unwrap();
+        let (e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::AntennaBeingMoved);
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21 12 21  0  0 30.0000000  2"
+        );
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  3");
         assert!(e.is_ok());
-        let (_e, flag) = e.unwrap();
+        let (e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::NewSiteOccupation);
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21 12 21  0  0 30.0000000  3"
+        );
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  4");
         assert!(e.is_ok());
-        let (_e, flag) = e.unwrap();
+        let (e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::HeaderInformationFollows);
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21 12 21  0  0 30.0000000  4"
+        );
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  5");
         assert!(e.is_ok());
-        let (_e, flag) = e.unwrap();
+        let (e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::ExternalEvent);
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21 12 21  0  0 30.0000000  5"
+        );
 
         let e = parse_utc(" 21 12 21  0  0 30.0000000  6");
         assert!(e.is_ok());
-        let (_e, flag) = e.unwrap();
+        let (e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::CycleSlip);
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21 12 21  0  0 30.0000000  6"
+        );
 
         let e = parse_utc(" 21  1  1  0  0  0.0000000  0");
         assert!(e.is_ok());
@@ -476,7 +499,10 @@ mod test {
         assert_eq!(ss, 0);
         assert_eq!(ns, 0);
         assert_eq!(flag, EpochFlag::Ok);
-        //assert_eq!(format!("{:o}", e), "21  1  1  0  0  0.0000000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21  1  1  0  0  0.0000000  0"
+        );
 
         let e = parse_utc(" 21  1  1  0  7 30.0000000  0");
         assert!(e.is_ok());
@@ -490,7 +516,10 @@ mod test {
         assert_eq!(ss, 30);
         assert_eq!(ns, 0);
         assert_eq!(flag, EpochFlag::Ok);
-        //assert_eq!(format!("{:o}", e), "21  1  1  0  7 30.0000000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21  1  1  0  7 30.0000000  0"
+        );
     }
     #[test]
     fn epoch_parse_obs_v3() {
@@ -506,7 +535,10 @@ mod test {
         assert_eq!(ss, 00);
         assert_eq!(ns, 0);
         assert_eq!(flag, EpochFlag::Ok);
-        //assert_eq!(format!("{}", e), "2022 01 09 00 00  0.0000000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 3),
+            "2022 01 09 00 00  0.0000000  0"
+        );
 
         let e = parse_utc(" 2022 01 09 00 13 30.0000000  0");
         assert!(e.is_ok());
@@ -520,7 +552,10 @@ mod test {
         assert_eq!(ss, 30);
         assert_eq!(ns, 0);
         assert_eq!(flag, EpochFlag::Ok);
-        //assert_eq!(format!("{}", e), "2022 01 09 00 13 30.0000000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 3),
+            "2022 01 09 00 13 30.0000000  0"
+        );
 
         let e = parse_utc(" 2022 03 04 00 52 30.0000000  0");
         assert!(e.is_ok());
@@ -534,7 +569,10 @@ mod test {
         assert_eq!(ss, 30);
         assert_eq!(ns, 0);
         assert_eq!(flag, EpochFlag::Ok);
-        //assert_eq!(format!("{}", e), "2022 03 04 00 52 30.0000000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 3),
+            "2022 03 04 00 52 30.0000000  0"
+        );
 
         let e = parse_utc(" 2022 03 04 00 02 30.0000000  0");
         assert!(e.is_ok());
@@ -548,42 +586,58 @@ mod test {
         assert_eq!(ss, 30);
         assert_eq!(ns, 0);
         assert_eq!(flag, EpochFlag::Ok);
-        //assert_eq!(format!("{}", e), "2022 03 04 00 02 30.0000000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 3),
+            "2022 03 04 00 02 30.0000000  0"
+        );
     }
     #[test]
     fn epoch_parse_obs_v2_nanos() {
         let e = parse_utc(" 21  1  1  0  7 39.1234567  0");
         assert!(e.is_ok());
-        let (e, _) = e.unwrap();
+        let (e, flag) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 39);
         assert_eq!(ns, 123_456_700);
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 2),
+            "21  1  1  0  7 39.1234567  0"
+        );
     }
     #[test]
     fn epoch_parse_obs_v3_nanos() {
         let e = parse_utc("2022 01 09 00 00  0.1000000  0");
         assert!(e.is_ok());
-        let (e, _) = e.unwrap();
+        let (e, flag) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 0);
         assert_eq!(ns, 100_000_000);
-        //assert_eq!(format!("{}", e), "2022 01 09 00 00  0.1000000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 3),
+            "2022 01 09 00 00  0.1000000  0"
+        );
 
         let e = parse_utc(" 2022 01 09 00 00  0.1234000  0");
         assert!(e.is_ok());
-        let (e, _) = e.unwrap();
+        let (e, flag) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 0);
         assert_eq!(ns, 123_400_000);
-        //assert_eq!(format!("{}", e), "2022 01 09 00 00  0.1234000  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 3),
+            "2022 01 09 00 00  0.1234000  0"
+        );
 
         let e = parse_utc(" 2022 01 09 00 00  8.7654321  0");
         assert!(e.is_ok());
-        let (e, _) = e.unwrap();
+        let (e, flag) = e.unwrap();
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 8);
         assert_eq!(ns, 765_432_100);
-        //assert_eq!(format!("{}", e), "2022 01 09 00 00  8.7654321  0");
+        assert_eq!(
+            format(e, Some(flag), Type::ObservationData, 3),
+            "2022 01 09 00 00  8.7654321  0"
+        );
     }
     #[test]
     fn epoch_parse_meteo_v2() {
@@ -598,7 +652,7 @@ mod test {
         assert_eq!(mm, 00);
         assert_eq!(ss, 00);
         assert_eq!(ns, 0);
-        //assert_eq!(format!("{}", e), "2022 03 04 00 02 30.0000000  0");
+        assert_eq!(format(e, None, Type::MeteoData, 2), "22  1  4  0  0  0");
     }
     #[test]
     fn epoch_decomposition() {
