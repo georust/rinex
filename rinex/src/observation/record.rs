@@ -203,10 +203,6 @@ pub(crate) fn parse_epoch(
     let (n_sat, rem) = rem.split_at(3);
     let n_sat = n_sat.trim().parse::<u16>()?;
 
-    // previously identified observables (that we expect)
-    let obs = header.obs.as_ref().unwrap();
-    let observables = &obs.codes;
-
     // grab possible clock offset
     let offs: Option<&str> = match header.version.major < 2 {
         true => {
@@ -247,6 +243,34 @@ pub(crate) fn parse_epoch(
         false => None, // empty field
     };
 
+    match flag {
+        EpochFlag::Ok | EpochFlag::PowerFailure | EpochFlag::CycleSlip => {
+            parse_normal(header, epoch, flag, n_sat, clock_offset, rem, lines)
+        },
+        _ => parse_event(header, epoch, flag, n_sat, clock_offset, rem, lines),
+    }
+}
+
+fn parse_normal(
+    header: &Header,
+    epoch: Epoch,
+    flag: EpochFlag,
+    n_sat: u16,
+    clock_offset: Option<f64>,
+    rem: &str,
+    mut lines: std::str::Lines<'_>,
+) -> Result<
+    (
+        (Epoch, EpochFlag),
+        Option<f64>,
+        BTreeMap<SV, HashMap<Observable, ObservationData>>,
+    ),
+    Error,
+> {
+    // previously identified observables (that we expect)
+    let obs = header.obs.as_ref().unwrap();
+    let observables = &obs.codes;
+
     let data = match header.version.major {
         2 => {
             // grab system descriptions
@@ -268,6 +292,29 @@ pub(crate) fn parse_epoch(
         _ => parse_v3(observables, lines),
     };
     Ok(((epoch, flag), clock_offset, data))
+}
+
+fn parse_event(
+    header: &Header,
+    epoch: Epoch,
+    flag: EpochFlag,
+    n_records: u16,
+    clock_offset: Option<f64>,
+    rem: &str,
+    mut lines: std::str::Lines<'_>,
+) -> Result<
+    (
+        (Epoch, EpochFlag),
+        Option<f64>,
+        BTreeMap<SV, HashMap<Observable, ObservationData>>,
+    ),
+    Error,
+> {
+    // TODO: Verify that the number of lines of data
+    // to read matches the number of records expected
+
+    // TODO: Actually process event data
+    Err(Error::MissingData)
 }
 
 /*
@@ -1761,7 +1808,17 @@ mod test {
         let clock_offset: Option<f64> = None;
 
         let e = parse_epoch(&header, epoch_str, ts);
-        assert!(e.is_ok());
+
+        match expected_flag {
+            EpochFlag::Ok | EpochFlag::PowerFailure | EpochFlag::CycleSlip => {
+                assert!(e.is_ok())
+            },
+            _ => {
+                // TODO: Update alongside parse_event
+                assert!(e.is_err());
+                return;
+            },
+        }
         let ((e, flag), _, _) = e.unwrap();
         assert_eq!(flag, expected_flag);
         if ver.major < 3 {
