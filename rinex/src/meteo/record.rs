@@ -18,7 +18,7 @@ pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
  * we should initiate the parsing of a meteo record entry.
  */
 pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
-    if v.major < 4 {
+    if v.major < 3 {
         let min_len = " 15  1  1  0  0  0";
         if line.len() < min_len.len() {
             // minimum epoch descriptor
