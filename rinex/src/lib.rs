@@ -80,10 +80,10 @@ pub mod prelude {
     #[cfg(feature = "sp3")]
     pub use crate::context::{ProductType, RnxContext};
     pub use crate::domes::Domes;
-    pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;
+    pub use crate::observation::EpochFlag;
     pub use crate::types::Type as RinexType;
     pub use crate::Error;
     pub use crate::Rinex;

@@ -194,7 +194,7 @@ pub(crate) fn parse_epoch(
     const OFFSET: usize = "yyyy mm dd hh mm sssssssssss".len();
 
     let (epoch, rem) = rem.split_at(OFFSET);
-    let (epoch, _) = epoch::parse_utc(epoch.trim())?;
+    let epoch = epoch::parse_utc(epoch.trim())?;
 
     // nb of data fields
     let (_n, rem) = rem.split_at(4);

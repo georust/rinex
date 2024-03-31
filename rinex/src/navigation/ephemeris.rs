@@ -213,7 +213,7 @@ impl Ephemeris {
             .ok_or(Error::TimescaleIdentification(sv))?;
         //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
 
-        let (epoch, _) = epoch::parse_in_timescale(date.trim(), ts)?;
+        let epoch = epoch::parse_in_timescale(date.trim(), ts)?;
 
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
@@ -249,7 +249,7 @@ impl Ephemeris {
         let (svnn, rem) = line.split_at(4);
         let sv = SV::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
-        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);

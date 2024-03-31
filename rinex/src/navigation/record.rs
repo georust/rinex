@@ -396,7 +396,7 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
             }
             lines.push_str(&format!(
                 "{} ",
-                epoch::format(*epoch, None, Type::NavigationData, header.version.major)
+                epoch::format(*epoch, Type::NavigationData, header.version.major)
             ));
             lines.push_str(&format!(
                 "{:14.11E} {:14.11E} {:14.11E}\n   ",
@@ -469,7 +469,7 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
             }
             lines.push_str(&format!(
                 "{} ",
-                epoch::format(*epoch, None, Type::NavigationData, header.version.major)
+                epoch::format(*epoch, Type::NavigationData, header.version.major)
             ));
             lines.push_str(&format!(
                 "{:14.13E} {:14.13E} {:14.13E}\n",
@@ -506,7 +506,7 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
             ));
             lines.push_str(&format!(
                 "    {} {}    {}\n",
-                epoch::format(*epoch, None, Type::NavigationData, header.version.major),
+                epoch::format(*epoch, Type::NavigationData, header.version.major),
                 sto.system,
                 sto.utc
             ));

@@ -65,7 +65,7 @@ pub(crate) fn parse_epoch(
         offset += 2; // YYYY
     }
 
-    let (epoch, _) = epoch::parse_utc(&line[0..offset])?;
+    let epoch = epoch::parse_utc(&line[0..offset])?;
 
     let codes = &header.meteo.as_ref().unwrap().codes;
     let nb_codes = codes.len();
@@ -117,7 +117,7 @@ pub(crate) fn fmt_epoch(
     let mut lines = String::with_capacity(128);
     lines.push_str(&format!(
         " {}",
-        epoch::format(*epoch, None, Type::MeteoData, header.version.major)
+        epoch::format(*epoch, Type::MeteoData, header.version.major)
     ));
     let observables = &header.meteo.as_ref().unwrap().codes;
     let mut index = 0;

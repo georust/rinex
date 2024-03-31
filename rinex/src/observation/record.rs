@@ -8,11 +8,14 @@ use crate::{
     Carrier, Observable,
 };
 
+use crate::observation::EpochFlag;
 use crate::observation::SNR;
 use hifitime::Duration;
 
 #[derive(Error, Debug)]
 pub enum Error {
+    #[error("failed to parse epoch flag")]
+    EpochFlag(#[from] crate::observation::flag::Error),
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::ParsingError),
     #[error("constellation parsing error")]
@@ -193,10 +196,12 @@ pub(crate) fn parse_epoch(
         line = line.split_at(1).1;
     }
 
-    let (date, rem) = line.split_at(offset + 3);
+    let (date, rem) = line.split_at(offset);
+    let epoch = epoch::parse_in_timescale(date, ts)?;
+    let (flag, rem) = rem.split_at(3);
+    let flag = EpochFlag::from_str(flag.trim())?;
     let (n_sat, rem) = rem.split_at(3);
     let n_sat = n_sat.trim().parse::<u16>()?;
-    let epoch = epoch::parse_in_timescale(date, ts)?;
 
     // previously identified observables (that we expect)
     let obs = header.obs.as_ref().unwrap();
@@ -262,7 +267,7 @@ pub(crate) fn parse_epoch(
         },
         _ => parse_v3(observables, lines),
     };
-    Ok((epoch, clock_offset, data))
+    Ok(((epoch, flag), clock_offset, data))
 }
 
 /*
@@ -586,8 +591,9 @@ fn fmt_epoch_v3(
     let observables = &header.obs.as_ref().unwrap().codes;
 
     lines.push_str(&format!(
-        "> {} {:2}",
-        epoch::format(epoch, Some(flag), Type::ObservationData, 3),
+        "> {}  {} {:2}",
+        epoch::format(epoch, Type::ObservationData, 3),
+        flag,
         data.len()
     ));
 
@@ -638,8 +644,9 @@ fn fmt_epoch_v2(
     let observables = &header.obs.as_ref().unwrap().codes;
 
     lines.push_str(&format!(
-        " {} {:2}",
-        epoch::format(epoch, Some(flag), Type::ObservationData, 2),
+        " {}  {} {:2}",
+        epoch::format(epoch, Type::ObservationData, 2),
+        flag,
         data.len()
     ));
 
@@ -1744,6 +1751,114 @@ pub(crate) fn code_multipath(
 #[cfg(test)]
 mod test {
     use super::*;
+    fn parse_and_format_helper(ver: Version, epoch_str: &str, expected_flag: EpochFlag) {
+        let first = epoch::parse_utc("2020 01 01 00 00  0.1000000").unwrap();
+        let data: BTreeMap<SV, HashMap<Observable, ObservationData>> = BTreeMap::new();
+        let header = Header::default().with_version(ver).with_observation_fields(
+            crate::observation::HeaderFields::default().with_time_of_first_obs(first),
+        );
+        let ts = TimeScale::UTC;
+        let clock_offset: Option<f64> = None;
+
+        let e = parse_epoch(&header, epoch_str, ts);
+        assert!(e.is_ok());
+        let ((e, flag), _, _) = e.unwrap();
+        assert_eq!(flag, expected_flag);
+        if ver.major < 3 {
+            assert_eq!(
+                fmt_epoch_v2(e, flag, &clock_offset, &data, &header)
+                    .lines()
+                    .next()
+                    .unwrap(),
+                epoch_str
+            );
+        } else {
+            assert_eq!(
+                fmt_epoch_v3(e, flag, &clock_offset, &data, &header)
+                    .lines()
+                    .next()
+                    .unwrap(),
+                epoch_str
+            );
+        }
+    }
+
+    #[test]
+    fn obs_v2_parse_and_format() {
+        parse_and_format_helper(
+            Version { major: 2, minor: 0 },
+            " 21 12 21  0  0 30.0000000  0  0",
+            EpochFlag::Ok,
+        );
+        parse_and_format_helper(
+            Version { major: 2, minor: 0 },
+            " 21 12 21  0  0 30.0000000  1  0",
+            EpochFlag::PowerFailure,
+        );
+        parse_and_format_helper(
+            Version { major: 2, minor: 0 },
+            " 21 12 21  0  0 30.0000000  2  0",
+            EpochFlag::AntennaBeingMoved,
+        );
+        parse_and_format_helper(
+            Version { major: 2, minor: 0 },
+            " 21 12 21  0  0 30.0000000  3  0",
+            EpochFlag::NewSiteOccupation,
+        );
+        parse_and_format_helper(
+            Version { major: 2, minor: 0 },
+            " 21 12 21  0  0 30.0000000  4  0",
+            EpochFlag::HeaderInformationFollows,
+        );
+        parse_and_format_helper(
+            Version { major: 2, minor: 0 },
+            " 21 12 21  0  0 30.0000000  5  0",
+            EpochFlag::ExternalEvent,
+        );
+        parse_and_format_helper(
+            Version { major: 2, minor: 0 },
+            " 21 12 21  0  0 30.0000000  6  0",
+            EpochFlag::CycleSlip,
+        );
+    }
+    #[test]
+    fn obs_v3_parse_and_format() {
+        parse_and_format_helper(
+            Version { major: 3, minor: 0 },
+            "> 2021 12 21 00 00 30.0000000  0  0",
+            EpochFlag::Ok,
+        );
+        parse_and_format_helper(
+            Version { major: 3, minor: 0 },
+            "> 2021 12 21 00 00 30.0000000  1  0",
+            EpochFlag::PowerFailure,
+        );
+        parse_and_format_helper(
+            Version { major: 3, minor: 0 },
+            "> 2021 12 21 00 00 30.0000000  2  0",
+            EpochFlag::AntennaBeingMoved,
+        );
+        parse_and_format_helper(
+            Version { major: 3, minor: 0 },
+            "> 2021 12 21 00 00 30.0000000  3  0",
+            EpochFlag::NewSiteOccupation,
+        );
+        parse_and_format_helper(
+            Version { major: 3, minor: 0 },
+            "> 2021 12 21 00 00 30.0000000  4  0",
+            EpochFlag::HeaderInformationFollows,
+        );
+        parse_and_format_helper(
+            Version { major: 3, minor: 0 },
+            "> 2021 12 21 00 00 30.0000000  5  0",
+            EpochFlag::ExternalEvent,
+        );
+        parse_and_format_helper(
+            Version { major: 3, minor: 0 },
+            "> 2021 12 21 00 00 30.0000000  6  0",
+            EpochFlag::CycleSlip,
+        );
+    }
     #[test]
     fn obs_record_is_new_epoch() {
         assert!(is_new_epoch(
