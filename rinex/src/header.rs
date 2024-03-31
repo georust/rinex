@@ -1626,7 +1626,7 @@ impl Header {
                         descriptor.push_str(&format!("{:x}{:5}", constell, observables.len()));
                         for (i, observable) in observables.iter().enumerate() {
                             if (i % 13) == 0 && (i > 0) {
-                                descriptor.push_str(&format!("        ")); // TAB
+                                descriptor.push_str("        "); // TAB
                             }
                             descriptor.push_str(&format!(" {}", observable)); // TAB
                         }

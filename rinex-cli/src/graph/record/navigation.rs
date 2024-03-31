@@ -216,11 +216,8 @@ fn ctx_sv_clock_corrections(
                     ProductType::Radio => Some(sv_eph.sv_clock()),
                     ProductType::HighPrecisionSp3 => {
                         if let Some(sp3) = sp3 {
-                            if let Some(bias) = sp3.sv_clock_interpolate(*t, *sv) {
-                                Some((bias, 0.0_f64, 0.0_f64))
-                            } else {
-                                None
-                            }
+                            sp3.sv_clock_interpolate(*t, *sv)
+                                .map(|bias| (bias, 0.0_f64, 0.0_f64))
                         } else {
                             None
                         }

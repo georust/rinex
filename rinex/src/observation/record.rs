@@ -145,22 +145,20 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
             false
         } else {
             // SPLICE flag handling (still an Observation::flag)
-            let significant = line[0..26].trim().len() != 0;
+            let significant = !line[0..26].trim().is_empty();
             let epoch = epoch::parse_utc(&line[0..26]);
-            let flag = EpochFlag::from_str(&line[26..29].trim());
+            let flag = EpochFlag::from_str(line[26..29].trim());
             if significant {
                 epoch.is_ok() && flag.is_ok()
+            } else if flag.is_err() {
+                false
             } else {
-                if flag.is_err() {
-                    false
-                } else {
-                    match flag.unwrap() {
-                        EpochFlag::AntennaBeingMoved
-                        | EpochFlag::NewSiteOccupation
-                        | EpochFlag::HeaderInformationFollows
-                        | EpochFlag::ExternalEvent => true,
-                        _ => false,
-                    }
+                match flag.unwrap() {
+                    EpochFlag::AntennaBeingMoved
+                    | EpochFlag::NewSiteOccupation
+                    | EpochFlag::HeaderInformationFollows
+                    | EpochFlag::ExternalEvent => true,
+                    _ => false,
                 }
             }
         }
@@ -312,13 +310,13 @@ fn parse_normal(
 }
 
 fn parse_event(
-    header: &Header,
-    epoch: Epoch,
-    flag: EpochFlag,
-    n_records: u16,
-    clock_offset: Option<f64>,
-    rem: &str,
-    mut lines: std::str::Lines<'_>,
+    _header: &Header,
+    _epoch: Epoch,
+    _flag: EpochFlag,
+    _n_records: u16,
+    _clock_offset: Option<f64>,
+    _rem: &str,
+    _lines: std::str::Lines<'_>,
 ) -> Result<
     (
         (Epoch, EpochFlag),
