@@ -294,10 +294,9 @@ Otherwise it gets automatically picked up."))
     pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
         if let Some(position) = self.manual_ecef() {
             Some(position)
-        } else if let Some(position) = self.manual_geodetic() {
-            Some(GroundPosition::from_geodetic(position).to_ecef_wgs84())
         } else {
-            None
+            self.manual_geodetic()
+                .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
         }
     }
 }
