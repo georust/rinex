@@ -60,7 +60,7 @@ impl EopMessage {
         let (dut, rem) = rem.split_at(19);
         let (ddut, dddut) = rem.split_at(19);
 
-        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = epoch::parse_in_timescale(epoch.trim(), ts)?;
         let x = (
             f64::from_str(xp.trim()).unwrap_or(0.0_f64),
             f64::from_str(dxp.trim()).unwrap_or(0.0_f64),

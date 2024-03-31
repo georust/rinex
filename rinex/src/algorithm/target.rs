@@ -29,7 +29,7 @@ pub enum Error {
     #[error("constellation parsing error")]
     ConstellationParing(#[from] gnss::constellation::ParsingError),
     #[error("failed to parse epoch flag")]
-    EpochFlagParsing(#[from] crate::epoch::flag::Error),
+    EpochFlagParsing(#[from] crate::observation::flag::Error),
     #[error("failed to parse constellation")]
     ConstellationParsing,
     #[error("invalid nav item")]

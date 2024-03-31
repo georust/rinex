@@ -4,6 +4,9 @@ use std::collections::HashMap;
 
 pub mod record;
 
+pub mod flag;
+pub use flag::EpochFlag;
+
 mod snr;
 pub use snr::SNR;
 

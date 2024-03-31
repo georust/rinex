@@ -124,7 +124,7 @@ impl KbModel {
             },
         };
 
-        let (epoch, _) = parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = parse_in_timescale(epoch.trim(), ts)?;
         let alpha = (
             f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?,
             f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?,
@@ -257,7 +257,7 @@ impl NgModel {
             _ => return Err(Error::NgModelMissing2ndLine),
         };
 
-        let (epoch, _) = parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = parse_in_timescale(epoch.trim(), ts)?;
         let a = (
             f64::from_str(a0.trim()).map_err(|_| Error::NgValueError)?,
             f64::from_str(a1.trim()).map_err(|_| Error::NgValueError)?,
@@ -316,7 +316,7 @@ impl BdModel {
         };
         let (a7, a8) = line.split_at(23);
 
-        let (epoch, _) = parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = parse_in_timescale(epoch.trim(), ts)?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),

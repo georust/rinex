@@ -18,7 +18,7 @@ pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
  * we should initiate the parsing of a meteo record entry.
  */
 pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
-    if v.major < 4 {
+    if v.major < 3 {
         let min_len = " 15  1  1  0  0  0";
         if line.len() < min_len.len() {
             // minimum epoch descriptor
@@ -65,7 +65,7 @@ pub(crate) fn parse_epoch(
         offset += 2; // YYYY
     }
 
-    let (epoch, _) = epoch::parse_utc(&line[0..offset])?;
+    let epoch = epoch::parse_utc(&line[0..offset])?;
 
     let codes = &header.meteo.as_ref().unwrap().codes;
     let nb_codes = codes.len();
@@ -117,7 +117,7 @@ pub(crate) fn fmt_epoch(
     let mut lines = String::with_capacity(128);
     lines.push_str(&format!(
         " {}",
-        epoch::format(*epoch, None, Type::MeteoData, header.version.major)
+        epoch::format(*epoch, Type::MeteoData, header.version.major)
     ));
     let observables = &header.meteo.as_ref().unwrap().codes;
     let mut index = 0;

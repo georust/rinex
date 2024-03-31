@@ -171,7 +171,7 @@ pub(crate) fn parse_plane(
                 // debug
                 // println!("NEW GRID : h: {} lat : {} lon : {}, dlon: {}", altitude, latitude, longitude, dlon);
             } else if marker.contains("EPOCH OF CURRENT MAP") {
-                epoch = epoch::parse_utc(content)?.0;
+                epoch = epoch::parse_utc(content)?;
             } else if marker.contains("EXPONENT") {
                 // update current scaling
                 if let Ok(e) = content.trim().parse::<i8>() {
