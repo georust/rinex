@@ -1,3 +1,4 @@
+//! Epoch parsing helpers
 use crate::types::Type;
 use hifitime::{Duration, Epoch, TimeScale, Unit};
 use std::str::FromStr;
