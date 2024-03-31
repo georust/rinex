@@ -144,6 +144,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         if line.len() < 30 {
             false
         } else {
+            // SPLICE flag handling (still an Observation::flag)
             let significant = line[0..26].trim().len() != 0;
             let epoch = epoch::parse_utc(&line[0..26]);
             let flag = EpochFlag::from_str(&line[26..29].trim());
@@ -164,8 +165,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
             }
         }
     } else {
-        // Modern RINEX
-        // OBS::V3 behaves like all::V4
+        // Modern RINEX has a simple marker, like all V4 modern files
         match line.chars().next() {
             Some(c) => {
                 c == '>' // epochs always delimited
