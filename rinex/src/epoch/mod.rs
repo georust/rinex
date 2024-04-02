@@ -140,7 +140,7 @@ pub(crate) fn parse_in_timescale(
     let mut hh = 0_u8;
     let mut mm = 0_u8;
     let mut ss = 0_u8;
-    let mut ns = 0_u32;
+    let mut ns = 0_u64;
     let mut flag = EpochFlag::default();
 
     for (field_index, item) in content.split_ascii_whitespace().enumerate() {
@@ -188,17 +188,20 @@ pub(crate) fn parse_in_timescale(
                         .parse::<u8>()
                         .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
 
-                    ns = item[dot + 1..]
-                        .trim()
-                        .parse::<u32>()
+                    let nanos = item[dot + 1..].trim();
+
+                    ns = nanos
+                        .parse::<u64>()
                         .map_err(|_| ParsingError::NanosecondsField(item.to_string()))?;
 
                     if is_nav {
                         // NAV RINEX : 100ms precision
                         ns *= 100_000_000;
                     } else {
-                        // OBS RINEX : 100ns precision
-                        ns *= 100;
+                        if nanos.len() != 9 {
+                            // OBS RINEX : 100ns precision
+                            ns *= 100;
+                        }
                     }
                 } else {
                     ss = item
@@ -225,7 +228,7 @@ pub(crate) fn parse_in_timescale(
                 return Err(ParsingError::FormatError);
             }
 
-            let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns);
+            let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns as u32);
             Ok((epoch, flag))
         },
         _ => {

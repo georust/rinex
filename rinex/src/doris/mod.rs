@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 use thiserror::Error;
 
 use crate::{
@@ -16,10 +17,14 @@ pub use record::Record;
 pub enum Error {
     #[error("invalid station")]
     InvalidStation,
+    #[error("failed to parse station id")]
+    IdParsing,
     #[error("invalid station DOMES code")]
     DomesError(#[from] DomesParsingError),
-    #[error("failed to parse station value")]
-    StationIdOrValueParsing,
+    #[error("failed to parse beacon generation")]
+    BeaconGenerationParsing,
+    #[error("failed to parse `k` factor")]
+    KfParsing,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -60,28 +65,31 @@ pub(crate) fn parse_station(content: &str) -> Result<Station, Error> {
     }
 
     let content = content.split_at(1).1;
-    let (key, rem) = content.split_at(5);
+    let (key, rem) = content.split_at(4);
     let (label, rem) = rem.split_at(5);
     let (name, rem) = rem.split_at(30);
     let (domes, rem) = rem.split_at(10);
     let (gen, rem) = rem.split_at(3);
     let (k_factor, _) = rem.split_at(3);
 
-    println!("ID \"{}\"", key);
-    println!("LABEL \"{}\"", label);
-    println!("NAME \"{}\"", name);
-    println!("DOMES \"{}\"", domes);
-    println!("GEN \"{}\"", gen);
-    println!("K \"{}\"", k_factor);
-
-    panic!("oops");
+    Ok(Station {
+        site: name.trim().to_string(),
+        label: label.trim().to_string(),
+        domes: Domes::from_str(domes.trim())?,
+        gen: gen
+            .trim()
+            .parse::<u8>()
+            .or(Err(Error::BeaconGenerationParsing))?,
+        k_factor: k_factor.trim().parse::<i8>().or(Err(Error::KfParsing))?,
+        key: key.trim().parse::<u16>().or(Err(Error::IdParsing))?,
+    })
 }
 
 impl std::fmt::Display for Station {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "D{:02} {} {:<20} {} {} {}",
+            "D{:02}  {} {:<29} {}  {}   {}",
             self.key, self.label, self.site, self.domes, self.gen, self.k_factor
         )
     }
@@ -153,38 +161,40 @@ mod test {
     use crate::domes::{Domes, TrackingPoint as DomesTrackingPoint};
     #[test]
     fn station_parsing() {
-        for (desc, expected) in [(
-            "D01  OWFC OWENGA                        50253S002  3   0",
-            Station {
-                label: "OWFC".to_string(),
-                site: "OWENGA".to_string(),
-                domes: Domes {
-                    area: 502,
-                    site: 53,
-                    sequential: 2,
-                    point: DomesTrackingPoint::Instrument,
+        for (desc, expected) in [
+            (
+                "D01  OWFC OWENGA                        50253S002  3   0",
+                Station {
+                    label: "OWFC".to_string(),
+                    site: "OWENGA".to_string(),
+                    domes: Domes {
+                        area: 502,
+                        site: 53,
+                        sequential: 2,
+                        point: DomesTrackingPoint::Instrument,
+                    },
+                    gen: 3,
+                    k_factor: 0,
+                    key: 1,
                 },
-                gen: 3,
-                k_factor: 0,
-                key: 1,
-            },
-        ),
-        (
-            "D17  GRFB GREENBELT                     40451S178  3   0",
-            Station {
-                label: "GRFB".to_string(),
-                site: "GREENBELT".to_string(),
-                domes: Domes {
-                    area: 404,
-                    site: 51,
-                    sequential: 178,
-                    point: DomesTrackingPoint::Instrument,
+            ),
+            (
+                "D17  GRFB GREENBELT                     40451S178  3   0",
+                Station {
+                    label: "GRFB".to_string(),
+                    site: "GREENBELT".to_string(),
+                    domes: Domes {
+                        area: 404,
+                        site: 51,
+                        sequential: 178,
+                        point: DomesTrackingPoint::Instrument,
+                    },
+                    gen: 3,
+                    k_factor: 0,
+                    key: 17,
                 },
-                gen: 3,
-                k_factor: 0,
-                key: 17,
-            },
-        )] {
+            ),
+        ] {
             let station = parse_station(desc).unwrap();
             assert_eq!(station, expected, "station parsing error");
             assert_eq!(station.to_string(), desc, "station reciprocal error");

@@ -45,8 +45,7 @@ pub(crate) fn parse_epoch(
                 let offset = "YYYY MM DD HH MM SS.NNNNNNNNN  0".len();
                 let (date, rem) = line.split_at(offset);
                 let (epoch, flag) = parse_in_timescale(date, TimeScale::TAI)?;
-                panic!("DATE: \"{}\", {:?}:{}", date, epoch, flag);
-                println!("REM: \"{}\"", rem);
+                panic!("DATE: \"{}\", {:?}({})", date, epoch, flag);
             },
             _ => {
                 /* others are actual measurements */
@@ -55,4 +54,48 @@ pub(crate) fn parse_epoch(
         }
     }
     panic!("done");
+}
+
+#[cfg(test)]
+mod test {
+    use super::is_new_epoch;
+    use crate::Header;
+    #[test]
+    fn new_epoch() {
+        for (desc, expected) in [
+            (
+                "> 2024 01 01 00 00 28.999947700  0  2       -0.151364695 0 ",
+                true,
+            ),
+            (
+                "> 2023 01 01 00 00 33.999947700  0  2       -0.151364695 0 ",
+                true,
+            ),
+            (
+                "  2023 01 01 00 00 33.999947700  0  2       -0.151364695 0 ",
+                false,
+            ),
+            (
+                "  2022 01 01 00 00 33.999947700  0  2       -0.151364695 0 ",
+                false,
+            ),
+            ("test", false),
+        ] {
+            assert_eq!(is_new_epoch(desc), expected);
+        }
+    }
+    use super::parse_epoch;
+    #[test]
+    fn valid_epoch() {
+        let header = Header::default();
+        for desc in ["> 2024 01 01 00 00 28.999947700  0  2       -0.151364695 0 
+D01  -3237877.052    -2291024.044    21903595.62311  21903633.08011      -113.100 7
+          -98.400 7       437.801        1002.000 1       -20.000 1        82.000 1
+D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.050 7
+         -111.000 7       437.801        1007.000 0        -2.000 0        74.000 0"]
+        {
+            let epoch = parse_epoch(&header, desc);
+            assert!(epoch.is_ok(), "failed to parse DORIS epoch");
+        }
+    }
 }
