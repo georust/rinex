@@ -5,7 +5,7 @@ use crate::{
     clock::WorkClock,
     domes::Domes,
     doris,
-    doris::parse_station as parse_doris_station,
+    doris::{Error as DorisError, Station as DorisStation},
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
@@ -183,6 +183,8 @@ pub enum ParsingError {
     InvalidIonexGrid(String, String),
     #[error("invalid ionex grid definition")]
     InvalidIonexGridDefinition(#[from] LinspaceError),
+    #[error("doris parsing error")]
+    DorisError(#[from] DorisError),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -674,11 +676,6 @@ impl Header {
             } else if marker.contains("STATION INFORMATION") {
                 let url = content.split_at(40).0; //TODO confirm please
                 station_url = url.trim().to_string()
-            } else if marker.contains("STATION REFERENCE") {
-                // DORIS
-                if let Ok(station) = parse_doris_station(content.trim()) {
-                    doris.add_station(station)
-                }
             } else if marker.contains("LICENSE OF USE") {
                 let lic = content.split_at(40).0; //TODO confirm please
                 license = Some(lic.trim().to_string())
@@ -1134,13 +1131,19 @@ impl Header {
                 // differential PR code analysis
                 //TODO
             } else if marker.contains("L2 / L1 DATE OFFSET") {
-                //DORIS special case
+                // DORIS special case
                 let content = content[1..].trim();
                 let l2l1_date_offset = content
                     .parse::<f64>()
                     .or(Err(parse_float_error!("doris l2/l1 date offset", content)))?;
 
                 doris = doris.with_l2_l1_date_offset(Duration::from_microseconds(l2l1_date_offset));
+            } else if marker.contains("STATION REFERENCE") {
+                // DORIS special case
+                let station = DorisStation::from_str(content.trim())?;
+                doris.add_station(station);
+            } else if marker.contains("TIME REF STATION") {
+                // DORIS special case (TODO)
             }
         }
 

@@ -239,14 +239,7 @@ pub(crate) fn parse_in_timescale(
             }
             let epoch = Epoch::from_str(&format!(
                 "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09} {}",
-                y,
-                m,
-                d,
-                hh,
-                mm,
-                ss,
-                ns / 100_000_000,
-                ts
+                y, m, d, hh, mm, ss, ns, ts
             ))?;
             Ok((epoch, flag))
         },

@@ -16,7 +16,7 @@ pub enum Error {
 }
 
 /// DOMES site reference point.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TrackingPoint {
     /// Monument (pole, pillar, geodetic marker..)
@@ -29,7 +29,7 @@ pub enum TrackingPoint {
 }
 
 /// DOMES Site identifier, see [Bibliography::IgnItrfDomes]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Domes {
     /// Area / Country code (3 digits)

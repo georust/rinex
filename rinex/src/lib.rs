@@ -81,6 +81,8 @@ pub mod prelude {
     #[cfg(feature = "sp3")]
     pub use crate::context::{ProductType, RnxContext};
     pub use crate::domes::Domes;
+    #[cfg(feature = "doris")]
+    pub use crate::doris::Station;
     pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;

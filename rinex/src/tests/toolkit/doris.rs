@@ -1,34 +1,28 @@
 // use crate::observation::Record as ObsRecord;
-use crate::prelude::{Observable, Rinex};
 use std::str::FromStr;
+
+use crate::prelude::{Observable, Rinex, Station};
 
 /*
  * Verifies observable list
  */
-pub fn check_observables(rnx: &Rinex, observables: &[&str]) {
+pub fn check_observables(rinex: &Rinex, observables: &[&str]) {
     let expected = observables
         .iter()
         .map(|desc| Observable::from_str(desc).unwrap())
         .collect::<Vec<_>>();
+    let header = rinex.header.doris.as_ref().expect("missing header fields!");
+    assert_eq!(header.observables, expected);
+}
 
-    match &rnx.header.doris {
-        Some(specific) => {
-            if specific.observables.is_empty() {
-                panic!("no observable in header seems suspicious");
-            }
-            for expected in &expected {
-                if !specific.observables.contains(&expected) {
-                    panic!("{} observable is not present in header", expected,);
-                }
-            }
-            for identified in &specific.observables {
-                if !expected.contains(&identified) {
-                    panic!("identified unexpected observable: {}", identified);
-                }
-            }
-        },
-        _ => {
-            panic!("missing header specific fields");
-        },
-    }
+/*
+ * Verifies Station list
+ */
+pub fn check_stations(rinex: &Rinex, stations: &[&str]) {
+    let expected = stations
+        .iter()
+        .map(|s| Station::from_str(s).unwrap())
+        .collect::<Vec<_>>();
+    let header = rinex.header.doris.as_ref().expect("missing header fields!");
+    assert_eq!(header.stations, expected);
 }

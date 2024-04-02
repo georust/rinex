@@ -12,8 +12,8 @@ use crate::{
 
 /// DORIS measurement parsing error
 /// DORIS RINEX Record content.
-/// Measurements are stored by Station and by TAI instant.
-pub type Record = BTreeMap<(Epoch, EpochFlag), HashMap<Station, f64>>;
+/// Measurements are stored by Kind, by Station and by TAI sampling instant.
+pub type Record = BTreeMap<(Epoch, EpochFlag), BTreeMap<Station, HashMap<Observable, f64>>>;
 
 /// Returns true if following line matches a new DORIS measurement
 pub(crate) fn is_new_epoch(line: &str) -> bool {
@@ -35,8 +35,32 @@ use serde::Serialize;
 pub(crate) fn parse_epoch(
     header: &Header,
     content: &str,
-) -> Result<((Epoch, EpochFlag), HashMap<Station, f64>), Error> {
-    let mut map = HashMap::<Station, f64>::new();
+) -> Result<
+    (
+        (Epoch, EpochFlag),
+        BTreeMap<Station, HashMap<Observable, f64>>,
+    ),
+    Error,
+> {
+    let mut epoch = Epoch::default();
+    let mut flag = EpochFlag::default();
+    let mut buffer = BTreeMap::<Station, HashMap<Observable, f64>>::new();
+
+    let doris = header
+        .doris
+        .as_ref()
+        .expect("missing header field(s): badly formed DORIS RINEX");
+
+    let observables = &doris.observables;
+    let stations = &doris.stations;
+    let mut obs_idx = 0usize;
+
+    assert!(
+        stations.len() > 0,
+        "badly formed DORIS RINEX: no stations defined"
+    );
+    let mut station = Option::<Station>::None;
+
     for (lindex, line) in content.lines().enumerate() {
         match lindex {
             0 => {
@@ -44,16 +68,64 @@ pub(crate) fn parse_epoch(
                 let line = line.split_at(2).1; // "> "
                 let offset = "YYYY MM DD HH MM SS.NNNNNNNNN  0".len();
                 let (date, rem) = line.split_at(offset);
-                let (epoch, flag) = parse_in_timescale(date, TimeScale::TAI)?;
-                panic!("DATE: \"{}\", {:?}({})", date, epoch, flag);
+                (epoch, flag) = parse_in_timescale(date, TimeScale::TAI)?;
             },
             _ => {
-                /* others are actual measurements */
-                println!("\"{}\"", line);
+                let mut iter = line.split_ascii_whitespace();
+
+                if obs_idx == 0 {
+                    // parse station identifier
+                    let id = iter
+                        .next()
+                        .expect("missing station identifier: badly formed DORIS RINEX");
+                    assert!(id.len() > 1, "badly formed DORIS station identifier");
+                    let key = &id[1..];
+                    let key = key
+                        .parse::<u16>()
+                        .unwrap_or_else(|e| panic!("failed to identify DORIS station: {:?}", e));
+
+                    station = stations
+                        .iter()
+                        .filter(|station| station.key == key)
+                        .reduce(|k, _| k)
+                        .cloned();
+                }
+
+                let identified_station =
+                    station.as_ref().expect("failed to identify DORIS station");
+
+                // consume this line
+                while let Some(content) = iter.next() {
+                    let value = content
+                        .parse::<f64>()
+                        .unwrap_or_else(|e| panic!("failed to parse float value: {:?}", e));
+
+                    let observable = observables.get(obs_idx).unwrap_or_else(|| {
+                        panic!(
+                            "failed to determine observable for {:?}({:?})",
+                            identified_station, epoch
+                        )
+                    });
+
+                    if let Some(station) = buffer.get_mut(identified_station) {
+                        station.insert(observable.clone(), value);
+                    } else {
+                        let mut inner =
+                            HashMap::from_iter([(Observable::default(), value)].into_iter());
+                        buffer.insert(identified_station.clone(), inner);
+                    }
+
+                    obs_idx += 1;
+                }
+
+                if obs_idx == observables.len() {
+                    obs_idx = 0;
+                    station = None;
+                }
             },
         }
     }
-    panic!("done");
+    Ok(((epoch, flag), buffer))
 }
 
 #[cfg(test)]

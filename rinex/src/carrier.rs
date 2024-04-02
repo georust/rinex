@@ -65,6 +65,10 @@ pub enum Carrier {
     B3A,
     /// IRNSS S
     S,
+    /// DORIS S1 Frequency
+    S1,
+    /// DORIS U2 Frequency
+    U2,
 }
 
 #[derive(Error, Debug, Clone, PartialEq)]
@@ -106,6 +110,9 @@ impl std::fmt::Display for Carrier {
             // B3
             Self::B3 => write!(f, "B3"),
             Self::B3A => write!(f, "B3A"),
+            // DORIS
+            Self::S1 => write!(f, "S1"),
+            Self::U2 => write!(f, "U2"),
         }
     }
 }
@@ -159,6 +166,13 @@ impl std::str::FromStr for Carrier {
             Ok(Self::B3)
         } else if content.eq("B3A") {
             Ok(Self::B3A)
+        /*
+         * DORIS
+         */
+        } else if content.eq("S1") {
+            Ok(Self::S1)
+        } else if content.eq("U2") {
+            Ok(Self::U2)
         } else {
             Err(Error::ParseError(s.to_string()))
         }
@@ -205,13 +219,18 @@ impl Carrier {
             Self::B2I | Self::B2B => 1207.140_f64,
             Self::B2 => 1191.795_f64,
             Self::B3 | Self::B3A => 1268.520_f64,
+            /*
+             * DORIS
+             */
+            Self::S1 => 2036.25,
+            Self::U2 => 401.25,
         }
     }
     /// Returns carrier wavelength
     pub fn wavelength(&self) -> f64 {
         299_792_458.0_f64 / self.frequency()
     }
-    /// Returns channel bandwidth in MHz
+    /// Returns channel bandwidth in MHz.
     pub fn bandwidth_mhz(&self) -> f64 {
         match self {
             Self::L1 | Self::G1(_) | Self::G1a | Self::E1 => 15.345_f64,
@@ -226,6 +245,8 @@ impl Carrier {
                 todo!("B2X bandwidth is not known to this day")
             },
             Self::B3 | Self::B3A => todo!("B3X bandwidth is not known to this day"),
+            Self::S1 => panic!("DORIS signal bandwidth"),
+            Self::U2 => panic!("DORIS signal bandwidth"),
         }
     }
     ///// Returns the code length (signal period) expressed in seconds,
@@ -654,6 +675,8 @@ impl Carrier {
             },
         }
     }
+    /// Identifies Frequency channel from given DORIS observable.
+    pub fn from_doris_observable(observable: &Observable) -> Self {}
     /*
      * Build a frequency from standard SV description.
      * This is used in ATX records to identify the antenna frequency

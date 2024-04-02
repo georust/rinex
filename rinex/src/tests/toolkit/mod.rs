@@ -11,6 +11,7 @@ pub use observation::check_observables as obsrinex_check_observables;
 /* DORIS RINEX dedicated tools */
 mod doris;
 pub use doris::check_observables as doris_check_observables;
+pub use doris::check_stations as doris_check_stations;
 
 /* ANY RINEX == constant (special ops) */
 mod constant;
