@@ -4,8 +4,8 @@ use thiserror::Error;
 use crate::{
     domes::{Domes, Error as DomesParsingError, TrackingPoint as DomesTrackingPoint},
     observable::Observable,
+    prelude::{Duration, Epoch},
 };
-use hifitime::Epoch;
 
 pub(crate) mod record;
 
@@ -37,6 +37,18 @@ pub struct Station {
     pub k_factor: i8,
     /// ID used in this file indexing
     pub(crate) key: u16,
+}
+
+impl Station {
+    const USO_FREQ: f64 = 5.0E6_f64;
+    /// Station S1 Frequency shift factor
+    pub fn s1_frequency_shift(&self) -> f64 {
+        543.0 * Self::USO_FREQ * (3.0 / 4.0 + 87.0 * self.k_factor as f64 / 5.0 * 2.0_f64.powi(26))
+    }
+    /// Station U2 Frequency shift factor
+    pub fn u2_frequency_shift(&self) -> f64 {
+        107.0 * Self::USO_FREQ * (3.0 / 4.0 + 87.0 * self.k_factor as f64 / 5.0 * 2.0_f64.powi(26))
+    }
 }
 
 /*
@@ -90,6 +102,9 @@ pub struct HeaderFields {
     pub scaling: HashMap<Observable, u16>,
     /// Reference stations present in this file
     pub stations: Vec<Station>,
+    /// Constant shift between date of the 400 MHz phase measurement
+    /// and date of the 2GHz phase measurement
+    pub l2_l1_date_offset: Duration,
 }
 
 impl HeaderFields {
@@ -103,6 +118,12 @@ impl HeaderFields {
     pub(crate) fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
         s.time_of_last_obs = Some(epoch);
+        s
+    }
+    /// Add L2 /L1 Date offset
+    pub(crate) fn with_l2_l1_date_offset(&self, offset: Duration) -> Self {
+        let mut s = self.clone();
+        s.l2_l1_date_offset = offset;
         s
     }
     /// Define station #ID
@@ -147,11 +168,26 @@ mod test {
                 k_factor: 0,
                 key: 1,
             },
+        ),
+        (
+            "D17  GRFB GREENBELT                     40451S178  3   0",
+            Station {
+                label: "GRFB".to_string(),
+                site: "GREENBELT".to_string(),
+                domes: Domes {
+                    area: 404,
+                    site: 51,
+                    sequential: 178,
+                    point: DomesTrackingPoint::Instrument,
+                },
+                gen: 3,
+                k_factor: 0,
+                key: 17,
+            },
         )] {
             let station = parse_station(desc).unwrap();
             assert_eq!(station, expected, "station parsing error");
-            // reciprocal
-            assert_eq!(station.to_string(), desc);
+            assert_eq!(station.to_string(), desc, "station reciprocal error");
         }
     }
 }

@@ -1133,6 +1133,14 @@ impl Header {
             } else if marker.contains("PRN / BIAS / RMS") {
                 // differential PR code analysis
                 //TODO
+            } else if marker.contains("L2 / L1 DATE OFFSET") {
+                //DORIS special case
+                let content = content[1..].trim();
+                let l2l1_date_offset = content
+                    .parse::<f64>()
+                    .or(Err(parse_float_error!("doris l2/l1 date offset", content)))?;
+
+                doris = doris.with_l2_l1_date_offset(Duration::from_microseconds(l2l1_date_offset));
             }
         }
 
