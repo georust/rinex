@@ -807,7 +807,11 @@ impl Header {
                             .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
                     },
                 }
-                observation = observation.with_time_of_first_obs(time_of_first_obs);
+                if rinex_type == Type::DORIS {
+                    doris.time_of_first_obs = Some(time_of_first_obs);
+                } else {
+                    observation = observation.with_time_of_first_obs(time_of_first_obs);
+                }
             } else if marker.contains("TIME OF LAST OBS") {
                 let mut time_of_last_obs = Self::parse_time_of_obs(content)?;
                 match constellation {
@@ -820,7 +824,11 @@ impl Header {
                             .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
                     },
                 }
-                observation = observation.with_time_of_last_obs(time_of_last_obs);
+                if rinex_type == Type::DORIS {
+                    doris.time_of_last_obs = Some(time_of_last_obs);
+                } else {
+                    observation = observation.with_time_of_last_obs(time_of_last_obs);
+                }
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
                 let (_, content) = content.split_at(6);
@@ -1137,11 +1145,11 @@ impl Header {
                     .parse::<f64>()
                     .or(Err(parse_float_error!("doris l2/l1 date offset", content)))?;
 
-                doris = doris.with_l2_l1_date_offset(Duration::from_microseconds(l2l1_date_offset));
+                doris.l2_l1_date_offset = Duration::from_microseconds(l2l1_date_offset);
             } else if marker.contains("STATION REFERENCE") {
                 // DORIS special case
                 let station = DorisStation::from_str(content.trim())?;
-                doris.add_station(station);
+                doris.stations.push(station);
             } else if marker.contains("TIME REF STATION") {
                 // DORIS special case (TODO)
             }

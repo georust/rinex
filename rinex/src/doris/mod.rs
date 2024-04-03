@@ -50,28 +50,6 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
-    /// Add TIME OF FIRST OBS
-    pub(crate) fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
-        let mut s = self.clone();
-        s.time_of_first_obs = Some(epoch);
-        s
-    }
-    /// Add TIME OF LAST OBS
-    pub(crate) fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
-        let mut s = self.clone();
-        s.time_of_last_obs = Some(epoch);
-        s
-    }
-    /// Add L2 /L1 Date offset
-    pub(crate) fn with_l2_l1_date_offset(&self, offset: Duration) -> Self {
-        let mut s = self.clone();
-        s.l2_l1_date_offset = offset;
-        s
-    }
-    /// Define station #ID
-    pub(crate) fn add_station(&mut self, station: Station) {
-        self.stations.push(station);
-    }
     /// Retrieve station by ID#
     pub(crate) fn get_station(&mut self, id: u16) -> Option<&Station> {
         self.stations

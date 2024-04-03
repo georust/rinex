@@ -42,8 +42,10 @@ pub(crate) fn parse_epoch(
     ),
     Error,
 > {
+    let mut obs_idx = 0usize;
     let mut epoch = Epoch::default();
     let mut flag = EpochFlag::default();
+    let mut station = Option::<Station>::None;
     let mut buffer = BTreeMap::<Station, HashMap<Observable, f64>>::new();
 
     let doris = header
@@ -53,13 +55,15 @@ pub(crate) fn parse_epoch(
 
     let observables = &doris.observables;
     let stations = &doris.stations;
-    let mut obs_idx = 0usize;
 
     assert!(
         stations.len() > 0,
         "badly formed DORIS RINEX: no stations defined"
     );
-    let mut station = Option::<Station>::None;
+    assert!(
+        observables.len() > 0,
+        "badly formed DORIS RINEX: on observables defined"
+    );
 
     for (lindex, line) in content.lines().enumerate() {
         match lindex {
@@ -71,16 +75,13 @@ pub(crate) fn parse_epoch(
                 (epoch, flag) = parse_in_timescale(date, TimeScale::TAI)?;
             },
             _ => {
-                let mut iter = line.split_ascii_whitespace();
+                let (id, remainder) = line.split_at(5);
 
                 if obs_idx == 0 {
                     // parse station identifier
-                    let id = iter
-                        .next()
-                        .expect("missing station identifier: badly formed DORIS RINEX");
                     assert!(id.len() > 1, "badly formed DORIS station identifier");
-                    let key = &id[1..];
-                    let key = key
+                    let key = id[1..]
+                        .trim()
                         .parse::<u16>()
                         .unwrap_or_else(|e| panic!("failed to identify DORIS station: {:?}", e));
 
@@ -95,15 +96,21 @@ pub(crate) fn parse_epoch(
                     station.as_ref().expect("failed to identify DORIS station");
 
                 // consume this line
-                while let Some(content) = iter.next() {
+                let mut offset = 5;
+                let mut max_offset = line.len();
+                while offset < line.len() {
+                    let content = &line[offset..std::cmp::min(max_offset, offset + 16)];
+                    println!("OBS \"{}\"", content); //DEBUG
+
                     let value = content
+                        .trim()
                         .parse::<f64>()
                         .unwrap_or_else(|e| panic!("failed to parse float value: {:?}", e));
 
                     let observable = observables.get(obs_idx).unwrap_or_else(|| {
                         panic!(
-                            "failed to determine observable for {:?}({:?})",
-                            identified_station, epoch
+                            "failed to determine observable for {:?}({:?}) @ {}",
+                            identified_station, epoch, obs_idx
                         )
                     });
 
@@ -115,9 +122,9 @@ pub(crate) fn parse_epoch(
                         buffer.insert(identified_station.clone(), inner);
                     }
 
+                    offset += 16;
                     obs_idx += 1;
                 }
-
                 if obs_idx == observables.len() {
                     obs_idx = 0;
                     station = None;
@@ -130,8 +137,9 @@ pub(crate) fn parse_epoch(
 
 #[cfg(test)]
 mod test {
-    use super::is_new_epoch;
-    use crate::Header;
+    use super::{is_new_epoch, parse_epoch};
+    use crate::{doris::HeaderFields as DorisHeader, doris::Station, Header, Observable};
+    use std::str::FromStr;
     #[test]
     fn new_epoch() {
         for (desc, expected) in [
@@ -156,10 +164,23 @@ mod test {
             assert_eq!(is_new_epoch(desc), expected);
         }
     }
-    use super::parse_epoch;
     #[test]
     fn valid_epoch() {
-        let header = Header::default();
+        let mut header = Header::default();
+        let mut doris = DorisHeader::default();
+        for obs in ["L1", "L2", "C1", "C2", "W1", "W2", "F", "P", "T", "H"] {
+            let obs = Observable::from_str(obs).unwrap();
+            doris.observables.push(obs);
+        }
+        for station in [
+            "D01  THUB THULE                         43001S005  3   0",
+            "D02  SVBC NY-ALESUND II                 10338S004  4   0",
+        ] {
+            let station = Station::from_str(station).unwrap();
+            doris.stations.push(station);
+        }
+        header.doris = Some(doris);
+
         for desc in ["> 2024 01 01 00 00 28.999947700  0  2       -0.151364695 0 
 D01  -3237877.052    -2291024.044    21903595.62311  21903633.08011      -113.100 7
           -98.400 7       437.801        1002.000 1       -20.000 1        82.000 1

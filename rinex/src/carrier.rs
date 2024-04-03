@@ -675,8 +675,6 @@ impl Carrier {
             },
         }
     }
-    /// Identifies Frequency channel from given DORIS observable.
-    pub fn from_doris_observable(observable: &Observable) -> Self {}
     /*
      * Build a frequency from standard SV description.
      * This is used in ATX records to identify the antenna frequency
