@@ -7,10 +7,9 @@ use crate::{
     epoch::{parse_in_timescale, EpochFlag, ParsingError as EpochParsingError},
     header::Header,
     observable::Observable,
-    prelude::TimeScale,
+    prelude::{Duration, TimeScale},
 };
 
-/// DORIS measurement parsing error
 /// DORIS RINEX Record content.
 /// Measurements are stored by Kind, by Station and by TAI sampling instant.
 pub type Record = BTreeMap<(Epoch, EpochFlag), BTreeMap<Station, HashMap<Observable, f64>>>;
@@ -133,6 +132,154 @@ pub(crate) fn parse_epoch(
         }
     }
     Ok(((epoch, flag), buffer))
+}
+
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
+
+#[cfg(feature = "processing")]
+impl Preprocessing for Record {
+    fn filter(&self, filter: Filter) -> Self {
+        let mut s = self.clone();
+        s.filter_mut(filter);
+        s
+    }
+    fn filter_mut(&mut self, filter: Filter) {
+        match filter {
+            Filter::Mask(mask) => self.mask_mut(mask),
+            Filter::Decimation(filter) => match filter.dtype {
+                DecimationType::DecimByRatio(r) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_ratio_mut(r);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_ratio(r);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+                DecimationType::DecimByInterval(dt) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_interval_mut(dt);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_interval(dt);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+            },
+            _ => {},
+        }
+    }
+}
+
+#[cfg(feature = "processing")]
+impl Decimate for Record {
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
+        let mut i = 0;
+        self.retain(|_, _| {
+            let retained = (i % r) == 0;
+            i += 1;
+            retained
+        });
+    }
+    fn decimate_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_ratio_mut(r);
+        s
+    }
+    fn decimate_by_interval_mut(&mut self, interval: Duration) {
+        let mut last_retained = Option::<Epoch>::None;
+        self.retain(|(e, _), _| {
+            if let Some(last) = last_retained {
+                let dt = *e - last;
+                if dt >= interval {
+                    last_retained = Some(*e);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                last_retained = Some(*e);
+                true // always retain 1st epoch
+            }
+        });
+    }
+    fn decimate_by_interval(&self, interval: Duration) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_interval_mut(interval);
+        s
+    }
+    fn decimate_match_mut(&mut self, rhs: &Self) {
+        self.retain(|e, _| rhs.get(e).is_some());
+    }
+    fn decimate_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decimate_match_mut(rhs);
+        s
+    }
+}
+
+#[cfg(feature = "processing")]
+impl Mask for Record {
+    fn mask(&self, mask: MaskFilter) -> Self {
+        let mut s = self.clone();
+        s.mask_mut(mask);
+        s
+    }
+    fn mask_mut(&mut self, mask: MaskFilter) {
+        match mask.operand {
+            MaskOperand::Equals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
+                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f == flag),
+                TargetItem::ObservableItem(filter) => {
+                    self.retain(|_, stations| {
+                        stations.retain(|_, obs| {
+                            obs.retain(|code, _| filter.contains(code));
+                            !obs.is_empty()
+                        });
+                        !stations.is_empty()
+                    });
+                },
+                _ => {}, //TODO: some other types could apply, like SNR..
+            },
+            MaskOperand::NotEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
+                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
+                TargetItem::ObservableItem(filter) => {
+                    self.retain(|_, stations| {
+                        stations.retain(|_, obs| {
+                            obs.retain(|code, _| !filter.contains(code));
+                            !obs.is_empty()
+                        });
+                        !stations.is_empty()
+                    });
+                },
+                _ => {}, //TODO: some other types could apply, like SNR..
+            },
+        }
+    }
 }
 
 #[cfg(test)]

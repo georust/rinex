@@ -725,6 +725,8 @@ impl Decimate for Record {
             rec.decimate_by_ratio_mut(r);
         } else if let Some(rec) = self.as_mut_meteo() {
             rec.decimate_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_doris() {
+            rec.decimate_by_ratio_mut(r);
         }
     }
     fn decimate_by_interval(&self, dt: Duration) -> Self {
@@ -738,6 +740,8 @@ impl Decimate for Record {
         } else if let Some(rec) = self.as_mut_nav() {
             rec.decimate_by_interval_mut(dt);
         } else if let Some(rec) = self.as_mut_meteo() {
+            rec.decimate_by_interval_mut(dt);
+        } else if let Some(rec) = self.as_mut_doris() {
             rec.decimate_by_interval_mut(dt);
         }
     }
@@ -757,6 +761,10 @@ impl Decimate for Record {
             }
         } else if let Some(rec) = self.as_mut_meteo() {
             if let Some(rhs) = rhs.as_meteo() {
+                rec.decimate_match_mut(rhs);
+            }
+        } else if let Some(rec) = self.as_mut_doris() {
+            if let Some(rhs) = rhs.as_doris() {
                 rec.decimate_match_mut(rhs);
             }
         }

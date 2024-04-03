@@ -14,7 +14,7 @@ use crate::{
     marker::{GeodeticMarker, MarkerType},
     merge::{
         merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
-        Error as MergeError, Merge,
+        merge_time_of_first_obs, merge_time_of_last_obs, Error as MergeError, Merge,
     },
     meteo,
     navigation::{IonMessage, KbModel},
@@ -1951,8 +1951,7 @@ impl Merge for Header {
                 .count();
         }
 
-        //TODO :
-        //merge::merge_mut(&mut self.glo_channels, &rhs.glo_channels);
+        // TODO: merge::merge_mut(&mut self.glo_channels, &rhs.glo_channels);
 
         // RINEX specific operation
         if let Some(lhs) = &mut self.antex {
@@ -1964,7 +1963,7 @@ impl Merge for Header {
                 if mixed_antex {
                     return Err(MergeError::AntexAbsoluteRelativeMismatch);
                 }
-                // merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
+                //TODO: merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
         }
         if let Some(lhs) = &mut self.clock {
@@ -1982,14 +1981,26 @@ impl Merge for Header {
             if let Some(rhs) = &rhs.obs {
                 merge_mut_option(&mut lhs.crinex, &rhs.crinex);
                 merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
-                // TODO: manage that
-                lhs.clock_offset_applied |= rhs.clock_offset_applied;
+                merge_time_of_first_obs(&mut lhs.time_of_first_obs, &rhs.time_of_first_obs);
+                merge_time_of_last_obs(&mut lhs.time_of_last_obs, &rhs.time_of_last_obs);
+                // TODO: lhs.clock_offset_applied |= rhs.clock_offset_applied;
             }
         }
         if let Some(lhs) = &mut self.meteo {
             if let Some(rhs) = &rhs.meteo {
                 merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
                 merge_mut_unique_vec(&mut lhs.sensors, &rhs.sensors);
+            }
+        }
+        if let Some(lhs) = &mut self.doris {
+            if let Some(rhs) = &rhs.doris {
+                merge_time_of_first_obs(&mut lhs.time_of_first_obs, &rhs.time_of_first_obs);
+                merge_time_of_last_obs(&mut lhs.time_of_last_obs, &rhs.time_of_last_obs);
+                merge_mut_unique_vec(&mut lhs.stations, &rhs.stations);
+                merge_mut_unique_vec(&mut lhs.observables, &rhs.observables);
+                //TODO: merge_scaling();
+                //merge_mut_unique_map2d(&mut lhs.scaling, &rhs.scaling);
+                lhs.l2_l1_date_offset = std::cmp::max(lhs.l2_l1_date_offset, rhs.l2_l1_date_offset);
             }
         }
         if let Some(lhs) = &mut self.ionex {
