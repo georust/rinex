@@ -10,9 +10,24 @@ use crate::{
     prelude::{Duration, TimeScale},
 };
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ObservationData {
+    /// Actual measurement
+    pub value: f64,
+    /// Flag m1
+    pub m1: Option<u8>,
+    /// Flag m2
+    pub m2: Option<u8>,
+}
+
 /// DORIS RINEX Record content.
 /// Measurements are stored by Kind, by Station and by TAI sampling instant.
-pub type Record = BTreeMap<(Epoch, EpochFlag), BTreeMap<Station, HashMap<Observable, f64>>>;
+pub type Record =
+    BTreeMap<(Epoch, EpochFlag), BTreeMap<Station, HashMap<Observable, ObservationData>>>;
 
 /// Returns true if following line matches a new DORIS measurement
 pub(crate) fn is_new_epoch(line: &str) -> bool {
@@ -27,9 +42,6 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
-#[cfg(feature = "serde")]
-use serde::Serialize;
-
 /// DORIS measurement parsing process
 pub(crate) fn parse_epoch(
     header: &Header,
@@ -37,7 +49,7 @@ pub(crate) fn parse_epoch(
 ) -> Result<
     (
         (Epoch, EpochFlag),
-        BTreeMap<Station, HashMap<Observable, f64>>,
+        BTreeMap<Station, HashMap<Observable, ObservationData>>,
     ),
     Error,
 > {
@@ -45,7 +57,7 @@ pub(crate) fn parse_epoch(
     let mut epoch = Epoch::default();
     let mut flag = EpochFlag::default();
     let mut station = Option::<Station>::None;
-    let mut buffer = BTreeMap::<Station, HashMap<Observable, f64>>::new();
+    let mut buffer = BTreeMap::<Station, HashMap<Observable, ObservationData>>::new();
 
     let doris = header
         .doris
@@ -99,12 +111,34 @@ pub(crate) fn parse_epoch(
                 let mut max_offset = line.len();
                 while offset < line.len() {
                     let content = &line[offset..std::cmp::min(max_offset, offset + 16)];
-                    println!("OBS \"{}\"", content); //DEBUG
+                    let obs = &content[..12];
+                    let m1 = &content[12..13].trim();
+                    let m2 = &content[13..14].trim();
 
-                    let value = content
+                    println!("obs \"{}\"", obs); //DEBUG
+                    println!("m1 \"{}\"", m1); //DEBUG
+                    println!("m2 \"{}\"", m2); //DEBUG
+
+                    let value = obs
                         .trim()
                         .parse::<f64>()
-                        .unwrap_or_else(|e| panic!("failed to parse float value: {:?}", e));
+                        .unwrap_or_else(|e| panic!("failed to parse observation: {:?}", e));
+
+                    let m1 = if m1.len() > 0 {
+                        Some(m1.parse::<u8>().unwrap_or_else(|e| {
+                            panic!("failed to parse observation m1 flag: {:?}", e)
+                        }))
+                    } else {
+                        None
+                    };
+
+                    let m2 = if m2.len() > 0 {
+                        Some(m2.parse::<u8>().unwrap_or_else(|e| {
+                            panic!("failed to parse observation m2 flag: {:?}", e)
+                        }))
+                    } else {
+                        None
+                    };
 
                     let observable = observables.get(obs_idx).unwrap_or_else(|| {
                         panic!(
@@ -113,11 +147,13 @@ pub(crate) fn parse_epoch(
                         )
                     });
 
+                    let obsdata = ObservationData { value, m1, m2 };
+
                     if let Some(station) = buffer.get_mut(identified_station) {
-                        station.insert(observable.clone(), value);
+                        station.insert(observable.clone(), obsdata);
                     } else {
                         let mut inner =
-                            HashMap::from_iter([(Observable::default(), value)].into_iter());
+                            HashMap::from_iter([(Observable::default(), obsdata)].into_iter());
                         buffer.insert(identified_station.clone(), inner);
                     }
 
