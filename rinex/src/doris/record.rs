@@ -194,6 +194,75 @@ impl Preprocessing for Record {
     }
 }
 
+/*
+ * Decimates only a given record subset
+ */
+#[cfg(feature = "processing")]
+fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
+    match target {
+        TargetItem::ClockItem => {
+            /*
+             * Remove clock fields from self
+             * where it should now be missing
+             */
+            for (epoch, _) in record.iter_mut() {
+                //if subset.get(epoch).is_none() {
+                //    // should be missing
+                //    // *clk = None; // now missing
+                //}
+            }
+        },
+        TargetItem::SvItem(svs) => {
+            /*
+             * Remove SV observations where it should now be missing
+             */
+            for (epoch, _) in record.iter_mut() {
+                //if subset.get(epoch).is_none() {
+                //    // should be missing
+                //    for sv in svs.iter() {
+                //        vehicles.remove(sv); // now missing
+                //    }
+                //}
+            }
+        },
+        TargetItem::ObservableItem(obs_list) => {
+            /*
+             * Remove given observations where it should now be missing
+             */
+            for (epoch, _) in record.iter_mut() {
+                //if subset.get(epoch).is_none() {
+                //    // should be missing
+                //    for (_sv, observables) in vehicles.iter_mut() {
+                //        observables.retain(|observable, _| !obs_list.contains(observable));
+                //    }
+                //}
+            }
+        },
+        TargetItem::ConstellationItem(constells_list) => {
+            /*
+             * Remove observations for given constellation(s) where it should now be missing
+             */
+            for (epoch, _) in record.iter_mut() {
+                //if subset.get(epoch).is_none() {
+                //    // should be missing
+                //    vehicles.retain(|sv, _| {
+                //        let mut contained = false;
+                //        for constell in constells_list.iter() {
+                //            if sv.constellation == *constell {
+                //                contained = true;
+                //                break;
+                //            }
+                //        }
+                //        !contained
+                //    });
+                //}
+            }
+        },
+        TargetItem::SNRItem(_) => unimplemented!("decimate_data_subset::snr"),
+        _ => {},
+    }
+}
+
 #[cfg(feature = "processing")]
 impl Decimate for Record {
     fn decimate_by_ratio_mut(&mut self, r: u32) {
@@ -278,6 +347,7 @@ impl Mask for Record {
                 },
                 _ => {}, //TODO: some other types could apply, like SNR..
             },
+            _ => {},
         }
     }
 }
