@@ -3,6 +3,7 @@ use crate::{
     antex, clock,
     clock::ClockProfileType,
     clock::WorkClock,
+    cospar::{Error as CosparError, COSPAR},
     domes::Domes,
     doris,
     doris::{Error as DorisError, Station as DorisStation},
@@ -91,6 +92,8 @@ pub struct Header {
     pub geodetic_marker: Option<GeodeticMarker>,
     /// Glonass FDMA channels
     pub glo_channels: HashMap<SV, i8>,
+    /// Optional COSPAR number (launch information)
+    pub cospar: Option<COSPAR>,
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>,
     // /// Optionnal system time correction
@@ -185,6 +188,8 @@ pub enum ParsingError {
     InvalidIonexGridDefinition(#[from] LinspaceError),
     #[error("doris parsing error")]
     DorisError(#[from] DorisError),
+    #[error("failed to parse cospar number")]
+    CosparError(#[from] CosparError),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -251,6 +256,7 @@ impl Header {
         let mut doi: Option<String> = None;
         let mut station_url = String::new();
         let mut geodetic_marker = Option::<GeodeticMarker>::None;
+        let mut cospar = Option::<COSPAR>::None;
         let mut glo_channels: HashMap<SV, i8> = HashMap::new();
         let mut rcvr: Option<Rcvr> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
@@ -939,6 +945,8 @@ impl Header {
                             Some(Duration::from_f64(interval, hifitime::Unit::Second));
                     }
                 }
+            } else if marker.contains("COSPAR NUMBER") {
+                cospar = Some(COSPAR::from_str(content.trim())?);
             } else if marker.contains("GLONASS SLOT / FRQ #") {
                 //TODO
                 // This should be used when dealing with Glonass carriers
@@ -1170,6 +1178,7 @@ impl Header {
             doi,
             station_url,
             rcvr,
+            cospar,
             glo_channels,
             leap,
             ground_position,
@@ -1914,6 +1923,7 @@ impl Merge for Header {
         merge_mut_option(&mut self.leap, &rhs.leap);
         merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
         merge_mut_option(&mut self.rcvr, &rhs.rcvr);
+        merge_mut_option(&mut self.cospar, &rhs.cospar);
         merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
         merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
         merge_mut_option(&mut self.ground_position, &rhs.ground_position);

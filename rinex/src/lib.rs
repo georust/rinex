@@ -8,6 +8,7 @@ extern crate gnss_rs as gnss;
 pub mod antex;
 pub mod carrier;
 pub mod clock;
+pub mod cospar;
 pub mod domes;
 pub mod doris;
 pub mod epoch;
