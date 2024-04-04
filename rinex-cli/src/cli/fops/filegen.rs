@@ -1,9 +1,5 @@
 // filegen opmode
-use clap::{
-    Command,
-    //ArgAction,
-    //value_parser,
-};
+use clap::Command;
 
 use super::{SHARED_DATA_ARGS, SHARED_GENERAL_ARGS};
 
@@ -12,8 +8,7 @@ pub fn subcommand() -> Command {
         .long_flag("filegen")
         .arg_required_else_help(false)
         .about(
-            "RINEX Data formatting. Use this option to preprocess, 
-modify and dump resulting context in preserved RINEX format. 
+            "RINEX Data formatting. Use this option to preprocess, modify and dump results as RINEX. 
 You can use this for example, to generate a decimated RINEX file from an input Observations file.",
         )
         .next_help_heading("Production Environment")
