@@ -126,16 +126,24 @@ impl Cli {
                         .value_name("FILE")
                         .action(ArgAction::Append)
                         .required_unless_present("directory")
-                        .help("Input file. RINEX (any format, including Clock and ANTEX), and SP3 are accepted. You can load as many files as you need."))
+                        .help("Load a single file. Use this as many times as needed. 
+Available operations and following behavior highly depends on input data. 
+Supported formats are:
+- Observation RINEX
+- Navigation RINEX
+- Meteo RINEX
+- Clock RINEX (high precision clocks)
+- SP3 (high precision orbits)
+- IONEX (Ionosphere Maps)
+- DORIS (special Observation RINEX)"))
                     .arg(Arg::new("directory")
                         .short('d')
                         .long("dir")
                         .value_name("DIRECTORY")
                         .action(ArgAction::Append)
                         .required_unless_present("filepath")
-                        .help("Load directory recursively. Default recursive depth is set to 5,
-but you can extend that with --depth.
-Again any RINEX, and SP3 are accepted. You can load as many directories as you need."))
+                        .help("Load directory recursively. Use this as many times as needed. Default recursive depth is set to 5,
+but you can extend that with --depth. Refer to -f for more information."))
                     .arg(Arg::new("depth")
                         .long("depth")
                         .action(ArgAction::Set)
