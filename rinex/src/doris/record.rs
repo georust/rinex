@@ -391,7 +391,10 @@ impl Mask for Record {
 #[cfg(test)]
 mod test {
     use super::{is_new_epoch, parse_epoch};
-    use crate::{doris::HeaderFields as DorisHeader, doris::Station, Header, Observable};
+    use crate::{
+        domes::Domes, domes::TrackingPoint as DomesTrackingPoint, doris::record::ObservationData,
+        doris::HeaderFields as DorisHeader, doris::Station, Epoch, EpochFlag, Header, Observable,
+    };
     use std::str::FromStr;
     #[test]
     fn new_epoch() {
@@ -434,14 +437,51 @@ mod test {
         }
         header.doris = Some(doris);
 
-        for desc in ["> 2024 01 01 00 00 28.999947700  0  2       -0.151364695 0 
+        let content = "> 2024 01 01 00 00 28.999947700  0  2       -0.151364695 0 
 D01  -3237877.052    -2291024.044    21903595.62311  21903633.08011      -113.100 7
           -98.400 7       437.801        1002.000 1       -20.000 1        82.000 1
 D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.050 7
-         -111.000 7       437.801        1007.000 0        -2.000 0        74.000 0"]
-        {
-            let epoch = parse_epoch(&header, desc);
-            assert!(epoch.is_ok(), "failed to parse DORIS epoch");
+         -111.000 7       437.801        1007.000 0        -2.000 0        74.000 0";
+
+        let ((e, flag), content) =
+            parse_epoch(&header, content).expect("failed to parse DORIS epoch");
+
+        assert_eq!(
+            e,
+            Epoch::from_str("2024-01-01T00:00:28.999947700 TAI").unwrap(),
+            "parsed wrong epoch"
+        );
+        assert_eq!(flag, EpochFlag::Ok, "parsed wrong epoch flag");
+
+        let station = Station {
+            key: 1,
+            gen: 3,
+            k_factor: 0,
+            label: "THUB".to_string(),
+            site: "THULE".to_string(),
+            domes: Domes {
+                site: 1,
+                area: 430,
+                sequential: 5,
+                point: DomesTrackingPoint::Instrument,
+            },
+        };
+        let values = content
+            .get(&station)
+            .expect(&format!("failed to identify {:?}", station));
+
+        panic!("{:?}", values);
+        for (observable, value) in [(
+            Observable::from_str("L1").unwrap(),
+            ObservationData {
+                m1: None,
+                m2: None,
+                value: -3237877.052,
+            },
+        )] {
+            let value = values
+                .get(&observable)
+                .expect(&format!("failed to identify {:?}", observable));
         }
     }
 }
