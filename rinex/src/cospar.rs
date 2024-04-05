@@ -31,17 +31,20 @@ impl std::fmt::Display for COSPAR {
 impl std::str::FromStr for COSPAR {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() < 9 {
+            return Err(Error::InvalidFormat);
+        }
         let offset = s.find('-').ok_or(Error::InvalidFormat)?;
         let (year, rem) = s.split_at(offset);
         let year = year.parse::<u16>().map_err(|_| Error::InvalidFormat)?;
-        let launch = rem[..3]
+        let launch = rem[1..4]
             .trim()
             .parse::<u16>()
             .map_err(|_| Error::InvalidFormat)?;
         Ok(Self {
             year,
             launch,
-            code: rem[3..].trim().to_string(),
+            code: rem[4..].trim().to_string(),
         })
     }
 }
