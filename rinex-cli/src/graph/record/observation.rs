@@ -139,7 +139,7 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier
         for (index, (observable, vehicles)) in carriers.iter().enumerate() {
-            for (sv, data) in vehicles {
+            for (sv_index, (sv, data)) in vehicles.iter().enumerate() {
                 let data_x: Vec<Epoch> = data.iter().map(|(_cs, e, _y)| *e).collect();
                 let data_y: Vec<f64> = data.iter().map(|(_cs, _e, y)| *y).collect();
 
@@ -150,9 +150,8 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                     data_y.clone(),
                 )
                 .marker(Marker::new().symbol(markers[index].clone()))
-                //.web_gl_mode(true)
                 .visible({
-                    if index < 1 {
+                    if sv_index == 0 {
                         Visible::True
                     } else {
                         Visible::LegendOnly
@@ -177,21 +176,30 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
 
                 if index == 0 && physics == "Signal Strength" {
                     // Draw SV elevation along SSI plot if that is feasible
-                    if let Some(sp3) = ctx.data.sp3() {
+                    if let Some(nav) = ctx.data.brdc_navigation() {
                         // determine SV state
                         let rx_ecef = ctx.rx_ecef.unwrap();
                         let data = data_x
                             .iter()
                             .filter_map(|t| {
-                                sp3.sv_position_interpolate(*sv, *t, 5)
-                                    .map(|pos| (*t, Ephemeris::elevation_azimuth(pos, rx_ecef).0))
+                                nav.sv_position_interpolate(*sv, *t, 5)
+                                    .map(|(x_km, y_km, z_km)| {
+                                        (
+                                            *t,
+                                            Ephemeris::elevation_azimuth(
+                                                (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3),
+                                                rx_ecef,
+                                            )
+                                            .0,
+                                        )
+                                    })
                             })
                             .collect::<Vec<_>>();
                         // plot
                         let data_x = data.iter().map(|(x, _)| *x).collect::<Vec<_>>();
                         let data_y = data.iter().map(|(_, y)| *y).collect::<Vec<_>>();
                         let trace = build_chart_epoch_axis(
-                            &format!("Elev({:X})", sv),
+                            &format!("BRDC_Elev({:X})", sv),
                             Mode::Markers,
                             data_x,
                             data_y,
@@ -199,7 +207,46 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                         .y_axis("y2")
                         .marker(Marker::new().symbol(markers[index].clone()))
                         .visible({
-                            if index < 1 {
+                            if sv_index == 0 && index == 0 {
+                                Visible::True
+                            } else {
+                                Visible::LegendOnly
+                            }
+                        });
+                        plot_context.add_trace(trace);
+                    }
+                    if let Some(sp3) = ctx.data.sp3() {
+                        // determine SV state
+                        let rx_ecef = ctx.rx_ecef.unwrap();
+                        let data = data_x
+                            .iter()
+                            .filter_map(|t| {
+                                sp3.sv_position_interpolate(*sv, *t, 5)
+                                    .map(|(x_km, y_km, z_km)| {
+                                        (
+                                            *t,
+                                            Ephemeris::elevation_azimuth(
+                                                (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3),
+                                                rx_ecef,
+                                            )
+                                            .0,
+                                        )
+                                    })
+                            })
+                            .collect::<Vec<_>>();
+                        // plot
+                        let data_x = data.iter().map(|(x, _)| *x).collect::<Vec<_>>();
+                        let data_y = data.iter().map(|(_, y)| *y).collect::<Vec<_>>();
+                        let trace = build_chart_epoch_axis(
+                            &format!("SP3_Elev({:X})", sv),
+                            Mode::Markers,
+                            data_x,
+                            data_y,
+                        )
+                        .y_axis("y2")
+                        .marker(Marker::new().symbol(markers[index].clone()))
+                        .visible({
+                            if sv_index == 0 && index == 0 {
                                 Visible::True
                             } else {
                                 Visible::LegendOnly

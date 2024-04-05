@@ -262,7 +262,7 @@ pub fn post_process(
         )?;
         if matches.get_flag("gpx") {
             let mut segment = gpx::TrackSegment::new();
-            let mut wp = Waypoint::new(GeoPoint::new(rad2deg(lat), rad2deg(lon)));
+            let mut wp = Waypoint::new(GeoPoint::new(rad2deg(lon), rad2deg(lat))); // Yes, longitude *then* latitude
             wp.elevation = Some(alt);
             wp.speed = None; // TODO ?
             wp.time = None; // TODO Gpx::Time

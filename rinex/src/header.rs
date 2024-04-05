@@ -32,9 +32,10 @@ use std::collections::HashMap;
 use std::io::prelude::*;
 use std::str::FromStr;
 
-use gnss::constellation::ParsingError as ConstellationParsingError;
-use hifitime::Epoch;
+use hifitime::{Epoch, Unit};
 use thiserror::Error;
+
+use gnss::constellation::ParsingError as ConstellationParsingError;
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -1639,7 +1640,8 @@ impl Header {
     fn fmt_observation_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(obs) = &self.obs {
             if let Some(e) = obs.time_of_first_obs {
-                let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
+                let (y, m, d, hh, mm, ss, nanos) =
+                    (e + e.leap_seconds(true).unwrap_or(0.0) * Unit::Second).to_gregorian_utc();
                 writeln!(
                     f,
                     "{}",
@@ -1653,7 +1655,8 @@ impl Header {
                 )?;
             }
             if let Some(e) = obs.time_of_last_obs {
-                let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
+                let (y, m, d, hh, mm, ss, nanos) =
+                    (e + e.leap_seconds(true).unwrap_or(0.0) * Unit::Second).to_gregorian_utc();
                 writeln!(
                     f,
                     "{}",
@@ -1695,7 +1698,7 @@ impl Header {
                         descriptor.push_str(&format!("{:x}{:5}", constell, observables.len()));
                         for (i, observable) in observables.iter().enumerate() {
                             if (i % 13) == 0 && (i > 0) {
-                                descriptor.push_str(&format!("        ")); // TAB
+                                descriptor.push_str("        "); // TAB
                             }
                             descriptor.push_str(&format!(" {}", observable)); // TAB
                         }
