@@ -470,18 +470,197 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
             .get(&station)
             .expect(&format!("failed to identify {:?}", station));
 
-        panic!("{:?}", values);
-        for (observable, value) in [(
-            Observable::from_str("L1").unwrap(),
-            ObservationData {
-                m1: None,
-                m2: None,
-                value: -3237877.052,
-            },
-        )] {
+        for (observable, data) in [
+            (
+                Observable::from_str("L1C").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: None,
+                    value: -3237877.052,
+                },
+            ),
+            (
+                Observable::from_str("L2").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: None,
+                    value: -2291024.044,
+                },
+            ),
+            (
+                Observable::from_str("C1").unwrap(),
+                ObservationData {
+                    m1: Some(1),
+                    m2: Some(1),
+                    value: 21903595.623,
+                },
+            ),
+            (
+                Observable::from_str("C2").unwrap(),
+                ObservationData {
+                    m1: Some(1),
+                    m2: Some(1),
+                    value: 21903633.080,
+                },
+            ),
+            (
+                Observable::from_str("W1").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(7),
+                    value: -113.100,
+                },
+            ),
+            (
+                Observable::from_str("W2").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(7),
+                    value: -98.400,
+                },
+            ),
+            (
+                Observable::from_str("F").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: None,
+                    value: 437.801,
+                },
+            ),
+            (
+                Observable::from_str("P").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(1),
+                    value: 1002.000,
+                },
+            ),
+            (
+                Observable::from_str("T").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(1),
+                    value: -20.0,
+                },
+            ),
+            (
+                Observable::from_str("H").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(1),
+                    value: 82.0,
+                },
+            ),
+        ] {
             let value = values
                 .get(&observable)
                 .expect(&format!("failed to identify {:?}", observable));
+            assert_eq!(value, &data, "wrong value parsed for {:?}", observable);
+        }
+
+        let station = Station {
+            key: 2,
+            gen: 4,
+            k_factor: 0,
+            label: "SVBC".to_string(),
+            site: "NY-ALESUND II".to_string(),
+            domes: Domes {
+                site: 38,
+                area: 103,
+                sequential: 4,
+                point: DomesTrackingPoint::Instrument,
+            },
+        };
+        let values = content
+            .get(&station)
+            .expect(&format!("failed to identify {:?}", station));
+
+        for (observable, data) in [
+            (
+                Observable::from_str("L1C").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: None,
+                    value: -2069899.788,
+                },
+            ),
+            (
+                Observable::from_str("L2").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: None,
+                    value: -407871.014,
+                },
+            ),
+            (
+                Observable::from_str("C1").unwrap(),
+                ObservationData {
+                    m1: Some(1),
+                    m2: Some(4),
+                    value: 4677242.257,
+                },
+            ),
+            (
+                Observable::from_str("C2").unwrap(),
+                ObservationData {
+                    m1: Some(1),
+                    m2: Some(4),
+                    value: 4677392.206,
+                },
+            ),
+            (
+                Observable::from_str("W1").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(7),
+                    value: -119.050,
+                },
+            ),
+            (
+                Observable::from_str("W2").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(7),
+                    value: -111.000,
+                },
+            ),
+            (
+                Observable::from_str("F").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: None,
+                    value: 437.801,
+                },
+            ),
+            (
+                Observable::from_str("P").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(0),
+                    value: 1007.000,
+                },
+            ),
+            (
+                Observable::from_str("T").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(0),
+                    value: -2.000,
+                },
+            ),
+            (
+                Observable::from_str("H").unwrap(),
+                ObservationData {
+                    m1: None,
+                    m2: Some(0),
+                    value: 74.0,
+                },
+            ),
+        ] {
+            let value = values
+                .get(&observable)
+                .expect(&format!("failed to identify {:?}", observable));
+            assert_eq!(value, &data, "wrong value parsed for {:?}", observable);
         }
     }
 }
