@@ -83,7 +83,7 @@ pub(crate) fn parse_epoch(
                 let line = line.split_at(2).1; // "> "
                 let offset = "YYYY MM DD HH MM SS.NNNNNNNNN  0".len();
                 let (date, rem) = line.split_at(offset);
-                (epoch, flag) = parse_in_timescale(date, TimeScale::TAI)?;
+                epoch = parse_in_timescale(date, TimeScale::TAI)?;
             },
             _ => {
                 let (id, remainder) = line.split_at(5);
