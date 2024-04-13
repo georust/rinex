@@ -1,4 +1,5 @@
 use crate::cli::Context;
+use std::cell::RefCell;
 use std::fs::read_to_string;
 
 mod ppp; // precise point positioning
@@ -21,6 +22,10 @@ use rtk::prelude::{
 
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 use thiserror::Error;
+
+mod interp;
+// use interp::TimeInterpolator;
+use interp::OrbitInterpolator;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -206,6 +211,13 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         panic!("High precision orbits (SP3) are unfortunately mandatory at the moment..");
     }
 
+    let mut orbit = RefCell::new(OrbitInterpolator::from_ctx(
+        &ctx,
+        cfg.interp_order,
+        apriori.clone(),
+    ));
+    debug!("orbit interpolator created");
+
     // print config to be used
     info!("Using solver {:?} method", method);
 
@@ -213,44 +225,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         &cfg,
         apriori,
         /* state vector interpolator */
-        |t, sv, order| {
-            /* SP3 source is prefered */
-            if let Some(sp3) = sp3_data {
-                if let Some((x, y, z)) = sp3.sv_position_interpolate(sv, t, order) {
-                    let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                    let (elevation, azimuth) =
-                        Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                    Some(
-                        InterpolationResult::from_mass_center_position((x, y, z))
-                            .with_elevation_azimuth((elevation, azimuth)),
-                    )
-                } else {
-                    error!("{:?} ({}): sp3 interpolation failed", t, sv);
-                    if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                        let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                        let (elevation, azimuth) =
-                            Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                        Some(
-                            InterpolationResult::from_apc_position((x, y, z))
-                                .with_elevation_azimuth((elevation, azimuth)),
-                        )
-                    } else {
-                        error!("{:?} ({}): nav interpolation failed", t, sv);
-                        None
-                    }
-                }
-            } else if let Some((x, y, z)) = nav_data.sv_position_interpolate(sv, t, order) {
-                let (x, y, z) = (x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                let (elevation, azimuth) = Ephemeris::elevation_azimuth((x, y, z), apriori_ecef);
-                Some(
-                    InterpolationResult::from_apc_position((x, y, z))
-                        .with_elevation_azimuth((elevation, azimuth)),
-                )
-            } else {
-                error!("{:?} ({}): nav interpolation failed", t, sv);
-                None
-            }
-        },
+        |t, sv, order| orbit.borrow_mut().next_at(t, sv, order),
         /* APC corrections provider */
         |_t, _sv, _freq| None,
     )?;
