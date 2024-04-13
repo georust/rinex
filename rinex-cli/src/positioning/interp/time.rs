@@ -62,8 +62,10 @@ impl<'a> Interpolator<'a> {
                     clk.precise_sv_clock()
                         .map(|(t, sv, _, prof)| (t, sv, prof.bias)),
                 )
+            } else if let Some(sp3) = ctx.data.sp3() {
+                Box::new(sp3.sv_clock())
             } else {
-                panic!("clk data required at the moment");
+                panic!("sp3 or clock rinex currently required");
             },
         }
     }
