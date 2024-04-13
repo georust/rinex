@@ -1,95 +1,151 @@
 use crate::cli::Context;
-use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
+use plotly::{
+    color::NamedColor,
+    common::{Marker, MarkerSymbol, Mode, Visible},
+};
 use std::collections::HashMap;
 
 use rinex::{navigation::Ephemeris, observation::*, prelude::*};
 
 use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, generate_markers, PlotContext};
 
-fn observable_to_physics(observable: &Observable) -> String {
-    if observable.is_phase_observable() {
-        "Phase".to_string()
-    } else if observable.is_doppler_observable() {
-        "Doppler".to_string()
-    } else if observable.is_ssi_observable() {
-        "Signal Strength".to_string()
-    } else {
-        "Pseudo Range".to_string()
+#[derive(Debug, PartialEq, Eq, Hash)]
+enum Physics {
+    SSI,
+    Doppler,
+    Phase,
+    PseudoRange,
+}
+
+impl Physics {
+    fn from_observable(observable: &Observable) -> Self {
+        if observable.is_phase_observable() {
+            Self::Phase
+        } else if observable.is_doppler_observable() {
+            Self::Doppler
+        } else if observable.is_ssi_observable() {
+            Self::SSI
+        } else {
+            Self::PseudoRange
+        }
+    }
+    fn plot_title(&self) -> String {
+        match self {
+            Self::SSI => "SSI".to_string(),
+            Self::Phase => "Phase".to_string(),
+            Self::Doppler => "Doppler".to_string(),
+            Self::PseudoRange => "Pseudo Range".to_string(),
+        }
+    }
+    fn y_axis(&self) -> String {
+        match self {
+            Self::SSI => "Power [dB]".to_string(),
+            Self::Phase => "Carrier Cycles".to_string(),
+            Self::Doppler => "Doppler Shifts".to_string(),
+            Self::PseudoRange => "Pseudo Range".to_string(),
+        }
     }
 }
 
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_export: bool) {
+pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: bool) {
     let obs_data = ctx.data.observation().unwrap(); // infaillible
-
     let header = &obs_data.header;
-
     let record = obs_data.record.as_obs().unwrap(); // infaillible
 
-    let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
-    // dataset
+    /////////////////////////////////////////////////////
+    // Gather all data, complex type but single iteration..
+    // RX OK or ERROR
     //  per physics,
     //   per observable (symbolized)
     //      per vehicle (color map)
-    //      bool: loss of lock - CS emphasis
     //      x: sampling timestamp,
     //      y: observation (raw),
-    let mut dataset: HashMap<String, HashMap<String, HashMap<SV, Vec<(bool, Epoch, f64)>>>> =
-        HashMap::new();
+    /////////////////////////////////////////////////////
+    let mut clk_offset_good: Vec<(Epoch, f64)> = Vec::with_capacity(64);
+    let mut clk_offset_bad: Vec<(Epoch, f64)> = Vec::with_capacity(64);
+    let mut dataset_good: HashMap<Physics, HashMap<String, HashMap<SV, Vec<(Epoch, f64)>>>> =
+        HashMap::with_capacity(1024);
+    let mut dataset_bad: HashMap<Physics, HashMap<String, HashMap<SV, Vec<(Epoch, f64)>>>> =
+        HashMap::with_capacity(1024);
 
-    for ((epoch, _flag), (clock_offset, vehicles)) in record {
-        if let Some(value) = clock_offset {
-            clk_offset.push((*epoch, *value));
-        }
+    for ((epoch, flag), (clock_offset, vehicles)) in record {
+        if flag.is_ok() {
+            if let Some(value) = clock_offset {
+                clk_offset_good.push((*epoch, *value));
+            }
+            for (sv, observations) in vehicles {
+                for (observable, data) in observations {
+                    let observable_code = observable.to_string();
+                    let physics = Physics::from_observable(observable);
+                    let y = data.obs;
 
-        for (sv, observations) in vehicles {
-            for (observable, data) in observations {
-                let observable_code = observable.to_string();
-                let physics = observable_to_physics(observable);
-                let y = data.obs;
-                let cycle_slip = match data.lli {
-                    Some(lli) => lli.intersects(LliFlags::LOCK_LOSS),
-                    _ => false,
-                };
-
-                if let Some(data) = dataset.get_mut(&physics) {
-                    if let Some(data) = data.get_mut(&observable_code) {
-                        if let Some(data) = data.get_mut(sv) {
-                            data.push((cycle_slip, *epoch, y));
+                    if let Some(data) = dataset_good.get_mut(&physics) {
+                        if let Some(data) = data.get_mut(&observable_code) {
+                            if let Some(data) = data.get_mut(sv) {
+                                data.push((*epoch, y));
+                            } else {
+                                data.insert(*sv, vec![(*epoch, y)]);
+                            }
                         } else {
-                            data.insert(*sv, vec![(cycle_slip, *epoch, y)]);
+                            let mut map: HashMap<SV, Vec<(Epoch, f64)>> = HashMap::new();
+                            map.insert(*sv, vec![(*epoch, y)]);
+                            data.insert(observable_code, map);
                         }
                     } else {
-                        let mut map: HashMap<SV, Vec<(bool, Epoch, f64)>> = HashMap::new();
-                        map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
-                        data.insert(observable_code, map);
+                        let mut map: HashMap<SV, Vec<(Epoch, f64)>> = HashMap::new();
+                        map.insert(*sv, vec![(*epoch, y)]);
+                        let mut mmap: HashMap<String, HashMap<SV, Vec<(Epoch, f64)>>> =
+                            HashMap::new();
+                        mmap.insert(observable_code, map);
+                        dataset_good.insert(physics, mmap);
                     }
-                } else {
-                    let mut map: HashMap<SV, Vec<(bool, Epoch, f64)>> = HashMap::new();
-                    map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
-                    let mut mmap: HashMap<String, HashMap<SV, Vec<(bool, Epoch, f64)>>> =
-                        HashMap::new();
-                    mmap.insert(observable_code, map);
-                    dataset.insert(physics.to_string(), mmap);
+                }
+            }
+        } else {
+            if let Some(value) = clock_offset {
+                clk_offset_bad.push((*epoch, *value));
+            }
+            for (sv, observations) in vehicles {
+                for (observable, data) in observations {
+                    let observable_code = observable.to_string();
+                    let physics = Physics::from_observable(observable);
+                    let y = data.obs;
+
+                    if let Some(data) = dataset_bad.get_mut(&physics) {
+                        if let Some(data) = data.get_mut(&observable_code) {
+                            if let Some(data) = data.get_mut(sv) {
+                                data.push((*epoch, y));
+                            } else {
+                                data.insert(*sv, vec![(*epoch, y)]);
+                            }
+                        } else {
+                            let mut map: HashMap<SV, Vec<(Epoch, f64)>> = HashMap::new();
+                            map.insert(*sv, vec![(*epoch, y)]);
+                            data.insert(observable_code, map);
+                        }
+                    } else {
+                        let mut map: HashMap<SV, Vec<(Epoch, f64)>> = HashMap::new();
+                        map.insert(*sv, vec![(*epoch, y)]);
+                        let mut mmap: HashMap<String, HashMap<SV, Vec<(Epoch, f64)>>> =
+                            HashMap::new();
+                        mmap.insert(observable_code, map);
+                        dataset_bad.insert(physics, mmap);
+                    }
                 }
             }
         }
     }
 
-    if !clk_offset.is_empty() {
-        plot_context.add_timedomain_plot("Receiver Clock Offset", "Clock Offset [s]");
-        let data_x: Vec<Epoch> = clk_offset.iter().map(|(k, _)| *k).collect();
-        let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();
-        let trace = build_chart_epoch_axis(
-            "Clk Offset",
-            Mode::LinesMarkers,
-            data_x.clone(),
-            data_y.clone(),
-        )
-        .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
-        plot_context.add_trace(trace);
+    /////////////////////////////
+    // Plot Clock offset (if any)
+    /////////////////////////////
+    if !clk_offset_good.is_empty() || !clk_offset_bad.is_empty() {
+        plot_ctx.add_timedomain_plot("Receiver Clock Offset", "Clock Offset [s]");
+        let good_x: Vec<Epoch> = clk_offset_good.iter().map(|(x, _)| *x).collect();
+        let good_y: Vec<f64> = clk_offset_good.iter().map(|(_, y)| *y).collect();
 
         if csv_export {
             let fullpath = ctx.workspace.join("CSV").join("clock-offset.csv");
@@ -104,60 +160,118 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                 &fullpath,
                 &title,
                 "Epoch, Clock Offset [s]",
-                &data_x,
-                &data_y,
+                &good_x,
+                &good_y,
             )
             .expect("failed to render data as CSV");
         }
 
+        let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, good_x, good_y)
+            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
+        plot_ctx.add_trace(trace);
         trace!("receiver clock offsets");
     }
-    /*
-     * 1 plot per physics
-     */
-    for (physics, carriers) in dataset {
-        let y_label = match physics.as_str() {
-            "Phase" => "Carrier cycles",
-            "Doppler" => "Doppler Shifts",
-            "Signal Strength" => "Power [dB]",
-            "Pseudo Range" => "Pseudo Range",
-            _ => unreachable!(),
-        };
 
-        if ctx.data.has_brdc_navigation() && ctx.data.has_sp3() {
-            // Augmented context, we plot data on two Y axes
-            // one for physical observation, one for sat elevation
-            plot_context.add_timedomain_2y_plot(
-                &format!("{} Observations", physics),
-                y_label,
-                "Elevation Angle [°]",
-            );
+    ////////////////////////////////
+    // Generate 1 plot per physics
+    ////////////////////////////////
+    for physics in [Physics::PseudoRange, Physics::Phase, Physics::Doppler] {
+        if let Some(observables) = dataset_good.get(&physics) {
+            let title = physics.plot_title();
+            let y_label = physics.y_axis();
+            plot_ctx.add_timedomain_plot(&title, &y_label);
+
+            let markers = generate_markers(observables.len());
+            for (index, (observable, vehicles)) in observables.iter().enumerate() {
+                for (sv_index, (sv, data)) in vehicles.iter().enumerate() {
+                    let good_x: Vec<_> = data.iter().map(|(x, _y)| *x).collect::<_>();
+                    let good_y: Vec<_> = data.iter().map(|(_x, y)| *y).collect::<_>();
+
+                    if csv_export {
+                        let fullpath = ctx
+                            .workspace
+                            .join("CSV")
+                            .join(&format!("{}-{}.csv", sv, observable));
+                        csv_export_timedomain(
+                            &fullpath,
+                            &format!("{} observations", observable),
+                            "Epoch, Observation",
+                            &good_x,
+                            &good_y,
+                        )
+                        .expect("failed to render data as CSV");
+                    }
+
+                    let trace = build_chart_epoch_axis(
+                        &format!("{:X}({})", sv, observable),
+                        Mode::Markers,
+                        good_x,
+                        good_y,
+                    )
+                    .marker(Marker::new().symbol(markers[index].clone()))
+                    .visible({
+                        if index == 0 && sv_index == 0 {
+                            Visible::True
+                        } else {
+                            Visible::LegendOnly
+                        }
+                    });
+                    plot_ctx.add_trace(trace);
+                }
+            }
+            if let Some(bad_observables) = dataset_bad.get(&physics) {
+                for (index, (bad_observable, bad_sv)) in bad_observables.iter().enumerate() {
+                    for (sv_index, (sv, data)) in bad_sv.iter().enumerate() {
+                        let bad_x: Vec<_> = data.iter().map(|(x, _y)| *x).collect::<_>();
+                        let bad_y: Vec<_> = data.iter().map(|(_x, y)| *y).collect::<_>();
+                        let trace = build_chart_epoch_axis(
+                            &format!("{:X}({})", sv, bad_observable),
+                            Mode::Markers,
+                            bad_x,
+                            bad_y,
+                        )
+                        .marker(
+                            Marker::new()
+                                .symbol(markers[index].clone())
+                                .color(NamedColor::Black),
+                        )
+                        .visible({
+                            if index == 0 && sv_index == 0 {
+                                Visible::True
+                            } else {
+                                Visible::LegendOnly
+                            }
+                        });
+                        plot_ctx.add_trace(trace);
+                    }
+                }
+            }
+            trace!("{} plot", title);
+        }
+    }
+
+    ////////////////////////////////////////////
+    // Generate 1 plot for SSI
+    // that we possibly augment with NAV context
+    ////////////////////////////////////////////
+    if let Some(good_observables) = dataset_good.get(&Physics::SSI) {
+        let title = Physics::SSI.plot_title();
+        let y_label = Physics::SSI.y_axis();
+
+        let augmented = ctx.data.has_brdc_navigation() || ctx.data.has_sp3();
+
+        if augmented {
+            plot_ctx.add_timedomain_2y_plot(&title, &y_label, "Elevation [Degrees]");
         } else {
-            // standard mode: one axis
-            plot_context.add_timedomain_plot(&format!("{} Observations", physics), y_label);
+            plot_ctx.add_timedomain_plot(&title, &y_label);
         }
 
-        let markers = generate_markers(carriers.len()); // one symbol per carrier
-        for (index, (observable, vehicles)) in carriers.iter().enumerate() {
+        // Plot Observations
+        let markers = generate_markers(good_observables.len());
+        for (index, (observable, vehicles)) in good_observables.iter().enumerate() {
             for (sv_index, (sv, data)) in vehicles.iter().enumerate() {
-                let data_x: Vec<Epoch> = data.iter().map(|(_cs, e, _y)| *e).collect();
-                let data_y: Vec<f64> = data.iter().map(|(_cs, _e, y)| *y).collect();
-
-                let trace = build_chart_epoch_axis(
-                    &format!("{:X}({})", sv, observable),
-                    Mode::Markers,
-                    data_x.clone(),
-                    data_y.clone(),
-                )
-                .marker(Marker::new().symbol(markers[index].clone()))
-                .visible({
-                    if sv_index == 0 {
-                        Visible::True
-                    } else {
-                        Visible::LegendOnly
-                    }
-                });
-                plot_context.add_trace(trace);
+                let good_x: Vec<_> = data.iter().map(|(x, _y)| *x).collect::<_>();
+                let good_y: Vec<_> = data.iter().map(|(_x, y)| *y).collect::<_>();
 
                 if csv_export {
                     let fullpath = ctx
@@ -168,18 +282,19 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                         &fullpath,
                         &format!("{} observations", observable),
                         "Epoch, Observation",
-                        &data_x.clone(),
-                        &data_y.clone(),
+                        &good_x,
+                        &good_y,
                     )
                     .expect("failed to render data as CSV");
                 }
 
-                if index == 0 && physics == "Signal Strength" {
-                    // Draw SV elevation along SSI plot if that is feasible
+                // Augment (if possible)
+                if augmented && index == 0 {
+                    // determine SV state
+                    let rx_ecef = ctx.rx_ecef.unwrap();
+
                     if let Some(nav) = ctx.data.brdc_navigation() {
-                        // determine SV state
-                        let rx_ecef = ctx.rx_ecef.unwrap();
-                        let data = data_x
+                        let data = good_x
                             .iter()
                             .filter_map(|t| {
                                 nav.sv_position_interpolate(*sv, *t, 5)
@@ -213,12 +328,10 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                                 Visible::LegendOnly
                             }
                         });
-                        plot_context.add_trace(trace);
+                        plot_ctx.add_trace(trace);
                     }
                     if let Some(sp3) = ctx.data.sp3() {
-                        // determine SV state
-                        let rx_ecef = ctx.rx_ecef.unwrap();
-                        let data = data_x
+                        let data = good_x
                             .iter()
                             .filter_map(|t| {
                                 sp3.sv_position_interpolate(*sv, *t, 5)
@@ -252,9 +365,26 @@ pub fn plot_observations(ctx: &Context, plot_context: &mut PlotContext, csv_expo
                                 Visible::LegendOnly
                             }
                         });
-                        plot_context.add_trace(trace);
+                        plot_ctx.add_trace(trace);
                     }
                 }
+
+                let trace = build_chart_epoch_axis(
+                    &format!("{:X}({})", sv, observable),
+                    Mode::Markers,
+                    good_x,
+                    good_y,
+                )
+                .marker(Marker::new().symbol(markers[index].clone()))
+                .y_axis("y1")
+                .visible({
+                    if index == 0 && sv_index == 0 {
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                });
+                plot_ctx.add_trace(trace);
             }
         }
         trace!("{} observations", y_label);
