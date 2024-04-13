@@ -17,6 +17,8 @@ use rtk::prelude::{
     PVTSolutionType, Solver, TroposphericBias, Vector3,
 };
 
+use super::interp::TimeInterpolator;
+
 pub fn resolve<APC, I>(
     ctx: &Context,
     mut solver: Solver<APC, I>,
@@ -46,6 +48,8 @@ where
             }
         }
     }
+
+    let mut interp = TimeInterpolator::from_ctx(&ctx);
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -79,44 +83,20 @@ where
              *   2. Prefer SP3 product: most likely incompatible with very precise PPP
              *   3. BRDC Radio last option: always feasible but most likely very noisy/wrong
              */
-            let clock_state = if let Some(clk) = clk_data {
-                if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
-                    (
-                        profile.bias,
-                        profile.drift.unwrap_or(0.0),
-                        profile.drift_change.unwrap_or(0.0),
-                    )
-                } else {
-                    /*
-                     * interpolation failure.
-                     * Do not interpolate other products: SV will not be presented.
-                     */
+            let clock_state = match interp.next_at(*t, *sv) {
+                Some(t) => (t, 0.0_f64, 0.0_f64), //TODO
+                None => {
+                    error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
-                }
-            } else if sp3_has_clock {
-                if let Some(sp3) = sp3_data {
-                    if let Some(bias) = sp3.sv_clock_interpolate(*t, *sv) {
-                        // FIXME:
-                        // slightly rework SP3 to expose drift + driftr better
-                        (bias, 0.0_f64, 0.0_f64)
-                    } else {
-                        /*
-                         * interpolation failure.
-                         * Do not interpolate other products: SV will not be presented.
-                         */
-                        continue;
-                    }
-                } else {
-                    // FIXME: BRDC interpolation
-                    continue;
-                }
-            } else {
-                // FIXME: BRDC interpolation
-                continue;
+                },
             };
 
             // determine clock correction
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
+            debug!(
+                "{:?} ({}) - clock state: {:?} - correction {}",
+                *t, *sv, clock_state, clock_corr
+            );
 
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();

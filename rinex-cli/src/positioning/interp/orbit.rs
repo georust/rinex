@@ -147,16 +147,18 @@ impl<'a> Interpolator<'a> {
             );
         }
 
-        // maintain windowed buffer
+        // maintain centered buffer
         if let Some((t_0, _)) = snapshot.get(snapshot.len() / 2 - 1) {
-            if t < *t_0 {
-                needs_update |= true;
-            }
+            needs_update |= t < *t_0;
+        } else {
+            needs_update |= true;
         }
+
+        // maintain centered buffer
         if let Some((t_1, _)) = snapshot.get(snapshot.len() / 2) {
-            if t > *t_1 {
-                needs_update |= true;
-            }
+            needs_update |= t > *t_1;
+        } else {
+            needs_update |= true;
         }
 
         let buf = self.buffers.get(&sv)?;

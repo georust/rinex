@@ -7,6 +7,9 @@ use std::collections::HashMap;
 mod orbit;
 pub use orbit::Interpolator as OrbitInterpolator;
 
+mod time;
+pub use time::Interpolator as TimeInterpolator;
+
 pub trait Buffer<T> {
     /// Perform memory allocation, should only run once.
     fn malloc(order: usize) -> Self;

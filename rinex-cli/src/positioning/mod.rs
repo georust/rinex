@@ -24,8 +24,8 @@ use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 use thiserror::Error;
 
 mod interp;
-// use interp::TimeInterpolator;
 use interp::OrbitInterpolator;
+use interp::TimeInterpolator;
 
 #[derive(Debug, Error)]
 pub enum Error {
