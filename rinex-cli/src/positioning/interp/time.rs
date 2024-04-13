@@ -79,7 +79,7 @@ impl<'a> Interpolator<'a> {
         }
         self.ptr = Some(t);
     }
-    // Consumses n epoch
+    // Consumes n epochs
     fn consume(&mut self, total: usize) {
         let mut cnt = 0;
         let mut current = Option::<Epoch>::None;
