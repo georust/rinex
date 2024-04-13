@@ -208,7 +208,6 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
 
     // print config to be used
     info!("Using solver {:?} method", method);
-    info!("Using solver configuration {:#?}", cfg);
 
     let solver = Solver::new(
         &cfg,
