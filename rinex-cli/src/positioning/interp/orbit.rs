@@ -2,6 +2,7 @@ use crate::cli::Context;
 use gnss_rtk::prelude::{
     AprioriPosition, Epoch, InterpolationResult as RTKInterpolationResult, SV,
 };
+use rinex::navigation::Ephemeris;
 use std::collections::HashMap;
 
 use super::Buffer as BufferTrait;
@@ -138,9 +139,11 @@ impl<'a> Interpolator<'a> {
             .filter_map(|(t_buf, pos)| if *t_buf == t { Some(pos) } else { None })
             .reduce(|k, _| k)
         {
+            let ecef = self.apriori.ecef;
+            let (elev, azim) = Ephemeris::elevation_azimuth(*pos, (ecef[0], ecef[1], ecef[2]));
             return Some(
                 RTKInterpolationResult::from_apc_position(*pos) //TODO
-                    .with_elevation_azimuth((0.0_f64, 0.0_f64)), //TODO
+                    .with_elevation_azimuth((elev, azim)),
             );
         }
 
@@ -180,9 +183,12 @@ impl<'a> Interpolator<'a> {
                             polynomials.1 += y_i * li;
                             polynomials.2 += z_i * li;
                         }
+                        let ecef = self.apriori.ecef;
+                        let (elev, azim) =
+                            Ephemeris::elevation_azimuth(polynomials, (ecef[0], ecef[1], ecef[2]));
                         return Some(
                             RTKInterpolationResult::from_apc_position(polynomials) //TODO
-                                .with_elevation_azimuth((0.0_f64, 0.0_f64)), //TODO
+                                .with_elevation_azimuth((elev, azim)),
                         );
                     } else {
                         needs_update |= true;
