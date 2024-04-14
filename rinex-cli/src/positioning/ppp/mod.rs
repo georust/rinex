@@ -73,14 +73,7 @@ where
             }
 
             // determine TOE
-            let (toe, _sv_eph) = sv_eph.unwrap();
-
-            /*
-             * Clock state
-             *   1. Prefer CLK product: best quality
-             *   2. Prefer SP3 product: most likely incompatible with very precise PPP
-             *   3. BRDC Radio last option: always feasible but most likely very noisy/wrong
-             */
+            let (toe, _) = sv_eph.unwrap();
             let clock_state = match interp.next_at(*t, *sv) {
                 Some(t) => (t, 0.0_f64, 0.0_f64), //TODO
                 None => {
@@ -108,10 +101,11 @@ where
                             value: data.obs,
                         });
                     } else if observable.is_phase_observable() {
+                        let lambda = carrier.wavelength();
                         phases.push(Observation {
                             frequency,
                             snr: { data.snr.map(|snr| snr.into()) },
-                            value: data.obs,
+                            value: data.obs * lambda,
                         });
                     } else if observable.is_doppler_observable() {
                         dopplers.push(Observation {
