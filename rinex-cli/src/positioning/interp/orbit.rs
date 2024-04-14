@@ -1,11 +1,12 @@
+use super::Buffer as BufferTrait;
 use crate::cli::Context;
 use gnss_rtk::prelude::{
-    AprioriPosition, Epoch, InterpolationResult as RTKInterpolationResult, SV,
+    AprioriPosition, Arc, Bodies, Cosm, Epoch, Frame,
+    InterpolationResult as RTKInterpolationResult, LightTimeCalc, Vector3, SV,
 };
+use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 use std::collections::HashMap;
-
-use super::Buffer as BufferTrait;
 
 struct Buffer {
     order: usize,
@@ -41,7 +42,7 @@ impl BufferTrait<(f64, f64, f64)> for Buffer {
     fn push(&mut self, x_j: (Epoch, (f64, f64, f64))) {
         if self.len() == self.order + 1 {
             let mut index = 0;
-            self.inner.retain(|r| {
+            self.inner.retain(|_| {
                 index += 1;
                 index > 1
             });
@@ -59,23 +60,75 @@ pub struct Interpolator<'a> {
     ptr: Option<Epoch>,
     apriori: AprioriPosition,
     buffers: HashMap<SV, Buffer>,
+    // apc_corrections:
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
+}
+
+/*
+ * Evaluates Sun / Earth vector in meters ECEF at "t"
+ */
+fn sun_unit_vector(ref_frame: &Frame, cosmic: &Arc<Cosm>, t: Epoch) -> Vector3<f64> {
+    let sun_body = Bodies::Sun; // This only works in the solar system..
+    let orbit = cosmic.celestial_state(sun_body.ephem_path(), t, *ref_frame, LightTimeCalc::None);
+    Vector3::new(
+        orbit.x_km * 1000.0,
+        orbit.y_km * 1000.0,
+        orbit.z_km * 1000.0,
+    )
 }
 
 impl<'a> Interpolator<'a> {
     pub fn from_ctx(ctx: &'a Context, order: usize, apriori: AprioriPosition) -> Self {
+        let cosmic = Cosm::de438();
+        let earth_frame = cosmic.frame("EME2000"); // this only works on planet Earth..
         Self {
             order,
             apriori,
             ptr: None,
             buffers: HashMap::with_capacity(4),
             iter: if let Some(sp3) = ctx.data.sp3() {
-                Box::new(
-                    sp3.sv_position()
-                        .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3))),
-                )
+                if let Some(atx) = ctx.data.antex() {
+                    Box::new(sp3.sv_position().filter_map(move |(t, sv, (x, y, z))| {
+                        // TODO: need to complexify the whole interface
+                        //       to provide correct information with respect to frequency
+                        if let Some(delta) = atx.sv_antenna_apc_offset(t, sv, Carrier::L1) {
+                            let delta = Vector3::<f64>::new(delta.0, delta.1, delta.2);
+                            let r_sat = Vector3::<f64>::new(x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                            let k = -r_sat
+                                / (r_sat[0].powi(2) + r_sat[1].powi(2) + r_sat[3].powi(2)).sqrt();
+
+                            let r_sun = sun_unit_vector(&earth_frame, &cosmic, t);
+                            let norm = ((r_sun[0] - r_sat[0]).powi(2)
+                                + (r_sun[1] - r_sat[1]).powi(2)
+                                + (r_sun[2] - r_sat[2]).powi(2))
+                            .sqrt();
+
+                            let e = (r_sun - r_sat) / norm;
+                            let j = Vector3::<f64>::new(k[0] * e[0], k[1] * e[1], k[2] * e[2]);
+                            let i = Vector3::<f64>::new(j[0] * k[0], j[1] * k[1], j[2] * k[2]);
+                            let r_dot = Vector3::<f64>::new(
+                                (i[0] + j[0] + k[0]) * delta[0],
+                                (i[1] + j[1] + k[1]) * delta[1],
+                                (i[2] + j[2] + k[2]) * delta[2],
+                            );
+
+                            let r_sat = r_sat + r_dot;
+                            Some((t, sv, (r_sat[0], r_sat[1], r_sat[1])))
+                        } else {
+                            error!("{:?} ({}) - failed to determine APC offset", t, sv);
+                            None
+                        }
+                    }))
+                } else {
+                    warn!("Cannot determine exact APC coordinates without ANTEX data.");
+                    warn!("Expect tiny offsets in final results.");
+                    Box::new(
+                        sp3.sv_position()
+                            .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3))),
+                    )
+                }
             } else {
-                panic!("sp3 data required at the moment");
+                unreachable!("sp3 data required at the moment");
             },
         }
     }
@@ -121,7 +174,7 @@ impl<'a> Interpolator<'a> {
             }
         }
     }
-    pub fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<RTKInterpolationResult> {
+    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
         let mut needs_update = false;
 
         if self.buffers.get(&sv).is_none() {
@@ -169,7 +222,6 @@ impl<'a> Interpolator<'a> {
                 if let Some((t_1, _)) = snapshot.get(snapshot.len() / 2) {
                     if t > *t_0 && t < *t_1 {
                         // centered
-                        debug!("{:?} ({}) - centered", t, sv);
                         let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
                         for i in 0..self.order + 1 {
                             let mut li = 1.0_f64;

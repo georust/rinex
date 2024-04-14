@@ -1,8 +1,4 @@
-use crate::cli::Context;
-use gnss_rtk::prelude::{
-    AprioriPosition, Duration, Epoch, InterpolationResult as RTKInterpolationResult, SV,
-};
-use std::collections::HashMap;
+use gnss_rtk::prelude::{Duration, Epoch};
 
 mod orbit;
 pub use orbit::Interpolator as OrbitInterpolator;
@@ -10,8 +6,9 @@ pub use orbit::Interpolator as OrbitInterpolator;
 mod time;
 pub use time::Interpolator as TimeInterpolator;
 
+/// Shared Interpolator buffer behavior
 pub trait Buffer<T> {
-    /// Perform memory allocation, should only run once.
+    /// Memory allocation.
     fn malloc(order: usize) -> Self;
     /// Internal buffer is at capacity: ready to work.
     fn at_capacity(&self) -> bool;
@@ -25,7 +22,7 @@ pub trait Buffer<T> {
     fn clear(&mut self);
     /// Push one symbol into internal buffer
     fn push(&mut self, x_j: (Epoch, T));
-    /// Steady dt in buffer
+    /// Latest dt in buffer
     fn dt(&self) -> Option<(Epoch, Duration)> {
         if self.len() > 1 {
             let (z2, _) = self.get(self.len() - 2)?;
@@ -35,8 +32,7 @@ pub trait Buffer<T> {
             None
         }
     }
-    /// Fill internal Buffer, which does not tolerate data gaps
-    /// and always optimizes internal depth.
+    /// Fill internal Buffer. Does not tolerate data gaps.
     /// Panic on chronological order mixup.
     fn fill(&mut self, x_j: (Epoch, T)) {
         if let Some((last, dt)) = self.dt() {
@@ -55,5 +51,6 @@ pub trait Buffer<T> {
             self.push(x_j);
         }
     }
+    /// Internal buffer snapshot
     fn snapshot(&self) -> &[(Epoch, T)];
 }

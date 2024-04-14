@@ -5,7 +5,7 @@ use plotly::{
 };
 use std::collections::HashMap;
 
-use rinex::{navigation::Ephemeris, observation::*, prelude::*};
+use rinex::{navigation::Ephemeris, prelude::*};
 
 use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, generate_markers, PlotContext};
 

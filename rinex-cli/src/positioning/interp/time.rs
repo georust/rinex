@@ -1,62 +1,32 @@
 use crate::cli::Context;
-use gnss_rtk::prelude::{Epoch, SV};
+use gnss_rtk::prelude::{Duration, Epoch, SV};
 use std::collections::HashMap;
-
-use super::Buffer as BufferTrait;
-
-struct Buffer {
-    inner: Vec<(Epoch, f64)>, //TODO
-}
-
-impl BufferTrait<f64> for Buffer {
-    fn malloc(size: usize) -> Self {
-        Self {
-            inner: Vec::with_capacity(size),
-        }
-    }
-    fn len(&self) -> usize {
-        self.inner.len()
-    }
-    /// Fill internal Buffer, which does not tolerate data gaps
-    fn at_capacity(&self) -> bool {
-        self.inner.len() == 3
-    }
-    fn clear(&mut self) {
-        self.inner.clear();
-    }
-    fn get(&self, idx: usize) -> Option<&(Epoch, f64)> {
-        self.inner.get(idx)
-    }
-    fn latest(&self) -> Option<&(Epoch, f64)> {
-        self.inner.last()
-    }
-    fn push(&mut self, x_j: (Epoch, f64)) {
-        if self.len() == 3 {
-            let mut index = 0;
-            self.inner.retain(|r| {
-                index += 1;
-                index > 1
-            });
-        }
-        self.inner.push(x_j);
-    }
-    fn snapshot(&self) -> &[(Epoch, f64)] {
-        &self.inner
-    }
-}
 
 /// Orbital state interpolator
 pub struct Interpolator<'a> {
-    ptr: Option<Epoch>,
-    buffers: HashMap<SV, Buffer>,
+    epochs: usize,
+    sampling: Duration,
+    buffers: HashMap<SV, Vec<(Epoch, f64)>>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
 }
 
 impl<'a> Interpolator<'a> {
+    /*
+     * Time interpolator
+     *  1. Prefer CLK product
+     *  2. Prefer SP3 product
+     *  3. BRDC last option
+     */
     pub fn from_ctx(ctx: &'a Context) -> Self {
         Self {
-            ptr: None,
-            buffers: HashMap::with_capacity(4),
+            epochs: 0,
+            buffers: HashMap::with_capacity(32),
+            // TODO improve sampling determination
+            sampling: if ctx.data.clock().is_some() {
+                Duration::from_seconds(30.0)
+            } else {
+                Duration::from_seconds(15.0 * 60.0)
+            },
             iter: if let Some(clk) = ctx.data.clock() {
                 Box::new(
                     clk.precise_sv_clock()
@@ -69,152 +39,91 @@ impl<'a> Interpolator<'a> {
             },
         }
     }
-    fn push_data(&mut self, t: Epoch, sv: SV, dt: f64) {
+    fn push(&mut self, t: Epoch, sv: SV, data: f64) {
         if let Some(buf) = self.buffers.get_mut(&sv) {
-            buf.fill((t, dt));
+            buf.push((t, data));
         } else {
-            let mut buf = Buffer::malloc(3);
-            buf.fill((t, dt));
-            self.buffers.insert(sv, buf);
+            self.buffers.insert(sv, vec![(t, data)]);
         }
-        self.ptr = Some(t);
     }
-    // Consumes n epochs
-    fn consume(&mut self, total: usize) {
-        let mut cnt = 0;
-        let mut current = Option::<Epoch>::None;
-        loop {
-            if let Some(curr) = current {
-                if let Some((t, sv, pos)) = self.iter.next() {
-                    self.push_data(t, sv, pos);
-                    if t > curr {
-                        debug!("{:?} ({}) - new epoch", t, sv);
-                        cnt += 1;
-                        if cnt == total {
-                            break;
-                        }
-                    } else {
-                        current = Some(t);
+    // consumes N epochs completely
+    fn consume(&mut self, total: usize) -> bool {
+        let mut prev_t = None;
+        let mut epochs = 0;
+        while epochs < total {
+            if let Some((t, sv, data)) = self.iter.next() {
+                self.push(t, sv, data);
+                if let Some(prev) = prev_t {
+                    if t > prev {
+                        epochs += 1;
+                        println!("{} - new epoch", t);
                     }
-                } else {
-                    info!("{:?} - consumed all data", curr);
-                    break;
                 }
+                prev_t = Some(t);
             } else {
-                if let Some((t, sv, pos)) = self.iter.next() {
-                    self.push_data(t, sv, pos);
-                    current = Some(t);
-                } else {
-                    info!("consumed all data");
-                    break;
-                }
+                println!("consumed all data"); // DEBUG
+                return true;
             }
         }
+        self.epochs += epochs;
+        false
+    }
+    fn latest(&self, sv: SV) -> Option<&Epoch> {
+        self.buffers
+            .iter()
+            .filter_map(|(k, v)| {
+                if *k == sv {
+                    let last = v.iter().map(|(e, _)| e).last()?;
+                    Some(last)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
     }
     pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<f64> {
-        let mut needs_update = false;
-
-        if self.buffers.get(&sv).is_none() {
-            // Unknown target: consume data
-            self.consume(3);
-        }
-
-        let buf = self.buffers.get(&sv)?;
-        let snapshot = buf.snapshot();
-        debug!("{:?} ({}) - {:?}", t, sv, snapshot);
-
-        // special case: direct output
-        if let Some(value) = snapshot
-            .iter()
-            .filter_map(|(t_buf, value)| if *t_buf == t { Some(value) } else { None })
-            .reduce(|k, _| k)
-        {
-            return Some(*value);
-        }
-
-        // maintain centered buffer
-        if let Some((t_0, _)) = snapshot.get(0) {
-            needs_update |= t < *t_0;
-        } else {
-            needs_update |= true;
-        }
-
-        // maintain centered buffer
-        if let Some((t_1, _)) = snapshot.get(2) {
-            needs_update |= t > *t_1;
-        } else {
-            needs_update |= true;
-        }
-
-        let buf = self.buffers.get(&sv)?;
-        let snapshot = buf.snapshot();
-
-        if buf.at_capacity() {
-            if let Some((x_0, y_0)) = snapshot.get(0) {
-                if let Some((x_1, y_1)) = snapshot.get(2) {
-                    debug!("{:?} ({}) - centered", t, sv);
-                    let dx = (*x_1 - *x_0).to_seconds();
-                    let mut dy = (*x_1 - t).to_seconds() / dx * y_0;
-                    dy += (t - *x_0).to_seconds() / dx * y_1;
-                    return Some(dy);
+        // Maintain buffer up to date, consume data if need be
+        loop {
+            if let Some(latest) = self.latest(sv) {
+                if *latest > t + self.sampling {
+                    break;
+                } else {
+                    if self.consume(1) {
+                        // end of stream
+                        break;
+                    }
+                }
+            } else {
+                if self.consume(1) {
+                    // end of stream
+                    break;
                 }
             }
         }
-        if needs_update {
-            self.consume(1);
+
+        // interp
+        let buf = self.buffers.get(&sv)?;
+        if let Some((before_x, before_y)) = buf.iter().filter(|(v_t, _)| *v_t <= t).last() {
+            if let Some((after_x, after_y)) =
+                buf.iter().filter(|(v_t, _)| *v_t > t).reduce(|k, _| k)
+            {
+                let dx = (*after_x - *before_x).to_seconds();
+                let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
+                dy += (t - *before_x).to_seconds() / dx * *after_y;
+
+                // management: discard old samples
+                self.buffers.retain(|b_sv, b_v| {
+                    if *b_sv != sv {
+                        true
+                    } else {
+                        b_v.retain(|b_t| b_t.0 < t);
+                        !b_v.is_empty()
+                    }
+                });
+
+                return Some(dy);
+            }
         }
         None
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::positioning::interp::time::Buffer;
-    use crate::positioning::interp::Buffer as BufferTrait;
-    use rinex::prelude::{Duration, Epoch};
-    use std::str::FromStr;
-    #[test]
-    fn buffer_fill() {
-        let mut buf = Buffer::malloc(2);
-        for t in ["2020-06-25T00:00:00 UTC", "2020-06-25T00:00:05 UTC"] {
-            let t = Epoch::from_str(t).unwrap();
-            buf.fill((t, 0.0_f64));
-        }
-        assert_eq!(
-            Some((Epoch::from_str("2020-06-25T00:00:05 UTC").unwrap(), 0.0_f64,)),
-            buf.latest().copied()
-        );
-
-        assert_eq!(
-            buf.snapshot(),
-            &[
-                (Epoch::from_str("2020-06-25T00:00:00 UTC").unwrap(), 0.0_f64),
-                (Epoch::from_str("2020-06-25T00:00:05 UTC").unwrap(), 0.0_f64),
-            ],
-        );
-        let (_, dt) = buf.dt().unwrap();
-        assert_eq!(dt, Duration::from_seconds(5.0));
-
-        let t = Epoch::from_str("2020-06-25T00:00:10 UTC").unwrap();
-        buf.fill((t, 0.0_f64));
-
-        assert_eq!(
-            buf.snapshot(),
-            &[
-                (Epoch::from_str("2020-06-25T00:00:00 UTC").unwrap(), 0.0_f64),
-                (Epoch::from_str("2020-06-25T00:00:05 UTC").unwrap(), 0.0_f64),
-                (Epoch::from_str("2020-06-25T00:00:10 UTC").unwrap(), 0.0_f64),
-            ],
-        );
-        let (_, dt) = buf.dt().unwrap();
-        assert_eq!(dt, Duration::from_seconds(5.0));
-
-        let t = Epoch::from_str("2020-06-25T00:00:20 UTC").unwrap();
-        buf.fill((t, 0.0_f64));
-
-        assert_eq!(
-            buf.snapshot(),
-            &[(Epoch::from_str("2020-06-25T00:00:20 UTC").unwrap(), 0.0_f64),],
-        )
     }
 }

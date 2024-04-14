@@ -19,13 +19,12 @@ use rtk::prelude::{
 
 use super::interp::TimeInterpolator;
 
-pub fn resolve<APC, I>(
+pub fn resolve<I>(
     ctx: &Context,
-    mut solver: Solver<APC, I>,
+    mut solver: Solver<I>,
     rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution>
 where
-    APC: Fn(Epoch, SV, f64) -> Option<(f64, f64, f64)>,
     I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
 {
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
@@ -37,11 +36,9 @@ where
     let clk_data = ctx.data.clock();
     let meteo_data = ctx.data.meteo();
 
-    let sp3_data = ctx.data.sp3();
     let sp3_has_clock = ctx.data.sp3_has_clock();
-
     if clk_data.is_none() && sp3_has_clock {
-        if let Some(sp3) = sp3_data {
+        if let Some(sp3) = ctx.data.sp3() {
             warn!("Using clock states defined in SP3 file: CLK product should be prefered");
             if sp3.epoch_interval >= Duration::from_seconds(300.0) {
                 warn!("interpolating clock states from low sample rate SP3 will most likely introduce errors");
@@ -50,6 +47,7 @@ where
     }
 
     let mut interp = TimeInterpolator::from_ctx(&ctx);
+    debug!("Clock interpolator created");
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -70,7 +68,7 @@ where
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
-                debug!("{:?} ({}) : undetermined ephemeris", t, sv);
+                error!("{:?} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
 
@@ -93,10 +91,7 @@ where
 
             // determine clock correction
             let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            debug!(
-                "{:?} ({}) - clock state: {:?} - correction {}",
-                *t, *sv, clock_state, clock_corr
-            );
+            let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
 
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();
@@ -127,9 +122,6 @@ where
                     }
                 }
             }
-
-            let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
-
             if let Ok(candidate) = Candidate::new(
                 *sv,
                 *t,

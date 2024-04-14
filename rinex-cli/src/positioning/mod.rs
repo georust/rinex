@@ -12,12 +12,10 @@ use cggtts::PostProcessingError as CGGTTSPostProcessingError;
 
 use clap::ArgMatches;
 use gnss::prelude::Constellation; // SV};
-use rinex::navigation::Ephemeris;
 use rinex::prelude::{Observable, Rinex};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Config, Duration, Epoch, InterpolationResult, KbModel, Method,
-    NgModel, Solver, Vector3,
+    AprioriPosition, BdModel, Config, Duration, Epoch, KbModel, Method, NgModel, Solver, Vector3,
 };
 
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
@@ -25,7 +23,6 @@ use thiserror::Error;
 
 mod interp;
 use interp::OrbitInterpolator;
-use interp::TimeInterpolator;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -197,37 +194,34 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     let apriori = AprioriPosition::from_ecef(apriori);
     let rx_lat_ddeg = apriori.geodetic[0];
 
-    if ctx.data.observation().is_none() {
-        panic!("positioning requires Observation RINEX");
-    }
+    assert!(
+        ctx.data.observation().is_some(),
+        "Positioning requires Observation RINEX"
+    );
+    assert!(
+        ctx.data.brdc_navigation().is_some(),
+        "Positioning required Navigation RINEX"
+    );
+    assert!(
+        ctx.data.sp3().is_some(),
+        "High precision orbits (SP3) are unfortunately mandatory at the moment"
+    );
 
-    let nav_data = ctx
-        .data
-        .brdc_navigation()
-        .expect("positioning requires Navigation RINEX");
-
-    let sp3_data = ctx.data.sp3();
-    if sp3_data.is_none() {
-        panic!("High precision orbits (SP3) are unfortunately mandatory at the moment..");
-    }
-
-    let mut orbit = RefCell::new(OrbitInterpolator::from_ctx(
+    let orbit = RefCell::new(OrbitInterpolator::from_ctx(
         &ctx,
         cfg.interp_order,
         apriori.clone(),
     ));
-    debug!("orbit interpolator created");
+    debug!("Orbit interpolator created");
 
     // print config to be used
-    info!("Using solver {:?} method", method);
+    info!("Using {:?} method", method);
 
     let solver = Solver::new(
         &cfg,
         apriori,
         /* state vector interpolator */
-        |t, sv, order| orbit.borrow_mut().next_at(t, sv, order),
-        /* APC corrections provider */
-        |_t, _sv, _freq| None,
+        |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
     )?;
 
     if matches.get_flag("cggtts") {

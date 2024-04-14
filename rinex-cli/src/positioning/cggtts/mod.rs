@@ -10,6 +10,8 @@ use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, navigation::Ephemeris, prelude::Observable};
 
+use super::interp::TimeInterpolator;
+
 use rtk::prelude::{
     Candidate,
     Duration,
@@ -56,14 +58,13 @@ fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>)
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<APC, I>(
+pub fn resolve<I>(
     ctx: &Context,
-    mut solver: Solver<APC, I>,
+    mut solver: Solver<I>,
     rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError>
 where
-    APC: Fn(Epoch, SV, f64) -> Option<(f64, f64, f64)>,
     I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
 {
     // custom tracking duration
@@ -85,14 +86,23 @@ where
     let meteo_data = ctx.data.meteo();
 
     let clk_data = ctx.data.clock();
-    let _has_clk_data = clk_data.is_some();
 
-    let _sp3_data = ctx.data.sp3();
     let sp3_has_clock = ctx.data.sp3_has_clock();
+    if clk_data.is_none() && sp3_has_clock {
+        if let Some(sp3) = ctx.data.sp3() {
+            warn!("Using clock states defined in SP3 file: CLK product should be prefered");
+            if sp3.epoch_interval >= Duration::from_seconds(300.0) {
+                warn!("Interpolating clock states from low sample rate SP3 will most likely introduce errors");
+            }
+        }
+    }
 
     let dominant_sampling_period = obs_data
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
+
+    let mut interp = TimeInterpolator::from_ctx(&ctx);
+    debug!("Clock interpolator created");
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
@@ -122,31 +132,13 @@ where
             }
 
             // determine TOE
-            let (toe, sv_eph) = sv_eph.unwrap();
-            /*
-             * Clock state
-             *  1. Prefer CLK product
-             *  2. Prefer SP3 product
-             *  3. Radio last option
-             */
-            let clock_state = if let Some(clk) = clk_data {
-                if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
-                    (
-                        profile.bias,
-                        profile.drift.unwrap_or(0.0),
-                        profile.drift_change.unwrap_or(0.0),
-                    )
-                } else {
-                    /*
-                     * interpolation failure.
-                     * Do not interpolate other products: SV will not be presented.
-                     */
+            let (toe, _) = sv_eph.unwrap();
+            let clock_state = match interp.next_at(*t, *sv) {
+                Some(t) => (t, 0.0_f64, 0.0_f64), // TODO
+                None => {
+                    error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
-                }
-            } else if sp3_has_clock {
-                panic!("sp3 (clock) interpolation not ready yet: prefer broadcast or clk product");
-            } else {
-                sv_eph.sv_clock() // BRDC case
+                },
             };
 
             // determine clock correction
