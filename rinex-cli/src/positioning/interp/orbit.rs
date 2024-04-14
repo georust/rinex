@@ -1,5 +1,6 @@
+use super::Buffer as BufferTrait;
 use crate::cli::Context;
-use hifitime::{Duration, Unit};
+use hifitime::Duration;
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
@@ -9,13 +10,43 @@ use gnss_rtk::prelude::{
 
 use rinex::{carrier::Carrier, navigation::Ephemeris};
 
+struct Buffer {
+    inner: Vec<(Epoch, (f64, f64, f64))>,
+}
+
+impl BufferTrait<(f64, f64, f64)> for Buffer {
+    fn malloc(size: usize) -> Self {
+        Self {
+            inner: Vec::with_capacity(size),
+        }
+    }
+    fn push(&mut self, x_j: (Epoch, (f64, f64, f64))) {
+        self.inner.push(x_j);
+    }
+    fn clear(&mut self) {
+        self.inner.clear();
+    }
+    fn snapshot(&self) -> &[(Epoch, (f64, f64, f64))] {
+        &self.inner
+    }
+    fn snapshot_mut(&mut self) -> &mut [(Epoch, (f64, f64, f64))] {
+        &mut self.inner
+    }
+    fn get(&self, index: usize) -> Option<&(Epoch, (f64, f64, f64))> {
+        self.inner.get(index)
+    }
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
 /// Orbital state interpolator
 pub struct Interpolator<'a> {
     order: usize,
     epochs: usize,
     sampling: Duration,
     apriori: AprioriPosition,
-    buffers: HashMap<SV, Vec<(Epoch, (f64, f64, f64))>>,
+    buffers: HashMap<SV, Buffer>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
@@ -94,9 +125,11 @@ impl<'a> Interpolator<'a> {
     }
     fn push(&mut self, t: Epoch, sv: SV, data: (f64, f64, f64)) {
         if let Some(buf) = self.buffers.get_mut(&sv) {
-            buf.push((t, data));
+            buf.fill((t, data));
         } else {
-            self.buffers.insert(sv, vec![(t, data)]);
+            let mut buf = Buffer::malloc(self.order + 1);
+            buf.fill((t, data));
+            self.buffers.insert(sv, buf);
         }
     }
     // consumes N epochs completely
@@ -126,7 +159,7 @@ impl<'a> Interpolator<'a> {
             .iter()
             .filter_map(|(k, v)| {
                 if *k == sv {
-                    let last = v.iter().map(|(e, _)| e).last()?;
+                    let last = v.inner.iter().map(|(e, _)| e).last()?;
                     Some(last)
                 } else {
                     None
@@ -163,7 +196,7 @@ impl<'a> Interpolator<'a> {
         let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
         let mut out = Option::<RTKInterpolationResult>::None;
 
-        for (index, (buf_t, buf_v)) in buf.iter().enumerate() {
+        for (index, (buf_t, buf_v)) in buf.inner.iter().enumerate() {
             if *buf_t == t {
                 // special case: direct output
                 let el_az = Ephemeris::elevation_azimuth(*buf_v, (ecef[0], ecef[1], ecef[2]));
@@ -188,9 +221,9 @@ impl<'a> Interpolator<'a> {
                 //println!("is feasible"); //DEBUG
                 for i in 0..=self.order {
                     let mut li = 1.0_f64;
-                    let (t_i, (x_i, y_i, z_i)) = buf[offset + i];
+                    let (t_i, (x_i, y_i, z_i)) = buf.inner[offset + i];
                     for j in 0..=self.order {
-                        let (t_j, _) = buf[offset + j];
+                        let (t_j, _) = buf.inner[offset + j];
                         if j != i {
                             li *= (t - t_j).to_seconds();
                             li /= (t_i - t_j).to_seconds();
@@ -214,7 +247,7 @@ impl<'a> Interpolator<'a> {
         if out.is_some() {
             // management: discard old samples
             let t_min = t - dt - self.sampling - self.sampling;
-            buf.retain(|b_t| b_t.0 > t_min);
+            buf.inner.retain(|b_t| b_t.0 > t_min);
 
             //let len_after = buf.len(); // DEBUG
             //if len_after != len_before { // DEBUG

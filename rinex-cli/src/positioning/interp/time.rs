@@ -1,12 +1,43 @@
+use super::Buffer as BufferTrait;
 use crate::cli::Context;
 use gnss_rtk::prelude::{Duration, Epoch, SV};
 use std::collections::HashMap;
+
+struct Buffer {
+    inner: Vec<(Epoch, f64)>,
+}
+
+impl BufferTrait<f64> for Buffer {
+    fn malloc(size: usize) -> Self {
+        Self {
+            inner: Vec::with_capacity(size),
+        }
+    }
+    fn push(&mut self, x_j: (Epoch, f64)) {
+        self.inner.push(x_j);
+    }
+    fn clear(&mut self) {
+        self.inner.clear();
+    }
+    fn snapshot(&self) -> &[(Epoch, f64)] {
+        &self.inner
+    }
+    fn snapshot_mut(&mut self) -> &mut [(Epoch, f64)] {
+        &mut self.inner
+    }
+    fn get(&self, index: usize) -> Option<&(Epoch, f64)> {
+        self.inner.get(index)
+    }
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
 
 /// Orbital state interpolator
 pub struct Interpolator<'a> {
     epochs: usize,
     sampling: Duration,
-    buffers: HashMap<SV, Vec<(Epoch, f64)>>,
+    buffers: HashMap<SV, Buffer>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
 }
 
@@ -43,7 +74,9 @@ impl<'a> Interpolator<'a> {
         if let Some(buf) = self.buffers.get_mut(&sv) {
             buf.push((t, data));
         } else {
-            self.buffers.insert(sv, vec![(t, data)]);
+            let mut buf = Buffer::malloc(3);
+            buf.fill((t, data));
+            self.buffers.insert(sv, buf);
         }
     }
     // consumes N epochs completely
@@ -73,7 +106,7 @@ impl<'a> Interpolator<'a> {
             .iter()
             .filter_map(|(k, v)| {
                 if *k == sv {
-                    let last = v.iter().map(|(e, _)| e).last()?;
+                    let last = v.inner.iter().map(|(e, _)| e).last()?;
                     Some(last)
                 } else {
                     None
@@ -102,13 +135,16 @@ impl<'a> Interpolator<'a> {
         }
 
         let buf = self.buffers.get(&sv)?;
-        if let Some((before_x, before_y)) = buf.iter().filter(|(v_t, _)| *v_t <= t).last() {
+        if let Some((before_x, before_y)) = buf.inner.iter().filter(|(v_t, _)| *v_t <= t).last() {
             // interpolate: if need be
             let dy: Option<f64> = if *before_x == t {
                 Some(*before_y)
             } else {
-                if let Some((after_x, after_y)) =
-                    buf.iter().filter(|(v_t, _)| *v_t > t).reduce(|k, _| k)
+                if let Some((after_x, after_y)) = buf
+                    .inner
+                    .iter()
+                    .filter(|(v_t, _)| *v_t > t)
+                    .reduce(|k, _| k)
                 {
                     let dx = (*after_x - *before_x).to_seconds();
                     let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
@@ -123,8 +159,8 @@ impl<'a> Interpolator<'a> {
                 if *b_sv != sv {
                     true
                 } else {
-                    b_v.retain(|b_t| b_t.0 < t);
-                    !b_v.is_empty()
+                    b_v.inner.retain(|b_t| b_t.0 < t);
+                    !b_v.inner.is_empty()
                 }
             });
             return dy;
