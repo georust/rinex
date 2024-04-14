@@ -56,12 +56,12 @@ impl<'a> Interpolator<'a> {
                 if let Some(prev) = prev_t {
                     if t > prev {
                         epochs += 1;
-                        println!("{} - new epoch", t);
+                        //println!("{} - new epoch", t); // DEBUG
                     }
                 }
                 prev_t = Some(t);
             } else {
-                println!("consumed all data"); // DEBUG
+                //println!("consumed all data"); // DEBUG
                 return true;
             }
         }
@@ -101,28 +101,33 @@ impl<'a> Interpolator<'a> {
             }
         }
 
-        // interp
         let buf = self.buffers.get(&sv)?;
         if let Some((before_x, before_y)) = buf.iter().filter(|(v_t, _)| *v_t <= t).last() {
-            if let Some((after_x, after_y)) =
-                buf.iter().filter(|(v_t, _)| *v_t > t).reduce(|k, _| k)
-            {
-                let dx = (*after_x - *before_x).to_seconds();
-                let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
-                dy += (t - *before_x).to_seconds() / dx * *after_y;
-
-                // management: discard old samples
-                self.buffers.retain(|b_sv, b_v| {
-                    if *b_sv != sv {
-                        true
-                    } else {
-                        b_v.retain(|b_t| b_t.0 < t);
-                        !b_v.is_empty()
-                    }
-                });
-
-                return Some(dy);
-            }
+            // interpolate: if need be
+            let dy: Option<f64> = if *before_x == t {
+                Some(*before_y)
+            } else {
+                if let Some((after_x, after_y)) =
+                    buf.iter().filter(|(v_t, _)| *v_t > t).reduce(|k, _| k)
+                {
+                    let dx = (*after_x - *before_x).to_seconds();
+                    let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
+                    dy += (t - *before_x).to_seconds() / dx * *after_y;
+                    Some(dy)
+                } else {
+                    None
+                }
+            };
+            // management: discard old samples
+            self.buffers.retain(|b_sv, b_v| {
+                if *b_sv != sv {
+                    true
+                } else {
+                    b_v.retain(|b_t| b_t.0 < t);
+                    !b_v.is_empty()
+                }
+            });
+            return dy;
         }
         None
     }
