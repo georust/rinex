@@ -84,7 +84,6 @@ pub mod prelude {
     pub use crate::domes::Domes;
     #[cfg(feature = "doris")]
     pub use crate::doris::Station;
-    pub use crate::epoch::EpochFlag;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;

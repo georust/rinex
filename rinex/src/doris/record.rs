@@ -4,9 +4,10 @@ use thiserror::Error;
 
 use crate::{
     doris::Station,
-    epoch::{parse_in_timescale, EpochFlag, ParsingError as EpochParsingError},
+    epoch::{parse_in_timescale, ParsingError as EpochParsingError},
     header::Header,
     observable::Observable,
+    observation::EpochFlag,
     prelude::{Duration, TimeScale},
 };
 
