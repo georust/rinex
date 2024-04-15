@@ -442,24 +442,47 @@ impl Header {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20);
                 let (constell_str, _) = rem.split_at(20);
-                rinex_type = Type::from_str(type_str.trim())?;
-                if type_str.contains("GLONASS") {
-                    // old GLONASS NAV : no constellation field
-                    constellation = Some(Constellation::Glonass);
-                } else if type_str.contains("GPS NAV DATA") {
-                    constellation = Some(Constellation::GPS);
-                } else if type_str.contains("IRNSS NAV DATA") {
-                    constellation = Some(Constellation::IRNSS);
-                } else if type_str.contains("GNSS NAV DATA") {
-                    constellation = Some(Constellation::Mixed);
-                } else if type_str.contains("METEOROLOGICAL DATA") {
-                    // these files are not tied to a constellation system,
-                    // therefore, do not have this field
-                } else {
-                    // regular files
-                    if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
-                        constellation = Some(constell);
-                    }
+
+                let type_str = type_str.trim();
+                let constell_str = constell_str.trim();
+
+                // File type identification
+                rinex_type = Type::from_str(type_str)?;
+
+                // Constellation identification
+                match rinex_type {
+                    Type::NavigationData => {
+                        if type_str.contains("GLONASS") {
+                            // old GLONASS NAV : no constellation field
+                            constellation = Some(Constellation::Glonass);
+                        } else if type_str.contains("GPS NAV DATA") {
+                            constellation = Some(Constellation::GPS);
+                        } else if type_str.contains("IRNSS NAV DATA") {
+                            constellation = Some(Constellation::IRNSS);
+                        } else if type_str.contains("GNSS NAV DATA") {
+                            constellation = Some(Constellation::Mixed);
+                        } else if type_str.eq("NAVIGATION DATA") {
+                            if constell_str.is_empty() {
+                                // old GPS NAVIGATION DATA
+                                constellation = Some(Constellation::GPS);
+                            } else {
+                                // Modern NAVIGATION DATA
+                                if let Ok(c) = Constellation::from_str(constell_str) {
+                                    constellation = Some(c);
+                                }
+                            }
+                        }
+                    },
+                    Type::MeteoData => {
+                        // no constellation associated to it
+                    },
+                    _ => {
+                        // any other
+                        // regular files
+                        if let Ok(c) = Constellation::from_str(constell_str) {
+                            constellation = Some(c);
+                        }
+                    },
                 }
                 /*
                  * Parse version descriptor
