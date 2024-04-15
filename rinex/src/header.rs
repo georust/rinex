@@ -18,6 +18,7 @@ use crate::{
         merge_time_of_first_obs, merge_time_of_last_obs, Error as MergeError, Merge,
     },
     meteo,
+    meteo::HeaderFields as MeteoHeader,
     navigation::{IonMessage, KbModel},
     observable::{Observable, ParsingError as ObsParsingError},
     observation,
@@ -131,10 +132,10 @@ pub struct Header {
     pub pcv_compensations: Vec<PcvCompensation>,
     /// Observation RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub obs: Option<observation::HeaderFields>,
+    pub obs: Option<ObservationHeader>,
     /// Meteo RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub meteo: Option<meteo::HeaderFields>,
+    pub meteo: Option<MeteoHeader>,
     /// High Precision Clock RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub clock: Option<clock::HeaderFields>,
@@ -146,7 +147,7 @@ pub struct Header {
     pub ionex: Option<ionex::HeaderFields>,
     /// DORIS RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub doris: Option<doris::HeaderFields>,
+    pub doris: Option<DorisHeader>,
 }
 
 #[derive(Error, Debug)]
@@ -271,7 +272,7 @@ impl Header {
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = ObservationHeader::default();
-        let mut meteo = meteo::HeaderFields::default();
+        let mut meteo = MeteoHeader::default();
         let mut clock = clock::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
         let mut ionex = ionex::HeaderFields::default();
@@ -854,51 +855,15 @@ impl Header {
                 }
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
-                let (_, content) = content.split_at(6);
-                for i in 0..content.len() / 6 {
-                    let obscode = &content[i * 6..std::cmp::min((i + 1) * 6, content.len())].trim();
-                    if let Ok(observable) = Observable::from_str(obscode) {
-                        match constellation {
-                            Some(Constellation::Mixed) => {
-                                lazy_static! {
-                                    static ref KNOWN_CONSTELLS: [Constellation; 6] = [
-                                        Constellation::GPS,
-                                        Constellation::Glonass,
-                                        Constellation::Galileo,
-                                        Constellation::BeiDou,
-                                        Constellation::QZSS,
-                                        Constellation::SBAS,
-                                    ];
-                                }
-                                for c in KNOWN_CONSTELLS.iter() {
-                                    if let Some(codes) = observation.codes.get_mut(c) {
-                                        codes.push(observable.clone());
-                                    } else {
-                                        observation.codes.insert(*c, vec![observable.clone()]);
-                                    }
-                                }
-                            },
-                            Some(c) => {
-                                if let Some(codes) = observation.codes.get_mut(&c) {
-                                    codes.push(observable.clone());
-                                } else {
-                                    observation.codes.insert(c, vec![observable.clone()]);
-                                }
-                            },
-                            _ => {
-                                if rinex_type == Type::MeteoData {
-                                    meteo.codes.push(observable);
-                                } else {
-                                    panic!("can't have \"TYPES OF OBS\" when GNSS definition is missing");
-                                }
-                            },
-                        }
-                    }
-                }
+                Self::parse_v2_observables(&content, constellation, &mut meteo, &mut observation);
             } else if marker.contains("SYS / # / OBS TYPES") {
                 match rinex_type {
                     Type::ObservationData => {
-                        Self::parse_observables(&content, &mut current_constell, &mut observation);
+                        Self::parse_v3_observables(
+                            &content,
+                            &mut current_constell,
+                            &mut observation,
+                        );
                     },
                     Type::DORIS => {
                         /* in DORIS RINEX, observations are not tied to a particular constellation */
@@ -1059,93 +1024,14 @@ impl Header {
              * Ionex Grid Definition
              */
             } else if marker.contains("HGT1 / HGT2 / DHGT") {
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if items.len() == 3 {
-                    let start = items[0].trim();
-                    let start = f64::from_str(start).or(Err(parse_float_error!(
-                        "ionex (alt) grid first coordinates",
-                        start
-                    )))?;
-
-                    let end = items[1].trim();
-                    let end = f64::from_str(end).or(Err(parse_float_error!(
-                        "ionex (alt) grid last coordinates",
-                        end
-                    )))?;
-
-                    let spacing = items[2].trim();
-                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
-                        "ionex (alt) grid coordinates spacing",
-                        spacing
-                    )))?;
-
-                    let grid = match spacing == 0.0 {
-                        true => {
-                            // special case, 2D fixed altitude
-                            Linspace {
-                                // avoid verifying the Linspace in this case
-                                start,
-                                end,
-                                spacing: 0.0,
-                            }
-                        },
-                        _ => Linspace::new(start, end, spacing)?,
-                    };
-
-                    ionex = ionex.with_altitude_grid(grid);
-                } else {
-                    return Err(grid_format_error!("HGT1 / HGT2 / DGHT", content));
-                }
+                let grid = Self::parse_grid(content)?;
+                ionex = ionex.with_altitude_grid(grid);
             } else if marker.contains("LAT1 / LAT2 / DLAT") {
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if items.len() == 3 {
-                    let start = items[0].trim();
-                    let start = f64::from_str(start).or(Err(parse_float_error!(
-                        "ionex (lat) grid first coordinates",
-                        start
-                    )))?;
-
-                    let end = items[1].trim();
-                    let end = f64::from_str(end).or(Err(parse_float_error!(
-                        "ionex (lat) grid last coordinates",
-                        end
-                    )))?;
-
-                    let spacing = items[2].trim();
-                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
-                        "ionex (lat) grid coordinates spacing",
-                        spacing
-                    )))?;
-
-                    ionex = ionex.with_latitude_grid(Linspace::new(start, end, spacing)?);
-                } else {
-                    return Err(grid_format_error!("LAT1 / LAT2 / DLAT", content));
-                }
+                let grid = Self::parse_grid(content)?;
+                ionex = ionex.with_latitude_grid(grid);
             } else if marker.contains("LON1 / LON2 / DLON") {
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if items.len() == 3 {
-                    let start = items[0].trim();
-                    let start = f64::from_str(start).or(Err(parse_float_error!(
-                        "ionex (lon) grid first coordinates",
-                        start
-                    )))?;
-
-                    let end = items[1].trim();
-                    let end = f64::from_str(end).or(Err(parse_float_error!(
-                        "ionex (lon) grid last coordinates",
-                        end
-                    )))?;
-
-                    let spacing = items[2].trim();
-                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
-                        "ionex (lon) grid coordinates spacing",
-                        spacing
-                    )))?;
-
-                    ionex = ionex.with_longitude_grid(Linspace::new(start, end, spacing)?);
-                } else {
-                    return Err(grid_format_error!("LON1 / LON2 / DLON", content));
-                }
+                let grid = Self::parse_grid(content)?;
+                ionex = ionex.with_longitude_grid(grid);
             } else if marker.contains("PRN / BIAS / RMS") {
                 // differential PR code analysis
                 //TODO
@@ -1724,9 +1610,90 @@ impl Header {
         Ok(())
     }
     /*
-     * Parse list of observables
+     * Parse IONEX grid
      */
-    fn parse_observables(
+    fn parse_grid(line: &str) -> Result<Linspace, ParsingError> {
+        let mut start = 0.0_f64;
+        let mut end = 0.0_f64;
+        let mut spacing = 0.0_f64;
+        for (index, item) in line.split_ascii_whitespace().enumerate() {
+            let item = item.trim();
+            match index {
+                0 => {
+                    start =
+                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [0]", item)))?;
+                },
+                1 => {
+                    end =
+                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [1]", item)))?;
+                },
+                2 => {
+                    spacing =
+                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [2]", item)))?;
+                },
+                _ => {},
+            }
+        }
+        if spacing == 0.0 {
+            // avoid linspace verification in this case
+            Ok(Linspace {
+                start,
+                end,
+                spacing,
+            })
+        } else {
+            let grid = Linspace::new(start, end, spacing)?;
+            Ok(grid)
+        }
+    }
+    /*
+     * Parse list of observables (V2)
+     */
+    fn parse_v2_observables(
+        line: &str,
+        constell: Option<Constellation>,
+        meteo: &mut MeteoHeader,
+        observation: &mut ObservationHeader,
+    ) {
+        lazy_static! {
+            /*
+             *  Only GPS, Glonass and Galileo are supported in V2 RINEX
+             */
+            static ref KNOWN_V2_CONSTELLS: [Constellation; 3] = [
+                Constellation::GPS,
+                Constellation::Glonass,
+                Constellation::Galileo,
+            ];
+        }
+        let line = line.split_at(6).1;
+        for item in line.split_ascii_whitespace() {
+            if let Ok(obs) = Observable::from_str(item.trim()) {
+                match constell {
+                    Some(c) => {
+                        if let Some(codes) = observation.codes.get_mut(&c) {
+                            codes.push(obs.clone());
+                        } else {
+                            observation.codes.insert(c, vec![obs.clone()]);
+                        }
+                    },
+                    Some(Constellation::Mixed) => {
+                        for constell in KNOWN_V2_CONSTELLS.iter() {
+                            if let Some(codes) = observation.codes.get_mut(constell) {
+                                codes.push(obs.clone());
+                            } else {
+                                observation.codes.insert(*constell, vec![obs.clone()]);
+                            }
+                        }
+                    },
+                    None => meteo.codes.push(obs),
+                }
+            }
+        }
+    }
+    /*
+     * Parse list of observables (V3)
+     */
+    fn parse_v3_observables(
         line: &str,
         current_constell: &mut Option<Constellation>,
         observation: &mut ObservationHeader,
