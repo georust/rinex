@@ -74,7 +74,7 @@ pub(crate) fn parse_epoch(
     );
     assert!(
         observables.len() > 0,
-        "badly formed DORIS RINEX: on observables defined"
+        "badly formed DORIS RINEX: no observables defined"
     );
 
     for (lindex, line) in content.lines().enumerate() {

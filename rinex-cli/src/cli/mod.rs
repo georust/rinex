@@ -135,6 +135,7 @@ Supported formats are:
 - Clock RINEX (high precision clocks)
 - SP3 (high precision orbits)
 - IONEX (Ionosphere Maps)
+- ANTEX (antenna calibration as RINEX)
 - DORIS (special Observation RINEX)"))
                     .arg(Arg::new("directory")
                         .short('d')

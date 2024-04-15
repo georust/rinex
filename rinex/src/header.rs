@@ -6,7 +6,7 @@ use crate::{
     cospar::{Error as CosparError, COSPAR},
     domes::Domes,
     doris,
-    doris::{Error as DorisError, Station as DorisStation},
+    doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
@@ -21,7 +21,7 @@ use crate::{
     navigation::{IonMessage, KbModel},
     observable::{Observable, ParsingError as ObsParsingError},
     observation,
-    observation::Crinex,
+    observation::{Crinex, HeaderFields as ObservationHeader},
     reader::BufferedReader,
     types::Type,
     version::Version,
@@ -270,12 +270,12 @@ impl Header {
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
-        let mut observation = observation::HeaderFields::default();
+        let mut observation = ObservationHeader::default();
         let mut meteo = meteo::HeaderFields::default();
         let mut clock = clock::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
         let mut ionex = ionex::HeaderFields::default();
-        let mut doris = doris::HeaderFields::default();
+        let mut doris = DorisHeader::default();
 
         // iterate on a line basis
         let lines = reader.lines();
@@ -461,7 +461,7 @@ impl Header {
                 if type_str == "O" && constell_str == "D" {
                     rinex_type = Type::DORIS;
                 } else {
-                    rinex_type = Type::from_str(type_str.trim())?;
+                    rinex_type = Type::from_str(type_str)?;
                 }
 
                 // Determine (file) Constellation
@@ -896,29 +896,15 @@ impl Header {
                     }
                 }
             } else if marker.contains("SYS / # / OBS TYPES") {
-                let (possible_counter, content) = content.split_at(6);
-                if !possible_counter.is_empty() {
-                    let code = &possible_counter[..1];
-                    if let Ok(c) = Constellation::from_str(code) {
-                        current_constell = Some(c);
-                    }
-                }
-
-                if let Some(constell) = current_constell {
-                    // system correctly identified
-                    for i in 0..content.len() / 4 {
-                        let obscode =
-                            &content[i * 4..std::cmp::min((i + 1) * 4, content.len())].trim();
-                        if let Ok(observable) = Observable::from_str(obscode) {
-                            if !obscode.is_empty() {
-                                if let Some(codes) = observation.codes.get_mut(&constell) {
-                                    codes.push(observable);
-                                } else {
-                                    observation.codes.insert(constell, vec![observable]);
-                                }
-                            }
-                        }
-                    }
+                match rinex_type {
+                    Type::ObservationData => {
+                        Self::parse_observables(&content, &mut current_constell, &mut observation);
+                    },
+                    Type::DORIS => {
+                        /* in DORIS RINEX, observations are not tied to a particular constellation */
+                        Self::parse_doris_observables(&content, &mut doris);
+                    },
+                    _ => {},
                 }
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
@@ -1736,6 +1722,45 @@ impl Header {
             writeln!(f, "{}", fmt_comment(comment))?;
         }
         Ok(())
+    }
+    /*
+     * Parse list of observables
+     */
+    fn parse_observables(
+        line: &str,
+        current_constell: &mut Option<Constellation>,
+        observation: &mut ObservationHeader,
+    ) {
+        let (possible_counter, items) = line.split_at(6);
+        if !possible_counter.is_empty() {
+            let code = &possible_counter[..1];
+            if let Ok(c) = Constellation::from_str(code) {
+                *current_constell = Some(c);
+            }
+        }
+        if let Some(constell) = current_constell {
+            // system correctly identified
+            for item in items.split_ascii_whitespace() {
+                if let Ok(observable) = Observable::from_str(item) {
+                    if let Some(codes) = observation.codes.get_mut(&constell) {
+                        codes.push(observable);
+                    } else {
+                        observation.codes.insert(*constell, vec![observable]);
+                    }
+                }
+            }
+        }
+    }
+    /*
+     * Parse list of DORIS observables
+     */
+    fn parse_doris_observables(line: &str, doris: &mut DorisHeader) {
+        let items = line.split_at(6).1;
+        for item in items.split_ascii_whitespace() {
+            if let Ok(observable) = Observable::from_str(item) {
+                doris.observables.push(observable);
+            }
+        }
     }
 }
 
