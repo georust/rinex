@@ -1657,10 +1657,11 @@ impl Header {
     ) {
         lazy_static! {
             /*
-             *  Only GPS, Glonass and Galileo are supported in V2 RINEX
+             *  Only GPS, Glonass, Galileo and SBAS are supported in V2 RINEX
              */
-            static ref KNOWN_V2_CONSTELLS: [Constellation; 3] = [
+            static ref KNOWN_V2_CONSTELLS: [Constellation; 4] = [
                 Constellation::GPS,
+                Constellation::SBAS,
                 Constellation::Glonass,
                 Constellation::Galileo,
             ];
@@ -1669,13 +1670,6 @@ impl Header {
         for item in line.split_ascii_whitespace() {
             if let Ok(obs) = Observable::from_str(item.trim()) {
                 match constell {
-                    Some(c) => {
-                        if let Some(codes) = observation.codes.get_mut(&c) {
-                            codes.push(obs.clone());
-                        } else {
-                            observation.codes.insert(c, vec![obs.clone()]);
-                        }
-                    },
                     Some(Constellation::Mixed) => {
                         for constell in KNOWN_V2_CONSTELLS.iter() {
                             if let Some(codes) = observation.codes.get_mut(constell) {
@@ -1683,6 +1677,13 @@ impl Header {
                             } else {
                                 observation.codes.insert(*constell, vec![obs.clone()]);
                             }
+                        }
+                    },
+                    Some(c) => {
+                        if let Some(codes) = observation.codes.get_mut(&c) {
+                            codes.push(obs.clone());
+                        } else {
+                            observation.codes.insert(c, vec![obs.clone()]);
                         }
                     },
                     None => meteo.codes.push(obs),

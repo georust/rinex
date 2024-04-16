@@ -8,13 +8,14 @@ mod test {
     use std::path::Path;
     use std::str::FromStr;
     #[test]
+    #[cfg(feature = "flate2")]
     fn v3_cs2rx18164() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
             .join("DOR")
             .join("V3")
-            .join("cs2rx18164");
+            .join("cs2rx18164.gz");
         let fullpath = path.to_string_lossy();
         let rinex = Rinex::from_file(fullpath.as_ref()).unwrap(); // verified elsewhere
 
