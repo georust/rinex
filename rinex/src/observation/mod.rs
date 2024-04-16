@@ -101,7 +101,6 @@ impl std::fmt::Display for Crinex {
     }
 }
 
-/// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -116,36 +115,32 @@ pub struct HeaderFields {
     pub codes: HashMap<Constellation, Vec<Observable>>,
     /// True if local clock drift is compensated for
     pub clock_offset_applied: bool,
-    /// Optionnal data scalings
-    pub scalings: HashMap<(Constellation, Observable), u16>,
+    /// Possible observation scaling, used in high precision
+    /// OBS RINEX (down to nano radians precision).
+    pub scaling: HashMap<(Constellation, Observable), u16>,
 }
 
 impl HeaderFields {
     /// Add TIME OF FIRST OBS
-    pub fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
+    pub(crate) fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
         s.time_of_first_obs = Some(epoch);
         s
     }
     /// Add TIME OF LAST OBS
-    pub fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
+    pub(crate) fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
         s.time_of_last_obs = Some(epoch);
         s
     }
     /// Insert a data scaling
-    pub(crate) fn insert_scaling(
-        &mut self,
-        c: Constellation,
-        observable: Observable,
-        scaling: u16,
-    ) {
-        self.scalings.insert((c, observable), scaling);
+    pub(crate) fn with_scaling(&mut self, c: Constellation, observable: Observable, scaling: u16) {
+        self.scaling.insert((c, observable.clone()), scaling);
     }
     /// Returns given scaling to apply for given GNSS system
     /// and given observation. Returns 1.0 by default, so it always applies
     pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
-        self.scalings.get(&(c, observable))
+        self.scaling.get(&(c, observable))
     }
 }
 

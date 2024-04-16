@@ -39,6 +39,10 @@ clock = []
 # Unlocks dedicated browsing methods and antenna compensation methods.
 antex = []
 
+# Unlock support of DORIS RINEX file format, DORIS special measurements
+# wrapped as RINEX observation file.
+doris = []
+
 # Unlock Processing package.
 # Unlocks the preprocessing toolkit, Filtering methods and preprocessing algorithms.
 processing = []
@@ -54,11 +58,12 @@ sp3 = ["dep:sp3", "walkdir"]
 # Unlock all features, all at once
 full = [
     "antex",
+    "clock",
+    "doris",
     "flate2",
     "horrorshow",
     "ionex",
     "meteo",
-    "clock",
     "nav",
     "obs",
     "processing",

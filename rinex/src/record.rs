@@ -35,6 +35,8 @@ pub enum Record {
     NavRecord(navigation::Record),
     /// Observation record, see [observation::record::Record]
     ObsRecord(observation::Record),
+    /// DORIS RINEX, special DORIS measurements wraped as observations
+    DorisRecord(doris::Record),
 }
 
 /// Record comments are high level informations, sorted by epoch
@@ -124,6 +126,20 @@ impl Record {
     pub fn as_mut_obs(&mut self) -> Option<&mut observation::Record> {
         match self {
             Record::ObsRecord(r) => Some(r),
+            _ => None,
+        }
+    }
+    /// Unwraps self as DORIS record
+    pub fn as_doris(&self) -> Option<&doris::Record> {
+        match self {
+            Record::DorisRecord(r) => Some(r),
+            _ => None,
+        }
+    }
+    /// Unwraps self as mutable reference to DORIS record
+    pub fn as_mut_doris(&mut self) -> Option<&mut doris::Record> {
+        match self {
+            Record::DorisRecord(r) => Some(r),
             _ => None,
         }
     }
@@ -263,6 +279,7 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version),
         Type::ObservationData => observation::record::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
+        Type::DORIS => doris::record::is_new_epoch(line),
     }
 }
 
@@ -288,6 +305,7 @@ pub fn parse_record(
     let mut obs_rec = observation::Record::new(); // OBS
     let mut met_rec = meteo::Record::new(); // MET
     let mut clk_rec = clock::Record::new(); // CLK
+    let mut dor_rec = doris::Record::new(); // DORIS
 
     // OBSERVATION case
     //  timescale is defined either
@@ -420,6 +438,11 @@ pub fn parse_record(
                             comment_ts = e.0; // for comments classification & management
                         }
                     },
+                    Type::DORIS => {
+                        if let Ok((e, map)) = doris::record::parse_epoch(header, &epoch_content) {
+                            dor_rec.insert(e, map);
+                        }
+                    },
                     Type::MeteoData => {
                         if let Ok((e, map)) = meteo::record::parse_epoch(header, &epoch_content) {
                             met_rec.insert(e, map);
@@ -474,6 +497,7 @@ pub fn parse_record(
                             }
                         }
                     },
+                    Type::DORIS => {}, // FIXME
                 }
 
                 // new comments ?
@@ -517,6 +541,11 @@ pub fn parse_record(
             {
                 obs_rec.insert(e, (ck_offset, map));
                 comment_ts = e.0; // for comments classification + management
+            }
+        },
+        Type::DORIS => {
+            if let Ok((e, map)) = doris::record::parse_epoch(header, &epoch_content) {
+                dor_rec.insert(e, map);
             }
         },
         Type::MeteoData => {
@@ -571,6 +600,7 @@ pub fn parse_record(
             let (antenna, content) = antex::record::parse_antenna(&epoch_content).unwrap();
             atx_rec.push((antenna, content));
         },
+        Type::DORIS => {}, //TODO
     }
     // new comments ?
     if !comment_content.is_empty() {
@@ -584,6 +614,7 @@ pub fn parse_record(
         Type::MeteoData => Record::MeteoRecord(met_rec),
         Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec),
+        Type::DORIS => Record::DorisRecord(dor_rec),
     };
     Ok((record, comments))
 }
@@ -694,6 +725,8 @@ impl Decimate for Record {
             rec.decimate_by_ratio_mut(r);
         } else if let Some(rec) = self.as_mut_meteo() {
             rec.decimate_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_doris() {
+            rec.decimate_by_ratio_mut(r);
         }
     }
     fn decimate_by_interval(&self, dt: Duration) -> Self {
@@ -707,6 +740,8 @@ impl Decimate for Record {
         } else if let Some(rec) = self.as_mut_nav() {
             rec.decimate_by_interval_mut(dt);
         } else if let Some(rec) = self.as_mut_meteo() {
+            rec.decimate_by_interval_mut(dt);
+        } else if let Some(rec) = self.as_mut_doris() {
             rec.decimate_by_interval_mut(dt);
         }
     }
@@ -726,6 +761,10 @@ impl Decimate for Record {
             }
         } else if let Some(rec) = self.as_mut_meteo() {
             if let Some(rhs) = rhs.as_meteo() {
+                rec.decimate_match_mut(rhs);
+            }
+        } else if let Some(rec) = self.as_mut_doris() {
+            if let Some(rhs) = rhs.as_doris() {
                 rec.decimate_match_mut(rhs);
             }
         }

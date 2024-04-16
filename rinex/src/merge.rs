@@ -1,4 +1,5 @@
 //! RINEX File merging (combination)
+use crate::prelude::Epoch;
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -71,6 +72,34 @@ pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
         if let Some(rhs) = rhs {
             *lhs = Some(rhs.clone());
         }
+    }
+}
+
+/*
+ * Merges "TIME OF FIRST" special OBSERVATION header field
+ */
+pub(crate) fn merge_time_of_first_obs(lhs: &mut Option<Epoch>, rhs: &Option<Epoch>) {
+    if lhs.is_none() {
+        if let Some(rhs) = rhs {
+            *lhs = Some(*rhs);
+        }
+    } else if let Some(rhs) = rhs {
+        let tl = lhs.unwrap();
+        *lhs = Some(std::cmp::min(tl, *rhs));
+    }
+}
+
+/*
+ * Merges "TIME OF LAST" special OBSERVATION header field
+ */
+pub(crate) fn merge_time_of_last_obs(lhs: &mut Option<Epoch>, rhs: &Option<Epoch>) {
+    if lhs.is_none() {
+        if let Some(rhs) = rhs {
+            *lhs = Some(*rhs);
+        }
+    } else if let Some(rhs) = rhs {
+        let tl = lhs.unwrap();
+        *lhs = Some(std::cmp::max(tl, *rhs));
     }
 }
 

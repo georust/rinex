@@ -41,7 +41,7 @@ pub fn check_observables(rnx: &Rinex, constellation: Constellation, observables:
                 }
             } else {
                 panic!(
-                    "no observable in header, for {} constellation",
+                    "no observable in header for {} constellation",
                     constellation
                 );
             }
