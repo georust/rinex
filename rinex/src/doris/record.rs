@@ -87,7 +87,8 @@ pub(crate) fn parse_epoch(
                 epoch = parse_in_timescale(date, TimeScale::TAI)?;
             },
             _ => {
-                let (id, remainder) = line.split_at(5);
+                let (id, remainder) = line.split_at(4);
+                //println!("ID : \"{}\" - REMAINDER : \"{}\"", id, remainder); //DBEUG
 
                 if obs_idx == 0 {
                     // parse station identifier
@@ -116,9 +117,9 @@ pub(crate) fn parse_epoch(
                     let m1 = &content[12..13].trim();
                     let m2 = &content[13..14].trim();
 
-                    println!("obs \"{}\"", obs); //DEBUG
-                    println!("m1 \"{}\"", m1); //DEBUG
-                    println!("m2 \"{}\"", m2); //DEBUG
+                    //println!("obs \"{}\"", obs); //DEBUG
+                    //println!("m1 \"{}\"", m1); //DEBUG
+                    //println!("m2 \"{}\"", m2); //DEBUG
 
                     let value = obs
                         .trim()

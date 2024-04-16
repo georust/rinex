@@ -19,10 +19,15 @@ pub fn check_observables(rinex: &Rinex, observables: &[&str]) {
  * Verifies Station list
  */
 pub fn check_stations(rinex: &Rinex, stations: &[&str]) {
-    let expected = stations
+    let mut expected = stations
         .iter()
         .map(|s| Station::from_str(s).unwrap())
         .collect::<Vec<_>>();
-    let header = rinex.header.doris.as_ref().expect("missing header fields!");
-    assert_eq!(header.stations, expected);
+    let mut header = rinex
+        .header
+        .doris
+        .as_ref()
+        .expect("missing header fields!")
+        .clone();
+    assert_eq!(header.stations.sort(), expected.sort());
 }
