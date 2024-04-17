@@ -5,7 +5,6 @@ use crate::{
     clock::WorkClock,
     cospar::{Error as CosparError, COSPAR},
     domes::Domes,
-    doris,
     doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
@@ -313,7 +312,7 @@ impl Header {
 
                 observation.crinex = Some(Crinex::default().with_version(crinex_revision));
             } else if marker.contains("CRINEX PROG / DATE") {
-                Self::parse_crinex_prog_date(&content, &mut observation)?;
+                Self::parse_crinex_prog_date(content, &mut observation)?;
 
             ////////////////////////////////////////
             // [2] ANTEX special header
@@ -586,7 +585,7 @@ impl Header {
                 let (_num, remainder) = rem.split_at(3);
 
                 let mut items = remainder.split_ascii_whitespace();
-                while let Some(observable_str) = items.next() {
+                for observable_str in items {
                     let observable = Observable::from_str(observable_str)?;
 
                     // latch scaling value
@@ -810,19 +809,19 @@ impl Header {
                 }
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
-                Self::parse_v2_observables(&content, constellation, &mut meteo, &mut observation);
+                Self::parse_v2_observables(content, constellation, &mut meteo, &mut observation);
             } else if marker.contains("SYS / # / OBS TYPES") {
                 match rinex_type {
                     Type::ObservationData => {
                         Self::parse_v3_observables(
-                            &content,
+                            content,
                             &mut current_constell,
                             &mut observation,
                         );
                     },
                     Type::DORIS => {
                         /* in DORIS RINEX, observations are not tied to a particular constellation */
-                        Self::parse_doris_observables(&content, &mut doris);
+                        Self::parse_doris_observables(content, &mut doris);
                     },
                     _ => {},
                 }
@@ -1757,7 +1756,7 @@ impl Header {
             // system correctly identified
             for item in items.split_ascii_whitespace() {
                 if let Ok(observable) = Observable::from_str(item) {
-                    if let Some(codes) = observation.codes.get_mut(&constell) {
+                    if let Some(codes) = observation.codes.get_mut(constell) {
                         codes.push(observable);
                     } else {
                         observation.codes.insert(*constell, vec![observable]);

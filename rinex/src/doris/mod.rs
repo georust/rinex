@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::str::FromStr;
+
 use thiserror::Error;
 
 use crate::{
-    domes::{Domes, Error as DomesParsingError, TrackingPoint as DomesTrackingPoint},
+    domes::Error as DomesParsingError,
     observable::Observable,
     prelude::{Duration, Epoch},
 };

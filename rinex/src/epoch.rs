@@ -191,11 +191,9 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                     if is_nav {
                         // NAV RINEX : 100ms precision
                         ns *= 100_000_000;
-                    } else {
-                        if nanos.len() != 9 {
-                            // OBS RINEX : 100ns precision
-                            ns *= 100;
-                        }
+                    } else if nanos.len() != 9 {
+                        // OBS RINEX : 100ns precision
+                        ns *= 100;
                     }
                 } else {
                     ss = item

@@ -7,7 +7,6 @@ use hifitime::TimeSeries;
 /* OBS RINEX dedicated tools */
 mod observation;
 pub use observation::check_observables as obsrinex_check_observables;
-pub use observation::test_crinex;
 pub use observation::test_observation_rinex;
 
 /* DORIS RINEX dedicated tools */

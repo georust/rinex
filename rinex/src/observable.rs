@@ -322,7 +322,7 @@ impl std::str::FromStr for Observable {
                         Ok(Self::Phase(content.to_string()))
                     } else if content.starts_with('C') || content.starts_with('P') {
                         Ok(Self::PseudoRange(content.to_string()))
-                    } else if content.starts_with('S') || content.starts_with("W") {
+                    } else if content.starts_with('S') || content.starts_with('W') {
                         Ok(Self::SSI(content.to_string()))
                     } else if content.starts_with('D') {
                         Ok(Self::Doppler(content.to_string()))
