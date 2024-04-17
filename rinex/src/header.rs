@@ -176,8 +176,8 @@ pub enum ParsingError {
     ParsePcvError(#[from] antex::pcv::Error),
     #[error("unknown ionex reference")]
     UnknownReferenceIonex(#[from] ionex::system::Error),
-    #[error("invalid crinex header \"{0}\": \"{1}\"")]
-    CrinexHeader(String, String),
+    #[error("invalid crinex header \"{0}\"")]
+    CrinexHeader(String),
     #[error("failed to parse datetime {0} field from \"{1}\"")]
     DateTimeParsing(String, String),
     #[error("failed to parse {0} integer value from \"{1}\"")]
@@ -313,52 +313,7 @@ impl Header {
 
                 observation.crinex = Some(Crinex::default().with_version(crinex_revision));
             } else if marker.contains("CRINEX PROG / DATE") {
-                let (prog, remainder) = content.split_at(20);
-                let (_, remainder) = remainder.split_at(20);
-                let date = remainder.split_at(20).0.trim();
-                let items: Vec<&str> = date.split_ascii_whitespace().collect();
-                if items.len() != 2 {
-                    return Err(ParsingError::CrinexHeader(
-                        String::from("CRINEX PROG/DATE"),
-                        content.to_string(),
-                    ));
-                }
-
-                let date: Vec<&str> = items[0].split('-').collect();
-                let time: Vec<&str> = items[1].split(':').collect();
-
-                let day = date[0].trim();
-                let day = day.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("day"),
-                    day.to_string(),
-                )))?;
-
-                let month = date[1].trim();
-                let month = parse_formatted_month(month)?;
-
-                let y = date[2].trim();
-                let mut y = y.parse::<i32>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("year"),
-                    y.to_string(),
-                )))?;
-
-                let h = time[0].trim();
-                let h = h.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("hour"),
-                    h.to_string(),
-                )))?;
-
-                let m = time[1].trim();
-                let m = m.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("minute"),
-                    m.to_string(),
-                )))?;
-
-                if let Some(crinex) = &mut observation.crinex {
-                    y += 2000;
-                    let date = Epoch::from_gregorian_utc(y, month, day, h, m, 0, 0);
-                    *crinex = crinex.with_prog(prog.trim()).with_date(date);
-                }
+                Self::parse_crinex_prog_date(&content, &mut observation)?;
 
             ////////////////////////////////////////
             // [2] ANTEX special header
@@ -1645,6 +1600,98 @@ impl Header {
             let grid = Linspace::new(start, end, spacing)?;
             Ok(grid)
         }
+    }
+    /*
+     * Parse CRINEX special header
+     */
+    fn parse_crinex_prog_date(
+        line: &str,
+        observation: &mut ObservationHeader,
+    ) -> Result<(), ParsingError> {
+        assert!(
+            observation.crinex.is_some(),
+            "badly formed CRINEX: CRINEX VERS/TYPE expected as first header"
+        );
+        let mut crinex = observation.crinex.clone().unwrap();
+
+        let (prog, rem) = line.split_at(20);
+        crinex = crinex.with_prog(prog.trim());
+
+        let (_, rem) = rem.split_at(20);
+        let date = rem.split_at(20).0.trim();
+
+        let date_time = date.split_ascii_whitespace();
+        if date_time.count() != 2 {
+            return Err(ParsingError::CrinexHeader(String::from("CRINEX PROG/DATE")));
+        }
+
+        let mut year = 2000_i32; // CRINEX: Y %02D
+        let mut month = 0_u8;
+        let mut day = 0_u8;
+        let mut hr = 0_u8;
+        let mut mins = 0_u8;
+        for (index, date_time) in date.split_ascii_whitespace().enumerate() {
+            match index {
+                0 => {
+                    for (index, component) in date_time.split('-').enumerate() {
+                        let component = component.trim();
+                        match index {
+                            0 => {
+                                day = component.parse::<u8>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::day".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            1 => {
+                                month = parse_formatted_month(component.trim())?;
+                            },
+                            2 => {
+                                year += component.trim().parse::<i32>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::year".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            _ => {},
+                        }
+                    }
+                },
+                1 => {
+                    for (index, component) in date_time.split(':').enumerate() {
+                        let component = component.trim();
+                        match index {
+                            0 => {
+                                hr = component.parse::<u8>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::hours".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            1 => {
+                                mins = component.parse::<u8>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::minutes".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            _ => {},
+                        }
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        let epoch = Epoch::from_gregorian_utc(year, month, day, hr, mins, 0, 0);
+        crinex = crinex.with_date(epoch);
+
+        observation.crinex = Some(crinex);
+        Ok(())
     }
     /*
      * Parse list of observables (V2)
