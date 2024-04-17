@@ -573,10 +573,8 @@ impl Header {
                     .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
                 // parse end of line
-                let (_num, remainder) = rem.split_at(3);
-
-                let mut items = remainder.split_ascii_whitespace();
-                for observable_str in items {
+                let (_num, rem) = rem.split_at(3);
+                for observable_str in rem.split_ascii_whitespace() {
                     let observable = Observable::from_str(observable_str)?;
 
                     // latch scaling value

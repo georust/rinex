@@ -1,7 +1,5 @@
 //! DORIS Station
-
 use crate::{domes::Domes, doris::Error};
-use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
