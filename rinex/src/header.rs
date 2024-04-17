@@ -232,15 +232,6 @@ macro_rules! parse_float_error {
     };
 }
 
-/*
- * Generates a ParsingError::InvalidIonexGridError(x, y)
- */
-macro_rules! grid_format_error {
-    ($field: expr, $content: expr) => {
-        ParsingError::InvalidIonexGrid(String::from($field), $content.to_string())
-    };
-}
-
 impl Header {
     /// Builds a `Header` from stream reader
     pub fn new(reader: &mut BufferedReader) -> Result<Header, ParsingError> {
