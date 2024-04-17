@@ -56,7 +56,7 @@ pub(crate) fn parse_epoch(
 > {
     let mut obs_idx = 0usize;
     let mut epoch = Epoch::default();
-    let mut flag = EpochFlag::default();
+    let flag = EpochFlag::default();
     let mut station = Option::<Station>::None;
     let mut buffer = BTreeMap::<Station, HashMap<Observable, ObservationData>>::new();
 
@@ -69,11 +69,11 @@ pub(crate) fn parse_epoch(
     let stations = &doris.stations;
 
     assert!(
-        stations.len() > 0,
+        !stations.is_empty(),
         "badly formed DORIS RINEX: no stations defined"
     );
     assert!(
-        observables.len() > 0,
+        !observables.is_empty(),
         "badly formed DORIS RINEX: no observables defined"
     );
 
@@ -83,11 +83,11 @@ pub(crate) fn parse_epoch(
                 /* 1st line gives TAI timestamp, flag, clock offset */
                 let line = line.split_at(2).1; // "> "
                 let offset = "YYYY MM DD HH MM SS.NNNNNNNNN  0".len();
-                let (date, rem) = line.split_at(offset);
+                let (date, _rem) = line.split_at(offset);
                 epoch = parse_in_timescale(date, TimeScale::TAI)?;
             },
             _ => {
-                let (id, remainder) = line.split_at(4);
+                let (id, _remainder) = line.split_at(4);
                 //println!("ID : \"{}\" - REMAINDER : \"{}\"", id, remainder); //DBEUG
 
                 if obs_idx == 0 {
@@ -110,7 +110,7 @@ pub(crate) fn parse_epoch(
 
                 // consume this line
                 let mut offset = 5;
-                let mut max_offset = line.len();
+                let max_offset = line.len();
                 while offset < line.len() {
                     let content = &line[offset..std::cmp::min(max_offset, offset + 16)];
                     let obs = &content[..12];
@@ -126,7 +126,7 @@ pub(crate) fn parse_epoch(
                         .parse::<f64>()
                         .unwrap_or_else(|e| panic!("failed to parse observation: {:?}", e));
 
-                    let m1 = if m1.len() > 0 {
+                    let m1 = if !m1.is_empty() {
                         Some(m1.parse::<u8>().unwrap_or_else(|e| {
                             panic!("failed to parse observation m1 flag: {:?}", e)
                         }))
@@ -134,7 +134,7 @@ pub(crate) fn parse_epoch(
                         None
                     };
 
-                    let m2 = if m2.len() > 0 {
+                    let m2 = if !m2.is_empty() {
                         Some(m2.parse::<u8>().unwrap_or_else(|e| {
                             panic!("failed to parse observation m2 flag: {:?}", e)
                         }))
@@ -154,7 +154,7 @@ pub(crate) fn parse_epoch(
                     if let Some(station) = buffer.get_mut(identified_station) {
                         station.insert(observable.clone(), obsdata);
                     } else {
-                        let mut inner =
+                        let inner =
                             HashMap::from_iter([(Observable::default(), obsdata)].into_iter());
                         buffer.insert(identified_station.clone(), inner);
                     }
@@ -236,25 +236,25 @@ impl Preprocessing for Record {
  * Decimates only a given record subset
  */
 #[cfg(feature = "processing")]
-fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
+fn decimate_data_subset(record: &mut Record, _subset: &Record, target: &TargetItem) {
     match target {
         TargetItem::ClockItem => {
             /*
              * Remove clock fields from self
              * where it should now be missing
              */
-            for (epoch, _) in record.iter_mut() {
+            for (_epoch, _) in record.iter_mut() {
                 //if subset.get(epoch).is_none() {
                 //    // should be missing
                 //    // *clk = None; // now missing
                 //}
             }
         },
-        TargetItem::SvItem(svs) => {
+        TargetItem::SvItem(_svs) => {
             /*
              * Remove SV observations where it should now be missing
              */
-            for (epoch, _) in record.iter_mut() {
+            for (_epoch, _) in record.iter_mut() {
                 //if subset.get(epoch).is_none() {
                 //    // should be missing
                 //    for sv in svs.iter() {
@@ -263,11 +263,11 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
                 //}
             }
         },
-        TargetItem::ObservableItem(obs_list) => {
+        TargetItem::ObservableItem(_obs_list) => {
             /*
              * Remove given observations where it should now be missing
              */
-            for (epoch, _) in record.iter_mut() {
+            for (_epoch, _) in record.iter_mut() {
                 //if subset.get(epoch).is_none() {
                 //    // should be missing
                 //    for (_sv, observables) in vehicles.iter_mut() {
@@ -276,11 +276,11 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
                 //}
             }
         },
-        TargetItem::ConstellationItem(constells_list) => {
+        TargetItem::ConstellationItem(_constells_list) => {
             /*
              * Remove observations for given constellation(s) where it should now be missing
              */
-            for (epoch, _) in record.iter_mut() {
+            for (_epoch, _) in record.iter_mut() {
                 //if subset.get(epoch).is_none() {
                 //    // should be missing
                 //    vehicles.retain(|sv, _| {
