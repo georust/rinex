@@ -1,8 +1,10 @@
 {
-    "method": "PPP",
+    "method": "CodePPP",
     "timescale": "GPST",
-    "interp_order": 11,
+    "interp_order": 13,
+    "min_sv_elevation": 1.0,
     "solver": {
+        "filter": "LSQ",
         "gdop_threshold": 10.0
     },
     "modeling": {
@@ -12,5 +14,5 @@
         "sv_clock_bias": true,
         "sv_total_group_delay": true,
         "relativistic_clock_bias": true
-    }
+    } 
 }
