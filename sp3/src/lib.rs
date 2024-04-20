@@ -568,14 +568,13 @@ impl SP3 {
     pub fn comments(&self) -> impl Iterator<Item = &String> + '_ {
         self.comments.iter()
     }
-    /// Interpolate SV position, expressed in kilometers ECEF at desired Epoch `t`.
-    /// For typical SP3 files with 15' epoch interval,
-    /// an interpolation order of at least 11 is recommended to preserve
+    /// Interpolates SV position at single instant `t`, results expressed in kilometers ECEF.
+    /// Typically, you want to use an interpolation order of 11 here, to preserve
     /// data precision.
     /// For an evenly spaced SP3 file, operation is feasible on Epochs
     /// contained in the interval ](N +1)/2 * τ;  T - (N +1)/2 * τ],
-    /// where N is the interpolation order, τ the epoch interval and T
-    /// the last Epoch in this file. See [Bibliography::Japhet2021].
+    /// where N is the interpolation order, τ the epoch interval (15 ' is the standard
+    /// in SP3) and T the last Epoch in this file. See [Bibliography::Japhet2021].
     pub fn sv_position_interpolate(&self, sv: SV, t: Epoch, order: usize) -> Option<Vector3D> {
         let odd_order = order % 2 > 0;
         let sv_position: Vec<_> = self

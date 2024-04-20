@@ -10,16 +10,18 @@ use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, navigation::Ephemeris, prelude::Observable};
 
+use super::interp::TimeInterpolator;
+
 use rtk::prelude::{
     Candidate,
     Duration,
     Epoch,
     InterpolationResult,
-    IonosphericBias,
+    IonosphereBias,
     Observation,
     PVTSolutionType,
     Solver,
-    TroposphericBias, //TimeScale
+    TroposphereBias, //TimeScale
     Vector3,
 };
 
@@ -56,14 +58,13 @@ fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>)
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<APC, I>(
+pub fn resolve<I>(
     ctx: &Context,
-    mut solver: Solver<APC, I>,
+    mut solver: Solver<I>,
     rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError>
 where
-    APC: Fn(Epoch, SV, f64) -> Option<(f64, f64, f64)>,
     I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
 {
     // custom tracking duration
@@ -85,14 +86,23 @@ where
     let meteo_data = ctx.data.meteo();
 
     let clk_data = ctx.data.clock();
-    let _has_clk_data = clk_data.is_some();
 
-    let _sp3_data = ctx.data.sp3();
     let sp3_has_clock = ctx.data.sp3_has_clock();
+    if clk_data.is_none() && sp3_has_clock {
+        if let Some(sp3) = ctx.data.sp3() {
+            warn!("Using clock states defined in SP3 file: CLK product should be prefered");
+            if sp3.epoch_interval >= Duration::from_seconds(300.0) {
+                warn!("Interpolating clock states from low sample rate SP3 will most likely introduce errors");
+            }
+        }
+    }
 
     let dominant_sampling_period = obs_data
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
+
+    let mut interp = TimeInterpolator::from_ctx(&ctx);
+    debug!("Clock interpolator created");
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
@@ -122,45 +132,23 @@ where
             }
 
             // determine TOE
-            let (toe, sv_eph) = sv_eph.unwrap();
-            /*
-             * Clock state
-             *  1. Prefer CLK product
-             *  2. Prefer SP3 product
-             *  3. Radio last option
-             */
-            let clock_state = if let Some(clk) = clk_data {
-                if let Some((_, profile)) = clk.precise_sv_clock_interpolate(*t, *sv) {
-                    (
-                        profile.bias,
-                        profile.drift.unwrap_or(0.0),
-                        profile.drift_change.unwrap_or(0.0),
-                    )
-                } else {
-                    /*
-                     * interpolation failure.
-                     * Do not interpolate other products: SV will not be presented.
-                     */
+            let (_toe, sv_eph) = sv_eph.unwrap();
+            let clock_corr = match interp.next_at(*t, *sv) {
+                Some(dt) => dt,
+                None => {
+                    error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
-                }
-            } else if sp3_has_clock {
-                panic!("sp3 (clock) interpolation not ready yet: prefer broadcast or clk product");
-            } else {
-                sv_eph.sv_clock() // BRDC case
+                },
             };
 
-            // determine clock correction
-            let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
-
-            let iono_bias = IonosphericBias {
+            let iono_bias = IonosphereBias {
                 kb_model: kb_model(nav_data, *t),
                 bd_model: bd_model(nav_data, *t),
                 ng_model: ng_model(nav_data, *t),
                 stec_meas: None, //TODO
             };
 
-            let tropo_bias = TroposphericBias {
+            let tropo_bias = TroposphereBias {
                 total: None, //TODO
                 zwd_zdd,
             };
@@ -220,8 +208,8 @@ where
                         Candidate::new(
                             *sv,
                             *t,
-                            clock_state,
                             clock_corr,
+                            sv_eph.tgd(),
                             vec![code],
                             vec![],
                             doppler,
@@ -236,26 +224,14 @@ where
                         Candidate::new(
                             *sv,
                             *t,
-                            clock_state,
                             clock_corr,
+                            sv_eph.tgd(),
                             vec![],
                             vec![phase],
                             doppler,
                         )
                     },
                 };
-
-                if candidate.is_err() {
-                    warn!(
-                        "{:?}: failed to form candidate {} : \"{}\"",
-                        t,
-                        sv,
-                        candidate.err().unwrap()
-                    );
-                    continue;
-                }
-
-                let candidate = candidate.unwrap();
 
                 match solver.resolve(
                     *t,

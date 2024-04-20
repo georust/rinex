@@ -498,7 +498,7 @@ impl Ephemeris {
             c => {
                 if c.is_sbas() {
                     //TODO: verify this please
-                    Some(Duration::from_seconds(7200.0))
+                    Some(Duration::from_seconds(360.0))
                 } else {
                     None
                 }

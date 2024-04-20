@@ -93,9 +93,6 @@ pub fn post_process(
         .name("PVT");
     plot_ctx.add_trace(pvt_scatter);
 
-    /*
-     * 3D position residues visualization
-     */
     let trace = build_3d_chart_epoch_label(
         "error",
         Mode::Markers,
@@ -126,6 +123,40 @@ pub fn post_process(
             worst_radius = error;
         }
     }
+
+    /*
+     * 2D X/Y errors graph
+     */
+    plot_ctx.add_timedomain_2y_plot("X / Y Errors", "X error [m]", "Y error [m]");
+
+    let trace = build_chart_epoch_axis(
+        "x err",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|p| p.pos.x).collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    let trace = build_chart_epoch_axis(
+        "y err",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|p| p.pos.y).collect::<Vec<f64>>(),
+    )
+    .y_axis("y2");
+    plot_ctx.add_trace(trace);
+
+    /*
+     * 2D Z error graph
+     */
+    plot_ctx.add_timedomain_plot("Altitude Errors", "Z error [m]");
+    let trace = build_chart_epoch_axis(
+        "z err",
+        Mode::Markers,
+        epochs.clone(),
+        results.values().map(|p| p.pos.z).collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
 
     /*
      * Create graphical visualization
@@ -166,7 +197,7 @@ pub fn post_process(
         "gdop",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|e| e.gdop()).collect::<Vec<f64>>(),
+        results.values().map(|e| e.gdop).collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -207,7 +238,7 @@ pub fn post_process(
         "tdop",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|e| e.tdop()).collect::<Vec<f64>>(),
+        results.values().map(|e| e.tdop).collect::<Vec<f64>>(),
     )
     .y_axis("y2");
     plot_ctx.add_trace(trace);
@@ -240,7 +271,7 @@ pub fn post_process(
         let (hdop, vdop, tdop) = (
             solution.hdop(lat_ddeg, lon_ddeg),
             solution.vdop(lat_ddeg, lon_ddeg),
-            solution.tdop(),
+            solution.tdop,
         );
         writeln!(
             fd,
@@ -293,7 +324,7 @@ pub fn post_process(
                         attrs: HashMap::new(),
                     }))
                 },
-                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop()))]
+                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop))]
                     .into_iter()
                     .collect(),
                 children: vec![],

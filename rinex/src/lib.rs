@@ -2256,14 +2256,11 @@ impl Rinex {
                     };
                     //TODO : this fails at this point
                     //       on both GLONASS and SBAS
-                    //       therfore, kills rtk with these two constellations
+                    //       therfore, disables rtk with these two constellations
                     let toe = toe?;
                     let dt = t - toe;
                     let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
-                    // <o
-                    //     only positive dt: toe is older than request
-                    //     dt < maxdtoe: t is within validity window
-                    if toe <= t && dt < max_dtoe {
+                    if (t - toe).abs() < max_dtoe {
                         Some((toe, eph))
                     } else {
                         None

@@ -17,13 +17,8 @@ You should provide Observations from a unique receiver.")
             .action(ArgAction::Append)
             .help("Pass a Position Solver configuration file (JSON).
 [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/struct.Config.html] is the structure to represent in JSON.
+Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html] for solving strategies.
 See [] for meaningful examples."))
-        .arg(Arg::new("spp")
-            .long("spp")
-            .action(ArgAction::SetTrue)
-            .help("Force resolution method to Single Point Positioning (SPP).
-Otherwise, the Default method is used.
-Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html]."))
         .arg(Arg::new("gpx")
             .long("gpx")
             .action(ArgAction::SetTrue)
