@@ -4,6 +4,7 @@
     "interp_order": 11,
     "min_sv_elevation": 10.0,
     "solver": {
+        "filter": "LSQ",
         "gdop_threshold": 10.0
     },
     "modeling": {
