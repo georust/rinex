@@ -753,6 +753,23 @@ mod test {
             Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
         ];
 
+        // Check parsed observables
+        for constellation in [
+            Constellation::GPS,
+            Constellation::SBAS,
+            Constellation::Glonass,
+            Constellation::Galileo,
+        ] {
+            obsrinex_check_observables(
+                &rnx,
+                constellation,
+                &[
+                    "L1", "L2", "C1", "C2", "P1", "P2", "D1", "D2", "S1", "S2", "L5", "C5", "D5",
+                    "S5", "L7", "C7", "D7", "S7", "L8", "C8", "D8", "S8",
+                ],
+            );
+        }
+
         assert!(
             rnx.epoch().collect::<Vec<Epoch>>() == epochs,
             "parsed wrong epoch content"

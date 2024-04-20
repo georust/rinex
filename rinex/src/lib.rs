@@ -8,7 +8,9 @@ extern crate gnss_rs as gnss;
 pub mod antex;
 pub mod carrier;
 pub mod clock;
+pub mod cospar;
 pub mod domes;
+pub mod doris;
 pub mod epoch;
 pub mod gnss_time;
 pub mod hardware;
@@ -80,6 +82,8 @@ pub mod prelude {
     #[cfg(feature = "sp3")]
     pub use crate::context::{ProductType, RnxContext};
     pub use crate::domes::Domes;
+    #[cfg(feature = "doris")]
+    pub use crate::doris::Station;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;
@@ -381,7 +385,7 @@ impl Rinex {
                     crinex: None,
                     codes: params.codes.clone(),
                     clock_offset_applied: params.clock_offset_applied,
-                    scalings: params.scalings.clone(),
+                    scaling: params.scaling.clone(),
                     time_of_first_obs: params.time_of_first_obs,
                     time_of_last_obs: params.time_of_last_obs,
                 });

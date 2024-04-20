@@ -131,7 +131,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
     let mut hh = 0_u8;
     let mut mm = 0_u8;
     let mut ss = 0_u8;
-    let mut ns = 0_u32;
+    let mut ns = 0_u64;
 
     if content.split_ascii_whitespace().count() < 6 {
         return Err(ParsingError::FormatError);
@@ -182,15 +182,16 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                         .parse::<u8>()
                         .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
 
-                    ns = item[dot + 1..]
-                        .trim()
-                        .parse::<u32>()
+                    let nanos = item[dot + 1..].trim();
+
+                    ns = nanos
+                        .parse::<u64>()
                         .map_err(|_| ParsingError::NanosecondsField(item.to_string()))?;
 
                     if is_nav {
                         // NAV RINEX : 100ms precision
                         ns *= 100_000_000;
-                    } else {
+                    } else if nanos.len() != 9 {
                         // OBS RINEX : 100ns precision
                         ns *= 100;
                     }
@@ -216,7 +217,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                 return Err(ParsingError::FormatError);
             }
 
-            let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns);
+            let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns as u32);
             Ok(epoch)
         },
         _ => {
@@ -227,14 +228,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
             }
             let epoch = Epoch::from_str(&format!(
                 "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09} {}",
-                y,
-                m,
-                d,
-                hh,
-                mm,
-                ss,
-                ns / 100_000_000,
-                ts
+                y, m, d, hh, mm, ss, ns, ts
             ))?;
             Ok(epoch)
         },
