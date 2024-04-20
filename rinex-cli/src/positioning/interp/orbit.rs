@@ -64,6 +64,11 @@ fn sun_unit_vector(ref_frame: &Frame, cosmic: &Arc<Cosm>, t: Epoch) -> Vector3<f
 }
 
 impl<'a> Interpolator<'a> {
+    /*
+     * Orbit interpolator
+     *  1. Prefer SP3 product
+     *  2. BRDC last option
+     */
     pub fn from_ctx(ctx: &'a Context, order: usize, apriori: AprioriPosition) -> Self {
         let cosmic = Cosm::de438();
         let earth_frame = cosmic.frame("EME2000"); // this only works on planet Earth..
@@ -255,5 +260,107 @@ impl<'a> Interpolator<'a> {
             //}
         }
         out
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Buffer, BufferTrait};
+    use hifitime::Epoch;
+    use std::str::FromStr;
+    #[test]
+    fn buffer_gap() {
+        let mut buffer = Buffer::malloc(4);
+        for (t, value) in [
+            ("2020-01-01T00:00:00 UTC", 0.0_f64),
+            ("2020-01-01T00:01:00 UTC", 1.0_f64),
+            ("2020-01-01T00:02:00 UTC", 2.0_f64),
+        ] {
+            let t = Epoch::from_str(t).unwrap();
+            buffer.fill((t, (value, value, value)));
+        }
+
+        assert_eq!(
+            buffer.snapshot(),
+            &[
+                (
+                    Epoch::from_str("2020-01-01T00:00:00 UTC").unwrap(),
+                    (0.0_f64, 0.0_f64, 0.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:01:00 UTC").unwrap(),
+                    (1.0_f64, 1.0_f64, 1.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:02:00 UTC").unwrap(),
+                    (2.0_f64, 2.0_f64, 2.0_f64)
+                ),
+            ]
+        );
+
+        let t = Epoch::from_str("2020-01-01T00:03:00 UTC").unwrap();
+        buffer.fill((t, (3.0_f64, 3.0_f64, 3.0_f64)));
+
+        assert_eq!(
+            buffer.snapshot(),
+            &[
+                (
+                    Epoch::from_str("2020-01-01T00:00:00 UTC").unwrap(),
+                    (0.0_f64, 0.0_f64, 0.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:01:00 UTC").unwrap(),
+                    (1.0_f64, 1.0_f64, 1.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:02:00 UTC").unwrap(),
+                    (2.0_f64, 2.0_f64, 2.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:03:00 UTC").unwrap(),
+                    (3.0_f64, 3.0_f64, 3.0_f64)
+                ),
+            ]
+        );
+
+        let t = Epoch::from_str("2020-01-01T00:04:00 UTC").unwrap();
+        buffer.fill((t, (4.0_f64, 4.0_f64, 4.0_f64)));
+
+        assert_eq!(
+            buffer.snapshot(),
+            &[
+                (
+                    Epoch::from_str("2020-01-01T00:00:00 UTC").unwrap(),
+                    (0.0_f64, 0.0_f64, 0.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:01:00 UTC").unwrap(),
+                    (1.0_f64, 1.0_f64, 1.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:02:00 UTC").unwrap(),
+                    (2.0_f64, 2.0_f64, 2.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:03:00 UTC").unwrap(),
+                    (3.0_f64, 3.0_f64, 3.0_f64)
+                ),
+                (
+                    Epoch::from_str("2020-01-01T00:04:00 UTC").unwrap(),
+                    (4.0_f64, 4.0_f64, 4.0_f64)
+                ),
+            ]
+        );
+
+        let t = Epoch::from_str("2020-01-01T00:06:00 UTC").unwrap();
+        buffer.fill((t, (6.0_f64, 6.0_f64, 6.0_f64)));
+
+        assert_eq!(
+            buffer.snapshot(),
+            &[(
+                Epoch::from_str("2020-01-01T00:06:00 UTC").unwrap(),
+                (6.0_f64, 6.0_f64, 6.0_f64)
+            ),]
+        );
     }
 }

@@ -89,7 +89,7 @@ impl<'a> Interpolator<'a> {
                 if let Some(prev) = prev_t {
                     if t > prev {
                         epochs += 1;
-                        //println!("{} - new epoch", t); // DEBUG
+                        println!("{} - new epoch", t); // DEBUG
                     }
                 }
                 prev_t = Some(t);
@@ -134,7 +134,8 @@ impl<'a> Interpolator<'a> {
             }
         }
 
-        let buf = self.buffers.get(&sv)?;
+        let buf = self.buffers.get_mut(&sv)?;
+
         if let Some((before_x, before_y)) = buf.inner.iter().filter(|(v_t, _)| *v_t <= t).last() {
             // interpolate: if need be
             let dy: Option<f64> = if *before_x == t {
@@ -154,15 +155,12 @@ impl<'a> Interpolator<'a> {
                     None
                 }
             };
+
             // management: discard old samples
-            self.buffers.retain(|b_sv, b_v| {
-                if *b_sv != sv {
-                    true
-                } else {
-                    b_v.inner.retain(|b_t| b_t.0 < t);
-                    !b_v.inner.is_empty()
-                }
-            });
+            if dy.is_some() {
+                buf.inner.retain(|b| b.0 < t - self.sampling);
+            }
+
             return dy;
         }
         None

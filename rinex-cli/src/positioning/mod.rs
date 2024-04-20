@@ -164,23 +164,19 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 }
 
 pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
-    let method = match matches.get_flag("spp") {
-        true => Method::SPP,
-        false => Method::PPP,
-    };
-
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
             let content = read_to_string(fp)
                 .unwrap_or_else(|_| panic!("failed to read configuration: permission denied"));
             let cfg = serde_json::from_str(&content)
                 .unwrap_or_else(|_| panic!("failed to parse configuration: invalid content"));
-            info!("using custom solver configuration: {:#?}", cfg);
+            info!("Using custom solver configuration: {:#?}", cfg);
             cfg
         },
         None => {
+            let method = Method::default();
             let cfg = Config::preset(method);
-            info!("using default {:?} solver preset: {:#?}", method, cfg);
+            info!("Using {:?} default preset: {:#?}", method, cfg);
             cfg
         },
     };
@@ -215,7 +211,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     debug!("Orbit interpolator created");
 
     // print config to be used
-    info!("Using {:?} method", method);
+    info!("Using {:?} method", cfg.method);
 
     let solver = Solver::new(
         &cfg,
