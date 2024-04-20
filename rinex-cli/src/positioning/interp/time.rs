@@ -67,6 +67,14 @@ impl<'a> Interpolator<'a> {
                 Box::new(sp3.sv_clock())
             } else {
                 panic!("sp3 or clock rinex currently required");
+                // TODO
+                // let brdc = ctx.data.brdc_navigation().unwrap(); // infaillible
+                // Box::new(brdc.sv_clock())
+                // dt = t - toc
+                // for (i=0; i<2; i++)
+                //    dt -= a0 + a1 * dt+ a2 * dt^2
+                // return a0 + a1 * dt + a2 * dt
+                // let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
             },
         }
     }
@@ -89,7 +97,7 @@ impl<'a> Interpolator<'a> {
                 if let Some(prev) = prev_t {
                     if t > prev {
                         epochs += 1;
-                        println!("{} - new epoch", t); // DEBUG
+                        // println!("{} - new epoch", t); // DEBUG
                     }
                 }
                 prev_t = Some(t);
@@ -114,11 +122,11 @@ impl<'a> Interpolator<'a> {
             })
             .reduce(|k, _| k)
     }
-    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<f64> {
+    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<Duration> {
         // Maintain buffer up to date, consume data if need be
         loop {
             if let Some(latest) = self.latest(sv) {
-                if *latest > t + self.sampling {
+                if *latest >= t + self.sampling {
                     break;
                 } else {
                     if self.consume(1) {
@@ -138,8 +146,8 @@ impl<'a> Interpolator<'a> {
 
         if let Some((before_x, before_y)) = buf.inner.iter().filter(|(v_t, _)| *v_t <= t).last() {
             // interpolate: if need be
-            let dy: Option<f64> = if *before_x == t {
-                Some(*before_y)
+            let dy: Option<Duration> = if *before_x == t {
+                Some(Duration::from_seconds(*before_y))
             } else {
                 if let Some((after_x, after_y)) = buf
                     .inner
@@ -150,7 +158,7 @@ impl<'a> Interpolator<'a> {
                     let dx = (*after_x - *before_x).to_seconds();
                     let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
                     dy += (t - *before_x).to_seconds() / dx * *after_y;
-                    Some(dy)
+                    Some(Duration::from_seconds(dy))
                 } else {
                     None
                 }

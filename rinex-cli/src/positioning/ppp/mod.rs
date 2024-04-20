@@ -13,8 +13,8 @@ mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
 
 use rtk::prelude::{
-    Candidate, Epoch, InterpolationResult, IonosphericBias, Observation, PVTSolution,
-    PVTSolutionType, Solver, TroposphericBias, Vector3,
+    Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution,
+    PVTSolutionType, Solver, TroposphereBias, Vector3,
 };
 
 use super::interp::TimeInterpolator;
@@ -73,18 +73,14 @@ where
             }
 
             // determine TOE
-            let (toe, _) = sv_eph.unwrap();
-            let clock_state = match interp.next_at(*t, *sv) {
-                Some(t) => (t, 0.0_f64, 0.0_f64), //TODO
+            let (_toe, sv_eph) = sv_eph.unwrap();
+            let clock_corr = match interp.next_at(*t, *sv) {
+                Some(dt) => dt,
                 None => {
                     error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
                 },
             };
-
-            // determine clock correction
-            let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            let clock_state = Vector3::new(clock_state.0, clock_state.1, clock_state.2);
 
             let mut codes = Vec::<Observation>::new();
             let mut phases = Vec::<Observation>::new();
@@ -116,32 +112,29 @@ where
                     }
                 }
             }
-            if let Ok(candidate) = Candidate::new(
+            let candidate = Candidate::new(
                 *sv,
                 *t,
-                clock_state,
                 clock_corr,
+                sv_eph.tgd(),
                 codes.clone(),
                 phases.clone(),
                 dopplers.clone(),
-            ) {
-                candidates.push(candidate);
-            } else {
-                warn!("{:?}: failed to form {} candidate", t, sv);
-            }
+            );
+            candidates.push(candidate);
         }
 
         // grab possible tropo components
         let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
-        let iono_bias = IonosphericBias {
+        let iono_bias = IonosphereBias {
             kb_model: kb_model(nav_data, *t),
             bd_model: bd_model(nav_data, *t),
             ng_model: ng_model(nav_data, *t),
             stec_meas: None, //TODO
         };
 
-        let tropo_bias = TroposphericBias {
+        let tropo_bias = TroposphereBias {
             total: None, //TODO
             zwd_zdd,
         };

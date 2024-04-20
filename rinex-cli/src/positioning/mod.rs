@@ -167,9 +167,9 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
             let content = read_to_string(fp)
-                .unwrap_or_else(|_| panic!("failed to read configuration: permission denied"));
+                .unwrap_or_else(|e| panic!("failed to read configuration: {}", e));
             let cfg = serde_json::from_str(&content)
-                .unwrap_or_else(|_| panic!("failed to parse configuration: invalid content"));
+                .unwrap_or_else(|e| panic!("failed to parse configuration: {}", e));
             info!("Using custom solver configuration: {:#?}", cfg);
             cfg
         },
