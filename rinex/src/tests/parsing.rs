@@ -266,7 +266,7 @@ mod test {
                             assert!(rinex.header.clock.is_some(), "badly formed CLK RINEX");
                             assert!(rinex.epoch().count() > 0); // all files have content
                             let record = rinex.record.as_clock().unwrap();
-                            for (e, _) in record {
+                            for e in record.keys() {
                                 assert!(
                                     e.time_scale == TimeScale::UTC,
                                     "wrong {} timescale for a CLOCK RINEX",

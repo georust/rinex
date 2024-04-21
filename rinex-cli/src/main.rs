@@ -4,11 +4,11 @@
 
 //mod analysis; // basic analysis
 mod cli; // command line interface
-mod fops;
-mod graph;
+mod fops; // file operations
+mod graph; // plotting
 mod identification; // high level identification/macros
-mod positioning;
-mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis // positioning + CGGTTS opmode
+mod positioning; // positioning + CGGTTS opmode
+mod qc; // QC report generator
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -153,9 +153,9 @@ pub fn main() -> Result<(), Error> {
     let cli = Cli::new();
 
     // User Data parsing
-    let mut data_ctx = user_data_parsing(&cli);
+    let data_ctx = user_data_parsing(&cli);
     let ctx_position = data_ctx.ground_position();
-    let ctx_stem = Context::context_stem(&mut data_ctx);
+    let ctx_stem = Context::context_stem(&data_ctx);
 
     // Form context
     let ctx = Context {

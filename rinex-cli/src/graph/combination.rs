@@ -54,7 +54,7 @@ pub fn plot_gnss_dcb(
     let markers = generate_markers(data.len());
     // plot all ops
     for (op_index, (op, vehicles)) in data.iter().enumerate() {
-        for (_sv, epochs) in vehicles {
+        for epochs in vehicles.values() {
             let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
             let trace = build_chart_epoch_axis(&op.to_string()[1..], Mode::Markers, data_x, data_y)
@@ -86,7 +86,7 @@ pub fn plot_gnss_code_mp(
     let markers = generate_markers(data.len());
     // plot all ops
     for (op_index, (op, vehicles)) in data.iter().enumerate() {
-        for (_sv, epochs) in vehicles {
+        for epochs in vehicles.values() {
             let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
             let trace = build_chart_epoch_axis(&op.to_string()[1..], Mode::Markers, data_x, data_y)

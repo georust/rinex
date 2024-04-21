@@ -101,7 +101,7 @@ where
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    let mut interp = TimeInterpolator::from_ctx(&ctx);
+    let mut interp = TimeInterpolator::from_ctx(ctx);
     debug!("Clock interpolator created");
 
     // CGGTTS specifics

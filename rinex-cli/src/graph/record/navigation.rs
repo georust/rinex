@@ -115,7 +115,7 @@ fn ctx_sv_clock_states(
  * one plot (2 Y axes) for both Clock biases
  * and clock drift
  */
-fn plot_sv_clock_states(ctx: &CtxClockStates, nav_sv: &Vec<SV>, plot_ctx: &mut PlotContext) {
+fn plot_sv_clock_states(ctx: &CtxClockStates, nav_sv: &[SV], plot_ctx: &mut PlotContext) {
     trace!("sv clock states plot");
     for (product, vehicles) in ctx {
         match product {
@@ -199,7 +199,7 @@ fn ctx_sv_clock_corrections(
         if !flag.is_ok() {
             continue;
         }
-        for (sv, _) in vehicles {
+        for sv in vehicles.keys() {
             let sv_eph = nav.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
                 continue;
