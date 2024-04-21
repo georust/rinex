@@ -5,7 +5,6 @@ use std::collections::BTreeMap;
 
 use rinex::{
     carrier::Carrier,
-    navigation::Ephemeris,
     prelude::{Duration, SV},
 };
 
@@ -14,7 +13,7 @@ pub use post_process::{post_process, Error as PostProcessingError};
 
 use rtk::prelude::{
     Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution,
-    PVTSolutionType, Solver, TroposphereBias, Vector3,
+    PVTSolutionType, Solver, TroposphereBias,
 };
 
 use super::interp::TimeInterpolator;
