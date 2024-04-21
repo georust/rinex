@@ -1,8 +1,7 @@
 use crate::graph::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible}; //Marker, MarkerSymbol
-use rinex::prelude::Epoch;
-use rinex::prelude::RnxContext;
-use rinex::prelude::SV;
+use rinex::prelude::{Epoch, SV};
+use rinex_qc::prelude::DataContext;
 use std::collections::HashMap;
 
 /*
@@ -10,7 +9,7 @@ use std::collections::HashMap;
  * compares residual error between broadcast ephemeris
  * and SP3 high precision orbits
  */
-pub fn plot_residual_ephemeris(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+pub fn plot_residual_ephemeris(ctx: &DataContext, plot_ctx: &mut PlotContext) {
     let sp3 = ctx
         .sp3() // cannot fail at this point
         .unwrap();

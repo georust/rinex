@@ -7,11 +7,13 @@ use std::process::Command;
 use std::str::FromStr;
 
 use rinex::{
-    prelude::{Duration, Epoch, ProductType, Rinex, RinexType},
+    prelude::{Duration, Epoch, Rinex, RinexType},
     preprocessing::*,
     prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     Merge, Split,
 };
+
+use rinex_qc::prelude::ProductType;
 
 /*
  * Parses share RINEX production attributes.
@@ -106,8 +108,8 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::Ionex,
-        ProductType::Antex,
+        ProductType::IONEX,
+        ProductType::ANTEX,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
             let prod = custom_prod_attributes(rinex, matches);
@@ -180,7 +182,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::Ionex,
+        ProductType::IONEX,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
             let (rinex_a, rinex_b) = rinex
@@ -295,7 +297,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::Ionex,
+        ProductType::IONEX,
     ] {
         // input data determination
         if let Some(rinex) = ctx_data.rinex(product) {

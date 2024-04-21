@@ -5,19 +5,17 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use crate::{
+use crate::prelude::ProductType;
+
+use rinex::{
     merge::{Error as RinexMergeError, Merge as RinexMerge},
-    prelude::{GroundPosition, Rinex},
-    types::Type as RinexType,
-    Error as RinexError,
+    prelude::{Error as RinexError, GroundPosition, Rinex, RinexType},
 };
 
+#[cfg(feature = "sp3")]
 use sp3::{prelude::SP3, Merge as SP3Merge, MergeError as SP3MergeError};
 
-#[cfg(feature = "qc")]
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
-
-#[cfg(feature = "qc")]
 use rinex_qc_traits::HtmlReport;
 
 #[derive(Debug, Error)]
@@ -30,63 +28,14 @@ pub enum Error {
     RinexError(#[from] RinexError),
     #[error("failed to extend rinex context")]
     RinexMergeError(#[from] RinexMergeError),
+    #[cfg(feature = "sp3")]
     #[error("failed to extend sp3 context")]
     SP3MergeError(#[from] SP3MergeError),
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Hash)]
-pub enum ProductType {
-    /// GNSS carrier signal observation in the form
-    /// of Observation RINEX data.
-    Observation,
-    /// Meteo sensors data wrapped as Meteo RINEX files.
-    MeteoObservation,
-    /// DORIS measurements wrapped as special RINEX observation file.
-    DorisRinex,
-    /// Broadcast Navigation message as contained in
-    /// Navigation RINEX files.
-    BroadcastNavigation,
-    /// High precision clock data wrapped in Clock RINEX files.
-    HighPrecisionOrbit,
-    /// High precision orbital attitudes wrapped in Clock RINEX files.
-    HighPrecisionClock,
-    /// Antenna calibration information wrapped in ANTEX special RINEX files.
-    Antex,
-    /// Precise Ionosphere state wrapped in IONEX special RINEX files.
-    Ionex,
-}
-
-impl std::fmt::Display for ProductType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Observation => write!(f, "Observation"),
-            Self::MeteoObservation => write!(f, "Meteo"),
-            Self::BroadcastNavigation => write!(f, "Broadcast Navigation"),
-            Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
-            Self::HighPrecisionClock => write!(f, "High Precision Clock"),
-            Self::Antex => write!(f, "ANTEX"),
-            Self::Ionex => write!(f, "IONEX"),
-            Self::DorisRinex => write!(f, "DORIS RINEX"),
-        }
-    }
-}
-
-impl From<RinexType> for ProductType {
-    fn from(rt: RinexType) -> Self {
-        match rt {
-            RinexType::ObservationData => Self::Observation,
-            RinexType::NavigationData => Self::BroadcastNavigation,
-            RinexType::MeteoData => Self::MeteoObservation,
-            RinexType::ClockData => Self::HighPrecisionClock,
-            RinexType::IonosphereMaps => Self::Ionex,
-            RinexType::AntennaData => Self::Antex,
-            RinexType::DORIS => Self::DorisRinex,
-        }
-    }
-}
-
 enum BlobData {
     /// SP3 content
+    #[cfg(feature = "sp3")]
     Sp3(SP3),
     /// RINEX content
     Rinex(Rinex),
@@ -108,6 +57,7 @@ impl BlobData {
         }
     }
     /// Returns reference to inner SP3 data.
+    #[cfg(feature = "sp3")]
     pub fn as_sp3(&self) -> Option<&SP3> {
         match self {
             Self::Sp3(s) => Some(s),
@@ -115,6 +65,7 @@ impl BlobData {
         }
     }
     /// Returns mutable reference to inner SP3 data.
+    #[cfg(feature = "sp3")]
     pub fn as_mut_sp3(&mut self) -> Option<&mut SP3> {
         match self {
             Self::Sp3(s) => Some(s),
@@ -123,17 +74,18 @@ impl BlobData {
     }
 }
 
-/// RnxContext is a structure dedicated to RINEX post processing workflows,
-/// like precise timing, positioning or atmosphere analysis.
+/// DataContext represents an entire data context we can analyze.
+/// It is dedicated to GNSS post processing, QC analysis, precise timing
+/// and positioning or atmosphere analysis.
 #[derive(Default)]
-pub struct RnxContext {
-    /// Files merged into self
+pub struct DataContext {
+    /// Files contained in Self
     files: HashMap<ProductType, Vec<PathBuf>>,
     /// Context blob created by merging each members of each category
     blob: HashMap<ProductType, BlobData>,
 }
 
-impl RnxContext {
+impl DataContext {
     /// Returns path to File considered as Primary in this Context.
     /// Observation then Navigation files are prefered as Primary files.
     /// When a unique file had been loaded, it is obviously considered Primary.
@@ -147,9 +99,10 @@ impl RnxContext {
             ProductType::BroadcastNavigation,
             ProductType::MeteoObservation,
             ProductType::HighPrecisionClock,
+            #[cfg(feature = "sp3")]
             ProductType::HighPrecisionOrbit,
-            ProductType::Ionex,
-            ProductType::Antex,
+            ProductType::IONEX,
+            ProductType::ANTEX,
         ] {
             if let Some(paths) = self.files(product) {
                 /*
@@ -234,6 +187,7 @@ impl RnxContext {
         self.data(product)?.as_rinex()
     }
     /// Returns reference to inner SP3 data
+    #[cfg(feature = "sp3")]
     pub fn sp3(&self) -> Option<&SP3> {
         self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
     }
@@ -257,13 +211,13 @@ impl RnxContext {
     pub fn clock(&self) -> Option<&Rinex> {
         self.data(ProductType::HighPrecisionClock)?.as_rinex()
     }
-    /// Returns reference to inner [ProductType::Antex] data
+    /// Returns reference to inner [ProductType::ANTEX] data
     pub fn antex(&self) -> Option<&Rinex> {
-        self.data(ProductType::Antex)?.as_rinex()
+        self.data(ProductType::ANTEX)?.as_rinex()
     }
-    /// Returns reference to inner [ProductType::Ionex] data
+    /// Returns reference to inner [ProductType::IONEX] data
     pub fn ionex(&self) -> Option<&Rinex> {
-        self.data(ProductType::Ionex)?.as_rinex()
+        self.data(ProductType::IONEX)?.as_rinex()
     }
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn observation_mut(&mut self) -> Option<&mut Rinex> {
@@ -284,16 +238,17 @@ impl RnxContext {
             .as_mut_rinex()
     }
     /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
+    #[cfg(feature = "sp3")]
     pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
         self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
     }
-    /// Returns mutable reference to inner [ProductType::Antex] data
+    /// Returns mutable reference to inner [ProductType::ANTEX] data
     pub fn antex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::Antex)?.as_mut_rinex()
+        self.data_mut(ProductType::ANTEX)?.as_mut_rinex()
     }
-    /// Returns mutable reference to inner [ProductType::Ionex] data
+    /// Returns mutable reference to inner [ProductType::IONEX] data
     pub fn ionex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::Ionex)?.as_mut_rinex()
+        self.data_mut(ProductType::IONEX)?.as_mut_rinex()
     }
     /// Returns true if [ProductType::Observation] are present in Self
     pub fn has_observation(&self) -> bool {
@@ -304,6 +259,7 @@ impl RnxContext {
         self.brdc_navigation().is_some()
     }
     /// Returns true if [ProductType::HighPrecisionOrbit] are present in Self
+    #[cfg(feature = "sp3")]
     pub fn has_sp3(&self) -> bool {
         self.sp3().is_some()
     }
@@ -312,6 +268,7 @@ impl RnxContext {
         self.meteo().is_some()
     }
     /// Returns true if High Precision Orbits also contains temporal information.
+    #[cfg(feature = "sp3")]
     pub fn sp3_has_clock(&self) -> bool {
         if let Some(sp3) = self.sp3() {
             sp3.sv_clock().count() > 0
@@ -350,6 +307,7 @@ impl RnxContext {
     /// Load a single SP3 file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
+    #[cfg(feature = "sp3")]
     pub fn load_sp3(&mut self, path: &Path, sp3: SP3) -> Result<(), Error> {
         let prod_type = ProductType::HighPrecisionOrbit;
         // extend context blob
@@ -392,8 +350,7 @@ impl RnxContext {
     }
 }
 
-#[cfg(feature = "qc")]
-impl HtmlReport for RnxContext {
+impl HtmlReport for DataContext {
     fn to_html(&self) -> String {
         format!(
             "{}",
@@ -430,8 +387,8 @@ impl HtmlReport for RnxContext {
                 ProductType::MeteoObservation,
                 ProductType::HighPrecisionOrbit,
                 ProductType::HighPrecisionClock,
-                ProductType::Ionex,
-                ProductType::Antex,
+                ProductType::IONEX,
+                ProductType::ANTEX,
             ] {
                 tr {
                     td {
@@ -459,7 +416,7 @@ impl HtmlReport for RnxContext {
     }
 }
 
-impl std::fmt::Debug for RnxContext {
+impl std::fmt::Debug for DataContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Primary: \"{}\"", self.name())?;
@@ -467,10 +424,11 @@ impl std::fmt::Debug for RnxContext {
             ProductType::Observation,
             ProductType::BroadcastNavigation,
             ProductType::MeteoObservation,
+            #[cfg(feature = "sp3")]
             ProductType::HighPrecisionOrbit,
             ProductType::HighPrecisionClock,
-            ProductType::Ionex,
-            ProductType::Antex,
+            ProductType::IONEX,
+            ProductType::ANTEX,
         ] {
             if let Some(files) = self.files(product) {
                 write!(f, "\n{}: ", product)?;

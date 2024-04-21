@@ -51,10 +51,6 @@ processing = []
 # Allows to generate complete QC reports for RINEX or entire contexts.
 qc = ["rinex-qc-traits", "horrorshow"] 
 
-# Unlock SP3 support to be able to integrate SP3 precise orbits
-# into a complete Context.
-sp3 = ["dep:sp3", "walkdir"] 
-
 # Unlock all features, all at once
 full = [
     "antex",
@@ -69,7 +65,6 @@ full = [
     "processing",
     "qc",
     "serde",
-    "sp3",
 ]
 
 [package.metadata.docs.rs]
@@ -103,10 +98,6 @@ gnss-rs = { version = "2.1.3", features = ["serde"] }
 
 # RINEX QC dedicated traits
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
-
-# RINEX Context dependencies
-walkdir = { version = "2.4.0", optional = true }
-sp3 = { path = "../sp3", version = "=1.0.8", optional = true }
 
 [dev-dependencies]
 serde_json = "1"

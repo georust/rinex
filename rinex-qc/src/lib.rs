@@ -10,7 +10,16 @@ pub use opts::{QcClassification, QcOpts};
 mod analysis;
 use analysis::QcAnalysis;
 
-use rinex::prelude::{ProductType, RnxContext};
+mod product;
+use product::ProductType;
+
+mod context;
+use context::DataContext;
+
+pub mod prelude {
+    pub use crate::context::DataContext;
+    pub use crate::product::ProductType;
+}
 
 /*
  * Methods used when reporting lenghty vectors or data subsets in a table.
@@ -47,7 +56,7 @@ use rinex::preprocessing::{MaskFilter, MaskOperand, Preprocessing, TargetItem};
 pub struct QcReport {}
 
 impl QcReport {
-    fn build_analysis(ctx: &RnxContext, opts: &QcOpts) -> Vec<QcAnalysis> {
+    fn build_analysis(ctx: &DataContext, opts: &QcOpts) -> Vec<QcAnalysis> {
         /*
          * QC analysis not feasible when Observations not provided
          */
@@ -115,7 +124,7 @@ impl QcReport {
     }
     /// Generates a Quality Check Report from provided Context and parametrization,
     /// in html format.
-    pub fn html(context: &RnxContext, opts: QcOpts) -> String {
+    pub fn html(context: &DataContext, opts: QcOpts) -> String {
         let analysis = Self::build_analysis(context, &opts);
         format!(
             "{}",

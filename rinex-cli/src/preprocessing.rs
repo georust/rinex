@@ -3,8 +3,9 @@ use log::error;
 use std::str::FromStr;
 
 use crate::Cli;
-use rinex::prelude::{Epoch, RnxContext};
+use rinex::prelude::Epoch;
 use rinex::preprocessing::*;
+use rinex_qc::prelude::DataContext;
 
 use sp3::prelude::{DataType as SP3DataType, SP3};
 
@@ -510,7 +511,7 @@ pub fn sp3_rework_mut(sp3: &mut SP3) {
     }
 }
 
-pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
+pub fn preprocess(ctx: &mut DataContext, cli: &Cli) {
     // GNSS filters
     let mut gnss_filters = Vec::<&str>::new();
 

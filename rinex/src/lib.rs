@@ -79,8 +79,6 @@ pub mod prelude {
     pub use crate::antex::AntennaMatcher;
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
-    #[cfg(feature = "sp3")]
-    pub use crate::context::{ProductType, RnxContext};
     pub use crate::domes::Domes;
     #[cfg(feature = "doris")]
     pub use crate::doris::Station;
@@ -117,9 +115,6 @@ pub mod preprocessing {
 #[cfg(feature = "qc")]
 #[macro_use]
 extern crate horrorshow;
-
-#[cfg(feature = "sp3")]
-mod context;
 
 use carrier::Carrier;
 use prelude::*;
