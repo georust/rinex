@@ -5,7 +5,7 @@ use gnss::prelude::SV;
 use serde::{Deserialize, Serialize};
 
 /// GNSS receiver description
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Rcvr {
     /// Receiver (hardware) model
@@ -34,9 +34,9 @@ impl std::str::FromStr for Rcvr {
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Antenna {
-    /// Hardware model / make descriptor
+    /// Hardware model
     pub model: String,
-    /// Serial number / identification number
+    /// Serial number
     pub sn: String,
     /// Base / reference point coordinates
     pub coords: Option<(f64, f64, f64)>,

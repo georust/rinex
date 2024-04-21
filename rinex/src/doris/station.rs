@@ -1,5 +1,5 @@
 //! DORIS Station
-use crate::{domes::Domes, doris::Error};
+use crate::{domes::DOMES, doris::Error};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -9,7 +9,7 @@ pub struct Station {
     /// DORIS site name
     pub site: String,
     /// DOMES site identifier
-    pub domes: Domes,
+    pub domes: DOMES,
     /// Beacon generation
     pub gen: u8,
     /// K frequency shift factor
@@ -51,7 +51,7 @@ impl std::str::FromStr for Station {
         Ok(Station {
             site: name.trim().to_string(),
             label: label.trim().to_string(),
-            domes: Domes::from_str(domes.trim())?,
+            domes: DOMES::from_str(domes.trim())?,
             gen: gen
                 .trim()
                 .parse::<u8>()
@@ -75,7 +75,7 @@ impl std::fmt::Display for Station {
 #[cfg(test)]
 mod test {
     use super::Station;
-    use crate::domes::{Domes, TrackingPoint as DomesTrackingPoint};
+    use crate::domes::{TrackingPoint as DOMESTrackingPoint, DOMES};
     use std::str::FromStr;
     #[test]
     fn station_parsing() {
@@ -85,11 +85,11 @@ mod test {
                 Station {
                     label: "OWFC".to_string(),
                     site: "OWENGA".to_string(),
-                    domes: Domes {
+                    domes: DOMES {
                         area: 502,
                         site: 53,
                         sequential: 2,
-                        point: DomesTrackingPoint::Instrument,
+                        point: DOMESTrackingPoint::Instrument,
                     },
                     gen: 3,
                     k_factor: 0,
@@ -101,11 +101,11 @@ mod test {
                 Station {
                     label: "GRFB".to_string(),
                     site: "GREENBELT".to_string(),
-                    domes: Domes {
+                    domes: DOMES {
                         area: 404,
                         site: 51,
                         sequential: 178,
-                        point: DomesTrackingPoint::Instrument,
+                        point: DOMESTrackingPoint::Instrument,
                     },
                     gen: 3,
                     k_factor: 0,

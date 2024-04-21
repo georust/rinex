@@ -3,7 +3,7 @@ use crate::header::ParsingError;
 use crate::prelude::Constellation;
 
 /// Describes all known `RINEX` file types
-#[derive(Default, Copy, Clone, PartialEq, Debug)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Type {
     /// Describes Observation Data (OBS),

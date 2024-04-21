@@ -4,7 +4,7 @@ use crate::{
     clock::ClockProfileType,
     clock::WorkClock,
     cospar::{Error as CosparError, COSPAR},
-    domes::Domes,
+    domes::DOMES,
     doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
@@ -839,7 +839,7 @@ impl Header {
             } else if marker.contains("STATION NAME / NUM") {
                 let (name, domes) = content.split_at(4);
                 clock = clock.site(name.trim());
-                if let Ok(domes) = Domes::from_str(domes.trim()) {
+                if let Ok(domes) = DOMES::from_str(domes.trim()) {
                     clock = clock.domes(domes);
                 }
             } else if marker.contains("STATION CLK REF") {

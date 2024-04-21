@@ -28,10 +28,10 @@ pub enum TrackingPoint {
     Instrument,
 }
 
-/// DOMES Site identifier, see [Bibliography::IgnItrfDomes]
+/// DOMES Site identifier, see [Bibliography::IgnItrfDOMES]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Domes {
+pub struct DOMES {
     /// Area / Country code (3 digits)
     pub area: u16,
     /// Area site number (2 digits)
@@ -42,7 +42,7 @@ pub struct Domes {
     pub sequential: u16,
 }
 
-impl std::str::FromStr for Domes {
+impl std::str::FromStr for DOMES {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() == 9 {
@@ -68,7 +68,7 @@ impl std::str::FromStr for Domes {
     }
 }
 
-impl std::fmt::Display for Domes {
+impl std::fmt::Display for DOMES {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let point = match self.point {
             TrackingPoint::Monument => 'M',
@@ -84,14 +84,14 @@ impl std::fmt::Display for Domes {
 
 #[cfg(test)]
 mod test {
-    use super::{Domes, TrackingPoint};
+    use super::{TrackingPoint, DOMES};
     use std::str::FromStr;
     #[test]
     fn parser() {
         for (descriptor, expected) in [
             (
                 "10002M006",
-                Domes {
+                DOMES {
                     area: 100,
                     site: 2,
                     sequential: 6,
@@ -100,7 +100,7 @@ mod test {
             ),
             (
                 "40405S031",
-                Domes {
+                DOMES {
                     area: 404,
                     site: 5,
                     sequential: 31,
@@ -108,7 +108,7 @@ mod test {
                 },
             ),
         ] {
-            let domes = Domes::from_str(descriptor).unwrap();
+            let domes = DOMES::from_str(descriptor).unwrap();
             assert_eq!(domes, expected, "failed to parse DOMES");
             // reciprocal
             assert_eq!(domes.to_string(), descriptor, "DOMES reciprocal failed");

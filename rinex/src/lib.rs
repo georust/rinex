@@ -79,10 +79,11 @@ pub mod prelude {
     pub use crate::antex::AntennaMatcher;
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
-    pub use crate::domes::Domes;
+    pub use crate::domes::DOMES;
     #[cfg(feature = "doris")]
     pub use crate::doris::Station;
     pub use crate::ground_position::GroundPosition;
+    pub use crate::hardware::{Antenna, Rcvr as Receiver};
     pub use crate::header::Header;
     pub use crate::observable::Observable;
     pub use crate::observation::EpochFlag;
@@ -237,11 +238,11 @@ pub struct Rinex {
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent
     pub record: record::Record,
-    /*
-     * File Production attributes, attached to Self
-     * parsed from files that follow stadard naming conventions
-     */
-    prod_attr: Option<ProductionAttributes>,
+    /// File Production attributes that we possibly deduced
+    /// from the filename itself. Obviously only exists when files follow
+    /// standard naming conventions. May be partial/incomplete
+    /// if naming conventions are not strictly followed.
+    pub prod_attr: Option<ProductionAttributes>,
 }
 
 #[derive(Error, Debug)]

@@ -4,14 +4,14 @@
 
 //mod analysis; // basic analysis
 mod cli; // command line interface
-mod fops; // file operations
-mod graph; // plotting
-mod identification; // high level identification/macros
-mod positioning; // positioning + CGGTTS opmode
-mod qc; // QC report generator
+         // mod fops; // file operations
+         // mod graph; // plotting
+         // mod identification; // high level identification/macros
+         // mod positioning; // positioning + CGGTTS opmode
+         // mod qc; // QC report generator
 
 mod preprocessing;
-use preprocessing::preprocess;
+// use preprocessing::preprocess;
 
 use rinex_qc::prelude::DataContext;
 use std::fs::create_dir_all;
@@ -21,14 +21,11 @@ use walkdir::WalkDir;
 extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
+use cli::{Cli, Session};
+use env_logger::{Builder, Target};
+use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 use rinex::prelude::Rinex;
 use sp3::prelude::SP3;
-
-use cli::{Cli, Context};
-
-use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
-
-use env_logger::{Builder, Target};
 
 #[macro_use]
 extern crate log;
@@ -49,8 +46,8 @@ pub enum Error {
     SplitError(#[from] rinex::split::Error),
     #[error("failed to create QC report: permission denied!")]
     QcReportCreationError,
-    #[error("positioning solver error")]
-    PositioningSolverError(#[from] positioning::Error),
+    // #[error("positioning solver error")]
+    // PositioningSolverError(#[from] positioning::Error),
 }
 
 /*
@@ -71,36 +68,35 @@ fn user_data_parsing(cli: &Cli) -> DataContext {
         let walkdir = WalkDir::new(dir).max_depth(max_depth);
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
             if !entry.path().is_dir() {
-                let path = entry.path();
-                if let Ok(rinex) = Rinex::from_path(path) {
-                    let loading = ctx.load_rinex(path, rinex);
-                    if loading.is_ok() {
-                        info!("Loading RINEX file \"{}\"", path.display());
-                    } else {
-                        warn!(
-                            "failed to load RINEX file \"{}\": {}",
-                            path.display(),
-                            loading.err().unwrap()
-                        );
-                    }
-                } else if let Ok(sp3) = SP3::from_path(path) {
-                    let loading = ctx.load_sp3(path, sp3);
-                    if loading.is_ok() {
-                        info!("Loading SP3 file \"{}\"", path.display());
-                    } else {
-                        warn!(
-                            "failed to load SP3 file \"{}\": {}",
-                            path.display(),
-                            loading.err().unwrap()
-                        );
-                    }
-                } else {
-                    warn!("non supported file format \"{}\"", path.display());
-                }
+                //let path = entry.path();
+                //if let Ok(rinex) = Rinex::from_path(path) {
+                //    let loading = ctx.load_rinex(path, rinex);
+                //    if loading.is_ok() {
+                //        info!("Loading RINEX file \"{}\"", path.display());
+                //    } else {
+                //        warn!(
+                //            "failed to load RINEX file \"{}\": {}",
+                //            path.display(),
+                //            loading.err().unwrap()
+                //        );
+                //    }
+                //} else if let Ok(sp3) = SP3::from_path(path) {
+                //    let loading = ctx.load_sp3(path, sp3);
+                //    if loading.is_ok() {
+                //        info!("Loading SP3 file \"{}\"", path.display());
+                //    } else {
+                //        warn!(
+                //            "failed to load SP3 file \"{}\": {}",
+                //            path.display(),
+                //            loading.err().unwrap()
+                //        );
+                //    }
+                //} else {
+                //warn!("non supported file format \"{}\"", path.display());
+                //}
             }
         }
     }
-
     /*
      * Load each individual file (`-f`)
      */
@@ -125,15 +121,9 @@ fn user_data_parsing(cli: &Cli) -> DataContext {
                 );
             }
         } else {
-            warn!("non supported file format \"{}\"", path.display());
+            warn!("Non supported file \"{}\"", path.display());
         }
     }
-
-    /*
-     * Preprocess whole context
-     */
-    preprocess(&mut ctx, cli);
-    debug!("{:?}", ctx);
     ctx
 }
 
@@ -153,13 +143,17 @@ pub fn main() -> Result<(), Error> {
 
     // User Data parsing
     let data_ctx = user_data_parsing(&cli);
-    let ctx_position = data_ctx.ground_position();
-    let ctx_stem = Context::context_stem(&data_ctx);
 
-    // Form context
-    let ctx = Context {
-        name: ctx_stem.clone(),
-        data: data_ctx,
+    let first_epoch = data_ctx.first_epoch().unwrap_or_else(|| {
+        panic!(
+            "Failed to generate a session - fileset is most likely empty.
+You need to load at least one file to analyze.
+ANTEX is a special case that cannot be loaded by itself, it can only enhance a fileset."
+        );
+    });
+
+    // create a session
+    let session = Session {
         quiet: cli.matches.get_flag("quiet"),
         workspace: {
             /*
@@ -169,10 +163,10 @@ pub fn main() -> Result<(), Error> {
              * This is documented in Wiki pages.
              */
             let path = match std::env::var("RINEX_WORKSPACE") {
-                Ok(path) => Path::new(&path).join(&ctx_stem).to_path_buf(),
+                Ok(path) => Path::new(&path).to_path_buf(),
                 _ => match cli.matches.get_one::<PathBuf>("workspace") {
-                    Some(base_dir) => Path::new(base_dir).join(&ctx_stem).to_path_buf(),
-                    None => Path::new("WORKSPACE").join(&ctx_stem).to_path_buf(),
+                    Some(base_dir) => Path::new(base_dir).to_path_buf(),
+                    None => Path::new("WORKSPACE").to_path_buf(),
                 },
             };
             // make sure the workspace is viable and exists, otherwise panic
@@ -186,55 +180,43 @@ pub fn main() -> Result<(), Error> {
             info!("session workspace is \"{}\"", path.to_string_lossy());
             path
         },
-        rx_ecef: {
-            /*
-             * Determine and store RX (ECEF) position
-             * Either manually defined by User
-             *   this is useful in case not a single file has such information
-             *   or we want to use a custom location
-             * Or with smart determination from all previously parsed data
-             *   this is useful in case we don't want to bother
-             *   but we must be sure that the OBSRINEX describes the correct location
-             */
-            match cli.manual_position() {
-                Some((x, y, z)) => {
-                    let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                    lat = rad2deg(lat);
-                    lon = rad2deg(lon);
+        geodetic_marker: {
+            match cli.manual_geodetic_marker() {
+                Some(position) => {
+                    let (lat, long, _) = position.to_geodetic();
+                    let (x, y, z) = position.to_ecef_wgs84();
                     info!(
-                        "manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
+                        "Manually defined geodetic marker: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
                         (x, y, z),
-                        lat,
-                        lon
+                        rad2deg(lat),
+                        rad2deg(long)
                     );
-                    Some((x, y, z))
+                    Some(position)
                 },
                 None => {
-                    if let Some(data_pos) = ctx_position {
-                        let (x, y, z) = data_pos.to_ecef_wgs84();
-                        let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                        lat = rad2deg(lat);
-                        lon = rad2deg(lon);
+                    if let Some(marker) = data_ctx.geodetic_marker_position() {
+                        let (lat, long, _) = marker.to_geodetic();
+                        let (x, y, z) = marker.to_ecef_wgs84();
                         info!(
-                            "position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
+                            "Geodetic marker defined dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
                             (x, y, z),
-                            lat,
-                            lon
+                            rad2deg(lat),
+                            rad2deg(long)
                         );
-                        Some((x, y, z))
+                        Some(marker)
                     } else {
                         /*
                          * Dataset does not contain any position,
                          * and User did not specify any.
-                         * This is not problematic unless user is interested in
-                         * advanced operations, which will most likely fail soon or later.
+                         * This is not problematic unless requested opmode needs it.
                          */
-                        warn!("no RX position defined");
+                        warn!("No geodetic marker identified");
                         None
                     }
                 },
             }
         },
+        data: data_ctx,
     };
 
     /*
@@ -242,33 +224,35 @@ pub fn main() -> Result<(), Error> {
      */
     match cli.matches.subcommand() {
         Some(("filegen", submatches)) => {
-            fops::filegen(&ctx, submatches)?;
+            // fops::filegen(&ctx, submatches)?;
         },
         Some(("graph", submatches)) => {
-            graph::graph_opmode(&ctx, submatches)?;
+            // graph::graph_opmode(&ctx, submatches)?;
         },
         Some(("identify", submatches)) => {
-            identification::dataset_identification(&ctx.data, submatches);
+            // identification::dataset_identification(&ctx.data, submatches);
         },
         Some(("merge", submatches)) => {
-            fops::merge(&ctx, submatches)?;
+            // fops::merge(&ctx, submatches)?;
         },
         Some(("split", submatches)) => {
-            fops::split(&ctx, submatches)?;
+            // fops::split(&ctx, submatches)?;
         },
         Some(("quality-check", submatches)) => {
-            qc::qc_report(&ctx, submatches)?;
+            // qc::qc_report(&ctx, submatches)?;
         },
         Some(("positioning", submatches)) => {
-            positioning::precise_positioning(&ctx, submatches)?;
+            // positioning::precise_positioning(&ctx, submatches)?;
         },
         Some(("tbin", submatches)) => {
-            fops::time_binning(&ctx, submatches)?;
+            // fops::time_binning(&ctx, submatches)?;
         },
         Some(("sub", submatches)) => {
-            fops::substract(&ctx, submatches)?;
+            // fops::substract(&ctx, submatches)?;
         },
         _ => error!("no opmode specified!"),
     }
+
+    session.finalize();
     Ok(())
 } // main

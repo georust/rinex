@@ -15,7 +15,6 @@ use sp3::prelude::{DataType as SP3DataType, SP3};
  * Work around this by implementing the ""typical"" preprocessing ops
  * manually here. This allows to shrink the SP3 context, which
  * is quite heavy, and make future Epoch iterations much quicker
- */
 fn sp3_filter_mut(filter: Filter, sp3: &mut SP3) {
     match filter {
         Filter::Mask(mask) => sp3_mask_mut(mask, sp3),
@@ -599,3 +598,4 @@ pub fn preprocess(ctx: &mut DataContext, cli: &Cli) {
         }
     }
 }
+ */

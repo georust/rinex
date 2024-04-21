@@ -1,6 +1,6 @@
 use log::info;
 use std::{
-    fs::create_dir_all,
+    fs::{create_dir_all, File},
     io::Write,
     path::{Path, PathBuf},
     str::FromStr,
@@ -8,9 +8,6 @@ use std::{
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::GroundPosition;
-use rinex_qc::prelude::DataContext;
-
-use crate::fops::open_with_web_browser;
 
 // identification mode
 mod identify;
@@ -23,8 +20,12 @@ mod positioning;
 
 // file operations
 mod fops;
-
 use fops::{filegen, merge, split, substract, time_binning};
+
+mod session;
+pub use session::Session;
+
+mod tools;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -34,79 +35,6 @@ pub struct Cli {
 impl Default for Cli {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// Context defined by User.
-pub struct Context {
-    /// Data context defined by user
-    pub data: DataContext,
-    /// Quiet option
-    pub quiet: bool,
-    /// Workspace is the place where this session will generate data.
-    /// By default it is set to $WORKSPACE/$PRIMARYFILE.
-    /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
-    /// $PRIMARYFILE is determined from the most major file contained in the dataset.
-    pub workspace: PathBuf,
-    /// Context name is derived from the primary file loaded in Self,
-    /// and mostly used in session products generation.
-    pub name: String,
-    /// (RX) reference position to be used in further analysis.
-    /// It is either (priority order is important)
-    ///  1. manually defined by CLI
-    ///  2. determined from dataset
-    pub rx_ecef: Option<(f64, f64, f64)>,
-}
-
-impl Context {
-    /*
-     * Utility to determine the most major filename stem,
-     * to be used as the session workspace
-     */
-    pub fn context_stem(data: &DataContext) -> String {
-        let ctx_major_stem: &str = data
-            .primary_path()
-            .expect("failed to determine a context name")
-            .file_stem()
-            .expect("failed to determine a context name")
-            .to_str()
-            .expect("failed to determine a context name");
-        /*
-         * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
-         * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
-         */
-        let primary_stem: Vec<&str> = ctx_major_stem.split('.').collect();
-        primary_stem[0].to_string()
-    }
-    /*
-     * Utility to prepare subdirectories in the session workspace
-     */
-    pub fn create_subdir(&self, suffix: &str) {
-        create_dir_all(self.workspace.join(suffix))
-            .unwrap_or_else(|e| panic!("failed to generate session dir {}: {:?}", suffix, e));
-    }
-    /*
-     * Utility to create a file in this session
-     */
-    fn create_file(&self, path: &Path) -> std::fs::File {
-        std::fs::File::create(path).unwrap_or_else(|e| {
-            panic!("failed to create {}: {:?}", path.display(), e);
-        })
-    }
-    /*
-     * Save HTML content, auto opens it if quiet (-q) is not turned on
-     */
-    pub fn render_html(&self, filename: &str, html: String) {
-        let path = self.workspace.join(filename);
-        let mut fd = self.create_file(&path);
-        write!(fd, "{}", html).unwrap_or_else(|e| {
-            panic!("failed to render HTML content: {:?}", e);
-        });
-        info!("html rendered in \"{}\"", path.display());
-
-        if !self.quiet {
-            open_with_web_browser(path.to_string_lossy().as_ref());
-        }
     }
 }
 
@@ -301,12 +229,15 @@ Otherwise it gets automatically picked up."))
         Some(geo)
     }
     /// Returns RX Position possibly specified by user
-    pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
-        if let Some(position) = self.manual_ecef() {
-            Some(position)
+    pub fn manual_geodetic_marker(&self) -> Option<GroundPosition> {
+        if let Some(ecef) = self.manual_ecef() {
+            Some(GroundPosition::from_ecef_wgs84(ecef))
         } else {
-            self.manual_geodetic()
-                .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
+            if let Some(geo) = self.manual_geodetic() {
+                Some(GroundPosition::from_geodetic(geo))
+            } else {
+                None
+            }
         }
     }
 }
