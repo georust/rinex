@@ -8,7 +8,7 @@ pub use post_process::{post_process, Error as PostProcessingError};
 
 use gnss::prelude::{Constellation, SV};
 
-use rinex::{carrier::Carrier, navigation::Ephemeris, prelude::Observable};
+use rinex::{carrier::Carrier, prelude::Observable};
 
 use super::interp::TimeInterpolator;
 
@@ -18,11 +18,11 @@ use rtk::prelude::{
     Epoch,
     InterpolationResult,
     IonosphereBias,
+    Method,
     Observation,
     PVTSolutionType,
     Solver,
     TroposphereBias, //TimeScale
-    Vector3,
 };
 
 use cggtts::{
@@ -35,13 +35,13 @@ use crate::positioning::{
     bd_model, kb_model, ng_model, tropo_components, Error as PositioningError,
 };
 
-fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
-    for ((k_sv, _), tracker) in trackers {
-        if *k_sv == sv {
-            tracker.reset();
-        }
-    }
-}
+// fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
+//     for ((k_sv, _), tracker) in trackers {
+//         if *k_sv == sv {
+//             tracker.reset();
+//         }
+//     }
+// }
 
 //TODO: see TODO down below
 // fn reset_sv_sig_tracker(
@@ -83,14 +83,14 @@ where
     // infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
     let nav_data = ctx.data.brdc_navigation().unwrap();
-    let meteo_data = ctx.data.meteo();
 
     let clk_data = ctx.data.clock();
+    let meteo_data = ctx.data.meteo();
 
     let sp3_has_clock = ctx.data.sp3_has_clock();
     if clk_data.is_none() && sp3_has_clock {
         if let Some(sp3) = ctx.data.sp3() {
-            warn!("Using clock states defined in SP3 file: CLK product should be prefered");
+            warn!("Using clock states defined in SP3 file - CLK product should be prefered");
             if sp3.epoch_interval >= Duration::from_seconds(300.0) {
                 warn!("Interpolating clock states from low sample rate SP3 will most likely introduce errors");
             }
@@ -113,7 +113,8 @@ where
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         /*
-         * we only consider "OK" Epochs
+         * We only consider _valid_ epochs"
+         * TODO: make use of LLI marker here
          */
         if !flag.is_ok() {
             continue;
@@ -127,7 +128,7 @@ where
 
             if sv_eph.is_none() {
                 warn!("{:?} ({}) : undetermined ephemeris", t, sv);
-                reset_sv_tracker(*sv, &mut trackers); // reset for this SV entirely
+                // reset_sv_tracker(*sv, &mut trackers);
                 continue; // can't proceed further
             }
 
@@ -153,7 +154,7 @@ where
                 zwd_zdd,
             };
 
-            // form PVT "candidate" for each signal
+            // tries to form a candidate for each signal
             for (observable, data) in observations {
                 let carrier = Carrier::from_observable(sv.constellation, observable);
                 if carrier.is_err() {
@@ -164,7 +165,8 @@ where
                 let frequency = carrier.frequency();
 
                 let mut code = Option::<Observation>::None;
-                let mut phase = Option::<Observation>::None;
+                let phase = Option::<Observation>::None;
+                let mut doppler = Option::<Observation>::None;
 
                 if observable.is_pseudorange_observable() {
                     code = Some(Observation {
@@ -172,67 +174,86 @@ where
                         snr: { data.snr.map(|snr| snr.into()) },
                         value: data.obs,
                     });
-                } else if observable.is_phase_observable() {
-                    phase = Some(Observation {
-                        frequency,
-                        snr: { data.snr.map(|snr| snr.into()) },
-                        value: data.obs,
-                    });
-                }
 
-                // we only one phase or code here
-                if code.is_none() && phase.is_none() {
-                    continue;
-                }
+                    // attach one phase, if need be
+                    match solver.cfg.method {
+                        Method::SPP => {}, // nothing to do
+                        Method::CodePPP => {}, // nothing to do
+                                            //Method::PPP => {
+                                            //    // try to attach phase data
+                                            //    let to_match =
+                                            //        Observable::from_str(&format!("L{}", &observable.to_string()[1..])).unwrap();
+                                            //    for (observable, data) in observations {
+                                            //        if *observable == phase_to_match {
+                                            //            phase = Some(Observation {
+                                            //                frequency,
+                                            //                snr: { data.snr.map(|snr| snr.into()) },
+                                            //                value: data.obs,
+                                            //            });
+                                            //        }
+                                            //    }
+                                            //},
+                    }
 
-                let mut doppler = Option::<Observation>::None;
-                let doppler_to_match =
-                    Observable::from_str(&format!("D{}", &observable.to_string()[..1])).unwrap();
-
-                for (observable, data) in observations {
-                    if observable.is_doppler_observable() && observable == &doppler_to_match {
-                        doppler = Some(Observation {
-                            frequency,
-                            snr: { data.snr.map(|snr| snr.into()) },
-                            value: data.obs,
-                        });
+                    // try to attach doppler
+                    let doppler_to_match =
+                        Observable::from_str(&format!("D{}", &observable.to_string()[1..]))
+                            .unwrap();
+                    for (observable, data) in observations {
+                        if *observable == doppler_to_match {
+                            doppler = Some(Observation {
+                                frequency,
+                                snr: { data.snr.map(|snr| snr.into()) },
+                                value: data.obs,
+                            });
+                            break;
+                        }
                     }
                 }
 
-                let candidate = match code {
-                    Some(code) => {
-                        let doppler = match doppler {
-                            Some(doppler) => vec![doppler],
-                            None => vec![],
+                if code.is_none() {
+                    continue;
+                }
+
+                let mut codes = vec![code.unwrap()];
+
+                // complete if need be
+                match solver.cfg.method {
+                    Method::SPP => {}, // nothing to do
+                    Method::CodePPP => {
+                        let (freq_to_match, code_to_match) = match carrier {
+                            Carrier::L1 => (
+                                Carrier::L2.frequency(),
+                                Observable::from_str("C2C").unwrap(),
+                            ),
+                            _ => (
+                                Carrier::L1.frequency(),
+                                Observable::from_str("C1C").unwrap(),
+                            ),
                         };
-                        Candidate::new(
-                            *sv,
-                            *t,
-                            clock_corr,
-                            sv_eph.tgd(),
-                            vec![code],
-                            vec![],
-                            doppler,
-                        )
-                    },
-                    None => {
-                        let phase = phase.unwrap(); // infaillible
-                        let doppler = match doppler {
-                            Some(doppler) => vec![doppler],
-                            None => vec![],
-                        };
-                        Candidate::new(
-                            *sv,
-                            *t,
-                            clock_corr,
-                            sv_eph.tgd(),
-                            vec![],
-                            vec![phase],
-                            doppler,
-                        )
+                        for (observable, data) in observations {
+                            if *observable == code_to_match {
+                                codes.push(Observation {
+                                    frequency: freq_to_match,
+                                    snr: { data.snr.map(|snr| snr.into()) },
+                                    value: data.obs,
+                                });
+                                break;
+                            }
+                        }
                     },
                 };
 
+                let dopplers = match doppler {
+                    Some(doppler) => vec![doppler],
+                    None => vec![],
+                };
+                let phases = match phase {
+                    Some(phase) => vec![phase],
+                    None => vec![],
+                };
+                let candidate =
+                    Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases, dopplers);
                 match solver.resolve(
                     *t,
                     PVTSolutionType::TimeOnly,
@@ -259,9 +280,7 @@ where
                         };
 
                         let mdio = pvt_data.iono_bias.modeled;
-
                         let msio = pvt_data.iono_bias.measured;
-
                         debug!(
                             "{:?} : new {}:{} PVT solution (elev={:.2}°, azi={:.2}°, REFSV={:.3E}, REFSYS={:.3E})",
                             t, sv, observable, elevation, azimuth, refsv, refsys
@@ -288,17 +307,17 @@ where
                             Some(tracker) => tracker,
                         };
 
-                        // verify buffer continuity
-                        if !tracker.no_gaps(dominant_sampling_period) {
-                            // on any discontinuity we need to reset
-                            // that tracker. This will abort the ongoing track.
-                            tracker.reset();
-                            warn!("{:?} - discarding {} track due to data gaps", t, sv);
+                        // // verify buffer continuity
+                        // if !tracker.no_gaps(dominant_sampling_period) {
+                        //     // on any discontinuity we need to reset
+                        //     // that tracker. This will abort the ongoing track.
+                        //     tracker.reset();
+                        //     warn!("{:?} - discarding {} track due to data gaps", t, sv);
 
-                            // push new measurement
-                            tracker.latch_measurement(t, fitdata);
-                            continue; // abort for this SV
-                        }
+                        //     // push new measurement
+                        //     tracker.latch_measurement(t, fitdata);
+                        //     continue; // abort for this SV
+                        // }
 
                         if next_release.is_some() {
                             let next_release = next_release.unwrap();
@@ -380,14 +399,14 @@ where
                         }
                     },
                     Err(e) => {
-                        warn!("{:?} - pvt resolution error \"{}\"", t, e);
                         /*
                          * Any PVT resolution failures would introduce a data gap
                          * which is incompatible with CGGTTS track fitting
                          */
-                        if let Some(tracker) = trackers.get_mut(&(*sv, observable.clone())) {
-                            tracker.reset();
-                        }
+                        error!("pvt solver error - {}", e);
+                        // if let Some(tracker) = trackers.get_mut(&(*sv, observable.clone())) {
+                        //     tracker.reset();
+                        // }
                     },
                 } //.pvt resolve
             } // for all OBS
