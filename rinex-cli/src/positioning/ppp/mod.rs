@@ -41,7 +41,7 @@ where
         if let Some(sp3) = ctx.data.sp3() {
             warn!("Using clock states defined in SP3 file: CLK product should be prefered");
             if sp3.epoch_interval >= Duration::from_seconds(300.0) {
-                warn!("interpolating clock states from low sample rate SP3 will most likely introduce errors");
+                warn!("Interpolating clock states from low sample rate SP3 will most likely introduce errors");
             }
         }
     }
@@ -53,7 +53,10 @@ where
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            /* we only consider _valid_ epochs" */
+            /*
+             * We only consider _valid_ epochs"
+             * TODO: make use of LLI marker here
+             */
             continue;
         }
 
