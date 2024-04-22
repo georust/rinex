@@ -1,9 +1,11 @@
 //! GNSS post processing context
 use thiserror::Error;
 
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 use rinex::{
     merge::{Error as RinexMergeError, Merge as RinexMerge},
@@ -12,6 +14,8 @@ use rinex::{
         RinexType, DOMES,
     },
 };
+
+use itertools::Itertools;
 
 #[cfg(feature = "sp3")]
 use sp3::{prelude::SP3, Merge as SP3Merge, MergeError as SP3MergeError};
@@ -141,7 +145,49 @@ impl DataContext {
         Box::new(
             self.rinex_data(RinexType::ObservationData)
                 .into_iter()
-                .flat_map(|prod| prod.epoch()),
+                .flat_map(|prod| prod.epoch())
+                .chain(
+                    self.rinex_data(RinexType::NavigationData)
+                        .into_iter()
+                        .flat_map(|prod| prod.epoch()),
+                )
+                .chain(
+                    self.rinex_data(RinexType::ClockData)
+                        .into_iter()
+                        .flat_map(|prod| prod.epoch()),
+                )
+                .chain(
+                    self.rinex_data(RinexType::MeteoData)
+                        .into_iter()
+                        .flat_map(|prod| prod.epoch()),
+                )
+                .chain(
+                    self.rinex_data(RinexType::IonosphereMaps)
+                        .into_iter()
+                        .flat_map(|prod| prod.epoch()),
+                )
+                .chain(
+                    self.rinex_data(RinexType::DORIS)
+                        .into_iter()
+                        .flat_map(|prod| prod.epoch()),
+                )
+                .unique()
+                .sorted(),
+        )
+    }
+    /// Returns Yearly iterator, in chronological order.
+    /// Useful when sorting data in chronological order.
+    pub fn yearly_iter(&self) -> Box<dyn Iterator<Item = i32> + '_> {
+        Box::new(self.epoch_iter().map(|t| t.to_gregorian_utc().0).unique())
+    }
+    /// Returns Yearly DOY iterator, in chronological order.
+    /// Useful when sorting data in chronological order.
+    pub fn yearly_doy_iter(&self) -> Box<dyn Iterator<Item = (i32, u16)> + '_> {
+        Box::new(
+            self.epoch_iter()
+                .map(|t| (t.to_gregorian_utc().0, t.day_of_year().floor() as u16))
+                .unique()
+                .sorted(),
         )
     }
     /// Returns reference to all sorted RINEX of this type

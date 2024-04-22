@@ -8,8 +8,11 @@ pub fn subcommand() -> Command {
         .long_flag("filegen")
         .arg_required_else_help(false)
         .about(
-            "RINEX Data formatting. Use this option to preprocess, modify and dump results as RINEX. 
-You can use this for example, to generate a decimated RINEX file from an input Observations file.",
+            "Data generation opmode. 
+Parse, process then generate data while preserving input format. 
+You can use this mode to resample data, split it per constellation and much more..  
+Refer to [https://github.com/georust/rinex/wiki/Preprocessing] for all processing algorithms.
+",
         )
         .next_help_heading("Production Environment")
         .args(SHARED_GENERAL_ARGS.iter())

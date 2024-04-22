@@ -219,6 +219,13 @@ ANTEX is a special case that cannot be loaded by itself, it can only enhance a f
         data: data_ctx,
     };
 
+    for year in session.data.yearly_iter() {
+        println!("YEAR: {:04}", year);
+    }
+    for (year, doy) in session.data.yearly_doy_iter() {
+        println!("YEAR: {:04} | DOY {:03}", year, doy);
+    }
+
     /*
      * Exclusive opmodes
      */
@@ -238,9 +245,6 @@ ANTEX is a special case that cannot be loaded by itself, it can only enhance a f
         Some(("split", submatches)) => {
             // fops::split(&ctx, submatches)?;
         },
-        Some(("quality-check", submatches)) => {
-            // qc::qc_report(&ctx, submatches)?;
-        },
         Some(("positioning", submatches)) => {
             // positioning::precise_positioning(&ctx, submatches)?;
         },
@@ -250,7 +254,10 @@ ANTEX is a special case that cannot be loaded by itself, it can only enhance a f
         Some(("sub", submatches)) => {
             // fops::substract(&ctx, submatches)?;
         },
-        _ => error!("no opmode specified!"),
+        _ => {
+            info!("running basic QC");
+            // qc::qc_report(&ctx, submatches)?;
+        },
     }
 
     session.finalize();
