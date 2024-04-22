@@ -27,13 +27,13 @@ use interp::OrbitInterpolator;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("solver error")]
-    SolverError(#[from] rtk::Error),
+    Solver(#[from] rtk::Error),
     #[error("undefined apriori position")]
     UndefinedAprioriPosition,
     #[error("ppp post processing error")]
-    PPPPostProcessingError(#[from] PPPPostProcessingError),
+    PPPPostProcessing(#[from] PPPPostProcessingError),
     #[error("cggtts post processing error")]
-    CGGTTSPostProcessingError(#[from] CGGTTSPostProcessingError),
+    CGGTTSPostProcessing(#[from] CGGTTSPostProcessingError),
 }
 
 pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
@@ -204,7 +204,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     );
 
     let orbit = RefCell::new(OrbitInterpolator::from_ctx(
-        &ctx,
+        ctx,
         cfg.interp_order,
         apriori.clone(),
     ));

@@ -3,8 +3,9 @@ use log::error;
 use std::str::FromStr;
 
 use crate::Cli;
-use rinex::prelude::{Epoch, RnxContext};
+use rinex::prelude::Epoch;
 use rinex::preprocessing::*;
+use rinex_qc::prelude::DataContext;
 
 use sp3::prelude::{DataType as SP3DataType, SP3};
 
@@ -14,7 +15,6 @@ use sp3::prelude::{DataType as SP3DataType, SP3};
  * Work around this by implementing the ""typical"" preprocessing ops
  * manually here. This allows to shrink the SP3 context, which
  * is quite heavy, and make future Epoch iterations much quicker
- */
 fn sp3_filter_mut(filter: Filter, sp3: &mut SP3) {
     match filter {
         Filter::Mask(mask) => sp3_mask_mut(mask, sp3),
@@ -510,7 +510,7 @@ pub fn sp3_rework_mut(sp3: &mut SP3) {
     }
 }
 
-pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
+pub fn preprocess(ctx: &mut DataContext, cli: &Cli) {
     // GNSS filters
     let mut gnss_filters = Vec::<&str>::new();
 
@@ -598,3 +598,4 @@ pub fn preprocess(ctx: &mut RnxContext, cli: &Cli) {
         }
     }
 }
+ */

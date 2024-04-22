@@ -3,15 +3,16 @@ use crate::Error;
 use clap::ArgMatches;
 
 use std::path::PathBuf;
-use std::process::Command;
 use std::str::FromStr;
 
 use rinex::{
-    prelude::{Duration, Epoch, ProductType, Rinex, RinexType},
+    prelude::{Duration, Epoch, Rinex, RinexType},
     preprocessing::*,
     prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     Merge, Split,
 };
+
+use rinex_qc::prelude::ProductType;
 
 /*
  * Parses share RINEX production attributes.
@@ -106,8 +107,8 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::Ionex,
-        ProductType::Antex,
+        ProductType::IONEX,
+        ProductType::ANTEX,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
             let prod = custom_prod_attributes(rinex, matches);
@@ -180,7 +181,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::Ionex,
+        ProductType::IONEX,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
             let (rinex_a, rinex_b) = rinex
@@ -295,7 +296,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::Ionex,
+        ProductType::IONEX,
     ] {
         // input data determination
         if let Some(rinex) = ctx_data.rinex(product) {
@@ -410,32 +411,4 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     info!("OBS RINEX \"{}\" has been generated", fullpath);
     Ok(())
-}
-
-#[cfg(target_os = "linux")]
-pub fn open_with_web_browser(path: &str) {
-    let web_browsers = vec!["firefox", "chromium"];
-    for browser in web_browsers {
-        let child = Command::new(browser).args([path]).spawn();
-        if child.is_ok() {
-            return;
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-pub fn open_with_web_browser(path: &str) {
-    Command::new("open")
-        .args(&[path])
-        .output()
-        .expect("open() failed, can't open HTML content automatically");
-}
-
-#[cfg(target_os = "windows")]
-pub fn open_with_web_browser(path: &str) {
-    Command::new("cmd")
-        .arg("/C")
-        .arg(format!(r#"start {}"#, path))
-        .output()
-        .expect("failed to open generated HTML content");
 }

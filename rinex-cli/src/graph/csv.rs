@@ -20,8 +20,8 @@ pub fn csv_export_timedomain<T: std::fmt::UpperExp>(
     path: &Path,
     title: &str,
     labels: &str,
-    x: &Vec<Epoch>,
-    y: &Vec<T>,
+    x: &[Epoch],
+    y: &[T],
 ) -> Result<(), Error> {
     let mut fd = File::create(path)?;
     writeln!(fd, "================================================")?;

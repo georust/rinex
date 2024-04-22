@@ -2,6 +2,7 @@ use crate::graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotConte
 use plotly::common::{Mode, Visible};
 use rinex::navigation::Ephemeris;
 use rinex::prelude::*;
+use rinex_qc::prelude::DataContext;
 
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
@@ -20,7 +21,7 @@ type CtxClockStates = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, (f64, f64, f
 /// Clock Corrections from all products provided by User
 type CtxClockCorrections = HashMap<ProductType, BTreeMap<SV, Vec<(Epoch, Duration)>>>;
 
-pub fn plot_sv_nav_clock(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+pub fn plot_sv_nav_clock(ctx: &DataContext, plot_ctx: &mut PlotContext) {
     if let Some(nav) = ctx.brdc_navigation() {
         let nav_sv = nav.sv().collect::<Vec<_>>();
         let clk = ctx.clock();
@@ -115,7 +116,7 @@ fn ctx_sv_clock_states(
  * one plot (2 Y axes) for both Clock biases
  * and clock drift
  */
-fn plot_sv_clock_states(ctx: &CtxClockStates, nav_sv: &Vec<SV>, plot_ctx: &mut PlotContext) {
+fn plot_sv_clock_states(ctx: &CtxClockStates, nav_sv: &[SV], plot_ctx: &mut PlotContext) {
     trace!("sv clock states plot");
     for (product, vehicles) in ctx {
         match product {
@@ -199,7 +200,7 @@ fn ctx_sv_clock_corrections(
         if !flag.is_ok() {
             continue;
         }
-        for (sv, _) in vehicles {
+        for sv in vehicles.keys() {
             let sv_eph = nav.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
                 continue;
@@ -366,7 +367,7 @@ fn plot_system_time(
     }
 }
 
-pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
+pub fn plot_sv_nav_orbits(ctx: &DataContext, plot_ctx: &mut PlotContext) {
     let mut pos_plot_created = false;
     let mut nav_sv = Vec::<SV>::with_capacity(32);
     /*

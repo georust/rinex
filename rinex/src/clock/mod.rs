@@ -7,7 +7,7 @@ use crate::version::Version;
 use hifitime::TimeScale;
 use std::str::FromStr;
 
-use crate::domes::Domes;
+use crate::domes::DOMES;
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -16,7 +16,7 @@ pub struct HeaderFields {
     /// Site name
     pub site: Option<String>,
     /// Site DOMES ID#
-    pub domes: Option<Domes>,
+    pub domes: Option<DOMES>,
     /// IGS code
     pub igs: Option<String>,
     /// Full name
@@ -39,7 +39,7 @@ pub struct WorkClock {
     /// Name of this local clock
     pub name: String,
     /// Clock site DOMES ID#
-    pub domes: Option<Domes>,
+    pub domes: Option<DOMES>,
     /// Possible clock constraint [s]
     pub constraint: Option<f64>,
 }
@@ -53,7 +53,7 @@ impl WorkClock {
             let constraint = rem.split_at(20).0;
             Self {
                 name: name.trim().to_string(),
-                domes: if let Ok(domes) = Domes::from_str(domes.trim()) {
+                domes: if let Ok(domes) = DOMES::from_str(domes.trim()) {
                     Some(domes)
                 } else {
                     None
@@ -70,7 +70,7 @@ impl WorkClock {
             let constraint = rem.split_at(40).0;
             Self {
                 name: name.trim().to_string(),
-                domes: if let Ok(domes) = Domes::from_str(domes.trim()) {
+                domes: if let Ok(domes) = DOMES::from_str(domes.trim()) {
                     Some(domes)
                 } else {
                     None
@@ -101,7 +101,7 @@ impl HeaderFields {
         s.site = Some(site.to_string());
         s
     }
-    pub(crate) fn domes(&self, domes: Domes) -> Self {
+    pub(crate) fn domes(&self, domes: DOMES) -> Self {
         let mut s = self.clone();
         s.domes = Some(domes);
         s

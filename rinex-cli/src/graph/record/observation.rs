@@ -11,7 +11,7 @@ use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, generate_marke
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 enum Physics {
-    SSI,
+    Ssi,
     Doppler,
     Phase,
     PseudoRange,
@@ -24,14 +24,14 @@ impl Physics {
         } else if observable.is_doppler_observable() {
             Self::Doppler
         } else if observable.is_ssi_observable() {
-            Self::SSI
+            Self::Ssi
         } else {
             Self::PseudoRange
         }
     }
     fn plot_title(&self) -> String {
         match self {
-            Self::SSI => "SSI".to_string(),
+            Self::Ssi => "SSI".to_string(),
             Self::Phase => "Phase".to_string(),
             Self::Doppler => "Doppler".to_string(),
             Self::PseudoRange => "Pseudo Range".to_string(),
@@ -39,7 +39,7 @@ impl Physics {
     }
     fn y_axis(&self) -> String {
         match self {
-            Self::SSI => "Power [dB]".to_string(),
+            Self::Ssi => "Power [dB]".to_string(),
             Self::Phase => "Carrier Cycles".to_string(),
             Self::Doppler => "Doppler Shifts".to_string(),
             Self::PseudoRange => "Pseudo Range".to_string(),
@@ -254,9 +254,9 @@ pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: 
     // Generate 1 plot for SSI
     // that we possibly augment with NAV context
     ////////////////////////////////////////////
-    if let Some(good_observables) = dataset_good.get(&Physics::SSI) {
-        let title = Physics::SSI.plot_title();
-        let y_label = Physics::SSI.y_axis();
+    if let Some(good_observables) = dataset_good.get(&Physics::Ssi) {
+        let title = Physics::Ssi.plot_title();
+        let y_label = Physics::Ssi.y_axis();
 
         let augmented = ctx.data.has_brdc_navigation() || ctx.data.has_sp3();
 

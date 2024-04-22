@@ -128,17 +128,13 @@ impl<'a> Interpolator<'a> {
             if let Some(latest) = self.latest(sv) {
                 if *latest >= t + self.sampling {
                     break;
-                } else {
-                    if self.consume(1) {
-                        // end of stream
-                        break;
-                    }
-                }
-            } else {
-                if self.consume(1) {
+                } else if self.consume(1) {
                     // end of stream
                     break;
                 }
+            } else if self.consume(1) {
+                // end of stream
+                break;
             }
         }
 
@@ -148,20 +144,18 @@ impl<'a> Interpolator<'a> {
             // interpolate: if need be
             let dy: Option<Duration> = if *before_x == t {
                 Some(Duration::from_seconds(*before_y))
+            } else if let Some((after_x, after_y)) = buf
+                .inner
+                .iter()
+                .filter(|(v_t, _)| *v_t > t)
+                .reduce(|k, _| k)
+            {
+                let dx = (*after_x - *before_x).to_seconds();
+                let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
+                dy += (t - *before_x).to_seconds() / dx * *after_y;
+                Some(Duration::from_seconds(dy))
             } else {
-                if let Some((after_x, after_y)) = buf
-                    .inner
-                    .iter()
-                    .filter(|(v_t, _)| *v_t > t)
-                    .reduce(|k, _| k)
-                {
-                    let dx = (*after_x - *before_x).to_seconds();
-                    let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
-                    dy += (t - *before_x).to_seconds() / dx * *after_y;
-                    Some(Duration::from_seconds(dy))
-                } else {
-                    None
-                }
+                None
             };
 
             // management: discard old samples

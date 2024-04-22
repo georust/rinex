@@ -5,7 +5,6 @@ use std::collections::BTreeMap;
 
 use rinex::{
     carrier::Carrier,
-    navigation::Ephemeris,
     prelude::{Duration, SV},
 };
 
@@ -14,7 +13,7 @@ pub use post_process::{post_process, Error as PostProcessingError};
 
 use rtk::prelude::{
     Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution,
-    PVTSolutionType, Solver, TroposphereBias, Vector3,
+    PVTSolutionType, Solver, TroposphereBias,
 };
 
 use super::interp::TimeInterpolator;
@@ -41,19 +40,22 @@ where
         if let Some(sp3) = ctx.data.sp3() {
             warn!("Using clock states defined in SP3 file: CLK product should be prefered");
             if sp3.epoch_interval >= Duration::from_seconds(300.0) {
-                warn!("interpolating clock states from low sample rate SP3 will most likely introduce errors");
+                warn!("Interpolating clock states from low sample rate SP3 will most likely introduce errors");
             }
         }
     }
 
-    let mut interp = TimeInterpolator::from_ctx(&ctx);
+    let mut interp = TimeInterpolator::from_ctx(ctx);
     debug!("Clock interpolator created");
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            /* we only consider _valid_ epochs" */
+            /*
+             * We only consider _valid_ epochs"
+             * TODO: make use of LLI marker here
+             */
             continue;
         }
 

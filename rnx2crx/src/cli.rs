@@ -89,9 +89,9 @@ Both will not work well if your input does not follow standard conventions at al
             if items.len() != 3 {
                 println!("failed to parse \"yyyy-mm-dd\"");
                 return None;
-            } else if let Ok(y) = i32::from_str_radix(items[0], 10) {
-                if let Ok(m) = u8::from_str_radix(items[1], 10) {
-                    if let Ok(d) = u8::from_str_radix(items[2], 10) {
+            } else if let Ok(y) = items[0].parse::<i32>() {
+                if let Ok(m) = items[1].parse::<u8>() {
+                    if let Ok(d) = items[2].parse::<u8>() {
                         return Some(Epoch::from_gregorian_utc_at_midnight(y, m, d));
                     }
                 }
@@ -105,9 +105,9 @@ Both will not work well if your input does not follow standard conventions at al
             if items.len() != 3 {
                 println!("failed to parse \"hh:mm:ss\"");
                 return None;
-            } else if let Ok(h) = u8::from_str_radix(items[0], 10) {
-                if let Ok(m) = u8::from_str_radix(items[1], 10) {
-                    if let Ok(s) = u8::from_str_radix(items[2], 10) {
+            } else if let Ok(h) = items[0].parse::<u8>() {
+                if let Ok(m) = items[1].parse::<u8>() {
+                    if let Ok(s) = items[2].parse::<u8>() {
                         return Some((h, m, s));
                     }
                 }
