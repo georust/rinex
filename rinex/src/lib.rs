@@ -2258,7 +2258,6 @@ impl Rinex {
                     //       on both GLONASS and SBAS
                     //       therfore, disables rtk with these two constellations
                     let toe = toe?;
-                    let dt = t - toe;
                     let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
                     if (t - toe).abs() < max_dtoe {
                         Some((toe, eph))

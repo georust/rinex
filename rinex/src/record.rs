@@ -497,7 +497,6 @@ pub fn parse_record(
                             }
                         }
                     },
-                    Type::DORIS => {}, // FIXME
                 }
 
                 // new comments ?
@@ -600,7 +599,6 @@ pub fn parse_record(
             let (antenna, content) = antex::record::parse_antenna(&epoch_content).unwrap();
             atx_rec.push((antenna, content));
         },
-        Type::DORIS => {}, //TODO
     }
     // new comments ?
     if !comment_content.is_empty() {

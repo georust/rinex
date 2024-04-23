@@ -8,7 +8,7 @@ pub use post_process::{post_process, Error as PostProcessingError};
 
 use gnss::prelude::{Constellation, SV};
 
-use rinex::{carrier::Carrier, navigation::Ephemeris, prelude::Observable};
+use rinex::{carrier::Carrier, prelude::Observable};
 
 use super::interp::TimeInterpolator;
 
@@ -22,7 +22,6 @@ use rtk::prelude::{
     PVTSolutionType,
     Solver,
     TroposphereBias, //TimeScale
-    Vector3,
 };
 
 use cggtts::{
