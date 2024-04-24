@@ -126,7 +126,8 @@ impl Cli {
                         .value_name("FILE")
                         .action(ArgAction::Append)
                         .required_unless_present("directory")
-                        .help("Load a single file. Use this as many times as needed. 
+                        .help("Load a single file. See --help")
+                        .long_help("Use this as many times as needed. 
 Available operations and following behavior highly depends on input data. 
 Supported formats are:
 - Observation RINEX
@@ -136,34 +137,60 @@ Supported formats are:
 - SP3 (high precision orbits)
 - IONEX (Ionosphere Maps)
 - ANTEX (antenna calibration as RINEX)
-- DORIS (special Observation RINEX)"))
+- DORIS (special Observation RINEX)
+
+Example (1): Load a single file
+rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+
+Example (2): define a PPP compliant context
+rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \\
+    -f test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \\ 
+    -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz
+"))
                     .arg(Arg::new("directory")
                         .short('d')
                         .long("dir")
                         .value_name("DIRECTORY")
                         .action(ArgAction::Append)
                         .required_unless_present("filepath")
-                        .help("Load directory recursively. Use this as many times as needed. Default recursive depth is set to 5,
+                        .help("Directory recursivel loader. See --help.")
+                        .long_help("Use this as many times as needed. Default recursive depth is set to 5,
 but you can extend that with --depth. Refer to -f for more information."))
                     .arg(Arg::new("depth")
                         .long("depth")
                         .action(ArgAction::Set)
                         .required(false)
                         .value_parser(value_parser!(u8))
-                        .help("Extend maximal recursive search depth of -d. The default is 5."))
+                        .help("Extend maximal recursive search depth of -d. The default is 5.")
+                        .long_help("The default recursive depth already supports hierarchies like:
+/YEAR1
+     /DOY0
+          /STATION1
+     /DOY1
+          /STATION2
+/YEAR2
+     /DOY0
+          /STATION1"))
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
                         .action(ArgAction::SetTrue)
-                        .help("Disable all terminal output. Also disables auto HTML reports opener."))
+                        .help("Disable all terminal output. Also disables automatic HTML reports opening."))
                     .arg(Arg::new("workspace")
                         .short('w')
                         .long("workspace")
                         .value_name("FOLDER")
                         .value_parser(value_parser!(PathBuf))
-                        .help("Define custom workspace location. The env. variable RINEX_WORKSPACE, if present, is prefered.
-If none of those exist, we will generate local \"WORKSPACE\" folder."))
+                        .help("Define custom workspace location. See --help.")
+                        .long_help("The Workspace is where Output Products are to be generated.
+By default the $RINEX_WORKSPACE variable is prefered if it is defined.
+You can also use this flag to customize it. 
+If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
         .next_help_heading("Preprocessing")
+            .about("Preprocessing todo")
             .arg(Arg::new("gps-filter")
                 .short('G')
                 .action(ArgAction::SetTrue)
