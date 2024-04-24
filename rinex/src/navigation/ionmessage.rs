@@ -88,7 +88,7 @@ impl KbModel {
     ) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::NgModelMissing1stLine),
+            _ => return Err(Error::KbModelMissing1stLine),
         };
         let (epoch, rem) = line.split_at(23);
         let (a0, rem) = rem.split_at(19);
