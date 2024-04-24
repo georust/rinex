@@ -125,18 +125,8 @@ impl KbModel {
         };
 
         let epoch = parse_in_timescale(epoch.trim(), ts)?;
-        let alpha = (
-            f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?,
-            f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?,
-            f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?,
-            f64::from_str(a3.trim()).map_err(|_| Error::KbAlphaValueError)?,
-        );
-        let beta = (
-            f64::from_str(b0.trim()).map_err(|_| Error::KbBetaValueError)?,
-            f64::from_str(b1.trim()).map_err(|_| Error::KbBetaValueError)?,
-            f64::from_str(b2.trim()).map_err(|_| Error::KbBetaValueError)?,
-            f64::from_str(b3.trim()).map_err(|_| Error::KbBetaValueError)?,
-        );
+        let alpha = parse_4_fields((a0, a1, a2, a3)).map_err(|_| {Error::KbAlphaValueError})?;
+        let beta = parse_4_fields((b0, b1, b2, b3)).map_err(|_| {Error::KbBetaValueError})?;
 
         Ok((
             epoch,
@@ -393,24 +383,17 @@ impl IonMessage {
                 };
                 /* determine which field we're dealing with */
                 if corr_type.ends_with('A') {
-                    let a0 = f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?;
-                    let a1 = f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?;
-                    let a2 = f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?;
-                    let a3 = f64::from_str(a3.trim()).map_err(|_| Error::KbAlphaValueError)?;
-
+                    let alpha = parse_4_fields((a0, a1, a2, a3)).map_err(|_| {Error::KbAlphaValueError})?;
                     Ok(Self::KlobucharModel(KbModel {
-                        alpha: (a0, a1, a2, a3),
+                        alpha,
                         beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                         region,
                     }))
                 } else {
-                    let b0 = f64::from_str(a0.trim()).map_err(|_| Error::KbBetaValueError)?;
-                    let b1 = f64::from_str(a1.trim()).map_err(|_| Error::KbBetaValueError)?;
-                    let b2 = f64::from_str(a2.trim()).map_err(|_| Error::KbBetaValueError)?;
-                    let b3 = f64::from_str(a3.trim()).map_err(|_| Error::KbBetaValueError)?;
+                    let beta = parse_4_fields((a0, a1, a2, a3)).map_err(|_| {Error::KbBetaValueError})?;
                     Ok(Self::KlobucharModel(KbModel {
                         alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
-                        beta: (b0, b1, b2, b3),
+                        beta,
                         region,
                     }))
                 }
@@ -459,6 +442,15 @@ impl IonMessage {
             _ => None,
         }
     }
+}
+
+fn parse_4_fields(fields: (&str, &str, &str, &str)) -> Result<(f64, f64, f64, f64), core::num::ParseFloatError> {
+    Ok((
+        f64::from_str(fields.0.trim())?,
+        f64::from_str(fields.1.trim())?,
+        f64::from_str(fields.2.trim())?,
+        f64::from_str(fields.3.trim())?,
+    ))
 }
 
 #[cfg(test)]
