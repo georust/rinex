@@ -18,7 +18,7 @@ use crate::{
     },
     meteo,
     meteo::HeaderFields as MeteoHeader,
-    navigation::{IonMessage, KbModel},
+    navigation::{parse_4_fields as parse_4_ionmessage_fields, IonMessage, KbModel, KbRegionCode},
     observable::{Observable, ParsingError as ObsParsingError},
     observation,
     observation::{Crinex, HeaderFields as ObservationHeader},
@@ -121,10 +121,9 @@ pub struct Header {
     /// attached to a specifid SV, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
-    /// Possible Ionospheric Delay correction model.
-    /// Only exists in NAV V3 headers. In modern NAV, this
-    /// is regularly updated in the file's body.
-    pub ionod_correction: Option<IonMessage>,
+    /// [RINEX2, RINEX3] Ionosphereic delay correction model.
+    /// Modern RINEX uses the record itself and regular model updates.
+    pub ionod_corrections: HashMap<Constellation, IonMessage>,
     /// Possible DCBs compensation information
     pub dcb_compensations: Vec<DcbCompensation>,
     /// Possible PCVs compensation information
@@ -191,6 +190,8 @@ pub enum ParsingError {
     DorisError(#[from] DorisError),
     #[error("failed to parse cospar number")]
     CosparError(#[from] CosparError),
+    #[error("failed to parse klobuchar model")]
+    KlobucharModel,
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -257,8 +258,8 @@ impl Header {
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
-        let mut ionod_correction = Option::<IonMessage>::None;
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
+        let mut ionod_corrections = HashMap::<Constellation, IonMessage>::with_capacity(4);
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = ObservationHeader::default();
@@ -876,36 +877,124 @@ impl Header {
                 //TODO
                 // This will help RTK solving against GLONASS SV
             } else if marker.contains("ION ALPHA") {
-                //TODO
-                //0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06          ION ALPHA
+                // RINEX2 partial Klobuchar model
+                let (a0, rem) = content.split_at(19);
+                let (a1, rem) = rem.split_at(19);
+                let (a2, rem) = rem.split_at(19);
+                let (a3, rem) = rem.split_at(19);
+                let alpha = parse_4_ionmessage_fields((a0, a1, a2, a3))
+                    .map_err(|_| ParsingError::KlobucharModel)?;
+                let model = IonMessage::KlobucharModel(KbModel {
+                    alpha,
+                    beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
+                    region: KbRegionCode::WideArea,
+                });
+                // Allow support of GPS|QZSS|GLO|GAL|BDS|IRNSS in RINEX<4
+                for c in [
+                    Constellation::GPS,
+                    Constellation::QZSS,
+                    Constellation::Glonass,
+                    Constellation::Galileo,
+                    Constellation::BeiDou,
+                    Constellation::IRNSS,
+                ] {
+                    if let Some(model) = ionod_corrections.get_mut(&c) {
+                        if let Some(kb) = model.as_klobuchar_mut() {
+                            kb.alpha = alpha;
+                        }
+                    } else {
+                        ionod_corrections.insert(c, model);
+                    }
+                }
             } else if marker.contains("ION BETA") {
-                //TODO
-                //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA
+                // RINEX2 partial Klobuchar model
+                let (b0, rem) = content.split_at(19);
+                let (b1, rem) = rem.split_at(19);
+                let (b2, rem) = rem.split_at(19);
+                let (b3, rem) = rem.split_at(19);
+                let beta = parse_4_ionmessage_fields((b0, b1, b2, b3))
+                    .map_err(|_| ParsingError::KlobucharModel)?;
+                let model = IonMessage::KlobucharModel(KbModel {
+                    alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
+                    beta,
+                    region: KbRegionCode::WideArea,
+                });
+                // Allow support of GPS|GLO|GAL|BDS|IRNSS in RINEX<4
+                for c in [
+                    Constellation::GPS,
+                    Constellation::QZSS,
+                    Constellation::Glonass,
+                    Constellation::Galileo,
+                    Constellation::BeiDou,
+                    Constellation::IRNSS,
+                ] {
+                    if let Some(model) = ionod_corrections.get_mut(&c) {
+                        if let Some(kb) = model.as_klobuchar_mut() {
+                            kb.beta = beta;
+                        }
+                    } else {
+                        ionod_corrections.insert(c, model);
+                    }
+                }
             } else if marker.contains("IONOSPHERIC CORR") {
                 /*
-                 * RINEX < 4 IONOSPHERIC Correction
+                 * RINEX3 IONOSPHERIC Correction
                  * we still use the IonMessage (V4 compatible),
                  * the record will just contain a single model for the entire day course
                  */
                 if let Ok(model) = IonMessage::from_rinex3_header(content) {
-                    // The Klobuchar model needs two lines to be entirely described.
                     if let Some(kb_model) = model.as_klobuchar() {
+                        // Klobuchar fits on two lines
                         let correction_type = content.split_at(5).0.trim();
                         if correction_type.ends_with('B') {
-                            let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
-                            let (beta, region) = (kb_model.beta, kb_model.region);
-                            ionod_correction = Some(IonMessage::KlobucharModel(KbModel {
-                                alpha,
-                                beta,
-                                region,
-                            }));
+                            // BETA: GPS|GLO|IRNSS|BDS|GAL
+                            for c in [
+                                Constellation::GPS,
+                                Constellation::QZSS,
+                                Constellation::Glonass,
+                                Constellation::IRNSS,
+                                Constellation::BeiDou,
+                                Constellation::Galileo,
+                            ] {
+                                if let Some(model) = ionod_corrections.get_mut(&c) {
+                                    if let Some(kb) = model.as_klobuchar_mut() {
+                                        kb.beta = kb.beta;
+                                    }
+                                }
+                            }
                         } else {
-                            ionod_correction = Some(IonMessage::KlobucharModel(*kb_model));
+                            // ALPHA: GPS|GLO|IRNSS|BDS|GAL
+                            for c in [
+                                Constellation::GPS,
+                                Constellation::QZSS,
+                                Constellation::Glonass,
+                                Constellation::IRNSS,
+                                Constellation::BeiDou,
+                                Constellation::Galileo,
+                            ] {
+                                ionod_corrections.insert(
+                                    c,
+                                    IonMessage::KlobucharModel(KbModel {
+                                        alpha: kb_model.alpha,
+                                        beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
+                                        region: kb_model.region,
+                                    }),
+                                );
+                            }
                         }
                     } else {
-                        // The NequickG model fits on a single line.
-                        // The BDGIM does not exist until RINEX4
-                        ionod_correction = Some(model);
+                        // Nequick-G fits on a single line, and BDGIM not known at this point
+                        // GPS|GLO|IRNSS|BDS|GAL
+                        for c in [
+                            Constellation::GPS,
+                            Constellation::QZSS,
+                            Constellation::Glonass,
+                            Constellation::IRNSS,
+                            Constellation::BeiDou,
+                            Constellation::Galileo,
+                        ] {
+                            ionod_corrections.insert(c, model);
+                        }
                     }
                 }
             } else if marker.contains("TIME SYSTEM CORR") {
@@ -925,23 +1014,26 @@ impl Header {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
             } else if marker.contains("DESCRIPTION") {
-                // IONEX description
+                // IONEX
                 // <o
                 //   if "DESCRIPTION" is to be encountered in other RINEX
                 //   we can safely test RinexType here because its already been determined
                 ionex = ionex.with_description(content.trim())
             } else if marker.contains("OBSERVABLES USED") {
-                // IONEX observables
+                // IONEX
                 ionex = ionex.with_observables(content.trim())
             } else if marker.contains("ELEVATION CUTOFF") {
+                // IONEX
                 if let Ok(f) = f32::from_str(content.trim()) {
                     ionex = ionex.with_elevation_cutoff(f);
                 }
             } else if marker.contains("BASE RADIUS") {
+                // IONEX
                 if let Ok(f) = f32::from_str(content.trim()) {
                     ionex = ionex.with_base_radius(f);
                 }
             } else if marker.contains("MAPPING FUCTION") {
+                // IONEX
                 if let Ok(mf) = ionex::MappingFunction::from_str(content.trim()) {
                     ionex = ionex.with_mapping_function(mf);
                 }
@@ -1014,7 +1106,7 @@ impl Header {
             glo_channels,
             leap,
             ground_position,
-            ionod_correction,
+            ionod_corrections,
             dcb_compensations,
             pcv_compensations,
             wavelengths: None,

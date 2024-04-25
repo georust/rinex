@@ -125,8 +125,8 @@ impl KbModel {
         };
 
         let epoch = parse_in_timescale(epoch.trim(), ts)?;
-        let alpha = parse_4_fields((a0, a1, a2, a3)).map_err(|_| {Error::KbAlphaValueError})?;
-        let beta = parse_4_fields((b0, b1, b2, b3)).map_err(|_| {Error::KbBetaValueError})?;
+        let alpha = parse_4_fields((a0, a1, a2, a3)).map_err(|_| Error::KbAlphaValueError)?;
+        let beta = parse_4_fields((b0, b1, b2, b3)).map_err(|_| Error::KbBetaValueError)?;
 
         Ok((
             epoch,
@@ -383,14 +383,16 @@ impl IonMessage {
                 };
                 /* determine which field we're dealing with */
                 if corr_type.ends_with('A') {
-                    let alpha = parse_4_fields((a0, a1, a2, a3)).map_err(|_| {Error::KbAlphaValueError})?;
+                    let alpha =
+                        parse_4_fields((a0, a1, a2, a3)).map_err(|_| Error::KbAlphaValueError)?;
                     Ok(Self::KlobucharModel(KbModel {
                         alpha,
                         beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                         region,
                     }))
                 } else {
-                    let beta = parse_4_fields((a0, a1, a2, a3)).map_err(|_| {Error::KbBetaValueError})?;
+                    let beta =
+                        parse_4_fields((a0, a1, a2, a3)).map_err(|_| Error::KbBetaValueError)?;
                     Ok(Self::KlobucharModel(KbModel {
                         alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                         beta,
@@ -428,6 +430,13 @@ impl IonMessage {
             _ => None,
         }
     }
+    /// Returns mutable reference to Klobuchar Model
+    pub fn as_klobuchar_mut(&mut self) -> Option<&mut KbModel> {
+        match self {
+            Self::KlobucharModel(model) => Some(model),
+            _ => None,
+        }
+    }
     /// Unwraps self as Nequick-G Model
     pub fn as_nequick_g(&self) -> Option<&NgModel> {
         match self {
@@ -444,7 +453,9 @@ impl IonMessage {
     }
 }
 
-fn parse_4_fields(fields: (&str, &str, &str, &str)) -> Result<(f64, f64, f64, f64), core::num::ParseFloatError> {
+pub(crate) fn parse_4_fields(
+    fields: (&str, &str, &str, &str),
+) -> Result<(f64, f64, f64, f64), core::num::ParseFloatError> {
     Ok((
         f64::from_str(fields.0.trim())?,
         f64::from_str(fields.1.trim())?,

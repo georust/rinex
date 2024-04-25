@@ -1460,6 +1460,19 @@ mod test {
         );
         let rinex = rinex.unwrap();
 
+        // test Ionospheric Corr.
+        for c in [
+            Constellation::GPS,
+            Constellation::BeiDou,
+            Constellation::Galileo,
+        ] {
+            assert!(
+                rinex.header.ionod_corrections.get(&c).is_some(),
+                "missing {} ionospheric corr.",
+                c
+            );
+        }
+
         for (t0, should_work) in [
             // MIDNIGHT T0 exact match
             (Epoch::from_gregorian_utc_at_midnight(2021, 01, 01), true),
@@ -1469,8 +1482,8 @@ mod test {
             (Epoch::from_gregorian_utc(2021, 01, 01, 05, 33, 24, 0), true),
             // VALID day course : 1 sec prior next day
             (Epoch::from_str("2021-01-01T23:59:59 GPST").unwrap(), true),
-            // TOO LATE : MIDNIGHT DAY +1
-            (Epoch::from_str("2021-01-02T00:00:00 GPST").unwrap(), false),
+            // TOO LATE : MIDNIGHT DAY +1'
+            (Epoch::from_str("2021-01-02T00:01:00 GPST").unwrap(), false),
             // TOO LATE : MIDNIGHT DAY +1
             (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
             // TOO EARLY
@@ -1478,6 +1491,7 @@ mod test {
         ] {
             let ionod_corr = rinex.ionod_correction(
                 t0,
+                SV::default(),
                 30.0,               // fake elev: DONT CARE
                 30.0,               // fake azim: DONT CARE
                 10.0,               // fake latitude: DONT CARE

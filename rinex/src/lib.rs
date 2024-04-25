@@ -77,6 +77,7 @@ use hifitime::Unit;
 pub mod prelude {
     #[cfg(feature = "antex")]
     pub use crate::antex::AntennaMatcher;
+    pub use crate::carrier::Carrier;
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
     #[cfg(feature = "sp3")]
@@ -2505,11 +2506,10 @@ impl Rinex {
                 }),
         )
     }
-    /// [`IonMessage`] (Ionospheric corrections) frames Iterator.
-    /// Prefer the [ionod_correction] method down below, to determine the
-    /// Ionospheric correction to apply at a given time and for a given system.
-    /// This will only return correction models in RINEX4, as they're regularly updated.
-    pub fn ionod_correction_models(
+    /*
+     * NAV (V4) [Ionmessage] Iterator
+     */
+    fn ionod_correction_models(
         &self,
     ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &IonMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
@@ -2522,7 +2522,8 @@ impl Rinex {
             })
         }))
     }
-    /// Returns [`KbModel`] Iterator
+    /// Returns [`KbModel`] Iterator. Truly works for RINEX4. RINEX3 and 2 will
+    /// only propose a single model that is valid for a 24h time frame.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::navigation::KbRegionCode;
@@ -2531,16 +2532,55 @@ impl Rinex {
     /// for (epoch, _sv, kb_model) in rnx.klobuchar_models() {
     ///     let alpha = kb_model.alpha;
     ///     let beta = kb_model.beta;
+    ///     // American or Japanese orbital region
     ///     assert_eq!(kb_model.region, KbRegionCode::WideArea);
     /// }
     /// ```
+    /// When working with RINEX3 and 2, note that we support all constellations and both models.
+    /// You can only expect a single model here, which is valid for that day, see [ionod_correction]
+    /// for further detail. You should expect errors at day boundaries as the model is about
+    /// to be updated (midnight).
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let t0 = rnx.first_epoch()
+    ///     .unwrap();
+    /// for (epoch, sv, kbmodel) in rnx.klobuchar_models() {
+    ///     // RINEX2 and 3 are limiting, but you can still use this information
+    ///     // to verify the model limitations. Anyways.. you're probably more interested
+    ///     // in using [ionod_correction] directly.
+    ///     assert_eq!(epoch, t0);
+    /// }
+    /// ```
     pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, SV, KbModel)> + '_> {
+        let t0 = self.first_epoch().unwrap(); // only fails on invalid RINEX
         Box::new(
-            self.ionod_correction_models()
-                .filter_map(|(e, (_, sv, ion))| ion.as_klobuchar().map(|model| (*e, sv, *model))),
+            self.header
+                .ionod_corrections
+                .iter()
+                .filter_map(move |(c, ion)| {
+                    ion.as_klobuchar().map(|model| {
+                        (
+                            t0,
+                            SV {
+                                prn: 1,
+                                constellation: *c,
+                            },
+                            *model,
+                        )
+                    })
+                })
+                .chain(
+                    self.ionod_correction_models()
+                        .filter_map(|(e, (_, sv, ion))| {
+                            ion.as_klobuchar().map(|model| (*e, sv, *model))
+                        }),
+                ),
         )
     }
-    /// Returns [`NgModel`] Iterator
+    /// Returns [`NgModel`] Iterator. Truly works for RINEX4. RINEX3 and 2 will
+    /// only propose a single model that is valid for a 24h time frame.
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
@@ -2550,13 +2590,38 @@ impl Rinex {
     ///     let region = ng_model.region; // bitflag: supports bitmasking operations
     /// }
     /// ```
+    /// When working with RINEX3 and 2, note that we support all constellations and both models.
+    /// You can only expect a single model here, which is valid for that day, see [ionod_correction]
+    /// for further detail. You should expect errors at day boundaries as the model is about
+    /// to be updated (midnight).
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let t0 = rnx.first_epoch()
+    ///     .unwrap();
+    /// for (epoch, ngmodel) in rnx.nequick_g_models() {
+    ///     assert_eq!(epoch, t0);
+    ///     let (a0, a1, a2) = ngmodel.a;
+    ///     assert_eq!(a0, 6.6250e+01);
+    ///     assert_eq!(a1, -1.6406e-01);
+    ///     assert_eq!(a2, -2.4719e-03);
+    /// }
+    /// ```
     pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
+        let t0 = self.first_epoch().unwrap(); // will only fail on invalid RINEX..
         Box::new(
             self.ionod_correction_models()
-                .filter_map(|(e, (_, _, ion))| ion.as_nequick_g().map(|model| (*e, *model))),
+                .filter_map(|(e, (_, _, ion))| ion.as_nequick_g().map(|model| (*e, *model)))
+                .chain(
+                    self.header
+                        .ionod_corrections
+                        .iter()
+                        .filter_map(move |(_, ion)| ion.as_nequick_g().map(|model| (t0, *model))),
+                ),
         )
     }
-    /// Returns [`BdModel`] Iterator
+    /// Returns [`BdModel`] Iterator. Only works on RINEX4.
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
@@ -2572,54 +2637,99 @@ impl Rinex {
         )
     }
     /// Returns Ionospheric delay correction to apply at given Epoch
-    /// and given location on Earth.
-    /// The correction is expressed as meters of delay.
-    /// If Self is a RINEX3, it can only describe a correction for a 24H time frame.
-    /// If "t" is not close enough to T0 of this file, we will not propose its model.
-    /// The same correction will also apply for that entire day.
-    /// Only RINEX4 can truly represent regularly updated correction models. This method
-    /// will return the closest correction in time.
+    /// and given location on Earth. Currently limiated to Klobuchar models,
+    /// as we don't know how to convert other models to propagation delay (feel free to contribute).
+    /// Correction is expressed in meters (of propagation delay).
+    /// Note that only RINEX4 garantees good accuracy and smooth transition between
+    /// day to day.
+    ///
+    /// When working with RINEX4 you get regular updates of the model and all models are supported.
+    /// ```
+    /// use std::str::FromStr;
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    ///     .unwrap();
+    /// assert!(
+    ///     rinex.ionod_correction(
+    ///         Epoch::from_str("2022-06-08T10:00:00 GPST").unwrap(),
+    ///         SV::new(Constellation::GPS, 10), // SV identity
+    ///         30.0, // elevation
+    ///         115.0, // azimtuh
+    ///         40.5, // user lat [ddeg]
+    ///         110.5, // user long [ddeg]
+    ///         Carrier::L1, // frequency
+    ///     ).is_some(),
+    /// );
+    /// // Note that we still apply a maximal 24 hr validity, in this scenario
+    /// // a newer RINEX should either have been loaded or merged to extend previous context.
+    /// assert!(
+    ///     rinex.ionod_correction(
+    ///         Epoch::from_str("2022-06-10T10:00:00 GPST").unwrap(),
+    ///         SV::new(Constellation::GPS, 10), // SV identity
+    ///         30.0, // elevation
+    ///         115.0, // azimtuh
+    ///         40.5, // user lat [ddeg]
+    ///         110.5, // user long [ddeg]
+    ///         Carrier::L1, // frequency
+    ///     ).is_none(),
+    /// );
+    /// ```
+    /// When working with RINEX3 and 2, note that we support all constellations and both models.
     pub fn ionod_correction(
         &self,
         t: Epoch,
+        sv: SV,
         sv_elevation: f64,
         sv_azimuth: f64,
         user_lat_ddeg: f64,
         user_lon_ddeg: f64,
         carrier: Carrier,
     ) -> Option<f64> {
-        // determine nearest in time
         let nearest_model = self
             .ionod_correction_models()
-            .map(|(t, (_, sv, msg))| (t, (sv, msg)))
+            .filter_map(|(t_i, (_, sv_i, msg_i))| {
+                if (t - *t_i).abs() < 24.0 * Unit::Hour {
+                    if sv_i.constellation == sv.constellation {
+                        Some((t_i, msg_i))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
             .min_by_key(|(t_i, _)| (t - **t_i).abs());
 
-        let (t, model) = match nearest_model {
-            Some((t, (model_sv, model))) => (*t, (model_sv, *model)),
+        let (t, msg) = match nearest_model {
+            Some((t, msg)) => (*t, *msg),
             None => {
-                // RINEX3 possible case: depicted in the header
-                let ionod_corr = self.header.ionod_correction?;
-                /*
-                 * only valid for 24 hours, at publication time
-                 */
                 let t0 = self.first_epoch()?;
-                let dt = t - t0;
-                let total_seconds = dt.to_seconds();
-                if total_seconds >= 0.0 && dt < 24 * Unit::Hour {
-                    (t0, (SV::default(), ionod_corr))
-                } else {
+                if t < t0 {
+                    // not valid for this file: do not propose
                     return None;
                 }
+                if t - t0 > 24.0 * Unit::Hour {
+                    // too far from this publication: do not propose
+                    return None;
+                }
+                self.header
+                    .ionod_corrections
+                    .iter()
+                    .filter_map(|(constellation, msg)| {
+                        if *constellation == sv.constellation {
+                            Some((t, *msg))
+                        } else {
+                            None
+                        }
+                    })
+                    .reduce(|k, _| k)?
             },
         };
 
-        let (model_sv, model) = model;
-
-        if let Some(kb) = model.as_klobuchar() {
-            let h_km = match model_sv.constellation {
+        if let Some(kb) = msg.as_klobuchar() {
+            let h_km = match sv.constellation {
                 Constellation::BeiDou => 375.0,
-                // we only expect BDS or GPS here,
-                // wrongly formed RINEX will cause innacurate results
+                // BDS or GPS are prefered here
                 Constellation::GPS | _ => 350.0,
             };
             Some(kb.meters_delay(
@@ -2632,6 +2742,7 @@ impl Rinex {
                 carrier,
             ))
         } else {
+            // FIXME: not supported
             None
         }
     }

@@ -61,7 +61,7 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                             let (lat, lon) = lat_lon_ddeg;
                             let freq = Carrier::from_observable(sv.constellation, code).ok()?;
                             let ionod_corr =
-                                nav.ionod_correction(*t, elev, azim, lat, lon, freq)?;
+                                nav.ionod_correction(*t, sv, elev, azim, lat, lon, freq)?;
                             Some(ionod_corr)
                         })
                         .collect::<Vec<_>>();

@@ -117,32 +117,21 @@ pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Optio
  * Grabs nearest KB model (in time)
  */
 pub fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
-    let kb_model = nav
+    let (_, sv, kb) = nav
         .klobuchar_models()
-        .min_by_key(|(t_i, _, _)| (t - *t_i).abs());
-
-    if let Some((_, sv, kb_model)) = kb_model {
-        Some(KbModel {
-            h_km: {
-                match sv.constellation {
-                    Constellation::BeiDou => 375.0,
-                    // we only expect GPS or BDS here,
-                    // badly formed RINEX will generate errors in the solutions
-                    _ => 350.0,
-                }
-            },
-            alpha: kb_model.alpha,
-            beta: kb_model.beta,
-        })
-    } else {
-        /* RINEX 3 case */
-        let iono_corr = nav.header.ionod_correction?;
-        iono_corr.as_klobuchar().map(|kb_model| KbModel {
-            h_km: 350.0, //TODO improve this
-            alpha: kb_model.alpha,
-            beta: kb_model.beta,
-        })
-    }
+        .min_by_key(|(t_i, _, _)| (t - *t_i).abs())?;
+    Some(KbModel {
+        h_km: {
+            match sv.constellation {
+                Constellation::BeiDou => 375.0,
+                // we only expect GPS or BDS here,
+                // badly formed RINEX will generate errors in the solutions
+                _ => 350.0,
+            }
+        },
+        alpha: kb.alpha,
+        beta: kb.beta,
+    })
 }
 
 /*
