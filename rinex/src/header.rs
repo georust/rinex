@@ -876,11 +876,25 @@ impl Header {
                 //TODO
                 // This will help RTK solving against GLONASS SV
             } else if marker.contains("ION ALPHA") {
-                //TODO
-                //0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06          ION ALPHA
+                // Assuming that ION BETA will always be after ION ALPHA.
+                // RINEX v2 standards do NOT guarantee that (header fields are free order).
+                // See https://files.igs.org/pub/data/format/rinex211.txt paragraph 5.2.
+                // TODO: do not depend on line order
+                if let Ok(model) = IonMessage::from_rinex2_header(content, marker) {
+                    let kb_model = model.as_klobuchar().unwrap();
+                    ionod_correction = Some(IonMessage::KlobucharModel(*kb_model));
+                }
             } else if marker.contains("ION BETA") {
-                //TODO
-                //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA
+                if let Ok(model) = IonMessage::from_rinex2_header(content, marker) {
+                    let kb_model = model.as_klobuchar().unwrap();
+                    let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
+                    let (beta, region) = (kb_model.beta, kb_model.region);
+                    ionod_correction = Some(IonMessage::KlobucharModel(KbModel {
+                        alpha,
+                        beta,
+                        region,
+                    }));
+                }
             } else if marker.contains("IONOSPHERIC CORR") {
                 /*
                  * RINEX < 4 IONOSPHERIC Correction

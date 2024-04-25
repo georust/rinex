@@ -2574,7 +2574,7 @@ impl Rinex {
     /// Returns Ionospheric delay correction to apply at given Epoch
     /// and given location on Earth.
     /// The correction is expressed as meters of delay.
-    /// If Self is a RINEX3, it can only describe a correction for a 24H time frame.
+    /// If Self is a RINEX2 or RINEX3, it can only describe a correction for a 24H time frame.
     /// If "t" is not close enough to T0 of this file, we will not propose its model.
     /// The same correction will also apply for that entire day.
     /// Only RINEX4 can truly represent regularly updated correction models. This method
@@ -2597,7 +2597,7 @@ impl Rinex {
         let (t, model) = match nearest_model {
             Some((t, (model_sv, model))) => (*t, (model_sv, *model)),
             None => {
-                // RINEX3 possible case: depicted in the header
+                // RINEX2/3 possible case: depicted in the header
                 let ionod_corr = self.header.ionod_correction?;
                 /*
                  * only valid for 24 hours, at publication time

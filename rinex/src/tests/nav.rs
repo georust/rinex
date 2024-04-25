@@ -1499,4 +1499,64 @@ mod test {
             }
         }
     }
+
+    #[test]
+    #[cfg(feature = "nav")]
+    fn v2_ion_alpha_beta() {
+        let path = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V2")
+            .join("cbw10010.21n.gz");
+        let rinex = Rinex::from_file(&path.to_string_lossy());
+        assert!(
+            rinex.is_ok(),
+            "failed to parse NAV/V2/cbw10010.21n.gz, error: {:?}",
+            rinex.err()
+        );
+        let rinex = rinex.unwrap();
+        // Earliest record epoch is 2020-12-31 23:59:44
+
+        for (t0, should_work) in [
+            // MIDNIGHT T0 exact match
+            (Epoch::from_gregorian_utc(2020, 12, 31, 23, 59, 44, 0), true),
+            // VALID day course : 1sec into that day
+            (Epoch::from_gregorian_utc(2020, 12, 31, 23, 59, 45, 0), true),
+            // VALID day course : random into that day
+            (Epoch::from_gregorian_utc(2021, 01, 01, 05, 33, 24, 0), true),
+            // VALID day course : 1 sec prior next day
+            (Epoch::from_str("2021-01-01T23:59:43 GPST").unwrap(), true),
+            // TOO LATE : MIDNIGHT DAY +1
+            (Epoch::from_str("2021-01-01T23:59:44 GPST").unwrap(), false),
+            // TOO LATE : MIDNIGHT DAY +1
+            (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
+            // TOO EARLY
+            (Epoch::from_gregorian_utc_at_midnight(2020, 12, 30), false),
+        ] {
+            dbg!(t0);
+            let ionod_corr = rinex.ionod_correction(
+                t0,
+                30.0,               // fake elev: DONT CARE
+                30.0,               // fake azim: DONT CARE
+                10.0,               // fake latitude: DONT CARE
+                20.0,               // fake longitude: DONT CARE
+                Carrier::default(), // fake signal: DONT CARE
+            );
+            if should_work {
+                assert!(
+                    ionod_corr.is_some(),
+                    "v2 ionod corr: should have returned a correction model for datetime {:?}",
+                    t0
+                );
+            } else {
+                assert!(
+                    ionod_corr.is_none(),
+                    "v2 ionod corr: should not have returned a correction model for datetime {:?}",
+                    t0
+                );
+            }
+        }
+    }
 }
