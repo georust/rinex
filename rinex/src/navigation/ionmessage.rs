@@ -645,7 +645,7 @@ mod test {
             "QZSB ionospheric corr badly interprated as worldwide correction"
         );
     }
-    
+
     #[test]
     fn rinex2_kb_header_parsing() {
         let kb = IonMessage::from_rinex2_header(
