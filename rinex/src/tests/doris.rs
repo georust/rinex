@@ -2,11 +2,11 @@
 mod test {
     use crate::tests::toolkit::doris_check_observables;
     use crate::tests::toolkit::doris_check_stations;
-    
-    use crate::{prelude::*};
+
+    use crate::prelude::*;
     use itertools::Itertools;
     use std::path::Path;
-    
+
     #[test]
     #[cfg(feature = "flate2")]
     fn v3_cs2rx18164() {
