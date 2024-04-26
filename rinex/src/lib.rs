@@ -2505,80 +2505,139 @@ impl Rinex {
                 }),
         )
     }
-    /// [`IonMessage`] (Ionospheric corrections) frames Iterator.
-    /// Prefer the [ionod_correction] method down below, to determine the
-    /// Ionospheric correction to apply at a given time and for a given system.
-    /// This will only return correction models in RINEX4, as they're regularly updated.
-    pub fn ionod_correction_models(
+    /*
+     * [IonMessage] Iterator
+     */
+    fn ionod_correction_models(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &IonMessage))> + '_> {
-        Box::new(self.navigation().flat_map(|(e, frames)| {
-            frames.iter().filter_map(move |fr| {
-                if let Some((msg, sv, ion)) = fr.as_ion() {
-                    Some((e, (msg, sv, ion)))
-                } else {
-                    None
-                }
-            })
-        }))
+    ) -> Box<dyn Iterator<Item = (Epoch, (NavMsgType, SV, IonMessage))> + '_> {
+        /*
+         * Answers both OLD and MODERN RINEX requirements
+         * In RINEX2/3, midnight UTC is the publication datetime
+         */
+        let t0 = self.first_epoch().unwrap(); // will fail on invalid RINEX
+        let t0 = Epoch::from_utc_days(t0.to_utc_days().ceil());
+        Box::new(
+            self.header
+                .ionod_corrections
+                .iter()
+                .map(move |(c, ion)| match c {
+                    //Constellation::BeiDou => (t0, (NavMsgType::D1D2, SV::new(*c, 1), *ion)),
+                    _ => (t0, (NavMsgType::LNAV, SV::new(*c, 1), *ion)),
+                })
+                .chain(self.navigation().flat_map(|(t, frames)| {
+                    frames.iter().filter_map(move |fr| {
+                        let (msg, sv, ion) = fr.as_ion()?;
+                        Some((*t, (msg, sv, *ion)))
+                    })
+                })),
+        )
     }
-    /// Returns [`KbModel`] Iterator
+    /// Returns [`KbModel`] Iterator.
+    /// RINEX4 is the real application of this, as it provides model updates
+    /// during the day. You're probably more interested
+    /// in using [ionod_correction] instead of this, especially in PPP:
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::navigation::KbRegionCode;
-    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
     ///     .unwrap();
-    /// for (epoch, _sv, kb_model) in rnx.klobuchar_models() {
+    /// for (epoch, _sv, kb_model) in rinex.klobuchar_models() {
     ///     let alpha = kb_model.alpha;
     ///     let beta = kb_model.beta;
     ///     assert_eq!(kb_model.region, KbRegionCode::WideArea);
     /// }
     /// ```
+    /// We support all RINEX3 constellations. When working with this revision,
+    /// you only get one model per day (24 hour validity period). [ionod_correction]
+    /// does that verification internally.
+    /// ```
+    /// use std::str::FromStr;
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let t0 = Epoch::from_str("2021-01-01T00:00:00 UTC")
+    ///     .unwrap(); // model publication Epoch
+    /// for (t, sv, model) in rinex.klobuchar_models() {
+    ///     assert_eq!(t, t0);
+    ///     // You should use "t==t0" to compare and verify model validity
+    ///     // withint a 24 hour time frame.
+    ///     // Note that we support all RINEX3 constellations
+    ///     if sv.constellation == Constellation::BeiDou {
+    ///         assert_eq!(model.alpha.0, 1.1176E-8);
+    ///     }
+    /// }
+    /// ```
+    /// Klobuchar models exists in RINEX2 and this method applies similarly.
     pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, SV, KbModel)> + '_> {
         Box::new(
             self.ionod_correction_models()
-                .filter_map(|(e, (_, sv, ion))| ion.as_klobuchar().map(|model| (*e, sv, *model))),
+                .filter_map(|(t, (_, sv, ion))| ion.as_klobuchar().map(|model| (t, sv, *model))),
         )
     }
-    /// Returns [`NgModel`] Iterator
+    /// Returns [`NgModel`] Iterator.
+    /// RINEX4 is the real application of this, as it provides model updates
+    /// during the day. You're probably more interested
+    /// in using [ionod_correction] instead of this, especially in PPP:
     /// ```
     /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
     ///     .unwrap();
-    /// for (epoch, ng_model) in rnx.nequick_g_models() {
+    /// for (epoch, ng_model) in rinex.nequick_g_models() {
     ///     let (a0, a1, a2) = ng_model.a;
     ///     let region = ng_model.region; // bitflag: supports bitmasking operations
     /// }
     /// ```
+    /// We support all RINEX3 constellations. When working with this revision,
+    /// you only get one model per day (24 hour validity period). You should prefer
+    /// [ionod_correction] which does that check internally:
+    /// ```
+    /// use std::str::FromStr;
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let t0 = Epoch::from_str("2021-01-01T00:00:00 UTC")
+    ///     .unwrap(); // model publication Epoch
+    /// for (t, model) in rinex.nequick_g_models() {
+    ///     assert_eq!(t, t0);
+    ///     // You should use "t==t0" to compare and verify model validity
+    ///     // within a 24 hour time frame.
+    ///     assert_eq!(model.a.0, 66.25_f64);
+    /// }
+    /// ```
+    /// Nequick-G model is not known to RINEX2 and only applies to RINEX V>2.
     pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
         Box::new(
             self.ionod_correction_models()
-                .filter_map(|(e, (_, _, ion))| ion.as_nequick_g().map(|model| (*e, *model))),
+                .filter_map(|(t, (_, _, ion))| ion.as_nequick_g().map(|model| (t, *model))),
         )
     }
-    /// Returns [`BdModel`] Iterator
+    /// Returns [`BdModel`] Iterator.
+    /// RINEX4 is the real application of this, as it provides model updates
+    /// during the day. You're probably more interested
+    /// in using [ionod_correction] instead of this, especially in PPP:
     /// ```
     /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
     ///     .unwrap();
-    /// for (epoch, bd_model) in rnx.bdgim_models() {
+    /// for (epoch, bd_model) in rinex.bdgim_models() {
     ///     let alpha_tecu = bd_model.alpha;
     /// }
     /// ```
+    /// BDGIM was introduced in RINEX4, therefore this method does not apply
+    /// to older revisions and returns an empty Iterator.
     pub fn bdgim_models(&self) -> Box<dyn Iterator<Item = (Epoch, BdModel)> + '_> {
         Box::new(
             self.ionod_correction_models()
-                .filter_map(|(e, (_, _, ion))| ion.as_bdgim().map(|model| (*e, *model))),
+                .filter_map(|(t, (_, _, ion))| ion.as_bdgim().map(|model| (t, *model))),
         )
     }
-    /// Returns Ionospheric delay correction to apply at given Epoch
-    /// and given location on Earth.
-    /// The correction is expressed as meters of delay.
-    /// If Self is a RINEX3, it can only describe a correction for a 24H time frame.
-    /// If "t" is not close enough to T0 of this file, we will not propose its model.
-    /// The same correction will also apply for that entire day.
-    /// Only RINEX4 can truly represent regularly updated correction models. This method
-    /// will return the closest correction in time.
+    /// Returns Ionospheric delay compensation, to apply at "t" desired Epoch
+    /// and desired location. NB: we only support Klobuchar models at the moment,
+    /// as we don't know how to convert other models (feel free to contribute).
+    /// "t" must be within a 24 hour time frame of the oldest model.
+    /// When working with RINEX2/3, the model is published at midnight
+    /// and you should expect discontinuities when a new model is being published.
     pub fn ionod_correction(
         &self,
         t: Epoch,
@@ -2589,31 +2648,16 @@ impl Rinex {
         carrier: Carrier,
     ) -> Option<f64> {
         // determine nearest in time
-        let nearest_model = self
+        let (_, (model_sv, model)) = self
             .ionod_correction_models()
-            .map(|(t, (_, sv, msg))| (t, (sv, msg)))
-            .min_by_key(|(t_i, _)| (t - **t_i).abs());
-
-        let (t, model) = match nearest_model {
-            Some((t, (model_sv, model))) => (*t, (model_sv, *model)),
-            None => {
-                // RINEX3 possible case: depicted in the header
-                let ionod_corr = self.header.ionod_correction?;
-                /*
-                 * only valid for 24 hours, at publication time
-                 */
-                let t0 = self.first_epoch()?;
-                let dt = t - t0;
-                let total_seconds = dt.to_seconds();
-                if total_seconds >= 0.0 && dt < 24 * Unit::Hour {
-                    (t0, (SV::default(), ionod_corr))
+            .filter_map(|(t_i, (_, sv_i, msg_i))| {
+                if t_i <= t && (t - t_i) < 24.0 * Unit::Hour {
+                    Some((t_i, (sv_i, msg_i)))
                 } else {
-                    return None;
+                    None
                 }
-            },
-        };
-
-        let (model_sv, model) = model;
+            })
+            .min_by_key(|(t_i, _)| (t - *t_i).abs())?;
 
         if let Some(kb) = model.as_klobuchar() {
             let h_km = match model_sv.constellation {

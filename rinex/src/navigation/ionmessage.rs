@@ -336,7 +336,7 @@ impl BdModel {
     // }
 }
 
-/// IonMessage: wraps several ionospheric models
+/// IonMessage wraps all known Ionosphere models
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IonMessage {
@@ -361,8 +361,8 @@ impl IonMessage {
      * It's just unique and applies to the entire daycourse in RINEX3.
      * The API remains totally coherent. */
     pub(crate) fn from_rinex3_header(header: &str) -> Result<Self, Error> {
-        let (corr_type, rem) = header.split_at(5);
-        match corr_type.trim() {
+        let (system, rem) = header.split_at(5);
+        match system.trim() {
             /*
              * Models that only needs 3 fields
              */
@@ -375,10 +375,11 @@ impl IonMessage {
                 let a2 = f64::from_str(a2.trim()).map_err(|_| Error::NgValueError)?;
                 Ok(Self::NequickGModel(NgModel {
                     a: (a0, a1, a2),
-                    region: NgRegionFlags::default(), // RINEX3 not accurate enough
+                    // TODO: is this not the 4th field? double check
+                    region: NgRegionFlags::default(),
                 }))
             },
-            corr_type => {
+            system => {
                 /*
                  * Model has 4 fields
                  */
@@ -387,12 +388,12 @@ impl IonMessage {
                 let (a2, rem) = rem.split_at(12);
                 let (a3, _) = rem.split_at(12);
                 // World or QZSS special orbital plan
-                let region = match corr_type.contains("QZS") {
+                let region = match system.contains("QZS") {
                     true => KbRegionCode::JapanArea,
                     false => KbRegionCode::WideArea,
                 };
                 /* determine which field we're dealing with */
-                if corr_type.ends_with('A') {
+                if system.ends_with('A') {
                     let a0 = f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?;
                     let a1 = f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?;
                     let a2 = f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?;
@@ -417,6 +418,40 @@ impl IonMessage {
             },
         }
     }
+
+    pub(crate) fn from_rinex2_header(header: &str, marker: &str) -> Result<Self, Error> {
+        let header = header.replace("d", "e").replace("D", "E");
+        let (_, rem) = header.split_at(4);
+        let (a0, rem) = rem.split_at(12);
+        let (a1, rem) = rem.split_at(12);
+        let (a2, rem) = rem.split_at(12);
+        let (a3, _) = rem.split_at(12);
+
+        if marker.contains("ALPHA") {
+            let a0 = f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?;
+            let a1 = f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?;
+            let a2 = f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?;
+            let a3 = f64::from_str(a3.trim()).map_err(|_| Error::KbAlphaValueError)?;
+
+            Ok(Self::KlobucharModel(KbModel {
+                alpha: (a0, a1, a2, a3),
+                beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
+                region: KbRegionCode::WideArea,
+            }))
+        } else {
+            // Assume marker.contains("BETA")
+            let b0 = f64::from_str(a0.trim()).map_err(|_| Error::KbBetaValueError)?;
+            let b1 = f64::from_str(a1.trim()).map_err(|_| Error::KbBetaValueError)?;
+            let b2 = f64::from_str(a2.trim()).map_err(|_| Error::KbBetaValueError)?;
+            let b3 = f64::from_str(a3.trim()).map_err(|_| Error::KbBetaValueError)?;
+            Ok(Self::KlobucharModel(KbModel {
+                alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
+                beta: (b0, b1, b2, b3),
+                region: KbRegionCode::WideArea,
+            }))
+        }
+    }
+
     // /* converts self to meters of delay */
     // pub(crate) fn meters_delay(
     //     &self,
@@ -438,8 +473,15 @@ impl IonMessage {
     //         None
     //     }
     // }
-    /// Unwraps self as Klobuchar Model
+    /// Returns reference to Klobuchar Model
     pub fn as_klobuchar(&self) -> Option<&KbModel> {
+        match self {
+            Self::KlobucharModel(model) => Some(model),
+            _ => None,
+        }
+    }
+    /// Returns mutable reference to Klobuchar Model
+    pub fn as_klobuchar_mut(&mut self) -> Option<&mut KbModel> {
         match self {
             Self::KlobucharModel(model) => Some(model),
             _ => None,
@@ -527,6 +569,21 @@ mod test {
         assert!(msg.as_bdgim().is_none());
     }
     #[test]
+    fn rinex3_ng_header_parsing() {
+        let ng = IonMessage::from_rinex3_header(
+            "GAL    6.6250e+01 -1.6406e-01 -2.4719e-03  0.0000e+00       ",
+        );
+        assert!(ng.is_ok(), "failed to parse GAL iono correction header");
+        let ng = ng.unwrap();
+        assert_eq!(
+            ng,
+            IonMessage::NequickGModel(NgModel {
+                a: (6.6250e+01, -1.6406e-01, -2.4719e-03),
+                region: NgRegionFlags::empty(),
+            })
+        );
+    }
+    #[test]
     fn rinex3_kb_header_parsing() {
         let kb = IonMessage::from_rinex3_header(
             "GPSA   7.4506e-09 -1.4901e-08 -5.9605e-08  1.1921e-07       ",
@@ -609,6 +666,38 @@ mod test {
             kb.region,
             KbRegionCode::JapanArea,
             "QZSB ionospheric corr badly interprated as worldwide correction"
+        );
+    }
+
+    #[test]
+    fn rinex2_kb_header_parsing() {
+        let kb = IonMessage::from_rinex2_header(
+            "     0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06         ",
+            "ION ALPHA           ",
+        );
+        assert!(kb.is_ok(), "failed to parse ION ALPHA header");
+        let kb = kb.unwrap();
+        assert_eq!(
+            kb,
+            IonMessage::KlobucharModel(KbModel {
+                alpha: (0.7451E-08, -0.1490E-07, -0.5960E-07, 0.1192E-06),
+                beta: (0.0, 0.0, 0.0, 0.0),
+                region: KbRegionCode::WideArea,
+            })
+        );
+        let kb = IonMessage::from_rinex2_header(
+            "     0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06         ",
+            "ION BETA            ",
+        );
+        assert!(kb.is_ok(), "failed to parse ION BETA header");
+        let kb = kb.unwrap();
+        assert_eq!(
+            kb,
+            IonMessage::KlobucharModel(KbModel {
+                alpha: (0.0, 0.0, 0.0, 0.0),
+                beta: (0.9011E+05, -0.6554E+05, -0.1311E+06, 0.4588E+06),
+                region: KbRegionCode::WideArea,
+            })
         );
     }
 }
