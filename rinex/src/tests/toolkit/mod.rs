@@ -9,6 +9,9 @@ mod observation;
 pub use observation::check_observables as obsrinex_check_observables;
 pub use observation::test_observation_rinex;
 
+/* NAV RINEX dedicated tools */
+pub mod nav;
+
 /* DORIS RINEX dedicated tools */
 mod doris;
 pub use doris::check_observables as doris_check_observables;

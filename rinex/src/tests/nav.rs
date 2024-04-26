@@ -3,6 +3,8 @@ mod test {
     use crate::carrier::Carrier;
     use crate::navigation::*;
     use crate::prelude::*;
+    use crate::tests::toolkit::nav::check_klobuchar_models;
+    use crate::tests::toolkit::nav::check_nequick_g_models;
     use gnss_rs::prelude::SV;
     use gnss_rs::sv;
     use itertools::*;
@@ -956,6 +958,55 @@ mod test {
         let record = rinex.record.as_nav();
         assert!(record.is_some());
 
+        check_nequick_g_models(
+            &rinex,
+            &[(
+                Constellation::Galileo,
+                NgModel {
+                    a: (6.6250e+01, -1.6406e-01, -2.4719e-03),
+                    region: NgRegionFlags::empty(),
+                },
+            )],
+        );
+
+        check_klobuchar_models(
+            &rinex,
+            &[
+                (
+                    Constellation::GPS,
+                    KbModel {
+                        alpha: (7.4506e-09, -1.4901e-08, -5.9605e-08, 1.1921e-07),
+                        beta: (9.0112e04, -6.5536e04, -1.3107e05, 4.5875e05),
+                        region: KbRegionCode::WideArea,
+                    },
+                ),
+                (
+                    Constellation::QZSS,
+                    KbModel {
+                        alpha: (8.3819e-09, -2.9802e-08, -2.3842e-07, -1.1921e-07),
+                        beta: (6.9632e+04, -1.6384e+05, 5.8982e+05, 4.1288e+06),
+                        region: KbRegionCode::JapanArea,
+                    },
+                ),
+                (
+                    Constellation::BeiDou,
+                    KbModel {
+                        alpha: (1.1180e-08, 2.9800e-08, -4.1720e-07, 6.5570e-07),
+                        beta: (1.4130e+05, -5.2430e+05, 1.6380e+06, -4.5880e+05),
+                        region: KbRegionCode::WideArea,
+                    },
+                ),
+                (
+                    Constellation::IRNSS,
+                    KbModel {
+                        alpha: (2.7940e-08, 3.4273e-07, -7.5102e-06, 7.5102e-06),
+                        beta: (1.2698e+05, 7.7005e+05, -8.3231e+06, 8.3231e+06),
+                        region: KbRegionCode::WideArea,
+                    },
+                ),
+            ],
+        );
+
         let record = record.unwrap();
         let mut epochs: Vec<Epoch> = vec![
             Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap(),
@@ -1179,7 +1230,7 @@ mod test {
         for (epoch, (msg, sv, iondata)) in rinex.ionod_correction_models() {
             if sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::LNAV);
-                if *epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
+                if epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
                     let kb = iondata.as_klobuchar();
                     assert!(kb.is_some());
                     let kb = kb.unwrap();
@@ -1202,7 +1253,7 @@ mod test {
                         )
                     );
                     assert_eq!(kb.region, KbRegionCode::WideArea);
-                } else if *epoch == Epoch::from_str("2023-03-12T23:41:24 UTC").unwrap() {
+                } else if epoch == Epoch::from_str("2023-03-12T23:41:24 UTC").unwrap() {
                     let kb = iondata.as_klobuchar();
                     assert!(kb.is_some());
                     let kb = kb.unwrap();
@@ -1229,7 +1280,7 @@ mod test {
             } else if sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::CNVX);
             } else if sv == sv!("J04")
-                && *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
+                && epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
             {
                 let kb = iondata.as_klobuchar();
                 assert!(kb.is_some());
@@ -1461,16 +1512,16 @@ mod test {
         let rinex = rinex.unwrap();
 
         for (t0, should_work) in [
-            // MIDNIGHT T0 exact match
-            (Epoch::from_gregorian_utc_at_midnight(2021, 01, 01), true),
-            // VALID day course : 1sec into that day
-            (Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 1, 0), true),
+            // test publication datetime
+            (Epoch::from_str("2021-01-01T00:00:01 UTC").unwrap(), true),
             // VALID day course : random into that dat
             (Epoch::from_gregorian_utc(2021, 01, 01, 05, 33, 24, 0), true),
-            // VALID day course : 1 sec prior next day
-            (Epoch::from_str("2021-01-01T23:59:59 GPST").unwrap(), true),
+            // VALID day course : 30 sec prior next day
+            (Epoch::from_str("2021-01-01T23:59:30 UTC").unwrap(), true),
+            // VALID day course : 1 sec prior next publication
+            (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
             // TOO LATE : MIDNIGHT DAY +1
-            (Epoch::from_str("2021-01-02T00:00:00 GPST").unwrap(), false),
+            (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
             // TOO LATE : MIDNIGHT DAY +1
             (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
             // TOO EARLY
@@ -1499,7 +1550,6 @@ mod test {
             }
         }
     }
-
     #[test]
     #[cfg(feature = "nav")]
     fn v2_ion_alpha_beta() {
@@ -1521,21 +1571,20 @@ mod test {
 
         for (t0, should_work) in [
             // MIDNIGHT T0 exact match
-            (Epoch::from_gregorian_utc(2020, 12, 31, 23, 59, 44, 0), true),
+            (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 00, 0), true),
             // VALID day course : 1sec into that day
-            (Epoch::from_gregorian_utc(2020, 12, 31, 23, 59, 45, 0), true),
+            (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 01, 0), true),
             // VALID day course : random into that day
-            (Epoch::from_gregorian_utc(2021, 01, 01, 05, 33, 24, 0), true),
+            (Epoch::from_gregorian_utc(2021, 1, 1, 05, 33, 24, 0), true),
             // VALID day course : 1 sec prior next day
-            (Epoch::from_str("2021-01-01T23:59:43 GPST").unwrap(), true),
+            (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
             // TOO LATE : MIDNIGHT DAY +1
-            (Epoch::from_str("2021-01-01T23:59:44 GPST").unwrap(), false),
+            (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
             // TOO LATE : MIDNIGHT DAY +1
-            (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
+            (Epoch::from_gregorian_utc_at_midnight(2021, 01, 02), false),
             // TOO EARLY
-            (Epoch::from_gregorian_utc_at_midnight(2020, 12, 30), false),
+            (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
         ] {
-            dbg!(t0);
             let ionod_corr = rinex.ionod_correction(
                 t0,
                 30.0,               // fake elev: DONT CARE
@@ -1556,6 +1605,104 @@ mod test {
                     "v2 ionod corr: should not have returned a correction model for datetime {:?}",
                     t0
                 );
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn nav_v4_messages() {
+        for fp in [
+            "KMS300DNK_R_20221591000_01H_MN.rnx.gz",
+            "BRD400DLR_S_20230710000_01D_MN.rnx.gz",
+        ] {
+            let fullpath = format!(
+                "{}/../test_resources/NAV/V4/{}",
+                env!("CARGO_MANIFEST_DIR"),
+                fp
+            );
+            let rinex = Rinex::from_file(&fullpath);
+            let rinex = rinex.unwrap();
+            /*
+             * Verify ION logical correctness
+             */
+            for (_, (msg, sv, ion_msg)) in rinex.ionod_correction_models() {
+                match sv.constellation {
+                    Constellation::GPS => {
+                        assert!(
+                            ion_msg.as_klobuchar().is_some(),
+                            "only Kb models provided by GPS vehicles"
+                        );
+                    },
+                    Constellation::QZSS => {
+                        assert!(
+                            ion_msg.as_klobuchar().is_some(),
+                            "only Kb models provided by QZSS vehicles"
+                        );
+                    },
+                    Constellation::BeiDou => match msg {
+                        NavMsgType::D1D2 => {
+                            assert!(
+                                ion_msg.as_klobuchar().is_some(),
+                                "BeiDou ({}) should be interpreted as Kb model",
+                                msg
+                            );
+                        },
+                        NavMsgType::CNVX => {
+                            assert!(
+                                ion_msg.as_bdgim().is_some(),
+                                "BeiDou (CNVX) should be interpreted as Bd model"
+                            );
+                        },
+                        _ => {
+                            panic!("invalid message type \"{}\" for BeiDou ION frame", msg);
+                        },
+                    },
+                    Constellation::IRNSS => {
+                        assert!(
+                            ion_msg.as_klobuchar().is_some(),
+                            "only Kb models provided by NavIC/IRNSS vehicles"
+                        );
+                    },
+                    Constellation::Galileo => {
+                        assert!(
+                            ion_msg.as_nequick_g().is_some(),
+                            "only Ng models provided by GAL vehicles"
+                        );
+                    },
+                    _ => {
+                        panic!(
+                            "incorrect constellation provider of an ION model: {}",
+                            sv.constellation
+                        );
+                    },
+                }
+            }
+            /*
+             * Verify EOP logical correctness
+             */
+            for (_, (msg, sv, _)) in rinex.earth_orientation() {
+                match sv.constellation {
+                    Constellation::GPS | Constellation::QZSS | Constellation::IRNSS | Constellation::BeiDou => {},
+                    _ => panic!("constellation \"{}\" not declared as eop frame provider, according to V4 specs", sv.constellation),
+                }
+                match msg {
+                    NavMsgType::CNVX | NavMsgType::LNAV => {},
+                    _ => panic!("bad msg identified for GPS vehicle: {}", msg),
+                }
+            }
+            /*
+             * Verify STO logical correctness
+             */
+            for (_, (msg, _sv, _)) in rinex.system_time_offset() {
+                match msg {
+                    NavMsgType::LNAV
+                    | NavMsgType::FDMA
+                    | NavMsgType::IFNV
+                    | NavMsgType::D1D2
+                    | NavMsgType::SBAS
+                    | NavMsgType::CNVX => {},
+                    _ => panic!("bad \"{}\" message for STO frame", msg),
+                }
             }
         }
     }

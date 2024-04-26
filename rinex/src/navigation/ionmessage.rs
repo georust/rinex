@@ -336,7 +336,7 @@ impl BdModel {
     // }
 }
 
-/// IonMessage: wraps several ionospheric models
+/// IonMessage wraps all known Ionosphere models
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IonMessage {
@@ -361,8 +361,8 @@ impl IonMessage {
      * It's just unique and applies to the entire daycourse in RINEX3.
      * The API remains totally coherent. */
     pub(crate) fn from_rinex3_header(header: &str) -> Result<Self, Error> {
-        let (corr_type, rem) = header.split_at(5);
-        match corr_type.trim() {
+        let (system, rem) = header.split_at(5);
+        match system.trim() {
             /*
              * Models that only needs 3 fields
              */
@@ -375,10 +375,11 @@ impl IonMessage {
                 let a2 = f64::from_str(a2.trim()).map_err(|_| Error::NgValueError)?;
                 Ok(Self::NequickGModel(NgModel {
                     a: (a0, a1, a2),
-                    region: NgRegionFlags::default(), // RINEX3 not accurate enough
+                    // TODO: is this not the 4th field? double check
+                    region: NgRegionFlags::default(),
                 }))
             },
-            corr_type => {
+            system => {
                 /*
                  * Model has 4 fields
                  */
@@ -387,12 +388,12 @@ impl IonMessage {
                 let (a2, rem) = rem.split_at(12);
                 let (a3, _) = rem.split_at(12);
                 // World or QZSS special orbital plan
-                let region = match corr_type.contains("QZS") {
+                let region = match system.contains("QZS") {
                     true => KbRegionCode::JapanArea,
                     false => KbRegionCode::WideArea,
                 };
                 /* determine which field we're dealing with */
-                if corr_type.ends_with('A') {
+                if system.ends_with('A') {
                     let a0 = f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?;
                     let a1 = f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?;
                     let a2 = f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?;
@@ -472,8 +473,15 @@ impl IonMessage {
     //         None
     //     }
     // }
-    /// Unwraps self as Klobuchar Model
+    /// Returns reference to Klobuchar Model
     pub fn as_klobuchar(&self) -> Option<&KbModel> {
+        match self {
+            Self::KlobucharModel(model) => Some(model),
+            _ => None,
+        }
+    }
+    /// Returns mutable reference to Klobuchar Model
+    pub fn as_klobuchar_mut(&mut self) -> Option<&mut KbModel> {
         match self {
             Self::KlobucharModel(model) => Some(model),
             _ => None,
@@ -559,6 +567,21 @@ mod test {
         assert!(msg.as_klobuchar().is_some());
         assert!(msg.as_nequick_g().is_none());
         assert!(msg.as_bdgim().is_none());
+    }
+    #[test]
+    fn rinex3_ng_header_parsing() {
+        let ng = IonMessage::from_rinex3_header(
+            "GAL    6.6250e+01 -1.6406e-01 -2.4719e-03  0.0000e+00       ",
+        );
+        assert!(ng.is_ok(), "failed to parse GAL iono correction header");
+        let ng = ng.unwrap();
+        assert_eq!(
+            ng,
+            IonMessage::NequickGModel(NgModel {
+                a: (6.6250e+01, -1.6406e-01, -2.4719e-03),
+                region: NgRegionFlags::empty(),
+            })
+        );
     }
     #[test]
     fn rinex3_kb_header_parsing() {

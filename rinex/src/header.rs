@@ -121,10 +121,9 @@ pub struct Header {
     /// attached to a specifid SV, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
-    /// Possible Ionospheric Delay correction model.
-    /// Only exists in NAV V3 headers. In modern NAV, this
-    /// is regularly updated in the file's body.
-    pub ionod_correction: Option<IonMessage>,
+    /// Possible Ionospheric Delay correction model, described in
+    /// header section of old RINEX files (<V4).
+    pub ionod_corrections: HashMap<Constellation, IonMessage>,
     /// Possible DCBs compensation information
     pub dcb_compensations: Vec<DcbCompensation>,
     /// Possible PCVs compensation information
@@ -257,7 +256,7 @@ impl Header {
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
-        let mut ionod_correction = Option::<IonMessage>::None;
+        let mut ionod_corrections = HashMap::<Constellation, IonMessage>::with_capacity(4);
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
@@ -876,51 +875,134 @@ impl Header {
                 //TODO
                 // This will help RTK solving against GLONASS SV
             } else if marker.contains("ION ALPHA") {
-                // Assuming that ION BETA will always be after ION ALPHA.
-                // RINEX v2 standards do NOT guarantee that (header fields are free order).
-                // See https://files.igs.org/pub/data/format/rinex211.txt paragraph 5.2.
-                // TODO: do not depend on line order
-                if let Ok(model) = IonMessage::from_rinex2_header(content, marker) {
-                    let kb_model = model.as_klobuchar().unwrap();
-                    ionod_correction = Some(IonMessage::KlobucharModel(*kb_model));
-                }
-            } else if marker.contains("ION BETA") {
-                if let Ok(model) = IonMessage::from_rinex2_header(content, marker) {
-                    let kb_model = model.as_klobuchar().unwrap();
-                    let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
-                    let (beta, region) = (kb_model.beta, kb_model.region);
-                    ionod_correction = Some(IonMessage::KlobucharModel(KbModel {
+                // RINEX v2 Ionospheric correction. We tolerate BETA/ALPHA order mixup, as per
+                // RINEX v2 standards [https://files.igs.org/pub/data/format/rinex211.txt] paragraph 5.2.
+                match IonMessage::from_rinex2_header(content, marker) {
+                    Ok(IonMessage::KlobucharModel(KbModel {
                         alpha,
                         beta,
                         region,
-                    }));
+                    })) => {
+                        // Support GPS|GLO|BDS|GAL|QZSS|SBAS|IRNSS
+                        for c in [
+                            Constellation::GPS,
+                            Constellation::Glonass,
+                            Constellation::BeiDou,
+                            Constellation::Galileo,
+                            Constellation::IRNSS,
+                            Constellation::QZSS,
+                            Constellation::SBAS,
+                        ] {
+                            if let Some(correction) = ionod_corrections.get_mut(&c) {
+                                // Only Klobuchar models in RINEX2
+                                let kb_model = correction.as_klobuchar_mut().unwrap();
+                                kb_model.alpha = alpha;
+                                kb_model.region = region;
+                            } else {
+                                ionod_corrections.insert(
+                                    c,
+                                    IonMessage::KlobucharModel(KbModel {
+                                        alpha,
+                                        beta,
+                                        region,
+                                    }),
+                                );
+                            }
+                        }
+                    },
+                    _ => {},
+                }
+            } else if marker.contains("ION BETA") {
+                // RINEX v2 Ionospheric correction. We are flexible in their order of appearance,
+                // RINEX v2 standards do NOT guarantee that (header fields are free order).
+                // [https://files.igs.org/pub/data/format/rinex211.txt] paragraph 5.2.
+                match IonMessage::from_rinex2_header(content, marker) {
+                    Ok(IonMessage::KlobucharModel(KbModel {
+                        alpha,
+                        beta,
+                        region,
+                    })) => {
+                        // Support GPS|GLO|BDS|GAL|QZSS|SBAS|IRNSS
+                        for c in [
+                            Constellation::GPS,
+                            Constellation::Glonass,
+                            Constellation::BeiDou,
+                            Constellation::Galileo,
+                            Constellation::IRNSS,
+                            Constellation::QZSS,
+                            Constellation::SBAS,
+                        ] {
+                            if let Some(correction) = ionod_corrections.get_mut(&c) {
+                                // Only Klobuchar models in RINEX2
+                                let kb_model = correction.as_klobuchar_mut().unwrap();
+                                kb_model.beta = beta;
+                            } else {
+                                ionod_corrections.insert(
+                                    c,
+                                    IonMessage::KlobucharModel(KbModel {
+                                        alpha,
+                                        beta,
+                                        region,
+                                    }),
+                                );
+                            }
+                        }
+                    },
+                    _ => {},
                 }
             } else if marker.contains("IONOSPHERIC CORR") {
                 /*
-                 * RINEX < 4 IONOSPHERIC Correction
-                 * we still use the IonMessage (V4 compatible),
-                 * the record will just contain a single model for the entire day course
+                 * RINEX3 IONOSPHERIC CORRECTION
+                 * We support both model in all RINEX2|RINEX3 constellations.
+                 * RINEX4 replaces that with actual file content (body) for improved correction accuracy.
+                 * The description requires 2 lines when dealing with KB model and we tolerate order mixup.
                  */
-                if let Ok(model) = IonMessage::from_rinex3_header(content) {
-                    // The Klobuchar model needs two lines to be entirely described.
-                    if let Some(kb_model) = model.as_klobuchar() {
-                        let correction_type = content.split_at(5).0.trim();
-                        if correction_type.ends_with('B') {
-                            let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
-                            let (beta, region) = (kb_model.beta, kb_model.region);
-                            ionod_correction = Some(IonMessage::KlobucharModel(KbModel {
-                                alpha,
-                                beta,
-                                region,
-                            }));
+                let model_id = content.split_at(5).0;
+                if model_id.len() < 3 {
+                    /* BAD RINEX */
+                    continue;
+                }
+                let constell_id = &model_id[..3];
+                let constell = match constell_id {
+                    "GPS" => Constellation::GPS,
+                    "GAL" => Constellation::Galileo,
+                    "BDS" => Constellation::BeiDou,
+                    "QZS" => Constellation::QZSS,
+                    "IRN" => Constellation::IRNSS,
+                    "GLO" => Constellation::Glonass,
+                    _ => continue,
+                };
+                match IonMessage::from_rinex3_header(content) {
+                    Ok(IonMessage::KlobucharModel(KbModel {
+                        alpha,
+                        beta,
+                        region,
+                    })) => {
+                        // KB requires two lines
+                        if let Some(ionod_model) = ionod_corrections.get_mut(&constell) {
+                            let kb_model = ionod_model.as_klobuchar_mut().unwrap();
+                            if model_id.ends_with('A') {
+                                kb_model.alpha = alpha;
+                                kb_model.region = region;
+                            } else {
+                                kb_model.beta = beta;
+                            }
                         } else {
-                            ionod_correction = Some(IonMessage::KlobucharModel(*kb_model));
+                            // latch new model
+                            ionod_corrections.insert(
+                                constell,
+                                IonMessage::KlobucharModel(KbModel {
+                                    alpha,
+                                    beta,
+                                    region,
+                                }),
+                            );
                         }
-                    } else {
-                        // The NequickG model fits on a single line.
-                        // The BDGIM does not exist until RINEX4
-                        ionod_correction = Some(model);
-                    }
+                    },
+                    Ok(ion) => {
+                        ionod_corrections.insert(constell, ion);
+                    },
+                    _ => {},
                 }
             } else if marker.contains("TIME SYSTEM CORR") {
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
@@ -1028,7 +1110,7 @@ impl Header {
             glo_channels,
             leap,
             ground_position,
-            ionod_correction,
+            ionod_corrections,
             dcb_compensations,
             pcv_compensations,
             wavelengths: None,
