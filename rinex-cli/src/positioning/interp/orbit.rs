@@ -179,17 +179,13 @@ impl<'a> Interpolator<'a> {
             if let Some(latest) = self.latest(sv) {
                 if *latest >= t + dt {
                     break;
-                } else {
-                    if self.consume(1) {
-                        // end of stream
-                        break;
-                    }
-                }
-            } else {
-                if self.consume(1) {
+                } else if self.consume(1) {
                     // end of stream
                     break;
                 }
+            } else if self.consume(1) {
+                // end of stream
+                break;
             }
         }
 

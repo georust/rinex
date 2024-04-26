@@ -45,7 +45,7 @@ where
         }
     }
 
-    let mut interp = TimeInterpolator::from_ctx(&ctx);
+    let mut interp = TimeInterpolator::from_ctx(ctx);
     debug!("Clock interpolator created");
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {

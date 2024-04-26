@@ -193,7 +193,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     );
 
     let orbit = RefCell::new(OrbitInterpolator::from_ctx(
-        &ctx,
+        ctx,
         cfg.interp_order,
         apriori.clone(),
     ));
