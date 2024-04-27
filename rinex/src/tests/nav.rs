@@ -1512,10 +1512,10 @@ mod test {
         let rinex = rinex.unwrap();
 
         for (t0, should_work) in [
-            // test publication datetime
-            (Epoch::from_str("2021-01-01T00:00:01 UTC").unwrap(), true),
+            // VALID : publication datetime
+            (Epoch::from_str("2021-01-01T00:00:00 UTC").unwrap(), true),
             // VALID day course : random into that dat
-            (Epoch::from_gregorian_utc(2021, 01, 01, 05, 33, 24, 0), true),
+            (Epoch::from_str("2021-01-01T05:33:24 UTC").unwrap(), true),
             // VALID day course : 30 sec prior next day
             (Epoch::from_str("2021-01-01T23:59:30 UTC").unwrap(), true),
             // VALID day course : 1 sec prior next publication

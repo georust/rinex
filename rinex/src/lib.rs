@@ -2515,15 +2515,13 @@ impl Rinex {
          * In RINEX2/3, midnight UTC is the publication datetime
          */
         let t0 = self.first_epoch().unwrap(); // will fail on invalid RINEX
-        let t0 = Epoch::from_utc_days(t0.to_utc_days().ceil());
+        let t0 = Epoch::from_utc_days(t0.to_utc_days().round());
+        dbg!(t0);
         Box::new(
             self.header
                 .ionod_corrections
                 .iter()
-                .map(move |(c, ion)| match c {
-                    //Constellation::BeiDou => (t0, (NavMsgType::D1D2, SV::new(*c, 1), *ion)),
-                    _ => (t0, (NavMsgType::LNAV, SV::new(*c, 1), *ion)),
-                })
+                .map(move |(c, ion)| (t0, (NavMsgType::LNAV, SV::new(*c, 1), *ion)))
                 .chain(self.navigation().flat_map(|(t, frames)| {
                     frames.iter().filter_map(move |fr| {
                         let (msg, sv, ion) = fr.as_ion()?;
@@ -2647,36 +2645,39 @@ impl Rinex {
         carrier: Carrier,
     ) -> Option<f64> {
         // determine nearest in time
-        let (_, (model_sv, model)) = self
+        let (t_i, (model_sv, model)) = self
             .ionod_correction_models()
             .filter_map(|(t_i, (_, sv_i, msg_i))| {
+                // TODO
+                // calculations currently limited to KB model: implement others
+                let _ = msg_i.as_klobuchar()?;
+                // At most 1 day from publication time
                 if t_i <= t && (t - t_i) < 24.0 * Unit::Hour {
                     Some((t_i, (sv_i, msg_i)))
                 } else {
                     None
                 }
             })
-            .min_by_key(|(t_i, _)| (t - *t_i).abs())?;
+            .min_by_key(|(t_i, _)| (t - *t_i))?;
 
-        if let Some(kb) = model.as_klobuchar() {
-            let h_km = match model_sv.constellation {
-                Constellation::BeiDou => 375.0,
-                // we only expect BDS or GPS here,
-                // wrongly formed RINEX will cause innacurate results
-                Constellation::GPS | _ => 350.0,
-            };
-            Some(kb.meters_delay(
-                t,
-                sv_elevation,
-                sv_azimuth,
-                h_km,
-                user_lat_ddeg,
-                user_lon_ddeg,
-                carrier,
-            ))
-        } else {
-            None
-        }
+        // TODO
+        // calculations currently limited to KB model: implement others
+        let kb = model.as_klobuchar().unwrap();
+        let h_km = match model_sv.constellation {
+            Constellation::BeiDou => 375.0,
+            // we only expect BDS or GPS here,
+            // wrongly formed RINEX will cause innacurate results
+            Constellation::GPS | _ => 350.0,
+        };
+        Some(kb.meters_delay(
+            t,
+            sv_elevation,
+            sv_azimuth,
+            h_km,
+            user_lat_ddeg,
+            user_lon_ddeg,
+            carrier,
+        ))
     }
     /// Returns [`StoMessage`] frames Iterator
     /// ```
