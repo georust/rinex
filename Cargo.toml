@@ -9,6 +9,7 @@ members = [
     "rinex-cli", 
     "rnx2crx", 
     "sp3",
+    "sinex",
     "ublox-rnx", 
 ]
 
