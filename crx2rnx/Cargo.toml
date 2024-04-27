@@ -1,6 +1,6 @@
 [package]
 name = "crx2rnx"
-version = "2.3.2"
+version = "2.3.3"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX data decompressor"
@@ -12,4 +12,4 @@ readme = "README.md"
 
 [dependencies]
 clap = { version = "4.4.13", features = ["derive", "color"] }
-rinex = { path = "../rinex", version = "=0.15.7", features = ["serde"] }
+rinex = { path = "../rinex", version = "=0.16.0", features = ["serde"] }

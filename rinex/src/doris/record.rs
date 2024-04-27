@@ -470,7 +470,7 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
         };
         let values = content
             .get(&station)
-            .expect(&format!("failed to identify {:?}", station));
+            .unwrap_or_else(|| panic!("failed to identify {:?}", station));
 
         for (observable, data) in [
             (
@@ -556,7 +556,7 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
         ] {
             let value = values
                 .get(&observable)
-                .expect(&format!("failed to identify {:?}", observable));
+                .unwrap_or_else(|| panic!("failed to identify {:?}", observable));
             assert_eq!(value, &data, "wrong value parsed for {:?}", observable);
         }
 
@@ -575,7 +575,7 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
         };
         let values = content
             .get(&station)
-            .expect(&format!("failed to identify {:?}", station));
+            .unwrap_or_else(|| panic!("failed to identify {:?}", station));
 
         for (observable, data) in [
             (
@@ -661,7 +661,7 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
         ] {
             let value = values
                 .get(&observable)
-                .expect(&format!("failed to identify {:?}", observable));
+                .unwrap_or_else(|| panic!("failed to identify {:?}", observable));
             assert_eq!(value, &data, "wrong value parsed for {:?}", observable);
         }
     }

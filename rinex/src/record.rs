@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use super::{
     antex, clock,
+    clock::{ClockKey, ClockProfile},
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_rinex_comment, merge,
     merge::Merge,
@@ -497,7 +498,6 @@ pub fn parse_record(
                             }
                         }
                     },
-                    Type::DORIS => {}, // FIXME
                 }
 
                 // new comments ?
@@ -600,7 +600,6 @@ pub fn parse_record(
             let (antenna, content) = antex::record::parse_antenna(&epoch_content).unwrap();
             atx_rec.push((antenna, content));
         },
-        Type::DORIS => {}, //TODO
     }
     // new comments ?
     if !comment_content.is_empty() {
