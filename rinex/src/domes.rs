@@ -4,7 +4,7 @@ use thiserror::Error;
 use serde::{Deserialize, Serialize};
 
 #[cfg(docrs)]
-pub use bibliography::Bibliography;
+pub use crate::bibliography::Bibliography;
 
 /// DOMES parsing error
 #[derive(Debug, Error)]

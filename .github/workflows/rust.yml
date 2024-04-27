@@ -69,6 +69,16 @@ jobs:
       with:
         command: build
         args: --all-features --release
+    
+    - uses: actions-rs/toolchain@v1
+      name: Install nightly
+      with:
+        toolchain: nightly
+        override: true
+
+    - name: Documentation
+      run: |
+        ./tools/builddoc.sh
   
   windows-build:
     runs-on: windows-latest
