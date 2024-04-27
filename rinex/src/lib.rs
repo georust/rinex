@@ -2644,7 +2644,7 @@ impl Rinex {
         carrier: Carrier,
     ) -> Option<f64> {
         // determine nearest in time
-        let (t_i, (model_sv, model)) = self
+        let (_, (model_sv, model)) = self
             .ionod_correction_models()
             .filter_map(|(t_i, (_, sv_i, msg_i))| {
                 // TODO
