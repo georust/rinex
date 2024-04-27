@@ -2516,7 +2516,6 @@ impl Rinex {
          */
         let t0 = self.first_epoch().unwrap(); // will fail on invalid RINEX
         let t0 = Epoch::from_utc_days(t0.to_utc_days().round());
-        dbg!(t0);
         Box::new(
             self.header
                 .ionod_corrections
