@@ -2516,7 +2516,6 @@ impl Rinex {
          */
         let t0 = self.first_epoch().unwrap(); // will fail on invalid RINEX
         let t0 = Epoch::from_utc_days(t0.to_utc_days().round());
-        dbg!(t0);
         Box::new(
             self.header
                 .ionod_corrections
@@ -2645,7 +2644,7 @@ impl Rinex {
         carrier: Carrier,
     ) -> Option<f64> {
         // determine nearest in time
-        let (t_i, (model_sv, model)) = self
+        let (_, (model_sv, model)) = self
             .ionod_correction_models()
             .filter_map(|(t_i, (_, sv_i, msg_i))| {
                 // TODO
