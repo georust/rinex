@@ -421,7 +421,7 @@ impl IonMessage {
 
     pub(crate) fn from_rinex2_header(header: &str, marker: &str) -> Result<Self, Error> {
         let header = header.replace("d", "e").replace("D", "E");
-        let (_, rem) = header.split_at(4);
+        let (_, rem) = header.split_at(2);
         let (a0, rem) = rem.split_at(12);
         let (a1, rem) = rem.split_at(12);
         let (a2, rem) = rem.split_at(12);
@@ -671,33 +671,66 @@ mod test {
 
     #[test]
     fn rinex2_kb_header_parsing() {
-        let kb = IonMessage::from_rinex2_header(
-            "     0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06         ",
-            "ION ALPHA           ",
-        );
-        assert!(kb.is_ok(), "failed to parse ION ALPHA header");
-        let kb = kb.unwrap();
-        assert_eq!(
-            kb,
-            IonMessage::KlobucharModel(KbModel {
-                alpha: (0.7451E-08, -0.1490E-07, -0.5960E-07, 0.1192E-06),
-                beta: (0.0, 0.0, 0.0, 0.0),
-                region: KbRegionCode::WideArea,
-            })
-        );
-        let kb = IonMessage::from_rinex2_header(
-            "     0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06         ",
-            "ION BETA            ",
-        );
-        assert!(kb.is_ok(), "failed to parse ION BETA header");
-        let kb = kb.unwrap();
-        assert_eq!(
-            kb,
-            IonMessage::KlobucharModel(KbModel {
-                alpha: (0.0, 0.0, 0.0, 0.0),
-                beta: (0.9011E+05, -0.6554E+05, -0.1311E+06, 0.4588E+06),
-                region: KbRegionCode::WideArea,
-            })
-        );
+        for (line, alpha) in [
+            // RINEX v2.10 and v2.11 standards (same string in both)
+            // https://files.igs.org/pub/data/format/rinex211.txt
+            (
+                "     .1676D-07   .2235D-07  -.1192D-06  -.1192D-06          ",
+                (0.1676E-07, 0.2235E-07, -0.1192E-06, -0.1192E-06),
+            ),
+            // ftp://igs.ign.fr/pub/igs/data/2024/119/zimm1190.24n.gz
+            (
+                "     .2515D-07   .1490D-07  -.1192D-06  -.5960D-07          ",
+                (0.2515E-07, 0.1490E-07, -0.1192E-06, -0.5960E-07),
+            ),
+            // https://github.com/osqzss/gps-sdr-sim/blob/654a9888c54218766909e15fe8139e4bc8e83ecc/brdc0010.22n
+            (
+                "    0.1211D-07 -0.7451D-08 -0.5960D-07  0.1192D-06          ",
+                (0.1211E-07, -0.7451E-08, -0.5960E-07, 0.1192E-06),
+            ),
+        ] {
+            let kb = IonMessage::from_rinex2_header(line, "ION ALPHA           ");
+            assert!(kb.is_ok(), "failed to parse ION ALPHA header");
+            let kb = kb.unwrap();
+            assert_eq!(
+                kb,
+                IonMessage::KlobucharModel(KbModel {
+                    alpha,
+                    beta: (0.0, 0.0, 0.0, 0.0),
+                    region: KbRegionCode::WideArea,
+                })
+            );
+        }
+
+        for (line, beta) in [
+            // RINEX v2.10 and v2.11 standards (same string in both)
+            // https://files.igs.org/pub/data/format/rinex211.txt
+            (
+                "     .1208D+06   .1310D+06  -.1310D+06  -.1966D+06          ",
+                (0.1208E+06, 0.1310E+06, -0.1310E+06, -0.1966E+06),
+            ),
+            // ftp://igs.ign.fr/pub/igs/data/2024/119/zimm1190.24n.gz
+            (
+                "     .1290D+06   .4915D+05  -.2621D+06   .1966D+06          ",
+                (0.1290E+06, 0.4915E+05, -0.2621E+06, 0.1966E+06),
+            ),
+            // https://github.com/osqzss/gps-sdr-sim/blob/654a9888c54218766909e15fe8139e4bc8e83ecc/brdc0010.22n
+            (
+                "    0.1167D+06 -0.2458D+06 -0.6554D+05  0.1114D+07          ",
+                (0.1167E+06, -0.2458E+06, -0.6554E+05, 0.1114E+07),
+            ),
+        ] {
+            let kb = IonMessage::from_rinex2_header(line, "ION BETA            ");
+            assert!(kb.is_ok(), "failed to parse ION BETA header");
+            let kb = kb.unwrap();
+            assert_eq!(
+                kb,
+                IonMessage::KlobucharModel(KbModel {
+                    alpha: (0.0, 0.0, 0.0, 0.0),
+                    beta,
+                    region: KbRegionCode::WideArea,
+                })
+            );
+        }
     }
 }
