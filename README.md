@@ -9,63 +9,58 @@ RINEX
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/georust/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/georust/rinex/blob/main/LICENSE-MIT) 
 
-Rust tool suites to parse, analyze and process [RINEX Data](https://en.wikipedia.org/wiki/RINEX).
+Rust tool suites to parse, analyze and process [RINEX](https://en.wikipedia.org/wiki/RINEX) and GNSS data.
 
-The [Wiki pages](https://github.com/georust/rinex/wiki) is the main documentation portal. It contains
-several examples spanning different GNSS applications.
+The [Wiki pages](https://github.com/georust/rinex/wiki) contain all documentation and example applications of this toolbox.  
 
-If you have any question or experience any problems, feel free to open an issue on Github.  
-You can also contact us [on our Discord channel](https://discord.gg/Fp2aape)
+Use [Github Issues](https://github.com/georust/rinex/issues) to report bugs and other malfunctions.  
+You can also open a [Discussion](https://github.com/georust/rinex/discussions) or leave us a message [on Discord](https://discord.gg/Fp2aape).
 
 ## Advantages :rocket: 
 
-- Fast :crab:
+- Fast
+  - Parse and render reports in a few seconds 
+  - Resolve PVT solutions as well
 - Open sources
-- Seamless Hatanaka compression and decompression
-- Seamless Gzip decompression with `flate2` build option
+  - Read and access all the code
+  - All examples based on Open data 
+- Efficient seamless compression / decompression
+  - Hatanaka (OBS_RINEX) and Gzip are built in
 - RINEX V4 full support
-- Meteo RINEX full support
-- IONEX 2D support. Partial IONEX 3D support.
-- Partial ANTEX support
-- Full support of High Precision Clock RINEX products
-- Full support of [SP3](https://docs.rs/sp3/1.0.7/sp3/) High precision orbit products
-- Several pre processing algorithms:
+- All RINEX formats supported (see following table)
+- High Precision Clock RINEX products
+- High Precision Orbital (SP3) products [SP3](https://docs.rs/sp3/1.0.7/sp3/)
+- DORIS (special RINEX) by ESA
+- All modern GNSS constellations, codes and signals
+- Time scales: GPST, BDT, GST, UTC
+- Several pre-processing algorithms:
   - [File merging](https://github.com/georust/rinex/wiki/file-merging)
   - [Time binning](https://github.com/georust/rinex/wiki/time-binning)
   - [Filtering](https://github.com/georust/rinex/wiki/Preprocessing)
-- Several post processing operations
+- Several post-processing operations
+  - [File Operations](https://github.com/georust/rinex/wiki/fops)
   - [Position solver](https://github.com/georust/rinex/wiki/Positioning)
-  - [Graphical analysis](https://github.com/georust/rinex/wiki/Graph-Mode)
-  - [CGGTTS solutions solver](https://github.com/georust/rinex/wiki/CGGTTS)
-- All modern GNSS constellations, codes and signals
-- Time scales: GPST, BDT, GST, UTC
-- [SBAS support](https://docs.rs/gnss-rs/2.1.3/gnss_rs/constellation/enum.Constellation.html)
-- High precision phase data (micro cycle precision) theoretically supported but not tested yet
-- [Quality Check (QC)](https://github.com/georust/rinex/wiki/Quality-Check): file quality and statistical analysis to help precise positioning
-(historical `teqc` function).
+  - [CGGTTS solver](https://github.com/georust/rinex/wiki/CGGTTS)
+  - [Graphical QC](https://github.com/georust/rinex/wiki/Graph-Mode)
 
 ## Disadvantages :warning:
 
-- QZNSST is represented as GPST at the moment.
-- We're waiting for Hifitime V4 to support GLONASST and IRNSST.   
-Until then, orbital calculations on these systems are not feasible.   
-In other term, positioning is not feasible and you're limited to basic analysis. 
-- These tools are oriented towards the latest revisions of the RINEX format.
-RINEX4 is out and we already support it. 
-Some minor features in the RINEX2 or 3 revisions may not be supported.
-- Our command line applications do not accept BINEX or other proprietary formats
-- File production is not fully concluded to this day. We're currently focused
-on RINEX post processing rather than RINEX data production. Do not hesitate to fork and submit
-your improvements
+- QZSST is not supported until next release
+- PPP is work in progress
+- Navigation is only available in Galileo and GPS mode.  
+QZSST comes next.   
+BDS and IRNSS will either come at the same time or shortly after.
+- Our applications do not accept BINEX or other proprietary formats
+- File production might lack some features, mostly because we're currently focused on data processing
 
 ## Repository 
 
 * [`rinex`](rinex/) is the core library 
-* [`rinex-cli`](rinex-cli/) : an application dedicated to RINEX post processing.
-It supports some of `teqc` operations.
-It integrates a position solver and can format CGGTTS tracks for clock comparison.
-The application is auto-generated for a few architectures, download it from the 
-[release portal](https://github.com/georust/rinex/releases)
+* [`rinex-cli`](rinex-cli/) is a command line application to process RINEX, SP3 and soon Ublox, and dedicated to typical GNSS post processing.  
+It is growing as some sort of Anubis/Teqc/Glab combination. No GUI currently available, this will be developed later.   
+It integrates a PVT and CGGTTS solutions solver.  
+The application is auto-generated for a few architectures, you can directly
+[download it from Github.com](https://github.com/georust/rinex/releases)
 
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
@@ -73,17 +68,18 @@ The application is auto-generated for a few architectures, download it from the
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
 * [`qc-traits`](qc-traits/) declares Traits that are shared between `rinex` and `rinex-qc`
 * [`sinex`](sinex/) SNX dedicated core library
+* [`ublox-rnx`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
+This application is currently work in progress
 
-* [`ublox-rnx`](ublox-rnx/) is an application intended to generate RINEX Data
-from raw uBlox GNSS receiver frames. This application is work in progress at the moment.
+## Relevant Ecosystem
 
-## Other tools and relevant Ecosystems
-
-* [Nyx-space](https://github.com/nyx-space/nyx): Navigation, Orbital attitude
-* [Hifitime](https://github.com/nyx-space/hifitime): Precise Timing, Timescales, ...
-* [CGGTTS](https://github.com/gwbres/cggtts): Common View Time Transfer
-- [RTK-RS](https://github.com/rtk-rs/gnss-rtk): Precise Positioning
-* [GNSS definitions in Rust](https://github.com/rtk-rs/gnss): GNSS library
+* [IGS Network](https://network.igs.org/): browse and monitor any IGS station status
+* [Nyx-space](https://github.com/nyx-space/nyx): Navigation and Orbital calculations in Rust
+* [Hifitime](https://github.com/nyx-space/hifitime): Precise Time and Timescale support in Rust
+* [CGGTTS](https://github.com/gwbres/cggtts): Common View Time Transfer file format, in Rust
+* [Geo](https://github.com/georust/geo): Geospatial primitives and algorithms, in Rust
+- [RTK-RS](https://github.com/rtk-rs/gnss-rtk): Precise Positioning (calculations) in Rust
+* [GNSS definitions](https://github.com/rtk-rs/gnss), in Rust
 
 ## Citation and referencing
 
@@ -94,12 +90,9 @@ If you need to reference this work, please use the following model:
 Formats & revisions
 ===================
 
-The core library supports parsing RINEX V4.00 and the current behavior is to fail
-on higher revisions. NAV V4 is correctly supported as described in the following table.
-
-We support the latest revisions for both IONEX and Clock RINEX.
-
-We support the latest (rev D) SP3 format.
+The core library supports parsing RINEX V4.0, that includes RINEX V4 Navigation files.   
+We support the latest revisions for both IONEX and Clock RINEX.  
+We support the latest (rev D) SP3 format.  
 
 RINEX formats & applications
 ============================
@@ -107,13 +100,13 @@ RINEX formats & applications
 | Type                       | Parser            | Writer              |  CLI                 |      Content         | Record Iteration     | Timescale  |
 |----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
 | Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | Epoch | SV System time broadcasting this message |
-| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS |
+| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | Epoch | UTC | 
 |  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states |  Epoch | UTC |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   | Precise RX/SV Antenna calibration | `antex::Antenna` | :heavy_minus_sign: |
 |  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density | Epoch | UTC |
-|  DORIS RINEX               | :construction:    |  :construction:     | :construction:       | DORIS Measurements | Epoch | TAI |
+|  DORIS RINEX               | :heavy_check_mark:|  :construction:     | :construction:       | Temperature, Moisture, Pseudo Range and Phase observations | Epoch | TAI |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch | :question: |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: |
@@ -132,7 +125,7 @@ Other formats
 
 | Type                       | Parser            | Writer              |  CLI                 |      Content         | Record Iteration     | Timescale  |
 |----------------------------|-------------------|---------------------|----------------------|----------------------| ---------------------| ---------- |
-| SP3                        | :heavy_check_mark:| :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend:  | High precision SV orbital state | Epoch | GNSS |
+| SP3                        | :heavy_check_mark:| :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend:  | High precision SV orbital state | Epoch | GNSS (any) |
 
 File formats
 ============
@@ -143,10 +136,13 @@ File formats
 | CRINEX                 | :heavy_minus_sign:                | :heavy_check_mark:                 | 
 | gzip compressed RINEX  | Name must end with `.gz`          | `--flate2` feature must be enabled |
 | gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| DORIS RINEX            | :construction: Work in progress   | :construction: Work in progress    |
-| gzip compressed DORIS  | :construction: Work in progress   | :construction: Work in progress    |
+| .Z compressed RINEX    | Not supported                     | Not supported                      |
+| DORIS RINEX            | :heavy_minus_sign:                | :construction: Work in progress    |
+| gzip compressed DORIS  | Name must end with `.gz`          | `--flate2` feature must be enabled |
+| .Z compressed DORIS    | Not supported                     | Not supported                      |
 | SP3                    | :heavy_minus_sign:                | :heavy_check_mark:                 | 
 | gzip compressed SP3    | Name must end with `.gz`          | `--flate2` feature must be enabled | 
+| .Z compressed SP3      | Not supported                     | Not supported                      |
 | BINEX                  | :heavy_minus_sign:                | :heavy_minus_sign: We do not support proprietary formats |
 | UBX                    | :heavy_minus_sign:                | :construction: Work in progress    |
 
