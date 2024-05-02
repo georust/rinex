@@ -2,8 +2,8 @@
 
 Thank you for using our toolbox and trying to make it better 🛰️ 🌍
 
-If you are reporting an error related to one of the applications, [follow these guidelines](todo).  
-Otherwise, [use those](tada) to report core library issues
+If you are reporting an error related to one of the applications, [follow these guidelines](#applications-error-reporting).  
+Otherwise, [use those](#core-library-error-reporting) to report core library issues
 
 ## Applications error reporting
 
