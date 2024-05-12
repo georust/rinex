@@ -47,7 +47,7 @@ pub fn cast_rtk_carrier(carrier: Carrier) -> RTKCarrier {
         Carrier::L5 => RTKCarrier::L5,
         Carrier::L6 => RTKCarrier::L6,
         Carrier::E1 => RTKCarrier::E1,
-        Carrier::E5 => RTKCarrier::E5,
+        Carrier::E5 | Carrier::E5a | Carrier::E5b => RTKCarrier::E5,
         Carrier::E6 => RTKCarrier::E6,
         Carrier::L1 | _ => RTKCarrier::L1,
     }
@@ -171,18 +171,34 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 
 pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     /* Load customized config script, or use defaults */
-    let mut cfg = match matches.get_one::<String>("cfg") {
+    let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
             let content = read_to_string(fp)
                 .unwrap_or_else(|e| panic!("failed to read configuration: {}", e));
-            let cfg = serde_json::from_str(&content)
+            let mut cfg: Config = serde_json::from_str(&content)
                 .unwrap_or_else(|e| panic!("failed to parse configuration: {}", e));
+
+            /*
+             * CGGTTS special case
+             */
+            if matches.get_flag("cggtts") {
+                cfg.sol_type = PVTSolutionType::TimeOnly;
+            }
+
             info!("Using custom solver configuration: {:#?}", cfg);
             cfg
         },
         None => {
             let method = Method::default();
-            let cfg = Config::static_preset(method);
+            let mut cfg = Config::static_preset(method);
+
+            /*
+             * CGGTTS special case
+             */
+            if matches.get_flag("cggtts") {
+                cfg.sol_type = PVTSolutionType::TimeOnly;
+            }
+
             info!("Using {:?} default preset: {:#?}", method, cfg);
             cfg
         },
@@ -227,13 +243,6 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
                 }
             }
         }
-    }
-
-    /*
-     * CGGTTS special case
-     */
-    if matches.get_flag("cggtts") {
-        cfg.sol_type = PVTSolutionType::TimeOnly;
     }
 
     let orbit = RefCell::new(OrbitInterpolator::from_ctx(

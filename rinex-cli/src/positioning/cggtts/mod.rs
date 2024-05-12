@@ -223,18 +223,17 @@ where
                 match solver.cfg.method {
                     Method::SPP => {}, // nothing to do
                     Method::CodePPP => {
-                        let (freq_to_match, code_to_match) = match carrier {
-                            Carrier::L1 => (
-                                Carrier::L2.frequency(),
-                                Observable::from_str("C2C").unwrap(),
-                            ),
-                            _ => (
-                                Carrier::L1.frequency(),
-                                Observable::from_str("C1C").unwrap(),
-                            ),
-                        };
-                        for (observable, data) in observations {
-                            if *observable == code_to_match {
+                        // Attach secondary PR
+                        for (second_obs, second_data) in observations {
+                            let rhs_carrier =
+                                Carrier::from_observable(sv.constellation, second_obs);
+                            if rhs_carrier.is_err() {
+                                continue;
+                            }
+                            let rhs_carrier = rhs_carrier.unwrap();
+                            let rtk_carrier = cast_rtk_carrier(rhs_carrier);
+
+                            if second_obs.is_pseudorange_observable() && rhs_carrier != carrier {
                                 codes.push(Observation {
                                     value: data.obs,
                                     carrier: rtk_carrier,
