@@ -222,11 +222,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
                                 error!("Working with different timescales in OBS/CLK RINEX is not PPP compatible and will generate tiny errors");
                                 warn!("Consider using OBS/CLK RINEX files expressed in the same timescale for optimal results");
                             }
-                        } else {
-                            error!("Provided Clock RINEX is badly defined and will likely introduce errors in calculations");
                         }
-                    } else {
-                        error!("Provided Clock RINEX is badly defined and will likely introduce errors in calculations");
                     }
                 }
             }

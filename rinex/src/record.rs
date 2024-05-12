@@ -328,14 +328,23 @@ pub fn parse_record(
             },
         }
     }
-    // CLOCK case
-    //  timescale is defined in header. If not
-    //  - This RINEX is corrupt
-    //  - and we falsely consider GPST and introduce errors
-    let mut clk_ts = TimeScale::default();
+    // Clock RINEX TimeScale definition.
+    //   Modern revisions define it in header directly.
+    //   Old revisions are once again badly defined and most likely not thought out.
+    //   We default to GPST to "match" the case where this file is multi constellation
+    //      and it seems that clocks steered to GPST is the most common case.
+    //      For example NASA/CDDIS.com
+    //   In mono constellation, we adapt to that timescale.
+    let mut clk_ts = TimeScale::GPST;
     if let Some(clk) = &header.clock {
         if let Some(ts) = clk.timescale {
             clk_ts = ts;
+        } else {
+            if let Some(constellation) = &header.constellation {
+                if let Some(ts) = constellation.timescale() {
+                    clk_ts = ts;
+                }
+            }
         }
     }
     // IONEX case

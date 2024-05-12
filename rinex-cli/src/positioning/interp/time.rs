@@ -3,6 +3,7 @@ use crate::cli::Context;
 use gnss_rtk::prelude::{Duration, Epoch, SV};
 use std::collections::HashMap;
 
+#[derive(Debug)]
 struct Buffer {
     inner: Vec<(Epoch, (f64, f64, f64))>,
 }
@@ -81,7 +82,7 @@ impl<'a> Interpolator<'a> {
                         .map(|(t, sv, clk)| (t, sv, (clk, 0.0_f64, 0.0_f64))),
                 )
             } else {
-                panic!("sp3 or clock rinex currently required");
+                panic!("SP3 or CLOCK RINEX currently required");
                 // TODO
                 // let brdc = ctx.data.brdc_navigation().unwrap(); // infaillible
                 // Box::new(brdc.sv_clock())
@@ -154,7 +155,7 @@ impl<'a> Interpolator<'a> {
         while !self.is_feasible(t, sv) {
             if self.consume(1) {
                 // end of stream
-                return None;
+                break;
             }
         }
 
@@ -165,17 +166,15 @@ impl<'a> Interpolator<'a> {
             // Preserves data precision
             first_x = Some(t);
             dt = Some(Duration::from_seconds(*y));
-        }
-
-        if let Some((before_x, (before_y, _, _))) =
-            buf.inner.iter().filter(|(v_t, _)| *v_t <= t).last()
+        } else if let Some((before_x, (before_y, _, _))) =
+            buf.inner.iter().filter(|(v_t, _)| *v_t < t).last()
         {
             first_x = Some(*before_x);
 
             if let Some((after_x, (after_y, _, _))) = buf
                 .inner
                 .iter()
-                .filter(|(v_t, _)| *v_t > t)
+                .filter(|(v_t, _)| *v_t >= t)
                 .reduce(|k, _| k)
             {
                 let dx = (*after_x - *before_x).to_seconds();
@@ -188,7 +187,6 @@ impl<'a> Interpolator<'a> {
         if let Some(first_x) = first_x {
             buf.inner.retain(|(k, v)| *k >= first_x);
         }
-
         dt
     }
 }
