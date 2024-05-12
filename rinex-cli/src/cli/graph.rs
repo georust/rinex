@@ -6,43 +6,77 @@ pub fn subcommand() -> Command {
         .long_flag("graph")
         .arg_required_else_help(true)
         .about(
-            "RINEX data visualization (signals, orbits..), rendered as HTML or CSV in the workspace.",
+            "RINEX data analysis and visualization, rendered as HTML or CSV in the workspace.",
         )
+        .long_about("Analysis and plots (in HTML).
+When Observations are present, whether they come from Observation RINEX, Meteo or DORIS RINEX,
+we can export the results as CSV too. This is particularly useful to export the results of the analysis
+to other tools.")
         .arg(
             Arg::new("csv")
                 .long("csv")
                 .action(ArgAction::SetTrue)
-                .help("Generate CSV files along HTML plots.")
+                .help("Extract Data as CSV along HTML plots. See --help.")
+                .long_help("This is particularly helpful if you are interested in
+using our toolbox as data parser and preprocessor and inject the results to third party programs.")                
         )
         .next_help_heading(
             "RINEX dependent visualizations. 
         Will only generate graphs if related dataset is present.",
         )
-        .next_help_heading("GNSS observations (requires OBS RINEX)")
+        .next_help_heading("Observations rendering (OBS, Meteo, DORIS)")
         .arg(
             Arg::new("obs")
                 .short('o')
                 .long("obs")
                 .action(ArgAction::SetTrue)
-                .help(
-                    "Plot all observables.
-When OBS RINEX is provided, this will plot raw phase, dopplers and SSI.
-When METEO RINEX is provided, data from meteo sensors is plotted too.",
-                ),
+                .help("Plot all observables described in either Observation, Meteo or DORIS RINEX. See --help")
+                .long_help("Use this option to plot all observations.
+OBS RINEX gives GNSS signals observations, but we also support Meteo RINEX and DORIS (special observation) RINEX.
+
+Example (1): render GNSS signals (all of them, whether it be Phase or PR) for GPS.
+Use CSV for extract and export as well:
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -g --obs --csv
+
+Example (2): render meteo sensor observations similary.
+
+./target/release/rinex-cli \\
+    -f test_resources/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz \\
+    -g --obs --csv
+
+Example (3): render DORIS observations similarly.
+
+./target/release/rinex-cli \\
+    -f test_resources/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz \\
+    -g --obs --csv
+
+Example (4): render OBS + Meteo combination at once.
+RINEX-Cli allows loading OBS + Meteo in one session.
+In graph mode, this means we can render both in a single run.
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -f test_resources/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz \\
+    -g --obs --csv
+")
+
         )
+        .next_help_heading("GNSS signals (requires OBS and/or DORIS RINEX)")
         .arg(
             Arg::new("dcb")
                 .long("dcb")
                 .action(ArgAction::SetTrue)
-                .help("Plot Differential Code Bias. Requires OBS RINEX."),
+                .help("Plot Differential Code Bias."),
         )
         .arg(
             Arg::new("mp")
                 .long("mp")
                 .action(ArgAction::SetTrue)
-                .help("Plot Code Multipath. Requires OBS RINEX."),
+                .help("Plot Code Multipath."),
         )
-        .next_help_heading("GNSS combinations (requires OBS RINEX)")
         .arg(
             Arg::new("if")
                 .short('i')
@@ -148,5 +182,15 @@ It is the temporal equuivalent to |BRDC-SP3| requested with --sp3-residual.")
                 .long("ionod")
                 .action(ArgAction::SetTrue)
                 .help("Plot ionospheric delay per signal & SV, at latitude and longitude of signal sampling."),
+        )
+        .next_help_heading("DORIS (requires at least one DORIS file)").
+        arg(
+            Arg::new("acorr")
+                .short('a')
+                .long("acorr")
+                .action(ArgAction::SetTrue)
+                .help("Compute and render the autocorrelation of (precise) Pseudo Range and Dopplers from the DORIS measurement,
+from all contained stations. See --help")
+            .long_help("TODO")
         )
 }

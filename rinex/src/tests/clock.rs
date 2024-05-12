@@ -12,7 +12,7 @@ mod test {
         assert_eq!(rinex.epoch().count(), 10);
 
         for (epoch, content) in rinex.precise_clock() {
-            let (y, m, d, hh, mm, ss, _) = epoch.to_gregorian_utc();
+            let epoch_str = epoch.to_string();
             for (key, profile) in content {
                 if let Some(sv) = key.clock_type.as_sv() {
                     match sv {
@@ -21,8 +21,8 @@ mod test {
                             prn: 10,
                         } => {
                             assert_eq!(key.profile_type, ClockProfileType::AS);
-                            match (y, m, d, hh, mm, ss) {
-                                (2019, 1, 8, 0, 1, 30) => {
+                            match epoch_str.as_str() {
+                                "2019-01-08T00:01:30 GPST" => {
                                     assert_eq!(profile.bias, 0.391709678221E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -30,7 +30,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 2, 0) => {
+                                "2019-01-08T00:02:00 GPST" => {
                                     assert_eq!(profile.bias, 0.391708653726E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -46,8 +46,8 @@ mod test {
                             prn: 21,
                         } => {
                             assert_eq!(key.profile_type, ClockProfileType::AS);
-                            match (y, m, d, hh, mm, ss) {
-                                (2019, 1, 8, 0, 0, 0) => {
+                            match epoch_str.as_str() {
+                                "2019-01-08T00:00:00 GPST" => {
                                     assert_eq!(profile.bias, -0.243172599885E-04);
                                     assert_eq!(profile.bias_dev, Some(0.850129218038E-11));
                                     assert!(profile.drift.is_none());
@@ -55,7 +55,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 0, 30) => {
+                                "2019-01-08T00:00:30 GPST" => {
                                     assert_eq!(profile.bias, -0.243173099640E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -63,7 +63,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 1, 0) => {
+                                "2019-01-08T00:01:00 GPST" => {
                                     assert_eq!(profile.bias, -0.243174034292E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -71,7 +71,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 1, 30) => {
+                                "2019-01-08T00:01:30 GPST" => {
                                     assert_eq!(profile.bias, -0.243174284491E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -79,7 +79,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 2, 0) => {
+                                "2019-01-08T00:02:00 GPST" => {
                                     assert_eq!(profile.bias, -0.243175702770E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -87,7 +87,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 2, 30) => {
+                                "2019-01-08T00:02:30 GPST" => {
                                     assert_eq!(profile.bias, -0.243176490245E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -95,7 +95,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 3, 0) => {
+                                "2019-01-08T00:03:00 GPST" => {
                                     assert_eq!(profile.bias, -0.243176769102E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -103,7 +103,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 0, 3, 30) => {
+                                "2019-01-08T00:03:30 GPST" => {
                                     assert_eq!(profile.bias, -0.243177259494E-04);
                                     assert!(profile.bias_dev.is_none());
                                     assert!(profile.drift.is_none());
@@ -111,7 +111,7 @@ mod test {
                                     assert!(profile.drift_change.is_none());
                                     assert!(profile.drift_change_dev.is_none());
                                 },
-                                (2019, 1, 8, 10, 0, 0) => {
+                                "2019-01-08T10:00:00 GPST" => {
                                     assert_eq!(profile.bias, -0.243934947986E-04);
                                     assert_eq!(profile.bias_dev, Some(0.846286338370E-11));
                                     assert!(profile.drift.is_none());

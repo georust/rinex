@@ -14,7 +14,7 @@ struct Buffer {
     inner: Vec<(Epoch, (f64, f64, f64))>,
 }
 
-impl BufferTrait<(f64, f64, f64)> for Buffer {
+impl BufferTrait for Buffer {
     fn malloc(size: usize) -> Self {
         Self {
             inner: Vec::with_capacity(size),
@@ -38,15 +38,25 @@ impl BufferTrait<(f64, f64, f64)> for Buffer {
     fn len(&self) -> usize {
         self.inner.len()
     }
+    fn feasible(&self, order: usize, t: Epoch) -> bool {
+        let before_t = self.inner.iter().filter(|(k, _)| *k < t).count();
+        let after_t = self.inner.iter().filter(|(k, _)| *k > t).count();
+        let size = (order + 1) / 2; // restricted to odd orders
+        before_t >= size && after_t >= size
+    }
 }
 
 /// Orbital state interpolator
 pub struct Interpolator<'a> {
+    // Interpolation order
     order: usize,
+    // Total counter
     epochs: usize,
-    sampling: Duration,
+    // Reference position
     apriori: AprioriPosition,
+    // Internal buffers
     buffers: HashMap<SV, Buffer>,
+    // Data source
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
@@ -81,40 +91,47 @@ impl<'a> Interpolator<'a> {
             apriori,
             epochs: 0,
             buffers: HashMap::with_capacity(128),
-            sampling: Duration::from_seconds(15.0 * 60.0), // TODO improve this
             iter: if let Some(sp3) = ctx.data.sp3() {
                 if let Some(atx) = ctx.data.antex() {
-                    Box::new(sp3.sv_position().filter_map(move |(t, sv, (x, y, z))| {
-                        // TODO: need to complexify the whole interface
-                        //       to provide correct information with respect to frequency
-                        if let Some(delta) = atx.sv_antenna_apc_offset(t, sv, Carrier::L1) {
-                            let delta = Vector3::<f64>::new(delta.0, delta.1, delta.2);
-                            let r_sat = Vector3::<f64>::new(x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                            let k = -r_sat
-                                / (r_sat[0].powi(2) + r_sat[1].powi(2) + r_sat[3].powi(2)).sqrt();
+                    Box::new(
+                        sp3.sv_position()
+                            .filter_map(move |(t, sv, (x, y, z))| {
+                                // TODO: need to complexify the whole interface
+                                //       to provide correct information with respect to frequency
+                                if let Some(delta) = atx.sv_antenna_apc_offset(t, sv, Carrier::L1) {
+                                    let delta = Vector3::<f64>::new(delta.0, delta.1, delta.2);
+                                    let r_sat =
+                                        Vector3::<f64>::new(x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                                    let k = -r_sat
+                                        / (r_sat[0].powi(2) + r_sat[1].powi(2) + r_sat[3].powi(2))
+                                            .sqrt();
 
-                            let r_sun = sun_unit_vector(&earth_frame, &cosmic, t);
-                            let norm = ((r_sun[0] - r_sat[0]).powi(2)
-                                + (r_sun[1] - r_sat[1]).powi(2)
-                                + (r_sun[2] - r_sat[2]).powi(2))
-                            .sqrt();
+                                    let r_sun = sun_unit_vector(&earth_frame, &cosmic, t);
+                                    let norm = ((r_sun[0] - r_sat[0]).powi(2)
+                                        + (r_sun[1] - r_sat[1]).powi(2)
+                                        + (r_sun[2] - r_sat[2]).powi(2))
+                                    .sqrt();
 
-                            let e = (r_sun - r_sat) / norm;
-                            let j = Vector3::<f64>::new(k[0] * e[0], k[1] * e[1], k[2] * e[2]);
-                            let i = Vector3::<f64>::new(j[0] * k[0], j[1] * k[1], j[2] * k[2]);
-                            let r_dot = Vector3::<f64>::new(
-                                (i[0] + j[0] + k[0]) * delta[0],
-                                (i[1] + j[1] + k[1]) * delta[1],
-                                (i[2] + j[2] + k[2]) * delta[2],
-                            );
+                                    let e = (r_sun - r_sat) / norm;
+                                    let j =
+                                        Vector3::<f64>::new(k[0] * e[0], k[1] * e[1], k[2] * e[2]);
+                                    let i =
+                                        Vector3::<f64>::new(j[0] * k[0], j[1] * k[1], j[2] * k[2]);
+                                    let r_dot = Vector3::<f64>::new(
+                                        (i[0] + j[0] + k[0]) * delta[0],
+                                        (i[1] + j[1] + k[1]) * delta[1],
+                                        (i[2] + j[2] + k[2]) * delta[2],
+                                    );
 
-                            let r_sat = r_sat + r_dot;
-                            Some((t, sv, (r_sat[0], r_sat[1], r_sat[1])))
-                        } else {
-                            error!("{:?} ({}) - failed to determine APC offset", t, sv);
-                            None
-                        }
-                    }))
+                                    let r_sat = r_sat + r_dot;
+                                    Some((t, sv, (r_sat[0], r_sat[1], r_sat[1])))
+                                } else {
+                                    error!("{:?} ({}) - failed to determine APC offset", t, sv);
+                                    None
+                                }
+                            })
+                            .peekable(),
+                    )
                 } else {
                     warn!("Cannot determine exact APC coordinates without ANTEX data.");
                     warn!("Expect tiny offsets in final results.");
@@ -124,7 +141,14 @@ impl<'a> Interpolator<'a> {
                     )
                 }
             } else {
-                unreachable!("sp3 data required at the moment");
+                let brdc = ctx
+                    .data
+                    .brdc_navigation()
+                    .expect("BRDC navigation required");
+                Box::new(
+                    brdc.sv_position()
+                        .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3))),
+                )
             },
         }
     }
@@ -137,7 +161,7 @@ impl<'a> Interpolator<'a> {
             self.buffers.insert(sv, buf);
         }
     }
-    // consumes N epochs completely
+    // Consumes N epochs completely
     fn consume(&mut self, total: usize) -> bool {
         let mut prev_t = None;
         let mut epochs = 0;
@@ -159,53 +183,57 @@ impl<'a> Interpolator<'a> {
         self.epochs += epochs;
         false
     }
-    fn latest(&self, sv: SV) -> Option<&Epoch> {
-        self.buffers
-            .iter()
-            .filter_map(|(k, v)| {
-                if *k == sv {
-                    let last = v.inner.iter().map(|(e, _)| e).last()?;
-                    Some(last)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
+    // fn latest(&self, sv: SV) -> Option<&Epoch> {
+    //     self.buffers
+    //         .iter()
+    //         .filter_map(|(k, v)| {
+    //             if *k == sv {
+    //                 let last = v.inner.iter().map(|(e, _)| e).last()?;
+    //                 Some(last)
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //         .reduce(|k, _| k)
+    // }
+    // Returns true if interpolation is feasible @ t for SV
+    fn is_feasible(&self, t: Epoch, sv: SV) -> bool {
+        if let Some(buf) = self.buffers.get(&sv) {
+            buf.feasible(self.order, t)
+        } else {
+            false
+        }
     }
+    // Orbit interpolation @ t for SV
     pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
         // Maintain buffer up to date, consume data if need be
-        let dt = Duration::from_seconds((self.order / 2) as f64 * self.sampling.to_seconds());
-        loop {
-            if let Some(latest) = self.latest(sv) {
-                if *latest >= t + dt {
-                    break;
-                } else if self.consume(1) {
-                    // end of stream
-                    break;
-                }
-            } else if self.consume(1) {
+        while !self.is_feasible(t, sv) {
+            if self.consume(1) {
                 // end of stream
-                break;
+                return None;
             }
         }
 
-        // interp
         let buf = self.buffers.get_mut(&sv)?;
         //let len_before = buf.len(); // DEBUG
-        let ecef = self.apriori.ecef;
+        let ref_ecef = self.apriori.ecef();
+
+        if let Some((x, y, z)) = buf.direct_output(t) {
+            // No need to interpolate @ t for SV
+            // Preserves data precision
+            let el_az =
+                Ephemeris::elevation_azimuth((*x, *y, *z), (ref_ecef[0], ref_ecef[1], ref_ecef[2]));
+            return Some(
+                RTKInterpolationResult::from_apc_position((*x, *y, *z))
+                    .with_elevation_azimuth(el_az),
+            );
+        }
+
         let mut mid_offset = 0;
         let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
         let mut out = Option::<RTKInterpolationResult>::None;
 
         for (index, (buf_t, buf_v)) in buf.inner.iter().enumerate() {
-            if *buf_t == t {
-                // special case: direct output
-                let el_az = Ephemeris::elevation_azimuth(*buf_v, (ecef[0], ecef[1], ecef[2]));
-                out = Some(
-                    RTKInterpolationResult::from_apc_position(*buf_v).with_elevation_azimuth(el_az),
-                );
-                break;
-            }
             if *buf_t > t {
                 break;
             }
@@ -235,7 +263,10 @@ impl<'a> Interpolator<'a> {
                     polynomials.2 += z_i * li;
                 }
 
-                let el_az = Ephemeris::elevation_azimuth(polynomials, (ecef[0], ecef[1], ecef[2]));
+                let el_az = Ephemeris::elevation_azimuth(
+                    polynomials,
+                    (ref_ecef[0], ref_ecef[1], ref_ecef[2]),
+                );
                 out = Some(
                     RTKInterpolationResult::from_apc_position(polynomials)
                         .with_elevation_azimuth(el_az),
@@ -247,8 +278,13 @@ impl<'a> Interpolator<'a> {
 
         if out.is_some() {
             // management: discard old samples
-            let t_min = t - dt - self.sampling - self.sampling;
-            buf.inner.retain(|b_t| b_t.0 > t_min);
+            // len_before = buf.len(); // DEBUG
+            let index_min = mid_offset - (self.order + 1) / 2 - 2;
+            let mut index = 0;
+            buf.inner.retain(|_| {
+                index += 1;
+                index > index_min
+            });
 
             //let len_after = buf.len(); // DEBUG
             //if len_after != len_before { // DEBUG

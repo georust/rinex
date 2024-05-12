@@ -328,6 +328,16 @@ pub fn parse_record(
             },
         }
     }
+    // CLOCK case
+    //  timescale is defined in header. If not
+    //  - This RINEX is corrupt
+    //  - and we falsely consider GPST and introduce errors
+    let mut clk_ts = TimeScale::default();
+    if let Some(clk) = &header.clock {
+        if let Some(ts) = clk.timescale {
+            clk_ts = ts;
+        }
+    }
     // IONEX case
     //  Default map type is TEC, it will come with identified Epoch
     //  but others may exist:
@@ -452,7 +462,7 @@ pub fn parse_record(
                     },
                     Type::ClockData => {
                         if let Ok((epoch, key, profile)) =
-                            clock::record::parse_epoch(header.version, &epoch_content)
+                            clock::record::parse_epoch(header.version, &epoch_content, clk_ts)
                         {
                             if let Some(e) = clk_rec.get_mut(&epoch) {
                                 e.insert(key, profile);
@@ -556,7 +566,7 @@ pub fn parse_record(
         },
         Type::ClockData => {
             if let Ok((epoch, key, profile)) =
-                clock::record::parse_epoch(header.version, &epoch_content)
+                clock::record::parse_epoch(header.version, &epoch_content, clk_ts)
             {
                 if let Some(e) = clk_rec.get_mut(&epoch) {
                     e.insert(key, profile);

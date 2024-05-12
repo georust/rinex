@@ -12,10 +12,12 @@ use cggtts::PostProcessingError as CGGTTSPostProcessingError;
 
 use clap::ArgMatches;
 use gnss::prelude::Constellation; // SV};
+use rinex::carrier::Carrier;
 use rinex::prelude::{Observable, Rinex};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Config, Duration, Epoch, KbModel, Method, NgModel, Solver, Vector3,
+    AprioriPosition, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError,
+    KbModel, Method, NgModel, PVTSolutionType, Solver, Vector3,
 };
 
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
@@ -27,13 +29,28 @@ use interp::OrbitInterpolator;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("solver error")]
-    SolverError(#[from] rtk::Error),
+    SolverError(#[from] RTKError),
     #[error("undefined apriori position")]
     UndefinedAprioriPosition,
     #[error("ppp post processing error")]
     PPPPostProcessingError(#[from] PPPPostProcessingError),
     #[error("cggtts post processing error")]
     CGGTTSPostProcessingError(#[from] CGGTTSPostProcessingError),
+}
+
+/*
+ * Converts `Carrier` into RTK compatible struct
+ */
+pub fn cast_rtk_carrier(carrier: Carrier) -> RTKCarrier {
+    match carrier {
+        Carrier::L2 => RTKCarrier::L2,
+        Carrier::L5 => RTKCarrier::L5,
+        Carrier::L6 => RTKCarrier::L6,
+        Carrier::E1 => RTKCarrier::E1,
+        Carrier::E5 => RTKCarrier::E5,
+        Carrier::E6 => RTKCarrier::E6,
+        Carrier::L1 | _ => RTKCarrier::L1,
+    }
 }
 
 pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
@@ -153,7 +170,8 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 }
 
 pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
-    let cfg = match matches.get_one::<String>("cfg") {
+    /* Load customized config script, or use defaults */
+    let mut cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
             let content = read_to_string(fp)
                 .unwrap_or_else(|e| panic!("failed to read configuration: {}", e));
@@ -164,20 +182,18 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         },
         None => {
             let method = Method::default();
-            let cfg = Config::preset(method);
+            let cfg = Config::static_preset(method);
             info!("Using {:?} default preset: {:#?}", method, cfg);
             cfg
         },
     };
 
-    /*
-     * verify requirements
-     */
+    /* Verify requirements and print helpful comments */
     let apriori_ecef = ctx.rx_ecef.ok_or(Error::UndefinedAprioriPosition)?;
 
     let apriori = Vector3::<f64>::new(apriori_ecef.0, apriori_ecef.1, apriori_ecef.2);
     let apriori = AprioriPosition::from_ecef(apriori);
-    let rx_lat_ddeg = apriori.geodetic[0];
+    let rx_lat_ddeg = apriori.geodetic()[0];
 
     assert!(
         ctx.data.observation().is_some(),
@@ -185,12 +201,44 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     );
     assert!(
         ctx.data.brdc_navigation().is_some(),
-        "Positioning required Navigation RINEX"
+        "Positioning requires Navigation RINEX"
     );
-    assert!(
-        ctx.data.sp3().is_some(),
-        "High precision orbits (SP3) are unfortunately mandatory at the moment"
-    );
+
+    if cfg.interp_order > 5 && ctx.data.sp3().is_none() {
+        error!("High interpolation orders are likely incompatible with navigation based on broadcast radio.");
+        warn!("It is possible that this configuration does not generate any solutions.");
+        info!("Consider loading high precision SP3 data to use high interpolation orders.");
+    }
+
+    if let Some(obs_rinex) = ctx.data.observation() {
+        if let Some(obs_header) = &obs_rinex.header.obs {
+            if let Some(time_of_first_obs) = obs_header.time_of_first_obs {
+                if let Some(clk_rinex) = ctx.data.clock() {
+                    if let Some(clk_header) = &clk_rinex.header.clock {
+                        if let Some(time_scale) = clk_header.timescale {
+                            if time_scale == time_of_first_obs.time_scale {
+                                info!("Temporal PPP compliancy");
+                            } else {
+                                error!("Working with different timescales in OBS/CLK RINEX is not PPP compatible and will generate tiny errors");
+                                warn!("Consider using OBS/CLK RINEX files expressed in the same timescale for optimal results");
+                            }
+                        } else {
+                            error!("Provided Clock RINEX is badly defined and will likely introduce errors in calculations");
+                        }
+                    } else {
+                        error!("Provided Clock RINEX is badly defined and will likely introduce errors in calculations");
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+     * CGGTTS special case
+     */
+    if matches.get_flag("cggtts") {
+        cfg.sol_type = PVTSolutionType::TimeOnly;
+    }
 
     let orbit = RefCell::new(OrbitInterpolator::from_ctx(
         ctx,

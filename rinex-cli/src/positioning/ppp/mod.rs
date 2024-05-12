@@ -1,6 +1,8 @@
 //! PPP solver
 use crate::cli::Context;
-use crate::positioning::{bd_model, kb_model, ng_model, tropo_components};
+use crate::positioning::{
+    bd_model, cast_rtk_carrier, interp::TimeInterpolator, kb_model, ng_model, tropo_components,
+};
 use std::collections::BTreeMap;
 
 use rinex::{
@@ -15,8 +17,6 @@ use rtk::prelude::{
     Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution,
     PVTSolutionType, Solver, TroposphereBias,
 };
-
-use super::interp::TimeInterpolator;
 
 pub fn resolve<I>(
     ctx: &Context,
@@ -88,23 +88,24 @@ where
             for (observable, data) in observations {
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
                     let frequency = carrier.frequency();
+                    let rtk_carrier: gnss_rtk::prelude::Carrier = cast_rtk_carrier(carrier);
 
                     if observable.is_pseudorange_observable() {
                         codes.push(Observation {
-                            frequency,
+                            carrier: rtk_carrier,
                             snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,
                         });
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
                         phases.push(Observation {
-                            frequency,
+                            carrier: rtk_carrier,
                             snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs * lambda,
                         });
                     } else if observable.is_doppler_observable() {
                         dopplers.push(Observation {
-                            frequency,
+                            carrier: rtk_carrier,
                             snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs,
                         });
@@ -138,13 +139,7 @@ where
             zwd_zdd,
         };
 
-        match solver.resolve(
-            *t,
-            PVTSolutionType::PositionVelocityTime,
-            candidates,
-            &iono_bias,
-            &tropo_bias,
-        ) {
+        match solver.resolve(*t, &candidates, &iono_bias, &tropo_bias) {
             Ok((t, pvt)) => {
                 debug!("{:?} : {:?}", t, pvt);
                 solutions.insert(t, pvt);

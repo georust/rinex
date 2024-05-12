@@ -155,6 +155,7 @@ pub(crate) fn is_new_epoch(line: &str) -> bool {
 pub(crate) fn parse_epoch(
     version: Version,
     content: &str,
+    ts: TimeScale,
 ) -> Result<(Epoch, ClockKey, ClockProfile), Error> {
     let mut lines = content.lines();
     let line = lines.next().unwrap();
@@ -194,7 +195,7 @@ pub(crate) fn parse_epoch(
     const OFFSET: usize = "yyyy mm dd hh mm sssssssssss".len();
 
     let (epoch, rem) = rem.split_at(OFFSET);
-    let epoch = epoch::parse_utc(epoch.trim())?;
+    let epoch = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
     // nb of data fields
     let (_n, rem) = rem.split_at(4);
@@ -486,7 +487,7 @@ mod test {
         for (descriptor, epoch, key, profile) in [
             (
                 "AS R20  2019 01 08 00 03 30.000000  1   -0.364887538519E-03",
-                Epoch::from_str("2019-01-08T00:03:30 UTC").unwrap(),
+                Epoch::from_str("2019-01-08T00:03:30 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::SV(SV::from_str("R20").unwrap()),
                     profile_type: ClockProfileType::AS,
@@ -502,7 +503,7 @@ mod test {
             ),
             (
                 "AS R18  2019 01 08 10 00  0.000000  2    0.294804625338E-04  0.835484069663E-11",
-                Epoch::from_str("2019-01-08T10:00:00 UTC").unwrap(),
+                Epoch::from_str("2019-01-08T10:00:00 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::SV(SV::from_str("R18").unwrap()),
                     profile_type: ClockProfileType::AS,
@@ -518,7 +519,7 @@ mod test {
             ),
             (
                 "AR PIE1 2019 01 08 00 04  0.000000  1   -0.434275035628E-03",
-                Epoch::from_str("2019-01-08T00:04:00 UTC").unwrap(),
+                Epoch::from_str("2019-01-08T00:04:00 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::Station("PIE1".to_string()),
                     profile_type: ClockProfileType::AR,
@@ -534,7 +535,7 @@ mod test {
             ),
             (
                 "AR IMPZ 2019 01 08 00 00  0.000000  2   -0.331415119107E-07  0.350626190546E-10",
-                Epoch::from_str("2019-01-08T00:00:00 UTC").unwrap(),
+                Epoch::from_str("2019-01-08T00:00:00 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::Station("IMPZ".to_string()),
                     profile_type: ClockProfileType::AR,
@@ -550,7 +551,7 @@ mod test {
             ),
         ] {
             let (parsed_e, parsed_k, parsed_prof) =
-                parse_epoch(Version { minor: 0, major: 2 }, descriptor)
+                parse_epoch(Version { minor: 0, major: 2 }, descriptor, TimeScale::GPST)
                     .unwrap_or_else(|_| panic!("failed to parse \"{}\"", descriptor));
 
             assert_eq!(parsed_e, epoch, "parsed wrong epoch");
@@ -564,7 +565,7 @@ mod test {
             (
                 "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01
     -0.123456789012E+02 -0.123456789012E+03 -0.123456789012E+04 -0.123456789012E+05",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                Epoch::from_str("1994-07-14T20:59:00 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::Station("AREQ".to_string()),
                     profile_type: ClockProfileType::AR,
@@ -580,7 +581,7 @@ mod test {
             ),
             (
                 "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                Epoch::from_str("1994-07-14T20:59:00 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::SV(SV::from_str("G16").unwrap()),
                     profile_type: ClockProfileType::AS,
@@ -596,7 +597,7 @@ mod test {
             ),
             (
                 "CR USNO 1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                Epoch::from_str("1994-07-14T20:59:00 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::Station("USNO".to_string()),
                     profile_type: ClockProfileType::CR,
@@ -613,7 +614,7 @@ mod test {
             (
                 "DR USNO 1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01
     -0.123456789012E-03 -0.123456789012E-04",
-                Epoch::from_str("1994-07-14T20:59:00 UTC").unwrap(),
+                Epoch::from_str("1994-07-14T20:59:00 GPST").unwrap(),
                 ClockKey {
                     clock_type: ClockType::Station("USNO".to_string()),
                     profile_type: ClockProfileType::DR,
@@ -629,7 +630,7 @@ mod test {
             ),
         ] {
             let (parsed_e, parsed_k, parsed_prof) =
-                parse_epoch(Version { minor: 0, major: 2 }, descriptor)
+                parse_epoch(Version { minor: 0, major: 2 }, descriptor, TimeScale::GPST)
                     .unwrap_or_else(|_| panic!("failed to parse \"{}\"", descriptor));
 
             assert_eq!(parsed_e, epoch, "parsed wrong epoch");

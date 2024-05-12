@@ -57,9 +57,9 @@ pub fn post_process(
 
     let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
     for result in results.values() {
-        let px = x + result.pos.x;
-        let py = y + result.pos.y;
-        let pz = z + result.pos.z;
+        let px = x + result.position.x;
+        let py = y + result.position.y;
+        let pz = z + result.position.z;
         let (lat_ddeg, lon_ddeg, _) = ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
         lat.push(rad2deg(lat_ddeg));
         lon.push(rad2deg(lon_ddeg));
@@ -97,9 +97,9 @@ pub fn post_process(
         "error",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|e| e.pos.x).collect::<Vec<f64>>(),
-        results.values().map(|e| e.pos.y).collect::<Vec<f64>>(),
-        results.values().map(|e| e.pos.z).collect::<Vec<f64>>(),
+        results.values().map(|e| e.position.x).collect::<Vec<f64>>(),
+        results.values().map(|e| e.position.y).collect::<Vec<f64>>(),
+        results.values().map(|e| e.position.z).collect::<Vec<f64>>(),
     );
 
     plot_ctx.add_cartesian3d_plot(
@@ -115,10 +115,9 @@ pub fn post_process(
      * Add Spherical mesh with radius being the
      * largest error
      */
-    for error in results
-        .values()
-        .map(|pvt| (pvt.pos.x.powi(2) + pvt.pos.y.powi(2) + pvt.pos.z.powi(2)).sqrt())
-    {
+    for error in results.values().map(|pvt| {
+        (pvt.position.x.powi(2) + pvt.position.y.powi(2) + pvt.position.z.powi(2)).sqrt()
+    }) {
         if error > worst_radius {
             worst_radius = error;
         }
@@ -133,7 +132,7 @@ pub fn post_process(
         "x err",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.pos.x).collect::<Vec<f64>>(),
+        results.values().map(|p| p.position.x).collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -141,7 +140,7 @@ pub fn post_process(
         "y err",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.pos.y).collect::<Vec<f64>>(),
+        results.values().map(|p| p.position.y).collect::<Vec<f64>>(),
     )
     .y_axis("y2");
     plot_ctx.add_trace(trace);
@@ -154,7 +153,7 @@ pub fn post_process(
         "z err",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.pos.z).collect::<Vec<f64>>(),
+        results.values().map(|p| p.position.z).collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -170,7 +169,7 @@ pub fn post_process(
         "velocity (x)",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.vel.x).collect::<Vec<f64>>(),
+        results.values().map(|p| p.velocity.x).collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -178,7 +177,7 @@ pub fn post_process(
         "velocity (y)",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.vel.y).collect::<Vec<f64>>(),
+        results.values().map(|p| p.velocity.y).collect::<Vec<f64>>(),
     )
     .y_axis("y2");
     plot_ctx.add_trace(trace);
@@ -188,7 +187,7 @@ pub fn post_process(
         "velocity (z)",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.vel.z).collect::<Vec<f64>>(),
+        results.values().map(|p| p.velocity.z).collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -230,7 +229,10 @@ pub fn post_process(
         "dt",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|e| e.dt).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|e| e.dt.to_seconds())
+            .collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -266,7 +268,11 @@ pub fn post_process(
     )?;
 
     for (epoch, solution) in results {
-        let (px, py, pz) = (x + solution.pos.x, y + solution.pos.y, z + solution.pos.z);
+        let (px, py, pz) = (
+            x + solution.position.x,
+            y + solution.position.y,
+            z + solution.position.z,
+        );
         let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
         let (hdop, vdop, tdop) = (
             solution.hdop(lat_ddeg, lon_ddeg),
@@ -277,18 +283,18 @@ pub fn post_process(
             fd,
             "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
             epoch,
-            solution.pos.x,
-            solution.pos.y,
-            solution.pos.z,
+            solution.position.x,
+            solution.position.y,
+            solution.position.z,
             px,
             py,
             pz,
-            solution.vel.x,
-            solution.vel.y,
-            solution.vel.z,
+            solution.velocity.x,
+            solution.velocity.y,
+            solution.velocity.z,
             hdop,
             vdop,
-            solution.dt,
+            solution.dt.to_seconds(),
             tdop
         )?;
         if matches.get_flag("gpx") {
