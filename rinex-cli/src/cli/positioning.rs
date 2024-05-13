@@ -7,18 +7,18 @@ pub fn subcommand() -> Command {
         .short_flag('p')
         .arg_required_else_help(false)
         .about("Precise Positioning opmode.
-Use this mode to resolve precise positions and local time from RINEX dataset.
-You should provide Observations from a unique receiver.")
+Use this mode to resolve Position Velocity and Time (PVT) solutions from one GNSS context.")
         .arg(Arg::new("cfg")
             .short('c')
             .long("cfg")
             .value_name("FILE")
             .required(false)
             .action(ArgAction::Append)
-            .help("Pass a Position Solver configuration file (JSON).
+            .help("Pass a Position Solver configuration file (JSON). See --help.")
+            .long_help("
+Use [https://github.com/georust/rinex/rinex-cli/config.rtk] as a starting point.
 [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/struct.Config.html] is the structure to represent in JSON.
-Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html] for solving strategies.
-See [] for meaningful examples."))
+Our Wiki pages contains several examples."))
         .arg(Arg::new("gpx")
             .long("gpx")
             .action(ArgAction::SetTrue)
@@ -31,8 +31,11 @@ See [] for meaningful examples."))
         .arg(Arg::new("cggtts")
             .long("cggtts")
             .action(ArgAction::SetTrue)
-            .help("Activate CGGTTS special solver.
-Wrapps PVT solutions as CGGTTS file(s) for remote clock comparison (time transfer)."))
+            .help("Activate CGGTTS special solver. See --help.")
+            .long_help("In CGGTTS opmode, we're only interested in resolving the local offset to the constellation.
+Navigation mode is set to [TimeOnly] and we navigate using every single vehicle in sight fitting criteria. 
+CGGTTS opmode is therefore more demanding as it runs the algorithm many more times than regular PPP.
+The PVT solutions are then formatted as a CGGTTS file which is used to compare remote clocks to one another, from a common GNSS constellation."))
         .arg(Arg::new("tracking")
             .long("trk")
             .short('t')

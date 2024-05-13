@@ -10,6 +10,7 @@ use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, prelude::Observable};
 
+use super::cast_rtk_carrier;
 use super::interp::TimeInterpolator;
 
 use rtk::prelude::{
@@ -20,7 +21,6 @@ use rtk::prelude::{
     IonosphereBias,
     Method,
     Observation,
-    PVTSolutionType,
     Solver,
     TroposphereBias, //TimeScale
 };
@@ -162,7 +162,7 @@ where
                 }
 
                 let carrier = carrier.unwrap();
-                let frequency = carrier.frequency();
+                let rtk_carrier = cast_rtk_carrier(carrier);
 
                 let mut code = Option::<Observation>::None;
                 let phase = Option::<Observation>::None;
@@ -170,29 +170,29 @@ where
 
                 if observable.is_pseudorange_observable() {
                     code = Some(Observation {
-                        frequency,
+                        carrier: rtk_carrier,
                         snr: { data.snr.map(|snr| snr.into()) },
                         value: data.obs,
                     });
 
                     // attach one phase, if need be
                     match solver.cfg.method {
-                        Method::SPP => {}, // nothing to do
+                        Method::SPP => {},     // nothing to do
                         Method::CodePPP => {}, // nothing to do
-                                            //Method::PPP => {
-                                            //    // try to attach phase data
-                                            //    let to_match =
-                                            //        Observable::from_str(&format!("L{}", &observable.to_string()[1..])).unwrap();
-                                            //    for (observable, data) in observations {
-                                            //        if *observable == phase_to_match {
-                                            //            phase = Some(Observation {
-                                            //                frequency,
-                                            //                snr: { data.snr.map(|snr| snr.into()) },
-                                            //                value: data.obs,
-                                            //            });
-                                            //        }
-                                            //    }
-                                            //},
+                        Method::PPP => {
+                            // try to attach phase data
+                            // let to_match =
+                            //     Observable::from_str(&format!("L{}", &observable.to_string()[1..])).unwrap();
+                            // for (observable, data) in observations {
+                            //     if *observable == phase_to_match {
+                            //         phase = Some(Observation {
+                            //             carrier: rtk_carrier,
+                            //             snr: { data.snr.map(|snr| snr.into()) },
+                            //             value: data.obs,
+                            //         });
+                            //     }
+                            // }
+                        },
                     }
 
                     // try to attach doppler
@@ -202,7 +202,7 @@ where
                     for (observable, data) in observations {
                         if *observable == doppler_to_match {
                             doppler = Some(Observation {
-                                frequency,
+                                carrier: rtk_carrier,
                                 snr: { data.snr.map(|snr| snr.into()) },
                                 value: data.obs,
                             });
@@ -221,27 +221,27 @@ where
                 match solver.cfg.method {
                     Method::SPP => {}, // nothing to do
                     Method::CodePPP => {
-                        let (freq_to_match, code_to_match) = match carrier {
-                            Carrier::L1 => (
-                                Carrier::L2.frequency(),
-                                Observable::from_str("C2C").unwrap(),
-                            ),
-                            _ => (
-                                Carrier::L1.frequency(),
-                                Observable::from_str("C1C").unwrap(),
-                            ),
-                        };
-                        for (observable, data) in observations {
-                            if *observable == code_to_match {
+                        // Attach secondary PR
+                        for (second_obs, second_data) in observations {
+                            let rhs_carrier =
+                                Carrier::from_observable(sv.constellation, second_obs);
+                            if rhs_carrier.is_err() {
+                                continue;
+                            }
+                            let rhs_carrier = rhs_carrier.unwrap();
+                            let rtk_carrier = cast_rtk_carrier(rhs_carrier);
+
+                            if second_obs.is_pseudorange_observable() && rhs_carrier != carrier {
                                 codes.push(Observation {
-                                    frequency: freq_to_match,
+                                    value: second_data.obs,
+                                    carrier: rtk_carrier,
                                     snr: { data.snr.map(|snr| snr.into()) },
-                                    value: data.obs,
                                 });
                                 break;
                             }
                         }
                     },
+                    Method::PPP => {}, //TODO
                 };
 
                 let dopplers = match doppler {
@@ -254,21 +254,15 @@ where
                 };
                 let candidate =
                     Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases, dopplers);
-                match solver.resolve(
-                    *t,
-                    PVTSolutionType::TimeOnly,
-                    vec![candidate],
-                    &iono_bias,
-                    &tropo_bias,
-                ) {
+                match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {
                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
 
                         let azimuth = pvt_data.azimuth;
                         let elevation = pvt_data.elevation;
 
-                        let refsys = pvt_solution.dt;
-                        let refsv = pvt_solution.dt + clock_corr.to_seconds();
+                        let refsys = pvt_solution.dt.to_seconds();
+                        let refsv = refsys + clock_corr.to_seconds();
 
                         /*
                          * TROPO : always present

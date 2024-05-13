@@ -545,6 +545,9 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         if ctx.data.has_meteo() {
             record::plot_meteo_observations(ctx, &mut plot_ctx, csv_export);
         }
+        if ctx.data.has_doris() {
+            record::plot_doris_observations(ctx, &mut plot_ctx, csv_export);
+        }
 
         /* save observations */
         ctx.render_html("OBSERVATIONS.html", plot_ctx.to_html());

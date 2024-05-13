@@ -731,6 +731,17 @@ impl Carrier {
             _ => Err(Error::UnknownSV(sv)),
         }
     }
+    /// Builds Self from DORIS observable
+    pub fn from_doris_observable(obs: &Observable) -> Result<Self, Error> {
+        let obs = obs.to_string();
+        if obs.contains("1") {
+            Ok(Self::S1)
+        } else if obs.contains("2") {
+            Ok(Self::U2)
+        } else {
+            Err(Error::UnknownObservable(obs.clone()))
+        }
+    }
 }
 
 #[cfg(test)]

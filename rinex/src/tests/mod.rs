@@ -18,9 +18,13 @@ mod masking;
 mod merge;
 #[cfg(feature = "meteo")]
 mod meteo;
+#[cfg(feature = "nav")]
 mod nav;
+#[cfg(feature = "obs")]
 mod obs;
 mod parsing;
 mod production;
+#[cfg(feature = "processing")]
 mod sampling;
+#[cfg(feature = "processing")]
 mod smoothing;

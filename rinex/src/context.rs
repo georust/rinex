@@ -42,7 +42,7 @@ pub enum ProductType {
     /// Meteo sensors data wrapped as Meteo RINEX files.
     MeteoObservation,
     /// DORIS measurements wrapped as special RINEX observation file.
-    DorisRinex,
+    DORIS,
     /// Broadcast Navigation message as contained in
     /// Navigation RINEX files.
     BroadcastNavigation,
@@ -51,9 +51,9 @@ pub enum ProductType {
     /// High precision orbital attitudes wrapped in Clock RINEX files.
     HighPrecisionClock,
     /// Antenna calibration information wrapped in ANTEX special RINEX files.
-    Antex,
+    ANTEX,
     /// Precise Ionosphere state wrapped in IONEX special RINEX files.
-    Ionex,
+    IONEX,
 }
 
 impl std::fmt::Display for ProductType {
@@ -64,9 +64,9 @@ impl std::fmt::Display for ProductType {
             Self::BroadcastNavigation => write!(f, "Broadcast Navigation"),
             Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
             Self::HighPrecisionClock => write!(f, "High Precision Clock"),
-            Self::Antex => write!(f, "ANTEX"),
-            Self::Ionex => write!(f, "IONEX"),
-            Self::DorisRinex => write!(f, "DORIS RINEX"),
+            Self::ANTEX => write!(f, "ANTEX"),
+            Self::IONEX => write!(f, "IONEX"),
+            Self::DORIS => write!(f, "DORIS RINEX"),
         }
     }
 }
@@ -78,9 +78,9 @@ impl From<RinexType> for ProductType {
             RinexType::NavigationData => Self::BroadcastNavigation,
             RinexType::MeteoData => Self::MeteoObservation,
             RinexType::ClockData => Self::HighPrecisionClock,
-            RinexType::IonosphereMaps => Self::Ionex,
-            RinexType::AntennaData => Self::Antex,
-            RinexType::DORIS => Self::DorisRinex,
+            RinexType::IonosphereMaps => Self::IONEX,
+            RinexType::AntennaData => Self::ANTEX,
+            RinexType::DORIS => Self::DORIS,
         }
     }
 }
@@ -144,12 +144,13 @@ impl RnxContext {
          */
         for product in [
             ProductType::Observation,
+            ProductType::DORIS,
             ProductType::BroadcastNavigation,
             ProductType::MeteoObservation,
             ProductType::HighPrecisionClock,
             ProductType::HighPrecisionOrbit,
-            ProductType::Ionex,
-            ProductType::Antex,
+            ProductType::IONEX,
+            ProductType::ANTEX,
         ] {
             if let Some(paths) = self.files(product) {
                 /*
@@ -233,17 +234,21 @@ impl RnxContext {
     pub fn rinex(&self, product: ProductType) -> Option<&Rinex> {
         self.data(product)?.as_rinex()
     }
-    /// Returns reference to inner SP3 data
-    pub fn sp3(&self) -> Option<&SP3> {
-        self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
-    }
     /// Returns mutable reference to inner RINEX data of given category
     pub fn rinex_mut(&mut self, product: ProductType) -> Option<&mut Rinex> {
         self.data_mut(product)?.as_mut_rinex()
     }
+    /// Returns reference to inner SP3 data
+    pub fn sp3(&self) -> Option<&SP3> {
+        self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
+    }
     /// Returns reference to inner [ProductType::Observation] data
     pub fn observation(&self) -> Option<&Rinex> {
         self.data(ProductType::Observation)?.as_rinex()
+    }
+    /// Returns reference to inner [ProductType::DORIS] RINEX data
+    pub fn doris(&self) -> Option<&Rinex> {
+        self.data(ProductType::DORIS)?.as_rinex()
     }
     /// Returns reference to inner [ProductType::BroadcastNavigation] data
     pub fn brdc_navigation(&self) -> Option<&Rinex> {
@@ -257,17 +262,21 @@ impl RnxContext {
     pub fn clock(&self) -> Option<&Rinex> {
         self.data(ProductType::HighPrecisionClock)?.as_rinex()
     }
-    /// Returns reference to inner [ProductType::Antex] data
+    /// Returns reference to inner [ProductType::ANTEX] data
     pub fn antex(&self) -> Option<&Rinex> {
-        self.data(ProductType::Antex)?.as_rinex()
+        self.data(ProductType::ANTEX)?.as_rinex()
     }
-    /// Returns reference to inner [ProductType::Ionex] data
+    /// Returns reference to inner [ProductType::IONEX] data
     pub fn ionex(&self) -> Option<&Rinex> {
-        self.data(ProductType::Ionex)?.as_rinex()
+        self.data(ProductType::IONEX)?.as_rinex()
     }
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn observation_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::Observation)?.as_mut_rinex()
+    }
+    /// Returns mutable reference to inner [ProductType::DORIS] RINEX data
+    pub fn doris_mut(&mut self) -> Option<&mut Rinex> {
+        self.data_mut(ProductType::DORIS)?.as_mut_rinex()
     }
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn brdc_navigation_mut(&mut self) -> Option<&mut Rinex> {
@@ -287,13 +296,13 @@ impl RnxContext {
     pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
         self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
     }
-    /// Returns mutable reference to inner [ProductType::Antex] data
+    /// Returns mutable reference to inner [ProductType::ANTEX] data
     pub fn antex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::Antex)?.as_mut_rinex()
+        self.data_mut(ProductType::ANTEX)?.as_mut_rinex()
     }
-    /// Returns mutable reference to inner [ProductType::Ionex] data
+    /// Returns mutable reference to inner [ProductType::IONEX] data
     pub fn ionex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::Ionex)?.as_mut_rinex()
+        self.data_mut(ProductType::IONEX)?.as_mut_rinex()
     }
     /// Returns true if [ProductType::Observation] are present in Self
     pub fn has_observation(&self) -> bool {
@@ -306,6 +315,10 @@ impl RnxContext {
     /// Returns true if [ProductType::HighPrecisionOrbit] are present in Self
     pub fn has_sp3(&self) -> bool {
         self.sp3().is_some()
+    }
+    /// Returns true if at least one [ProductType::DORIS] file is present
+    pub fn has_doris(&self) -> bool {
+        self.doris().is_some()
     }
     /// Returns true if [ProductType::MeteoObservation] are present in Self
     pub fn has_meteo(&self) -> bool {
@@ -430,8 +443,8 @@ impl HtmlReport for RnxContext {
                 ProductType::MeteoObservation,
                 ProductType::HighPrecisionOrbit,
                 ProductType::HighPrecisionClock,
-                ProductType::Ionex,
-                ProductType::Antex,
+                ProductType::IONEX,
+                ProductType::ANTEX,
             ] {
                 tr {
                     td {
@@ -469,8 +482,8 @@ impl std::fmt::Debug for RnxContext {
             ProductType::MeteoObservation,
             ProductType::HighPrecisionOrbit,
             ProductType::HighPrecisionClock,
-            ProductType::Ionex,
-            ProductType::Antex,
+            ProductType::IONEX,
+            ProductType::ANTEX,
         ] {
             if let Some(files) = self.files(product) {
                 write!(f, "\n{}: ", product)?;

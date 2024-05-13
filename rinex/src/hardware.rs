@@ -1,5 +1,6 @@
 //! Hardware: receiver, antenna informations
-use gnss::prelude::SV;
+use crate::prelude::{COSPAR, SV};
+use std::str::FromStr;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -202,12 +203,10 @@ impl HtmlReport for Rcvr {
 pub struct SvAntenna {
     /// vehicle this antenna is attached to
     pub sv: SV,
-    /// antenna model description
+    /// Antenna model description
     pub model: String,
-    /// "YYYY-XXXA" year of vehicle launch
-    /// XXX sequential launch vehicle
-    /// A: alpha numeric sequence number within launch
-    pub cospar: Option<String>,
+    /// COSPAR launch ID code
+    pub cospar: Option<COSPAR>,
 }
 
 impl SvAntenna {
@@ -223,7 +222,9 @@ impl SvAntenna {
     }
     pub fn with_cospar(&self, c: &str) -> Self {
         let mut s = self.clone();
-        s.cospar = Some(c.to_string());
+        if let Ok(cospar) = COSPAR::from_str(c) {
+            s.cospar = Some(cospar);
+        }
         s
     }
 }

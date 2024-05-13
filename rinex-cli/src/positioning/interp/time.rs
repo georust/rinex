@@ -3,42 +3,53 @@ use crate::cli::Context;
 use gnss_rtk::prelude::{Duration, Epoch, SV};
 use std::collections::HashMap;
 
+#[derive(Debug)]
 struct Buffer {
-    inner: Vec<(Epoch, f64)>,
+    inner: Vec<(Epoch, (f64, f64, f64))>,
 }
 
-impl BufferTrait<f64> for Buffer {
+impl BufferTrait for Buffer {
     fn malloc(size: usize) -> Self {
         Self {
             inner: Vec::with_capacity(size),
         }
     }
-    fn push(&mut self, x_j: (Epoch, f64)) {
+    fn push(&mut self, x_j: (Epoch, (f64, f64, f64))) {
         self.inner.push(x_j);
     }
     fn clear(&mut self) {
         self.inner.clear();
     }
-    fn snapshot(&self) -> &[(Epoch, f64)] {
+    fn snapshot(&self) -> &[(Epoch, (f64, f64, f64))] {
         &self.inner
     }
-    fn snapshot_mut(&mut self) -> &mut [(Epoch, f64)] {
+    fn snapshot_mut(&mut self) -> &mut [(Epoch, (f64, f64, f64))] {
         &mut self.inner
     }
-    fn get(&self, index: usize) -> Option<&(Epoch, f64)> {
+    fn get(&self, index: usize) -> Option<&(Epoch, (f64, f64, f64))> {
         self.inner.get(index)
     }
     fn len(&self) -> usize {
         self.inner.len()
     }
+    fn feasible(&self, _order: usize, t: Epoch) -> bool {
+        if self.len() < 2 {
+            false
+        } else {
+            let t0 = self.get(self.len() - 1).unwrap().0; // latest
+            let t1 = self.get(self.len() - 2).unwrap().0; // latest -1
+            t1 <= t && t <= t0
+        }
+    }
 }
 
 /// Orbital state interpolator
 pub struct Interpolator<'a> {
+    /// Total counter
     epochs: usize,
-    sampling: Duration,
+    /// Internal buffer
     buffers: HashMap<SV, Buffer>,
-    iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
+    iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
 impl<'a> Interpolator<'a> {
@@ -52,21 +63,26 @@ impl<'a> Interpolator<'a> {
         Self {
             epochs: 0,
             buffers: HashMap::with_capacity(32),
-            // TODO improve sampling determination
-            sampling: if ctx.data.clock().is_some() {
-                Duration::from_seconds(30.0)
-            } else {
-                Duration::from_seconds(15.0 * 60.0)
-            },
             iter: if let Some(clk) = ctx.data.clock() {
-                Box::new(
-                    clk.precise_sv_clock()
-                        .map(|(t, sv, _, prof)| (t, sv, prof.bias)),
-                )
+                Box::new(clk.precise_sv_clock().map(|(t, sv, _, prof)| {
+                    (
+                        t,
+                        sv,
+                        (
+                            prof.bias,
+                            prof.drift.unwrap_or(0.0_f64),
+                            prof.drift_change.unwrap_or(0.0_f64),
+                        ),
+                    )
+                }))
             } else if let Some(sp3) = ctx.data.sp3() {
-                Box::new(sp3.sv_clock())
+                // TODO: improve SP3 API and definitions
+                Box::new(
+                    sp3.sv_clock()
+                        .map(|(t, sv, clk)| (t, sv, (clk, 0.0_f64, 0.0_f64))),
+                )
             } else {
-                panic!("sp3 or clock rinex currently required");
+                panic!("SP3 or CLOCK RINEX currently required");
                 // TODO
                 // let brdc = ctx.data.brdc_navigation().unwrap(); // infaillible
                 // Box::new(brdc.sv_clock())
@@ -78,7 +94,7 @@ impl<'a> Interpolator<'a> {
             },
         }
     }
-    fn push(&mut self, t: Epoch, sv: SV, data: f64) {
+    fn push(&mut self, t: Epoch, sv: SV, data: (f64, f64, f64)) {
         if let Some(buf) = self.buffers.get_mut(&sv) {
             buf.push((t, data));
         } else {
@@ -109,30 +125,35 @@ impl<'a> Interpolator<'a> {
         self.epochs += epochs;
         false
     }
-    fn latest(&self, sv: SV) -> Option<&Epoch> {
-        self.buffers
-            .iter()
-            .filter_map(|(k, v)| {
-                if *k == sv {
-                    let last = v.inner.iter().map(|(e, _)| e).last()?;
-                    Some(last)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
+    // fn latest(&self, sv: SV) -> Option<&Epoch> {
+    //     self.buffers
+    //         .iter()
+    //         .filter_map(|(k, v)| {
+    //             if *k == sv {
+    //                 let last = v.inner.iter().map(|(e, _)| e).last()?;
+    //                 Some(last)
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //         .reduce(|k, _| k)
+    // }
+    // Returns true if interpolation is feasible @ t for SV
+    fn is_feasible(&self, t: Epoch, sv: SV) -> bool {
+        if let Some(buf) = self.buffers.get(&sv) {
+            buf.feasible(1, t)
+        } else {
+            false
+        }
     }
+    // Clock offset interpolation @ t for SV
     pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<Duration> {
+        let mut dt = Option::<Duration>::None;
+        let mut first_x = Option::<Epoch>::None;
+
         // Maintain buffer up to date, consume data if need be
-        loop {
-            if let Some(latest) = self.latest(sv) {
-                if *latest >= t + self.sampling {
-                    break;
-                } else if self.consume(1) {
-                    // end of stream
-                    break;
-                }
-            } else if self.consume(1) {
+        while !self.is_feasible(t, sv) {
+            if self.consume(1) {
                 // end of stream
                 break;
             }
@@ -140,31 +161,32 @@ impl<'a> Interpolator<'a> {
 
         let buf = self.buffers.get_mut(&sv)?;
 
-        if let Some((before_x, before_y)) = buf.inner.iter().filter(|(v_t, _)| *v_t <= t).last() {
-            // interpolate: if need be
-            let dy: Option<Duration> = if *before_x == t {
-                Some(Duration::from_seconds(*before_y))
-            } else if let Some((after_x, after_y)) = buf
+        if let Some((y, _, _)) = buf.direct_output(t) {
+            // No need to interpolate @ t for SV
+            // Preserves data precision
+            first_x = Some(t);
+            dt = Some(Duration::from_seconds(*y));
+        } else if let Some((before_x, (before_y, _, _))) =
+            buf.inner.iter().filter(|(v_t, _)| *v_t < t).last()
+        {
+            first_x = Some(*before_x);
+
+            if let Some((after_x, (after_y, _, _))) = buf
                 .inner
                 .iter()
-                .filter(|(v_t, _)| *v_t > t)
+                .filter(|(v_t, _)| *v_t >= t)
                 .reduce(|k, _| k)
             {
                 let dx = (*after_x - *before_x).to_seconds();
                 let mut dy = (*after_x - t).to_seconds() / dx * *before_y;
                 dy += (t - *before_x).to_seconds() / dx * *after_y;
-                Some(Duration::from_seconds(dy))
-            } else {
-                None
-            };
-
-            // management: discard old samples
-            if dy.is_some() {
-                buf.inner.retain(|b| b.0 < t - self.sampling);
+                dt = Some(Duration::from_seconds(dy));
             }
-
-            return dy;
         }
-        None
+        // Discard symbols that did not contribute (too old)
+        if let Some(first_x) = first_x {
+            buf.inner.retain(|(k, _)| *k >= first_x);
+        }
+        dt
     }
 }

@@ -328,6 +328,25 @@ pub fn parse_record(
             },
         }
     }
+    // Clock RINEX TimeScale definition.
+    //   Modern revisions define it in header directly.
+    //   Old revisions are once again badly defined and most likely not thought out.
+    //   We default to GPST to "match" the case where this file is multi constellation
+    //      and it seems that clocks steered to GPST is the most common case.
+    //      For example NASA/CDDIS.com
+    //   In mono constellation, we adapt to that timescale.
+    let mut clk_ts = TimeScale::GPST;
+    if let Some(clk) = &header.clock {
+        if let Some(ts) = clk.timescale {
+            clk_ts = ts;
+        } else {
+            if let Some(constellation) = &header.constellation {
+                if let Some(ts) = constellation.timescale() {
+                    clk_ts = ts;
+                }
+            }
+        }
+    }
     // IONEX case
     //  Default map type is TEC, it will come with identified Epoch
     //  but others may exist:
@@ -452,7 +471,7 @@ pub fn parse_record(
                     },
                     Type::ClockData => {
                         if let Ok((epoch, key, profile)) =
-                            clock::record::parse_epoch(header.version, &epoch_content)
+                            clock::record::parse_epoch(header.version, &epoch_content, clk_ts)
                         {
                             if let Some(e) = clk_rec.get_mut(&epoch) {
                                 e.insert(key, profile);
@@ -556,7 +575,7 @@ pub fn parse_record(
         },
         Type::ClockData => {
             if let Ok((epoch, key, profile)) =
-                clock::record::parse_epoch(header.version, &epoch_content)
+                clock::record::parse_epoch(header.version, &epoch_content, clk_ts)
             {
                 if let Some(e) = clk_rec.get_mut(&epoch) {
                     e.insert(key, profile);
