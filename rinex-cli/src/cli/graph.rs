@@ -50,8 +50,7 @@ Example (2): render meteo sensor observations similary.
 Example (3): render DORIS observations similarly.
 
 ./target/release/rinex-cli \\
-    -f test_resources/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz \\
-    -g --obs --csv
+    -f test_resources/OR/V3/cs2rx18164.gz -g --obs --csv
 
 Example (4): render OBS + Meteo combination at once.
 RINEX-Cli allows loading OBS and Meteo in one session.
@@ -185,15 +184,5 @@ rinex-cli -f test_resources/IONEX/V1/CKMG0080.09I.gz -g --tec")
                 .long("ionod")
                 .action(ArgAction::SetTrue)
                 .help("Plot ionospheric delay per signal & SV, at latitude and longitude of signal sampling."),
-        )
-        .next_help_heading("DORIS (requires at least one DORIS file)").
-        arg(
-            Arg::new("acorr")
-                .short('a')
-                .long("acorr")
-                .action(ArgAction::SetTrue)
-                .help("Compute and render the autocorrelation of (precise) Pseudo Range and Dopplers from the DORIS measurement,
-from all contained stations. See --help")
-            .long_help("TODO")
         )
 }

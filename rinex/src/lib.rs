@@ -1522,49 +1522,67 @@ impl Rinex {
         }))
     }
     /// Returns a (unique) Iterator over all identified [`Observable`]s.
-    /// This will panic if invoked on other than OBS and Meteo RINEX.
+    /// Applies to Observation RINEX:
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/CRNX/V1/AJAC3550.21D")
+    ///     .unwrap();
+    /// for observable in rinex.observable() {
+    ///     if observable.is_phase_observable() {
+    ///         // do something
+    ///     }
+    /// }
+    /// ```
+    /// Also applies to Meteo RINEX:
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for observable in rinex.observable() {
+    ///     if *observable == Observable::Temperature {
+    ///         // do something
+    ///     }
+    /// }
+    /// ```
+    /// Also applies to DORIS RINEX:
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
+    ///     .unwrap();
+    /// for observable in rinex.observable() {
+    ///     if observable.is_pseudorange_observable() {
+    ///         // do something
+    ///     }
+    /// }
+    /// ```
     pub fn observable(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
         if self.record.as_obs().is_some() {
             Box::new(
                 self.observation()
-                    .map(|(_, (_, svnn))| {
+                    .flat_map(|(_, (_, svnn))| {
                         svnn.iter()
-                            .flat_map(|(_sv, observables)| observables.keys())
+                            .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
                     })
-                    .fold(vec![], |mut list, items| {
-                        // create a unique list
-                        for item in items {
-                            if !list.contains(&item) {
-                                list.push(item);
-                            }
-                        }
-                        list
-                    })
-                    .into_iter(),
+                    .unique(),
             )
         } else if self.record.as_meteo().is_some() {
             Box::new(
                 self.meteo()
-                    .map(|(_, observables)| {
-                        observables.keys()
-                        //.copied()
+                    .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
+                    .unique(),
+            )
+        } else if self.record.as_doris().is_some() {
+            Box::new(
+                self.doris()
+                    .flat_map(|(_, stations)| {
+                        stations
+                            .iter()
+                            .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
                     })
-                    .fold(vec![], |mut list, items| {
-                        // create a unique list
-                        for item in items {
-                            if !list.contains(&item) {
-                                list.push(item);
-                            }
-                        }
-                        list
-                    })
-                    .into_iter(),
+                    .unique(),
             )
         } else {
-            panic!(
-                ".observable() is not feasible on \"{:?}\" RINEX",
-                self.header.rinex_type
-            );
+            Box::new([].iter())
         }
     }
     /// Meteo RINEX record browsing method. Extracts data for this specific format.
@@ -3545,10 +3563,10 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
     ///     .unwrap();
-    /// for (epoch, station, value) in rinex.doris_moisture() {
+    /// for (epoch, station, value) in rinex.doris_humidity() {
     ///     println!("{}@{}: {}%", station.domes, epoch, value);
     /// }
-    pub fn doris_moisture(&self) -> Box<dyn Iterator<Item = (Epoch, &Station, f64)> + '_> {
+    pub fn doris_humidity(&self) -> Box<dyn Iterator<Item = (Epoch, &Station, f64)> + '_> {
         Box::new(self.doris().flat_map(|((epoch, _), stations)| {
             stations.iter().flat_map(move |(station, observables)| {
                 observables.iter().filter_map(move |(observable, data)| {
@@ -3622,10 +3640,10 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
     ///     .unwrap();
-    /// for (epoch, station, code, value) in rinex.doris_power() {
+    /// for (epoch, station, code, value) in rinex.doris_rx_power() {
     ///     println!("{} {}@{}: {} dBm", station.domes, code, epoch, value);
     /// }
-    pub fn doris_power(
+    pub fn doris_rx_power(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, &Station, &Observable, f64)> + '_> {
         Box::new(self.doris().flat_map(|((epoch, _), stations)| {

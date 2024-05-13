@@ -52,19 +52,19 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
-    /// Retrieve station by ID#
-    pub(crate) fn get_station(&mut self, id: u16) -> Option<&Station> {
-        self.stations
-            .iter()
-            .filter(|s| s.key == id)
-            .reduce(|k, _| k)
-    }
+    // /// Retrieve station by ID#
+    // pub(crate) fn get_station(&mut self, id: u16) -> Option<&Station> {
+    //     self.stations
+    //         .iter()
+    //         .filter(|s| s.key == id)
+    //         .reduce(|k, _| k)
+    // }
     /// Insert a data scaling
     pub(crate) fn with_scaling(&mut self, observable: Observable, scaling: u16) {
         self.scaling.insert(observable.clone(), scaling);
     }
-    /// Returns scaling to applied to said Observable.
-    pub(crate) fn scaling(&self, observable: Observable) -> Option<&u16> {
-        self.scaling.get(&observable)
-    }
+    // /// Returns scaling to applied to said Observable.
+    // pub(crate) fn scaling(&self, observable: Observable) -> Option<&u16> {
+    //     self.scaling.get(&observable)
+    // }
 }
