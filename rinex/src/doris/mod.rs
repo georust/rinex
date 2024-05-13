@@ -33,6 +33,8 @@ pub enum Error {
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
+    /// Name of the DORIS satellite
+    pub satellite: String,
     /// Time of First Measurement, expressed in TAI timescale.
     pub time_of_first_obs: Option<Epoch>,
     /// Time of Last Measurement, expressed in TAI timescale.
