@@ -9,11 +9,11 @@ use rinex::prelude::Rinex;
 
 pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: &mut PlotContext) {
     let _cmap = colorous::TURBO;
-    let hover_text: Vec<String> = data.epoch().map(|e| e.to_string()).collect();
+    // let hover_text: Vec<String> = data.epoch().map(|e| e.to_string()).collect();
     /*
      * TEC map visualization
      * plotly-rs has no means to animate plots at the moment
-     * therefore.. we create one plot for all remaining Epochs
+     * therefore.. we create one plot for each individual Epoch
      */
     for epoch in data.epoch() {
         let lat: Vec<_> = data

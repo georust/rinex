@@ -14,8 +14,8 @@ mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
 
 use rtk::prelude::{
-    Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution,
-    PVTSolutionType, Solver, TroposphereBias,
+    Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution, Solver,
+    TroposphereBias,
 };
 
 pub fn resolve<I>(
@@ -87,27 +87,26 @@ where
 
             for (observable, data) in observations {
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
-                    let frequency = carrier.frequency();
                     let rtk_carrier: gnss_rtk::prelude::Carrier = cast_rtk_carrier(carrier);
 
                     if observable.is_pseudorange_observable() {
                         codes.push(Observation {
+                            value: data.obs,
                             carrier: rtk_carrier,
                             snr: { data.snr.map(|snr| snr.into()) },
-                            value: data.obs,
                         });
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
                         phases.push(Observation {
                             carrier: rtk_carrier,
-                            snr: { data.snr.map(|snr| snr.into()) },
                             value: data.obs * lambda,
+                            snr: { data.snr.map(|snr| snr.into()) },
                         });
                     } else if observable.is_doppler_observable() {
                         dopplers.push(Observation {
+                            value: data.obs,
                             carrier: rtk_carrier,
                             snr: { data.snr.map(|snr| snr.into()) },
-                            value: data.obs,
                         });
                     }
                 }

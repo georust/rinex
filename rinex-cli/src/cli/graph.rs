@@ -35,11 +35,11 @@ using our toolbox as data parser and preprocessor and inject the results to thir
 OBS RINEX gives GNSS signals observations, but we also support Meteo RINEX and DORIS (special observation) RINEX.
 
 Example (1): render GNSS signals (all of them, whether it be Phase or PR) for GPS.
-Use CSV for extract and export as well:
+Use CSV for extract as well:
 
 ./target/release/rinex-cli \\
     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
-    -g --obs --csv
+    -P GPS -g --obs --csv
 
 Example (2): render meteo sensor observations similary.
 
@@ -54,7 +54,7 @@ Example (3): render DORIS observations similarly.
     -g --obs --csv
 
 Example (4): render OBS + Meteo combination at once.
-RINEX-Cli allows loading OBS + Meteo in one session.
+RINEX-Cli allows loading OBS and Meteo in one session.
 In graph mode, this means we can render both in a single run.
 
 ./target/release/rinex-cli \\
@@ -175,7 +175,10 @@ It is the temporal equuivalent to |BRDC-SP3| requested with --sp3-residual.")
             Arg::new("tec")
                 .long("tec")
                 .action(ArgAction::SetTrue)
-                .help("Plot the TEC map. Requires at least one IONEX file."),
+                .help("Plot the TEC map. Requires at least one IONEX file. See --help")
+                .long_help("Plot the worldwide TEC map, usually presented in 24hr time frame. 
+Example:
+rinex-cli -f test_resources/IONEX/V1/CKMG0080.09I.gz -g --tec")
         )
         .arg(
             Arg::new("ionod")

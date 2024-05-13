@@ -21,7 +21,6 @@ use rtk::prelude::{
     IonosphereBias,
     Method,
     Observation,
-    PVTSolutionType,
     Solver,
     TroposphereBias, //TimeScale
 };
@@ -163,7 +162,6 @@ where
                 }
 
                 let carrier = carrier.unwrap();
-                let frequency = carrier.frequency();
                 let rtk_carrier = cast_rtk_carrier(carrier);
 
                 let mut code = Option::<Observation>::None;
@@ -235,7 +233,7 @@ where
 
                             if second_obs.is_pseudorange_observable() && rhs_carrier != carrier {
                                 codes.push(Observation {
-                                    value: data.obs,
+                                    value: second_data.obs,
                                     carrier: rtk_carrier,
                                     snr: { data.snr.map(|snr| snr.into()) },
                                 });

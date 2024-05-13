@@ -1,6 +1,5 @@
 use super::Buffer as BufferTrait;
 use crate::cli::Context;
-use hifitime::Duration;
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
@@ -233,7 +232,7 @@ impl<'a> Interpolator<'a> {
         let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
         let mut out = Option::<RTKInterpolationResult>::None;
 
-        for (index, (buf_t, buf_v)) in buf.inner.iter().enumerate() {
+        for (index, (buf_t, _)) in buf.inner.iter().enumerate() {
             if *buf_t > t {
                 break;
             }

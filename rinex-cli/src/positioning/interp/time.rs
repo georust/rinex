@@ -159,7 +159,7 @@ impl<'a> Interpolator<'a> {
             }
         }
 
-        let mut buf = self.buffers.get_mut(&sv)?;
+        let buf = self.buffers.get_mut(&sv)?;
 
         if let Some((y, _, _)) = buf.direct_output(t) {
             // No need to interpolate @ t for SV
@@ -185,7 +185,7 @@ impl<'a> Interpolator<'a> {
         }
         // Discard symbols that did not contribute (too old)
         if let Some(first_x) = first_x {
-            buf.inner.retain(|(k, v)| *k >= first_x);
+            buf.inner.retain(|(k, _)| *k >= first_x);
         }
         dt
     }
