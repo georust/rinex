@@ -203,7 +203,7 @@ pub fn main() -> Result<(), Error> {
                     lat = rad2deg(lat);
                     lon = rad2deg(lon);
                     info!(
-                        "manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
+                        "Manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
                         (x, y, z),
                         lat,
                         lon
@@ -217,7 +217,7 @@ pub fn main() -> Result<(), Error> {
                         lat = rad2deg(lat);
                         lon = rad2deg(lon);
                         info!(
-                            "position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°",
+                            "Position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
                             (x, y, z),
                             lat,
                             lon
@@ -230,7 +230,7 @@ pub fn main() -> Result<(), Error> {
                          * This is not problematic unless user is interested in
                          * advanced operations, which will most likely fail soon or later.
                          */
-                        warn!("no RX position defined");
+                        warn!("No RX position defined");
                         None
                     }
                 },
