@@ -6,7 +6,7 @@ pub fn subcommand() -> Command {
         .long_flag("graph")
         .arg_required_else_help(true)
         .about(
-            "RINEX data analysis and visualization, rendered as HTML or CSV in the workspace.",
+            "RINEX data analysis and visualization, rendered as HTML or CSV in the workspace. See -g --help.",
         )
         .long_about("Analysis and plots (in HTML).
 When Observations are present, whether they come from Observation RINEX, Meteo or DORIS RINEX,
@@ -35,7 +35,7 @@ using our toolbox as data parser and preprocessor and inject the results to thir
 OBS RINEX gives GNSS signals observations, but we also support Meteo RINEX and DORIS (special observation) RINEX.
 
 Example (1): render GNSS signals (all of them, whether it be Phase or PR) for GPS.
-Use CSV for extract as well:
+Extract as CSV at the same time:
 
 ./target/release/rinex-cli \\
     -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
@@ -68,48 +68,97 @@ In graph mode, this means we can render both in a single run.
             Arg::new("dcb")
                 .long("dcb")
                 .action(ArgAction::SetTrue)
-                .help("Plot Differential Code Bias."),
+                .help("Plot Differential Code Bias.")
+                .long_help(
+"Plot Differential Code bias of the 5 following spacecrafts
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -P G06,E13,C14,G15,E31 \\
+    -g --dcb")
         )
         .arg(
             Arg::new("mp")
                 .long("mp")
                 .action(ArgAction::SetTrue)
-                .help("Plot Code Multipath."),
+                .help("Plot Code Multipath.")
+                .long_help(
+"Plot Code Multipath bias from the 5 following spacecrafts
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -P G06,E13,C14,G15,E31 \\
+    -g --mp")
         )
         .arg(
             Arg::new("if")
                 .short('i')
                 .long("if")
                 .action(ArgAction::SetTrue)
-                .help("Plot Ionosphere Free (IF) signal combination."),
+                .help("Plot Ionosphere Free (IF) signal combination.")
+                .long_help(
+"Plot Ionosphere free signal combination, for the 5 following spacecrafts
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -P G06,E13,C14,G15,E31 \\
+    -g --if")
         )
         .arg(
             Arg::new("gf")
                 .long("gf")
                 .short('g')
                 .action(ArgAction::SetTrue)
-                .help("Plot Geometry Free (GF) signal combination."),
+                .help("Plot Geometry Free (GF) signal combination.")
+                .long_help(
+"Plot Geometry free signal combination, for the 5 following spacecrafts
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -P G06,E13,C14,G15,E31 \\
+    -g --gf")
         )
         .arg(
             Arg::new("wl")
                 .long("wl")
                 .short('w')
                 .action(ArgAction::SetTrue)
-                .help("Plot Wide Lane (WL) signal combination."),
+                .help("Plot Wide Lane (WL) signal combination.")
+                .long_help(
+"Plot Widelane signal combination, for the 5 following spacecrafts
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -P G06,E13,C14,G15,E31 \\
+    -g --wl")
         )
         .arg(
             Arg::new("nl")
                 .long("nl")
                 .short('n')
                 .action(ArgAction::SetTrue)
-                .help("Plot Narrow Lane (WL) signal combination."),
+                .help("Plot Narrow Lane (WL) signal combination.")
+                .long_help(
+"Plot Narrowlane signal combination, for the 5 following spacecrafts
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -P G06,E13,C14,G15,E31 \\
+    -g --nl")
         )
         .arg(
             Arg::new("mw")
                 .long("mw")
                 .short('m')
                 .action(ArgAction::SetTrue)
-                .help("Plot Melbourne-Wübbena (MW) signal combination."),
+                .help("Plot Melbourne-Wübbena (MW) signal combination.")
+                .long_help(
+"Plot Melbourne-Wubbena signal combination for the 5 following spacecrafts
+
+./target/release/rinex-cli \\
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -P G06,E13,C14,G15,E31 \\
+    -g --mw")
         )
         .arg(Arg::new("cs").long("cs").action(ArgAction::SetTrue).help(
             "Phase / Cycle Slip graph.

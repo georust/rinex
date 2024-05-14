@@ -7,7 +7,7 @@ pub fn subcommand() -> Command {
         .short_flag('p')
         .arg_required_else_help(false)
         .about("Precise Positioning opmode.
-Use this mode to resolve Position Velocity and Time (PVT) solutions from one GNSS context.")
+Use this mode to resolve Position Velocity and Time (PVT) solutions from one GNSS context. See -p --help.")
         .arg(Arg::new("cfg")
             .short('c')
             .long("cfg")
