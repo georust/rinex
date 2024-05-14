@@ -3,19 +3,24 @@ use crate::cli::Context;
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    AprioriPosition, Arc, Bodies, Cosm, Epoch, Frame,
-    InterpolationResult as RTKInterpolationResult, LightTimeCalc, Vector3, SV,
+    AprioriPosition, Arc, Bodies, Cosm, Duration, Epoch, Frame,
+    InterpolationResult as RTKInterpolationResult, LightTimeCalc, TimeScale, Vector3, SV,
 };
 
 use rinex::{carrier::Carrier, navigation::Ephemeris};
 
+#[derive(Debug)]
 struct Buffer {
+    // Data gap tolerance, none means no tolerance at all
+    gap_tolerance: Option<Duration>,
+    // Internal buffer
     inner: Vec<(Epoch, (f64, f64, f64))>,
 }
 
 impl BufferTrait for Buffer {
-    fn malloc(size: usize) -> Self {
+    fn malloc(gap_tolerance: Option<Duration>, size: usize) -> Self {
         Self {
+            gap_tolerance,
             inner: Vec::with_capacity(size),
         }
     }
@@ -37,6 +42,9 @@ impl BufferTrait for Buffer {
     fn len(&self) -> usize {
         self.inner.len()
     }
+    fn gap_tolerance(&self) -> Option<Duration> {
+        self.gap_tolerance
+    }
     fn feasible(&self, order: usize, t: Epoch) -> bool {
         let before_t = self.inner.iter().filter(|(k, _)| *k < t).count();
         let after_t = self.inner.iter().filter(|(k, _)| *k > t).count();
@@ -55,6 +63,8 @@ pub struct Interpolator<'a> {
     apriori: AprioriPosition,
     // Internal buffers
     buffers: HashMap<SV, Buffer>,
+    // Data gap tolerance
+    gap_tolerance: Option<Duration>,
     // Data source
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
@@ -90,6 +100,12 @@ impl<'a> Interpolator<'a> {
             apriori,
             epochs: 0,
             buffers: HashMap::with_capacity(128),
+            gap_tolerance: if ctx.data.sp3().is_some() {
+                None
+            } else {
+                // TODO: ideally we should make this Constellation dependent
+                Some(Duration::from_seconds(7800.0))
+            },
             iter: if let Some(sp3) = ctx.data.sp3() {
                 if let Some(atx) = ctx.data.antex() {
                     Box::new(
@@ -155,7 +171,7 @@ impl<'a> Interpolator<'a> {
         if let Some(buf) = self.buffers.get_mut(&sv) {
             buf.fill((t, data));
         } else {
-            let mut buf = Buffer::malloc(self.order + 1);
+            let mut buf = Buffer::malloc(self.gap_tolerance, self.order + 1);
             buf.fill((t, data));
             self.buffers.insert(sv, buf);
         }
@@ -214,7 +230,6 @@ impl<'a> Interpolator<'a> {
         }
 
         let buf = self.buffers.get_mut(&sv)?;
-        //let len_before = buf.len(); // DEBUG
         let ref_ecef = self.apriori.ecef();
 
         if let Some((x, y, z)) = buf.direct_output(t) {
@@ -240,7 +255,10 @@ impl<'a> Interpolator<'a> {
         }
 
         let (min_before, min_after) = ((self.order + 1) / 2, (self.order + 1) / 2);
-        //println!("t: {:?} | offset [{}] | snapshot {:?}", t, mid_offset, buf); //DEBUG
+        println!(
+            "t: {:?} | [{} ; {}] | buf {:?}",
+            t, min_before, min_after, buf
+        ); //DEBUG
 
         if out.is_none() {
             // needs interpolation
@@ -249,9 +267,18 @@ impl<'a> Interpolator<'a> {
                 //println!("is feasible"); //DEBUG
                 for i in 0..=self.order {
                     let mut li = 1.0_f64;
-                    let (t_i, (x_i, y_i, z_i)) = buf.inner[offset + i];
+
+                    let (mut t_i, (x_i, y_i, z_i)) = buf.inner[offset + i];
+                    if t_i.time_scale != TimeScale::GPST {
+                        t_i = Epoch::from_gpst_duration(t_i.to_gpst_duration());
+                    }
+
                     for j in 0..=self.order {
-                        let (t_j, _) = buf.inner[offset + j];
+                        let (mut t_j, _) = buf.inner[offset + j];
+                        if t_j.time_scale != TimeScale::GPST {
+                            t_j = Epoch::from_gpst_duration(t_i.to_gpst_duration());
+                        }
+
                         if j != i {
                             li *= (t - t_j).to_seconds();
                             li /= (t_i - t_j).to_seconds();

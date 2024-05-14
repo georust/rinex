@@ -9,10 +9,13 @@ struct Buffer {
 }
 
 impl BufferTrait for Buffer {
-    fn malloc(size: usize) -> Self {
+    fn malloc(_gap_tolerance: Option<Duration>, size: usize) -> Self {
         Self {
             inner: Vec::with_capacity(size),
         }
+    }
+    fn gap_tolerance(&self) -> Option<Duration> {
+        None
     }
     fn push(&mut self, x_j: (Epoch, (f64, f64, f64))) {
         self.inner.push(x_j);
@@ -98,7 +101,7 @@ impl<'a> Interpolator<'a> {
         if let Some(buf) = self.buffers.get_mut(&sv) {
             buf.push((t, data));
         } else {
-            let mut buf = Buffer::malloc(3);
+            let mut buf = Buffer::malloc(None, 3);
             buf.fill((t, data));
             self.buffers.insert(sv, buf);
         }

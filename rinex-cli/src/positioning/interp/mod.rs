@@ -10,7 +10,7 @@ use rinex::prelude::{Duration, Epoch};
 /// Both interpolators, whether it be Temporal or Position, both work on 3D values represented as f64 double precision.
 pub trait Buffer {
     /// Memory allocation
-    fn malloc(size: usize) -> Self;
+    fn malloc(gap_tolerance: Option<Duration>, size: usize) -> Self;
     /// Return current number of symbols
     fn len(&self) -> usize;
     /// Return symbol by index
@@ -23,6 +23,8 @@ pub trait Buffer {
     fn snapshot(&self) -> &[(Epoch, (f64, f64, f64))];
     /// Returns true if an interpolation of this order is feasible @ t
     fn feasible(&self, order: usize, t: Epoch) -> bool;
+    /// Returns gap tolerance (if any) expressed as [Duration]
+    fn gap_tolerance(&self) -> Option<Duration>;
     /// Returns direct output in rare cases where Interpolation is not needed.
     /// This avoids introduction extra bias in the measurement, due to the interpolation process.
     fn direct_output(&self, t: Epoch) -> Option<&(f64, f64, f64)> {
@@ -47,8 +49,8 @@ pub trait Buffer {
     fn fill(&mut self, x_j: (Epoch, (f64, f64, f64))) {
         if let Some((last, dt)) = self.last_dt() {
             if (x_j.0 - last).to_seconds().is_sign_positive() {
-                // NB Should we make gap tolerance more flexible ?
-                if (x_j.0 - last) > dt {
+                let max_dt = self.gap_tolerance().unwrap_or(dt);
+                if (x_j.0 - last) > max_dt {
                     warn!("{} - {} gap detected - buffer reset", x_j.0, x_j.0 - last);
                     self.clear();
                     self.push(x_j);
