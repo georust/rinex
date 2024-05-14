@@ -576,7 +576,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             plot_gnss_combination(
                 &combination,
                 &mut plot_ctx,
-                "Ionosphere Free combination",
+                "Geometry Free combination",
                 "Meters of delay",
             );
         }
@@ -585,7 +585,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             plot_gnss_combination(
                 &combination,
                 &mut plot_ctx,
-                "Ionosphere Free combination",
+                "Wide Lane combination",
                 "Meters of delay",
             );
         }
@@ -594,7 +594,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             plot_gnss_combination(
                 &combination,
                 &mut plot_ctx,
-                "Ionosphere Free combination",
+                "Narrow Lane combination",
                 "Meters of delay",
             );
         }
@@ -603,7 +603,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             plot_gnss_combination(
                 &combination,
                 &mut plot_ctx,
-                "Ionosphere Free combination",
+                "Melbourne Wubbena combination",
                 "Meters of delay",
             );
         }
