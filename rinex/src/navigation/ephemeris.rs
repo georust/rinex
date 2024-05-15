@@ -157,12 +157,12 @@ impl Ephemeris {
         }
     }
     /*
-     * Retrieves and express TOE as an hifitime Epoch
+     * Retrieves and express TOE as a GPST Epoch
      */
-    pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
+    pub(crate) fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
         /* toe week counter */
         let mut week = self.get_week()?;
-        if ts == TimeScale::GST {
+        if sv_ts == TimeScale::GST {
             /* Galileo vehicles stream week counter referenced to GPST.. */
             week -= 1024;
         }
@@ -171,7 +171,9 @@ impl Ephemeris {
         let secs_dur = self.get_orbit_f64("toe")?;
         let week_dur = (week * 7) as f64 * Unit::Day;
 
-        Some(Epoch::from_duration(week_dur + secs_dur * Unit::Second, ts))
+        Some(
+            Epoch::from_duration(week_dur + secs_dur * Unit::Second).to_time_scale(TimeScale::GPST),
+        )
     }
     /*
      * Parses ephemeris from given line iterator
@@ -345,30 +347,10 @@ impl Ephemeris {
      * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
      */
     pub(crate) fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
-        let mut t = t;
-
-        /*
-         * if "t" is not expressed in the correct constellation,
-         * take that into account
-         */
-        t.time_scale = sv.timescale()?;
-
-        match sv.constellation {
-            Constellation::GPS | Constellation::QZSS => {
-                t -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
-            },
-            Constellation::Galileo => {
-                t -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
-            },
-            Constellation::BeiDou => {
-                t -= Duration::from_seconds(31.0); // BDT(t=0) number of leap seconds @ the time
-            },
-            t => {
-                panic!("not really supported! {}", t);
-            }, // either not needed, or most probably not truly supported
-        }
-
-        let toe = self.toe(t.time_scale)?;
+        // we only support calculations in GPST at the moment
+        let sv_ts = sv.timescale()?;
+        let toe = self.toe_gpst(sv_ts)?;
+        let t = t.to_time_scale(TimeScale::GPST);
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
@@ -1124,9 +1106,24 @@ mod test {
             let x_err = (ecef.0 * 1000.0 - helper.ecef.0).abs();
             let y_err = (ecef.1 * 1000.0 - helper.ecef.1).abs();
             let z_err = (ecef.2 * 1000.0 - helper.ecef.2).abs();
-            assert!(x_err < 1E-6, "kepler2ecef: x_err too large: {}", x_err);
-            assert!(y_err < 1E-6, "kepler2ecef: y_err too large: {}", y_err);
-            assert!(z_err < 1E-6, "kepler2ecef: z_err too large: {}", z_err);
+            assert!(
+                x_err < 1E-6,
+                "kepler2ecef@{}: x_err too large: {}",
+                helper.epoch,
+                x_err
+            );
+            assert!(
+                y_err < 1E-6,
+                "kepler2ecef@{}: y_err too large: {}",
+                helper.epoch,
+                y_err
+            );
+            assert!(
+                z_err < 1E-6,
+                "kepler2ecef@{}: z_err too large: {}",
+                helper.epoch,
+                z_err
+            );
 
             let el_az = ephemeris.sv_elev_azim(helper.sv, helper.epoch, helper.ref_pos);
             assert!(

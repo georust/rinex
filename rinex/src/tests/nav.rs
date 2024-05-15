@@ -1462,7 +1462,7 @@ mod test {
             assert!(ts.is_some(), "timescale should be determined");
             let ts = ts.unwrap();
 
-            if let Some(toe) = ephemeris.toe(ts) {
+            if let Some(toe) = ephemeris.toe_gpst(ts) {
                 let mut expected_sv = SV::default();
                 let mut expected_toe = Epoch::default();
                 if *toc == e0 {

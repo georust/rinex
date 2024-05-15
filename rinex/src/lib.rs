@@ -2286,7 +2286,7 @@ impl Rinex {
                         },
                         _ => {
                             /* determine toe */
-                            eph.toe(ts)
+                            eph.toe_gpst(ts)
                         },
                     };
                     //TODO : this fails at this point
@@ -2342,12 +2342,8 @@ impl Rinex {
     /// ```
     pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
-            let e = match e.time_scale {
-                TimeScale::GPST => *e,
-                _ => Epoch::from_gpst_duration(e.to_gpst_duration()),
-            };
-            if let Some((x, y, z)) = ephemeris.sv_position(sv, e) {
-                Some((e, sv, (x, y, z)))
+            if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
+                Some((*e, sv, (x, y, z)))
             } else {
                 // non feasible calculations.
                 // most likely due to missing Keplerian parameters,
