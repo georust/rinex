@@ -6,7 +6,7 @@ members = [
     "qc-traits", 
     "rinex", 
     "rinex-qc", 
-    # "rinex-cli", 
+    "rinex-cli", 
     "rnx2crx", 
     "sp3",
     "sinex",
