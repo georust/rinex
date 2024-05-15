@@ -44,13 +44,7 @@ pub(crate) fn now() -> Epoch {
  * Formats given epoch to string, matching standard specifications
  */
 pub(crate) fn format(epoch: Epoch, t: Type, revision: u8) -> String {
-    // Hifitime V3 does not have a gregorian decomposition method
-    let (y, m, d, hh, mm, ss, nanos) = match epoch.time_scale {
-        TimeScale::GPST => (epoch + Duration::from_seconds(37.0)).to_gregorian_utc(),
-        TimeScale::GST => (epoch + Duration::from_seconds(19.0)).to_gregorian_utc(),
-        TimeScale::BDT => (epoch + Duration::from_seconds(19.0)).to_gregorian_utc(),
-        _ => epoch.to_gregorian_utc(),
-    };
+    let (y, m, d, hh, mm, ss, nanos) = epoch_decompose(epoch);
 
     match t {
         Type::ObservationData => {
@@ -149,9 +143,10 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                     .parse::<i32>()
                     .map_err(|_| ParsingError::YearField(item.to_string()))?;
 
-                /* old RINEX problem: YY is sometimes encoded on two digits */
+                /* old RINEX problem: YY sometimes encoded on two digits */
                 if y < 100 {
                     if y < 80 {
+                        // RINEX did not exist prior 1989
                         y += 2000;
                     } else {
                         y += 1900;
@@ -213,26 +208,30 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
 
     //println!("content \"{}\"", content); // DEBUG
     //println!("Y {} M {} D {} HH {} MM {} SS {} NS {}", y, m, d, hh, mm, ss, ns); // DEBUG
-
     match ts {
         TimeScale::UTC => {
-            // in case provided content is totally invalid,
-            // Epoch::from_gregorian may panic
+            // Catch possible Hifitime panic on bad string content
             if y == 0 {
                 return Err(ParsingError::FormatError);
             }
-
             let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns as u32);
             Ok(epoch)
         },
-        _ => {
-            // in case provided content is totally invalid,
-            // Epoch::from_string may panic
+        TimeScale::TAI => {
+            // Catch possible Hifitime panic on bad string content
             if y == 0 {
                 return Err(ParsingError::FormatError);
             }
-            let epoch = Epoch::from_str(&format!(
-                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09} {}",
+            let epoch = Epoch::from_gregorian_tai(y, m, d, hh, mm, ss, ns as u32);
+            Ok(epoch)
+        },
+        ts => {
+            // Catch possible Hifitime panic on bad string content
+            if y == 0 {
+                return Err(ParsingError::FormatError);
+            }
+            let epoch = Epoch::from_gregorian_str(&format!(
+                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06} {}",
                 y, m, d, hh, mm, ss, ns, ts
             ))?;
             Ok(epoch)
@@ -246,16 +245,36 @@ pub(crate) fn parse_utc(s: &str) -> Result<Epoch, ParsingError> {
 
 /*
  * Until Hifitime provides a decomposition method in timescale other than UTC
- * we have this tweak to decompose %Y %M %D %HH %MM %SS %NS
+ * we have this tweak to decompose %Y %M %D %HH %MM %SS and without nanoseconds
  */
 pub(crate) fn epoch_decompose(e: Epoch) -> (i32, u8, u8, u8, u8, u8, u32) {
-    let ts = e.time_scale;
-    let offset = if ts.is_gnss() {
-        37 * Unit::Second
-    } else {
-        Duration::ZERO
-    };
-    (e + offset).to_gregorian_utc()
+    let isofmt = e.to_gregorian_str(e.time_scale);
+    let mut datetime = isofmt.split('T');
+    let date = datetime.next().unwrap();
+    let mut date = date.split('-');
+
+    let time = datetime.next().unwrap();
+    let mut time_scale = time.split(' ');
+    let time = time_scale.next().unwrap();
+    let mut time = time.split(':');
+
+    let years = date.next().unwrap().parse::<i32>().unwrap();
+    let months = date.next().unwrap().parse::<u8>().unwrap();
+    let days = date.next().unwrap().parse::<u8>().unwrap();
+
+    let hours = time.next().unwrap().parse::<u8>().unwrap();
+    let mins = time.next().unwrap().parse::<u8>().unwrap();
+    let seconds = f64::from_str(time.next().unwrap()).unwrap();
+
+    (
+        years,
+        months,
+        days,
+        hours,
+        mins,
+        seconds.floor() as u8,
+        (seconds.fract() * 1E9).round() as u32,
+    )
 }
 
 #[cfg(test)]
