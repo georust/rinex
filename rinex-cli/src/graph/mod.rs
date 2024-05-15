@@ -515,6 +515,7 @@ fn gnss_combination_plot(matches: &ArgMatches) -> bool {
 /* Returns True if Navigation plot is to be generated */
 fn navigation_plot(matches: &ArgMatches) -> bool {
     matches.get_flag("skyplot")
+        || matches.get_flag("orbit")
         || matches.get_flag("orbit-residual")
         || matches.get_flag("sv-clock")
 }
