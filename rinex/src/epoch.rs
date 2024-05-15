@@ -1,13 +1,18 @@
 //! Epoch parsing helpers
 use crate::types::Type;
-use hifitime::{Duration, Epoch, TimeScale, Unit};
+use hifitime::{
+    Duration, Epoch, EpochError as HifitimeEpochError, ParsingError as HifitimeParsingError,
+    TimeScale, Unit,
+};
 use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ParsingError {
-    #[error("failed to parse utc timestamp")]
-    EpochError(#[from] hifitime::Errors),
+    #[error("failed to parse epoch")]
+    HifitimeParsingError(#[from] HifitimeParsingError),
+    #[error("epoch error")]
+    HifitimeEpochError(#[from] HifitimeEpochError),
     #[error("expecting \"yyyy mm dd hh mm ss.ssss\" format")]
     FormatError,
     #[error("failed to parse seconds + nanos")]

@@ -4,7 +4,7 @@
 extern crate gnss_rs as gnss;
 
 use gnss::prelude::{Constellation, SV};
-use hifitime::{Duration, Epoch, TimeScale};
+use hifitime::{Duration, Epoch, ParsingError as EpochParsingError, TimeScale};
 use std::collections::BTreeMap;
 
 use std::str::FromStr;
@@ -198,7 +198,7 @@ pub enum Errors {
     #[error("parsing error")]
     ParsingError(#[from] ParsingError),
     #[error("hifitime parsing error")]
-    HifitimeParsingError(#[from] hifitime::Errors),
+    HifitimeParsingError(#[from] EpochParsingError),
     #[error("constellation parsing error")]
     ConstellationParsingError(#[from] gnss::constellation::ParsingError),
     #[error("unknown or non supported revision \"{0}\"")]

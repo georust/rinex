@@ -361,9 +361,11 @@ impl Ephemeris {
                 t -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
             },
             Constellation::BeiDou => {
-                t -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
+                t -= Duration::from_seconds(31.0); // BDT(t=0) number of leap seconds @ the time
             },
-            _ => {}, // either not needed, or most probably not truly supported
+            t => {
+                panic!("not really supported! {}", t);
+            }, // either not needed, or most probably not truly supported
         }
 
         let toe = self.toe(t.time_scale)?;

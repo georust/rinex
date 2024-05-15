@@ -25,6 +25,7 @@ impl BufferTrait for Buffer {
         }
     }
     fn push(&mut self, x_j: (Epoch, (f64, f64, f64))) {
+        self.inner.retain(|k| *k != x_j);
         self.inner.push(x_j);
     }
     fn clear(&mut self) {
@@ -104,7 +105,7 @@ impl<'a> Interpolator<'a> {
                 None
             } else {
                 // TODO: ideally we should make this Constellation dependent
-                Some(Duration::from_seconds(7800.0))
+                Some(Duration::from_seconds(32000.0))
             },
             iter: if let Some(sp3) = ctx.data.sp3() {
                 if let Some(atx) = ctx.data.antex() {
@@ -152,7 +153,7 @@ impl<'a> Interpolator<'a> {
                     warn!("Expect tiny offsets in final results.");
                     Box::new(
                         sp3.sv_position()
-                            .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3))),
+                            .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3)))
                     )
                 }
             } else {
@@ -186,12 +187,10 @@ impl<'a> Interpolator<'a> {
                 if let Some(prev) = prev_t {
                     if t > prev {
                         epochs += 1;
-                        //println!("{:?} - new epoch", t); //DEBUG
                     }
                 }
                 prev_t = Some(t);
             } else {
-                //println!("consumed all data"); // DEBUG
                 return true;
             }
         }
@@ -247,59 +246,56 @@ impl<'a> Interpolator<'a> {
         let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
         let mut out = Option::<RTKInterpolationResult>::None;
 
-        for (index, (buf_t, _)) in buf.inner.iter().enumerate() {
-            if *buf_t > t {
+        for (index, (t_i, _)) in buf.inner.iter().enumerate() {
+            if *t_i > t {
                 break;
             }
             mid_offset = index;
         }
 
         let (min_before, min_after) = ((self.order + 1) / 2, (self.order + 1) / 2);
-        println!(
-            "t: {:?} | [{} ; {}] | buf {:?}",
-            t, min_before, min_after, buf
-        ); //DEBUG
+        println!("t: {:?} | [{} ; {}] | {:?}", t, min_before, min_after, buf); //DEBUG
 
-        if out.is_none() {
-            // needs interpolation
-            if mid_offset >= min_before && buf.len() - mid_offset >= min_after {
-                let offset = mid_offset - (self.order + 1) / 2;
-                //println!("is feasible"); //DEBUG
-                for i in 0..=self.order {
-                    let mut li = 1.0_f64;
+        if mid_offset >= min_before && buf.len() - mid_offset >= min_after {
+            let offset = mid_offset - (self.order + 1) / 2;
+            //println!("is feasible"); //DEBUG
+            for i in 0..=self.order {
+                let mut li = 1.0_f64;
 
-                    let (mut t_i, (x_i, y_i, z_i)) = buf.inner[offset + i];
-                    if t_i.time_scale != TimeScale::GPST {
-                        t_i = Epoch::from_gpst_duration(t_i.to_gpst_duration());
-                    }
-
-                    for j in 0..=self.order {
-                        let (mut t_j, _) = buf.inner[offset + j];
-                        if t_j.time_scale != TimeScale::GPST {
-                            t_j = Epoch::from_gpst_duration(t_i.to_gpst_duration());
-                        }
-
-                        if j != i {
-                            li *= (t - t_j).to_seconds();
-                            li /= (t_i - t_j).to_seconds();
-                        }
-                    }
-                    polynomials.0 += x_i * li;
-                    polynomials.1 += y_i * li;
-                    polynomials.2 += z_i * li;
+                let (mut t_i, (x_i, y_i, z_i)) = buf.inner[offset + i];
+                println!("x_i {} y_i {} z_i {}", x_i, y_i, z_i);
+                if t_i.time_scale != TimeScale::GPST {
+                    t_i = Epoch::from_gpst_duration(t_i.to_gpst_duration());
                 }
 
-                let el_az = Ephemeris::elevation_azimuth(
-                    polynomials,
-                    (ref_ecef[0], ref_ecef[1], ref_ecef[2]),
-                );
-                out = Some(
-                    RTKInterpolationResult::from_apc_position(polynomials)
-                        .with_elevation_azimuth(el_az),
-                );
-                //} else {
-                //    println!("not feasible"); //DEBUG
+                for j in 0..=self.order {
+                    let (mut t_j, _) = buf.inner[offset + j];
+                    if t_j.time_scale != TimeScale::GPST {
+                        t_j = Epoch::from_gpst_duration(t_j.to_gpst_duration());
+                    }
+
+                    if j != i {
+                        li *= (t - t_j).to_seconds();
+                        li /= (t_i - t_j).to_seconds();
+                        println!(
+                            "t -t_i: {} | t_i - t_j: {}",
+                            (t - t_j).to_seconds(),
+                            (t_i - t_j).to_seconds()
+                        );
+                    }
+                }
+                polynomials.0 += x_i * li;
+                polynomials.1 += y_i * li;
+                polynomials.2 += z_i * li;
+                println!("polynomials: {:?} | l_i: {}", polynomials, li);
             }
+
+            let el_az =
+                Ephemeris::elevation_azimuth(polynomials, (ref_ecef[0], ref_ecef[1], ref_ecef[2]));
+            out = Some(
+                RTKInterpolationResult::from_apc_position(polynomials)
+                    .with_elevation_azimuth(el_az),
+            );
         }
 
         if out.is_some() {
@@ -307,10 +303,10 @@ impl<'a> Interpolator<'a> {
             // len_before = buf.len(); // DEBUG
             let index_min = mid_offset - (self.order + 1) / 2 - 2;
             let mut index = 0;
-            buf.inner.retain(|_| {
-                index += 1;
-                index > index_min
-            });
+            // buf.inner.retain(|_| {
+            //     index += 1;
+            //     index > index_min
+            // });
 
             //let len_after = buf.len(); // DEBUG
             //if len_after != len_before { // DEBUG
@@ -328,7 +324,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn buffer_gap() {
-        let mut buffer = Buffer::malloc(4);
+        let mut buffer = Buffer::malloc(None, 4);
         for (t, value) in [
             ("2020-01-01T00:00:00 UTC", 0.0_f64),
             ("2020-01-01T00:01:00 UTC", 1.0_f64),
