@@ -877,7 +877,7 @@ mod test {
         let descriptors: Vec<&str> = vec![
             r#"
 {
-  "epoch": "2020-12-31T23:59:44.000000000 UTC",
+  "epoch": "2020-12-31T23:59:44.000000000 GPST",
   "sv": {
     "prn": 7,
     "constellation": "GPS"
@@ -910,7 +910,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-01-02T00:00:00.000000000 UTC",
+  "epoch": "2021-01-02T00:00:00.000000000 GPST",
   "sv": {
     "prn": 18,
     "constellation": "GPS"
@@ -943,7 +943,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-01-02T00:00:00.000000000 UTC",
+  "epoch": "2021-01-02T00:00:00.000000000 GPST",
   "sv": {
     "prn": 30,
     "constellation": "GPS"
@@ -976,7 +976,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-12-31T22:00:00.000000000 UTC",
+  "epoch": "2021-12-31T22:00:00.000000000 GPST",
   "sv": {
     "prn": 8,
     "constellation": "GPS"
@@ -1009,7 +1009,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2022-01-01T00:00:00.000000000 UTC",
+  "epoch": "2022-01-01T00:00:00.000000000 GPST",
   "sv": {
     "prn": 32,
     "constellation": "GPS"
@@ -1042,7 +1042,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-12-30T20:00:00.000000000 UTC",
+  "epoch": "2021-12-30T20:00:00.000000000 GPST",
   "sv": {
     "prn": 11,
     "constellation": "GPS"
