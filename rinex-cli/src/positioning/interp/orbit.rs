@@ -153,7 +153,7 @@ impl<'a> Interpolator<'a> {
                     warn!("Expect tiny offsets in final results.");
                     Box::new(
                         sp3.sv_position()
-                            .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3)))
+                            .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3))),
                     )
                 }
             } else {
