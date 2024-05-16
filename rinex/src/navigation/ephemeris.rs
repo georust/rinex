@@ -172,7 +172,8 @@ impl Ephemeris {
         let week_dur = (week * 7) as f64 * Unit::Day;
 
         Some(
-            Epoch::from_duration(week_dur + secs_dur * Unit::Second).to_time_scale(TimeScale::GPST),
+            Epoch::from_duration(week_dur + secs_dur * Unit::Second, sv_ts)
+                .to_time_scale(TimeScale::GPST),
         )
     }
     /*
