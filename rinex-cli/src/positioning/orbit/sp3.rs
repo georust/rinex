@@ -223,8 +223,9 @@ impl<'a> Orbit<'a> {
         }
 
         if out.is_some() {
-            let index_min = mid_offset - (self.order + 1) / 2 - 2;
-            let mut index = 0;
+            // TODO improve memory footprint and avoid memory growth
+            //let index_min = mid_offset - (self.order + 1) / 2 - 2;
+            //let mut index = 0;
             // buf.inner.retain(|_| {
             //     index += 1;
             //     index > index_min

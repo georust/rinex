@@ -41,8 +41,8 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 # solver
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
-# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "hifitime-4", features = ["serde"] }
+gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "hifitime-4", features = ["serde"] }
 
 # cggtts
 # cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }

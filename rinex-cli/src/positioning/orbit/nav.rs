@@ -50,6 +50,7 @@ impl<'a> Orbit<'a> {
     }
     pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
         let sv_ts = sv.timescale()?;
+
         while !self.feasible(t, sv, sv_ts) {
             if let Some((sv_i, eph_i)) = self.iter.next() {
                 if let Some(dataset) = self.buffer.get_mut(&sv_i) {
@@ -62,6 +63,8 @@ impl<'a> Orbit<'a> {
                 return None;
             }
         }
+
+        let ref_ecef = self.apriori.ecef();
         let output = match self.buffer.get(&sv) {
             Some(eph) => {
                 let eph_i = eph.iter().min_by_key(|eph_i| {
@@ -69,30 +72,35 @@ impl<'a> Orbit<'a> {
                     t - toe_i
                 })?;
                 let (x_km, y_km, z_km) = eph_i.kepler2ecef(sv, t)?;
-                Some(
-                    RTKInterpolationResult::from_position((
-                        x_km * 1.0E3,
-                        y_km * 1.0E3,
-                        z_km * 1.0E3,
-                    ))
-                    .with_elevation_azimuth((0.0_f64, 0.0_f64)),
-                )
+                let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);
+                let el_az = Ephemeris::elevation_azimuth(
+                    (x, y, z),
+                    (ref_ecef[0], ref_ecef[1], ref_ecef[2]),
+                );
+                Some(RTKInterpolationResult::from_position((x, y, z)).with_elevation_azimuth(el_az))
             },
             None => None,
         };
-        // Maintain reasonnable buffer size (reduce memory footprint)
-        self.buffer.retain(|sv_i, ephemeris| {
-            if *sv_i == sv {
-                let max_dtoe = Ephemeris::max_dtoe(sv.constellation).unwrap();
-                ephemeris.retain(|eph_i| {
-                    let toe = eph_i.toe_gpst(sv_ts).unwrap();
-                    (t - toe) < max_dtoe
-                });
-                !ephemeris.is_empty()
-            } else {
-                true
-            }
-        });
+        // TODO improve memory footprint: avoid memory growth
+        //self.buffer.retain(|sv_i, ephemeris| {
+        //    if *sv_i == sv {
+        //        let max_dtoe = Ephemeris::max_dtoe(sv.constellation)
+        //            .unwrap()
+        //            .to_seconds();
+        //        ephemeris.retain(|eph_i| {
+        //            let toe = eph_i.toe_gpst(sv_ts).unwrap();
+        //            let dt = (t - toe).to_seconds();
+        //            if dt < max_dtoe {
+        //                dt > 0.0
+        //            } else {
+        //                false
+        //            }
+        //        });
+        //        !ephemeris.is_empty()
+        //    } else {
+        //        true
+        //    }
+        //});
         output
     }
 }
