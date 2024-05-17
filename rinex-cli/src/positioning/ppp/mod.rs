@@ -1,7 +1,7 @@
 //! PPP solver
 use crate::cli::Context;
 use crate::positioning::{
-    bd_model, cast_rtk_carrier, interp::TimeInterpolator, kb_model, ng_model, tropo_components,
+    bd_model, cast_rtk_carrier, kb_model, ng_model, tropo_components,
 };
 use std::collections::BTreeMap;
 

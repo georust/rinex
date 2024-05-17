@@ -11,7 +11,6 @@ use gnss::prelude::{Constellation, SV};
 use rinex::{carrier::Carrier, prelude::Observable};
 
 use super::cast_rtk_carrier;
-use super::interp::TimeInterpolator;
 
 use rtk::prelude::{
     Candidate,
@@ -101,8 +100,8 @@ where
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    let mut interp = TimeInterpolator::from_ctx(ctx);
-    debug!("Clock interpolator created");
+    //let mut interp = TimeInterpolator::from_ctx(ctx);
+    //debug!("Clock interpolator created");
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();

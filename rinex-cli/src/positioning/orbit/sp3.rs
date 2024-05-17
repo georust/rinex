@@ -1,5 +1,6 @@
-use super::Buffer as BufferTrait;
 use crate::cli::Context;
+use crate::positioning::interp::BufferTrait;
+
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
@@ -11,16 +12,12 @@ use rinex::{carrier::Carrier, navigation::Ephemeris};
 
 #[derive(Debug)]
 struct Buffer {
-    // Data gap tolerance, none means no tolerance at all
-    gap_tolerance: Option<Duration>,
-    // Internal buffer
     inner: Vec<(Epoch, (f64, f64, f64))>,
 }
 
 impl BufferTrait for Buffer {
-    fn malloc(gap_tolerance: Option<Duration>, size: usize) -> Self {
+    fn malloc(size: usize) -> Self {
         Self {
-            gap_tolerance,
             inner: Vec::with_capacity(size),
         }
     }
@@ -43,31 +40,12 @@ impl BufferTrait for Buffer {
     fn len(&self) -> usize {
         self.inner.len()
     }
-    fn gap_tolerance(&self) -> Option<Duration> {
-        self.gap_tolerance
-    }
     fn feasible(&self, order: usize, t: Epoch) -> bool {
         let before_t = self.inner.iter().filter(|(k, _)| *k < t).count();
         let after_t = self.inner.iter().filter(|(k, _)| *k > t).count();
         let size = (order + 1) / 2; // restricted to odd orders
         before_t >= size && after_t >= size
     }
-}
-
-/// Orbital state interpolator
-pub struct Interpolator<'a> {
-    // Interpolation order
-    order: usize,
-    // Total counter
-    epochs: usize,
-    // Reference position
-    apriori: AprioriPosition,
-    // Internal buffers
-    buffers: HashMap<SV, Buffer>,
-    // Data gap tolerance
-    gap_tolerance: Option<Duration>,
-    // Data source
-    iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
 /*
@@ -83,101 +61,79 @@ fn sun_unit_vector(ref_frame: &Frame, cosmic: &Arc<Cosm>, t: Epoch) -> Vector3<f
     )
 }
 
-impl<'a> Interpolator<'a> {
+pub struct Orbit<'a> {
+    buffers: HashMap<SV, Buffer>,
+    iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
+}
+
+impl<'a> Orbit<'a> {
     /*
-     * Orbit interpolator
      *  1. Prefer SP3 product
      *  2. BRDC last option
      */
-    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: AprioriPosition) -> Self {
+    pub fn from_ctx(ctx: &'a Context) -> Self {
         let cosmic = Cosm::de438();
         let earth_frame = cosmic.frame("EME2000"); // this only works on planet Earth..
-        assert!(
-            order % 2 > 0,
-            "only odd interpolation orders currently supported"
-        );
         Self {
-            order,
-            apriori,
-            epochs: 0,
             buffers: HashMap::with_capacity(128),
-            gap_tolerance: if ctx.data.sp3().is_some() {
-                None
+            iter: if let Some(atx) = ctx.data.antex() {
+                Box::new(sp3.sv_position().filter_map(move |(t, sv, (x, y, z))| {
+                    // TODO: need to complexify the whole interface
+                    //       to provide correct information with respect to frequency
+                    if let Some(delta) = atx.sv_antenna_apc_offset(t, sv, Carrier::L1) {
+                        let delta = Vector3::<f64>::new(delta.0, delta.1, delta.2);
+                        let r_sat = Vector3::<f64>::new(x * 1.0E3, y * 1.0E3, z * 1.0E3);
+                        let k = -r_sat
+                            / (r_sat[0].powi(2) + r_sat[1].powi(2) + r_sat[3].powi(2)).sqrt();
+
+                        let r_sun = sun_unit_vector(&earth_frame, &cosmic, t);
+                        let norm = ((r_sun[0] - r_sat[0]).powi(2)
+                            + (r_sun[1] - r_sat[1]).powi(2)
+                            + (r_sun[2] - r_sat[2]).powi(2))
+                        .sqrt();
+
+                        let e = (r_sun - r_sat) / norm;
+                        let j = Vector3::<f64>::new(k[0] * e[0], k[1] * e[1], k[2] * e[2]);
+                        let i = Vector3::<f64>::new(j[0] * k[0], j[1] * k[1], j[2] * k[2]);
+                        let r_dot = Vector3::<f64>::new(
+                            (i[0] + j[0] + k[0]) * delta[0],
+                            (i[1] + j[1] + k[1]) * delta[1],
+                            (i[2] + j[2] + k[2]) * delta[2],
+                        );
+
+                        let r_sat = r_sat + r_dot;
+                        Some((t, sv, (r_sat[0], r_sat[1], r_sat[1])))
+                    } else {
+                        error!("{:?} ({}) - failed to determine APC offset", t, sv);
+                        None
+                    }
+                }))
             } else {
-                // TODO: ideally we should make this Constellation dependent
-                Some(Duration::from_seconds(32000.0))
-            },
-            iter: if let Some(sp3) = ctx.data.sp3() {
-                if let Some(atx) = ctx.data.antex() {
-                    Box::new(
-                        sp3.sv_position()
-                            .filter_map(move |(t, sv, (x, y, z))| {
-                                // TODO: need to complexify the whole interface
-                                //       to provide correct information with respect to frequency
-                                if let Some(delta) = atx.sv_antenna_apc_offset(t, sv, Carrier::L1) {
-                                    let delta = Vector3::<f64>::new(delta.0, delta.1, delta.2);
-                                    let r_sat =
-                                        Vector3::<f64>::new(x * 1.0E3, y * 1.0E3, z * 1.0E3);
-                                    let k = -r_sat
-                                        / (r_sat[0].powi(2) + r_sat[1].powi(2) + r_sat[3].powi(2))
-                                            .sqrt();
-
-                                    let r_sun = sun_unit_vector(&earth_frame, &cosmic, t);
-                                    let norm = ((r_sun[0] - r_sat[0]).powi(2)
-                                        + (r_sun[1] - r_sat[1]).powi(2)
-                                        + (r_sun[2] - r_sat[2]).powi(2))
-                                    .sqrt();
-
-                                    let e = (r_sun - r_sat) / norm;
-                                    let j =
-                                        Vector3::<f64>::new(k[0] * e[0], k[1] * e[1], k[2] * e[2]);
-                                    let i =
-                                        Vector3::<f64>::new(j[0] * k[0], j[1] * k[1], j[2] * k[2]);
-                                    let r_dot = Vector3::<f64>::new(
-                                        (i[0] + j[0] + k[0]) * delta[0],
-                                        (i[1] + j[1] + k[1]) * delta[1],
-                                        (i[2] + j[2] + k[2]) * delta[2],
-                                    );
-
-                                    let r_sat = r_sat + r_dot;
-                                    Some((t, sv, (r_sat[0], r_sat[1], r_sat[1])))
-                                } else {
-                                    error!("{:?} ({}) - failed to determine APC offset", t, sv);
-                                    None
-                                }
-                            })
-                            .peekable(),
-                    )
-                } else {
-                    warn!("Cannot determine exact APC coordinates without ANTEX data.");
-                    warn!("Expect tiny offsets in final results.");
-                    Box::new(
-                        sp3.sv_position()
-                            .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3))),
-                    )
-                }
-            } else {
-                let brdc = ctx
-                    .data
-                    .brdc_navigation()
-                    .expect("BRDC navigation required");
+                warn!("Cannot determine exact APC coordinates without ANTEX data.");
+                warn!("Expect tiny offsets in final results.");
                 Box::new(
-                    brdc.sv_position()
+                    sp3.sv_position()
                         .map(|(t, sv, (x, y, z))| (t, sv, (x * 1.0E3, y * 1.0E3, z * 1.0E3))),
                 )
             },
+        }
+    }
+    fn is_feasible(&self, t: Epoch, sv: SV) -> bool {
+        if let Some(buf) = self.buffers.get(&sv) {
+            buf.feasible(self.order, t)
+        } else {
+            false
         }
     }
     fn push(&mut self, t: Epoch, sv: SV, data: (f64, f64, f64)) {
         if let Some(buf) = self.buffers.get_mut(&sv) {
             buf.fill((t, data));
         } else {
-            let mut buf = Buffer::malloc(self.gap_tolerance, self.order + 1);
+            let mut buf = Buffer::malloc(self.order + 1);
             buf.fill((t, data));
             self.buffers.insert(sv, buf);
         }
     }
-    // Consumes N epochs completely
     fn consume(&mut self, total: usize) -> bool {
         let mut prev_t = None;
         let mut epochs = 0;
@@ -197,28 +153,6 @@ impl<'a> Interpolator<'a> {
         self.epochs += epochs;
         false
     }
-    // fn latest(&self, sv: SV) -> Option<&Epoch> {
-    //     self.buffers
-    //         .iter()
-    //         .filter_map(|(k, v)| {
-    //             if *k == sv {
-    //                 let last = v.inner.iter().map(|(e, _)| e).last()?;
-    //                 Some(last)
-    //             } else {
-    //                 None
-    //             }
-    //         })
-    //         .reduce(|k, _| k)
-    // }
-    // Returns true if interpolation is feasible @ t for SV
-    fn is_feasible(&self, t: Epoch, sv: SV) -> bool {
-        if let Some(buf) = self.buffers.get(&sv) {
-            buf.feasible(self.order, t)
-        } else {
-            false
-        }
-    }
-    // Orbit interpolation @ t for SV
     pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
         // Maintain buffer up to date, consume data if need be
         while !self.is_feasible(t, sv) {
@@ -324,7 +258,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn buffer_gap() {
-        let mut buffer = Buffer::malloc(None, 4);
+        let mut buffer = Buffer::malloc(4);
         for (t, value) in [
             ("2020-01-01T00:00:00 UTC", 0.0_f64),
             ("2020-01-01T00:01:00 UTC", 1.0_f64),

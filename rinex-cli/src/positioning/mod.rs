@@ -23,6 +23,8 @@ use rtk::prelude::{
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 use thiserror::Error;
 
+mod orbit;
+
 mod interp;
 use interp::OrbitInterpolator;
 
