@@ -172,8 +172,7 @@ impl<'a> Orbit<'a> {
             let el_az =
                 Ephemeris::elevation_azimuth((*x, *y, *z), (ref_ecef[0], ref_ecef[1], ref_ecef[2]));
             return Some(
-                RTKInterpolationResult::from_apc_position((*x, *y, *z))
-                    .with_elevation_azimuth(el_az),
+                RTKInterpolationResult::from_position((*x, *y, *z)).with_elevation_azimuth(el_az),
             );
         }
 
@@ -189,16 +188,13 @@ impl<'a> Orbit<'a> {
         }
 
         let (min_before, min_after) = ((self.order + 1) / 2, (self.order + 1) / 2);
-        println!("t: {:?} | [{} ; {}] | {:?}", t, min_before, min_after, buf); //DEBUG
 
         if mid_offset >= min_before && buf.len() - mid_offset >= min_after {
             let offset = mid_offset - (self.order + 1) / 2;
-            //println!("is feasible"); //DEBUG
             for i in 0..=self.order {
                 let mut li = 1.0_f64;
 
                 let (mut t_i, (x_i, y_i, z_i)) = buf.inner[offset + i];
-                println!("x_i {} y_i {} z_i {}", x_i, y_i, z_i);
                 if t_i.time_scale != TimeScale::GPST {
                     t_i = Epoch::from_gpst_duration(t_i.to_gpst_duration());
                 }
@@ -212,41 +208,27 @@ impl<'a> Orbit<'a> {
                     if j != i {
                         li *= (t - t_j).to_seconds();
                         li /= (t_i - t_j).to_seconds();
-                        println!(
-                            "t -t_i: {} | t_i - t_j: {}",
-                            (t - t_j).to_seconds(),
-                            (t_i - t_j).to_seconds()
-                        );
                     }
                 }
                 polynomials.0 += x_i * li;
                 polynomials.1 += y_i * li;
                 polynomials.2 += z_i * li;
-                println!("polynomials: {:?} | l_i: {}", polynomials, li);
             }
 
             let el_az =
                 Ephemeris::elevation_azimuth(polynomials, (ref_ecef[0], ref_ecef[1], ref_ecef[2]));
             out = Some(
-                RTKInterpolationResult::from_apc_position(polynomials)
-                    .with_elevation_azimuth(el_az),
+                RTKInterpolationResult::from_position(polynomials).with_elevation_azimuth(el_az),
             );
         }
 
         if out.is_some() {
-            // management: discard old samples
-            // len_before = buf.len(); // DEBUG
             let index_min = mid_offset - (self.order + 1) / 2 - 2;
             let mut index = 0;
             // buf.inner.retain(|_| {
             //     index += 1;
             //     index > index_min
             // });
-
-            //let len_after = buf.len(); // DEBUG
-            //if len_after != len_before { // DEBUG
-            //    println!("{:?} - purge: t_min {:?} - snapshot {:?}", t, t_min, buf); //DEBUG
-            //}
         }
         out
     }

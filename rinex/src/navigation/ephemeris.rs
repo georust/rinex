@@ -159,7 +159,7 @@ impl Ephemeris {
     /*
      * Retrieves and express TOE as a GPST Epoch
      */
-    pub(crate) fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
+    pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
         /* toe week counter */
         let mut week = self.get_week()?;
         if sv_ts == TimeScale::GST {
@@ -340,14 +340,11 @@ impl Ephemeris {
         s.set_orbit_f64("omegaDot", perturbations.omega_dot);
         s
     }
-    /*
-     * Kepler equation solver at desired instant "t" for given "sv"
-     * based off Self. Self must be correctly selected in navigation
-     * record.
-     * "t" does not have to expressed in correct timescale prior this calculation
-     * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
-     */
-    pub(crate) fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
+    /// Resolves Kepler Equations from broadcasted parameters
+    /// and obtains SV position at desired `t`.
+    /// Position expressed in [km] ECEF.
+    /// [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
+    pub fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         // we only support calculations in GPST at the moment
         let sv_ts = sv.timescale()?;
         let toe = self.toe_gpst(sv_ts)?;
@@ -469,11 +466,8 @@ impl Ephemeris {
             reference.to_ecef_wgs84(),
         ))
     }
-    /*
-     * Returns max time difference between an Epoch and
-     * related Time of Issue of Ephemeris, for each constellation.
-     */
-    pub(crate) fn max_dtoe(c: Constellation) -> Option<Duration> {
+    /// Returns Ephemeris validity duration for this Constellation
+    pub fn max_dtoe(c: Constellation) -> Option<Duration> {
         match c {
             Constellation::GPS | Constellation::QZSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Galileo => Some(Duration::from_seconds(10800.0)),

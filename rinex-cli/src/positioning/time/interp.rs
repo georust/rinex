@@ -69,7 +69,6 @@ impl<'a> Interpolator<'a> {
             self.buffers.insert(sv, buf);
         }
     }
-    // consumes N epochs completely
     fn consume(&mut self, total: usize) -> bool {
         let mut prev_t = None;
         let mut epochs = 0;
@@ -91,19 +90,6 @@ impl<'a> Interpolator<'a> {
         self.epochs += epochs;
         false
     }
-    // fn latest(&self, sv: SV) -> Option<&Epoch> {
-    //     self.buffers
-    //         .iter()
-    //         .filter_map(|(k, v)| {
-    //             if *k == sv {
-    //                 let last = v.inner.iter().map(|(e, _)| e).last()?;
-    //                 Some(last)
-    //             } else {
-    //                 None
-    //             }
-    //         })
-    //         .reduce(|k, _| k)
-    // }
     // Returns true if interpolation is feasible @ t for SV
     fn is_feasible(&self, t: Epoch, sv: SV) -> bool {
         if let Some(buf) = self.buffers.get(&sv) {
