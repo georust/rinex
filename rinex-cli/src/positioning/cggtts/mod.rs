@@ -10,8 +10,6 @@ use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, prelude::Observable};
 
-use super::cast_rtk_carrier;
-
 use rtk::prelude::{
     Candidate,
     Duration,
@@ -29,9 +27,12 @@ use cggtts::{
     track::{FitData, GlonassChannel, SVTracker, Scheduler},
 };
 
-use crate::cli::Context;
-use crate::positioning::{
-    bd_model, kb_model, ng_model, tropo_components, Error as PositioningError,
+use crate::{
+    cli::Context,
+    positioning::{
+        bd_model, cast_rtk_carrier, kb_model, ng_model, tropo_components,
+        Error as PositioningError, Time,
+    },
 };
 
 // fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
@@ -100,8 +101,7 @@ where
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    //let mut interp = TimeInterpolator::from_ctx(ctx);
-    //debug!("Clock interpolator created");
+    let mut time = Time::from_ctx(ctx);
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
@@ -133,7 +133,7 @@ where
 
             // determine TOE
             let (_toe, sv_eph) = sv_eph.unwrap();
-            let clock_corr = match interp.next_at(*t, *sv) {
+            let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
                     error!("{:?} ({}) - failed to determine clock correction", *t, *sv);

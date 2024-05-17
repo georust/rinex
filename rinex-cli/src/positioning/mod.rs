@@ -24,9 +24,13 @@ use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 use thiserror::Error;
 
 mod orbit;
+pub use orbit::Orbit;
+
+mod time;
+pub use time::Time;
 
 mod interp;
-use interp::OrbitInterpolator;
+pub use interp::Buffer as BufferTrait;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -247,11 +251,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         }
     }
 
-    let orbit = RefCell::new(OrbitInterpolator::from_ctx(
-        ctx,
-        cfg.interp_order,
-        apriori.clone(),
-    ));
+    let orbit = RefCell::new(Orbit::from_ctx(ctx, cfg.interp_order, apriori.clone()));
     debug!("Orbit interpolator created");
 
     // print config to be used

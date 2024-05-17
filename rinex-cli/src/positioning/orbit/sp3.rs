@@ -1,6 +1,4 @@
-use crate::cli::Context;
-use crate::positioning::interp::BufferTrait;
-
+use crate::{cli::Context, positioning::BufferTrait};
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
@@ -15,7 +13,7 @@ struct Buffer {
     inner: Vec<(Epoch, (f64, f64, f64))>,
 }
 
-impl BufferTrait for Buffer {
+impl BufferTrait<(f64, f64, f64)> for Buffer {
     fn malloc(size: usize) -> Self {
         Self {
             inner: Vec::with_capacity(size),
@@ -62,19 +60,22 @@ fn sun_unit_vector(ref_frame: &Frame, cosmic: &Arc<Cosm>, t: Epoch) -> Vector3<f
 }
 
 pub struct Orbit<'a> {
+    epochs: usize,
+    order: usize,
+    apriori: AprioriPosition,
     buffers: HashMap<SV, Buffer>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
 impl<'a> Orbit<'a> {
-    /*
-     *  1. Prefer SP3 product
-     *  2. BRDC last option
-     */
-    pub fn from_ctx(ctx: &'a Context) -> Self {
+    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: AprioriPosition) -> Self {
         let cosmic = Cosm::de438();
+        let sp3 = ctx.data.sp3().unwrap();
         let earth_frame = cosmic.frame("EME2000"); // this only works on planet Earth..
         Self {
+            order,
+            apriori,
+            epochs: 0,
             buffers: HashMap::with_capacity(128),
             iter: if let Some(atx) = ctx.data.antex() {
                 Box::new(sp3.sv_position().filter_map(move |(t, sv, (x, y, z))| {

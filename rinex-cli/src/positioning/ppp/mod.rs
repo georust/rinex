@@ -1,7 +1,7 @@
 //! PPP solver
-use crate::cli::Context;
-use crate::positioning::{
-    bd_model, cast_rtk_carrier, kb_model, ng_model, tropo_components,
+use crate::{
+    cli::Context,
+    positioning::{bd_model, cast_rtk_carrier, kb_model, ng_model, tropo_components, Time},
 };
 use std::collections::BTreeMap;
 
@@ -45,8 +45,7 @@ where
         }
     }
 
-    let mut interp = TimeInterpolator::from_ctx(ctx);
-    debug!("Clock interpolator created");
+    let mut time = Time::from_ctx(ctx);
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -73,7 +72,7 @@ where
 
             // determine TOE
             let (_toe, sv_eph) = sv_eph.unwrap();
-            let clock_corr = match interp.next_at(*t, *sv) {
+            let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
                     error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
