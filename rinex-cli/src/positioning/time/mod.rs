@@ -27,11 +27,11 @@ impl<'a> Time<'a> {
             );
             Self::Interp(Interpolator::from_iter(iter))
         } else {
-            //if ctx.data.sp3_has_clock() {
-            //    let sp3 = ctx.data.sp3().unwrap();
-            //    let iter = sp3.sv_clock();
-            //    Self::Interp(Interpolator::from_iter(iter))
-            //} else {
+            if ctx.data.sp3_has_clock() {
+                let sp3 = ctx.data.sp3().unwrap();
+                let iter = sp3.sv_clock();
+                Self::Interp(Interpolator::from_iter(iter))
+            } else {
             // TODO
             // let brdc = ctx.data.brdc_navigation().unwrap(); // infaillible
             // Box::new(brdc.sv_clock())
@@ -40,8 +40,8 @@ impl<'a> Time<'a> {
             //    dt -= a0 + a1 * dt+ a2 * dt^2
             // return a0 + a1 * dt + a2 * dt
             // let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            panic!("not supported yet");
-            //}
+                panic!("not supported yet");
+            }
         }
     }
     pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<Duration> {
