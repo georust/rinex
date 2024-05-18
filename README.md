@@ -20,19 +20,18 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 
 - Fast
   - Parse and render reports in a few seconds 
-  - Perform precise Geodetic surveys in a few seconds, with our PVT solver
+  - Perform precise Geodetic surveys in a few seconds
 - Open sources
   - Read and access all the code
   - All examples based on Open data 
-- Efficient seamless compression / decompression
-  - Hatanaka (OBS_RINEX) and Gzip are built in
+- All modern GNSS constellations, codes and signals
+- Time scales: GPST, QZSST, BDT, GST, UTC
+- Efficient seamless compression and decompression
 - RINEX V4 full support
 - All RINEX formats supported (see following table)
 - High Precision Clock RINEX products
 - High Precision Orbital (SP3) products [SP3](https://docs.rs/sp3/1.0.7/sp3/)
-- DORIS (special RINEX) by ESA
-- All modern GNSS constellations, codes and signals
-- Time scales: GPST, BDT, GST, UTC
+- DORIS (special RINEX)
 - Several pre-processing algorithms:
   - [File merging](https://github.com/georust/rinex/wiki/file-merging)
   - [Time binning](https://github.com/georust/rinex/wiki/time-binning)
@@ -45,11 +44,8 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 
 ## Disadvantages :warning:
 
-- QZSST is not supported until next release
-- PPP is work in progress
-- Navigation is only available in Galileo and GPS mode.  
-QZSST comes next.   
-BDS and IRNSS will either come at the same time or shortly after.
+- Navigation is currently not feasible with Glonass and IRNSS
+- Differential navigation (SBAS, DGNSS or RTK) not support yet
 - Our applications do not accept BINEX or other proprietary formats
 - File production might lack some features, mostly because we're currently focused on data processing
 
