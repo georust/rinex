@@ -20,7 +20,7 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 
 - Fast
   - Parse and render reports in a few seconds 
-  - Resolve PVT solutions as well
+  - Perform precise Geodetic surveys in a few seconds, with our PVT solver
 - Open sources
   - Read and access all the code
   - All examples based on Open data 
