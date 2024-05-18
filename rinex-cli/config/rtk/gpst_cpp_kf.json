@@ -1,5 +1,5 @@
 {
-    "method": "CodePPP",
+    "method": "CPP",
     "timescale": "GPST",
     "interp_order": 17,
     "min_sv_elev": 5.0,

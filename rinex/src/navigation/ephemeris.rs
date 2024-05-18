@@ -352,7 +352,12 @@ impl Ephemeris {
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
-        let t_k = (t - toe).to_seconds();
+        let mut t_k = (t - toe).to_seconds();
+        if t_k > 302400.0 {
+            t_k -= 604800.0;
+        } else if t_k < -302400.0 {
+            t_k += 604800.0;
+        }
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
         let n = n0 + perturbations.dn;

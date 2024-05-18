@@ -176,8 +176,8 @@ where
 
                     // attach one phase, if need be
                     match solver.cfg.method {
-                        Method::SPP => {},     // nothing to do
-                        Method::CodePPP => {}, // nothing to do
+                        Method::SPP => {}, // nothing to do
+                        Method::CPP => {}, // nothing to do
                         Method::PPP => {
                             // try to attach phase data
                             // let to_match =
@@ -219,7 +219,7 @@ where
                 // complete if need be
                 match solver.cfg.method {
                     Method::SPP => {}, // nothing to do
-                    Method::CodePPP => {
+                    Method::CPP => {
                         // Attach secondary PR
                         for (second_obs, second_data) in observations {
                             let rhs_carrier =
