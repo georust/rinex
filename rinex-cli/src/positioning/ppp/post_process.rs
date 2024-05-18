@@ -11,7 +11,6 @@ use crate::{
 };
 use clap::ArgMatches;
 
-use itertools::Itertools;
 use thiserror::Error;
 
 use hifitime::Epoch;
@@ -30,9 +29,7 @@ use geo_types::Point as GeoPoint;
 
 use plotly::{
     color::NamedColor,
-    common::{
-        ColorScale, ColorScalePalette, Gradient, GradientType, Marker, MarkerSymbol, Mode, Visible,
-    },
+    common::{Marker, MarkerSymbol, Mode, Visible},
     layout::MapboxStyle,
     ScatterMapbox,
 };
@@ -57,35 +54,19 @@ pub fn post_process(
     // create a dedicated plot context
     let mut plot_ctx = PlotContext::new();
 
-    let (x, y, z) = ctx.rx_ecef.unwrap();
-
-    let (lat_rad, lon_rad, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-    let lat_ddeg = rad2deg(lat_rad);
-    let lon_ddeg = rad2deg(lon_rad);
-
-    let nb_solutions = results.len();
-    let epochs = results.keys().copied().collect::<Vec<Epoch>>();
-
-    // Convert solutions to geodetic DDEG
-    let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
-    for result in results.values() {
-        let px = x + result.position.x;
-        let py = y + result.position.y;
-        let pz = z + result.position.z;
-        let (lat_ddeg, lon_ddeg, _) = ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
-        lat.push(rad2deg(lat_ddeg));
-        lon.push(rad2deg(lon_ddeg));
-    }
+    let (x0, y0, z0) = ctx.rx_ecef.unwrap();
+    let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
+    let (lat0_ddeg, lon0_ddeg) = (rad2deg(lat0_rad), rad2deg(lon0_rad));
 
     plot_ctx.add_world_map(
         "PVT solutions",
         true, // show legend
         MapboxStyle::OpenStreetMap,
-        (lat_ddeg, lon_ddeg), //center
-        18,                   // zoom in
+        (lat0_ddeg, lon0_ddeg), //center
+        18,                     // zoom in
     );
 
-    let ref_scatter = ScatterMapbox::new(vec![lat_ddeg], vec![lon_ddeg])
+    let apriori_scatter = ScatterMapbox::new(vec![lat0_ddeg], vec![lon0_ddeg])
         .marker(
             Marker::new()
                 .size(5)
@@ -93,18 +74,34 @@ pub fn post_process(
                 .color(NamedColor::Red),
         )
         .name("Apriori");
-    plot_ctx.add_trace(ref_scatter);
+    plot_ctx.add_trace(apriori_scatter);
+
+    let nb_solutions = results.len();
+    let epochs = results.keys().copied().collect::<Vec<Epoch>>();
+
+    // Convert solutions to geodetic DDEG
+    let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
+    for result in results.values() {
+        let (lat_rad, lon_rad, _) = ecef2geodetic(
+            result.position.x,
+            result.position.y,
+            result.position.z,
+            Ellipsoid::WGS84,
+        );
+        lat.push(rad2deg(lat_rad));
+        lon.push(rad2deg(lon_rad));
+    }
 
     // PVT Scatter Mapbox, form a linear Alpha/Opacity Gradient
     // to emphasize the filter progression towards final solution
     let mut prev_pct = 0;
     for (index, (t_i, sol_i)) in results.iter().enumerate() {
-        let (px, py, pz) = (
-            x + sol_i.position.x,
-            y + sol_i.position.y,
-            z + sol_i.position.z,
+        let (lat_rad, lon_rad, _) = ecef2geodetic(
+            sol_i.position.x,
+            sol_i.position.y,
+            sol_i.position.z,
+            Ellipsoid::WGS84,
         );
-        let (lat_rad, lon_rad, _) = ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
         let (lat_ddeg, lon_ddeg) = (rad2deg(lat_rad), rad2deg(lon_rad));
 
         let pct = index * 100 / nb_solutions;
@@ -133,9 +130,18 @@ pub fn post_process(
         "error",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|e| e.position.x).collect::<Vec<f64>>(),
-        results.values().map(|e| e.position.y).collect::<Vec<f64>>(),
-        results.values().map(|e| e.position.z).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|e| e.position.x - x0)
+            .collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|e| e.position.y - y0)
+            .collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|e| e.position.z - z0)
+            .collect::<Vec<f64>>(),
     );
 
     plot_ctx.add_cartesian3d_plot(
@@ -168,7 +174,10 @@ pub fn post_process(
         "x err",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.position.x).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|pvt| pvt.position.x - x0)
+            .collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -176,7 +185,10 @@ pub fn post_process(
         "y err",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.position.y).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|pvt| pvt.position.y - y0)
+            .collect::<Vec<f64>>(),
     )
     .y_axis("y2");
     plot_ctx.add_trace(trace);
@@ -189,7 +201,10 @@ pub fn post_process(
         "z err",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.position.z).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|pvt| pvt.position.z - z0)
+            .collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -205,7 +220,10 @@ pub fn post_process(
         "velocity (x)",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.velocity.x).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|pvt| pvt.velocity.x)
+            .collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -213,7 +231,10 @@ pub fn post_process(
         "velocity (y)",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.velocity.y).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|pvt| pvt.velocity.y)
+            .collect::<Vec<f64>>(),
     )
     .y_axis("y2");
     plot_ctx.add_trace(trace);
@@ -223,7 +244,10 @@ pub fn post_process(
         "velocity (z)",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|p| p.velocity.z).collect::<Vec<f64>>(),
+        results
+            .values()
+            .map(|pvt| pvt.velocity.z)
+            .collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -232,7 +256,7 @@ pub fn post_process(
         "gdop",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|e| e.gdop).collect::<Vec<f64>>(),
+        results.values().map(|pvt| pvt.gdop).collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
 
@@ -243,7 +267,7 @@ pub fn post_process(
         epochs.clone(),
         results
             .values()
-            .map(|e| e.hdop(lat_ddeg, lon_ddeg))
+            .map(|pvt| pvt.hdop(lat0_rad, lon0_rad))
             .collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
@@ -254,7 +278,7 @@ pub fn post_process(
         epochs.clone(),
         results
             .values()
-            .map(|e| e.vdop(lat_ddeg, lon_ddeg))
+            .map(|pvt| pvt.vdop(lat0_rad, lon0_rad))
             .collect::<Vec<f64>>(),
     )
     .y_axis("y2");
@@ -267,7 +291,7 @@ pub fn post_process(
         epochs.clone(),
         results
             .values()
-            .map(|e| e.dt.to_seconds())
+            .map(|pvt| pvt.dt.to_seconds())
             .collect::<Vec<f64>>(),
     );
     plot_ctx.add_trace(trace);
@@ -276,7 +300,7 @@ pub fn post_process(
         "tdop",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|e| e.tdop).collect::<Vec<f64>>(),
+        results.values().map(|pvt| pvt.tdop).collect::<Vec<f64>>(),
     )
     .y_axis("y2");
     plot_ctx.add_trace(trace);
@@ -300,31 +324,29 @@ pub fn post_process(
 
     writeln!(
         fd,
-        "Epoch, dx, dy, dz, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rcvr_clock_bias, tdop"
+        "Epoch, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rcvr_clock_bias, tdop"
     )?;
 
     for (epoch, solution) in results {
-        let (px, py, pz) = (
-            x + solution.position.x,
-            y + solution.position.y,
-            z + solution.position.z,
+        let (lat_rad, lon_rad, alt) = ecef2geodetic(
+            solution.position.x,
+            solution.position.y,
+            solution.position.z,
+            Ellipsoid::WGS84,
         );
-        let (lat, lon, alt) = map_3d::ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
+        let (lat_ddeg, lon_ddeg) = (rad2deg(lat_rad), rad2deg(lon_rad));
         let (hdop, vdop, tdop) = (
-            solution.hdop(lat_ddeg, lon_ddeg),
-            solution.vdop(lat_ddeg, lon_ddeg),
+            solution.hdop(lat_rad, lon_rad),
+            solution.vdop(lat_rad, lon_rad),
             solution.tdop,
         );
         writeln!(
             fd,
-            "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
+            "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
             epoch,
             solution.position.x,
             solution.position.y,
             solution.position.z,
-            px,
-            py,
-            pz,
             solution.velocity.x,
             solution.velocity.y,
             solution.velocity.z,
@@ -335,14 +357,14 @@ pub fn post_process(
         )?;
         if matches.get_flag("gpx") {
             let mut segment = gpx::TrackSegment::new();
-            let mut wp = Waypoint::new(GeoPoint::new(rad2deg(lon), rad2deg(lat))); // Yes, longitude *then* latitude
+            let mut wp = Waypoint::new(GeoPoint::new(lon_ddeg, lat_ddeg)); // Yes, longitude *then* latitude
             wp.elevation = Some(alt);
-            wp.speed = None; // TODO ?
+            wp.speed = None; // TODO
             wp.time = None; // TODO Gpx::Time
             wp.name = Some(format!("{:?}", epoch));
             wp.hdop = Some(hdop);
             wp.vdop = Some(vdop);
-            wp.sat = None; //TODO: nb of contributing satellites
+            wp.sat = None; //TODO: nb of satellites
             wp.dgps_age = None; //TODO: Number of seconds since last DGPS update, from the element.
             wp.dgpsid = None; //TODO: ID of DGPS station used in differential correction, in the range [0, 1023].
             segment.points.push(wp);
@@ -356,8 +378,8 @@ pub fn post_process(
                     Some(KmlGeometry::Point(KmlPoint {
                         coord: {
                             KmlCoord {
-                                x: rad2deg(lat),
-                                y: rad2deg(lon),
+                                x: lat_ddeg,
+                                y: lon_ddeg,
                                 z: Some(alt),
                             }
                         },
@@ -400,7 +422,7 @@ pub fn post_process(
         let kmldoc = KmlDocument {
             version: KmlVersion::V23,
             attrs: [(
-                String::from("rtk-version"),
+                String::from("https://georust.org/"),
                 env!("CARGO_PKG_VERSION").to_string(),
             )]
             .into_iter()

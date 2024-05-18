@@ -156,13 +156,9 @@ impl Ephemeris {
             },
         }
     }
-    /*
-     * Retrieves and express TOE as a GPST Epoch
-     */
+    /// Retrieve and express Time of Ephemeris as a GPST Epoch
     pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
-        /* toe week counter */
-        let mut week = self.get_week()?;
-
+        let mut week = self.get_week()?; // week counter
         match sv_ts {
             TimeScale::GST => {
                 /* Galileo vehicles stream week counter referenced to GPST.. */
@@ -481,7 +477,7 @@ impl Ephemeris {
             Constellation::GPS | Constellation::QZSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Galileo => Some(Duration::from_seconds(10800.0)),
             Constellation::BeiDou => Some(Duration::from_seconds(21600.0)),
-            Constellation::IRNSS => Some(Duration::from_seconds(86400.0)),
+            Constellation::IRNSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
             c => {
                 if c.is_sbas() {

@@ -1,5 +1,5 @@
 use crate::cli::Context;
-use gnss_rtk::prelude::{AprioriPosition, Epoch, InterpolationResult, SV};
+use gnss_rtk::prelude::{Epoch, InterpolationResult, Position, SV};
 
 mod sp3;
 use sp3::Orbit as SP3Orbit;
@@ -13,7 +13,7 @@ pub enum Orbit<'a> {
 }
 
 impl<'a> Orbit<'a> {
-    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: AprioriPosition) -> Self {
+    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: Position) -> Self {
         if ctx.data.has_sp3() {
             Self::SP3(SP3Orbit::from_ctx(ctx, order, apriori))
         } else {

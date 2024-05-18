@@ -2,8 +2,8 @@ use crate::{cli::Context, positioning::BufferTrait};
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    AprioriPosition, Arc, Bodies, Cosm, Epoch, Frame,
-    InterpolationResult as RTKInterpolationResult, LightTimeCalc, TimeScale, Vector3, SV,
+    Arc, Bodies, Cosm, Epoch, Frame, InterpolationResult as RTKInterpolationResult, LightTimeCalc,
+    Position, TimeScale, Vector3, SV,
 };
 
 use rinex::{carrier::Carrier, navigation::Ephemeris};
@@ -62,13 +62,13 @@ fn sun_unit_vector(ref_frame: &Frame, cosmic: &Arc<Cosm>, t: Epoch) -> Vector3<f
 pub struct Orbit<'a> {
     epochs: usize,
     order: usize,
-    apriori: AprioriPosition,
+    apriori: Position,
     buffers: HashMap<SV, Buffer>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
 impl<'a> Orbit<'a> {
-    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: AprioriPosition) -> Self {
+    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: Position) -> Self {
         let cosmic = Cosm::de438();
         let sp3 = ctx.data.sp3().unwrap();
         let earth_frame = cosmic.frame("EME2000"); // this only works on planet Earth..

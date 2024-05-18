@@ -16,8 +16,8 @@ use rinex::carrier::Carrier;
 use rinex::prelude::{Observable, Rinex};
 
 use rtk::prelude::{
-    AprioriPosition, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError,
-    KbModel, Method, NgModel, PVTSolutionType, Solver, Vector3,
+    BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
+    NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
@@ -214,8 +214,8 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     let apriori_ecef = ctx.rx_ecef.ok_or(Error::UndefinedAprioriPosition)?;
 
     let apriori = Vector3::<f64>::new(apriori_ecef.0, apriori_ecef.1, apriori_ecef.2);
-    let apriori = AprioriPosition::from_ecef(apriori);
-    let rx_lat_ddeg = apriori.geodetic()[0];
+    let apriori = Position::from_ecef(apriori);
+    let rx_lat_ddeg = rad2deg(apriori.geodetic()[0]);
 
     assert!(
         ctx.data.observation().is_some(),
@@ -225,12 +225,6 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         ctx.data.brdc_navigation().is_some(),
         "Positioning requires Navigation RINEX"
     );
-
-    if cfg.interp_order > 5 && ctx.data.sp3().is_none() {
-        error!("High interpolation orders are likely incompatible with navigation based on broadcast radio.");
-        warn!("It is possible that this configuration does not generate any solutions.");
-        info!("Consider loading high precision SP3 data to use high interpolation orders.");
-    }
 
     if let Some(obs_rinex) = ctx.data.observation() {
         if let Some(obs_header) = &obs_rinex.header.obs {
@@ -259,7 +253,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
 
     let solver = Solver::new(
         &cfg,
-        apriori,
+        Some(apriori),
         /* state vector interpolator */
         |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
     )?;
