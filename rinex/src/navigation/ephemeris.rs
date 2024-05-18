@@ -162,9 +162,13 @@ impl Ephemeris {
     pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
         /* toe week counter */
         let mut week = self.get_week()?;
-        if sv_ts == TimeScale::GST {
-            /* Galileo vehicles stream week counter referenced to GPST.. */
-            week -= 1024;
+
+        match sv_ts {
+            TimeScale::GST => {
+                /* Galileo vehicles stream week counter referenced to GPST.. */
+                week -= 1024;
+            },
+            _ => {},
         }
 
         // "toe" field is seconds within current week to obtain toe

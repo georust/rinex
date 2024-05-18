@@ -2,7 +2,7 @@ use crate::{cli::Context, positioning::BufferTrait};
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    AprioriPosition, Arc, Bodies, Cosm, Duration, Epoch, Frame,
+    AprioriPosition, Arc, Bodies, Cosm, Epoch, Frame,
     InterpolationResult as RTKInterpolationResult, LightTimeCalc, TimeScale, Vector3, SV,
 };
 

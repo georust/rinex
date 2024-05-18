@@ -1,4 +1,3 @@
-use crate::cli::Context;
 use crate::positioning::BufferTrait;
 use gnss_rtk::prelude::{Duration, Epoch, SV};
 use std::collections::HashMap;

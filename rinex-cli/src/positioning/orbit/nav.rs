@@ -2,8 +2,7 @@ use crate::cli::Context;
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    AprioriPosition, Arc, Bodies, Cosm, Duration, Epoch, Frame,
-    InterpolationResult as RTKInterpolationResult, LightTimeCalc, TimeScale, Vector3, SV,
+    AprioriPosition, Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, SV,
 };
 
 use rinex::navigation::Ephemeris;
@@ -11,7 +10,7 @@ use rinex::navigation::Ephemeris;
 pub struct Orbit<'a> {
     apriori: AprioriPosition,
     buffer: HashMap<SV, Vec<Ephemeris>>,
-    iter: Box<dyn Iterator<Item = (&'a Epoch, SV, &'a Ephemeris)> + 'a>,
+    iter: Box<dyn Iterator<Item = (SV, &'a Ephemeris)> + 'a>,
 }
 
 impl<'a> Orbit<'a> {
@@ -23,7 +22,7 @@ impl<'a> Orbit<'a> {
         Self {
             apriori,
             buffer: HashMap::with_capacity(64),
-            iter: Box::new(brdc.ephemeris().map(|(toc, (_, sv, eph))| (toc, sv, eph))),
+            iter: Box::new(brdc.ephemeris().map(|(toc, (_, sv, eph))| (sv, eph))),
         }
     }
     fn feasible(&self, t: Epoch, sv: SV, sv_ts: TimeScale) -> bool {
@@ -48,7 +47,7 @@ impl<'a> Orbit<'a> {
         let sv_ts = sv.timescale()?;
 
         while !self.feasible(t, sv, sv_ts) {
-            if let Some((toc_i, sv_i, eph_i)) = self.iter.next() {
+            if let Some((sv_i, eph_i)) = self.iter.next() {
                 if let Some(dataset) = self.buffer.get_mut(&sv_i) {
                     dataset.push(eph_i.clone());
                 } else {
