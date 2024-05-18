@@ -1,8 +1,17 @@
-use crate::cli::Context;
+use std::{
+    collections::{BTreeMap, HashMap},
+    fs::File,
+    io::Write,
+};
+
+use crate::{
+    cli::Context,
+    fops::open_with_web_browser,
+    graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext},
+};
 use clap::ArgMatches;
-use std::collections::{BTreeMap, HashMap};
-use std::fs::File;
-use std::io::Write;
+
+use itertools::Itertools;
 use thiserror::Error;
 
 use hifitime::Epoch;
@@ -19,14 +28,15 @@ use kml::{
 extern crate geo_types;
 use geo_types::Point as GeoPoint;
 
-use plotly::color::NamedColor;
-use plotly::common::Mode;
-use plotly::common::{Marker, MarkerSymbol};
-use plotly::layout::MapboxStyle;
-use plotly::ScatterMapbox;
+use plotly::{
+    color::NamedColor,
+    common::{
+        ColorScale, ColorScalePalette, Gradient, GradientType, Marker, MarkerSymbol, Mode, Visible,
+    },
+    layout::MapboxStyle,
+    ScatterMapbox,
+};
 
-use crate::fops::open_with_web_browser;
-use crate::graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
 #[derive(Debug, Error)]
@@ -47,14 +57,16 @@ pub fn post_process(
     // create a dedicated plot context
     let mut plot_ctx = PlotContext::new();
 
-    let (x, y, z) = ctx.rx_ecef.unwrap(); // cannot fail at this point
+    let (x, y, z) = ctx.rx_ecef.unwrap();
 
     let (lat_rad, lon_rad, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
     let lat_ddeg = rad2deg(lat_rad);
     let lon_ddeg = rad2deg(lon_rad);
 
+    let nb_solutions = results.len();
     let epochs = results.keys().copied().collect::<Vec<Epoch>>();
 
+    // Convert solutions to geodetic DDEG
     let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
     for result in results.values() {
         let px = x + result.position.x;
@@ -70,7 +82,7 @@ pub fn post_process(
         true, // show legend
         MapboxStyle::OpenStreetMap,
         (lat_ddeg, lon_ddeg), //center
-        18,                   // zoom in!!
+        18,                   // zoom in
     );
 
     let ref_scatter = ScatterMapbox::new(vec![lat_ddeg], vec![lon_ddeg])
@@ -83,15 +95,39 @@ pub fn post_process(
         .name("Apriori");
     plot_ctx.add_trace(ref_scatter);
 
-    let pvt_scatter = ScatterMapbox::new(lat, lon)
-        .marker(
-            Marker::new()
-                .size(5)
-                .symbol(MarkerSymbol::Circle)
-                .color(NamedColor::Black),
-        )
-        .name("PVT");
-    plot_ctx.add_trace(pvt_scatter);
+    // PVT Scatter Mapbox, form a linear Alpha/Opacity Gradient
+    // to emphasize the filter progression towards final solution
+    let mut prev_pct = 0;
+    for (index, (t_i, sol_i)) in results.iter().enumerate() {
+        let (px, py, pz) = (
+            x + sol_i.position.x,
+            y + sol_i.position.y,
+            z + sol_i.position.z,
+        );
+        let (lat_rad, lon_rad, _) = ecef2geodetic(px, py, pz, Ellipsoid::WGS84);
+        let (lat_ddeg, lon_ddeg) = (rad2deg(lat_rad), rad2deg(lon_rad));
+
+        let pct = index * 100 / nb_solutions;
+        if pct % 10 == 0 && index > 0 && pct != prev_pct || index == nb_solutions - 1 {
+            let (title, visible) = if index == nb_solutions - 1 {
+                ("FINAL".to_string(), Visible::True)
+            } else {
+                (format!("Solver: {:02}%", pct), Visible::LegendOnly)
+            };
+            let pvt_scatter = ScatterMapbox::new(vec![lat_ddeg], vec![lon_ddeg])
+                .marker(
+                    Marker::new()
+                        .size(5)
+                        .color(NamedColor::Black)
+                        .symbol(MarkerSymbol::Circle)
+                        .opacity((nb_solutions / index) as f64),
+                )
+                .visible(visible)
+                .name(&title);
+            plot_ctx.add_trace(pvt_scatter);
+        }
+        prev_pct = pct;
+    }
 
     let trace = build_3d_chart_epoch_label(
         "error",
