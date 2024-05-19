@@ -36,8 +36,6 @@ pub use interp::Buffer as BufferTrait;
 pub enum Error {
     #[error("solver error")]
     SolverError(#[from] RTKError),
-    #[error("undefined apriori position")]
-    UndefinedAprioriPosition,
     #[error("ppp post processing error")]
     PPPPostProcessingError(#[from] PPPPostProcessingError),
     #[error("cggtts post processing error")]
@@ -217,14 +215,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
             cfg
         },
     };
-
     /* Verify requirements and print helpful comments */
-    let apriori_ecef = ctx.rx_ecef.ok_or(Error::UndefinedAprioriPosition)?;
-
-    let apriori = Vector3::<f64>::new(apriori_ecef.0, apriori_ecef.1, apriori_ecef.2);
-    let apriori = Position::from_ecef(apriori);
-    let rx_lat_ddeg = rad2deg(apriori.geodetic()[0]);
-
     assert!(
         ctx.data.observation().is_some(),
         "Positioning requires Observation RINEX"
@@ -253,7 +244,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         }
     }
 
-    let orbit = RefCell::new(Orbit::from_ctx(ctx, cfg.interp_order, apriori.clone()));
+    let orbit = RefCell::new(Orbit::from_ctx(ctx, cfg.interp_order));
     debug!("Orbit interpolator created");
 
     // print config to be used
@@ -261,18 +252,18 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
 
     let solver = Solver::new(
         &cfg,
-        Some(apriori),
+        None,
         /* state vector interpolator */
         |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
     )?;
 
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
-        let tracks = cggtts::resolve(ctx, solver, rx_lat_ddeg, matches)?;
+        let tracks = cggtts::resolve(ctx, solver, matches)?;
         cggtts_post_process(ctx, tracks, matches)?;
     } else {
         /* PPP */
-        let pvt_solutions = ppp::resolve(ctx, solver, rx_lat_ddeg);
+        let pvt_solutions = ppp::resolve(ctx, solver);
         /* save solutions (graphs, reports..) */
         ppp_post_process(ctx, pvt_solutions, matches)?;
     }

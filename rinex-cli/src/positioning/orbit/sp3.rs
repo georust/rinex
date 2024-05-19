@@ -62,19 +62,17 @@ fn sun_unit_vector(ref_frame: &Frame, cosmic: &Arc<Cosm>, t: Epoch) -> Vector3<f
 pub struct Orbit<'a> {
     epochs: usize,
     order: usize,
-    apriori: Position,
     buffers: HashMap<SV, Buffer>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
 impl<'a> Orbit<'a> {
-    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: Position) -> Self {
+    pub fn from_ctx(ctx: &'a Context, order: usize) -> Self {
         let cosmic = Cosm::de438();
         let sp3 = ctx.data.sp3().unwrap();
         let earth_frame = cosmic.frame("EME2000"); // this only works on planet Earth..
         Self {
             order,
-            apriori,
             epochs: 0,
             buffers: HashMap::with_capacity(128),
             iter: if let Some(atx) = ctx.data.antex() {
@@ -164,16 +162,10 @@ impl<'a> Orbit<'a> {
         }
 
         let buf = self.buffers.get_mut(&sv)?;
-        let ref_ecef = self.apriori.ecef();
-
         if let Some((x, y, z)) = buf.direct_output(t) {
             // No need to interpolate @ t for SV
             // Preserves data precision
-            let el_az =
-                Ephemeris::elevation_azimuth((*x, *y, *z), (ref_ecef[0], ref_ecef[1], ref_ecef[2]));
-            return Some(
-                RTKInterpolationResult::from_position((*x, *y, *z)).with_elevation_azimuth(el_az),
-            );
+            return Some(RTKInterpolationResult::from_position((*x, *y, *z)));
         }
 
         let mut mid_offset = 0;
@@ -214,12 +206,7 @@ impl<'a> Orbit<'a> {
                 polynomials.1 += y_i * li;
                 polynomials.2 += z_i * li;
             }
-
-            let el_az =
-                Ephemeris::elevation_azimuth(polynomials, (ref_ecef[0], ref_ecef[1], ref_ecef[2]));
-            out = Some(
-                RTKInterpolationResult::from_position(polynomials).with_elevation_azimuth(el_az),
-            );
+            out = Some(RTKInterpolationResult::from_position(polynomials));
         }
 
         if out.is_some() {

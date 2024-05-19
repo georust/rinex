@@ -61,7 +61,7 @@ use crate::{
 pub fn resolve<I>(
     ctx: &Context,
     mut solver: Solver<I>,
-    rx_lat_ddeg: f64,
+    // rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError>
 where
@@ -119,8 +119,8 @@ where
             continue;
         }
 
-        // Nearest TROPO
-        let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
+        // Nearest TROPO: TODO
+        // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
@@ -149,8 +149,8 @@ where
             };
 
             let tropo_bias = TroposphereBias {
-                total: None, //TODO
-                zwd_zdd,
+                total: None,   //TODO
+                zwd_zdd: None, // TODO
             };
 
             // tries to form a candidate for each signal

@@ -13,11 +13,11 @@ pub enum Orbit<'a> {
 }
 
 impl<'a> Orbit<'a> {
-    pub fn from_ctx(ctx: &'a Context, order: usize, apriori: Position) -> Self {
+    pub fn from_ctx(ctx: &'a Context, order: usize) -> Self {
         if ctx.data.has_sp3() {
-            Self::SP3(SP3Orbit::from_ctx(ctx, order, apriori))
+            Self::SP3(SP3Orbit::from_ctx(ctx, order))
         } else {
-            Self::NAV(NAVOrbit::from_ctx(ctx, apriori))
+            Self::NAV(NAVOrbit::from_ctx(ctx))
         }
     }
     pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<InterpolationResult> {

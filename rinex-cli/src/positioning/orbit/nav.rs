@@ -8,19 +8,17 @@ use gnss_rtk::prelude::{
 use rinex::navigation::Ephemeris;
 
 pub struct Orbit<'a> {
-    apriori: Position,
     buffer: HashMap<SV, Vec<Ephemeris>>,
     iter: Box<dyn Iterator<Item = (SV, &'a Ephemeris)> + 'a>,
 }
 
 impl<'a> Orbit<'a> {
-    pub fn from_ctx(ctx: &'a Context, apriori: Position) -> Self {
+    pub fn from_ctx(ctx: &'a Context) -> Self {
         let brdc = ctx
             .data
             .brdc_navigation()
             .expect("BRDC navigation required");
         Self {
-            apriori,
             buffer: HashMap::with_capacity(64),
             iter: Box::new(brdc.ephemeris().map(|(_toc, (_, sv, eph))| (sv, eph))),
         }
@@ -59,7 +57,6 @@ impl<'a> Orbit<'a> {
             }
         }
 
-        let ref_ecef = self.apriori.ecef();
         let output = match self.buffer.get(&sv) {
             Some(eph) => {
                 let eph_i = eph.iter().min_by_key(|eph_i| {
@@ -68,11 +65,7 @@ impl<'a> Orbit<'a> {
                 })?;
                 let (x_km, y_km, z_km) = eph_i.kepler2ecef(sv, t)?;
                 let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);
-                let el_az = Ephemeris::elevation_azimuth(
-                    (x, y, z),
-                    (ref_ecef[0], ref_ecef[1], ref_ecef[2]),
-                );
-                Some(RTKInterpolationResult::from_position((x, y, z)).with_elevation_azimuth(el_az))
+                Some(RTKInterpolationResult::from_position((x, y, z)))
             },
             None => None,
         };

@@ -34,7 +34,7 @@ use plotly::{
     ScatterMapbox,
 };
 
-use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
+use map_3d::{deg2rad, ecef2geodetic, rad2deg, Ellipsoid};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -46,56 +46,157 @@ pub enum Error {
     KmlError(#[from] kml::Error),
 }
 
-pub fn post_process(
-    ctx: &Context,
-    results: BTreeMap<Epoch, PVTSolution>,
-    matches: &ArgMatches,
-) -> Result<(), Error> {
-    // create a dedicated plot context
-    let mut plot_ctx = PlotContext::new();
-
-    let (x0, y0, z0) = ctx.rx_ecef.unwrap();
+// Customize HTML plot in case _apriori_ is known ahead of time
+fn html_add_apriori_position(
+    epochs: &Vec<Epoch>,
+    solutions: &BTreeMap<Epoch, PVTSolution>,
+    apriori_ecef: (f64, f64, f64),
+    plot_ctx: &mut PlotContext,
+) {
+    let (x0, y0, z0) = apriori_ecef;
     let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
     let (lat0_ddeg, lon0_ddeg) = (rad2deg(lat0_rad), rad2deg(lon0_rad));
 
-    plot_ctx.add_world_map(
-        "PVT solutions",
-        true, // show legend
-        MapboxStyle::OpenStreetMap,
-        (lat0_ddeg, lon0_ddeg), //center
-        18,                     // zoom in
-    );
-
+    // Mark _apriori_ position
     let apriori_scatter = ScatterMapbox::new(vec![lat0_ddeg], vec![lon0_ddeg])
         .marker(
             Marker::new()
-                .size(5)
-                .symbol(MarkerSymbol::Circle)
+                .size(6)
+                .symbol(MarkerSymbol::Cross)
                 .color(NamedColor::Red),
         )
         .name("Apriori");
     plot_ctx.add_trace(apriori_scatter);
 
-    let nb_solutions = results.len();
-    let epochs = results.keys().copied().collect::<Vec<Epoch>>();
+    // |x-x*|, |y-y*|, |z-z*|  3D comparison
+    let trace = build_3d_chart_epoch_label(
+        "error",
+        Mode::Markers,
+        epochs.clone(),
+        solutions
+            .values()
+            .map(|pvt| pvt.position.x - x0)
+            .collect::<Vec<f64>>(),
+        solutions
+            .values()
+            .map(|pvt| pvt.position.y - y0)
+            .collect::<Vec<f64>>(),
+        solutions
+            .values()
+            .map(|pvt| pvt.position.z - z0)
+            .collect::<Vec<f64>>(),
+    );
+
+    plot_ctx.add_cartesian3d_plot(
+        "Position errors",
+        "x error [m]",
+        "y error [m]",
+        "z error [m]",
+    );
+    plot_ctx.add_trace(trace);
+
+    // 2D |x-x*|, |y-y*| comparison
+    plot_ctx.add_timedomain_2y_plot("X / Y Errors", "X error [m]", "Y error [m]");
+
+    let trace = build_chart_epoch_axis(
+        "x err",
+        Mode::Markers,
+        epochs.clone(),
+        solutions
+            .values()
+            .map(|pvt| pvt.position.x - x0)
+            .collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    let trace = build_chart_epoch_axis(
+        "y err",
+        Mode::Markers,
+        epochs.clone(),
+        solutions
+            .values()
+            .map(|pvt| pvt.position.y - y0)
+            .collect::<Vec<f64>>(),
+    )
+    .y_axis("y2");
+    plot_ctx.add_trace(trace);
+
+    // |z-z*| comparison
+    plot_ctx.add_timedomain_plot("Altitude Errors", "Z error [m]");
+    let trace = build_chart_epoch_axis(
+        "z err",
+        Mode::Markers,
+        epochs.clone(),
+        solutions
+            .values()
+            .map(|pvt| pvt.position.z - z0)
+            .collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+}
+
+pub fn post_process(
+    ctx: &Context,
+    solutions: BTreeMap<Epoch, PVTSolution>,
+    matches: &ArgMatches,
+) -> Result<(), Error> {
+    // create a dedicated plot context
+    let mut plot_ctx = PlotContext::new();
 
     // Convert solutions to geodetic DDEG
     let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
-    for result in results.values() {
+    for solution in solutions.values() {
         let (lat_rad, lon_rad, _) = ecef2geodetic(
-            result.position.x,
-            result.position.y,
-            result.position.z,
+            solution.position.x,
+            solution.position.y,
+            solution.position.z,
             Ellipsoid::WGS84,
         );
         lat.push(rad2deg(lat_rad));
         lon.push(rad2deg(lon_rad));
     }
 
-    // PVT Scatter Mapbox, form a linear Alpha/Opacity Gradient
-    // to emphasize the filter progression towards final solution
+    let nb_solutions = solutions.len();
+    let final_solution_ddeg = (lat[nb_solutions - 1], lon[nb_solutions - 1]);
+    let epochs = solutions.keys().copied().collect::<Vec<Epoch>>();
+
+    let lat0_rad = if let Some(apriori_ecef) = ctx.rx_ecef {
+        ecef2geodetic(
+            apriori_ecef.0,
+            apriori_ecef.1,
+            apriori_ecef.2,
+            Ellipsoid::WGS84,
+        )
+        .0
+    } else {
+        deg2rad(final_solution_ddeg.0)
+    };
+
+    let lon0_rad = if let Some(apriori_ecef) = ctx.rx_ecef {
+        ecef2geodetic(
+            apriori_ecef.0,
+            apriori_ecef.1,
+            apriori_ecef.2,
+            Ellipsoid::WGS84,
+        )
+        .1
+    } else {
+        deg2rad(final_solution_ddeg.1)
+    };
+
+    // TODO: would be nice to adapt zoom level
+    plot_ctx.add_world_map(
+        "PVT solutions",
+        true, // show legend
+        MapboxStyle::OpenStreetMap,
+        final_solution_ddeg, //center
+        18,                  // zoom
+    );
+
+    // Process solutions
+    // Scatter Mapbox (map projection)
     let mut prev_pct = 0;
-    for (index, (t_i, sol_i)) in results.iter().enumerate() {
+    for (index, (t_i, sol_i)) in solutions.iter().enumerate() {
         let (lat_rad, lon_rad, _) = ecef2geodetic(
             sol_i.position.x,
             sol_i.position.y,
@@ -116,8 +217,7 @@ pub fn post_process(
                     Marker::new()
                         .size(5)
                         .color(NamedColor::Black)
-                        .symbol(MarkerSymbol::Circle)
-                        .opacity((nb_solutions / index) as f64),
+                        .symbol(MarkerSymbol::Circle),
                 )
                 .visible(visible)
                 .name(&title);
@@ -126,101 +226,13 @@ pub fn post_process(
         prev_pct = pct;
     }
 
-    let trace = build_3d_chart_epoch_label(
-        "error",
-        Mode::Markers,
-        epochs.clone(),
-        results
-            .values()
-            .map(|e| e.position.x - x0)
-            .collect::<Vec<f64>>(),
-        results
-            .values()
-            .map(|e| e.position.y - y0)
-            .collect::<Vec<f64>>(),
-        results
-            .values()
-            .map(|e| e.position.z - z0)
-            .collect::<Vec<f64>>(),
-    );
-
-    plot_ctx.add_cartesian3d_plot(
-        "Position errors",
-        "x error [m]",
-        "y error [m]",
-        "z error [m]",
-    );
-    plot_ctx.add_trace(trace);
-
-    let mut worst_radius = 1000.0_f64;
-    /*
-     * Add Spherical mesh with radius being the
-     * largest error
-     */
-    for error in results.values().map(|pvt| {
-        (pvt.position.x.powi(2) + pvt.position.y.powi(2) + pvt.position.z.powi(2)).sqrt()
-    }) {
-        if error > worst_radius {
-            worst_radius = error;
-        }
-    }
-
-    /*
-     * 2D X/Y errors graph
-     */
-    plot_ctx.add_timedomain_2y_plot("X / Y Errors", "X error [m]", "Y error [m]");
-
-    let trace = build_chart_epoch_axis(
-        "x err",
-        Mode::Markers,
-        epochs.clone(),
-        results
-            .values()
-            .map(|pvt| pvt.position.x - x0)
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    let trace = build_chart_epoch_axis(
-        "y err",
-        Mode::Markers,
-        epochs.clone(),
-        results
-            .values()
-            .map(|pvt| pvt.position.y - y0)
-            .collect::<Vec<f64>>(),
-    )
-    .y_axis("y2");
-    plot_ctx.add_trace(trace);
-
-    /*
-     * 2D Z error graph
-     */
-    plot_ctx.add_timedomain_plot("Altitude Errors", "Z error [m]");
-    let trace = build_chart_epoch_axis(
-        "z err",
-        Mode::Markers,
-        epochs.clone(),
-        results
-            .values()
-            .map(|pvt| pvt.position.z - z0)
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    /*
-     * Create graphical visualization
-     * vel(x), vel(yy : dual plot
-     * vel(z) : dedicated plot
-     * hdop, vdop : dual plot
-     * dt, tdop : dual plot
-     */
+    // Absolute velocity
     plot_ctx.add_timedomain_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
     let trace = build_chart_epoch_axis(
         "velocity (x)",
         Mode::Markers,
         epochs.clone(),
-        results
+        solutions
             .values()
             .map(|pvt| pvt.velocity.x)
             .collect::<Vec<f64>>(),
@@ -231,7 +243,7 @@ pub fn post_process(
         "velocity (y)",
         Mode::Markers,
         epochs.clone(),
-        results
+        solutions
             .values()
             .map(|pvt| pvt.velocity.y)
             .collect::<Vec<f64>>(),
@@ -244,44 +256,11 @@ pub fn post_process(
         "velocity (z)",
         Mode::Markers,
         epochs.clone(),
-        results
+        solutions
             .values()
             .map(|pvt| pvt.velocity.z)
             .collect::<Vec<f64>>(),
     );
-    plot_ctx.add_trace(trace);
-
-    plot_ctx.add_timedomain_plot("GDOP", "GDOP [m]");
-    let trace = build_chart_epoch_axis(
-        "gdop",
-        Mode::Markers,
-        epochs.clone(),
-        results.values().map(|pvt| pvt.gdop).collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    plot_ctx.add_timedomain_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
-    let trace = build_chart_epoch_axis(
-        "hdop",
-        Mode::Markers,
-        epochs.clone(),
-        results
-            .values()
-            .map(|pvt| pvt.hdop(lat0_rad, lon0_rad))
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    let trace = build_chart_epoch_axis(
-        "vdop",
-        Mode::Markers,
-        epochs.clone(),
-        results
-            .values()
-            .map(|pvt| pvt.vdop(lat0_rad, lon0_rad))
-            .collect::<Vec<f64>>(),
-    )
-    .y_axis("y2");
     plot_ctx.add_trace(trace);
 
     plot_ctx.add_timedomain_2y_plot("Clock offset", "dt [s]", "TDOP [s]");
@@ -289,7 +268,7 @@ pub fn post_process(
         "dt",
         Mode::Markers,
         epochs.clone(),
-        results
+        solutions
             .values()
             .map(|pvt| pvt.dt.to_seconds())
             .collect::<Vec<f64>>(),
@@ -300,22 +279,60 @@ pub fn post_process(
         "tdop",
         Mode::Markers,
         epochs.clone(),
-        results.values().map(|pvt| pvt.tdop).collect::<Vec<f64>>(),
+        solutions.values().map(|pvt| pvt.tdop).collect::<Vec<f64>>(),
     )
     .y_axis("y2");
     plot_ctx.add_trace(trace);
 
+    // Dilution of Precision
+    plot_ctx.add_timedomain_plot("GDOP", "GDOP [m]");
+    let trace = build_chart_epoch_axis(
+        "gdop",
+        Mode::Markers,
+        epochs.clone(),
+        solutions.values().map(|pvt| pvt.gdop).collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    plot_ctx.add_timedomain_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
+    let trace = build_chart_epoch_axis(
+        "hdop",
+        Mode::Markers,
+        epochs.clone(),
+        solutions
+            .values()
+            .map(|pvt| pvt.hdop(lat0_rad, lon0_rad))
+            .collect::<Vec<f64>>(),
+    );
+    plot_ctx.add_trace(trace);
+
+    let trace = build_chart_epoch_axis(
+        "vdop",
+        Mode::Markers,
+        epochs.clone(),
+        solutions
+            .values()
+            .map(|pvt| pvt.vdop(lat0_rad, lon0_rad))
+            .collect::<Vec<f64>>(),
+    )
+    .y_axis("y2");
+    plot_ctx.add_trace(trace);
+
+    if let Some(apriori_ecef) = ctx.rx_ecef {
+        html_add_apriori_position(&epochs, &solutions, apriori_ecef, &mut plot_ctx);
+    }
+
     // render plots
-    let graphs = ctx.workspace.join("PPP.html");
+    let graphs = ctx.workspace.join("Solutions.html");
     let graphs = graphs.to_string_lossy().to_string();
     let mut fd = File::create(&graphs).unwrap_or_else(|_| panic!("failed to crate \"{}\"", graphs));
-    write!(fd, "{}", plot_ctx.to_html()).expect("failed to render rtk visualization");
+    write!(fd, "{}", plot_ctx.to_html()).expect("failed to render PVT solutions");
     info!("\"{}\" solutions generated", graphs);
 
     /*
      * Generate txt, GPX, KML..
      */
-    let txtpath = ctx.workspace.join("PVT.csv");
+    let txtpath = ctx.workspace.join("solutions.csv");
     let txtfile = txtpath.to_string_lossy().to_string();
     let mut fd = File::create(&txtfile)?;
 
@@ -327,7 +344,7 @@ pub fn post_process(
         "Epoch, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rcvr_clock_bias, tdop"
     )?;
 
-    for (epoch, solution) in results {
+    for (epoch, solution) in solutions {
         let (lat_rad, lon_rad, alt) = ecef2geodetic(
             solution.position.x,
             solution.position.y,

@@ -21,7 +21,7 @@ use rtk::prelude::{
 pub fn resolve<I>(
     ctx: &Context,
     mut solver: Solver<I>,
-    rx_lat_ddeg: f64,
+    // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution>
 where
     I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
@@ -123,7 +123,7 @@ where
         }
 
         // grab possible tropo components
-        let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
+        // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         let iono_bias = IonosphereBias {
             kb_model: kb_model(nav_data, *t),
@@ -133,8 +133,8 @@ where
         };
 
         let tropo_bias = TroposphereBias {
-            total: None, //TODO
-            zwd_zdd,
+            total: None,   //TODO
+            zwd_zdd: None, //TODO
         };
 
         match solver.resolve(*t, &candidates, &iono_bias, &tropo_bias) {
