@@ -1,5 +1,5 @@
 use crate::cli::Context;
-use gnss_rtk::prelude::{Epoch, InterpolationResult, Position, SV};
+use gnss_rtk::prelude::{Epoch, InterpolationResult, SV};
 
 mod sp3;
 use sp3::Orbit as SP3Orbit;

@@ -196,7 +196,7 @@ pub fn post_process(
     // Process solutions
     // Scatter Mapbox (map projection)
     let mut prev_pct = 0;
-    for (index, (t_i, sol_i)) in solutions.iter().enumerate() {
+    for (index, (_, sol_i)) in solutions.iter().enumerate() {
         let (lat_rad, lon_rad, _) = ecef2geodetic(
             sol_i.position.x,
             sol_i.position.y,
@@ -457,7 +457,7 @@ pub fn post_process(
     }
 
     if !ctx.quiet {
-        let graphs = ctx.workspace.join("PPP.html");
+        let graphs = ctx.workspace.join("Solutions.html");
         let graphs = graphs.to_string_lossy().to_string();
         open_with_web_browser(&graphs);
     }

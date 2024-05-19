@@ -13,14 +13,13 @@ use cggtts::PostProcessingError as CGGTTSPostProcessingError;
 use clap::ArgMatches;
 use gnss::prelude::Constellation; // SV};
 use rinex::carrier::Carrier;
-use rinex::prelude::{Observable, Rinex};
+use rinex::prelude::Rinex;
 
 use rtk::prelude::{
-    BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Position, Solver, Vector3,
+    BdModel, Carrier as RTKCarrier, Config, Epoch, Error as RTKError, KbModel, Method,
+    NgModel, PVTSolutionType, Solver,
 };
 
-use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 use thiserror::Error;
 
 mod orbit;
@@ -65,82 +64,84 @@ pub fn cast_rtk_carrier(carrier: Carrier) -> RTKCarrier {
     }
 }
 
-pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
-    const MAX_LATDDEG_DELTA: f64 = 15.0;
-    let max_dt = Duration::from_hours(24.0);
-    let rnx = meteo?;
-    let meteo = rnx.header.meteo.as_ref().unwrap();
+//use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
-    let delays: Vec<(Observable, f64)> = meteo
-        .sensors
-        .iter()
-        .filter_map(|s| match s.observable {
-            Observable::ZenithDryDelay => {
-                let (x, y, z, _) = s.position?;
-                let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                let lat = rad2deg(lat);
-                if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
-                    let value = rnx
-                        .zenith_dry_delay()
-                        .filter(|(t_sens, _)| (*t_sens - t).abs() < max_dt)
-                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-                    let (_, value) = value?;
-                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
-                    Some((s.observable.clone(), value))
-                } else {
-                    None
-                }
-            },
-            Observable::ZenithWetDelay => {
-                let (x, y, z, _) = s.position?;
-                let (mut lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                lat = rad2deg(lat);
-                if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
-                    let value = rnx
-                        .zenith_wet_delay()
-                        .filter(|(t_sens, _)| (*t_sens - t).abs() < max_dt)
-                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
-                    let (_, value) = value?;
-                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
-                    Some((s.observable.clone(), value))
-                } else {
-                    None
-                }
-            },
-            _ => None,
-        })
-        .collect();
-
-    if delays.len() < 2 {
-        None
-    } else {
-        let zdd = delays
-            .iter()
-            .filter_map(|(obs, value)| {
-                if obs == &Observable::ZenithDryDelay {
-                    Some(*value)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-            .unwrap();
-
-        let zwd = delays
-            .iter()
-            .filter_map(|(obs, value)| {
-                if obs == &Observable::ZenithWetDelay {
-                    Some(*value)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-            .unwrap();
-
-        Some((zwd, zdd))
-    }
-}
+//pub fn tropo_components(meteo: Option<&Rinex>, t: Epoch, lat_ddeg: f64) -> Option<(f64, f64)> {
+//    const MAX_LATDDEG_DELTA: f64 = 15.0;
+//    let max_dt = Duration::from_hours(24.0);
+//    let rnx = meteo?;
+//    let meteo = rnx.header.meteo.as_ref().unwrap();
+//
+//    let delays: Vec<(Observable, f64)> = meteo
+//        .sensors
+//        .iter()
+//        .filter_map(|s| match s.observable {
+//            Observable::ZenithDryDelay => {
+//                let (x, y, z, _) = s.position?;
+//                let (lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+//                let lat = rad2deg(lat);
+//                if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
+//                    let value = rnx
+//                        .zenith_dry_delay()
+//                        .filter(|(t_sens, _)| (*t_sens - t).abs() < max_dt)
+//                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
+//                    let (_, value) = value?;
+//                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
+//                    Some((s.observable.clone(), value))
+//                } else {
+//                    None
+//                }
+//            },
+//            Observable::ZenithWetDelay => {
+//                let (x, y, z, _) = s.position?;
+//                let (mut lat, _, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+//                lat = rad2deg(lat);
+//                if (lat - lat_ddeg).abs() < MAX_LATDDEG_DELTA {
+//                    let value = rnx
+//                        .zenith_wet_delay()
+//                        .filter(|(t_sens, _)| (*t_sens - t).abs() < max_dt)
+//                        .min_by_key(|(t_sens, _)| (*t_sens - t).abs());
+//                    let (_, value) = value?;
+//                    debug!("{:?} lat={} zdd {}", t, lat_ddeg, value);
+//                    Some((s.observable.clone(), value))
+//                } else {
+//                    None
+//                }
+//            },
+//            _ => None,
+//        })
+//        .collect();
+//
+//    if delays.len() < 2 {
+//        None
+//    } else {
+//        let zdd = delays
+//            .iter()
+//            .filter_map(|(obs, value)| {
+//                if obs == &Observable::ZenithDryDelay {
+//                    Some(*value)
+//                } else {
+//                    None
+//                }
+//            })
+//            .reduce(|k, _| k)
+//            .unwrap();
+//
+//        let zwd = delays
+//            .iter()
+//            .filter_map(|(obs, value)| {
+//                if obs == &Observable::ZenithWetDelay {
+//                    Some(*value)
+//                } else {
+//                    None
+//                }
+//            })
+//            .reduce(|k, _| k)
+//            .unwrap();
+//
+//        Some((zwd, zdd))
+//    }
+//}
 
 /*
  * Grabs nearest KB model (in time)

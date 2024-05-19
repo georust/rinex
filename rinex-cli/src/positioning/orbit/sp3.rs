@@ -3,10 +3,10 @@ use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
     Arc, Bodies, Cosm, Epoch, Frame, InterpolationResult as RTKInterpolationResult, LightTimeCalc,
-    Position, TimeScale, Vector3, SV,
+    TimeScale, Vector3, SV,
 };
 
-use rinex::{carrier::Carrier, navigation::Ephemeris};
+use rinex::carrier::Carrier;
 
 #[derive(Debug)]
 struct Buffer {

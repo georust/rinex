@@ -33,7 +33,7 @@ use std::collections::HashMap;
 use std::io::prelude::*;
 use std::str::FromStr;
 
-use hifitime::{Epoch, EpochError, Unit};
+use hifitime::{Epoch, Unit};
 use thiserror::Error;
 
 use gnss::constellation::ParsingError as ConstellationParsingError;

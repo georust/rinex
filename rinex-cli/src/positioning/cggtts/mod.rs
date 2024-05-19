@@ -30,7 +30,7 @@ use cggtts::{
 use crate::{
     cli::Context,
     positioning::{
-        bd_model, cast_rtk_carrier, kb_model, ng_model, tropo_components,
+        bd_model, cast_rtk_carrier, kb_model, ng_model, //tropo_components,
         Error as PositioningError, Time,
     },
 };
@@ -85,7 +85,7 @@ where
     let nav_data = ctx.data.brdc_navigation().unwrap();
 
     let clk_data = ctx.data.clock();
-    let meteo_data = ctx.data.meteo();
+    // let meteo_data = ctx.data.meteo(); //TODO
 
     let sp3_has_clock = ctx.data.sp3_has_clock();
     if clk_data.is_none() && sp3_has_clock {
