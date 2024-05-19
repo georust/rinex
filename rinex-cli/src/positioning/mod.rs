@@ -53,8 +53,16 @@ pub fn cast_rtk_carrier(carrier: Carrier) -> RTKCarrier {
         Carrier::L5 => RTKCarrier::L5,
         Carrier::L6 => RTKCarrier::L6,
         Carrier::E1 => RTKCarrier::E1,
-        Carrier::E5 | Carrier::E5a | Carrier::E5b => RTKCarrier::E5,
+        Carrier::E5 => RTKCarrier::E5,
         Carrier::E6 => RTKCarrier::E6,
+        Carrier::E5a => RTKCarrier::E5A,
+        Carrier::E5b => RTKCarrier::E5B,
+        Carrier::B1I => RTKCarrier::B1I,
+        Carrier::B2 => RTKCarrier::B2,
+        Carrier::B3 | Carrier::B3A => RTKCarrier::B3,
+        Carrier::B2A => RTKCarrier::B2A,
+        Carrier::B2I | Carrier::B2B => RTKCarrier::B2iB2b,
+        Carrier::B1A | Carrier::B1C => RTKCarrier::B1aB1c,
         Carrier::L1 | _ => RTKCarrier::L1,
     }
 }

@@ -35,23 +35,23 @@ pub enum Carrier {
     G2a,
     /// Glonass channel 3
     G3,
-    /// E1: GAL
+    /// E1 (Galileo)
     E1,
-    /// E5: GAL (E5a + E5b)
+    /// E5 (Galileo)
     E5,
-    /// E5a: GAL E5a
+    /// E5a (Galileo)
     E5a,
-    /// E5b: GAL E5b
+    /// E5b (Galileo)
     E5b,
-    /// E6: GAL military
+    /// E6 (Galileo military)
     E6,
-    /// B1: BeiDou 1i
+    /// B1 (BDS)
     B1I,
-    /// B1A BeiDou 1A
+    /// B1A (BDS)
     B1A,
-    /// B1C BeiDou 1C
+    /// B1C (BDS)
     B1C,
-    /// B2: BeiDou 2
+    /// B2 (BDS)
     B2,
     /// B2i: BeiDou 2i
     B2I,
@@ -186,16 +186,12 @@ impl Carrier {
     }
     pub fn frequency_mhz(&self) -> f64 {
         match self {
-            /*
-             * GPS, Gal, QZSS, SBAS
-             */
-            Self::L1 | Self::E1 => 1575.42_f64,
+            Self::L1 | Self::E1 | Self::B1A | Self::B1C => 1575.42_f64,
             Self::L2 => 1227.60_f64,
             Self::L6 | Self::E6 => 1278.750_f64,
-            Self::L5 => 1176.45_f64,
-            Self::E5 => 1191.795_f64,
-            Self::E5a => 1176.45_f64,
-            Self::E5b => 1207.140_f64,
+            Self::L5 | Self::E5a | Self::B2A => 1176.45_f64,
+            Self::E5 | Self::B2 => 1191.795_f64,
+            Self::E5b | Self::B2I | Self::B2B => 1207.140_f64,
             /*
              * IRNSS
              */
@@ -214,10 +210,6 @@ impl Carrier {
              * BeiDou
              */
             Self::B1I => 1561.098_f64,
-            Self::B1C | Self::B1A => 1575.420_f64,
-            Self::B2A => 1176.450_f64,
-            Self::B2I | Self::B2B => 1207.140_f64,
-            Self::B2 => 1191.795_f64,
             Self::B3 | Self::B3A => 1268.520_f64,
             /*
              * DORIS
