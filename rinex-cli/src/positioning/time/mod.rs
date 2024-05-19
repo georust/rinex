@@ -33,7 +33,7 @@ impl<'a> Time<'a> {
                 Self::Interp(Interpolator::from_iter(iter))
             } else {
                 let brdc = ctx.data.brdc_navigation().unwrap(); // infaillible
-                let iter = brdc.ephemeris().map(|(t, (_, sv, eph))| (t, sv, eph));
+                let iter = brdc.ephemeris().map(|(t, (_, sv, eph))| (sv, eph));
                 Self::NAV(NAVTime::from_iter(iter))
             }
         }

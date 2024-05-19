@@ -22,7 +22,7 @@ impl<'a> Orbit<'a> {
         Self {
             apriori,
             buffer: HashMap::with_capacity(64),
-            iter: Box::new(brdc.ephemeris().map(|(toc, (_, sv, eph))| (sv, eph))),
+            iter: Box::new(brdc.ephemeris().map(|(_toc, (_, sv, eph))| (sv, eph))),
         }
     }
     fn feasible(&self, t: Epoch, sv: SV, sv_ts: TimeScale) -> bool {
