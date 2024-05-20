@@ -54,19 +54,7 @@ fn html_add_apriori_position(
     plot_ctx: &mut PlotContext,
 ) {
     let (x0, y0, z0) = apriori_ecef;
-    let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
-    let (lat0_ddeg, lon0_ddeg) = (rad2deg(lat0_rad), rad2deg(lon0_rad));
-
-    // Mark _apriori_ position
-    let apriori_scatter = ScatterMapbox::new(vec![lat0_ddeg], vec![lon0_ddeg])
-        .marker(
-            Marker::new()
-                .size(6)
-                .symbol(MarkerSymbol::Cross)
-                .color(NamedColor::Red),
-        )
-        .name("Apriori");
-    plot_ctx.add_trace(apriori_scatter);
+    //let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
 
     // |x-x*|, |y-y*|, |z-z*|  3D comparison
     let trace = build_3d_chart_epoch_label(
@@ -193,6 +181,26 @@ pub fn post_process(
         18,                  // zoom
     );
 
+    // Mark _apriori_ position, if it exists
+    if let Some(apriori_ecef) = ctx.rx_ecef {
+        let (lat0_rad, lon0_rad, _) = ecef2geodetic(
+            apriori_ecef.0,
+            apriori_ecef.1,
+            apriori_ecef.2,
+            Ellipsoid::WGS84,
+        );
+        let (lat0_ddeg, lon0_ddeg) = (rad2deg(lat0_rad), rad2deg(lon0_rad));
+        let apriori_scatter = ScatterMapbox::new(vec![lat0_ddeg], vec![lon0_ddeg])
+            .marker(
+                Marker::new()
+                    .size(6)
+                    .symbol(MarkerSymbol::Circle)
+                    .color(NamedColor::Red),
+            )
+            .name("Apriori");
+        plot_ctx.add_trace(apriori_scatter);
+    }
+
     // Process solutions
     // Scatter Mapbox (map projection)
     let mut prev_pct = 0;
@@ -207,18 +215,23 @@ pub fn post_process(
 
         let pct = index * 100 / nb_solutions;
         if pct % 10 == 0 && index > 0 && pct != prev_pct || index == nb_solutions - 1 {
-            let (title, visible) = if index == nb_solutions - 1 {
-                ("FINAL".to_string(), Visible::True)
+            let (title, visible, symbol, color) = if index == nb_solutions - 1 {
+                (
+                    "FINAL".to_string(),
+                    Visible::True,
+                    MarkerSymbol::Cross,
+                    NamedColor::Black,
+                )
             } else {
-                (format!("Solver: {:02}%", pct), Visible::LegendOnly)
+                (
+                    format!("Solver: {:02}%", pct),
+                    Visible::LegendOnly,
+                    MarkerSymbol::Cross,
+                    NamedColor::Black,
+                )
             };
             let pvt_scatter = ScatterMapbox::new(vec![lat_ddeg], vec![lon_ddeg])
-                .marker(
-                    Marker::new()
-                        .size(5)
-                        .color(NamedColor::Black)
-                        .symbol(MarkerSymbol::Circle),
-                )
+                .marker(Marker::new().size(5).color(color).symbol(symbol))
                 .visible(visible)
                 .name(&title);
             plot_ctx.add_trace(pvt_scatter);

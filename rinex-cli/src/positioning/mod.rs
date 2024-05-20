@@ -16,8 +16,8 @@ use rinex::carrier::Carrier;
 use rinex::prelude::Rinex;
 
 use rtk::prelude::{
-    BdModel, Carrier as RTKCarrier, Config, Epoch, Error as RTKError, KbModel, Method, NgModel,
-    PVTSolutionType, Solver,
+    BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
+    NgModel, PVTSolutionType, Solver,
 };
 
 use thiserror::Error;
@@ -240,6 +240,17 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
                             }
                         }
                     }
+                } else if let Some(sp3) = ctx.data.sp3() {
+                    if ctx.data.sp3_has_clock() {
+                        if sp3.time_scale == time_of_first_obs.time_scale {
+                            info!("Temporal PPP compliancy");
+                        } else {
+                            error!("Working with different timescales in OBS/SP3 is not PPP compatible and will generate tiny errors");
+                            if sp3.epoch_interval >= Duration::from_seconds(300.0) {
+                                warn!("Interpolating clock states from low sample rate SP3 will most likely introduce errors");
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -264,9 +275,14 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         cggtts_post_process(ctx, tracks, matches)?;
     } else {
         /* PPP */
-        let pvt_solutions = ppp::resolve(ctx, solver);
-        /* save solutions (graphs, reports..) */
-        ppp_post_process(ctx, pvt_solutions, matches)?;
+        let solutions = ppp::resolve(ctx, solver);
+        if solutions.len() > 0 {
+            /* save solutions (graphs, reports..) */
+            ppp_post_process(ctx, solutions, matches)?;
+        } else {
+            error!("solver did not generate a single solution");
+            error!("verify your input data and configuration setup");
+        }
     }
     Ok(())
 }

@@ -168,8 +168,8 @@ pub struct SP3 {
     pub constellation: Constellation,
     /// File original time system,
     /// either UTC or time source from which we converted to UTC.
-    pub time_system: TimeScale,
-    /// Initial week counter, in time_system
+    pub time_scale: TimeScale,
+    /// Initial week counter in [TimeScale]
     pub week_counter: (u32, f64),
     /// Initial MJD, in time_system
     pub mjd_start: (u32, f64),
@@ -304,7 +304,7 @@ impl SP3 {
         let mut version = Version::default();
         let mut data_type = DataType::default();
 
-        let mut time_system = TimeScale::default();
+        let mut time_scale = TimeScale::default();
         let mut constellation = Constellation::default();
         let mut pc_count = 0_u8;
 
@@ -354,13 +354,13 @@ impl SP3 {
 
                 if pc_count == 0 {
                     constellation = Constellation::from_str(line[3..5].trim())?;
-                    time_system = TimeScale::from_str(line[9..12].trim())?;
+                    time_scale = TimeScale::from_str(line[9..12].trim())?;
                 }
 
                 pc_count += 1;
             }
             if new_epoch(line) {
-                epoch = parse_epoch(&line[3..], time_system)?;
+                epoch = parse_epoch(&line[3..], time_scale)?;
                 epochs.push(epoch);
             }
             if position_entry(line) {
@@ -448,7 +448,7 @@ impl SP3 {
             version,
             data_type,
             epoch: epochs,
-            time_system,
+            time_scale,
             constellation,
             coord_system,
             orbit_type,
@@ -654,7 +654,7 @@ impl Merge for SP3 {
         // if self.agency != rhs.agency {
         //     return Err(MergeError::DataProvider);
         // }
-        if self.time_system != rhs.time_system {
+        if self.time_scale != rhs.time_scale {
             return Err(MergeError::TimeScale);
         }
         if self.coord_system != rhs.coord_system {

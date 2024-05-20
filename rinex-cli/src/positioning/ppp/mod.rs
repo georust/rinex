@@ -11,10 +11,7 @@ use crate::{
 };
 use std::collections::BTreeMap;
 
-use rinex::{
-    carrier::Carrier,
-    prelude::{Duration, SV},
-};
+use rinex::{carrier::Carrier, prelude::SV};
 
 mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
@@ -37,19 +34,7 @@ where
     // infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
     let nav_data = ctx.data.brdc_navigation().unwrap();
-
-    let clk_data = ctx.data.clock();
     // let meteo_data = ctx.data.meteo(); //TODO
-
-    let sp3_has_clock = ctx.data.sp3_has_clock();
-    if clk_data.is_none() && sp3_has_clock {
-        if let Some(sp3) = ctx.data.sp3() {
-            warn!("Using clock states defined in SP3 file: CLK product should be prefered");
-            if sp3.epoch_interval >= Duration::from_seconds(300.0) {
-                warn!("interpolating clock states from low sample rate SP3 will most likely introduce errors");
-            }
-        }
-    }
 
     let mut time = Time::from_ctx(ctx);
 
