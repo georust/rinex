@@ -2286,7 +2286,7 @@ impl Rinex {
                         },
                         _ => {
                             /* determine toe */
-                            eph.toe(ts)
+                            eph.toe_gpst(ts)
                         },
                     };
                     //TODO : this fails at this point

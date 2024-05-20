@@ -156,22 +156,25 @@ impl Ephemeris {
             },
         }
     }
-    /*
-     * Retrieves and express TOE as an hifitime Epoch
-     */
-    pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
-        /* toe week counter */
-        let mut week = self.get_week()?;
-        if ts == TimeScale::GST {
-            /* Galileo vehicles stream week counter referenced to GPST.. */
-            week -= 1024;
+    /// Retrieve and express Time of Ephemeris as a GPST Epoch
+    pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
+        let mut week = self.get_week()?; // week counter
+        match sv_ts {
+            TimeScale::GST => {
+                /* Galileo vehicles stream week counter referenced to GPST.. */
+                week -= 1024;
+            },
+            _ => {},
         }
 
         // "toe" field is seconds within current week to obtain toe
         let secs_dur = self.get_orbit_f64("toe")?;
         let week_dur = (week * 7) as f64 * Unit::Day;
 
-        Some(Epoch::from_duration(week_dur + secs_dur * Unit::Second, ts))
+        Some(
+            Epoch::from_duration(week_dur + secs_dur * Unit::Second, sv_ts)
+                .to_time_scale(TimeScale::GPST),
+        )
     }
     /*
      * Parses ephemeris from given line iterator
@@ -337,40 +340,24 @@ impl Ephemeris {
         s.set_orbit_f64("omegaDot", perturbations.omega_dot);
         s
     }
-    /*
-     * Kepler equation solver at desired instant "t" for given "sv"
-     * based off Self. Self must be correctly selected in navigation
-     * record.
-     * "t" does not have to expressed in correct timescale prior this calculation
-     * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
-     */
-    pub(crate) fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
-        let mut t = t;
-
-        /*
-         * if "t" is not expressed in the correct constellation,
-         * take that into account
-         */
-        t.time_scale = sv.timescale()?;
-
-        match sv.constellation {
-            Constellation::GPS | Constellation::QZSS => {
-                t -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
-            },
-            Constellation::Galileo => {
-                t -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
-            },
-            Constellation::BeiDou => {
-                t -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
-            },
-            _ => {}, // either not needed, or most probably not truly supported
-        }
-
-        let toe = self.toe(t.time_scale)?;
+    /// Resolves Kepler Equations from broadcasted parameters
+    /// and obtains SV position at desired `t`.
+    /// Position expressed in [km] ECEF.
+    /// [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
+    pub fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
+        // we only support calculations in GPST at the moment
+        let sv_ts = sv.timescale()?;
+        let toe = self.toe_gpst(sv_ts)?;
+        let t = t.to_time_scale(TimeScale::GPST);
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
-        let t_k = (t - toe).to_seconds();
+        let mut t_k = (t - toe).to_seconds();
+        if t_k > 302400.0 {
+            t_k -= 604800.0;
+        } else if t_k < -302400.0 {
+            t_k += 604800.0;
+        }
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
         let n = n0 + perturbations.dn;
@@ -484,16 +471,13 @@ impl Ephemeris {
             reference.to_ecef_wgs84(),
         ))
     }
-    /*
-     * Returns max time difference between an Epoch and
-     * related Time of Issue of Ephemeris, for each constellation.
-     */
-    pub(crate) fn max_dtoe(c: Constellation) -> Option<Duration> {
+    /// Returns Ephemeris validity duration for this Constellation
+    pub fn max_dtoe(c: Constellation) -> Option<Duration> {
         match c {
             Constellation::GPS | Constellation::QZSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Galileo => Some(Duration::from_seconds(10800.0)),
             Constellation::BeiDou => Some(Duration::from_seconds(21600.0)),
-            Constellation::IRNSS => Some(Duration::from_seconds(86400.0)),
+            Constellation::IRNSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
             c => {
                 if c.is_sbas() {
@@ -892,7 +876,7 @@ mod test {
         let descriptors: Vec<&str> = vec![
             r#"
 {
-  "epoch": "2020-12-31T23:59:44.000000000 UTC",
+  "epoch": "2020-12-31T23:59:44.000000000 GPST",
   "sv": {
     "prn": 7,
     "constellation": "GPS"
@@ -925,7 +909,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-01-02T00:00:00.000000000 UTC",
+  "epoch": "2021-01-02T00:00:00.000000000 GPST",
   "sv": {
     "prn": 18,
     "constellation": "GPS"
@@ -958,7 +942,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-01-02T00:00:00.000000000 UTC",
+  "epoch": "2021-01-02T00:00:00.000000000 GPST",
   "sv": {
     "prn": 30,
     "constellation": "GPS"
@@ -991,7 +975,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-12-31T22:00:00.000000000 UTC",
+  "epoch": "2021-12-31T22:00:00.000000000 GPST",
   "sv": {
     "prn": 8,
     "constellation": "GPS"
@@ -1024,7 +1008,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2022-01-01T00:00:00.000000000 UTC",
+  "epoch": "2022-01-01T00:00:00.000000000 GPST",
   "sv": {
     "prn": 32,
     "constellation": "GPS"
@@ -1057,7 +1041,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-12-30T20:00:00.000000000 UTC",
+  "epoch": "2021-12-30T20:00:00.000000000 GPST",
   "sv": {
     "prn": 11,
     "constellation": "GPS"
@@ -1122,9 +1106,24 @@ mod test {
             let x_err = (ecef.0 * 1000.0 - helper.ecef.0).abs();
             let y_err = (ecef.1 * 1000.0 - helper.ecef.1).abs();
             let z_err = (ecef.2 * 1000.0 - helper.ecef.2).abs();
-            assert!(x_err < 1E-6, "kepler2ecef: x_err too large: {}", x_err);
-            assert!(y_err < 1E-6, "kepler2ecef: y_err too large: {}", y_err);
-            assert!(z_err < 1E-6, "kepler2ecef: z_err too large: {}", z_err);
+            assert!(
+                x_err < 1E-6,
+                "kepler2ecef@{}: x_err too large: {}",
+                helper.epoch,
+                x_err
+            );
+            assert!(
+                y_err < 1E-6,
+                "kepler2ecef@{}: y_err too large: {}",
+                helper.epoch,
+                y_err
+            );
+            assert!(
+                z_err < 1E-6,
+                "kepler2ecef@{}: z_err too large: {}",
+                helper.epoch,
+                z_err
+            );
 
             let el_az = ephemeris.sv_elev_azim(helper.sv, helper.epoch, helper.ref_pos);
             assert!(

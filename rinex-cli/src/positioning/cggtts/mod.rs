@@ -10,9 +10,6 @@ use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, prelude::Observable};
 
-use super::cast_rtk_carrier;
-use super::interp::TimeInterpolator;
-
 use rtk::prelude::{
     Candidate,
     Duration,
@@ -30,9 +27,16 @@ use cggtts::{
     track::{FitData, GlonassChannel, SVTracker, Scheduler},
 };
 
-use crate::cli::Context;
-use crate::positioning::{
-    bd_model, kb_model, ng_model, tropo_components, Error as PositioningError,
+use crate::{
+    cli::Context,
+    positioning::{
+        bd_model,
+        cast_rtk_carrier,
+        kb_model,
+        ng_model, //tropo_components,
+        Error as PositioningError,
+        Time,
+    },
 };
 
 // fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
@@ -61,7 +65,7 @@ use crate::positioning::{
 pub fn resolve<I>(
     ctx: &Context,
     mut solver: Solver<I>,
-    rx_lat_ddeg: f64,
+    // rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError>
 where
@@ -83,26 +87,13 @@ where
     // infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
     let nav_data = ctx.data.brdc_navigation().unwrap();
-
-    let clk_data = ctx.data.clock();
-    let meteo_data = ctx.data.meteo();
-
-    let sp3_has_clock = ctx.data.sp3_has_clock();
-    if clk_data.is_none() && sp3_has_clock {
-        if let Some(sp3) = ctx.data.sp3() {
-            warn!("Using clock states defined in SP3 file - CLK product should be prefered");
-            if sp3.epoch_interval >= Duration::from_seconds(300.0) {
-                warn!("Interpolating clock states from low sample rate SP3 will most likely introduce errors");
-            }
-        }
-    }
+    // let meteo_data = ctx.data.meteo(); //TODO
 
     let dominant_sampling_period = obs_data
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    let mut interp = TimeInterpolator::from_ctx(ctx);
-    debug!("Clock interpolator created");
+    let mut time = Time::from_ctx(ctx);
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
@@ -120,8 +111,8 @@ where
             continue;
         }
 
-        // Nearest TROPO
-        let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
+        // Nearest TROPO: TODO
+        // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
@@ -134,7 +125,7 @@ where
 
             // determine TOE
             let (_toe, sv_eph) = sv_eph.unwrap();
-            let clock_corr = match interp.next_at(*t, *sv) {
+            let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
                     error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
@@ -150,8 +141,8 @@ where
             };
 
             let tropo_bias = TroposphereBias {
-                total: None, //TODO
-                zwd_zdd,
+                total: None,   //TODO
+                zwd_zdd: None, // TODO
             };
 
             // tries to form a candidate for each signal
@@ -177,8 +168,8 @@ where
 
                     // attach one phase, if need be
                     match solver.cfg.method {
-                        Method::SPP => {},     // nothing to do
-                        Method::CodePPP => {}, // nothing to do
+                        Method::SPP => {}, // nothing to do
+                        Method::CPP => {}, // nothing to do
                         Method::PPP => {
                             // try to attach phase data
                             // let to_match =
@@ -220,7 +211,7 @@ where
                 // complete if need be
                 match solver.cfg.method {
                     Method::SPP => {}, // nothing to do
-                    Method::CodePPP => {
+                    Method::CPP => {
                         // Attach secondary PR
                         for (second_obs, second_data) in observations {
                             let rhs_carrier =

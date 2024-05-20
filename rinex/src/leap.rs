@@ -1,5 +1,5 @@
 //! Describes `leap` second information, contained in `header`
-use hifitime::TimeScale;
+use hifitime::{ParsingError, TimeScale};
 use thiserror::Error;
 
 /// `Leap` to describe leap seconds.
@@ -27,7 +27,7 @@ pub enum Error {
     #[error("failed to parse leap integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse leap timescale")]
-    TimeScaleError(#[from] hifitime::Errors),
+    TimeScaleError(#[from] ParsingError),
 }
 
 impl Leap {

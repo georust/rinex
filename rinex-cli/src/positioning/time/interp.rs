@@ -1,32 +1,31 @@
-use super::Buffer as BufferTrait;
-use crate::cli::Context;
+use crate::positioning::BufferTrait;
 use gnss_rtk::prelude::{Duration, Epoch, SV};
 use std::collections::HashMap;
 
 #[derive(Debug)]
 struct Buffer {
-    inner: Vec<(Epoch, (f64, f64, f64))>,
+    inner: Vec<(Epoch, f64)>,
 }
 
-impl BufferTrait for Buffer {
+impl BufferTrait<f64> for Buffer {
     fn malloc(size: usize) -> Self {
         Self {
             inner: Vec::with_capacity(size),
         }
     }
-    fn push(&mut self, x_j: (Epoch, (f64, f64, f64))) {
+    fn push(&mut self, x_j: (Epoch, f64)) {
         self.inner.push(x_j);
     }
     fn clear(&mut self) {
         self.inner.clear();
     }
-    fn snapshot(&self) -> &[(Epoch, (f64, f64, f64))] {
+    fn snapshot(&self) -> &[(Epoch, f64)] {
         &self.inner
     }
-    fn snapshot_mut(&mut self) -> &mut [(Epoch, (f64, f64, f64))] {
+    fn snapshot_mut(&mut self) -> &mut [(Epoch, f64)] {
         &mut self.inner
     }
-    fn get(&self, index: usize) -> Option<&(Epoch, (f64, f64, f64))> {
+    fn get(&self, index: usize) -> Option<&(Epoch, f64)> {
         self.inner.get(index)
     }
     fn len(&self) -> usize {
@@ -49,52 +48,18 @@ pub struct Interpolator<'a> {
     epochs: usize,
     /// Internal buffer
     buffers: HashMap<SV, Buffer>,
-    iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
+    iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
 }
 
 impl<'a> Interpolator<'a> {
-    /*
-     * Time interpolator
-     *  1. Prefer CLK product
-     *  2. Prefer SP3 product
-     *  3. BRDC last option
-     */
-    pub fn from_ctx(ctx: &'a Context) -> Self {
+    pub fn from_iter(iter: impl Iterator<Item = (Epoch, SV, f64)> + 'a) -> Self {
         Self {
             epochs: 0,
+            iter: Box::new(iter),
             buffers: HashMap::with_capacity(32),
-            iter: if let Some(clk) = ctx.data.clock() {
-                Box::new(clk.precise_sv_clock().map(|(t, sv, _, prof)| {
-                    (
-                        t,
-                        sv,
-                        (
-                            prof.bias,
-                            prof.drift.unwrap_or(0.0_f64),
-                            prof.drift_change.unwrap_or(0.0_f64),
-                        ),
-                    )
-                }))
-            } else if let Some(sp3) = ctx.data.sp3() {
-                // TODO: improve SP3 API and definitions
-                Box::new(
-                    sp3.sv_clock()
-                        .map(|(t, sv, clk)| (t, sv, (clk, 0.0_f64, 0.0_f64))),
-                )
-            } else {
-                panic!("SP3 or CLOCK RINEX currently required");
-                // TODO
-                // let brdc = ctx.data.brdc_navigation().unwrap(); // infaillible
-                // Box::new(brdc.sv_clock())
-                // dt = t - toc
-                // for (i=0; i<2; i++)
-                //    dt -= a0 + a1 * dt+ a2 * dt^2
-                // return a0 + a1 * dt + a2 * dt
-                // let clock_corr = Ephemeris::sv_clock_corr(*sv, clock_state, *t, toe);
-            },
         }
     }
-    fn push(&mut self, t: Epoch, sv: SV, data: (f64, f64, f64)) {
+    fn push(&mut self, t: Epoch, sv: SV, data: f64) {
         if let Some(buf) = self.buffers.get_mut(&sv) {
             buf.push((t, data));
         } else {
@@ -103,7 +68,6 @@ impl<'a> Interpolator<'a> {
             self.buffers.insert(sv, buf);
         }
     }
-    // consumes N epochs completely
     fn consume(&mut self, total: usize) -> bool {
         let mut prev_t = None;
         let mut epochs = 0;
@@ -125,19 +89,6 @@ impl<'a> Interpolator<'a> {
         self.epochs += epochs;
         false
     }
-    // fn latest(&self, sv: SV) -> Option<&Epoch> {
-    //     self.buffers
-    //         .iter()
-    //         .filter_map(|(k, v)| {
-    //             if *k == sv {
-    //                 let last = v.inner.iter().map(|(e, _)| e).last()?;
-    //                 Some(last)
-    //             } else {
-    //                 None
-    //             }
-    //         })
-    //         .reduce(|k, _| k)
-    // }
     // Returns true if interpolation is feasible @ t for SV
     fn is_feasible(&self, t: Epoch, sv: SV) -> bool {
         if let Some(buf) = self.buffers.get(&sv) {
@@ -161,17 +112,17 @@ impl<'a> Interpolator<'a> {
 
         let buf = self.buffers.get_mut(&sv)?;
 
-        if let Some((y, _, _)) = buf.direct_output(t) {
+        if let Some(y) = buf.direct_output(t) {
             // No need to interpolate @ t for SV
             // Preserves data precision
             first_x = Some(t);
             dt = Some(Duration::from_seconds(*y));
-        } else if let Some((before_x, (before_y, _, _))) =
+        } else if let Some((before_x, before_y)) =
             buf.inner.iter().filter(|(v_t, _)| *v_t < t).last()
         {
             first_x = Some(*before_x);
 
-            if let Some((after_x, (after_y, _, _))) = buf
+            if let Some((after_x, after_y)) = buf
                 .inner
                 .iter()
                 .filter(|(v_t, _)| *v_t >= t)

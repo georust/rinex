@@ -1,14 +1,17 @@
 //! PPP solver
-use crate::cli::Context;
-use crate::positioning::{
-    bd_model, cast_rtk_carrier, interp::TimeInterpolator, kb_model, ng_model, tropo_components,
+use crate::{
+    cli::Context,
+    positioning::{
+        bd_model,
+        cast_rtk_carrier,
+        kb_model,
+        ng_model, //tropo_components,
+        Time,
+    },
 };
 use std::collections::BTreeMap;
 
-use rinex::{
-    carrier::Carrier,
-    prelude::{Duration, SV},
-};
+use rinex::{carrier::Carrier, prelude::SV};
 
 mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
@@ -21,7 +24,7 @@ use rtk::prelude::{
 pub fn resolve<I>(
     ctx: &Context,
     mut solver: Solver<I>,
-    rx_lat_ddeg: f64,
+    // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution>
 where
     I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
@@ -31,22 +34,9 @@ where
     // infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
     let nav_data = ctx.data.brdc_navigation().unwrap();
+    // let meteo_data = ctx.data.meteo(); //TODO
 
-    let clk_data = ctx.data.clock();
-    let meteo_data = ctx.data.meteo();
-
-    let sp3_has_clock = ctx.data.sp3_has_clock();
-    if clk_data.is_none() && sp3_has_clock {
-        if let Some(sp3) = ctx.data.sp3() {
-            warn!("Using clock states defined in SP3 file: CLK product should be prefered");
-            if sp3.epoch_interval >= Duration::from_seconds(300.0) {
-                warn!("interpolating clock states from low sample rate SP3 will most likely introduce errors");
-            }
-        }
-    }
-
-    let mut interp = TimeInterpolator::from_ctx(ctx);
-    debug!("Clock interpolator created");
+    let mut time = Time::from_ctx(ctx);
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -73,7 +63,7 @@ where
 
             // determine TOE
             let (_toe, sv_eph) = sv_eph.unwrap();
-            let clock_corr = match interp.next_at(*t, *sv) {
+            let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
                     error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
@@ -124,7 +114,7 @@ where
         }
 
         // grab possible tropo components
-        let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
+        // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         let iono_bias = IonosphereBias {
             kb_model: kb_model(nav_data, *t),
@@ -134,8 +124,8 @@ where
         };
 
         let tropo_bias = TroposphereBias {
-            total: None, //TODO
-            zwd_zdd,
+            total: None,   //TODO
+            zwd_zdd: None, //TODO
         };
 
         match solver.resolve(*t, &candidates, &iono_bias, &tropo_bias) {

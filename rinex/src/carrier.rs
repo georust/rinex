@@ -35,23 +35,23 @@ pub enum Carrier {
     G2a,
     /// Glonass channel 3
     G3,
-    /// E1: GAL
+    /// E1 (Galileo)
     E1,
-    /// E5: GAL (E5a + E5b)
+    /// E5 (Galileo)
     E5,
-    /// E5a: GAL E5a
+    /// E5a (Galileo)
     E5a,
-    /// E5b: GAL E5b
+    /// E5b (Galileo)
     E5b,
-    /// E6: GAL military
+    /// E6 (Galileo military)
     E6,
-    /// B1: BeiDou 1i
+    /// B1 (BDS)
     B1I,
-    /// B1A BeiDou 1A
+    /// B1A (BDS)
     B1A,
-    /// B1C BeiDou 1C
+    /// B1C (BDS)
     B1C,
-    /// B2: BeiDou 2
+    /// B2 (BDS)
     B2,
     /// B2i: BeiDou 2i
     B2I,
@@ -186,16 +186,12 @@ impl Carrier {
     }
     pub fn frequency_mhz(&self) -> f64 {
         match self {
-            /*
-             * GPS, Gal, QZSS, SBAS
-             */
-            Self::L1 | Self::E1 => 1575.42_f64,
+            Self::L1 | Self::E1 | Self::B1A | Self::B1C => 1575.42_f64,
             Self::L2 => 1227.60_f64,
             Self::L6 | Self::E6 => 1278.750_f64,
-            Self::L5 => 1176.45_f64,
-            Self::E5 => 1191.795_f64,
-            Self::E5a => 1176.45_f64,
-            Self::E5b => 1207.140_f64,
+            Self::L5 | Self::E5a | Self::B2A => 1176.45_f64,
+            Self::E5 | Self::B2 => 1191.795_f64,
+            Self::E5b | Self::B2I | Self::B2B => 1207.140_f64,
             /*
              * IRNSS
              */
@@ -214,10 +210,6 @@ impl Carrier {
              * BeiDou
              */
             Self::B1I => 1561.098_f64,
-            Self::B1C | Self::B1A => 1575.420_f64,
-            Self::B2A => 1176.450_f64,
-            Self::B2I | Self::B2B => 1207.140_f64,
-            Self::B2 => 1191.795_f64,
             Self::B3 | Self::B3A => 1268.520_f64,
             /*
              * DORIS
@@ -325,20 +317,20 @@ impl Carrier {
             other => *other,
         }
     }
-    pub(crate) fn gpsl1_codes() -> [&'static str; 39] {
+    pub(crate) fn gpsl1_codes() -> [&'static str; 40] {
         [
-            "C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C", "C1S", "L1S", "D1S", "S1S", "C1L",
-            "L1L", "D1L", "S1L", "C1X", "L1X", "D1X", "S1X", "C1P", "L1P", "D1P", "S1P", "C1W",
-            "L1W", "D1W", "S1W", "C1Y", "L1Y", "D1Y", "S1Y", "C1M", "L1M", "D1M", "S1M", "L1N",
-            "D1N", "S1N",
+            "C1", "L1", "D1", "S1", "P1", "C1C", "L1C", "D1C", "S1C", "C1S", "L1S", "D1S", "S1S",
+            "C1L", "L1L", "D1L", "S1L", "C1X", "L1X", "D1X", "S1X", "C1P", "L1P", "D1P", "S1P",
+            "C1W", "L1W", "D1W", "S1W", "C1Y", "L1Y", "D1Y", "S1Y", "C1M", "L1M", "D1M", "S1M",
+            "L1N", "D1N", "S1N",
         ]
     }
-    pub(crate) fn gpsl2_codes() -> [&'static str; 43] {
+    pub(crate) fn gpsl2_codes() -> [&'static str; 44] {
         [
-            "C2", "L2", "D2", "S2", "C2C", "L2C", "D2C", "S2C", "C2D", "L2D", "D2D", "S2D", "C2S",
-            "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L", "C2X", "L2X", "D2X", "S2X", "C2P",
-            "L2P", "D2P", "S2P", "C2W", "L2W", "D2W", "S2W", "C2Y", "L2Y", "D2Y", "S2Y", "C2M",
-            "L2M", "D2M", "S2M", "L2N", "D2N", "S2N",
+            "C2", "L2", "D2", "S2", "P2", "C2C", "L2C", "D2C", "S2C", "C2D", "L2D", "D2D", "S2D",
+            "C2S", "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L", "C2X", "L2X", "D2X", "S2X",
+            "C2P", "L2P", "D2P", "S2P", "C2W", "L2W", "D2W", "S2W", "C2Y", "L2Y", "D2Y", "S2Y",
+            "C2M", "L2M", "D2M", "S2M", "L2N", "D2N", "S2N",
         ]
     }
     pub(crate) fn gpsl5_codes() -> [&'static str; 16] {

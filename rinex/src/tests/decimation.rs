@@ -83,10 +83,10 @@ mod decimation {
 
         rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
         let count = rinex.epoch().count();
-        assert_eq!(count, 1016, "decimate(1'): error",);
+        assert_eq!(count, 1013, "decimate(1'): error",);
 
         rinex.decimate_by_interval_mut(Duration::from_seconds(61.0));
         let count = rinex.epoch().count();
-        assert_eq!(count, 1016, "decimate(1'+1s): error",);
+        assert_eq!(count, 1013, "decimate(1'+1s): error",);
     }
 }

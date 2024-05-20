@@ -9,7 +9,8 @@ use crate::{
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
-    ionex, leap,
+    ionex,
+    leap::{Error as LeapParsingError, Leap},
     linspace::{Error as LinspaceError, Linspace},
     marker::{GeodeticMarker, MarkerType},
     merge::{
@@ -96,7 +97,7 @@ pub struct Header {
     /// Optional COSPAR number (launch information)
     pub cospar: Option<COSPAR>,
     /// optionnal leap seconds infos
-    pub leap: Option<leap::Leap>,
+    pub leap: Option<Leap>,
     // /// Optionnal system time correction
     // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
@@ -165,7 +166,7 @@ pub enum ParsingError {
     #[error("failed to parse \"{0}\" coordinates from \"{1}\"")]
     CoordinatesParsing(String, String),
     #[error("failed to parse leap from \"{0}\"")]
-    LeapParsingError(#[from] leap::Error),
+    LeapParsingError(#[from] LeapParsingError),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
     #[error("failed to parse ANTEX fields")]
@@ -252,7 +253,7 @@ impl Header {
         let mut rcvr: Option<Rcvr> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
         let mut sv_antenna: Option<SvAntenna> = None;
-        let mut leap: Option<leap::Leap> = None;
+        let mut leap: Option<Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
@@ -630,7 +631,7 @@ impl Header {
                 }
             } else if marker.contains("LEAP SECOND") {
                 let leap_str = content.split_at(40).0.trim();
-                if let Ok(lleap) = leap::Leap::from_str(leap_str) {
+                if let Ok(lleap) = Leap::from_str(leap_str) {
                     leap = Some(lleap)
                 }
             } else if marker.contains("DOI") {
@@ -851,8 +852,7 @@ impl Header {
                     if interval > 0.0 {
                         // INTERVAL = '0' may exist, in case
                         // of Varying TEC map intervals
-                        sampling_interval =
-                            Some(Duration::from_f64(interval, hifitime::Unit::Second));
+                        sampling_interval = Some(Duration::from_seconds(interval));
                     }
                 }
             } else if marker.contains("COSPAR NUMBER") {

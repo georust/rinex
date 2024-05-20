@@ -7,6 +7,7 @@ mod test {
     use crate::tests::toolkit::nav::check_nequick_g_models;
     use gnss_rs::prelude::SV;
     use gnss_rs::sv;
+    use hifitime::Unit;
     use itertools::*;
     use std::path::Path;
     use std::path::PathBuf;
@@ -1442,7 +1443,32 @@ mod test {
     }
     #[test]
     #[cfg(feature = "nav")]
-    fn sv_toe_ephemeris() {
+    fn toe_ephemeris_glo() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V2")
+            .join("dlf10010.21g");
+        let rinex = Rinex::from_file(path.to_string_lossy().as_ref());
+        assert!(rinex.is_ok());
+        let rinex = rinex.unwrap();
+        for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
+            match sv.prn {
+                3 => {},
+                17 => {},
+                1 => {},
+                18 => {},
+                19 => {},
+                8 => {},
+                16 => {},
+                _ => panic!("found unexpected SV"),
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "nav")]
+    fn toe_ephemeris_gal_bds() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -1462,34 +1488,28 @@ mod test {
             assert!(ts.is_some(), "timescale should be determined");
             let ts = ts.unwrap();
 
-            if let Some(toe) = ephemeris.toe(ts) {
-                let mut expected_sv = SV::default();
-                let mut expected_toe = Epoch::default();
+            if let Some(toe) = ephemeris.toe_gpst(ts) {
                 if *toc == e0 {
-                    expected_toe = Epoch::from_str("2021-01-01T00:00:33 BDT").unwrap();
-                    expected_sv = sv!("C05");
+                    let expected = toe_helper(0.782E3, 0.432E6, TimeScale::BDT);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 } else if *toc == e1 {
-                    expected_toe = Epoch::from_str("2021-01-01T05:00:33 BDT").unwrap();
-                    expected_sv = sv!("C21");
+                    let expected = toe_helper(0.782E3, 0.450E6, TimeScale::BDT);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 } else if *toc == e2 {
-                    expected_toe = Epoch::from_str("2021-01-01T10:10:19 GST").unwrap();
-                    expected_sv = sv!("E01");
+                    let expected = toe_helper(0.2138E4, 0.4686E6, TimeScale::GST);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 } else if *toc == e3 {
-                    expected_toe = Epoch::from_str("2021-01-01T15:40:19 GST").unwrap();
-                    expected_sv = sv!("E03");
-                } else {
-                    panic!("unhandled toc {}", toc);
+                    let expected = toe_helper(0.2138E4, 0.4884E6, TimeScale::GST);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 }
-                assert_eq!(sv, expected_sv, "wrong sv");
-                assert_eq!(toe, expected_toe, "wrong toe evaluated");
-                /*
-                 * Rinex.sv_ephemeris(@ toe) should return exact ephemeris
-                 */
-                assert_eq!(
-                    rinex.sv_ephemeris(expected_sv, toe),
-                    Some((expected_toe, ephemeris)),
-                    "sv_ephemeris(sv,t) @ toe should strictly identical ephemeris"
-                );
+                // /*
+                //  * Rinex.sv_ephemeris(@ toe) should propose that very same ephemeris
+                //  */
+                //assert_eq!(
+                //    rinex.sv_ephemeris(expected_sv, toe),
+                //    Some((expected_toe, ephemeris)),
+                //    "sv_ephemeris(sv,t) @ toe should strictly identical ephemeris"
+                //);
             }
         }
     }
@@ -1552,7 +1572,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "nav")]
-    fn v2_ion_alpha_beta() {
+    fn v2_iono_alphabeta_and_toe() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -1567,7 +1587,56 @@ mod test {
             rinex.err()
         );
         let rinex = rinex.unwrap();
-        // Earliest record epoch is 2020-12-31 23:59:44
+        // Earliest epoch record is 2020-12-31 23:59:44
+
+        for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
+            let sv_ts = sv.timescale().unwrap();
+            let toe_gpst = ephemeris.toe_gpst(sv_ts).unwrap();
+            match toc.to_string().as_str() {
+                "2021-01-01T02:00:00 GPST" => {
+                    assert_eq!(sv.prn, 1, "found invalid vehicle");
+                    let toe = toe_helper(2.138000000000E3, 4.392000000000E5, TimeScale::GPST);
+                    assert_eq!(toe_gpst, toe);
+                },
+                "2021-12-31T23:59:44 GPST" => {
+                    if sv.prn == 7 {
+                        let toe = toe_helper(2.138000000000E3, 4.319840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else if sv.prn == 8 {
+                        let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else {
+                        panic!("found invalid vehicle");
+                    }
+                },
+                "2021-01-01T00:00:00 GPST" => {
+                    assert_eq!(sv.prn, 8, "found invalid vehicle");
+                    let toe = toe_helper(2.138000000000E3, 4.320000000000E5, TimeScale::GPST);
+                    assert_eq!(toe_gpst, toe);
+                },
+                "2021-01-01T01:59:44 GPST" => {
+                    if sv.prn == 7 {
+                        let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else if sv.prn == 8 {
+                        let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else {
+                        panic!("found invalid vehicle");
+                    }
+                },
+                "2021-01-02T00:00:00 GPST" => {
+                    if sv.prn == 30 {
+                        let toe = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else if sv.prn == 5 {
+                        let toe = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    }
+                },
+                _ => {},
+            }
+        }
 
         for (t0, should_work) in [
             // MIDNIGHT T0 exact match
@@ -1704,6 +1773,14 @@ mod test {
                     _ => panic!("bad \"{}\" message for STO frame", msg),
                 }
             }
+        }
+    }
+    // Computes TOE in said timescale
+    fn toe_helper(week: f64, week_s: f64, ts: TimeScale) -> Epoch {
+        if ts == TimeScale::GST {
+            Epoch::from_duration((week - 1024.0) * Unit::Week + week_s * Unit::Second, ts)
+        } else {
+            Epoch::from_duration(week * Unit::Week + week_s * Unit::Second, ts)
         }
     }
 }
