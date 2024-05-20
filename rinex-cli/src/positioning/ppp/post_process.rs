@@ -193,7 +193,7 @@ pub fn post_process(
         let apriori_scatter = ScatterMapbox::new(vec![lat0_ddeg], vec![lon0_ddeg])
             .marker(
                 Marker::new()
-                    .size(6)
+                    .size(5)
                     .symbol(MarkerSymbol::Circle)
                     .color(NamedColor::Red),
             )
@@ -219,14 +219,14 @@ pub fn post_process(
                 (
                     "FINAL".to_string(),
                     Visible::True,
-                    MarkerSymbol::Cross,
+                    MarkerSymbol::Circle,
                     NamedColor::Black,
                 )
             } else {
                 (
                     format!("Solver: {:02}%", pct),
                     Visible::LegendOnly,
-                    MarkerSymbol::Cross,
+                    MarkerSymbol::Circle,
                     NamedColor::Black,
                 )
             };
