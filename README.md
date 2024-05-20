@@ -25,12 +25,13 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
   - Read and access all the code
   - All examples based on Open data 
 - All modern GNSS constellations, codes and signals
-- Time scales: GPST, QZSST, BDT, GST, UTC
+  - Surveying with GPS, Galileo, BeiDou and QZSS
+- Time scales: GPST, QZSST, BDT, GST, UTC, TAI
 - Efficient seamless compression and decompression
 - RINEX V4 full support
 - All RINEX formats supported (see following table)
-- High Precision Clock RINEX products
-- High Precision Orbital (SP3) products [SP3](https://docs.rs/sp3/1.0.7/sp3/)
+- High Precision Clock RINEX products (for PPP)
+- High Precision Orbital [SP3 for PPP](https://docs.rs/sp3/1.0.7/sp3/)
 - DORIS (special RINEX)
 - Several pre-processing algorithms:
   - [File merging](https://github.com/georust/rinex/wiki/file-merging)
@@ -45,7 +46,7 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 ## Disadvantages :warning:
 
 - Navigation is currently not feasible with Glonass and IRNSS
-- Differential navigation (SBAS, DGNSS or RTK) not support yet
+- Differential navigation (SBAS, DGNSS or RTK) is not support yet
 - Our applications do not accept BINEX or other proprietary formats
 - File production might lack some features, mostly because we're currently focused on data processing
 
