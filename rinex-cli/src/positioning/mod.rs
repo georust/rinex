@@ -16,8 +16,8 @@ use rinex::carrier::Carrier;
 use rinex::prelude::Rinex;
 
 use rtk::prelude::{
-    BdModel, Carrier as RTKCarrier, Config, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Solver,
+    BdModel, Carrier as RTKCarrier, Config, Epoch, Error as RTKError, KbModel, Method, NgModel,
+    PVTSolutionType, Solver,
 };
 
 use thiserror::Error;

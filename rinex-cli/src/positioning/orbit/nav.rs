@@ -1,9 +1,7 @@
 use crate::cli::Context;
 use std::collections::HashMap;
 
-use gnss_rtk::prelude::{
-    Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, SV,
-};
+use gnss_rtk::prelude::{Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, SV};
 
 use rinex::navigation::Ephemeris;
 
