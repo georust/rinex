@@ -56,7 +56,6 @@ impl<'a> Time<'a> {
                     t - toe_i
                 })?;
 
-                let (a0, a1, a2) = (eph_i.clock_bias, eph_i.clock_drift, eph_i.clock_drift_rate);
                 let t_gpst = t.to_time_scale(TimeScale::GPST).duration.to_seconds();
                 let toe_gpst = eph_i.toe_gpst(sv_ts)?.duration.to_seconds();
 
@@ -66,7 +65,15 @@ impl<'a> Time<'a> {
                 } else if dt < -302400.0 {
                     dt += 604800.0;
                 }
-                Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
+
+                if sv.constellation.is_sbas() {
+                    let (a0, a1) = (eph_i.clock_bias, eph_i.clock_drift);
+                    Some(Duration::from_seconds(a0 + a1 * dt))
+                } else {
+                    let (a0, a1, a2) =
+                        (eph_i.clock_bias, eph_i.clock_drift, eph_i.clock_drift_rate);
+                    Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
+                }
             },
         };
 

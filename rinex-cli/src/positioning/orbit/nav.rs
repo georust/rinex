@@ -61,9 +61,35 @@ impl<'a> Orbit<'a> {
                     let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
                     t - toe_i
                 })?;
-                let (x_km, y_km, z_km) = eph_i.kepler2ecef(sv, t)?;
-                let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);
-                Some(RTKInterpolationResult::from_position((x, y, z)))
+
+                if sv.constellation.is_sbas() {
+                    let ts = t.duration.to_seconds();
+                    let (x, y, z) = (
+                        eph_i.get_orbit_f64("satPosX")?,
+                        eph_i.get_orbit_f64("satPosY")?,
+                        eph_i.get_orbit_f64("satPosZ")?,
+                    );
+                    let (vx_kms, vy_kms, vz_kms) = (
+                        eph_i.get_orbit_f64("velX")?,
+                        eph_i.get_orbit_f64("velY")?,
+                        eph_i.get_orbit_f64("velZ")?,
+                    );
+                    let (ax_kms, ay_kms, az_kms) = (
+                        eph_i.get_orbit_f64("accelX")?,
+                        eph_i.get_orbit_f64("accelY")?,
+                        eph_i.get_orbit_f64("accelZ")?,
+                    );
+                    let (x, y, z) = (
+                        x + vx_kms * ts + ax_kms * ts * ts / 2.0,
+                        y + vy_kms * ts + ay_kms * ts * ts / 2.0,
+                        z + vz_kms * ts + az_kms * ts * ts / 2.0,
+                    );
+                    Some(RTKInterpolationResult::from_position((x, y, z)))
+                } else {
+                    let (x_km, y_km, z_km) = eph_i.kepler2ecef(sv, t)?;
+                    let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);
+                    Some(RTKInterpolationResult::from_position((x, y, z)))
+                }
             },
             None => None,
         };
