@@ -57,7 +57,7 @@ where
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
-                error!("{:?} ({}) : undetermined ephemeris", t, sv);
+                error!("{} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
 
@@ -66,7 +66,7 @@ where
             let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
-                    error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
+                    error!("{} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
                 },
             };
@@ -130,10 +130,10 @@ where
 
         match solver.resolve(*t, &candidates, &iono_bias, &tropo_bias) {
             Ok((t, pvt)) => {
-                debug!("{:?} : {:?}", t, pvt);
+                debug!("{} : {:?}", t, pvt);
                 solutions.insert(t, pvt);
             },
-            Err(e) => warn!("{:?} : pvt solver error \"{}\"", t, e),
+            Err(e) => warn!("{} : pvt solver error \"{}\"", t, e),
         }
     }
 
