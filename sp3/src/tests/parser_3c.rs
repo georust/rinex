@@ -38,7 +38,7 @@ mod test {
         assert_eq!(sp3.nb_epochs(), 96, "bad number of epochs");
         assert_eq!(sp3.coord_system, "ITRF2");
         assert_eq!(sp3.orbit_type, OrbitType::BHN);
-        assert_eq!(sp3.time_system, TimeScale::GPST);
+        assert_eq!(sp3.time_scale, TimeScale::GPST);
         assert_eq!(sp3.constellation, Constellation::Mixed);
         assert_eq!(sp3.agency, "ESOC");
 
