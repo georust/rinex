@@ -128,7 +128,7 @@ where
             let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
-                    error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
+                    error!("{} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
                 },
             };
@@ -365,7 +365,7 @@ where
                                         tracks.push(track);
                                     },
                                     Err(e) => {
-                                        warn!("{:?} - track fitting error: \"{}\"", t, e);
+                                        warn!("{} - track fitting error: \"{}\"", t, e);
                                         // TODO: most likely we should reset the SV signal tracker here
                                     },
                                 } //.fit()
