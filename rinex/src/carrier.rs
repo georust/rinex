@@ -317,20 +317,20 @@ impl Carrier {
             other => *other,
         }
     }
-    pub(crate) fn gpsl1_codes() -> [&'static str; 39] {
+    pub(crate) fn gpsl1_codes() -> [&'static str; 40] {
         [
-            "C1", "L1", "D1", "S1", "C1C", "L1C", "D1C", "S1C", "C1S", "L1S", "D1S", "S1S", "C1L",
-            "L1L", "D1L", "S1L", "C1X", "L1X", "D1X", "S1X", "C1P", "L1P", "D1P", "S1P", "C1W",
-            "L1W", "D1W", "S1W", "C1Y", "L1Y", "D1Y", "S1Y", "C1M", "L1M", "D1M", "S1M", "L1N",
-            "D1N", "S1N",
+            "C1", "L1", "D1", "S1", "P1", "C1C", "L1C", "D1C", "S1C", "C1S", "L1S", "D1S", "S1S",
+            "C1L", "L1L", "D1L", "S1L", "C1X", "L1X", "D1X", "S1X", "C1P", "L1P", "D1P", "S1P",
+            "C1W", "L1W", "D1W", "S1W", "C1Y", "L1Y", "D1Y", "S1Y", "C1M", "L1M", "D1M", "S1M",
+            "L1N", "D1N", "S1N",
         ]
     }
-    pub(crate) fn gpsl2_codes() -> [&'static str; 43] {
+    pub(crate) fn gpsl2_codes() -> [&'static str; 44] {
         [
-            "C2", "L2", "D2", "S2", "C2C", "L2C", "D2C", "S2C", "C2D", "L2D", "D2D", "S2D", "C2S",
-            "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L", "C2X", "L2X", "D2X", "S2X", "C2P",
-            "L2P", "D2P", "S2P", "C2W", "L2W", "D2W", "S2W", "C2Y", "L2Y", "D2Y", "S2Y", "C2M",
-            "L2M", "D2M", "S2M", "L2N", "D2N", "S2N",
+            "C2", "L2", "D2", "S2", "P2", "C2C", "L2C", "D2C", "S2C", "C2D", "L2D", "D2D", "S2D",
+            "C2S", "L2S", "D2S", "S2S", "C2L", "L2L", "D2L", "S2L", "C2X", "L2X", "D2X", "S2X",
+            "C2P", "L2P", "D2P", "S2P", "C2W", "L2W", "D2W", "S2W", "C2Y", "L2Y", "D2Y", "S2Y",
+            "C2M", "L2M", "D2M", "S2M", "L2N", "D2N", "S2N",
         ]
     }
     pub(crate) fn gpsl5_codes() -> [&'static str; 16] {
