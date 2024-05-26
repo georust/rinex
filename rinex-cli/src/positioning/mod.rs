@@ -18,6 +18,8 @@ use rinex::prelude::Rinex;
 use rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
     NgModel, PVTSolutionType, Solver,
+    Position,
+    Vector3,
 };
 
 use thiserror::Error;
@@ -261,6 +263,9 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
 
     // print config to be used
     info!("Using {:?} method", cfg.method);
+
+    let (x0, y0, z0) = ctx.rx_ecef.unwrap();
+    let position = Position::from_ecef(Vector3::new(x0, y0, z0));
 
     let solver = Solver::new(
         &cfg,
