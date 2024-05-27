@@ -17,7 +17,8 @@ use rtk::prelude::{
     InterpolationResult,
     IonosphereBias,
     Method,
-    Observation,
+    PhaseRange,
+    PseudoRange,
     Solver,
     TroposphereBias, //TimeScale
 };
@@ -155,12 +156,12 @@ where
                 let carrier = carrier.unwrap();
                 let rtk_carrier = cast_rtk_carrier(carrier);
 
-                let mut code = Option::<Observation>::None;
-                let phase = Option::<Observation>::None;
-                let mut doppler = Option::<Observation>::None;
+                let mut code = Option::<PseudoRange>::None;
+                let phase = Option::<PhaseRange>::None;
+                //let mut doppler = Option::<Observation>::None;
 
                 if observable.is_pseudorange_observable() {
-                    code = Some(Observation {
+                    code = Some(PseudoRange {
                         carrier: rtk_carrier,
                         snr: { data.snr.map(|snr| snr.into()) },
                         value: data.obs,
@@ -176,7 +177,7 @@ where
                             //     Observable::from_str(&format!("L{}", &observable.to_string()[1..])).unwrap();
                             // for (observable, data) in observations {
                             //     if *observable == phase_to_match {
-                            //         phase = Some(Observation {
+                            //         phase = Some(PhaseRange {
                             //             carrier: rtk_carrier,
                             //             snr: { data.snr.map(|snr| snr.into()) },
                             //             value: data.obs,
@@ -192,11 +193,11 @@ where
                             .unwrap();
                     for (observable, data) in observations {
                         if *observable == doppler_to_match {
-                            doppler = Some(Observation {
-                                carrier: rtk_carrier,
-                                snr: { data.snr.map(|snr| snr.into()) },
-                                value: data.obs,
-                            });
+                            // doppler = Some(Observation {
+                            //     carrier: rtk_carrier,
+                            //     snr: { data.snr.map(|snr| snr.into()) },
+                            //     value: data.obs,
+                            // });
                             break;
                         }
                     }
@@ -223,7 +224,7 @@ where
                             let rtk_carrier = cast_rtk_carrier(rhs_carrier);
 
                             if second_obs.is_pseudorange_observable() && rhs_carrier != carrier {
-                                codes.push(Observation {
+                                codes.push(PseudoRange {
                                     value: second_data.obs,
                                     carrier: rtk_carrier,
                                     snr: { data.snr.map(|snr| snr.into()) },
@@ -235,16 +236,15 @@ where
                     Method::PPP => {}, //TODO
                 };
 
-                let dopplers = match doppler {
-                    Some(doppler) => vec![doppler],
-                    None => vec![],
-                };
+                //let dopplers = match doppler {
+                //    Some(doppler) => //vec![doppler],
+                //    None => vec![],
+                //};
                 let phases = match phase {
                     Some(phase) => vec![phase],
                     None => vec![],
                 };
-                let candidate =
-                    Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases, dopplers);
+                let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases);
                 match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {
                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible

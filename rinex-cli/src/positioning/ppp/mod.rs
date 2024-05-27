@@ -17,8 +17,8 @@ mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
 
 use rtk::prelude::{
-    Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution, Solver,
-    TroposphereBias,
+    Candidate, Epoch, InterpolationResult, IonosphereBias, PVTSolution, PhaseRange, PseudoRange,
+    Solver, TroposphereBias,
 };
 
 pub fn resolve<I>(
@@ -71,33 +71,34 @@ where
                 },
             };
 
-            let mut codes = Vec::<Observation>::new();
-            let mut phases = Vec::<Observation>::new();
-            let mut dopplers = Vec::<Observation>::new();
+            let mut codes = Vec::<PseudoRange>::new();
+            let mut phases = Vec::<PhaseRange>::new();
+            // let mut dopplers = Vec::<Observation>::new();
 
             for (observable, data) in observations {
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
-                    let rtk_carrier: gnss_rtk::prelude::Carrier = cast_rtk_carrier(carrier);
+                    let rtk_carrier = cast_rtk_carrier(carrier);
 
                     if observable.is_pseudorange_observable() {
-                        codes.push(Observation {
+                        codes.push(PseudoRange {
                             value: data.obs,
                             carrier: rtk_carrier,
                             snr: { data.snr.map(|snr| snr.into()) },
                         });
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
-                        phases.push(Observation {
+                        phases.push(PhaseRange {
+                            ambiguity: None,
                             carrier: rtk_carrier,
                             value: data.obs * lambda,
                             snr: { data.snr.map(|snr| snr.into()) },
                         });
                     } else if observable.is_doppler_observable() {
-                        dopplers.push(Observation {
-                            value: data.obs,
-                            carrier: rtk_carrier,
-                            snr: { data.snr.map(|snr| snr.into()) },
-                        });
+                        //dopplers.push(Observation {
+                        //    value: data.obs,
+                        //    carrier: rtk_carrier,
+                        //    snr: { data.snr.map(|snr| snr.into()) },
+                        //});
                     }
                 }
             }
@@ -108,7 +109,6 @@ where
                 sv_eph.tgd(),
                 codes.clone(),
                 phases.clone(),
-                dopplers.clone(),
             );
             candidates.push(candidate);
         }
