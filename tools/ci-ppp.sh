@@ -22,6 +22,6 @@ $APP $PPP_CONTEXT -P GPS -p --cggtts | tee $LOGS/gps_default_cggtts.logs
 # Default PPP | GAL
 $APP $PPP_CONTEXT -P GAL -p | tee $LOGS/galileo_default.logs
 # Advanced SPP | GPS
-$APP $PPP_CONTEXT -P GPS -p -c rinex-cli/config/rtk/gpst_spp_basic.json | tee $LOGS/gps_spp_advanced.logs
+$APP $PPP_CONTEXT -P GPS -p -c config/survey/spp_lsq.json | tee $LOGS/gps_spp_advanced.logs
 # # Advanced SPP | GAL
-$APP $PPP_CONTEXT -P GPS -p -c rinex-cli/config/rtk/gst_spp_basic.json | tee $LOGS/galileo_spp_advanced.logs
+$APP $PPP_CONTEXT -P GPS -p -c config/survey/spp_lsq.json | tee $LOGS/galileo_spp_advanced.logs
