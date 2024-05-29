@@ -357,9 +357,11 @@ impl Ephemeris {
     }
     /// Resolves Kepler Equations from broadcasted parameters
     /// and obtains SV position at desired `t`.
-    /// Does not apply to SBAS vehicles.
+    /// Does not apply to SBAS [SV].
     /// Returned position is expressed in kilomters ECEF.
-    /// [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
+    /// Bibliography:
+    ///  - [Bibliography::JLe19]
+    ///  - [Bibliography::AsceAppendix3]
     pub fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let sv_ts = sv.timescale()?;
         let toe = self.toe_gpst(sv_ts)?;

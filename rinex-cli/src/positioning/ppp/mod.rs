@@ -42,7 +42,8 @@ where
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            /* we only consider _valid_ epochs" */
+            // TODO: handle these invalid Epochs
+            warn!("{}: (unhandled) rx event: {}", t, flag);
             continue;
         }
 

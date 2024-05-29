@@ -104,9 +104,9 @@ impl<'a> Orbit<'a> {
                 } else {
                     let (_, eph_i) = eph.iter().filter(|(toc_i, _)| *toc_i < t).min_by_key(
                         |(toc_i, eph_i)| {
-                            (*toc_i - t).abs()
-                            //let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
-                            //t - toe_i
+                            //(*toc_i - t).abs()
+                            let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
+                            t - toe_i
                         },
                     )?;
 
