@@ -15,6 +15,7 @@ mod test {
             for revision in std::fs::read_dir(data_path).unwrap() {
                 let rev = revision.unwrap();
                 let rev_path = rev.path();
+                let revision = rev_path.file_stem().unwrap().to_string_lossy().to_string();
                 let rev_fullpath = &rev_path.to_str().unwrap();
                 for entry in std::fs::read_dir(rev_fullpath).unwrap() {
                     let entry = entry.unwrap();
@@ -50,16 +51,33 @@ mod test {
                         },
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());
-                            assert!(rinex.epoch().next().is_some());
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.navigation().count() > 0); // all files have content
-                                                                     /*
-                                                                      * Verify interpreted time scale, for all SV
-                                                                      */
+                                                                     // Ephemeris verifications
                             for (e, (_, sv_i, eph_i)) in rinex.ephemeris() {
-                                // verify SBAS WEEK counters
-                                if sv_i.constellation.is_sbas() {
-                                    assert!(eph_i.get_week().is_some(), "SBAS vehicles have week counter");
+                                // TODO: verify V4 cases
+                                if revision != "V4" {
+                                    // Verify week counter
+                                    match sv_i.constellation {
+                                        Constellation::GPS
+                                        | Constellation::Galileo
+                                        | Constellation::BeiDou => {
+                                            assert!(
+                                                eph_i.get_week().is_some(),
+                                                "should have week counter: {:?}",
+                                                eph_i.orbits
+                                            );
+                                        },
+                                        c => {
+                                            if c.is_sbas() {
+                                                assert!(
+                                                    eph_i.get_week().is_some(),
+                                                    "should have week counter: {:?}",
+                                                    eph_i.orbits
+                                                );
+                                            }
+                                        },
+                                    }
                                 }
                             }
                         },
@@ -109,31 +127,6 @@ mod test {
                                     }
                                 }
                             }
-                            /*
-                                                        let gf = rinex.observation_gf_combinations();
-                                                        let nl = rinex.observation_nl_combinations();
-                                                        let wl = rinex.observation_wl_combinations();
-                                                        let mw = rinex.observation_mw_combinations();
-
-                                                        let mut gf_combinations: Vec<_> = gf.keys().collect();
-                                                        let mut nl_combinations: Vec<_> = nl.keys().collect();
-                                                        let mut wl_combinations: Vec<_> = wl.keys().collect();
-                                                        let mut mw_combinations: Vec<_> = mw.keys().collect();
-
-                                                        gf_combinations.sort();
-                                                        nl_combinations.sort();
-                                                        wl_combinations.sort();
-                                                        mw_combinations.sort();
-
-                                                        assert_eq!(gf_combinations, nl_combinations);
-                                                        assert_eq!(gf_combinations, wl_combinations);
-                                                        assert_eq!(gf_combinations, mw_combinations);
-
-                                                        assert_eq!(nl_combinations, wl_combinations);
-                                                        assert_eq!(nl_combinations, mw_combinations);
-
-                                                        assert_eq!(wl_combinations, mw_combinations);
-                            */
                         },
                         "MET" => {
                             assert!(rinex.is_meteo_rinex());

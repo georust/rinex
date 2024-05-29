@@ -114,19 +114,16 @@ impl Ephemeris {
             None
         }
     }
-    /*
-     * Adds an orbit entry, mostly used when inserting
-     * Kepler & Perturbations parameters in testing workflows.
-     */
+
+    /// Adds an orbit entry field, encoding a double precision number.
     pub(crate) fn set_orbit_f64(&mut self, field: &str, value: f64) {
         self.orbits
             .insert(field.to_string(), OrbitItem::from(value));
     }
-    /*
-     * Retrieves week counter, if such data exists
-     */
+    /// Try to retrive the week counter. This exists
+    /// for all Constellations expect [Constellation::Glonass].
     pub(crate) fn get_week(&self) -> Option<u32> {
-        self.orbits.get("week").and_then(|field| field.as_u32())
+        self.orbits.get("week").and_then(|value| value.as_u32())
     }
     /*
      * Returns TGD field, if such field is not empty, expressed as a [Duration]
@@ -134,9 +131,7 @@ impl Ephemeris {
     pub fn tgd(&self) -> Option<Duration> {
         Some(Duration::from_seconds(self.get_orbit_f64("tgd")?))
     }
-    /*
-     * Helper to apply a clock correction to provided time (expressed as Epoch)
-     */
+    /// Apply a clock correction to provided Time
     pub fn sv_clock_corr(sv: SV, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
         let (a0, a1, a2) = clock_bias;
         match sv.constellation {
@@ -177,9 +172,7 @@ impl Ephemeris {
                 .to_time_scale(TimeScale::GPST),
         )
     }
-    /*
-     * Parses ephemeris from given line iterator
-     */
+    /// Parse Ephemeris (V2/V3) from line iterator
     pub(crate) fn parse_v2v3(
         version: Version,
         constellation: Constellation,
@@ -230,8 +223,11 @@ impl Ephemeris {
         if sv.constellation.is_sbas() {
             // SBAS frames specificity:
             // clock drift rate does not exist and is actually the week counter
-            clock_drift_rate = 0.0_f64;
-            orbits.insert("week".to_string(), OrbitItem::F64(clock_drift_rate));
+            orbits.insert(
+                "week".to_string(),
+                OrbitItem::U32(clock_drift_rate.round() as u32),
+            );
+            clock_drift_rate = 0.0_f64; // drift rate null: non existing
         }
 
         Ok((
@@ -245,10 +241,7 @@ impl Ephemeris {
             },
         ))
     }
-    /*
-     * Parses ephemeris from given line iterator
-     * RINEX V4 content specific method
-     */
+    /// Parse Ephemeris (V4) from line iterator
     pub(crate) fn parse_v4(
         msg: NavMsgType,
         mut lines: std::str::Lines<'_>,
@@ -269,13 +262,17 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
         let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
-        let mut orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
+        let mut orbits =
+            parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
 
         if sv.constellation.is_sbas() {
             // SBAS frames specificity:
             // clock drift rate does not exist and is actually the week counter
-            clock_drift_rate = 0.0_f64;
-            orbits.insert("week".to_string(), OrbitItem::F64(clock_drift_rate));
+            orbits.insert(
+                "week".to_string(),
+                OrbitItem::U32(clock_drift_rate.round() as u32),
+            );
+            clock_drift_rate = 0.0_f64; // drift rate null: non existing
         }
 
         Ok((
@@ -625,7 +622,7 @@ mod test {
     ) -> HashMap<String, OrbitItem> {
         let mut map: HashMap<String, OrbitItem> = HashMap::with_capacity(descriptor.len());
         for (key, value) in descriptor.iter() {
-            if key.contains("Week") {
+            if key.contains("week") {
                 map.insert(
                     key.to_string(),
                     OrbitItem::new("u32", value, constellation).unwrap(),

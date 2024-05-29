@@ -2264,7 +2264,7 @@ impl Rinex {
         }))
     }
     /// Ephemeris selection method. Use this method to select Ephemeris
-    /// to be used to navigate using `sv` at instant `t`. 
+    /// to be used to navigate using `sv` at instant `t`.
     /// Returns (toe and ephemeris frame).
     /// Note that TOE does not exist for SBAS vehicles, therefore should be discarded.
     pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {

@@ -61,7 +61,8 @@ impl<'a> Orbit<'a> {
         let output = match self.buffer.get(&sv) {
             Some(eph) => {
                 if sv.constellation.is_sbas() {
-                    let (toc_i, eph_i) = eph.iter()
+                    let (toc_i, eph_i) = eph
+                        .iter()
                         .filter(|(toc_i, _)| *toc_i < t)
                         .min_by_key(|(toc_i, _)| (*toc_i - t).abs())?;
 
@@ -74,6 +75,10 @@ impl<'a> Orbit<'a> {
                         eph_i.get_orbit_f64("satPosY")? * 1.0E3,
                         eph_i.get_orbit_f64("satPosZ")? * 1.0E3,
                     );
+                    // NAV RINEX null payload means missing field
+                    if x == 0.0 || y == 0.0 || z == 0.0 {
+                        return None;
+                    }
                     let (vx_kms, vy_kms, vz_kms) = (
                         eph_i.get_orbit_f64("velX")? * 1.0E3,
                         eph_i.get_orbit_f64("velY")? * 1.0E3,
@@ -85,25 +90,25 @@ impl<'a> Orbit<'a> {
                         eph_i.get_orbit_f64("accelZ")? * 1.0E3,
                     );
                     //let (x, y, z) = (
-                    //    x 
+                    //    x
                     //        + vx_kms * dt,
                     //        //+ ax_kms * dt * dt / 2.0,
-                    //    y 
+                    //    y
                     //        + vy_kms * dt,
                     //        //+ ay_kms * dt * dt / 2.0,
-                    //    z 
+                    //    z
                     //        + vz_kms * dt,
                     //        //+ az_kms * dt * dt / 2.0,
                     //);
                     Some(RTKInterpolationResult::from_position((x, y, z)))
                 } else {
-                    let (_, eph_i) = eph.iter()
-                        .filter(|(toc_i, _)| *toc_i < t)
-                        .min_by_key(|(toc_i, eph_i)| {
+                    let (_, eph_i) = eph.iter().filter(|(toc_i, _)| *toc_i < t).min_by_key(
+                        |(toc_i, eph_i)| {
                             (*toc_i - t).abs()
                             //let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
                             //t - toe_i
-                        })?;
+                        },
+                    )?;
 
                     let (x_km, y_km, z_km) = eph_i.kepler2ecef(sv, t)?;
                     let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);

@@ -16,7 +16,7 @@ impl<'a> Time<'a> {
     }
     fn feasible(&self, t: Epoch, sv: SV, sv_ts: TimeScale) -> bool {
         if sv.constellation.is_sbas() {
-            // TOE does not exist 
+            // TOE does not exist
             self.buffer.get(&sv).is_some()
         } else {
             let max_dtoe = Ephemeris::max_dtoe(sv.constellation).unwrap();
@@ -56,10 +56,11 @@ impl<'a> Time<'a> {
             Some(ephemeris) => {
                 if sv.constellation.is_sbas() {
                     // TOE does not exist
-                    let (toc_i, eph_i) = ephemeris.iter()
+                    let (toc_i, eph_i) = ephemeris
+                        .iter()
                         .filter(|(toc_i, _)| *toc_i < t)
                         .min_by_key(|(toc_i, _)| (*toc_i - t).abs())?;
-                    
+
                     let t_gpst = t.to_time_scale(TimeScale::GPST).duration.to_seconds();
                     let toc_gpst = toc_i.to_time_scale(TimeScale::GPST).duration.to_seconds();
                     let mut dt = t_gpst - toc_gpst;
@@ -68,7 +69,6 @@ impl<'a> Time<'a> {
                         dt -= a0 + a1 * dt;
                     }
                     Some(Duration::from_seconds(a0 + a1 * dt))
-
                 } else {
                     let (_, eph_i) = ephemeris.iter().min_by_key(|(_toc_i, eph_i)| {
                         let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
@@ -84,7 +84,7 @@ impl<'a> Time<'a> {
                     } else if dt < -302400.0 {
                         dt += 604800.0;
                     }
-                    
+
                     let (a0, a1, a2) =
                         (eph_i.clock_bias, eph_i.clock_drift, eph_i.clock_drift_rate);
 
