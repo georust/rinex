@@ -58,6 +58,8 @@ It is growing as some sort of Anubis/Teqc/Glab combination. No GUI currently ava
 It integrates a PVT and CGGTTS solutions solver.  
 The application is auto-generated for a few architectures, you can directly
 [download it from Github.com](https://github.com/georust/rinex/releases)
+* [`config`](config/) contains a set of configuration scripts to customize how a few opmodes of RINEX-Cli behave.
+This particularly applies to different applications of precise positioning.
 
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
