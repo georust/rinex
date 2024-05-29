@@ -6,8 +6,8 @@ to customize the behaviors of our applications. Currently, RINEX-Cli is the only
 that accepts a config script.
 
 - [Survey](./survey) is a set a configuration dedicated to static geodetic surveying.
-In this case, we want to determine the coordinates of a future Reference Station,
-with highest precision.
+In this application, we want to determine the coordinates of a single and static GNSS receiver
+with highest precision and without apriori knowledge.
 - [QC](./qc) is a set a configuration dedicated to data quality check in RINEX-Cli.
 This mode is in standby and will evolve in near future. We're currently focused on Surveying and RTK.
 
