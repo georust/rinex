@@ -2264,12 +2264,11 @@ impl Rinex {
         }))
     }
     /// Ephemeris selection method. Use this method to select Ephemeris
-    /// to be used in "sv" navigation at "t" instant. Returns (toe and ephemeris frame).
+    /// to be used to navigate using `sv` at instant `t`. 
+    /// Returns (toe and ephemeris frame).
+    /// Note that TOE does not exist for SBAS vehicles, therefore should be discarded.
     pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
         /*
-         * minimize self.ephemeris with closest toe to t
-         *  with toe <= t
-         *   and t < toe + max dtoe
          *  TODO
          *   <o ideally some more advanced fields like
          *      health, iode should also be taken into account
@@ -2285,13 +2284,15 @@ impl Rinex {
                             None
                         },
                         _ => {
-                            /* determine toe */
-                            eph.toe_gpst(ts)
+                            if sv.constellation.is_sbas() {
+                                // toe does not exist
+                                Some(t)
+                            } else {
+                                /* determine toe */
+                                eph.toe_gpst(ts)
+                            }
                         },
                     };
-                    //TODO : this fails at this point
-                    //       on both GLONASS and SBAS
-                    //       therfore, disables rtk with these two constellations
                     let toe = toe?;
                     let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
                     if (t - toe).abs() < max_dtoe {
