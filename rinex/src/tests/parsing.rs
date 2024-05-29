@@ -56,41 +56,12 @@ mod test {
                                                                      /*
                                                                       * Verify interpreted time scale, for all SV
                                                                       */
-                            //for (e, (_, sv, _)) in rinex.ephemeris() {
-                            //    /* verify toc correctness */
-                            //    match sv.constellation {
-                            //        Constellation::GPS
-                            //        | Constellation::QZSS
-                            //        //| Constellation::Geo
-                            //        //| Constellation::SBAS(_)
-                            //        => assert!(
-                            //            e.time_scale == TimeScale::GPST,
-                            //            "wrong {} timescale for sv {}",
-                            //            e.time_scale,
-                            //            sv
-                            //        ),
-                            //        //Constellation::BeiDou => assert!(
-                            //        //    e.time_scale == TimeScale::BDT,
-                            //        //    "wrong {} timescale for sv {}",
-                            //        //    e.time_scale,
-                            //        //    sv
-                            //        //),
-                            //        //Constellation::Galileo => assert!(
-                            //        //    e.time_scale == TimeScale::GST,
-                            //        //    "wrong {} timescale for sv {} @ {}",
-                            //        //    e.time_scale,
-                            //        //    sv,
-                            //        //    e
-                            //        //),
-                            //        Constellation::Glonass => assert!(
-                            //            e.time_scale == TimeScale::UTC,
-                            //            "wrong {} timescale for sv {}",
-                            //            e.time_scale,
-                            //            sv
-                            //        ),
-                            //        _ => {},
-                            //    }
-                            //}
+                            for (e, (_, sv_i, eph_i)) in rinex.ephemeris() {
+                                // verify SBAS WEEK counters
+                                if sv_i.constellation.is_sbas() {
+                                    assert!(eph_i.get_week().is_some(), "SBAS vehicles have week counter");
+                                }
+                            }
                         },
                         "CRNX" | "OBS" => {
                             assert!(rinex.header.obs.is_some());
