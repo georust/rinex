@@ -156,7 +156,8 @@ impl Ephemeris {
             },
         }
     }
-    /// Retrieve and express Time of Ephemeris as a GPST Epoch
+    /// Retrieve and express Time of Ephemeris as a GPST Epoch.
+    /// Note that TOE calculations does not apply to SBAS vehicles.
     pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
         let mut week = self.get_week()?; // week counter
         match sv_ts {
@@ -220,10 +221,19 @@ impl Ephemeris {
 
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+
         // parse orbits :
         //  only Legacy Frames in V2 and V3 (old) RINEX
-        let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
+        let mut orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
+
+        if sv.constellation.is_sbas() {
+            // SBAS frames specificity:
+            // clock drift rate does not exist and is actually the week counter
+            clock_drift_rate = 0.0_f64;
+            orbits.insert("week".to_string(), OrbitItem::F64(clock_drift_rate));
+        }
+
         Ok((
             epoch,
             sv,
@@ -258,8 +268,16 @@ impl Ephemeris {
         let (clk_dr, clk_drr) = rem.split_at(19);
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
-        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
+        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+        let mut orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
+
+        if sv.constellation.is_sbas() {
+            // SBAS frames specificity:
+            // clock drift rate does not exist and is actually the week counter
+            clock_drift_rate = 0.0_f64;
+            orbits.insert("week".to_string(), OrbitItem::F64(clock_drift_rate));
+        }
+
         Ok((
             epoch,
             sv,
@@ -342,10 +360,10 @@ impl Ephemeris {
     }
     /// Resolves Kepler Equations from broadcasted parameters
     /// and obtains SV position at desired `t`.
-    /// Position expressed in [km] ECEF.
+    /// Does not apply to SBAS vehicles.
+    /// Returned position is expressed in kilomters ECEF.
     /// [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
     pub fn kepler2ecef(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
-        // we only support calculations in GPST at the moment
         let sv_ts = sv.timescale()?;
         let toe = self.toe_gpst(sv_ts)?;
         let t = t.to_time_scale(TimeScale::GPST);
@@ -481,8 +499,8 @@ impl Ephemeris {
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
             c => {
                 if c.is_sbas() {
-                    //TODO: verify this please
-                    Some(Duration::from_seconds(360.0))
+                    // tolerate one publication per day
+                    Some(Duration::from_seconds(86.4E3))
                 } else {
                     None
                 }
