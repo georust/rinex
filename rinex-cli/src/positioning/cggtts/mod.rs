@@ -156,28 +156,23 @@ where
                 let carrier = carrier.unwrap();
                 let rtk_carrier = cast_rtk_carrier(carrier);
 
-                let mut code = Option::<PseudoRange>::None;
-                let phase = Option::<PhaseRange>::None;
-                //let mut doppler = Option::<Observation>::None;
-
-                if observable.is_pseudorange_observable() {
-                    code = Some(PseudoRange {
-                        carrier: rtk_carrier,
-                        snr: { data.snr.map(|snr| snr.into()) },
-                        value: data.obs,
-                    });
-                }
-
-                if code.is_none() {
+                // We consider a reference Pseudo Range
+                // and possibly gather other signals later on
+                if !observable.is_pseudorange_observable() {
                     continue;
                 }
 
-                let mut codes = vec![code.unwrap()];
+                let mut codes = vec![PseudoRange {
+                    carrier: rtk_carrier,
+                    snr: { data.snr.map(|snr| snr.into()) },
+                    value: data.obs,
+                }];
+
+                //let mut doppler = Option::<Observation>::None;
                 let mut phases = Vec::<PhaseRange>::with_capacity(4);
 
-                // complete Pseudo Range (if need be)
+                // Subsidary Pseudo Range (if needed)
                 match solver.cfg.method {
-                    Method::SPP => {}, // nothing to do
                     Method::CPP | Method::PPP => {
                         // Attach secondary PR
                         for (second_obs, second_data) in observations {
@@ -198,9 +193,10 @@ where
                             }
                         }
                     },
+                    _ => {}, // not needed
                 };
 
-                // complete Phase Range (if need be)
+                // Subsidary Phase Range (if needed)
                 if solver.cfg.method == Method::PPP {
                     for (second_obs, second_data) in observations {
                         if second_obs.is_phase_observable() {
@@ -257,7 +253,7 @@ where
                         let mdio = pvt_data.iono_bias.modeled;
                         let msio = pvt_data.iono_bias.measured;
                         debug!(
-                            "{:?} : new {}:{} PVT solution (elev={:.2}°, azi={:.2}°, REFSV={:.3E}, REFSYS={:.3E})",
+                            "{:?} : new {}:{} solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
                             t, sv, observable, elevation, azimuth, refsv, refsys
                         );
 
@@ -313,7 +309,7 @@ where
                                 ) {
                                     Ok(((trk_elev, trk_azi), trk_data, _iono_data)) => {
                                         info!(
-                                            "{:?} - new {} track: elev {:.2}° - azi {:.2}° - REFSV {:.3E} REFSYS {:.3E}",
+                                            "{:?} : new {} cggtts solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
                                             t,
                                             sv,
                                             trk_elev,
