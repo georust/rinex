@@ -9,12 +9,11 @@ use crate::{
     fops::open_with_web_browser,
     graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext},
 };
+
 use clap::ArgMatches;
-
+use itertools::Itertools;
+use rtk::prelude::{Carrier, Epoch, PVTSolution, SV};
 use thiserror::Error;
-
-use hifitime::Epoch;
-use rtk::prelude::PVTSolution;
 
 extern crate gpx;
 use gpx::{errors::GpxError, Gpx, GpxVersion, Waypoint};
@@ -131,9 +130,13 @@ pub fn post_process(
     // create a dedicated plot context
     let mut plot_ctx = PlotContext::new();
 
+    let nb_solutions = solutions.len();
+    let epochs = solutions.keys().copied().collect::<Vec<Epoch>>();
+    let mut ambiguities: HashMap<(SV, Carrier), (Epoch, f64)> = HashMap::new();
+
     // Convert solutions to geodetic DDEG
     let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
-    for solution in solutions.values() {
+    for (t, solution) in &solutions {
         let (lat_rad, lon_rad, _) = ecef2geodetic(
             solution.position.x,
             solution.position.y,
@@ -142,11 +145,12 @@ pub fn post_process(
         );
         lat.push(rad2deg(lat_rad));
         lon.push(rad2deg(lon_rad));
+        for ((sv, carrier), amb) in &solution.ambiguities {
+            ambiguities.insert((*sv, *carrier), (*t, amb.n_1 as f64));
+        }
     }
 
-    let nb_solutions = solutions.len();
     let final_solution_ddeg = (lat[nb_solutions - 1], lon[nb_solutions - 1]);
-    let epochs = solutions.keys().copied().collect::<Vec<Epoch>>();
 
     let lat0_rad = if let Some(apriori_ecef) = ctx.rx_ecef {
         ecef2geodetic(
@@ -331,6 +335,40 @@ pub fn post_process(
     .y_axis("y2");
     plot_ctx.add_trace(trace);
 
+    // Ambiguities
+    plot_ctx.add_timedomain_plot("Signal Ambiguities", "Cycles");
+    for (sv, carrier) in ambiguities.keys().sorted().unique() {
+        let epochs = ambiguities
+            .iter()
+            .filter_map(|((sv_i, sig_i), (t, _amb))| {
+                if sv_i == sv && sig_i == carrier {
+                    Some(*t)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        let ambiguities = ambiguities
+            .iter()
+            .filter_map(|((sv_i, sig_i), (_t, amb))| {
+                if sv_i == sv && sig_i == carrier {
+                    Some(*amb)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        let trace = build_chart_epoch_axis(
+            &format!("{}/{}", sv, carrier),
+            Mode::Markers,
+            epochs,
+            ambiguities,
+        );
+        plot_ctx.add_trace(trace);
+    }
+
+    // Extend report with _Apriori_ when it is known
+    // Serves as survey quality comparison and reference point.
     if let Some(apriori_ecef) = ctx.rx_ecef {
         html_add_apriori_position(&epochs, &solutions, apriori_ecef, &mut plot_ctx);
     }
