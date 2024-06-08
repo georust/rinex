@@ -100,8 +100,9 @@ flate2 = { version = "1.0.24", optional = true, default-features = false, featur
 hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = ["serde", "std"] }
 horrorshow = { version = "0.8", optional = true }
 
-# gnss-rs = { version = "2.1.3", features = ["serde"] }
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+# gnss-rs = { version = "2.1.3", features = ["serde", "domes", "cospar"] }
+# gnss-rs = { path = "../../rtk-rs/gnss", features = ["serde", "domes", "cospar"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde", "domes", "cospar"] }
 
 # RINEX QC dedicated traits
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
-
 use thiserror::Error;
 
 use crate::{
-    domes::Error as DomesParsingError,
     observable::Observable,
     prelude::{Duration, Epoch},
 };
+
+use gnss_rs::domes::Error as DomesParsingError;
 
 pub(crate) mod record;
 pub(crate) mod station;

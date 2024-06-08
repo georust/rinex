@@ -394,8 +394,11 @@ impl Mask for Record {
 mod test {
     use super::{is_new_epoch, parse_epoch};
     use crate::{
-        domes::Domes, domes::TrackingPoint as DomesTrackingPoint, doris::record::ObservationData,
-        doris::HeaderFields as DorisHeader, doris::Station, Epoch, EpochFlag, Header, Observable,
+        doris::record::ObservationData,
+        doris::HeaderFields as DorisHeader,
+        doris::Station,
+        prelude::{DOMESTrackingPoint, DOMES},
+        Epoch, EpochFlag, Header, Observable,
     };
     use std::str::FromStr;
     #[test]
@@ -461,11 +464,11 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
             k_factor: 0,
             label: "THUB".to_string(),
             site: "THULE".to_string(),
-            domes: Domes {
+            domes: DOMES {
                 site: 1,
                 area: 430,
                 sequential: 5,
-                point: DomesTrackingPoint::Instrument,
+                point: DOMESTrackingPoint::Instrument,
             },
         };
         let values = content
@@ -566,11 +569,11 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
             k_factor: 0,
             label: "SVBC".to_string(),
             site: "NY-ALESUND II".to_string(),
-            domes: Domes {
+            domes: DOMES {
                 site: 38,
                 area: 103,
                 sequential: 4,
-                point: DomesTrackingPoint::Instrument,
+                point: DOMESTrackingPoint::Instrument,
             },
         };
         let values = content

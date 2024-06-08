@@ -3,8 +3,6 @@ use crate::{
     antex, clock,
     clock::ClockProfileType,
     clock::WorkClock,
-    cospar::{Error as CosparError, COSPAR},
-    domes::Domes,
     doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
@@ -23,17 +21,18 @@ use crate::{
     observable::{Observable, ParsingError as ObsParsingError},
     observation,
     observation::{Crinex, HeaderFields as ObservationHeader},
+    prelude::{Constellation, Duration, Epoch, TimeScale, COSPAR, DOMES, SV},
     reader::BufferedReader,
     types::Type,
     version::Version,
-    Constellation, Duration, TimeScale, SV,
 };
 
 use std::collections::HashMap;
 use std::io::prelude::*;
 use std::str::FromStr;
 
-use hifitime::{Epoch, Unit};
+use gnss_rs::cospar::Error as CosparParsingError;
+use hifitime::Unit;
 use thiserror::Error;
 
 use gnss::constellation::ParsingError as ConstellationParsingError;
@@ -190,7 +189,7 @@ pub enum ParsingError {
     #[error("doris parsing error")]
     DorisError(#[from] DorisError),
     #[error("failed to parse cospar number")]
-    CosparError(#[from] CosparError),
+    CosparParsing(#[from] CosparParsingError),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -839,7 +838,7 @@ impl Header {
             } else if marker.contains("STATION NAME / NUM") {
                 let (name, domes) = content.split_at(4);
                 clock = clock.site(name.trim());
-                if let Ok(domes) = Domes::from_str(domes.trim()) {
+                if let Ok(domes) = DOMES::from_str(domes.trim()) {
                     clock = clock.domes(domes);
                 }
             } else if marker.contains("STATION CLK REF") {
