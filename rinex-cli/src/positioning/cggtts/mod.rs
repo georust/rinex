@@ -17,7 +17,8 @@ use rtk::prelude::{
     InterpolationResult,
     IonosphereBias,
     Method,
-    Observation,
+    PhaseRange,
+    PseudoRange,
     Solver,
     TroposphereBias, //TimeScale
 };
@@ -128,7 +129,7 @@ where
             let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
-                    error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
+                    error!("{} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
                 },
             };
@@ -155,63 +156,24 @@ where
                 let carrier = carrier.unwrap();
                 let rtk_carrier = cast_rtk_carrier(carrier);
 
-                let mut code = Option::<Observation>::None;
-                let phase = Option::<Observation>::None;
-                let mut doppler = Option::<Observation>::None;
-
-                if observable.is_pseudorange_observable() {
-                    code = Some(Observation {
-                        carrier: rtk_carrier,
-                        snr: { data.snr.map(|snr| snr.into()) },
-                        value: data.obs,
-                    });
-
-                    // attach one phase, if need be
-                    match solver.cfg.method {
-                        Method::SPP => {}, // nothing to do
-                        Method::CPP => {}, // nothing to do
-                        Method::PPP => {
-                            // try to attach phase data
-                            // let to_match =
-                            //     Observable::from_str(&format!("L{}", &observable.to_string()[1..])).unwrap();
-                            // for (observable, data) in observations {
-                            //     if *observable == phase_to_match {
-                            //         phase = Some(Observation {
-                            //             carrier: rtk_carrier,
-                            //             snr: { data.snr.map(|snr| snr.into()) },
-                            //             value: data.obs,
-                            //         });
-                            //     }
-                            // }
-                        },
-                    }
-
-                    // try to attach doppler
-                    let doppler_to_match =
-                        Observable::from_str(&format!("D{}", &observable.to_string()[1..]))
-                            .unwrap();
-                    for (observable, data) in observations {
-                        if *observable == doppler_to_match {
-                            doppler = Some(Observation {
-                                carrier: rtk_carrier,
-                                snr: { data.snr.map(|snr| snr.into()) },
-                                value: data.obs,
-                            });
-                            break;
-                        }
-                    }
-                }
-
-                if code.is_none() {
+                // We consider a reference Pseudo Range
+                // and possibly gather other signals later on
+                if !observable.is_pseudorange_observable() {
                     continue;
                 }
 
-                let mut codes = vec![code.unwrap()];
+                let mut codes = vec![PseudoRange {
+                    carrier: rtk_carrier,
+                    snr: { data.snr.map(|snr| snr.into()) },
+                    value: data.obs,
+                }];
 
-                // complete if need be
+                //let mut doppler = Option::<Observation>::None;
+                let mut phases = Vec::<PhaseRange>::with_capacity(4);
+
+                // Subsidary Pseudo Range (if needed)
                 match solver.cfg.method {
-                    Method::SPP => {}, // nothing to do
-                    Method::CPP => {
+                    Method::CPP | Method::PPP => {
                         // Attach secondary PR
                         for (second_obs, second_data) in observations {
                             let rhs_carrier =
@@ -223,28 +185,54 @@ where
                             let rtk_carrier = cast_rtk_carrier(rhs_carrier);
 
                             if second_obs.is_pseudorange_observable() && rhs_carrier != carrier {
-                                codes.push(Observation {
-                                    value: second_data.obs,
+                                codes.push(PseudoRange {
                                     carrier: rtk_carrier,
+                                    value: second_data.obs,
                                     snr: { data.snr.map(|snr| snr.into()) },
                                 });
-                                break;
                             }
                         }
                     },
-                    Method::PPP => {}, //TODO
+                    _ => {}, // not needed
                 };
 
-                let dopplers = match doppler {
-                    Some(doppler) => vec![doppler],
-                    None => vec![],
+                // Subsidary Phase Range (if needed)
+                if solver.cfg.method == Method::PPP {
+                    for (second_obs, second_data) in observations {
+                        if second_obs.is_phase_observable() {
+                            let rhs_carrier =
+                                Carrier::from_observable(sv.constellation, second_obs);
+                            if rhs_carrier.is_err() {
+                                continue;
+                            }
+                            let rhs_carrier = rhs_carrier.unwrap();
+                            let rtk_carrier = cast_rtk_carrier(rhs_carrier);
+                            phases.push(PhaseRange {
+                                ambiguity: None,
+                                carrier: rtk_carrier,
+                                value: second_data.obs,
+                                snr: { data.snr.map(|snr| snr.into()) },
+                            });
+                        }
+                    }
                 };
-                let phases = match phase {
-                    Some(phase) => vec![phase],
-                    None => vec![],
-                };
-                let candidate =
-                    Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases, dopplers);
+
+                let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases);
+
+                let ref_observable = Carrier::L1;
+                //TODO
+                //match solver.cfg.method {
+                //    Method::SPP => candidate
+                //        .prefered_pseudorange()
+                //        .and_then(|sig| Some(sig.carrier)),
+                //    Method::CPP => candidate
+                //        .code_if_combination()
+                //        .and_then(|cmb| Some(cmb.reference)),
+                //    Method::PPP => candidate
+                //        .phase_if_combination()
+                //        .and_then(|cmb| Some(cmb.reference)),
+                //};
+
                 match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {
                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
@@ -267,7 +255,7 @@ where
                         let mdio = pvt_data.iono_bias.modeled;
                         let msio = pvt_data.iono_bias.measured;
                         debug!(
-                            "{:?} : new {}:{} PVT solution (elev={:.2}°, azi={:.2}°, REFSV={:.3E}, REFSYS={:.3E})",
+                            "{:?} : new {}:{} solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
                             t, sv, observable, elevation, azimuth, refsv, refsys
                         );
 
@@ -322,7 +310,7 @@ where
                                 ) {
                                     Ok(((trk_elev, trk_azi), trk_data, _iono_data)) => {
                                         info!(
-                                            "{:?} - new {} track: elev {:.2}° - azi {:.2}° - REFSV {:.3E} REFSYS {:.3E}",
+                                            "{:?} : new {} cggtts solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
                                             t,
                                             sv,
                                             trk_elev,
@@ -341,10 +329,16 @@ where
                                                     trk_elev,
                                                     trk_azi,
                                                     trk_data,
-                                                    None, //TODO "iono": once L2/L5 unlocked,
-                                                    0,    // TODO "rcvr_channel" > 0 if known
+                                                    match solver.cfg.method {
+                                                        Method::CPP | Method::PPP => {
+                                                            // TODO: grab IONOD from PVTSol
+                                                            None
+                                                        },
+                                                        _ => None,
+                                                    },
+                                                    0, // TODO "rcvr_channel" > 0 if known
                                                     GlonassChannel::default(), //TODO
-                                                    &observable.to_string(),
+                                                    &ref_observable.to_string(),
                                                 )
                                             },
                                             _ => {
@@ -356,16 +350,22 @@ where
                                                     trk_elev,
                                                     trk_azi,
                                                     trk_data,
-                                                    None, //TODO "iono": once L2/L5 unlocked,
-                                                    0,    // TODO "rcvr_channel" > 0 if known
-                                                    &observable.to_string(),
+                                                    match solver.cfg.method {
+                                                        Method::CPP | Method::PPP => {
+                                                            // TODO: grab IONOD from PVTSol
+                                                            None
+                                                        },
+                                                        _ => None,
+                                                    },
+                                                    0, // TODO "rcvr_channel" > 0 if known
+                                                    &ref_observable.to_string(),
                                                 )
                                             },
                                         }; // match constellation
                                         tracks.push(track);
                                     },
                                     Err(e) => {
-                                        warn!("{:?} - track fitting error: \"{}\"", t, e);
+                                        warn!("{} - track fitting error: \"{}\"", t, e);
                                         // TODO: most likely we should reset the SV signal tracker here
                                     },
                                 } //.fit()

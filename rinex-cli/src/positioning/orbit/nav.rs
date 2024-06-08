@@ -61,7 +61,7 @@ impl<'a> Orbit<'a> {
                     let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
                     t - toe_i
                 })?;
-                let (x_km, y_km, z_km) = eph_i.kepler2ecef(sv, t)?;
+                let (x_km, y_km, z_km) = eph_i.kepler2position(sv, t)?;
                 let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);
                 Some(RTKInterpolationResult::from_position((x, y, z)))
             },
