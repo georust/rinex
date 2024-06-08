@@ -11,7 +11,7 @@ use crate::{
 };
 use std::collections::BTreeMap;
 
-use rinex::{carrier::Carrier, prelude::SV};
+use rinex::{carrier::Carrier, observation::LliFlags, prelude::SV};
 
 mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
@@ -77,6 +77,12 @@ where
             // let mut dopplers = Vec::<Observation>::new();
 
             for (observable, data) in observations {
+                if let Some(lli) = data.lli {
+                    if lli != LliFlags::OK_OR_UNKNOWN {
+                        // TODO: manage those events
+                        warn!("lli not_ok: {}({}): {:?}", t, sv, lli);
+                    }
+                }
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
                     let rtk_carrier = cast_rtk_carrier(carrier);
 
