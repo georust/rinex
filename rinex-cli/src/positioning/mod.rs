@@ -278,7 +278,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
         let solutions = ppp::resolve(ctx, solver);
         if solutions.len() > 0 {
             /* save solutions (graphs, reports..) */
-            ppp_post_process(ctx, solutions, matches)?;
+            ppp_post_process(ctx, &cfg, solutions, matches)?;
         } else {
             error!("solver did not generate a single solution");
             error!("verify your input data and configuration setup");

@@ -12,7 +12,7 @@ use crate::{
 
 use clap::ArgMatches;
 use itertools::Itertools;
-use rtk::prelude::{Carrier, Epoch, PVTSolution, SV};
+use rtk::prelude::{Carrier, Config, Epoch, Method, PVTSolution, SV};
 use thiserror::Error;
 
 extern crate gpx;
@@ -124,6 +124,7 @@ fn html_add_apriori_position(
 
 pub fn post_process(
     ctx: &Context,
+    cfg: &Config,
     solutions: BTreeMap<Epoch, PVTSolution>,
     matches: &ArgMatches,
 ) -> Result<(), Error> {
@@ -335,36 +336,38 @@ pub fn post_process(
     .y_axis("y2");
     plot_ctx.add_trace(trace);
 
-    // Ambiguities
-    plot_ctx.add_timedomain_plot("Signal Ambiguities", "Cycles");
-    for (sv, carrier) in ambiguities.keys().sorted().unique() {
-        let epochs = ambiguities
-            .iter()
-            .filter_map(|((sv_i, sig_i), (t, _amb))| {
-                if sv_i == sv && sig_i == carrier {
-                    Some(*t)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        let ambiguities = ambiguities
-            .iter()
-            .filter_map(|((sv_i, sig_i), (_t, amb))| {
-                if sv_i == sv && sig_i == carrier {
-                    Some(*amb)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        let trace = build_chart_epoch_axis(
-            &format!("{}/{}", sv, carrier),
-            Mode::Markers,
-            epochs,
-            ambiguities,
-        );
-        plot_ctx.add_trace(trace);
+    if cfg.method == Method::PPP {
+        // Ambiguities
+        plot_ctx.add_timedomain_plot("Signal Ambiguities", "Cycles");
+        for (sv, carrier) in ambiguities.keys().sorted().unique() {
+            let epochs = ambiguities
+                .iter()
+                .filter_map(|((sv_i, sig_i), (t, _amb))| {
+                    if sv_i == sv && sig_i == carrier {
+                        Some(*t)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let ambiguities = ambiguities
+                .iter()
+                .filter_map(|((sv_i, sig_i), (_t, amb))| {
+                    if sv_i == sv && sig_i == carrier {
+                        Some(*amb)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let trace = build_chart_epoch_axis(
+                &format!("{}/{}", sv, carrier),
+                Mode::Markers,
+                epochs,
+                ambiguities,
+            );
+            plot_ctx.add_trace(trace);
+        }
     }
 
     // Extend report with _Apriori_ when it is known
