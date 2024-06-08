@@ -26,6 +26,7 @@ pub mod types;
 pub mod version;
 
 mod bibliography;
+mod constants;
 mod ground_position;
 mod leap; // leap second
 mod linspace; // grid and linear spacing
@@ -2282,14 +2283,14 @@ impl Rinex {
                                 // toe does not exist
                                 Some(t)
                             } else {
-                                /* determine toe */
+                                // determine toe
                                 eph.toe_gpst(ts)
                             }
                         },
                     };
                     let toe = toe?;
                     let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
-                    if (t - toe).abs() < max_dtoe {
+                    if (t - toe) < max_dtoe {
                         Some((toe, eph))
                     } else {
                         None

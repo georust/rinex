@@ -38,6 +38,13 @@ pub enum Bibliography {
     /// GNSS antennas*.
     /// [DOI](https://cdn.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf).
     MpTaoglas,
+    /// BeiDou Navigation Satellite System Signal In Space Interface Control Document(BDS-3)
+    /// [B1I](http://www.beidou.gov.cn/xt/gfxz/201902/P020190227593621142475.pdf)
+    /// [B1c](http://www.beidou.gov.cn/xt/gfxz/201712/P020171226741342013031.pdf)
+    /// [B2a](http://www.beidou.gov.cn/xt/gfxz/201712/P020171226742357364174.pdf)
+    /// [B2b](http://www.beidou.gov.cn/xt/gfxz/202008/P020230516558683155109.pdf)
+    /// [B3I](http://www.beidou.gov.cn/xt/gfxz/201802/P020180209623601401189.pdf)
+    BeiDouICD,
     /// [IGN/ITRF DOMES Site Identifier](https://itrf.ign.fr/en/network/domes/description)
     IgnItrfDomes,
 }

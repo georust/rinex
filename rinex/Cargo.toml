@@ -81,6 +81,7 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 [dependencies]
+log = "0.4"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2.15"
@@ -90,6 +91,7 @@ bitflags = { version = "2.3", features = ["serde"] }
 lazy_static = "1.4"
 map_3d = "0.1.5"
 strum = "0.26"
+nalgebra = "0.32.3"
 strum_macros = "0.26"
 num-integer = "0.1.44"
 itertools = "0.13.0"
