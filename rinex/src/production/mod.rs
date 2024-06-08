@@ -19,7 +19,6 @@
 use thiserror::Error;
 
 mod sequence;
-pub use sequence::FileSequence;
 
 mod ppu;
 pub use ppu::PPU;
@@ -44,7 +43,7 @@ pub enum Error {
 /// File production attributes. Used when generating
 /// RINEX data that follows standard naming conventions,
 /// or attached to data parsed from such files.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct ProductionAttributes {
     /// Name serves several roles which are type dependent.
     /// - Non detailed OBS RINEX: this is usually the station name
@@ -70,6 +69,8 @@ pub struct ProductionAttributes {
 pub struct DetailedProductionAttributes {
     /// Agency Country Code
     pub country: String,
+    /// # in Batch if Self is part of a file serie
+    pub batch: u8,
     /// Data source
     pub data_src: DataSource,
     /// PPU gives information on file production periodicity.
@@ -94,6 +95,7 @@ impl ProductionAttributes {
     /* filename generator */
     pub(crate) fn rinex_long_format(
         name: &str,
+        batch: u8,
         country: &str,
         src: char,
         yyyy: &str,
@@ -107,13 +109,34 @@ impl ProductionAttributes {
     ) -> String {
         if let Some(ffu) = ffu {
             format!(
-                "{}00{}_{}_{}{}{}{}_{}_{}_{}.{}",
-                name, country, src, yyyy, ddd, hh, mm, ppu, ffu, fmt, ext,
+                "{}{:02}{}_{}_{}{}{}{}_{}_{}_{}.{}",
+                name,
+                batch % 99,
+                country,
+                src,
+                yyyy,
+                ddd,
+                hh,
+                mm,
+                ppu,
+                ffu,
+                fmt,
+                ext,
             )
         } else {
             format!(
-                "{}00{}_{}_{}{}{}{}_{}_{}.{}",
-                name, country, src, yyyy, ddd, hh, mm, ppu, fmt, ext,
+                "{}{:02}{}_{}_{}{}{}{}_{}_{}.{}",
+                name,
+                batch % 99,
+                country,
+                src,
+                yyyy,
+                ddd,
+                hh,
+                mm,
+                ppu,
+                fmt,
+                ext,
             )
         }
     }
@@ -161,12 +184,16 @@ impl std::str::FromStr for ProductionAttributes {
                 return Err(Error::NonStandardFileName);
             };
 
-            // determine type of RINEX first
-            // because it determines how to parse the "name" field
             let year = fname[12..16]
                 .parse::<u32>()
                 .map_err(|_| Error::NonStandardFileName)?;
 
+            let batch = fname[5..6]
+                .parse::<u8>()
+                .map_err(|_| Error::NonStandardFileName)?;
+
+            // determine type of RINEX first
+            // because it determines how to parse the "name" field
             let rtype = &fname[offset + 3..offset + 4];
             let name_offset = match rtype {
                 "I" => 3usize, // only 3 digits on IONEX
@@ -183,9 +210,10 @@ impl std::str::FromStr for ProductionAttributes {
                 },
                 region: None, // IONEX files only use a short format
                 details: Some(DetailedProductionAttributes {
+                    batch,
                     country: fname[6..9].to_string(),
-                    data_src: DataSource::from_str(&fname[10..11])?,
                     ppu: PPU::from_str(&fname[24..27])?,
+                    data_src: DataSource::from_str(&fname[10..11])?,
                     hh: {
                         fname[19..21]
                             .parse::<u8>()
@@ -203,6 +231,33 @@ impl std::str::FromStr for ProductionAttributes {
                 }),
             })
         }
+    }
+}
+
+use crate::merge::{merge_mut_option, Error as MergeError, Merge};
+
+impl Merge for ProductionAttributes {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
+        let mut lhs = self.clone();
+        lhs.merge_mut(rhs)?;
+        Ok(lhs)
+    }
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
+        merge_mut_option(&mut self.region, &rhs.region);
+        merge_mut_option(&mut self.details, &rhs.details);
+        if let Some(lhs) = &mut self.details {
+            if let Some(rhs) = &rhs.details {
+                merge_mut_option(&mut lhs.ffu, &rhs.ffu);
+                /*
+                 * Data source is downgraded to "Unknown"
+                 * in case we wind up cross mixing data sources
+                 */
+                if lhs.data_src != rhs.data_src {
+                    lhs.data_src = DataSource::Unknown;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -241,6 +296,7 @@ mod test {
                 355,
                 DetailedProductionAttributes {
                     country: "ESP".to_string(),
+                    batch: 0,
                     data_src: DataSource::Receiver,
                     ppu: PPU::Daily,
                     hh: 0,
@@ -258,6 +314,7 @@ mod test {
                 159,
                 DetailedProductionAttributes {
                     country: "DNK".to_string(),
+                    batch: 0,
                     data_src: DataSource::Receiver,
                     ppu: PPU::Hourly,
                     hh: 10,
@@ -275,6 +332,7 @@ mod test {
                 1,
                 DetailedProductionAttributes {
                     country: "NLD".to_string(),
+                    batch: 0,
                     data_src: DataSource::Receiver,
                     hh: 0,
                     mm: 0,
@@ -289,6 +347,7 @@ mod test {
                 177,
                 DetailedProductionAttributes {
                     country: "DNK".to_string(),
+                    batch: 0,
                     data_src: DataSource::Receiver,
                     ppu: PPU::Daily,
                     hh: 0,
@@ -306,6 +365,7 @@ mod test {
                 177,
                 DetailedProductionAttributes {
                     country: "DNK".to_string(),
+                    batch: 0,
                     data_src: DataSource::Receiver,
                     ppu: PPU::Daily,
                     hh: 0,
@@ -323,6 +383,43 @@ mod test {
                 177,
                 DetailedProductionAttributes {
                     country: "DNK".to_string(),
+                    batch: 0,
+                    data_src: DataSource::Receiver,
+                    ppu: PPU::Daily,
+                    hh: 22,
+                    mm: 23,
+                    ffu: Some(FFU {
+                        val: 30,
+                        unit: Unit::Second,
+                    }),
+                },
+            ),
+            (
+                "ESBC01DNK_R_20201772223_01D_30S_MO.crx.gz",
+                "ESBC",
+                2020,
+                177,
+                DetailedProductionAttributes {
+                    country: "DNK".to_string(),
+                    batch: 1,
+                    data_src: DataSource::Receiver,
+                    ppu: PPU::Daily,
+                    hh: 22,
+                    mm: 23,
+                    ffu: Some(FFU {
+                        val: 30,
+                        unit: Unit::Second,
+                    }),
+                },
+            ),
+            (
+                "ESBC04DNK_R_20201772223_01D_30S_MO.crx.gz",
+                "ESBC",
+                2020,
+                177,
+                DetailedProductionAttributes {
+                    country: "DNK".to_string(),
+                    batch: 4,
                     data_src: DataSource::Receiver,
                     ppu: PPU::Daily,
                     hh: 22,

@@ -359,7 +359,14 @@ impl Ephemeris {
                 todo!("sv_clock_corr not supported for glonass @ the moment");
             },
             _ => {
-                let dt = (t - toe).to_seconds();
+                let mut dt = (t - toe).to_seconds();
+                // TODO: does this apply to others like GST ?
+                const WEEK_SECONDS: f64 = 604800.0;
+                if dt > WEEK_SECONDS / 2.0 {
+                    dt -= WEEK_SECONDS;
+                } else if dt < -WEEK_SECONDS / 2.0 {
+                    dt += WEEK_SECONDS;
+                }
                 Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
             },
         }
@@ -398,6 +405,15 @@ impl Ephemeris {
             }
         } else {
             None
+    /// Retrieve and express Time of Ephemeris as a GPST Epoch
+    pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
+        let mut week = self.get_week()?; // week counter
+        match sv_ts {
+            TimeScale::GST => {
+                /* Galileo vehicles stream week counter referenced to GPST.. */
+                week -= 1024;
+            },
+            _ => {},
         }
     }
     /*
@@ -530,7 +546,7 @@ impl Ephemeris {
             .ok_or(Error::TimescaleIdentification(sv))?;
         //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
 
-        let (epoch, _) = epoch::parse_in_timescale(date.trim(), ts)?;
+        let epoch = epoch::parse_in_timescale(date.trim(), ts)?;
 
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
@@ -566,7 +582,7 @@ impl Ephemeris {
         let (svnn, rem) = line.split_at(4);
         let sv = SV::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
-        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = epoch::parse_in_timescale(epoch.trim(), ts)?;
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
@@ -795,21 +811,18 @@ impl Ephemeris {
             reference.to_ecef_wgs84(),
         ))
     }
-    /*
-     * Returns max time difference between an Epoch and
-     * related Time of Issue of Ephemeris, for each constellation.
-     */
-    pub(crate) fn max_dtoe(c: Constellation) -> Option<Duration> {
+    /// Returns Ephemeris validity duration for this Constellation
+    pub fn max_dtoe(c: Constellation) -> Option<Duration> {
         match c {
             Constellation::GPS | Constellation::QZSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Galileo => Some(Duration::from_seconds(10800.0)),
-            Constellation::BeiDou => Some(Duration::from_seconds(3600.0)),
-            Constellation::IRNSS => Some(Duration::from_seconds(86400.0)),
+            Constellation::BeiDou => Some(Duration::from_seconds(21600.0)),
+            Constellation::IRNSS => Some(Duration::from_seconds(7200.0)),
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
             c => {
                 if c.is_sbas() {
                     //TODO: verify this please
-                    Some(Duration::from_seconds(7200.0))
+                    Some(Duration::from_seconds(360.0))
                 } else {
                     None
                 }
@@ -1203,7 +1216,7 @@ mod test {
         let descriptors: Vec<&str> = vec![
             r#"
 {
-  "epoch": "2020-12-31T23:59:44.000000000 UTC",
+  "epoch": "2020-12-31T23:59:44.000000000 GPST",
   "sv": {
     "prn": 7,
     "constellation": "GPS"
@@ -1236,7 +1249,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-01-02T00:00:00.000000000 UTC",
+  "epoch": "2021-01-02T00:00:00.000000000 GPST",
   "sv": {
     "prn": 18,
     "constellation": "GPS"
@@ -1269,7 +1282,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-01-02T00:00:00.000000000 UTC",
+  "epoch": "2021-01-02T00:00:00.000000000 GPST",
   "sv": {
     "prn": 30,
     "constellation": "GPS"
@@ -1302,7 +1315,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-12-31T22:00:00.000000000 UTC",
+  "epoch": "2021-12-31T22:00:00.000000000 GPST",
   "sv": {
     "prn": 8,
     "constellation": "GPS"
@@ -1335,7 +1348,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2022-01-01T00:00:00.000000000 UTC",
+  "epoch": "2022-01-01T00:00:00.000000000 GPST",
   "sv": {
     "prn": 32,
     "constellation": "GPS"
@@ -1368,7 +1381,7 @@ mod test {
 }"#,
             r#"
 {
-  "epoch": "2021-12-30T20:00:00.000000000 UTC",
+  "epoch": "2021-12-30T20:00:00.000000000 GPST",
   "sv": {
     "prn": 11,
     "constellation": "GPS"
@@ -1433,9 +1446,24 @@ mod test {
             let x_err = (ecef.0 * 1000.0 - helper.ecef.0).abs();
             let y_err = (ecef.1 * 1000.0 - helper.ecef.1).abs();
             let z_err = (ecef.2 * 1000.0 - helper.ecef.2).abs();
-            assert!(x_err < 1E-6, "kepler2ecef: x_err too large: {}", x_err);
-            assert!(y_err < 1E-6, "kepler2ecef: y_err too large: {}", y_err);
-            assert!(z_err < 1E-6, "kepler2ecef: z_err too large: {}", z_err);
+            assert!(
+                x_err < 1E-6,
+                "kepler2ecef@{}: x_err too large: {}",
+                helper.epoch,
+                x_err
+            );
+            assert!(
+                y_err < 1E-6,
+                "kepler2ecef@{}: y_err too large: {}",
+                helper.epoch,
+                y_err
+            );
+            assert!(
+                z_err < 1E-6,
+                "kepler2ecef@{}: z_err too large: {}",
+                helper.epoch,
+                z_err
+            );
 
             let el_az = ephemeris.sv_elev_azim(helper.sv, helper.epoch, helper.ref_pos);
             assert!(

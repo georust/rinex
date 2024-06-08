@@ -18,7 +18,7 @@ pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
  * we should initiate the parsing of a meteo record entry.
  */
 pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
-    if v.major < 4 {
+    if v.major < 3 {
         let min_len = " 15  1  1  0  0  0";
         if line.len() < min_len.len() {
             // minimum epoch descriptor
@@ -65,7 +65,7 @@ pub(crate) fn parse_epoch(
         offset += 2; // YYYY
     }
 
-    let (epoch, _) = epoch::parse_utc(&line[0..offset])?;
+    let epoch = epoch::parse_utc(&line[0..offset])?;
 
     let codes = &header.meteo.as_ref().unwrap().codes;
     let nb_codes = codes.len();
@@ -117,7 +117,7 @@ pub(crate) fn fmt_epoch(
     let mut lines = String::with_capacity(128);
     lines.push_str(&format!(
         " {}",
-        epoch::format(*epoch, None, Type::MeteoData, header.version.major)
+        epoch::format(*epoch, Type::MeteoData, header.version.major)
     ));
     let observables = &header.meteo.as_ref().unwrap().codes;
     let mut index = 0;
@@ -134,44 +134,6 @@ pub(crate) fn fmt_epoch(
     }
     lines.push('\n');
     Ok(lines)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_new_epoch() {
-        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 22  1  4  9 55  0  997.9   -6.4   54.2    2.9  342.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 22  1  4 10  0  0  997.9   -6.3   55.4    3.4  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 2021  1  7  0  0  0  993.3   23.0   90.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 4, minor: 0 }
-        ));
-    }
 }
 
 impl Merge for Record {
@@ -414,5 +376,43 @@ impl Interpolate for Record {
     }
     fn interpolate_mut(&mut self, _series: TimeSeries) {
         todo!("meteo:record:interpolate_mut()")
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_new_epoch() {
+        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
+        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
+        let content = " 22  1  4  9 55  0  997.9   -6.4   54.2    2.9  342.0    0.0    0.0";
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
+        let content = " 22  1  4 10  0  0  997.9   -6.3   55.4    3.4  337.0    0.0    0.0";
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
+        let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 2, minor: 0 }
+        ));
+        let content = " 2021  1  7  0  0  0  993.3   23.0   90.0";
+        assert!(is_new_epoch(
+            content,
+            version::Version { major: 4, minor: 0 }
+        ));
     }
 }

@@ -19,8 +19,10 @@ pub enum Observable {
     Phase(String),
     /// Doppler shift observation
     Doppler(String),
-    /// SSI observation
+    /// SSI: Receiver signal strength observation [dB]
     SSI(String),
+    /// Received Power [dBm]
+    Power(String),
     /// Pseudo range observation
     PseudoRange(String),
     /// Channel number Pseudo Observable.
@@ -48,6 +50,8 @@ pub enum Observable {
     RainIncrement,
     /// Hail Indicator
     HailIndicator,
+    /// Frequency Ratio (dimensionless)
+    FrequencyRatio,
 }
 
 impl Default for Observable {
@@ -68,6 +72,9 @@ impl Observable {
     }
     pub fn is_ssi_observable(&self) -> bool {
         matches!(self, Self::SSI(_))
+    }
+    pub fn is_power_observable(&self) -> bool {
+        matches!(self, Self::Power(_))
     }
     pub fn is_channel_number(&self) -> bool {
         matches!(self, Self::ChannelNumber(_))
@@ -286,11 +293,13 @@ impl std::fmt::Display for Observable {
             Self::WindSpeed => write!(f, "WS"),
             Self::RainIncrement => write!(f, "RI"),
             Self::HailIndicator => write!(f, "HI"),
-            Self::PseudoRange(c) => write!(f, "{}", c),
-            Self::Phase(c) => write!(f, "{}", c),
-            Self::Doppler(c) => write!(f, "{}", c),
-            Self::SSI(c) => write!(f, "{}", c),
-            Self::ChannelNumber(x) => write!(f, "{}", x),
+            Self::FrequencyRatio => write!(f, "F"),
+            Self::PseudoRange(c)
+            | Self::Phase(c)
+            | Self::Doppler(c)
+            | Self::SSI(c)
+            | Self::Power(c)
+            | Self::ChannelNumber(c) => write!(f, "{}", c),
         }
     }
 }
@@ -301,9 +310,10 @@ impl std::str::FromStr for Observable {
         let content = content.to_uppercase();
         let content = content.trim();
         match content {
-            "PR" => Ok(Self::Pressure),
-            "TD" => Ok(Self::Temperature),
-            "HR" => Ok(Self::HumidityRate),
+            "P" | "PR" => Ok(Self::Pressure),
+            "T" | "TD" => Ok(Self::Temperature),
+            "H" | "HR" => Ok(Self::HumidityRate),
+            "F" => Ok(Self::FrequencyRatio),
             "ZW" => Ok(Self::ZenithWetDelay),
             "ZD" => Ok(Self::ZenithDryDelay),
             "ZT" => Ok(Self::ZenithTotalDelay),
@@ -320,6 +330,8 @@ impl std::str::FromStr for Observable {
                         Ok(Self::PseudoRange(content.to_string()))
                     } else if content.starts_with('S') {
                         Ok(Self::SSI(content.to_string()))
+                    } else if content.starts_with('W') {
+                        Ok(Self::Power(content.to_string()))
                     } else if content.starts_with('D') {
                         Ok(Self::Doppler(content.to_string()))
                     } else {
@@ -378,7 +390,7 @@ mod test {
         assert_eq!(obs.clone().unwrap().to_string(), "WS");
         assert_eq!(Observable::from_str("ws"), obs.clone());
 
-        let obs = Observable::from_str("Wa");
+        let obs = Observable::from_str("Err");
         assert!(obs.is_err());
 
         assert_eq!(

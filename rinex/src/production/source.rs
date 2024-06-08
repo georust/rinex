@@ -3,7 +3,7 @@ use super::Error;
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum DataSource {
     /// Source of data is hardware (radio) receiver.
@@ -19,9 +19,9 @@ pub enum DataSource {
 impl std::str::FromStr for DataSource {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
-        if content.eq("R") {
+        if content.eq("R") || content.eq("RCVR") {
             Ok(Self::Receiver)
-        } else if content.eq("S") {
+        } else if content.eq("S") || content.eq("STREAM") {
             Ok(Self::Stream)
         } else {
             Ok(Self::Unknown)

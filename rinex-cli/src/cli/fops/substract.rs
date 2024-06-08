@@ -2,6 +2,8 @@
 use clap::{value_parser, Arg, ArgAction, Command};
 use std::path::PathBuf;
 
+use super::{SHARED_DATA_ARGS, SHARED_GENERAL_ARGS};
+
 pub fn subcommand() -> Command {
     Command::new("sub")
         .long_flag("sub")
@@ -20,4 +22,8 @@ This is typically used to compare two GNSS receivers together.",
                     "RINEX(B) to substract to a single RINEX file (A), that was previously loaded.",
                 ),
         )
+        .next_help_heading("Production Environment")
+        .args(SHARED_GENERAL_ARGS.iter())
+        .next_help_heading("Data context")
+        .args(SHARED_DATA_ARGS.iter())
 }

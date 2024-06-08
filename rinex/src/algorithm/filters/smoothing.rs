@@ -1,4 +1,5 @@
 use crate::{preprocessing::TargetItem, Duration};
+use hifitime::EpochError;
 use thiserror::Error;
 
 /// Supported Smoothing Filters
@@ -29,7 +30,7 @@ pub enum Error {
     #[error("invalid target")]
     InvalidTarget(#[from] crate::algorithm::target::Error),
     #[error("failed to parse duration")]
-    DurationParsing(#[from] hifitime::Errors),
+    DurationParsing(#[from] EpochError),
 }
 
 impl std::str::FromStr for SmoothingFilter {

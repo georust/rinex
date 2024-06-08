@@ -1,31 +1,42 @@
-//! Describes a `RINEX` header, includes
-//! rinex header parser and associated methods
-use super::*;
+//! Describes a `RINEX` file header.
 use crate::{
-    antex, clocks,
-    clocks::{ClockAnalysisAgency, ClockDataType},
+    antex, clock,
+    clock::ClockProfileType,
+    clock::WorkClock,
+    cospar::{Error as CosparError, COSPAR},
+    domes::Domes,
+    doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
+    fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
-    ionex, leap,
-    linspace::Linspace,
+    ionex,
+    leap::{Error as LeapParsingError, Leap},
+    linspace::{Error as LinspaceError, Linspace},
+    marker::{GeodeticMarker, MarkerType},
+    merge::{
+        merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
+        merge_time_of_first_obs, merge_time_of_last_obs, Error as MergeError, Merge,
+    },
     meteo,
+    meteo::HeaderFields as MeteoHeader,
     navigation::{IonMessage, KbModel},
+    observable::{Observable, ParsingError as ObsParsingError},
     observation,
-    observation::Crinex,
+    observation::{Crinex, HeaderFields as ObservationHeader},
     reader::BufferedReader,
     types::Type,
     version::Version,
-    Observable,
+    Constellation, Duration, TimeScale, SV,
 };
 
-use hifitime::Epoch;
+use std::collections::HashMap;
 use std::io::prelude::*;
 use std::str::FromStr;
+
+use hifitime::{Epoch, Unit};
 use thiserror::Error;
 
-use crate::marker::{GeodeticMarker, MarkerType};
-
-use crate::{fmt_comment, fmt_rinex};
+use gnss::constellation::ParsingError as ConstellationParsingError;
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -83,8 +94,10 @@ pub struct Header {
     pub geodetic_marker: Option<GeodeticMarker>,
     /// Glonass FDMA channels
     pub glo_channels: HashMap<SV, i8>,
+    /// Optional COSPAR number (launch information)
+    pub cospar: Option<COSPAR>,
     /// optionnal leap seconds infos
-    pub leap: Option<leap::Leap>,
+    pub leap: Option<Leap>,
     // /// Optionnal system time correction
     // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
@@ -99,8 +112,6 @@ pub struct Header {
     pub doi: Option<String>,
     /// Optionnal GPS/UTC time difference
     pub gps_utc_delta: Option<u32>,
-    /// Optionnal data scaling
-    pub data_scaling: Option<f64>,
     /// Optionnal Receiver information
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr: Option<Rcvr>,
@@ -111,29 +122,31 @@ pub struct Header {
     /// attached to a specifid SV, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
-    /// Possible Ionospheric Delay correction model.
-    /// Only exists in NAV V3 headers. In modern NAV, this
-    /// is regularly updated in the file's body.
-    pub ionod_correction: Option<IonMessage>,
+    /// Possible Ionospheric Delay correction model, described in
+    /// header section of old RINEX files (<V4).
+    pub ionod_corrections: HashMap<Constellation, IonMessage>,
     /// Possible DCBs compensation information
     pub dcb_compensations: Vec<DcbCompensation>,
     /// Possible PCVs compensation information
     pub pcv_compensations: Vec<PcvCompensation>,
-    /// Observation record specific fields
+    /// Observation RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub obs: Option<observation::HeaderFields>,
-    /// Meteo record specific fields
+    pub obs: Option<ObservationHeader>,
+    /// Meteo RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub meteo: Option<meteo::HeaderFields>,
-    /// Clocks record specific fields
+    pub meteo: Option<MeteoHeader>,
+    /// High Precision Clock RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub clocks: Option<clocks::HeaderFields>,
-    /// ANTEX record specific fields
+    pub clock: Option<clock::HeaderFields>,
+    /// ANTEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub antex: Option<antex::HeaderFields>,
-    /// IONEX record specific fields
+    /// IONEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub ionex: Option<ionex::HeaderFields>,
+    /// DORIS RINEX specific fields
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub doris: Option<DorisHeader>,
 }
 
 #[derive(Error, Debug)]
@@ -145,15 +158,15 @@ pub enum ParsingError {
     #[error("unknown RINEX type \"{0}\"")]
     TypeParsing(String),
     #[error("failed to parse observable")]
-    ObservableParsing(#[from] observable::ParsingError),
+    ObservableParsing(#[from] ObsParsingError),
     #[error("constellation parsing error")]
-    ConstellationParsing(#[from] gnss::constellation::ParsingError),
+    ConstellationParsing(#[from] ConstellationParsingError),
     #[error("timescale parsing error")]
     TimescaleParsing(String),
     #[error("failed to parse \"{0}\" coordinates from \"{1}\"")]
     CoordinatesParsing(String, String),
     #[error("failed to parse leap from \"{0}\"")]
-    LeapParsingError(#[from] leap::Error),
+    LeapParsingError(#[from] LeapParsingError),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
     #[error("failed to parse ANTEX fields")]
@@ -162,8 +175,8 @@ pub enum ParsingError {
     ParsePcvError(#[from] antex::pcv::Error),
     #[error("unknown ionex reference")]
     UnknownReferenceIonex(#[from] ionex::system::Error),
-    #[error("invalid crinex header \"{0}\": \"{1}\"")]
-    CrinexHeader(String, String),
+    #[error("invalid crinex header \"{0}\"")]
+    CrinexHeader(String),
     #[error("failed to parse datetime {0} field from \"{1}\"")]
     DateTimeParsing(String, String),
     #[error("failed to parse {0} integer value from \"{1}\"")]
@@ -173,7 +186,11 @@ pub enum ParsingError {
     #[error("failed to parse ionex grid {0} from \"{1}\"")]
     InvalidIonexGrid(String, String),
     #[error("invalid ionex grid definition")]
-    InvalidIonexGridDefinition(#[from] linspace::Error),
+    InvalidIonexGridDefinition(#[from] LinspaceError),
+    #[error("doris parsing error")]
+    DorisError(#[from] DorisError),
+    #[error("failed to parse cospar number")]
+    CosparError(#[from] CosparError),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -215,15 +232,6 @@ macro_rules! parse_float_error {
     };
 }
 
-/*
- * Generates a ParsingError::InvalidIonexGridError(x, y)
- */
-macro_rules! grid_format_error {
-    ($field: expr, $content: expr) => {
-        ParsingError::InvalidIonexGrid(String::from($field), $content.to_string())
-    };
-}
-
 impl Header {
     /// Builds a `Header` from stream reader
     pub fn new(reader: &mut BufferedReader) -> Result<Header, ParsingError> {
@@ -240,24 +248,25 @@ impl Header {
         let mut doi: Option<String> = None;
         let mut station_url = String::new();
         let mut geodetic_marker = Option::<GeodeticMarker>::None;
+        let mut cospar = Option::<COSPAR>::None;
         let mut glo_channels: HashMap<SV, i8> = HashMap::new();
         let mut rcvr: Option<Rcvr> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
         let mut sv_antenna: Option<SvAntenna> = None;
-        let mut leap: Option<leap::Leap> = None;
+        let mut leap: Option<Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
-        let mut ionod_correction = Option::<IonMessage>::None;
+        let mut ionod_corrections = HashMap::<Constellation, IonMessage>::with_capacity(4);
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
-        let mut scaling_count = 0_u16;
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
-        let mut observation = observation::HeaderFields::default();
-        let mut meteo = meteo::HeaderFields::default();
-        let mut clocks = clocks::HeaderFields::default();
+        let mut observation = ObservationHeader::default();
+        let mut meteo = MeteoHeader::default();
+        let mut clock = clock::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
         let mut ionex = ionex::HeaderFields::default();
+        let mut doris = DorisHeader::default();
 
         // iterate on a line basis
         let lines = reader.lines();
@@ -294,52 +303,7 @@ impl Header {
 
                 observation.crinex = Some(Crinex::default().with_version(crinex_revision));
             } else if marker.contains("CRINEX PROG / DATE") {
-                let (prog, remainder) = content.split_at(20);
-                let (_, remainder) = remainder.split_at(20);
-                let date = remainder.split_at(20).0.trim();
-                let items: Vec<&str> = date.split_ascii_whitespace().collect();
-                if items.len() != 2 {
-                    return Err(ParsingError::CrinexHeader(
-                        String::from("CRINEX PROG/DATE"),
-                        content.to_string(),
-                    ));
-                }
-
-                let date: Vec<&str> = items[0].split('-').collect();
-                let time: Vec<&str> = items[1].split(':').collect();
-
-                let day = date[0].trim();
-                let day = day.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("day"),
-                    day.to_string(),
-                )))?;
-
-                let month = date[1].trim();
-                let month = parse_formatted_month(month)?;
-
-                let y = date[2].trim();
-                let mut y = y.parse::<i32>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("year"),
-                    y.to_string(),
-                )))?;
-
-                let h = time[0].trim();
-                let h = h.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("hour"),
-                    h.to_string(),
-                )))?;
-
-                let m = time[1].trim();
-                let m = m.parse::<u8>().or(Err(ParsingError::DateTimeParsing(
-                    String::from("minute"),
-                    m.to_string(),
-                )))?;
-
-                if let Some(crinex) = &mut observation.crinex {
-                    y += 2000;
-                    let date = Epoch::from_gregorian_utc(y, month, day, h, m, 0, 0);
-                    *crinex = crinex.with_prog(prog.trim()).with_date(date);
-                }
+                Self::parse_crinex_prog_date(content, &mut observation)?;
 
             ////////////////////////////////////////
             // [2] ANTEX special header
@@ -435,24 +399,53 @@ impl Header {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20);
                 let (constell_str, _) = rem.split_at(20);
-                rinex_type = Type::from_str(type_str.trim())?;
-                if type_str.contains("GLONASS") {
-                    // old GLONASS NAV : no constellation field
-                    constellation = Some(Constellation::Glonass);
-                } else if type_str.contains("GPS NAV DATA") {
-                    constellation = Some(Constellation::GPS);
-                } else if type_str.contains("IRNSS NAV DATA") {
-                    constellation = Some(Constellation::IRNSS);
-                } else if type_str.contains("GNSS NAV DATA") {
-                    constellation = Some(Constellation::Mixed);
-                } else if type_str.contains("METEOROLOGICAL DATA") {
-                    // these files are not tied to a constellation system,
-                    // therefore, do not have this field
+
+                let type_str = type_str.trim();
+                let constell_str = constell_str.trim();
+
+                // File type identification
+                if type_str == "O" && constell_str == "D" {
+                    rinex_type = Type::DORIS;
                 } else {
-                    // regular files
-                    if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
-                        constellation = Some(constell);
-                    }
+                    rinex_type = Type::from_str(type_str)?;
+                }
+
+                // Determine (file) Constellation
+                //  1. NAV SPECIAL CASE
+                //  2. OTHER
+                match rinex_type {
+                    Type::NavigationData => {
+                        if type_str.contains("GLONASS") {
+                            // old GLONASS NAV : no constellation field
+                            constellation = Some(Constellation::Glonass);
+                        } else if type_str.contains("GPS NAV DATA") {
+                            constellation = Some(Constellation::GPS);
+                        } else if type_str.contains("IRNSS NAV DATA") {
+                            constellation = Some(Constellation::IRNSS);
+                        } else if type_str.contains("GNSS NAV DATA") {
+                            constellation = Some(Constellation::Mixed);
+                        } else if type_str.eq("NAVIGATION DATA") {
+                            if constell_str.is_empty() {
+                                // old GPS NAVIGATION DATA
+                                constellation = Some(Constellation::GPS);
+                            } else {
+                                // Modern NAVIGATION DATA
+                                if let Ok(c) = Constellation::from_str(constell_str) {
+                                    constellation = Some(c);
+                                }
+                            }
+                        }
+                    },
+                    Type::MeteoData | Type::DORIS => {
+                        // no constellation associated to them
+                    },
+                    _ => {
+                        // any other
+                        // regular files
+                        if let Ok(c) = Constellation::from_str(constell_str) {
+                            constellation = Some(c);
+                        }
+                    },
                 }
                 /*
                  * Parse version descriptor
@@ -557,33 +550,39 @@ impl Header {
 
                 dcb_compensations.push(dcb);
             } else if marker.contains("SYS / SCALE FACTOR") {
-                //TODO: conclude other lines parsing
-                if scaling_count == 0 {
-                    // parsing first line
-                    let (gnss, rem) = content.split_at(2);
-                    let gnss = Constellation::from_str(gnss.trim())?;
+                // TODO:
+                //   This will not work in case several observables
+                //   are declaredn which will required to analyze more than 1 line
+                let (gnss, rem) = content.split_at(2);
+                let gnss = gnss.trim();
 
-                    let (factor, rem) = rem.split_at(6);
-                    let factor = factor.trim();
-                    let scaling = factor
-                        .parse::<u16>()
-                        .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
+                /*
+                 * DORIS measurement special case, otherwise, standard OBS_RINEX
+                 */
+                let constell = if gnss.eq("D") {
+                    Constellation::Mixed // scaling applies to all measurements
+                } else {
+                    Constellation::from_str(gnss)?
+                };
 
-                    let (_num, mut rem) = rem.split_at(3);
+                // Parse scaling factor
+                let (factor, rem) = rem.split_at(6);
+                let factor = factor.trim();
+                let scaling = factor
+                    .parse::<u16>()
+                    .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
-                    // parse end of line
-                    let mut len = rem.len();
+                // parse end of line
+                let (_num, rem) = rem.split_at(3);
+                for observable_str in rem.split_ascii_whitespace() {
+                    let observable = Observable::from_str(observable_str)?;
 
-                    while len > 0 {
-                        let (observable, r) = rem.split_at(4);
-                        let observable = Observable::from_str(observable.trim())?;
-                        // latch scaling value
-                        observation.insert_scaling(gnss, observable, scaling);
-                        // continue
-                        rem = r;
-                        len = rem.len();
+                    // latch scaling value
+                    if rinex_type == Type::DORIS {
+                        doris.with_scaling(observable, scaling);
+                    } else {
+                        observation.with_scaling(constell, observable, scaling);
                     }
-                    scaling_count += 1;
                 }
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
@@ -632,7 +631,7 @@ impl Header {
                 }
             } else if marker.contains("LEAP SECOND") {
                 let leap_str = content.split_at(40).0.trim();
-                if let Ok(lleap) = leap::Leap::from_str(leap_str) {
+                if let Ok(lleap) = Leap::from_str(leap_str) {
                     leap = Some(lleap)
                 }
             } else if marker.contains("DOI") {
@@ -775,7 +774,11 @@ impl Header {
                             .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
                     },
                 }
-                observation = observation.with_time_of_first_obs(time_of_first_obs);
+                if rinex_type == Type::DORIS {
+                    doris.time_of_first_obs = Some(time_of_first_obs);
+                } else {
+                    observation = observation.with_time_of_first_obs(time_of_first_obs);
+                }
             } else if marker.contains("TIME OF LAST OBS") {
                 let mut time_of_last_obs = Self::parse_time_of_obs(content)?;
                 match constellation {
@@ -788,81 +791,36 @@ impl Header {
                             .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
                     },
                 }
-                observation = observation.with_time_of_last_obs(time_of_last_obs);
+                if rinex_type == Type::DORIS {
+                    doris.time_of_last_obs = Some(time_of_last_obs);
+                } else {
+                    observation = observation.with_time_of_last_obs(time_of_last_obs);
+                }
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
-                let (_, content) = content.split_at(6);
-                for i in 0..content.len() / 6 {
-                    let obscode = &content[i * 6..std::cmp::min((i + 1) * 6, content.len())].trim();
-                    if let Ok(observable) = Observable::from_str(obscode) {
-                        match constellation {
-                            Some(Constellation::Mixed) => {
-                                lazy_static! {
-                                    static ref KNOWN_CONSTELLS: [Constellation; 6] = [
-                                        Constellation::GPS,
-                                        Constellation::Glonass,
-                                        Constellation::Galileo,
-                                        Constellation::BeiDou,
-                                        Constellation::QZSS,
-                                        Constellation::SBAS,
-                                    ];
-                                }
-                                for c in KNOWN_CONSTELLS.iter() {
-                                    if let Some(codes) = observation.codes.get_mut(c) {
-                                        codes.push(observable.clone());
-                                    } else {
-                                        observation.codes.insert(*c, vec![observable.clone()]);
-                                    }
-                                }
-                            },
-                            Some(c) => {
-                                if let Some(codes) = observation.codes.get_mut(&c) {
-                                    codes.push(observable.clone());
-                                } else {
-                                    observation.codes.insert(c, vec![observable.clone()]);
-                                }
-                            },
-                            _ => {
-                                if rinex_type == Type::MeteoData {
-                                    meteo.codes.push(observable);
-                                } else {
-                                    panic!("can't have \"TYPES OF OBS\" when GNSS definition is missing");
-                                }
-                            },
-                        }
-                    }
-                }
+                Self::parse_v2_observables(content, constellation, &mut meteo, &mut observation);
             } else if marker.contains("SYS / # / OBS TYPES") {
-                let (possible_counter, content) = content.split_at(6);
-                if !possible_counter.is_empty() {
-                    let code = &possible_counter[..1];
-                    if let Ok(c) = Constellation::from_str(code) {
-                        current_constell = Some(c);
-                    }
-                }
-
-                if let Some(constell) = current_constell {
-                    // system correctly identified
-                    for i in 0..content.len() / 4 {
-                        let obscode =
-                            &content[i * 4..std::cmp::min((i + 1) * 4, content.len())].trim();
-                        if let Ok(observable) = Observable::from_str(obscode) {
-                            if !obscode.is_empty() {
-                                if let Some(codes) = observation.codes.get_mut(&constell) {
-                                    codes.push(observable);
-                                } else {
-                                    observation.codes.insert(constell, vec![observable]);
-                                }
-                            }
-                        }
-                    }
+                match rinex_type {
+                    Type::ObservationData => {
+                        Self::parse_v3_observables(
+                            content,
+                            &mut current_constell,
+                            &mut observation,
+                        );
+                    },
+                    Type::DORIS => {
+                        /* in DORIS RINEX, observations are not tied to a particular constellation */
+                        Self::parse_doris_observables(content, &mut doris);
+                    },
+                    _ => {},
                 }
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
-                clocks = clocks.with_agency(ClockAnalysisAgency {
-                    code: code.trim().to_string(),
-                    name: agency.trim().to_string(),
-                });
+                clock = clock.igs(code.trim());
+                clock = clock.full_name(agency.trim());
+            } else if marker.contains("ANALYSIS CLK REF") {
+                let ck = WorkClock::parse(version, content);
+                clock = clock.work_clock(ck);
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
                 let n = n.trim();
@@ -873,19 +831,19 @@ impl Header {
                 let mut rem = r;
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
-                    if let Ok(c) = ClockDataType::from_str(code.trim()) {
-                        clocks.codes.push(c);
+                    if let Ok(c) = ClockProfileType::from_str(code.trim()) {
+                        clock.codes.push(c);
                     }
                     rem = r;
                 }
             } else if marker.contains("STATION NAME / NUM") {
-                let (name, num) = content.split_at(4);
-                clocks = clocks.with_ref_station(clocks::Station {
-                    id: num.trim().to_string(),
-                    name: name.trim().to_string(),
-                });
+                let (name, domes) = content.split_at(4);
+                clock = clock.site(name.trim());
+                if let Ok(domes) = Domes::from_str(domes.trim()) {
+                    clock = clock.domes(domes);
+                }
             } else if marker.contains("STATION CLK REF") {
-                clocks = clocks.with_ref_clock(content.trim());
+                clock = clock.refclock(content.trim());
             } else if marker.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
             } else if marker.contains("INTERVAL") {
@@ -894,10 +852,11 @@ impl Header {
                     if interval > 0.0 {
                         // INTERVAL = '0' may exist, in case
                         // of Varying TEC map intervals
-                        sampling_interval =
-                            Some(Duration::from_f64(interval, hifitime::Unit::Second));
+                        sampling_interval = Some(Duration::from_seconds(interval));
                     }
                 }
+            } else if marker.contains("COSPAR NUMBER") {
+                cospar = Some(COSPAR::from_str(content.trim())?);
             } else if marker.contains("GLONASS SLOT / FRQ #") {
                 //TODO
                 // This should be used when dealing with Glonass carriers
@@ -916,37 +875,134 @@ impl Header {
                 //TODO
                 // This will help RTK solving against GLONASS SV
             } else if marker.contains("ION ALPHA") {
-                //TODO
-                //0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06          ION ALPHA
+                // RINEX v2 Ionospheric correction. We tolerate BETA/ALPHA order mixup, as per
+                // RINEX v2 standards [https://files.igs.org/pub/data/format/rinex211.txt] paragraph 5.2.
+                match IonMessage::from_rinex2_header(content, marker) {
+                    Ok(IonMessage::KlobucharModel(KbModel {
+                        alpha,
+                        beta,
+                        region,
+                    })) => {
+                        // Support GPS|GLO|BDS|GAL|QZSS|SBAS|IRNSS
+                        for c in [
+                            Constellation::GPS,
+                            Constellation::Glonass,
+                            Constellation::BeiDou,
+                            Constellation::Galileo,
+                            Constellation::IRNSS,
+                            Constellation::QZSS,
+                            Constellation::SBAS,
+                        ] {
+                            if let Some(correction) = ionod_corrections.get_mut(&c) {
+                                // Only Klobuchar models in RINEX2
+                                let kb_model = correction.as_klobuchar_mut().unwrap();
+                                kb_model.alpha = alpha;
+                                kb_model.region = region;
+                            } else {
+                                ionod_corrections.insert(
+                                    c,
+                                    IonMessage::KlobucharModel(KbModel {
+                                        alpha,
+                                        beta,
+                                        region,
+                                    }),
+                                );
+                            }
+                        }
+                    },
+                    _ => {},
+                }
             } else if marker.contains("ION BETA") {
-                //TODO
-                //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA
+                // RINEX v2 Ionospheric correction. We are flexible in their order of appearance,
+                // RINEX v2 standards do NOT guarantee that (header fields are free order).
+                // [https://files.igs.org/pub/data/format/rinex211.txt] paragraph 5.2.
+                match IonMessage::from_rinex2_header(content, marker) {
+                    Ok(IonMessage::KlobucharModel(KbModel {
+                        alpha,
+                        beta,
+                        region,
+                    })) => {
+                        // Support GPS|GLO|BDS|GAL|QZSS|SBAS|IRNSS
+                        for c in [
+                            Constellation::GPS,
+                            Constellation::Glonass,
+                            Constellation::BeiDou,
+                            Constellation::Galileo,
+                            Constellation::IRNSS,
+                            Constellation::QZSS,
+                            Constellation::SBAS,
+                        ] {
+                            if let Some(correction) = ionod_corrections.get_mut(&c) {
+                                // Only Klobuchar models in RINEX2
+                                let kb_model = correction.as_klobuchar_mut().unwrap();
+                                kb_model.beta = beta;
+                            } else {
+                                ionod_corrections.insert(
+                                    c,
+                                    IonMessage::KlobucharModel(KbModel {
+                                        alpha,
+                                        beta,
+                                        region,
+                                    }),
+                                );
+                            }
+                        }
+                    },
+                    _ => {},
+                }
             } else if marker.contains("IONOSPHERIC CORR") {
                 /*
-                 * RINEX < 4 IONOSPHERIC Correction
-                 * we still use the IonMessage (V4 compatible),
-                 * the record will just contain a single model for the entire day course
+                 * RINEX3 IONOSPHERIC CORRECTION
+                 * We support both model in all RINEX2|RINEX3 constellations.
+                 * RINEX4 replaces that with actual file content (body) for improved correction accuracy.
+                 * The description requires 2 lines when dealing with KB model and we tolerate order mixup.
                  */
-                if let Ok(model) = IonMessage::from_rinex3_header(content) {
-                    // The Klobuchar model needs two lines to be entirely described.
-                    if let Some(kb_model) = model.as_klobuchar() {
-                        let correction_type = content.split_at(5).0.trim();
-                        if correction_type.ends_with('B') {
-                            let alpha = ionod_correction.unwrap().as_klobuchar().unwrap().alpha;
-                            let (beta, region) = (kb_model.beta, kb_model.region);
-                            ionod_correction = Some(IonMessage::KlobucharModel(KbModel {
-                                alpha,
-                                beta,
-                                region,
-                            }));
+                let model_id = content.split_at(5).0;
+                if model_id.len() < 3 {
+                    /* BAD RINEX */
+                    continue;
+                }
+                let constell_id = &model_id[..3];
+                let constell = match constell_id {
+                    "GPS" => Constellation::GPS,
+                    "GAL" => Constellation::Galileo,
+                    "BDS" => Constellation::BeiDou,
+                    "QZS" => Constellation::QZSS,
+                    "IRN" => Constellation::IRNSS,
+                    "GLO" => Constellation::Glonass,
+                    _ => continue,
+                };
+                match IonMessage::from_rinex3_header(content) {
+                    Ok(IonMessage::KlobucharModel(KbModel {
+                        alpha,
+                        beta,
+                        region,
+                    })) => {
+                        // KB requires two lines
+                        if let Some(ionod_model) = ionod_corrections.get_mut(&constell) {
+                            let kb_model = ionod_model.as_klobuchar_mut().unwrap();
+                            if model_id.ends_with('A') {
+                                kb_model.alpha = alpha;
+                                kb_model.region = region;
+                            } else {
+                                kb_model.beta = beta;
+                            }
                         } else {
-                            ionod_correction = Some(IonMessage::KlobucharModel(*kb_model));
+                            // latch new model
+                            ionod_corrections.insert(
+                                constell,
+                                IonMessage::KlobucharModel(KbModel {
+                                    alpha,
+                                    beta,
+                                    region,
+                                }),
+                            );
                         }
-                    } else {
-                        // The NequickG model fits on a single line.
-                        // The BDGIM does not exist until RINEX4
-                        ionod_correction = Some(model);
-                    }
+                    },
+                    Ok(ion) => {
+                        ionod_corrections.insert(constell, ion);
+                    },
+                    _ => {},
                 }
             } else if marker.contains("TIME SYSTEM CORR") {
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
@@ -960,7 +1016,7 @@ impl Header {
                 let timescale = content.trim();
                 let ts = TimeScale::from_str(timescale)
                     .or(Err(ParsingError::TimescaleParsing(timescale.to_string())))?;
-                clocks = clocks.with_timescale(ts);
+                clock = clock.timescale(ts);
             } else if marker.contains("DELTA-UTC") {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
@@ -1007,96 +1063,31 @@ impl Header {
              * Ionex Grid Definition
              */
             } else if marker.contains("HGT1 / HGT2 / DHGT") {
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if items.len() == 3 {
-                    let start = items[0].trim();
-                    let start = f64::from_str(start).or(Err(parse_float_error!(
-                        "ionex (alt) grid first coordinates",
-                        start
-                    )))?;
-
-                    let end = items[1].trim();
-                    let end = f64::from_str(end).or(Err(parse_float_error!(
-                        "ionex (alt) grid last coordinates",
-                        end
-                    )))?;
-
-                    let spacing = items[2].trim();
-                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
-                        "ionex (alt) grid coordinates spacing",
-                        spacing
-                    )))?;
-
-                    let grid = match spacing == 0.0 {
-                        true => {
-                            // special case, 2D fixed altitude
-                            Linspace {
-                                // avoid verifying the Linspace in this case
-                                start,
-                                end,
-                                spacing: 0.0,
-                            }
-                        },
-                        _ => Linspace::new(start, end, spacing)?,
-                    };
-
-                    ionex = ionex.with_altitude_grid(grid);
-                } else {
-                    return Err(grid_format_error!("HGT1 / HGT2 / DGHT", content));
-                }
+                let grid = Self::parse_grid(content)?;
+                ionex = ionex.with_altitude_grid(grid);
             } else if marker.contains("LAT1 / LAT2 / DLAT") {
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if items.len() == 3 {
-                    let start = items[0].trim();
-                    let start = f64::from_str(start).or(Err(parse_float_error!(
-                        "ionex (lat) grid first coordinates",
-                        start
-                    )))?;
-
-                    let end = items[1].trim();
-                    let end = f64::from_str(end).or(Err(parse_float_error!(
-                        "ionex (lat) grid last coordinates",
-                        end
-                    )))?;
-
-                    let spacing = items[2].trim();
-                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
-                        "ionex (lat) grid coordinates spacing",
-                        spacing
-                    )))?;
-
-                    ionex = ionex.with_latitude_grid(Linspace::new(start, end, spacing)?);
-                } else {
-                    return Err(grid_format_error!("LAT1 / LAT2 / DLAT", content));
-                }
+                let grid = Self::parse_grid(content)?;
+                ionex = ionex.with_latitude_grid(grid);
             } else if marker.contains("LON1 / LON2 / DLON") {
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if items.len() == 3 {
-                    let start = items[0].trim();
-                    let start = f64::from_str(start).or(Err(parse_float_error!(
-                        "ionex (lon) grid first coordinates",
-                        start
-                    )))?;
-
-                    let end = items[1].trim();
-                    let end = f64::from_str(end).or(Err(parse_float_error!(
-                        "ionex (lon) grid last coordinates",
-                        end
-                    )))?;
-
-                    let spacing = items[2].trim();
-                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
-                        "ionex (lon) grid coordinates spacing",
-                        spacing
-                    )))?;
-
-                    ionex = ionex.with_longitude_grid(Linspace::new(start, end, spacing)?);
-                } else {
-                    return Err(grid_format_error!("LON1 / LON2 / DLON", content));
-                }
+                let grid = Self::parse_grid(content)?;
+                ionex = ionex.with_longitude_grid(grid);
             } else if marker.contains("PRN / BIAS / RMS") {
                 // differential PR code analysis
                 //TODO
+            } else if marker.contains("L2 / L1 DATE OFFSET") {
+                // DORIS special case
+                let content = content[1..].trim();
+                let l2l1_date_offset = content
+                    .parse::<f64>()
+                    .or(Err(parse_float_error!("doris l2/l1 date offset", content)))?;
+
+                doris.l2_l1_date_offset = Duration::from_microseconds(l2l1_date_offset);
+            } else if marker.contains("STATION REFERENCE") {
+                // DORIS special case
+                let station = DorisStation::from_str(content.trim())?;
+                doris.stations.push(station);
+            } else if marker.contains("TIME REF STATION") {
+                // DORIS special case (TODO)
             }
         }
 
@@ -1115,16 +1106,16 @@ impl Header {
             doi,
             station_url,
             rcvr,
+            cospar,
             glo_channels,
             leap,
             ground_position,
-            ionod_correction,
+            ionod_corrections,
             dcb_compensations,
             pcv_compensations,
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,
-            data_scaling: None,
             rcvr_antenna,
             sv_antenna,
             // RINEX specific
@@ -1142,9 +1133,9 @@ impl Header {
                     None
                 }
             },
-            clocks: {
+            clock: {
                 if rinex_type == Type::ClockData {
-                    Some(clocks)
+                    Some(clock)
                 } else {
                     None
                 }
@@ -1159,6 +1150,13 @@ impl Header {
             antex: {
                 if rinex_type == Type::AntennaData {
                     Some(antex)
+                } else {
+                    None
+                }
+            },
+            doris: {
+                if rinex_type == Type::DORIS {
+                    Some(doris)
                 } else {
                     None
                 }
@@ -1314,12 +1312,19 @@ impl Header {
             .parse::<u32>()
             .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
 
-        /* timescale might be missing in OLD RINEX: we handle that externally */
+        /*
+         * We set TAI as "default" Timescale.
+         * Timescale might be omitted in Old RINEX formats,
+         * In this case, we exit with "TAI" and handle that externally.
+         */
         let mut ts = TimeScale::TAI;
-
         let rem = rem.trim();
-        if !rem.is_empty() {
-            // println!("TS \"{}\"", rem); // DBEUGts = TimeScale::from_str(rem.trim()).map_err(|_| {
+
+        /*
+         * Handles DORIS measurement special case,
+         * offset from TAI, that we will convert back to TAI later
+         */
+        if !rem.is_empty() && rem != "DOR" {
             ts = TimeScale::from_str(rem.trim()).map_err(|_| {
                 ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
             })?;
@@ -1401,8 +1406,9 @@ impl Header {
                     )
                 )
             },
-            Type::AntennaData => todo!(),
-            Type::IonosphereMaps => todo!(),
+            Type::DORIS => todo!("doris formatting"),
+            Type::AntennaData => todo!("antex formatting"),
+            Type::IonosphereMaps => todo!("ionex formatting"),
         }
     }
     /*
@@ -1415,18 +1421,19 @@ impl Header {
             Type::NavigationData => Ok(()),
             Type::ClockData => self.fmt_clock_rinex(f),
             Type::IonosphereMaps => self.fmt_ionex(f),
-            Type::AntennaData => Ok(()),
+            Type::AntennaData => Ok(()), // FIXME
+            Type::DORIS => Ok(()),       // FIXME
         }
     }
     /*
      * Clock Data fields formatting
      */
     fn fmt_clock_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(clocks) = &self.clocks {
+        if let Some(clock) = &self.clock {
             // Types of data: observables equivalent
             let mut descriptor = String::new();
-            descriptor.push_str(&format!("{:6}", clocks.codes.len()));
-            for (i, observable) in clocks.codes.iter().enumerate() {
+            descriptor.push_str(&format!("{:6}", clock.codes.len()));
+            for (i, observable) in clock.codes.iter().enumerate() {
                 if (i % 9) == 0 && i > 0 {
                     descriptor.push_str("      "); // TAB
                 }
@@ -1435,25 +1442,24 @@ impl Header {
             writeln!(f, "{}", fmt_rinex(&descriptor, "# / TYPES OF DATA"))?;
 
             // possible timescale
-            if let Some(ts) = clocks.timescale {
+            if let Some(ts) = clock.timescale {
                 writeln!(
                     f,
                     "{}",
                     fmt_rinex(&format!("   {:x}", ts), "TIME SYSTEM ID")
                 )?;
             }
-
-            // possible agency
-            if let Some(agency) = &clocks.agency {
-                writeln!(
-                    f,
-                    "{}",
-                    fmt_rinex(
-                        &format!("{:<5} {}", agency.code, agency.name),
-                        "ANALYSIS CENTER"
-                    )
-                )?;
-            }
+            // TODO: missing fields
+            //if let Some(agency) = &clock.agency {
+            //    writeln!(
+            //        f,
+            //        "{}",
+            //        fmt_rinex(
+            //            &format!("{:<5} {}", agency.code, agency.name),
+            //            "ANALYSIS CENTER"
+            //        )
+            //    )?;
+            //}
         }
         Ok(())
     }
@@ -1561,7 +1567,8 @@ impl Header {
     fn fmt_observation_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(obs) = &self.obs {
             if let Some(e) = obs.time_of_first_obs {
-                let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
+                let (y, m, d, hh, mm, ss, nanos) =
+                    (e + e.leap_seconds(true).unwrap_or(0.0) * Unit::Second).to_gregorian_utc();
                 writeln!(
                     f,
                     "{}",
@@ -1575,7 +1582,8 @@ impl Header {
                 )?;
             }
             if let Some(e) = obs.time_of_last_obs {
-                let (y, m, d, hh, mm, ss, nanos) = e.to_gregorian_utc();
+                let (y, m, d, hh, mm, ss, nanos) =
+                    (e + e.leap_seconds(true).unwrap_or(0.0) * Unit::Second).to_gregorian_utc();
                 writeln!(
                     f,
                     "{}",
@@ -1615,15 +1623,17 @@ impl Header {
                     for (constell, observables) in &obs.codes {
                         let mut descriptor = String::new();
                         descriptor.push_str(&format!("{:x}{:5}", constell, observables.len()));
-                        for observable in observables {
-                            descriptor.push_str(&format!(" {}", observable));
+                        for (i, observable) in observables.iter().enumerate() {
+                            if (i % 13) == 0 && (i > 0) {
+                                descriptor.push_str("        "); // TAB
+                            }
+                            descriptor.push_str(&format!(" {}", observable)); // TAB
                         }
                         writeln!(f, "{}", fmt_rinex(&descriptor, "SYS / # / OBS TYPES"))?;
                     }
                 },
             }
             // must take place after list of observables:
-            //  TODO scaling factor
             //  TODO DCBS compensations
             //  TODO PCVs compensations
         }
@@ -1637,6 +1647,219 @@ impl Header {
             writeln!(f, "{}", fmt_comment(comment))?;
         }
         Ok(())
+    }
+    /*
+     * Parse IONEX grid
+     */
+    fn parse_grid(line: &str) -> Result<Linspace, ParsingError> {
+        let mut start = 0.0_f64;
+        let mut end = 0.0_f64;
+        let mut spacing = 0.0_f64;
+        for (index, item) in line.split_ascii_whitespace().enumerate() {
+            let item = item.trim();
+            match index {
+                0 => {
+                    start =
+                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [0]", item)))?;
+                },
+                1 => {
+                    end =
+                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [1]", item)))?;
+                },
+                2 => {
+                    spacing =
+                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [2]", item)))?;
+                },
+                _ => {},
+            }
+        }
+        if spacing == 0.0 {
+            // avoid linspace verification in this case
+            Ok(Linspace {
+                start,
+                end,
+                spacing,
+            })
+        } else {
+            let grid = Linspace::new(start, end, spacing)?;
+            Ok(grid)
+        }
+    }
+    /*
+     * Parse CRINEX special header
+     */
+    fn parse_crinex_prog_date(
+        line: &str,
+        observation: &mut ObservationHeader,
+    ) -> Result<(), ParsingError> {
+        assert!(
+            observation.crinex.is_some(),
+            "badly formed CRINEX: CRINEX VERS/TYPE expected as first header"
+        );
+        let mut crinex = observation.crinex.clone().unwrap();
+
+        let (prog, rem) = line.split_at(20);
+        crinex = crinex.with_prog(prog.trim());
+
+        let (_, rem) = rem.split_at(20);
+        let date = rem.split_at(20).0.trim();
+
+        let date_time = date.split_ascii_whitespace();
+        if date_time.count() != 2 {
+            return Err(ParsingError::CrinexHeader(String::from("CRINEX PROG/DATE")));
+        }
+
+        let mut year = 2000_i32; // CRINEX: Y %02D
+        let mut month = 0_u8;
+        let mut day = 0_u8;
+        let mut hr = 0_u8;
+        let mut mins = 0_u8;
+        for (index, date_time) in date.split_ascii_whitespace().enumerate() {
+            match index {
+                0 => {
+                    for (index, component) in date_time.split('-').enumerate() {
+                        let component = component.trim();
+                        match index {
+                            0 => {
+                                day = component.parse::<u8>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::day".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            1 => {
+                                month = parse_formatted_month(component.trim())?;
+                            },
+                            2 => {
+                                year += component.trim().parse::<i32>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::year".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            _ => {},
+                        }
+                    }
+                },
+                1 => {
+                    for (index, component) in date_time.split(':').enumerate() {
+                        let component = component.trim();
+                        match index {
+                            0 => {
+                                hr = component.parse::<u8>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::hours".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            1 => {
+                                mins = component.parse::<u8>().or(Err(
+                                    ParsingError::DateTimeParsing(
+                                        "crinex::minutes".to_string(),
+                                        component.to_string(),
+                                    ),
+                                ))?;
+                            },
+                            _ => {},
+                        }
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        let epoch = Epoch::from_gregorian_utc(year, month, day, hr, mins, 0, 0);
+        crinex = crinex.with_date(epoch);
+
+        observation.crinex = Some(crinex);
+        Ok(())
+    }
+    /*
+     * Parse list of observables (V2)
+     */
+    fn parse_v2_observables(
+        line: &str,
+        constell: Option<Constellation>,
+        meteo: &mut MeteoHeader,
+        observation: &mut ObservationHeader,
+    ) {
+        lazy_static! {
+            /*
+             *  Only GPS, Glonass, Galileo and SBAS are supported in V2 RINEX
+             */
+            static ref KNOWN_V2_CONSTELLS: [Constellation; 4] = [
+                Constellation::GPS,
+                Constellation::SBAS,
+                Constellation::Glonass,
+                Constellation::Galileo,
+            ];
+        }
+        let line = line.split_at(6).1;
+        for item in line.split_ascii_whitespace() {
+            if let Ok(obs) = Observable::from_str(item.trim()) {
+                match constell {
+                    Some(Constellation::Mixed) => {
+                        for constell in KNOWN_V2_CONSTELLS.iter() {
+                            if let Some(codes) = observation.codes.get_mut(constell) {
+                                codes.push(obs.clone());
+                            } else {
+                                observation.codes.insert(*constell, vec![obs.clone()]);
+                            }
+                        }
+                    },
+                    Some(c) => {
+                        if let Some(codes) = observation.codes.get_mut(&c) {
+                            codes.push(obs.clone());
+                        } else {
+                            observation.codes.insert(c, vec![obs.clone()]);
+                        }
+                    },
+                    None => meteo.codes.push(obs),
+                }
+            }
+        }
+    }
+    /*
+     * Parse list of observables (V3)
+     */
+    fn parse_v3_observables(
+        line: &str,
+        current_constell: &mut Option<Constellation>,
+        observation: &mut ObservationHeader,
+    ) {
+        let (possible_counter, items) = line.split_at(6);
+        if !possible_counter.is_empty() {
+            let code = &possible_counter[..1];
+            if let Ok(c) = Constellation::from_str(code) {
+                *current_constell = Some(c);
+            }
+        }
+        if let Some(constell) = current_constell {
+            // system correctly identified
+            for item in items.split_ascii_whitespace() {
+                if let Ok(observable) = Observable::from_str(item) {
+                    if let Some(codes) = observation.codes.get_mut(constell) {
+                        codes.push(observable);
+                    } else {
+                        observation.codes.insert(*constell, vec![observable]);
+                    }
+                }
+            }
+        }
+    }
+    /*
+     * Parse list of DORIS observables
+     */
+    fn parse_doris_observables(line: &str, doris: &mut DorisHeader) {
+        let items = line.split_at(6).1;
+        for item in items.split_ascii_whitespace() {
+            if let Ok(observable) = Observable::from_str(item) {
+                doris.observables.push(observable);
+            }
+        }
     }
 }
 
@@ -1798,18 +2021,18 @@ impl Header {
 
 impl Merge for Header {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         if self.rinex_type != rhs.rinex_type {
-            return Err(merge::Error::FileTypeMismatch);
+            return Err(MergeError::FileTypeMismatch);
         }
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self` in place
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if self.rinex_type != rhs.rinex_type {
-            return Err(merge::Error::FileTypeMismatch);
+            return Err(MergeError::FileTypeMismatch);
         }
 
         let (a_cst, b_cst) = (self.constellation, rhs.constellation);
@@ -1836,19 +2059,19 @@ impl Merge for Header {
             },
         }
 
-        merge::merge_mut_vec(&mut self.comments, &rhs.comments);
-        merge::merge_mut_option(&mut self.geodetic_marker, &rhs.geodetic_marker);
-        merge::merge_mut_option(&mut self.license, &rhs.license);
-        merge::merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
-        merge::merge_mut_option(&mut self.doi, &rhs.doi);
-        merge::merge_mut_option(&mut self.leap, &rhs.leap);
-        merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
-        merge::merge_mut_option(&mut self.rcvr, &rhs.rcvr);
-        merge::merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
-        merge::merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
-        merge::merge_mut_option(&mut self.ground_position, &rhs.ground_position);
-        merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
-        merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
+        merge_mut_vec(&mut self.comments, &rhs.comments);
+        merge_mut_option(&mut self.geodetic_marker, &rhs.geodetic_marker);
+        merge_mut_option(&mut self.license, &rhs.license);
+        merge_mut_option(&mut self.doi, &rhs.doi);
+        merge_mut_option(&mut self.leap, &rhs.leap);
+        merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
+        merge_mut_option(&mut self.rcvr, &rhs.rcvr);
+        merge_mut_option(&mut self.cospar, &rhs.cospar);
+        merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
+        merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
+        merge_mut_option(&mut self.ground_position, &rhs.ground_position);
+        merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
+        merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
 
         // DCBS compensation is preserved, only if both A&B both have it
         if self.dcb_compensations.is_empty() || rhs.dcb_compensations.is_empty() {
@@ -1881,8 +2104,7 @@ impl Merge for Header {
                 .count();
         }
 
-        //TODO :
-        //merge::merge_mut(&mut self.glo_channels, &rhs.glo_channels);
+        // TODO: merge::merge_mut(&mut self.glo_channels, &rhs.glo_channels);
 
         // RINEX specific operation
         if let Some(lhs) = &mut self.antex {
@@ -1892,59 +2114,73 @@ impl Merge for Header {
                 let mut mixed_antex = lhs.pcv_type.is_relative() && !rhs.pcv_type.is_relative();
                 mixed_antex |= !lhs.pcv_type.is_relative() && rhs.pcv_type.is_relative();
                 if mixed_antex {
-                    return Err(merge::Error::AntexAbsoluteRelativeMismatch);
+                    return Err(MergeError::AntexAbsoluteRelativeMismatch);
                 }
-                // merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
+                //TODO: merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
         }
-        if let Some(lhs) = &mut self.clocks {
-            if let Some(rhs) = &rhs.clocks {
-                merge::merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
-                merge::merge_mut_option(&mut lhs.agency, &rhs.agency);
-                merge::merge_mut_option(&mut lhs.station, &rhs.station);
-                merge::merge_mut_option(&mut lhs.clock_ref, &rhs.clock_ref);
-                merge::merge_mut_option(&mut lhs.timescale, &rhs.timescale);
+        if let Some(lhs) = &mut self.clock {
+            if let Some(rhs) = &rhs.clock {
+                merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
+                merge_mut_option(&mut lhs.igs, &rhs.igs);
+                merge_mut_option(&mut lhs.site, &rhs.site);
+                merge_mut_option(&mut lhs.domes, &rhs.domes);
+                merge_mut_option(&mut lhs.full_name, &rhs.full_name);
+                merge_mut_option(&mut lhs.ref_clock, &rhs.ref_clock);
+                merge_mut_option(&mut lhs.timescale, &rhs.timescale);
             }
         }
         if let Some(lhs) = &mut self.obs {
             if let Some(rhs) = &rhs.obs {
-                merge::merge_mut_option(&mut lhs.crinex, &rhs.crinex);
-                merge::merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
-                // TODO: manage that
-                lhs.clock_offset_applied |= rhs.clock_offset_applied;
+                merge_mut_option(&mut lhs.crinex, &rhs.crinex);
+                merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
+                merge_time_of_first_obs(&mut lhs.time_of_first_obs, &rhs.time_of_first_obs);
+                merge_time_of_last_obs(&mut lhs.time_of_last_obs, &rhs.time_of_last_obs);
+                // TODO: lhs.clock_offset_applied |= rhs.clock_offset_applied;
             }
         }
         if let Some(lhs) = &mut self.meteo {
             if let Some(rhs) = &rhs.meteo {
-                merge::merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
-                merge::merge_mut_unique_vec(&mut lhs.sensors, &rhs.sensors);
+                merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
+                merge_mut_unique_vec(&mut lhs.sensors, &rhs.sensors);
+            }
+        }
+        if let Some(lhs) = &mut self.doris {
+            if let Some(rhs) = &rhs.doris {
+                merge_time_of_first_obs(&mut lhs.time_of_first_obs, &rhs.time_of_first_obs);
+                merge_time_of_last_obs(&mut lhs.time_of_last_obs, &rhs.time_of_last_obs);
+                merge_mut_unique_vec(&mut lhs.stations, &rhs.stations);
+                merge_mut_unique_vec(&mut lhs.observables, &rhs.observables);
+                //TODO: merge_scaling();
+                //merge_mut_unique_map2d(&mut lhs.scaling, &rhs.scaling);
+                lhs.l2_l1_date_offset = std::cmp::max(lhs.l2_l1_date_offset, rhs.l2_l1_date_offset);
             }
         }
         if let Some(lhs) = &mut self.ionex {
             if let Some(rhs) = &rhs.ionex {
                 if lhs.reference != rhs.reference {
-                    return Err(merge::Error::IonexReferenceMismatch);
+                    return Err(MergeError::IonexReferenceMismatch);
                 }
                 if lhs.grid != rhs.grid {
-                    return Err(merge::Error::IonexMapGridMismatch);
+                    return Err(MergeError::IonexMapGridMismatch);
                 }
                 if lhs.map_dimension != rhs.map_dimension {
-                    return Err(merge::Error::IonexMapDimensionsMismatch);
+                    return Err(MergeError::IonexMapDimensionsMismatch);
                 }
                 if lhs.base_radius != rhs.base_radius {
-                    return Err(merge::Error::IonexBaseRadiusMismatch);
+                    return Err(MergeError::IonexBaseRadiusMismatch);
                 }
 
                 //TODO: this is not enough, need to take into account and rescale..
                 lhs.exponent = std::cmp::min(lhs.exponent, rhs.exponent);
 
-                merge::merge_mut_option(&mut lhs.description, &rhs.description);
-                merge::merge_mut_option(&mut lhs.mapping, &rhs.mapping);
+                merge_mut_option(&mut lhs.description, &rhs.description);
+                merge_mut_option(&mut lhs.mapping, &rhs.mapping);
                 if lhs.elevation_cutoff == 0.0 {
                     // means "unknown"
                     lhs.elevation_cutoff = rhs.elevation_cutoff; // => overwrite in this case
                 }
-                merge::merge_mut_option(&mut lhs.observables, &rhs.observables);
+                merge_mut_option(&mut lhs.observables, &rhs.observables);
                 lhs.nb_stations = std::cmp::max(lhs.nb_stations, rhs.nb_stations);
                 lhs.nb_satellites = std::cmp::max(lhs.nb_satellites, rhs.nb_satellites);
                 for (b, dcb) in &rhs.dcbs {

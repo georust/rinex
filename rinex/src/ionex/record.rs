@@ -171,7 +171,7 @@ pub(crate) fn parse_plane(
                 // debug
                 // println!("NEW GRID : h: {} lat : {} lon : {}, dlon: {}", altitude, latitude, longitude, dlon);
             } else if marker.contains("EPOCH OF CURRENT MAP") {
-                epoch = epoch::parse_utc(content)?.0;
+                epoch = epoch::parse_utc(content)?;
             } else if marker.contains("EXPONENT") {
                 // update current scaling
                 if let Ok(e) = content.trim().parse::<i8>() {
@@ -238,32 +238,6 @@ pub(crate) fn parse_plane(
         }
     }
     Ok((epoch, altitude, plane))
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_new_tec_map() {
-        assert!(is_new_tec_plane(
-            "1                                                      START OF TEC MAP"
-        ));
-        assert!(!is_new_tec_plane(
-            "1                                                      START OF RMS MAP"
-        ));
-        assert!(is_new_rms_plane(
-            "1                                                      START OF RMS MAP"
-        ));
-        // assert_eq!(
-        //     is_new_height_map(
-        //         "1                                                      START OF HEIGHT MAP"
-        //     ),
-        //     true
-        // );
-    }
-    //#[test]
-    //fn test_merge_map2d() {
-    //}
 }
 
 impl Merge for Record {
@@ -392,4 +366,30 @@ impl Interpolate for Record {
     fn interpolate_mut(&mut self, _series: TimeSeries) {
         unimplemented!("ionex:record:interpolate()")
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_new_tec_map() {
+        assert!(is_new_tec_plane(
+            "1                                                      START OF TEC MAP"
+        ));
+        assert!(!is_new_tec_plane(
+            "1                                                      START OF RMS MAP"
+        ));
+        assert!(is_new_rms_plane(
+            "1                                                      START OF RMS MAP"
+        ));
+        // assert_eq!(
+        //     is_new_height_map(
+        //         "1                                                      START OF HEIGHT MAP"
+        //     ),
+        //     true
+        // );
+    }
+    //#[test]
+    //fn test_merge_map2d() {
+    //}
 }

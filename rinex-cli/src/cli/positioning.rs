@@ -7,23 +7,19 @@ pub fn subcommand() -> Command {
         .short_flag('p')
         .arg_required_else_help(false)
         .about("Precise Positioning opmode.
-Use this mode to resolve precise positions and local time from RINEX dataset.
-You should provide Observations from a unique receiver.")
+Use this mode to resolve Position Velocity and Time (PVT) solutions from one GNSS context. See -p --help.")
         .arg(Arg::new("cfg")
             .short('c')
             .long("cfg")
             .value_name("FILE")
             .required(false)
             .action(ArgAction::Append)
-            .help("Pass a Position Solver configuration file (JSON).
+            .help("Pass a Position Solver configuration file (JSON). See --help.")
+            .long_help("
+Read the [https://github.com/georust/rinex/wiki/Positioning] tutorial.
+Use [https://github.com/georust/rinex/rinex-cli/config.rtk] as a starting point.
 [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/struct.Config.html] is the structure to represent in JSON.
-See [] for meaningful examples."))
-        .arg(Arg::new("spp")
-            .long("spp")
-            .action(ArgAction::SetTrue)
-            .help("Force resolution method to Single Point Positioning (SPP).
-Otherwise, the Default method is used.
-Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html]."))
+"))
         .arg(Arg::new("gpx")
             .long("gpx")
             .action(ArgAction::SetTrue)
@@ -36,16 +32,15 @@ Refer to [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html]."))
         .arg(Arg::new("cggtts")
             .long("cggtts")
             .action(ArgAction::SetTrue)
-            .help("Activate CGGTTS special solver.
-Wrapps PVT solutions as CGGTTS file(s) for remote clock comparison (time transfer)."))
+            .help("Activate CGGTTS special solver. See --help.")
+            .long_help("Refer to the [https://github.com/georust/rinex/wiki/CGGTTS] tutorial."))
         .arg(Arg::new("tracking")
             .long("trk")
             .short('t')
             .value_parser(value_parser!(Duration))
             .action(ArgAction::Set)
             .help("CGGTTS custom tracking duration.
-Otherwise, the default tracking duration is used.
-Refer to []"))
+Otherwise, the default tracking duration is used. Refer to [https://docs.rs/cggtts/latest/cggtts/track/struct.Scheduler.html]."))
         .arg(Arg::new("lab")
             .long("lab")
             .action(ArgAction::Set)

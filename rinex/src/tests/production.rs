@@ -4,7 +4,7 @@ mod test {
     use crate::*;
     use std::path::Path;
     fn testbench(path: &str) {
-        // parse this file
+        println!("running on \"{}\"", path);
         let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere
         let tmp_path = format!("test-{}.rnx", random_name(5));
         assert!(rnx.to_file(&tmp_path).is_ok()); // test writer
@@ -21,7 +21,6 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
-    #[ignore]
     fn obs_v2() {
         let prefix = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -47,7 +46,6 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
-    #[ignore]
     fn obs_v3() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V3/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -58,9 +56,18 @@ mod test {
     }
     #[test]
     #[cfg(feature = "flate2")]
-    //#[ignore]
     fn meteo_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/";
+        for file in std::fs::read_dir(folder).unwrap() {
+            let fp = file.unwrap();
+            let fp = fp.path();
+            testbench(fp.to_str().unwrap());
+        }
+    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn meteo_v3() {
+        let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V3/";
         for file in std::fs::read_dir(folder).unwrap() {
             let fp = file.unwrap();
             let fp = fp.path();

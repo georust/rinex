@@ -2,7 +2,7 @@
 //! Refer to README for command line arguments.    
 //! Homepage: <https://github.com/georust/rinex-cli>
 
-mod analysis; // basic analysis
+//mod analysis; // basic analysis
 mod cli; // command line interface
 mod fops;
 mod graph;
@@ -13,10 +13,21 @@ mod qc; // QC report generator // plotting operations // file operation helpers 
 mod preprocessing;
 use preprocessing::preprocess;
 
+use rinex::prelude::RnxContext;
+
+use std::fs::create_dir_all;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
+
 extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
+use rinex::prelude::Rinex;
+use sp3::prelude::SP3;
+
 use cli::{Cli, Context};
+
+use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
 use env_logger::{Builder, Target};
 
@@ -43,6 +54,90 @@ pub enum Error {
     PositioningSolverError(#[from] positioning::Error),
 }
 
+/*
+ * Parses and preprepocess all files passed by User
+ */
+fn user_data_parsing(cli: &Cli) -> RnxContext {
+    let mut ctx = RnxContext::default();
+
+    let max_depth = match cli.matches.get_one::<u8>("depth") {
+        Some(value) => *value as usize,
+        None => 5usize,
+    };
+
+    /*
+     * Load directories recursively (`-d`)
+     */
+    for dir in cli.input_directories() {
+        let walkdir = WalkDir::new(dir).max_depth(max_depth);
+        for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+            if !entry.path().is_dir() {
+                let path = entry.path();
+                if let Ok(rinex) = Rinex::from_path(path) {
+                    let loading = ctx.load_rinex(path, rinex);
+                    if loading.is_ok() {
+                        info!("Loading RINEX file \"{}\"", path.display());
+                    } else {
+                        warn!(
+                            "failed to load RINEX file \"{}\": {}",
+                            path.display(),
+                            loading.err().unwrap()
+                        );
+                    }
+                } else if let Ok(sp3) = SP3::from_path(path) {
+                    let loading = ctx.load_sp3(path, sp3);
+                    if loading.is_ok() {
+                        info!("Loading SP3 file \"{}\"", path.display());
+                    } else {
+                        warn!(
+                            "failed to load SP3 file \"{}\": {}",
+                            path.display(),
+                            loading.err().unwrap()
+                        );
+                    }
+                } else {
+                    warn!("non supported file format \"{}\"", path.display());
+                }
+            }
+        }
+    }
+
+    /*
+     * Load each individual file (`-f`)
+     */
+    for fp in cli.input_files() {
+        let path = Path::new(fp);
+        if let Ok(rinex) = Rinex::from_path(path) {
+            let loading = ctx.load_rinex(path, rinex);
+            if loading.is_err() {
+                warn!(
+                    "failed to load RINEX file \"{}\": {}",
+                    path.display(),
+                    loading.err().unwrap()
+                );
+            }
+        } else if let Ok(sp3) = SP3::from_path(path) {
+            let loading = ctx.load_sp3(path, sp3);
+            if loading.is_err() {
+                warn!(
+                    "failed to load SP3 file \"{}\": {}",
+                    path.display(),
+                    loading.err().unwrap()
+                );
+            }
+        } else {
+            warn!("non supported file format \"{}\"", path.display());
+        }
+    }
+
+    /*
+     * Preprocess whole context
+     */
+    preprocess(&mut ctx, cli);
+    debug!("{:?}", ctx);
+    ctx
+}
+
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
@@ -51,14 +146,97 @@ pub fn main() -> Result<(), Error> {
         .format_module_path(false)
         .init();
 
-    // Build context defined by user
-    let cli = Cli::new();
-    let mut ctx = Context::from_cli(&cli)?;
-
     /*
-     * Preprocessing
+     * Build context defined by user
+     *   Parse all data, determine other useful information
      */
-    preprocess(&mut ctx.data, &cli);
+    let cli = Cli::new();
+
+    // User Data parsing
+    let mut data_ctx = user_data_parsing(&cli);
+    let ctx_position = data_ctx.ground_position();
+    let ctx_stem = Context::context_stem(&mut data_ctx);
+
+    // Form context
+    let ctx = Context {
+        name: ctx_stem.clone(),
+        data: data_ctx,
+        quiet: cli.matches.get_flag("quiet"),
+        workspace: {
+            /*
+             * Supports both an environment variable and
+             * a command line opts. Otherwise we use ./workspace directly
+             * but its creation must pass.
+             * This is documented in Wiki pages.
+             */
+            let path = match std::env::var("RINEX_WORKSPACE") {
+                Ok(path) => Path::new(&path).join(&ctx_stem).to_path_buf(),
+                _ => match cli.matches.get_one::<PathBuf>("workspace") {
+                    Some(base_dir) => Path::new(base_dir).join(&ctx_stem).to_path_buf(),
+                    None => Path::new("WORKSPACE").join(&ctx_stem).to_path_buf(),
+                },
+            };
+            // make sure the workspace is viable and exists, otherwise panic
+            create_dir_all(&path).unwrap_or_else(|e| {
+                panic!(
+                    "failed to create session workspace \"{}\": {:?}",
+                    path.display(),
+                    e
+                )
+            });
+            info!("session workspace is \"{}\"", path.to_string_lossy());
+            path
+        },
+        rx_ecef: {
+            /*
+             * Determine and store RX (ECEF) position
+             * Either manually defined by User
+             *   this is useful in case not a single file has such information
+             *   or we want to use a custom location
+             * Or with smart determination from all previously parsed data
+             *   this is useful in case we don't want to bother
+             *   but we must be sure that the OBSRINEX describes the correct location
+             */
+            match cli.manual_position() {
+                Some((x, y, z)) => {
+                    let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                    lat = rad2deg(lat);
+                    lon = rad2deg(lon);
+                    info!(
+                        "Manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
+                        (x, y, z),
+                        lat,
+                        lon
+                    );
+                    Some((x, y, z))
+                },
+                None => {
+                    if let Some(data_pos) = ctx_position {
+                        let (x, y, z) = data_pos.to_ecef_wgs84();
+                        let (mut lat, mut lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+                        lat = rad2deg(lat);
+                        lon = rad2deg(lon);
+                        info!(
+                            "Position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
+                            (x, y, z),
+                            lat,
+                            lon
+                        );
+                        Some((x, y, z))
+                    } else {
+                        /*
+                         * Dataset does not contain any position,
+                         * and User did not specify any.
+                         * This is not problematic unless user is interested in
+                         * advanced operations, which will most likely fail soon or later.
+                         */
+                        warn!("No RX position defined");
+                        None
+                    }
+                },
+            }
+        },
+    };
 
     /*
      * Exclusive opmodes
@@ -85,11 +263,11 @@ pub fn main() -> Result<(), Error> {
         Some(("positioning", submatches)) => {
             positioning::precise_positioning(&ctx, submatches)?;
         },
-        Some(("sub", submatches)) => {
-            fops::substract(&ctx, submatches)?;
-        },
         Some(("tbin", submatches)) => {
             fops::time_binning(&ctx, submatches)?;
+        },
+        Some(("sub", submatches)) => {
+            fops::substract(&ctx, submatches)?;
         },
         _ => error!("no opmode specified!"),
     }

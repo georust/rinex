@@ -9,10 +9,10 @@ use statrs::statistics::Statistics;
  * Plots Meteo observations
  */
 pub fn plot_meteo_observations(ctx: &Context, plot_context: &mut PlotContext, csv_export: bool) {
-    let rnx = ctx.data.meteo_data().unwrap(); // infaillible
-                                              /*
-                                               * 1 plot per physics
-                                               */
+    let rnx = ctx.data.meteo().unwrap(); // infaillible
+                                         /*
+                                          * 1 plot per physics
+                                          */
     for observable in rnx.observable() {
         let unit = match observable {
             Observable::Pressure => "hPa",

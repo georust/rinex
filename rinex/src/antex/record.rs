@@ -385,25 +385,6 @@ pub(crate) fn parse_antenna(
     Ok((antenna, inner))
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_new_epoch() {
-        let content = "                                                           START OF ANTENNA";
-        assert!(is_new_epoch(content));
-        let content =
-            "TROSAR25.R4      LEIT727259                                 TYPE / SERIAL NO";
-        assert!(!is_new_epoch(content));
-        let content =
-            "    26                                                      # OF FREQUENCIES";
-        assert!(!is_new_epoch(content));
-        let content =
-            "   G01                                                      START OF FREQUENCY";
-        assert!(!is_new_epoch(content));
-    }
-}
-
 impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
@@ -442,5 +423,24 @@ impl Merge for Record {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_new_epoch() {
+        let content = "                                                           START OF ANTENNA";
+        assert!(is_new_epoch(content));
+        let content =
+            "TROSAR25.R4      LEIT727259                                 TYPE / SERIAL NO";
+        assert!(!is_new_epoch(content));
+        let content =
+            "    26                                                      # OF FREQUENCIES";
+        assert!(!is_new_epoch(content));
+        let content =
+            "   G01                                                      START OF FREQUENCY";
+        assert!(!is_new_epoch(content));
     }
 }

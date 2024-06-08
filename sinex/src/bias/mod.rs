@@ -184,7 +184,7 @@ impl std::str::FromStr for Solution {
 
 impl Solution {
     /// Returns duration for this bias solution
-    pub fn duration(&self) -> chrono::Duration {
+    pub fn duration(&self) -> chrono::TimeDelta {
         self.end_time - self.start_time
     }
 }

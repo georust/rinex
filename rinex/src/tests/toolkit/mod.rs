@@ -7,10 +7,19 @@ use hifitime::TimeSeries;
 /* OBS RINEX dedicated tools */
 mod observation;
 pub use observation::check_observables as obsrinex_check_observables;
+pub use observation::test_observation_rinex;
+
+/* NAV RINEX dedicated tools */
+pub mod nav;
+
+/* DORIS RINEX dedicated tools */
+mod doris;
+pub use doris::check_observables as doris_check_observables;
+pub use doris::check_stations as doris_check_stations;
 
 /* ANY RINEX == constant (special ops) */
 mod constant;
-pub use constant::{is_constant_rinex, is_null_rinex};
+pub use constant::is_null_rinex;
 
 //#[macro_use]
 #[macro_export]
@@ -473,7 +482,7 @@ pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f
         observation_against_model(dut, model, filename, epsilon);
     } else if dut.is_meteo_rinex() {
         meteo_against_model(dut, model, filename, epsilon);
-    } else if dut.is_clocks_rinex() {
+    } else if dut.is_clock_rinex() {
         clocks_against_model(dut, model, filename, epsilon);
     } else if dut.is_navigation_rinex() {
         navigation_against_model(dut, model, filename, epsilon);
@@ -530,7 +539,7 @@ pub fn test_meteo_rinex(
         "should not contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_none(),
+        dut.header.clock.is_none(),
         "should not contain specific CLOCK fields"
     );
 
@@ -559,7 +568,7 @@ pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&
         "should not contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_none(),
+        dut.header.clock.is_none(),
         "should not contain specific CLOCK fields"
     );
 }
@@ -569,7 +578,7 @@ pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&
  */
 pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
     test_rinex(dut, version, constellation);
-    assert!(dut.is_clocks_rinex(), "should be declared as CLK RINEX");
+    assert!(dut.is_clock_rinex(), "should be declared as CLK RINEX");
     /*
      * Header specific fields
      */
@@ -586,7 +595,7 @@ pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>)
         "should not contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_some(),
+        dut.header.clock.is_some(),
         "should contain specific CLOCK fields"
     );
 }
@@ -613,85 +622,7 @@ pub fn test_ionex(dut: &Rinex, version: &str, constellation: Option<&str>) {
         "should contain specific IONEX fields"
     );
     assert!(
-        dut.header.clocks.is_none(),
+        dut.header.clock.is_none(),
         "should not contain specific CLOCK fields"
     );
-}
-
-/*
- * Any parsed OBSERVATION RINEX should go through this test
- */
-pub fn test_observation_rinex(
-    dut: &Rinex,
-    version: &str,
-    constellation: Option<&str>,
-    gnss_csv: &str,
-    sv_csv: &str,
-    observ_csv: &str,
-    time_of_first_obs: Option<&str>,
-    time_of_last_obs: Option<&str>,
-    time_frame: TestTimeFrame,
-    //observ_gnss_json: &str,
-) {
-    test_rinex(dut, version, constellation);
-    assert!(
-        dut.is_observation_rinex(),
-        "should be declared as OBS RINEX"
-    );
-
-    assert!(
-        dut.record.as_obs().is_some(),
-        "observation record unwrapping"
-    );
-    test_sv_csv(dut, sv_csv);
-    test_gnss_csv(dut, gnss_csv);
-    test_time_frame(dut, time_frame);
-    test_observables_csv(dut, observ_csv);
-    /*
-     * Specific header field testing
-     */
-    assert!(
-        dut.header.obs.is_some(),
-        "missing observation specific header fields"
-    );
-    assert!(
-        dut.header.meteo.is_none(),
-        "should not contain specific METEO fields"
-    );
-    assert!(
-        dut.header.ionex.is_none(),
-        "should not contain specific IONEX fields"
-    );
-    assert!(
-        dut.header.clocks.is_none(),
-        "should not contain specific CLOCK fields"
-    );
-
-    let header = dut.header.obs.as_ref().unwrap();
-    //for (constell, observables) in observables {
-    //    assert!(header_obs.codes.get(&constell).is_some(), "observation rinex specific header missing observables for constellation {}", constell);
-    //    let values = header_obs.codes.get(&constell).unwrap();
-    //    for o in &observables {
-    //        assert!(values.contains(&o), "observation rinex specific {} header is missing {} observable", constell, o);
-    //    }
-    //    for o in values {
-    //        assert!(values.contains(&o), "observation rinex specific {} header should not contain {} observable", constell, o);
-    //    }
-    //}
-    if let Some(time_of_first_obs) = time_of_first_obs {
-        assert_eq!(
-            Some(Epoch::from_str(time_of_first_obs).unwrap()),
-            header.time_of_first_obs,
-            "obs header is missing time of first obs \"{}\"",
-            time_of_first_obs
-        );
-    }
-    if let Some(time_of_last_obs) = time_of_last_obs {
-        assert_eq!(
-            Some(Epoch::from_str(time_of_last_obs).unwrap()),
-            header.time_of_last_obs,
-            "obs header is missing time of last obs \"{}\"",
-            time_of_last_obs
-        );
-    }
 }

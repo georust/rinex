@@ -45,4 +45,6 @@ pub enum Bibliography {
     /// [B2b](http://www.beidou.gov.cn/xt/gfxz/202008/P020230516558683155109.pdf)
     /// [B3I](http://www.beidou.gov.cn/xt/gfxz/201802/P020180209623601401189.pdf)
     BeiDouICD,
+    /// [IGN/ITRF DOMES Site Identifier](https://itrf.ign.fr/en/network/domes/description)
+    IgnItrfDomes,
 }

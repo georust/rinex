@@ -113,4 +113,4 @@ External key dependencies:
 - `Nyx-space` (navigation lib) is used by `gnss-rtk`
 - `Ublox-rs` (UBX protocol) is used by `ublox-rnx`
 
-<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/dependencies.png">
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/dependencies.png">

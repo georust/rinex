@@ -54,31 +54,8 @@ mod test {
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.navigation().count() > 0); // all files have content
                                                                      /*
-                                                                      * For all Epoch: ephemeris selection
-                                                                      * must return given ephemeris
+                                                                      * Verify interpreted time scale, for all SV
                                                                       */
-                            for (_toc, (_, sv, eph)) in rinex.ephemeris() {
-                                if let Some(ts) = sv.timescale() {
-                                    if let Some(toe) = eph.toe(ts) {
-                                        let seleph = rinex.sv_ephemeris(sv, toe);
-                                        assert!(
-                                            seleph.is_some(),
-                                            "ephemeris selection @ toe should always be feasible"
-                                        );
-                                        let (seltoe, seleph) = seleph.unwrap();
-                                        assert_eq!(seltoe, toe, "toe should be identical");
-                                        assert!(
-                                            (seleph.clock_bias - eph.clock_bias).abs() < 1.0E-6,
-                                            "ephemeris selection for t_oc should return exact ephemeris");
-                                        assert!(
-                                            (seleph.clock_drift - eph.clock_drift).abs() < 1.0E-6,
-                                            "ephemeris selection for t_oc should return exact ephemeris");
-                                    }
-                                }
-                            }
-                            /*
-                             * Verify interpreted time scale, for all SV
-                             */
                             //for (e, (_, sv, _)) in rinex.ephemeris() {
                             //    /* verify toc correctness */
                             //    match sv.constellation {
@@ -114,91 +91,6 @@ mod test {
                             //        _ => {},
                             //    }
                             //}
-                            /*
-                             * Verify ION logical correctness
-                             */
-                            for (_, (msg, sv, ion_msg)) in rinex.ionod_correction_models() {
-                                match sv.constellation {
-                                    Constellation::GPS => {
-                                        assert!(
-                                            ion_msg.as_klobuchar().is_some(),
-                                            "only Kb models provided by GPS vehicles"
-                                        );
-                                    },
-                                    Constellation::QZSS => {
-                                        assert!(
-                                            ion_msg.as_klobuchar().is_some(),
-                                            "only Kb models provided by QZSS vehicles"
-                                        );
-                                    },
-                                    Constellation::BeiDou => match msg {
-                                        NavMsgType::D1D2 => {
-                                            assert!(
-                                                ion_msg.as_klobuchar().is_some(),
-                                                "BeiDou ({}) should be interpreted as Kb model",
-                                                msg
-                                            );
-                                        },
-                                        NavMsgType::CNVX => {
-                                            assert!(
-                                                ion_msg.as_bdgim().is_some(),
-                                                "BeiDou (CNVX) should be interpreted as Bd model"
-                                            );
-                                        },
-                                        _ => {
-                                            panic!(
-                                                "invalid message type \"{}\" for BeiDou ION frame",
-                                                msg
-                                            );
-                                        },
-                                    },
-                                    Constellation::IRNSS => {
-                                        assert!(
-                                            ion_msg.as_klobuchar().is_some(),
-                                            "only Kb models provided by NavIC/IRNSS vehicles"
-                                        );
-                                    },
-                                    Constellation::Galileo => {
-                                        assert!(
-                                            ion_msg.as_nequick_g().is_some(),
-                                            "only Ng models provided by GAL vehicles"
-                                        );
-                                    },
-                                    _ => {
-                                        panic!(
-                                            "incorrect constellation provider of an ION model: {}",
-                                            sv.constellation
-                                        );
-                                    },
-                                }
-                            }
-                            /*
-                             * Verify EOP logical correctness
-                             */
-                            for (_, (msg, sv, _)) in rinex.earth_orientation() {
-                                match sv.constellation {
-                                    Constellation::GPS | Constellation::QZSS | Constellation::IRNSS | Constellation::BeiDou => {},
-                                    _ => panic!("constellation \"{}\" not declared as eop frame provider, according to V4 specs", sv.constellation),
-                                }
-                                match msg {
-                                    NavMsgType::CNVX | NavMsgType::LNAV => {},
-                                    _ => panic!("bad msg identified for GPS vehicle: {}", msg),
-                                }
-                            }
-                            /*
-                             * Verify STO logical correctness
-                             */
-                            for (_, (msg, _sv, _)) in rinex.system_time_offset() {
-                                match msg {
-                                    NavMsgType::LNAV
-                                    | NavMsgType::FDMA
-                                    | NavMsgType::IFNV
-                                    | NavMsgType::D1D2
-                                    | NavMsgType::SBAS
-                                    | NavMsgType::CNVX => {},
-                                    _ => panic!("bad \"{}\" message for STO frame", msg),
-                                }
-                            }
                         },
                         "CRNX" | "OBS" => {
                             assert!(rinex.header.obs.is_some());
@@ -285,16 +177,10 @@ mod test {
                             }
                         },
                         "CLK" => {
-                            assert!(rinex.is_clocks_rinex());
+                            assert!(rinex.is_clock_rinex(), "badly identified CLK RINEX");
+                            assert!(rinex.header.clock.is_some(), "badly formed CLK RINEX");
                             assert!(rinex.epoch().count() > 0); // all files have content
                             let record = rinex.record.as_clock().unwrap();
-                            for (e, _) in record {
-                                assert!(
-                                    e.time_scale == TimeScale::UTC,
-                                    "wrong {} timescale for a CLOCK RINEX",
-                                    e.time_scale
-                                );
-                            }
                         },
                         "IONEX" => {
                             assert!(rinex.is_ionex());

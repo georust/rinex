@@ -12,10 +12,10 @@ use std::collections::HashMap;
  */
 pub fn plot_residual_ephemeris(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let sp3 = ctx
-        .sp3_data() // cannot fail at this point
+        .sp3() // cannot fail at this point
         .unwrap();
     let nav = ctx
-        .nav_data() // cannot fail at this point
+        .brdc_navigation() // cannot fail at this point
         .unwrap();
     /*
      * we need at least a small common time frame,

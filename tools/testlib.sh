@@ -1,4 +1,5 @@
 #! /bin/sh
-VERBOSE=$1
-cargo test --features tests
-cargo test --all-features
+cargo fmt
+cargo test -- --nocapture
+cargo test --all-features -- --nocapture
+./tools/builddoc.sh

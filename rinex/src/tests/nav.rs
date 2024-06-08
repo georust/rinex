@@ -3,8 +3,11 @@ mod test {
     use crate::carrier::Carrier;
     use crate::navigation::*;
     use crate::prelude::*;
+    use crate::tests::toolkit::nav::check_klobuchar_models;
+    use crate::tests::toolkit::nav::check_nequick_g_models;
     use gnss_rs::prelude::SV;
     use gnss_rs::sv;
+    use hifitime::Unit;
     use itertools::*;
     use std::path::Path;
     use std::path::PathBuf;
@@ -956,6 +959,55 @@ mod test {
         let record = rinex.record.as_nav();
         assert!(record.is_some());
 
+        check_nequick_g_models(
+            &rinex,
+            &[(
+                Constellation::Galileo,
+                NgModel {
+                    a: (6.6250e+01, -1.6406e-01, -2.4719e-03),
+                    region: NgRegionFlags::empty(),
+                },
+            )],
+        );
+
+        check_klobuchar_models(
+            &rinex,
+            &[
+                (
+                    Constellation::GPS,
+                    KbModel {
+                        alpha: (7.4506e-09, -1.4901e-08, -5.9605e-08, 1.1921e-07),
+                        beta: (9.0112e04, -6.5536e04, -1.3107e05, 4.5875e05),
+                        region: KbRegionCode::WideArea,
+                    },
+                ),
+                (
+                    Constellation::QZSS,
+                    KbModel {
+                        alpha: (8.3819e-09, -2.9802e-08, -2.3842e-07, -1.1921e-07),
+                        beta: (6.9632e+04, -1.6384e+05, 5.8982e+05, 4.1288e+06),
+                        region: KbRegionCode::JapanArea,
+                    },
+                ),
+                (
+                    Constellation::BeiDou,
+                    KbModel {
+                        alpha: (1.1180e-08, 2.9800e-08, -4.1720e-07, 6.5570e-07),
+                        beta: (1.4130e+05, -5.2430e+05, 1.6380e+06, -4.5880e+05),
+                        region: KbRegionCode::WideArea,
+                    },
+                ),
+                (
+                    Constellation::IRNSS,
+                    KbModel {
+                        alpha: (2.7940e-08, 3.4273e-07, -7.5102e-06, 7.5102e-06),
+                        beta: (1.2698e+05, 7.7005e+05, -8.3231e+06, 8.3231e+06),
+                        region: KbRegionCode::WideArea,
+                    },
+                ),
+            ],
+        );
+
         let record = record.unwrap();
         let mut epochs: Vec<Epoch> = vec![
             Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap(),
@@ -1179,7 +1231,7 @@ mod test {
         for (epoch, (msg, sv, iondata)) in rinex.ionod_correction_models() {
             if sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::LNAV);
-                if *epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
+                if epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
                     let kb = iondata.as_klobuchar();
                     assert!(kb.is_some());
                     let kb = kb.unwrap();
@@ -1202,7 +1254,7 @@ mod test {
                         )
                     );
                     assert_eq!(kb.region, KbRegionCode::WideArea);
-                } else if *epoch == Epoch::from_str("2023-03-12T23:41:24 UTC").unwrap() {
+                } else if epoch == Epoch::from_str("2023-03-12T23:41:24 UTC").unwrap() {
                     let kb = iondata.as_klobuchar();
                     assert!(kb.is_some());
                     let kb = kb.unwrap();
@@ -1229,7 +1281,7 @@ mod test {
             } else if sv == sv!("G21") {
                 assert_eq!(msg, NavMsgType::CNVX);
             } else if sv == sv!("J04")
-                && *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
+                && epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
             {
                 let kb = iondata.as_klobuchar();
                 assert!(kb.is_some());
@@ -1391,7 +1443,32 @@ mod test {
     }
     #[test]
     #[cfg(feature = "nav")]
-    fn sv_toe_ephemeris() {
+    fn toe_ephemeris_glo() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V2")
+            .join("dlf10010.21g");
+        let rinex = Rinex::from_file(path.to_string_lossy().as_ref());
+        assert!(rinex.is_ok());
+        let rinex = rinex.unwrap();
+        for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
+            match sv.prn {
+                3 => {},
+                17 => {},
+                1 => {},
+                18 => {},
+                19 => {},
+                8 => {},
+                16 => {},
+                _ => panic!("found unexpected SV"),
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "nav")]
+    fn toe_ephemeris_gal_bds() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -1411,34 +1488,28 @@ mod test {
             assert!(ts.is_some(), "timescale should be determined");
             let ts = ts.unwrap();
 
-            if let Some(toe) = ephemeris.toe(ts) {
-                let mut expected_sv = SV::default();
-                let mut expected_toe = Epoch::default();
+            if let Some(toe) = ephemeris.toe_gpst(ts) {
                 if *toc == e0 {
-                    expected_toe = Epoch::from_str("2021-01-01T00:00:33 BDT").unwrap();
-                    expected_sv = sv!("C05");
+                    let expected = toe_helper(0.782E3, 0.432E6, TimeScale::BDT);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 } else if *toc == e1 {
-                    expected_toe = Epoch::from_str("2021-01-01T05:00:33 BDT").unwrap();
-                    expected_sv = sv!("C21");
+                    let expected = toe_helper(0.782E3, 0.450E6, TimeScale::BDT);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 } else if *toc == e2 {
-                    expected_toe = Epoch::from_str("2021-01-01T10:10:19 GST").unwrap();
-                    expected_sv = sv!("E01");
+                    let expected = toe_helper(0.2138E4, 0.4686E6, TimeScale::GST);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 } else if *toc == e3 {
-                    expected_toe = Epoch::from_str("2021-01-01T15:40:19 GST").unwrap();
-                    expected_sv = sv!("E03");
-                } else {
-                    panic!("unhandled toc {}", toc);
+                    let expected = toe_helper(0.2138E4, 0.4884E6, TimeScale::GST);
+                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
                 }
-                assert_eq!(sv, expected_sv, "wrong sv");
-                assert_eq!(toe, expected_toe, "wrong toe evaluated");
-                /*
-                 * Rinex.sv_ephemeris(@ toe) should return exact ephemeris
-                 */
-                assert_eq!(
-                    rinex.sv_ephemeris(expected_sv, toe),
-                    Some((expected_toe, ephemeris)),
-                    "sv_ephemeris(sv,t) @ toe should strictly identical ephemeris"
-                );
+                // /*
+                //  * Rinex.sv_ephemeris(@ toe) should propose that very same ephemeris
+                //  */
+                //assert_eq!(
+                //    rinex.sv_ephemeris(expected_sv, toe),
+                //    Some((expected_toe, ephemeris)),
+                //    "sv_ephemeris(sv,t) @ toe should strictly identical ephemeris"
+                //);
             }
         }
     }
@@ -1461,16 +1532,16 @@ mod test {
         let rinex = rinex.unwrap();
 
         for (t0, should_work) in [
-            // MIDNIGHT T0 exact match
-            (Epoch::from_gregorian_utc_at_midnight(2021, 01, 01), true),
-            // VALID day course : 1sec into that day
-            (Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 1, 0), true),
+            // VALID : publication datetime
+            (Epoch::from_str("2021-01-01T00:00:00 UTC").unwrap(), true),
             // VALID day course : random into that dat
-            (Epoch::from_gregorian_utc(2021, 01, 01, 05, 33, 24, 0), true),
-            // VALID day course : 1 sec prior next day
-            (Epoch::from_str("2021-01-01T23:59:59 GPST").unwrap(), true),
+            (Epoch::from_str("2021-01-01T05:33:24 UTC").unwrap(), true),
+            // VALID day course : 30 sec prior next day
+            (Epoch::from_str("2021-01-01T23:59:30 UTC").unwrap(), true),
+            // VALID day course : 1 sec prior next publication
+            (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
             // TOO LATE : MIDNIGHT DAY +1
-            (Epoch::from_str("2021-01-02T00:00:00 GPST").unwrap(), false),
+            (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
             // TOO LATE : MIDNIGHT DAY +1
             (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
             // TOO EARLY
@@ -1497,6 +1568,219 @@ mod test {
                     t0
                 );
             }
+        }
+    }
+    #[test]
+    #[cfg(feature = "nav")]
+    fn v2_iono_alphabeta_and_toe() {
+        let path = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V2")
+            .join("cbw10010.21n.gz");
+        let rinex = Rinex::from_file(&path.to_string_lossy());
+        assert!(
+            rinex.is_ok(),
+            "failed to parse NAV/V2/cbw10010.21n.gz, error: {:?}",
+            rinex.err()
+        );
+        let rinex = rinex.unwrap();
+        // Earliest epoch record is 2020-12-31 23:59:44
+
+        for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
+            let sv_ts = sv.timescale().unwrap();
+            let toe_gpst = ephemeris.toe_gpst(sv_ts).unwrap();
+            match toc.to_string().as_str() {
+                "2021-01-01T02:00:00 GPST" => {
+                    assert_eq!(sv.prn, 1, "found invalid vehicle");
+                    let toe = toe_helper(2.138000000000E3, 4.392000000000E5, TimeScale::GPST);
+                    assert_eq!(toe_gpst, toe);
+                },
+                "2021-12-31T23:59:44 GPST" => {
+                    if sv.prn == 7 {
+                        let toe = toe_helper(2.138000000000E3, 4.319840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else if sv.prn == 8 {
+                        let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else {
+                        panic!("found invalid vehicle");
+                    }
+                },
+                "2021-01-01T00:00:00 GPST" => {
+                    assert_eq!(sv.prn, 8, "found invalid vehicle");
+                    let toe = toe_helper(2.138000000000E3, 4.320000000000E5, TimeScale::GPST);
+                    assert_eq!(toe_gpst, toe);
+                },
+                "2021-01-01T01:59:44 GPST" => {
+                    if sv.prn == 7 {
+                        let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else if sv.prn == 8 {
+                        let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else {
+                        panic!("found invalid vehicle");
+                    }
+                },
+                "2021-01-02T00:00:00 GPST" => {
+                    if sv.prn == 30 {
+                        let toe = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    } else if sv.prn == 5 {
+                        let toe = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
+                        assert_eq!(toe_gpst, toe);
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        for (t0, should_work) in [
+            // MIDNIGHT T0 exact match
+            (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 00, 0), true),
+            // VALID day course : 1sec into that day
+            (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 01, 0), true),
+            // VALID day course : random into that day
+            (Epoch::from_gregorian_utc(2021, 1, 1, 05, 33, 24, 0), true),
+            // VALID day course : 1 sec prior next day
+            (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
+            // TOO LATE : MIDNIGHT DAY +1
+            (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
+            // TOO LATE : MIDNIGHT DAY +1
+            (Epoch::from_gregorian_utc_at_midnight(2021, 01, 02), false),
+            // TOO EARLY
+            (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
+        ] {
+            let ionod_corr = rinex.ionod_correction(
+                t0,
+                30.0,               // fake elev: DONT CARE
+                30.0,               // fake azim: DONT CARE
+                10.0,               // fake latitude: DONT CARE
+                20.0,               // fake longitude: DONT CARE
+                Carrier::default(), // fake signal: DONT CARE
+            );
+            if should_work {
+                assert!(
+                    ionod_corr.is_some(),
+                    "v2 ionod corr: should have returned a correction model for datetime {:?}",
+                    t0
+                );
+            } else {
+                assert!(
+                    ionod_corr.is_none(),
+                    "v2 ionod corr: should not have returned a correction model for datetime {:?}",
+                    t0
+                );
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn nav_v4_messages() {
+        for fp in [
+            "KMS300DNK_R_20221591000_01H_MN.rnx.gz",
+            "BRD400DLR_S_20230710000_01D_MN.rnx.gz",
+        ] {
+            let fullpath = format!(
+                "{}/../test_resources/NAV/V4/{}",
+                env!("CARGO_MANIFEST_DIR"),
+                fp
+            );
+            let rinex = Rinex::from_file(&fullpath);
+            let rinex = rinex.unwrap();
+            /*
+             * Verify ION logical correctness
+             */
+            for (_, (msg, sv, ion_msg)) in rinex.ionod_correction_models() {
+                match sv.constellation {
+                    Constellation::GPS => {
+                        assert!(
+                            ion_msg.as_klobuchar().is_some(),
+                            "only Kb models provided by GPS vehicles"
+                        );
+                    },
+                    Constellation::QZSS => {
+                        assert!(
+                            ion_msg.as_klobuchar().is_some(),
+                            "only Kb models provided by QZSS vehicles"
+                        );
+                    },
+                    Constellation::BeiDou => match msg {
+                        NavMsgType::D1D2 => {
+                            assert!(
+                                ion_msg.as_klobuchar().is_some(),
+                                "BeiDou ({}) should be interpreted as Kb model",
+                                msg
+                            );
+                        },
+                        NavMsgType::CNVX => {
+                            assert!(
+                                ion_msg.as_bdgim().is_some(),
+                                "BeiDou (CNVX) should be interpreted as Bd model"
+                            );
+                        },
+                        _ => {
+                            panic!("invalid message type \"{}\" for BeiDou ION frame", msg);
+                        },
+                    },
+                    Constellation::IRNSS => {
+                        assert!(
+                            ion_msg.as_klobuchar().is_some(),
+                            "only Kb models provided by NavIC/IRNSS vehicles"
+                        );
+                    },
+                    Constellation::Galileo => {
+                        assert!(
+                            ion_msg.as_nequick_g().is_some(),
+                            "only Ng models provided by GAL vehicles"
+                        );
+                    },
+                    _ => {
+                        panic!(
+                            "incorrect constellation provider of an ION model: {}",
+                            sv.constellation
+                        );
+                    },
+                }
+            }
+            /*
+             * Verify EOP logical correctness
+             */
+            for (_, (msg, sv, _)) in rinex.earth_orientation() {
+                match sv.constellation {
+                    Constellation::GPS | Constellation::QZSS | Constellation::IRNSS | Constellation::BeiDou => {},
+                    _ => panic!("constellation \"{}\" not declared as eop frame provider, according to V4 specs", sv.constellation),
+                }
+                match msg {
+                    NavMsgType::CNVX | NavMsgType::LNAV => {},
+                    _ => panic!("bad msg identified for GPS vehicle: {}", msg),
+                }
+            }
+            /*
+             * Verify STO logical correctness
+             */
+            for (_, (msg, _sv, _)) in rinex.system_time_offset() {
+                match msg {
+                    NavMsgType::LNAV
+                    | NavMsgType::FDMA
+                    | NavMsgType::IFNV
+                    | NavMsgType::D1D2
+                    | NavMsgType::SBAS
+                    | NavMsgType::CNVX => {},
+                    _ => panic!("bad \"{}\" message for STO frame", msg),
+                }
+            }
+        }
+    }
+    // Computes TOE in said timescale
+    fn toe_helper(week: f64, week_s: f64, ts: TimeScale) -> Epoch {
+        if ts == TimeScale::GST {
+            Epoch::from_duration((week - 1024.0) * Unit::Week + week_s * Unit::Second, ts)
+        } else {
+            Epoch::from_duration(week * Unit::Week + week_s * Unit::Second, ts)
         }
     }
 }

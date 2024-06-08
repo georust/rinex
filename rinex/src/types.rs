@@ -27,6 +27,16 @@ pub enum Type {
     /// Users interested in such calibrations / conversions / calculations,
     /// should use this parser as a mean to extract the antenna coefficients solely
     AntennaData,
+    /// DORIS measurements.
+    /// Things to note when processing DORIS files:
+    ///   - header.receiver.sn is the DORIS chain #ID
+    ///   - header.receiver.model is the DORIS instrument type
+    ///   - header.receiver.firmware is the DORIS/DIODE version used
+    /// The list of observables being published, is described in the dedicated
+    /// header fields, and serve as Key index in the Record content.
+    /// The API exposes measurements in TAI Timescale, we can't directly represent
+    /// the DORIS timescale, therefore we apply the appropriate offsets.
+    DORIS,
 }
 
 impl std::fmt::Display for Type {
@@ -38,6 +48,7 @@ impl std::fmt::Display for Type {
             Self::ClockData => write!(fmt, "CLOCK DATA"),
             Self::AntennaData => write!(fmt, "ANTEX"),
             Self::IonosphereMaps => write!(fmt, "IONOSPHERE MAPS"),
+            Self::DORIS => write!(fmt, "DORIS"),
         }
     }
 }
@@ -55,6 +66,7 @@ impl Type {
             Self::ClockData => String::from("CLOCK DATA"),
             Self::AntennaData => String::from("ANTEX"),
             Self::IonosphereMaps => String::from("IONOSPHERE MAPS"),
+            Self::DORIS => String::from("DORIS"),
         }
     }
 }
@@ -75,6 +87,8 @@ impl std::str::FromStr for Type {
             Ok(Self::AntennaData)
         } else if s.eq("ionosphere maps") {
             Ok(Self::IonosphereMaps)
+        } else if s.eq("doris") || s.eq("d") {
+            Ok(Self::DORIS)
         } else {
             Err(ParsingError::TypeParsing(s))
         }

@@ -3,6 +3,7 @@ use crate::navigation::{orbits::NAV_ORBITS, FrameClass, NavMsgType};
 use crate::observable;
 use crate::observable::Observable;
 use crate::prelude::*;
+use hifitime::ParsingError as EpochParsingError;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -29,7 +30,7 @@ pub enum Error {
     #[error("constellation parsing error")]
     ConstellationParing(#[from] gnss::constellation::ParsingError),
     #[error("failed to parse epoch flag")]
-    EpochFlagParsing(#[from] crate::epoch::flag::Error),
+    EpochFlagParsing(#[from] crate::observation::flag::Error),
     #[error("failed to parse constellation")]
     ConstellationParsing,
     #[error("invalid nav item")]
@@ -37,7 +38,7 @@ pub enum Error {
     #[error("observable parsing error")]
     ObservableParsing(#[from] observable::ParsingError),
     #[error("invalid duration description")]
-    InvalidDurationItem(#[from] hifitime::Errors),
+    InvalidDurationItem(#[from] EpochParsingError),
 }
 
 /// Target Item represents items that filters

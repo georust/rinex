@@ -8,8 +8,8 @@ members = [
     "rinex-qc", 
     "rinex-cli", 
     "rnx2crx", 
-    "sinex",
     "sp3",
+    "sinex",
     "ublox-rnx", 
 ]
 

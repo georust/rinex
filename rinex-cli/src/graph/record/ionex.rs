@@ -1,20 +1,19 @@
-//use itertools::Itertools;
 use crate::graph::PlotContext;
-use plotly::color::NamedColor;
-use plotly::common::{Marker, MarkerSymbol};
-use plotly::layout::MapboxStyle;
-//use plotly::DensityMapbox;
-use plotly::ScatterMapbox;
+use plotly::{
+    color::NamedColor,
+    common::{Marker, MarkerSymbol},
+    layout::MapboxStyle,
+    {DensityMapbox, ScatterMapbox},
+};
 use rinex::prelude::Rinex;
 
 pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: &mut PlotContext) {
     let _cmap = colorous::TURBO;
-    //TODO
-    //let hover_text: Vec<String> = ctx.primary_data().epoch().map(|e| e.to_string()).collect();
+    // let hover_text: Vec<String> = data.epoch().map(|e| e.to_string()).collect();
     /*
      * TEC map visualization
      * plotly-rs has no means to animate plots at the moment
-     * therefore.. we create one plot for all remaining Epochs
+     * therefore.. we create one plot for each individual Epoch
      */
     for epoch in data.epoch() {
         let lat: Vec<_> = data
@@ -41,7 +40,7 @@ pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: 
                 },
             )
             .collect();
-        let _tec: Vec<_> = data
+        let tec: Vec<_> = data
             .tec()
             .filter_map(
                 |(t, _, _, _, tec)| {
@@ -75,14 +74,14 @@ pub fn plot_tec_map(data: &Rinex, _borders: ((f64, f64), (f64, f64)), plot_ctx: 
         plot_ctx.add_trace(grid);
 
         //let map = AnimatedDensityMapbox::new(lat.clone(), lon.clone(), z)
-        //let map = DensityMapbox::new(lat.clone(), lon.clone(), tec.clone())
-        //    //.title("TEST")
-        //    .name(epoch.to_string())
-        //    .opacity(0.66)
-        //    //.hover_text_array(hover_text.clone())
-        //    .zauto(true)
-        //    //.animation_frame("test")
-        //    .zoom(3);
-        //plot_ctx.add_trace(map);
+        let map = DensityMapbox::new(lat.clone(), lon.clone(), tec.clone())
+            //.title("TEST")
+            .name(epoch.to_string())
+            .opacity(0.66)
+            //.hover_text_array(hover_text.clone())
+            .zauto(true)
+            //.animation_frame("test")
+            .zoom(3);
+        plot_ctx.add_trace(map);
     }
 }
