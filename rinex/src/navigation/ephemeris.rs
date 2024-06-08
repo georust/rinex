@@ -372,9 +372,9 @@ impl Ephemeris {
         }
     }
     /*
-     * Return epoch of toe in gpst scale
+     * Return epoch of toe expressed as Epoch in GPS timescale
      */
-    pub(crate) fn toe(&self, ts: TimeScale) -> Option<Epoch> {
+    pub fn toe_gpst(&self, ts: TimeScale) -> Option<Epoch> {
         let week = self.get_week()?;
         let sec = self.get_orbit_f64("toe")?;
         let week_dur = Duration::from_days((week * 7) as f64);
@@ -391,18 +391,16 @@ impl Ephemeris {
         self.get_orbit_f64("a_dot")
     }
     /*
-     * get the difference between toe and observation epoch
+     * Get the difference between toe and observation epoch,
+     * as total seconds elapsed in GPS timescale
      */
     pub(crate) fn tk(&self, sv: SV, t: Epoch) -> Option<f64> {
-        let toe = self.toe(sv.timescale()?)?;
+        let toe = self.toe_gpst(sv.timescale()?)?;
         let t_dur = t.to_gpst_duration();
         let t_k = (t_dur - toe.duration).to_seconds();
-        if let Some(dur) = Self::max_dtoe(sv.constellation) {
-            if t_k.abs() <= dur.to_seconds() {
-                Some(t_k)
-            } else {
-                None
-            }
+        let dur = Self::max_dtoe(sv.constellation)?;
+        if t_k.abs() <= dur.to_seconds() {
+            Some(t_k)
         } else {
             None
         }
@@ -669,7 +667,7 @@ impl Ephemeris {
      * the leap seconds
      * See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
      */
-    pub(crate) fn kepler2position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
+    pub fn kepler2position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let helper = self.ephemeris_helper(sv, t)?;
         let pos = helper.position()?;
         Some((pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0))
