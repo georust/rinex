@@ -11,14 +11,14 @@ use crate::{
 };
 use std::collections::BTreeMap;
 
-use rinex::{carrier::Carrier, prelude::SV};
+use rinex::{carrier::Carrier, observation::LliFlags, prelude::SV};
 
 mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
 
 use rtk::prelude::{
-    Candidate, Epoch, InterpolationResult, IonosphereBias, Observation, PVTSolution, Solver,
-    TroposphereBias,
+    Candidate, Epoch, InterpolationResult, IonosphereBias, PVTSolution, PhaseRange, PseudoRange,
+    Solver, TroposphereBias,
 };
 
 pub fn resolve<I>(
@@ -42,7 +42,8 @@ where
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            /* we only consider _valid_ epochs" */
+            // TODO: handle these invalid Epochs
+            warn!("{}: (unhandled) rx event: {}", t, flag);
             continue;
         }
 
@@ -57,7 +58,7 @@ where
         for (sv, observations) in vehicles {
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
-                error!("{:?} ({}) : undetermined ephemeris", t, sv);
+                error!("{} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
 
@@ -66,38 +67,45 @@ where
             let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
-                    error!("{:?} ({}) - failed to determine clock correction", *t, *sv);
+                    error!("{} ({}) - failed to determine clock correction", *t, *sv);
                     continue;
                 },
             };
 
-            let mut codes = Vec::<Observation>::new();
-            let mut phases = Vec::<Observation>::new();
-            let mut dopplers = Vec::<Observation>::new();
+            let mut codes = Vec::<PseudoRange>::new();
+            let mut phases = Vec::<PhaseRange>::new();
+            // let mut dopplers = Vec::<Observation>::new();
 
             for (observable, data) in observations {
+                if let Some(lli) = data.lli {
+                    if lli != LliFlags::OK_OR_UNKNOWN {
+                        // TODO: manage those events
+                        warn!("lli not_ok: {}({}): {:?}", t, sv, lli);
+                    }
+                }
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
-                    let rtk_carrier: gnss_rtk::prelude::Carrier = cast_rtk_carrier(carrier);
+                    let rtk_carrier = cast_rtk_carrier(carrier);
 
                     if observable.is_pseudorange_observable() {
-                        codes.push(Observation {
+                        codes.push(PseudoRange {
                             value: data.obs,
                             carrier: rtk_carrier,
                             snr: { data.snr.map(|snr| snr.into()) },
                         });
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
-                        phases.push(Observation {
+                        phases.push(PhaseRange {
+                            ambiguity: None,
                             carrier: rtk_carrier,
                             value: data.obs * lambda,
                             snr: { data.snr.map(|snr| snr.into()) },
                         });
                     } else if observable.is_doppler_observable() {
-                        dopplers.push(Observation {
-                            value: data.obs,
-                            carrier: rtk_carrier,
-                            snr: { data.snr.map(|snr| snr.into()) },
-                        });
+                        //dopplers.push(Observation {
+                        //    value: data.obs,
+                        //    carrier: rtk_carrier,
+                        //    snr: { data.snr.map(|snr| snr.into()) },
+                        //});
                     }
                 }
             }
@@ -108,7 +116,6 @@ where
                 sv_eph.tgd(),
                 codes.clone(),
                 phases.clone(),
-                dopplers.clone(),
             );
             candidates.push(candidate);
         }
@@ -130,10 +137,10 @@ where
 
         match solver.resolve(*t, &candidates, &iono_bias, &tropo_bias) {
             Ok((t, pvt)) => {
-                debug!("{:?} : {:?}", t, pvt);
+                debug!("{} : {:?}", t, pvt);
                 solutions.insert(t, pvt);
             },
-            Err(e) => warn!("{:?} : pvt solver error \"{}\"", t, e),
+            Err(e) => warn!("{} : pvt solver error \"{}\"", t, e),
         }
     }
 
