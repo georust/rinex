@@ -2,9 +2,8 @@ use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::constants::Constants;
 use crate::{constants, epoch, prelude::*, version::Version};
 
-use hifitime::Unit;
-use log::{log, Log};
-use nalgebra::{self as na, ComplexField, Rotation, Rotation3, Vector3, Vector4};
+use log::warn;
+use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
@@ -80,7 +79,7 @@ impl EphemerisHelper {
         rotation_z * rotation_x
     }
 
-    pub(crate) fn orbit_velecity(&self) -> (f64, f64) {
+    pub(crate) fn orbit_velocity(&self) -> (f64, f64) {
         let (sin_u_k, cos_u_k) = self.u_k.sin_cos();
         let fd_x = self.fd_r_k * cos_u_k - self.r_k * self.fd_u_k * sin_u_k;
         let fd_y = self.fd_r_k * sin_u_k + self.r_k * self.fd_u_k * cos_u_k;
@@ -95,14 +94,14 @@ impl EphemerisHelper {
         ecef_xyz
     }
 
-    /// Calculate ecef velecity of MEO/IGSO sv
+    /// Calculate ecef velocity of MEO/IGSO sv
     /// work for GPS,Galieo,BeiDou(MEO/IGSO)
-    pub(crate) fn ecef_velecity(&self) -> Vector3<f64> {
+    pub(crate) fn ecef_velocity(&self) -> Vector3<f64> {
         let (x, y) = self.orbit_position;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
         // First Derivative of orbit position
-        let (fd_x, fd_y) = self.orbit_velecity();
+        let (fd_x, fd_y) = self.orbit_velocity();
         // First Derivative of rotation Matrix
         let mut fd_R = na::SMatrix::<f64, 3, 4>::zeros();
         fd_R[(0, 0)] = cos_omega_k;
@@ -121,11 +120,11 @@ impl EphemerisHelper {
         vel
     }
 
-    /// Calculate ecef position and velecity of MEO/IGSO sv
+    /// Calculate ecef position and velocity of MEO/IGSO sv
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
     pub(crate) fn ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
-        (self.ecef_position(), self.ecef_velecity())
+        (self.ecef_position(), self.ecef_velocity())
     }
 
     /// Calculate ecef position of GEO sv
@@ -137,12 +136,12 @@ impl EphemerisHelper {
         ecef_xyz
     }
 
-    /// Calculate ecef velecity of GEO sv
-    pub(crate) fn beidou_geo_ecef_velecity(&self) -> Vector3<f64> {
+    /// Calculate ecef velocity of GEO sv
+    pub(crate) fn beidou_geo_ecef_velocity(&self) -> Vector3<f64> {
         let (x, y) = self.orbit_position;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
-        let (fd_x, fd_y) = self.orbit_velecity();
+        let (fd_x, fd_y) = self.orbit_velocity();
         let fd_xgk = -y * self.fd_omega_k - fd_y * cos_i_k * sin_omega_k + fd_x * cos_omega_k;
         let fd_ygk = x * self.fd_omega_k + fd_y * cos_i_k * cos_omega_k + fd_x * sin_omega_k;
         let fd_zgk = fd_y * sin_i_k + y * self.fd_i_k * cos_i_k;
@@ -168,14 +167,14 @@ impl EphemerisHelper {
         vel
     }
 
-    /// Calculate ecef position and velecity of BeiDou GEO sv
+    /// Calculate ecef position and velocity of BeiDou GEO sv
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
     pub(crate) fn beidou_geo_ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
         let (x, y) = self.orbit_position;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
-        let (fd_x, fd_y) = self.orbit_velecity();
+        let (fd_x, fd_y) = self.orbit_velocity();
         let fd_xgk = -y * self.fd_omega_k - fd_y * cos_i_k * sin_omega_k + fd_x * cos_omega_k;
         let fd_ygk = x * self.fd_omega_k + fd_y * cos_i_k * cos_omega_k + fd_x * sin_omega_k;
         let fd_zgk = fd_y * sin_i_k + y * self.fd_i_k * cos_i_k;
@@ -213,16 +212,14 @@ impl EphemerisHelper {
                 }
             },
             _ => {
-                log::warn!(
-                    "EphemerisHelper currently only supports orbit solutions for BDS GPS GALIEO"
-                );
+                warn!("EphemerisHelper currently only supports orbit solutions for BDS GPS GALIEO");
                 None
             },
         }
     }
 
-    /// get ecef position and velecity
-    pub fn position_velecity(&self) -> Option<(Vector3<f64>, Vector3<f64>)> {
+    /// get ecef position and velocity
+    pub fn position_velocity(&self) -> Option<(Vector3<f64>, Vector3<f64>)> {
         match self.sv.constellation {
             Constellation::GPS | Constellation::Galileo => Some(self.ecef_pv()),
             Constellation::BeiDou => {
@@ -371,18 +368,18 @@ impl Ephemeris {
             },
         }
     }
-    /*
-     * Return epoch of toe expressed as Epoch in GPS timescale
-     */
-    pub fn toe_gpst(&self, ts: TimeScale) -> Option<Epoch> {
-        let week = self.get_week()?;
+    /// Return epoch of toe expressed as Epoch in GPS timescale
+    /// for a specific [SV] that belongs to [TimeScale].
+    pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
+        let mut week = self.get_week()?;
+        if sv_ts == TimeScale::GST {
+            week -= 1024;
+        }
         let sec = self.get_orbit_f64("toe")?;
         let week_dur = Duration::from_days((week * 7) as f64);
         let sec_dur = Duration::from_seconds(sec);
-        let t = Epoch::from_duration(week_dur + sec_dur, ts);
-        Some(Epoch::from_gpst_duration(
-            t.to_duration_in_time_scale(TimeScale::GPST),
-        ))
+        let t = Epoch::from_duration(week_dur + sec_dur, sv_ts);
+        Some(Epoch::from_duration(week_dur + sec_dur, sv_ts).to_time_scale(TimeScale::GPST))
     }
     /*
      * get Adot field in CNAV ephemeris
@@ -673,20 +670,20 @@ impl Ephemeris {
         Some((pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0))
     }
     /*
-     * Kepler position and velecity solver at desired instant "t" for given "sv"
+     * Kepler position and velocity solver at desired instant "t" for given "sv"
      * based off Self. Self must be correctly selected in navigation
      * record.
      * "t" should not be expressed in UTC time scale as the hifitime doesn't consider
      * the leap seconds
      * See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
      */
-    pub(crate) fn kepler2position_velecity(
+    pub(crate) fn kepler2position_velocity(
         &self,
         sv: SV,
         t: Epoch,
     ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
         let helper = self.ephemeris_helper(sv, t)?;
-        let (pos, vel) = helper.position_velecity()?;
+        let (pos, vel) = helper.position_velocity()?;
         Some((
             (pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0),
             (vel.x, vel.y, vel.z),
@@ -712,11 +709,11 @@ impl Ephemeris {
             _ => self.kepler2position(sv, epoch),
         }
     }
-    /// Returns SV position in km ECEF and velecity is m/s ECEF,
+    /// Returns SV position in km ECEF and velocity is m/s ECEF,
     /// based off Self Ephemeris data,
     /// and for given Satellite Vehicle at given Epoch.
     /// Either by solving Kepler equations, or directly if such data is available.
-    pub fn sv_position_velecity(
+    pub fn sv_position_velocity(
         &self,
         sv: SV,
         epoch: Epoch,
@@ -737,7 +734,7 @@ impl Ephemeris {
                  */
                 Some(((x_km, y_km, z_km), (vx, vy, vz)))
             },
-            _ => self.kepler2position_velecity(sv, epoch),
+            _ => self.kepler2position_velocity(sv, epoch),
         }
     }
     /// Helper method to calculate elevation and azimuth angles, both in degrees,
