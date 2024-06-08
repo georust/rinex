@@ -7,9 +7,12 @@ that accepts a config script.
 
 - [Survey](./survey) is a set a configuration dedicated to static geodetic surveying.
 In this application, we want to determine the coordinates of a single and static GNSS receiver
-with highest precision and without apriori knowledge.
+with highest precision and without a priori knowledge.
 - [QC](./qc) is a set a configuration dedicated to data quality check in RINEX-Cli.
 This mode is in standby and will evolve in near future. We're currently focused on Surveying and RTK.
+
+This config data set is particularly used in our [scripts repository](../scripts),
+and the [Georust RINEX Wiki]().
 
 ## Notes on PVT Solver configurations
 
@@ -24,4 +27,4 @@ possibly used to obtain the clock offset.
 ## More information
 
 Refer to the [Rinex Wiki]() for positioning and other examples.  
-Refer to the [GNSS-RTK]() solver API for more information on the solver configuration. 
+Refer to the [GNSS-RTK]() solver API for more indepth information on available settings.
