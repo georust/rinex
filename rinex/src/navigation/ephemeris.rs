@@ -396,7 +396,7 @@ impl Ephemeris {
     pub(crate) fn tk(&self, sv: SV, t: Epoch) -> Option<f64> {
         let toe = self.toe(sv.timescale()?)?;
         let t_dur = t.to_gpst_duration();
-        let t_k = (t_dur - toe.to_duration()).to_seconds();
+        let t_k = (t_dur - toe.duration).to_seconds();
         if let Some(dur) = Self::max_dtoe(sv.constellation) {
             if t_k.abs() <= dur.to_seconds() {
                 Some(t_k)
@@ -405,15 +405,6 @@ impl Ephemeris {
             }
         } else {
             None
-    /// Retrieve and express Time of Ephemeris as a GPST Epoch
-    pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
-        let mut week = self.get_week()?; // week counter
-        match sv_ts {
-            TimeScale::GST => {
-                /* Galileo vehicles stream week counter referenced to GPST.. */
-                week -= 1024;
-            },
-            _ => {},
         }
     }
     /*
