@@ -2287,7 +2287,7 @@ impl Rinex {
                         },
                         _ => {
                             /* determine toe */
-                            eph.toe_gpst(ts)
+                            eph.toe(ts)
                         },
                     };
                     //TODO : this fails at this point
@@ -2295,7 +2295,8 @@ impl Rinex {
                     //       therfore, disables rtk with these two constellations
                     let toe = toe?;
                     let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
-                    if (t - toe).abs() < max_dtoe {
+                    let dt = t - toe;
+                    if dt < max_dtoe {
                         Some((toe, eph))
                     } else {
                         None
