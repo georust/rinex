@@ -1,15 +1,10 @@
-use log::info;
 use std::{
-    fs::create_dir_all,
-    io::Write,
     path::{Path, PathBuf},
     str::FromStr,
 };
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
-
-use crate::fops::open_with_web_browser;
 
 // identification mode
 mod identify;
@@ -20,9 +15,11 @@ mod qc;
 // positioning mode
 mod positioning;
 
+mod workspace;
+pub use workspace::Workspace;
+
 // file operations
 mod fops;
-
 use fops::{filegen, merge, split, substract, time_binning};
 
 pub struct Cli {
@@ -46,7 +43,7 @@ pub struct Context {
     /// By default it is set to $WORKSPACE/$PRIMARYFILE.
     /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
     /// $PRIMARYFILE is determined from the most major file contained in the dataset.
-    pub workspace: PathBuf,
+    pub workspace: Workspace,
     /// Context name is derived from the primary file loaded in Self,
     /// and mostly used in session products generation.
     pub name: String,
@@ -78,34 +75,12 @@ impl Context {
         primary_stem[0].to_string()
     }
     /*
-     * Utility to prepare subdirectories in the session workspace
-     */
-    pub fn create_subdir(&self, suffix: &str) {
-        create_dir_all(self.workspace.join(suffix))
-            .unwrap_or_else(|e| panic!("failed to generate session dir {}: {:?}", suffix, e));
-    }
-    /*
      * Utility to create a file in this session
      */
     fn create_file(&self, path: &Path) -> std::fs::File {
         std::fs::File::create(path).unwrap_or_else(|e| {
             panic!("failed to create {}: {:?}", path.display(), e);
         })
-    }
-    /*
-     * Save HTML content, auto opens it if quiet (-q) is not turned on
-     */
-    pub fn render_html(&self, filename: &str, html: String) {
-        let path = self.workspace.join(filename);
-        let mut fd = self.create_file(&path);
-        write!(fd, "{}", html).unwrap_or_else(|e| {
-            panic!("failed to render HTML content: {:?}", e);
-        });
-        info!("html rendered in \"{}\"", path.display());
-
-        if !self.quiet {
-            open_with_web_browser(path.to_string_lossy().as_ref());
-        }
     }
 }
 

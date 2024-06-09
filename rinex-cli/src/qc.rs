@@ -5,7 +5,6 @@ use std::fs::{read_to_string, File};
 use std::io::Write;
 
 use crate::cli::Context;
-use crate::fops::open_with_web_browser;
 use crate::Error;
 use rinex_qc::{QcOpts, QcReport};
 
@@ -36,17 +35,11 @@ pub fn qc_report(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     info!("Sampling gap tolerance: {:?}", cfg.gap_tolerance);
 
     let html = QcReport::html(&ctx.data, cfg);
-    let report_path = ctx.workspace.join("QC.html");
+    let report_path = ctx.workspace.root.join("QC.html");
 
     let mut fd = File::create(&report_path).map_err(|_| Error::QcReportCreationError)?;
 
     write!(fd, "{}", html).expect("failed to render HTML report");
-
     info!("QC report \"{}\" has been generated", report_path.display());
-
-    if !ctx.quiet {
-        let fullpath = report_path.to_string_lossy().to_string();
-        open_with_web_browser(&fullpath);
-    }
     Ok(())
 }

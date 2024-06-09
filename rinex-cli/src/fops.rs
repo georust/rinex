@@ -3,7 +3,6 @@ use crate::Error;
 use clap::ArgMatches;
 
 use std::path::PathBuf;
-use std::process::Command;
 use std::str::FromStr;
 
 use rinex::{
@@ -114,7 +113,12 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             let prod = custom_prod_attributes(rinex, matches);
             let filename = output_filename(rinex, matches, prod);
 
-            let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+            let output_path = ctx
+                .workspace
+                .root
+                .join(filename)
+                .to_string_lossy()
+                .to_string();
 
             rinex.to_file(&output_path).unwrap_or_else(|_| {
                 panic!("failed to generate {} RINEX \"{}\"", product, output_path)
@@ -159,7 +163,12 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         .to_string_lossy()
         .to_string();
 
-    let output_path = ctx.workspace.join(suffix).to_string_lossy().to_string();
+    let output_path = ctx
+        .workspace
+        .root
+        .join(suffix)
+        .to_string_lossy()
+        .to_string();
 
     rinex_c.to_file(&output_path)?;
 
@@ -236,6 +245,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let output = ctx
                 .workspace
+                .root
                 .join(format!("{}-{}.{}", filename, file_suffix, extension))
                 .to_string_lossy()
                 .to_string();
@@ -267,6 +277,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let output = ctx
                 .workspace
+                .root
                 .join(format!("{}-{}.{}", filename, file_suffix, extension))
                 .to_string_lossy()
                 .to_string();
@@ -329,7 +340,12 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 // generate standardized name
                 let filename = output_filename(&rinex, matches, prod.clone());
 
-                let output = ctx.workspace.join(&filename).to_string_lossy().to_string();
+                let output = ctx
+                    .workspace
+                    .root
+                    .join(&filename)
+                    .to_string_lossy()
+                    .to_string();
 
                 rinex.to_file(&output)?;
                 info!("{} RINEX \"{}\" has been generated", product, output);
@@ -403,6 +419,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     let fullpath = ctx
         .workspace
+        .root
         .join(format!("DIFFERENCED.{}", extension))
         .to_string_lossy()
         .to_string();
@@ -411,32 +428,4 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     info!("OBS RINEX \"{}\" has been generated", fullpath);
     Ok(())
-}
-
-#[cfg(target_os = "linux")]
-pub fn open_with_web_browser(path: &str) {
-    let web_browsers = vec!["firefox", "chromium"];
-    for browser in web_browsers {
-        let child = Command::new(browser).args([path]).spawn();
-        if child.is_ok() {
-            return;
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-pub fn open_with_web_browser(path: &str) {
-    Command::new("open")
-        .args(&[path])
-        .output()
-        .expect("open() failed, can't open HTML content automatically");
-}
-
-#[cfg(target_os = "windows")]
-pub fn open_with_web_browser(path: &str) {
-    Command::new("cmd")
-        .arg("/C")
-        .arg(format!(r#"start {}"#, path))
-        .output()
-        .expect("failed to open generated HTML content");
 }

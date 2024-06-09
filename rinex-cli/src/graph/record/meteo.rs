@@ -1,5 +1,5 @@
 use crate::cli::Context;
-use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, PlotContext}; //generate_markers};
+use crate::graph::{build_chart_epoch_axis, csv::CSV, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
 use plotly::ScatterPolar;
 use rinex::prelude::Observable;
@@ -69,20 +69,13 @@ pub fn plot_meteo_observations(ctx: &Context, plot_context: &mut PlotContext, cs
         .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
         plot_context.add_trace(trace);
         if csv_export {
-            let fullpath = ctx
-                .workspace
-                .join("CSV")
-                .join(&format!("{}.csv", observable));
-
+            let filename = format!("{}.csv", observable);
             let title = format!("{} observations", observable);
-            csv_export_timedomain(
-                &fullpath,
-                &title,
-                &format!("Epoch, {} [{}]", observable, unit),
-                &data_x,
-                &data_y,
-            )
-            .expect("failed to render data as CSV");
+            let labels = format!("Epoch, {} [{}]", observable, unit);
+            let mut csv = CSV::new(&ctx.workspace, &filename, &title, &labels)
+                .expect("failed to render data as CSV");
+            csv.export_timedomain(&data_x, &data_y)
+                .expect("failed to render data as CSV");
         }
     }
     /*

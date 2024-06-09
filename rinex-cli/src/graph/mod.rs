@@ -40,7 +40,6 @@ mod combination;
 use combination::{plot_gnss_code_mp, plot_gnss_combination, plot_gnss_dcb};
 
 mod csv; // export to CSV instead of plotting
-pub use csv::csv_export_timedomain;
 
 /*
  * Generates N marker symbols to be used
@@ -528,12 +527,12 @@ fn atmosphere_plot(matches: &ArgMatches) -> bool {
 pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     /*
      * Prepare session:
-     *  + HTML: (default) in this session directly
-     *  + CSV: (option): generate a subdir
+     *  + CSV: (option): generate a dedicated dir
      */
+    let quiet = ctx.quiet;
     let csv_export = matches.get_flag("csv");
     if csv_export {
-        ctx.create_subdir("CSV");
+        ctx.workspace.create_subdir("CSV");
     }
     /*
      * Observations graphs
@@ -551,7 +550,8 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         }
 
         /* save observations */
-        ctx.render_html("OBSERVATIONS.html", plot_ctx.to_html());
+        ctx.workspace
+            .render_html("OBSERVATIONS.html", &plot_ctx.to_html());
     }
     /*
      * GNSS combinations graphs
@@ -610,7 +610,8 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         }
 
         /* save combinations */
-        ctx.render_html("COMBINATIONS.html", plot_ctx.to_html());
+        ctx.workspace
+            .render_html("COMBINATIONS.html", &plot_ctx.to_html());
     }
     /*
      * DCB visualization
@@ -631,7 +632,7 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         );
 
         /* save DCB */
-        ctx.render_html("DCB.html", plot_ctx.to_html());
+        ctx.workspace.render_html("DCB.html", &plot_ctx.to_html());
     }
     if matches.get_flag("mp") {
         let data = ctx
@@ -644,7 +645,8 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         plot_gnss_code_mp(&data, &mut plot_ctx, "Code Multipath", "Meters of delay");
 
         /* save MP */
-        ctx.render_html("MULTIPATH.html", plot_ctx.to_html());
+        ctx.workspace
+            .render_html("MULTIPATH.html", &plot_ctx.to_html());
     }
     if navigation_plot(matches) {
         let mut plot_ctx = PlotContext::new();
@@ -668,21 +670,24 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             plot_residual_ephemeris(&ctx.data, &mut plot_ctx);
         }
         /* save NAV */
-        ctx.render_html("NAVIGATION.html", plot_ctx.to_html());
+        ctx.workspace
+            .render_html("NAVIGATION.html", &plot_ctx.to_html());
     }
     if matches.get_flag("sv-clock") {
         let mut plot_ctx = PlotContext::new();
         plot_sv_nav_clock(&ctx.data, &mut plot_ctx);
 
         /* save CLK */
-        ctx.render_html("CLOCKS.html", plot_ctx.to_html());
+        ctx.workspace
+            .render_html("CLOCKS.html", &plot_ctx.to_html());
     }
     if atmosphere_plot(matches) {
         let mut plot_ctx = PlotContext::new();
         plot_atmosphere_conditions(ctx, &mut plot_ctx, matches);
 
         /* save ATMOSPHERE */
-        ctx.render_html("ATMOSPHERE.html", plot_ctx.to_html());
+        ctx.workspace
+            .render_html("ATMOSPHERE.html", &plot_ctx.to_html());
     }
     Ok(())
 }

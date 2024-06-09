@@ -15,8 +15,7 @@ use preprocessing::preprocess;
 
 use rinex::prelude::RnxContext;
 
-use std::fs::create_dir_all;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
@@ -25,7 +24,7 @@ extern crate gnss_rtk as rtk;
 use rinex::prelude::Rinex;
 use sp3::prelude::SP3;
 
-use cli::{Cli, Context};
+use cli::{Cli, Context, Workspace};
 
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
@@ -162,31 +161,7 @@ pub fn main() -> Result<(), Error> {
         name: ctx_stem.clone(),
         data: data_ctx,
         quiet: cli.matches.get_flag("quiet"),
-        workspace: {
-            /*
-             * Supports both an environment variable and
-             * a command line opts. Otherwise we use ./workspace directly
-             * but its creation must pass.
-             * This is documented in Wiki pages.
-             */
-            let path = match std::env::var("RINEX_WORKSPACE") {
-                Ok(path) => Path::new(&path).join(&ctx_stem).to_path_buf(),
-                _ => match cli.matches.get_one::<PathBuf>("workspace") {
-                    Some(base_dir) => Path::new(base_dir).join(&ctx_stem).to_path_buf(),
-                    None => Path::new("WORKSPACE").join(&ctx_stem).to_path_buf(),
-                },
-            };
-            // make sure the workspace is viable and exists, otherwise panic
-            create_dir_all(&path).unwrap_or_else(|e| {
-                panic!(
-                    "failed to create session workspace \"{}\": {:?}",
-                    path.display(),
-                    e
-                )
-            });
-            info!("session workspace is \"{}\"", path.to_string_lossy());
-            path
-        },
+        workspace: Workspace::new(&ctx_stem, &cli),
         rx_ecef: {
             /*
              * Determine and store RX (ECEF) position
@@ -271,5 +246,10 @@ pub fn main() -> Result<(), Error> {
         },
         _ => error!("no opmode specified!"),
     }
+
+    if !ctx.quiet {
+        ctx.workspace.open_with_web_browser();
+    }
+
     Ok(())
 } // main

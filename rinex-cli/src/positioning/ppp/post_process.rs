@@ -1,12 +1,10 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    fs::File,
     io::Write,
 };
 
 use crate::{
     cli::Context,
-    fops::open_with_web_browser,
     graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext},
 };
 
@@ -377,18 +375,13 @@ pub fn post_process(
     }
 
     // render plots
-    let graphs = ctx.workspace.join("Solutions.html");
-    let graphs = graphs.to_string_lossy().to_string();
-    let mut fd = File::create(&graphs).unwrap_or_else(|_| panic!("failed to crate \"{}\"", graphs));
+    let mut fd = ctx.workspace.create_file("Solutions.html");
     write!(fd, "{}", plot_ctx.to_html()).expect("failed to render PVT solutions");
-    info!("\"{}\" solutions generated", graphs);
 
     /*
      * Generate txt, GPX, KML..
      */
-    let txtpath = ctx.workspace.join("solutions.csv");
-    let txtfile = txtpath.to_string_lossy().to_string();
-    let mut fd = File::create(&txtfile)?;
+    let mut fd = ctx.workspace.create_file("Solutions.csv");
 
     let mut gpx_track = gpx::Track::default();
     let mut kml_track = Vec::<Kml>::new();
@@ -466,13 +459,9 @@ pub fn post_process(
             }));
         }
     }
-    info!("\"{}\" generated", txtfile);
     if matches.get_flag("gpx") {
         let prefix = ctx.name.clone();
-        let gpxpath = ctx.workspace.join(format!("{}.gpx", prefix));
-        let gpxfile = gpxpath.to_string_lossy().to_string();
-
-        let fd = File::create(&gpxfile)?;
+        let fd = ctx.workspace.create_file(&format!("{}.gpx", prefix));
 
         let mut gpx = Gpx::default();
         gpx.version = GpxVersion::Gpx11;
@@ -481,14 +470,10 @@ pub fn post_process(
         gpx.tracks.push(gpx_track);
 
         gpx::write(&gpx, fd)?;
-        info!("{} gpx track generated", gpxfile);
     }
     if matches.get_flag("kml") {
         let prefix = ctx.name.clone();
-        let kmlpath = ctx.workspace.join(format!("{}.kml", prefix));
-        let kmlfile = kmlpath.to_string_lossy().to_string();
-
-        let mut fd = File::create(&kmlfile)?;
+        let mut fd = ctx.workspace.create_file(&format!("{}.kml", prefix));
 
         let kmldoc = KmlDocument {
             version: KmlVersion::V23,
@@ -507,14 +492,6 @@ pub fn post_process(
         };
         let mut writer = KmlWriter::from_writer(&mut fd);
         writer.write(&Kml::KmlDocument(kmldoc))?;
-        info!("{} kml track generated", kmlfile);
     }
-
-    if !ctx.quiet {
-        let graphs = ctx.workspace.join("Solutions.html");
-        let graphs = graphs.to_string_lossy().to_string();
-        open_with_web_browser(&graphs);
-    }
-
     Ok(())
 }

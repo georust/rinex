@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use rinex::{navigation::Ephemeris, prelude::*};
 
-use crate::graph::{build_chart_epoch_axis, csv_export_timedomain, generate_markers, PlotContext};
+use crate::graph::{build_chart_epoch_axis, csv::CSV, generate_markers, PlotContext};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 enum Physics {
@@ -51,6 +51,7 @@ impl Physics {
  * Plots given Observation RINEX content
  */
 pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: bool) {
+    let workspace = &ctx.workspace;
     let obs_data = ctx.data.observation().unwrap(); // infaillible
     let header = &obs_data.header;
     let record = obs_data.record.as_obs().unwrap(); // infaillible
@@ -148,22 +149,21 @@ pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: 
         let good_y: Vec<f64> = clk_offset_good.iter().map(|(_, y)| *y).collect();
 
         if csv_export {
-            let fullpath = ctx.workspace.join("CSV").join("clock-offset.csv");
-
             let title = match header.rcvr.as_ref() {
                 Some(rcvr) => {
                     format!("{} (#{}) Clock Offset", rcvr.model, rcvr.sn)
                 },
                 _ => "Receiver Clock Offset".to_string(),
             };
-            csv_export_timedomain(
-                &fullpath,
+            let mut csv = CSV::new(
+                &ctx.workspace,
+                "clock-offset.csv",
                 &title,
                 "Epoch, Clock Offset [s]",
-                &good_x,
-                &good_y,
             )
             .expect("failed to render data as CSV");
+            csv.export_timedomain(&good_x, &good_y)
+                .expect("failed to render data as CSV");
         }
 
         let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, good_x, good_y)
@@ -188,20 +188,13 @@ pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: 
                     let good_y: Vec<_> = data.iter().map(|(_x, y)| *y).collect::<_>();
 
                     if csv_export {
-                        let fullpath = ctx
-                            .workspace
-                            .join("CSV")
-                            .join(&format!("{}-{}.csv", sv, observable));
-                        csv_export_timedomain(
-                            &fullpath,
-                            &format!("{} observations", observable),
-                            "Epoch, Observation",
-                            &good_x,
-                            &good_y,
-                        )
-                        .expect("failed to render data as CSV");
+                        let title = format!("{} observations", observable);
+                        let filename = format!("{}-{}.csv", sv, observable);
+                        let mut csv = CSV::new(&workspace, &filename, &title, "Epoch, Observation")
+                            .expect("failed to render data as CSV");
+                        csv.export_timedomain(&good_x, &good_y)
+                            .expect("failed to render data as CSV");
                     }
-
                     let trace = build_chart_epoch_axis(
                         &format!("{:X}({})", sv, observable),
                         Mode::Markers,
@@ -274,18 +267,12 @@ pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: 
                 let good_y: Vec<_> = data.iter().map(|(_x, y)| *y).collect::<_>();
 
                 if csv_export {
-                    let fullpath = ctx
-                        .workspace
-                        .join("CSV")
-                        .join(&format!("{}-{}.csv", sv, observable));
-                    csv_export_timedomain(
-                        &fullpath,
-                        &format!("{} observations", observable),
-                        "Epoch, Observation",
-                        &good_x,
-                        &good_y,
-                    )
-                    .expect("failed to render data as CSV");
+                    let title = format!("{} observations", observable);
+                    let filename = format!("{}-{}.csv", sv, observable);
+                    let mut csv = CSV::new(&workspace, &filename, &title, "Epoch, Observation")
+                        .expect("failed to render data as CSV");
+                    csv.export_timedomain(&good_x, &good_y)
+                        .expect("failed to render data as CSV");
                 }
 
                 // Augment (if possible)
