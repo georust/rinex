@@ -35,6 +35,8 @@ use crate::{
         cast_rtk_carrier,
         kb_model,
         ng_model, //tropo_components,
+        rtk_carrier_cast,
+        rtk_reference_carrier,
         Error as PositioningError,
         Time,
     },
@@ -94,6 +96,7 @@ where
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
+    let mut initialized = false; // solver state
     let mut time = Time::from_ctx(ctx);
 
     // CGGTTS specifics
@@ -162,14 +165,13 @@ where
                     continue;
                 }
 
+                let mut ref_observable = observable.to_string();
+
                 let mut codes = vec![PseudoRange {
                     carrier: rtk_carrier,
                     snr: { data.snr.map(|snr| snr.into()) },
                     value: data.obs,
                 }];
-
-                //let mut doppler = Option::<Observation>::None;
-                let mut phases = Vec::<PhaseRange>::with_capacity(4);
 
                 // Subsidary Pseudo Range (if needed)
                 match solver.cfg.method {
@@ -191,26 +193,39 @@ where
                                     snr: { data.snr.map(|snr| snr.into()) },
                                 });
                             }
+                            // update ref. observable if this one is to serve as reference
+                            if rtk_reference_carrier(rtk_carrier) {
+                                ref_observable = second_obs.to_string();
+                            }
                         }
                     },
                     _ => {}, // not needed
                 };
 
-                // Subsidary Phase Range (if needed)
+                // Dual Phase Range (if needed)
+                //let mut doppler = Option::<Observation>::None;
+                let mut phases = Vec::<PhaseRange>::with_capacity(4);
+
                 if solver.cfg.method == Method::PPP {
-                    for (second_obs, second_data) in observations {
-                        if second_obs.is_phase_observable() {
-                            let rhs_carrier =
-                                Carrier::from_observable(sv.constellation, second_obs);
-                            if rhs_carrier.is_err() {
+                    for code in &codes {
+                        let target_carrier = rtk_carrier_cast(code.carrier);
+                        for (obs, data) in observations {
+                            if !obs.is_phase_observable() {
                                 continue;
                             }
-                            let rhs_carrier = rhs_carrier.unwrap();
-                            let rtk_carrier = cast_rtk_carrier(rhs_carrier);
+                            let carrier = Carrier::from_observable(sv.constellation, obs);
+                            if carrier.is_err() {
+                                continue;
+                            }
+                            let carrier = carrier.unwrap();
+
+                            if target_carrier != carrier {
+                                continue;
+                            }
                             phases.push(PhaseRange {
                                 ambiguity: None,
-                                carrier: rtk_carrier,
-                                value: second_data.obs,
+                                carrier: code.carrier,
+                                value: data.obs,
                                 snr: { data.snr.map(|snr| snr.into()) },
                             });
                         }
@@ -218,18 +233,6 @@ where
                 };
 
                 let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases);
-
-                let ref_observable = match solver.cfg.method {
-                    Method::SPP => candidate
-                        .prefered_pseudorange()
-                        .and_then(|sig| Some(sig.carrier)),
-                    Method::CPP => candidate
-                        .code_if_combination()
-                        .and_then(|cmb| Some(cmb.reference)),
-                    Method::PPP => candidate
-                        .phase_if_combination()
-                        .and_then(|cmb| Some(cmb.reference)),
-                };
 
                 match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {
@@ -299,7 +302,6 @@ where
                                 let ioe = 0; //TODO
                                              // latch last measurement
                                 tracker.latch_measurement(t, fitdata);
-                                let ref_observable = ref_observable.unwrap(); // infaillible
 
                                 match tracker.fit(
                                     ioe,
@@ -337,7 +339,7 @@ where
                                                     },
                                                     0, // TODO "rcvr_channel" > 0 if known
                                                     GlonassChannel::default(), //TODO
-                                                    &ref_observable.to_string(),
+                                                    &ref_observable,
                                                 )
                                             },
                                             _ => {
@@ -357,7 +359,7 @@ where
                                                         _ => None,
                                                     },
                                                     0, // TODO "rcvr_channel" > 0 if known
-                                                    &ref_observable.to_string(),
+                                                    &ref_observable,
                                                 )
                                             },
                                         }; // match constellation

@@ -17,7 +17,7 @@ use rinex::prelude::Rinex;
 
 use rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Solver, Vector3,
+    NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
 use thiserror::Error;
@@ -42,6 +42,29 @@ pub enum Error {
 }
 
 /*
+ * Converts `RTK Carrier` into compatible struct
+ */
+pub fn rtk_carrier_cast(carrier: RTKCarrier) -> Carrier {
+    match carrier {
+        RTKCarrier::L2 => Carrier::L2,
+        RTKCarrier::L5 => Carrier::L5,
+        RTKCarrier::L6 => Carrier::L6,
+        RTKCarrier::E1 => Carrier::E1,
+        RTKCarrier::E5 => Carrier::E5,
+        RTKCarrier::E6 => Carrier::E6,
+        RTKCarrier::E5A => Carrier::E5a,
+        RTKCarrier::E5B => Carrier::E5b,
+        RTKCarrier::B1I => Carrier::B1I,
+        RTKCarrier::B2 => Carrier::B2,
+        RTKCarrier::B3 => Carrier::B3,
+        RTKCarrier::B2A => Carrier::B2A,
+        RTKCarrier::B2iB2b => Carrier::B2I,
+        RTKCarrier::B1aB1c => Carrier::B1A,
+        RTKCarrier::L1 | _ => Carrier::L1,
+    }
+}
+
+/*
  * Converts `Carrier` into RTK compatible struct
  */
 pub fn cast_rtk_carrier(carrier: Carrier) -> RTKCarrier {
@@ -62,6 +85,14 @@ pub fn cast_rtk_carrier(carrier: Carrier) -> RTKCarrier {
         Carrier::B1A | Carrier::B1C => RTKCarrier::B1aB1c,
         Carrier::L1 | _ => RTKCarrier::L1,
     }
+}
+
+// helper in reference signal determination
+fn rtk_reference_carrier(carrier: RTKCarrier) -> bool {
+    matches!(
+        carrier,
+        RTKCarrier::L1 | RTKCarrier::E1 | RTKCarrier::B1aB1c | RTKCarrier::B1I
+    )
 }
 
 //use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
@@ -262,9 +293,26 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     // print config to be used
     info!("Using {:?} method", cfg.method);
 
+    // The CGGTTS opmode (TimeOnly) is not designed
+    // to support lack of apriori knowledge
+    let apriori = if matches.get_flag("cggtts") {
+        if let Some((x, y, z)) = ctx.rx_ecef {
+            let apriori_ecef = Vector3::new(x, y, z);
+            Some(Position::from_ecef(apriori_ecef))
+        } else {
+            panic!(
+                "--cggtts opmode cannot work without a priori position knowledge.
+You either need to specify it manually (see --help), or use RINEX files that define
+a static reference position"
+            );
+        }
+    } else {
+        None
+    };
+
     let solver = Solver::new(
         &cfg,
-        None,
+        apriori,
         /* state vector interpolator */
         |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
     )?;
