@@ -3,12 +3,13 @@ use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
 };
-use rinex::prelude::{Epoch, GroundPosition, RnxContext};
+use rinex::prelude::{Epoch, GroundPosition};
+use rinex_qc::QcContext;
 
 /*
  * Skyplot view
  */
-pub fn skyplot(ctx: &RnxContext, rx_ecef: (f64, f64, f64), plot_context: &mut PlotContext) {
+pub fn skyplot(ctx: &QcContext, rx_ecef: (f64, f64, f64), plot_context: &mut PlotContext) {
     plot_context.add_polar2d_plot("Skyplot");
 
     if let Some(rnx) = ctx.brdc_navigation() {

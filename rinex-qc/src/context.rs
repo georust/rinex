@@ -1,11 +1,11 @@
-//! RINEX post processing context
+//! GNSS processing context definition.
 use thiserror::Error;
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use crate::{
+use rinex::{
     merge::{Error as RinexMergeError, Merge as RinexMerge},
     prelude::{GroundPosition, Rinex},
     types::Type as RinexType,
@@ -14,12 +14,9 @@ use crate::{
 
 use sp3::{prelude::SP3, Merge as SP3Merge, MergeError as SP3MergeError};
 
-#[cfg(feature = "qc")]
-use horrorshow::{box_html, helper::doctype, html, RenderBox};
-
-#[cfg(feature = "qc")]
 use qc_traits::html::*;
 
+/// Context Error
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("non supported file format")]
@@ -46,14 +43,15 @@ pub enum ProductType {
     /// Broadcast Navigation message as contained in
     /// Navigation RINEX files.
     BroadcastNavigation,
-    /// High precision clock data wrapped in Clock RINEX files.
-    HighPrecisionOrbit,
     /// High precision orbital attitudes wrapped in Clock RINEX files.
     HighPrecisionClock,
     /// Antenna calibration information wrapped in ANTEX special RINEX files.
     ANTEX,
     /// Precise Ionosphere state wrapped in IONEX special RINEX files.
     IONEX,
+    // #[cfg(feature = "sp3")]
+    /// High precision clock data wrapped in SP3 files.
+    HighPrecisionOrbit,
 }
 
 impl std::fmt::Display for ProductType {
@@ -123,17 +121,18 @@ impl BlobData {
     }
 }
 
-/// RnxContext is a structure dedicated to RINEX post processing workflows,
-/// like precise timing, positioning or atmosphere analysis.
+/// [QcContext] is a general structure capable to store most common
+/// GNSS data. It is dedicated to post processing workflows,
+/// precise timing or atmosphere analysis.
 #[derive(Default)]
-pub struct RnxContext {
+pub struct QcContext {
     /// Files merged into self
     files: HashMap<ProductType, Vec<PathBuf>>,
     /// Context blob created by merging each members of each category
     blob: HashMap<ProductType, BlobData>,
 }
 
-impl RnxContext {
+impl QcContext {
     /// Returns path to File considered as Primary in this Context.
     /// Observation then Navigation files are prefered as Primary files.
     /// When a unique file had been loaded, it is obviously considered Primary.
@@ -405,8 +404,7 @@ impl RnxContext {
     }
 }
 
-#[cfg(feature = "qc")]
-impl HtmlReport for RnxContext {
+impl HtmlReport for QcContext {
     fn to_html(&self) -> String {
         format!(
             "{}",
@@ -472,7 +470,7 @@ impl HtmlReport for RnxContext {
     }
 }
 
-impl std::fmt::Debug for RnxContext {
+impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Primary: \"{}\"", self.name())?;

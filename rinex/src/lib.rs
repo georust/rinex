@@ -85,8 +85,6 @@ pub mod prelude {
     pub use crate::antex::AntennaMatcher;
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
-    #[cfg(feature = "sp3")]
-    pub use crate::context::{ProductType, RnxContext};
     #[cfg(feature = "doris")]
     pub use crate::doris::Station;
     pub use crate::ground_position::GroundPosition;
@@ -116,9 +114,6 @@ mod algorithm;
 pub mod preprocessing {
     pub use crate::algorithm::*;
 }
-
-#[cfg(feature = "sp3")]
-mod context;
 
 use carrier::Carrier;
 use prelude::*;

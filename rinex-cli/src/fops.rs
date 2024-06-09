@@ -6,11 +6,13 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use rinex::{
-    prelude::{Duration, Epoch, ProductType, Rinex, RinexType},
+    prelude::{Duration, Epoch, Rinex, RinexType},
     preprocessing::*,
     prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     Merge, Split,
 };
+
+use rinex_qc::ProductType;
 
 /*
  * Parses share RINEX production attributes.

@@ -1,12 +1,12 @@
 use clap::ArgMatches;
+use std::str::FromStr;
 
 use rinex::{
     observation::SNR,
-    prelude::{Constellation, Epoch, Observable, ProductType, Rinex, RnxContext},
+    prelude::{Constellation, Epoch, Observable, Rinex},
     preprocessing::*,
 };
-
-use std::str::FromStr;
+use rinex_qc::{ProductType, QcContext};
 
 use itertools::Itertools;
 use serde::Serialize;
@@ -17,7 +17,7 @@ use map_3d::{ecef2geodetic, Ellipsoid};
 /*
  * Dataset identification operations
  */
-pub fn dataset_identification(ctx: &RnxContext, matches: &ArgMatches) {
+pub fn dataset_identification(ctx: &QcContext, matches: &ArgMatches) {
     /*
      * Browse all possible types of data, and apply relevant ID operation
      */

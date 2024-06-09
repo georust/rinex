@@ -5,6 +5,7 @@ use std::{
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
+use rinex_qc::QcContext;
 
 // identification mode
 mod identify;
@@ -36,7 +37,7 @@ impl Default for Cli {
 /// Context defined by User.
 pub struct Context {
     /// Data context defined by user
-    pub data: RnxContext,
+    pub data: QcContext,
     /// Quiet option
     pub quiet: bool,
     /// Workspace is the place where this session will generate data.
@@ -59,7 +60,7 @@ impl Context {
      * Utility to determine the most major filename stem,
      * to be used as the session workspace
      */
-    pub fn context_stem(data: &RnxContext) -> String {
+    pub fn context_stem(data: &QcContext) -> String {
         let ctx_major_stem: &str = data
             .primary_path()
             .expect("failed to determine a context name")

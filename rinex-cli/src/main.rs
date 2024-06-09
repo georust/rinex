@@ -13,7 +13,7 @@ mod qc; // QC report generator // plotting operations // file operation helpers 
 mod preprocessing;
 use preprocessing::preprocess;
 
-use rinex::prelude::RnxContext;
+use rinex_qc::QcContext;
 
 use std::path::Path;
 use walkdir::WalkDir;
@@ -56,8 +56,8 @@ pub enum Error {
 /*
  * Parses and preprepocess all files passed by User
  */
-fn user_data_parsing(cli: &Cli) -> RnxContext {
-    let mut ctx = RnxContext::default();
+fn user_data_parsing(cli: &Cli) -> QcContext {
+    let mut ctx = QcContext::default();
 
     let max_depth = match cli.matches.get_one::<u8>("depth") {
         Some(value) => *value as usize,
