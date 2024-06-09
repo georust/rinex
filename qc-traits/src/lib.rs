@@ -1,4 +1,4 @@
-//! Traits to generate RINEX and more broadly, GNSS analysis reports.
+//! Traits to perform RINEX and more broadly, GNSS analysis.
 pub mod html;
 
 pub mod merge;

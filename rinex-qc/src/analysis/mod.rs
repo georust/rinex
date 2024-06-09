@@ -41,7 +41,7 @@ impl QcAnalysis {
     }
 }
 
-impl HtmlReport for QcAnalysis {
+impl RenderHtml for QcAnalysis {
     fn to_html(&self) -> String {
         format!(
             "{}",

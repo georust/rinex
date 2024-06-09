@@ -423,7 +423,7 @@ impl QcContext {
     }
 }
 
-impl HtmlReport for QcContext {
+impl RenderHtml for QcContext {
     fn to_html(&self) -> String {
         format!(
             "{}",

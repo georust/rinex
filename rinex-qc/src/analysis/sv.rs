@@ -16,7 +16,7 @@ impl QcSvAnalysis {
     }
 }
 
-impl HtmlReport for QcSvAnalysis {
+impl RenderHtml for QcSvAnalysis {
     fn to_html(&self) -> String {
         panic!("sv analysis cannot be rendered on its own")
     }

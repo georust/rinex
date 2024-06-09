@@ -506,7 +506,7 @@ impl QcObsAnalysis {
     }
 }
 
-impl HtmlReport for QcObsAnalysis {
+impl RenderHtml for QcObsAnalysis {
     fn to_html(&self) -> String {
         unreachable!("never used by itself")
     }

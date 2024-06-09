@@ -65,7 +65,7 @@ impl std::fmt::UpperHex for GroundPosition {
 use qc_traits::html::{box_html, *};
 
 #[cfg(feature = "qc")]
-impl HtmlReport for GroundPosition {
+impl RenderHtml for GroundPosition {
     fn to_html(&self) -> String {
         todo!()
     }

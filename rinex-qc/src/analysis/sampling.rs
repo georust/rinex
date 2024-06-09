@@ -36,7 +36,7 @@ impl QcSamplingAnalysis {
     }
 }
 
-impl HtmlReport for QcSamplingAnalysis {
+impl RenderHtml for QcSamplingAnalysis {
     fn to_html(&self) -> String {
         todo!()
     }

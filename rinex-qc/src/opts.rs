@@ -137,7 +137,7 @@ impl Default for QcOpts {
     }
 }
 
-impl HtmlReport for QcOpts {
+impl RenderHtml for QcOpts {
     fn to_html(&self) -> String {
         panic!("qcopts cannot be rendered on its own")
     }

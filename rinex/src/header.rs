@@ -2199,7 +2199,7 @@ impl Merge for Header {
 use qc_traits::html::{box_html, *};
 
 #[cfg(feature = "qc")]
-impl HtmlReport for Header {
+impl RenderHtml for Header {
     fn to_html(&self) -> String {
         format!(
             "{}",

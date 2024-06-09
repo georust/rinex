@@ -1,10 +1,8 @@
-//! HTML reports
-
-// Useful re-export for HTML synthesis
+//! HTML rendition
 pub use horrorshow::{box_html, helper::doctype, html, RenderBox};
 
-/// HTML Report
-pub trait HtmlReport {
+/// HTML Rendering
+pub trait RenderHtml {
     /// Renders self to plain HTML, generating a whole entity.
     fn to_html(&self) -> String;
     /// Renders self as an HTML node.

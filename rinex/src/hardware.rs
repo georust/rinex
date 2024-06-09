@@ -5,6 +5,9 @@ use std::str::FromStr;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "qc")]
+use qc_traits::html::{box_html, *};
+
 /// GNSS receiver description
 #[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -92,10 +95,7 @@ impl Antenna {
 }
 
 #[cfg(feature = "qc")]
-use qc_traits::html::{box_html, *};
-
-#[cfg(feature = "qc")]
-impl HtmlReport for Antenna {
+impl RenderHtml for Antenna {
     fn to_html(&self) -> String {
         panic!("cannot render hardware::antenna on its own");
     }
@@ -159,7 +159,7 @@ impl HtmlReport for Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl HtmlReport for Rcvr {
+impl RenderHtml for Rcvr {
     fn to_html(&self) -> String {
         panic!("cannot render hardware::receiver on its own");
     }
