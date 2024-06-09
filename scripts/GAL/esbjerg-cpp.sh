@@ -3,7 +3,7 @@
 DATA_DIR=test_resources
 SYSTEM=Gal
 SIGNALS=C1C,C5Q
-CONF=config/survey/cpp_lsq.json
+CONF=config/survey/cpp_kf.json
 
 ./target/release/rinex-cli \
     -f $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
