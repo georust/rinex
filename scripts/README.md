@@ -31,12 +31,14 @@ single constellations, a combination of constellations and possibly SBAS augment
 When we say BRDC, it emphasizes _real time_ surveying based solely on radio messages, 
 as opposed to _post-processed_ surveying which uses higher accuracy products and exhibits better results.
 
+CGGTTS solutions are special timing oriented solutions, to compare remote clocks to one another.
+
 - [GPS](./GPS):
-  - Esbjerg and Mojn (DNK) stations
+  - Esbjerg and Mojn (DNK) stations surveying
 - [Galileo](./GAL):
-  - Esbjerg and Mojn (DNK) stations
+  - Esbjerg and Mojn (DNK) stations surveying
 - [BeiDou](./BDS):
-  - Esbjerg and Mojn (DNK) stations
-- [Galileo + SBAS applications](./GAL_SBAS)
-- [JMF: sampled by J. M. Friedt @ femto-st.fr (lab agency)](./JMF)
-  - Mobile phone observations (Paris metropolitan)
+  - Esbjerg and Mojn (DNK) stations surveying
+- [Galileo with SBAS augmentation](./GAL_SBAS)
+- [JMF: sampled by J.M. Friedt @ femto-st.fr (lab agency)](./JMF)
+  - 2024-092 Mobile phone observations (Paris/urban)
