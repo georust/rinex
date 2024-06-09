@@ -176,8 +176,11 @@ where
                 // Subsidary Pseudo Range (if needed)
                 match solver.cfg.method {
                     Method::CPP | Method::PPP => {
-                        // Attach secondary PR
+                        // locate secondary signal
                         for (second_obs, second_data) in observations {
+                            if !second_obs.is_pseudorange_observable() {
+                                continue;
+                            }
                             let rhs_carrier =
                                 Carrier::from_observable(sv.constellation, second_obs);
                             if rhs_carrier.is_err() {
@@ -186,7 +189,7 @@ where
                             let rhs_carrier = rhs_carrier.unwrap();
                             let rtk_carrier = cast_rtk_carrier(rhs_carrier);
 
-                            if second_obs.is_pseudorange_observable() && rhs_carrier != carrier {
+                            if rhs_carrier != carrier {
                                 codes.push(PseudoRange {
                                     carrier: rtk_carrier,
                                     value: second_data.obs,
