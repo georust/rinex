@@ -1,4 +1,7 @@
 //! RINEX Quality analysis library
+#![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
+#![cfg_attr(docrs, feature(doc_cfg))]
+
 extern crate gnss_rs as gnss;
 extern crate rinex_qc_traits as qc_traits;
 

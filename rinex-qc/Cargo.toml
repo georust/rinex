@@ -14,8 +14,11 @@ rust-version = "1.64"
 [features]
 default = [] # no features by default
 
-# Unlock support of high precision SP3 files
-# sp3 = ["dep:sp3"]
+# Unlock support of high precision SP3 files.
+# When targetting highest precision analysis and solutions, like in PPP,
+# SP3 files are mandatory. When deactivated, we simply cannot load
+# Such files into the context and analyze them.
+sp3 = ["dep:sp3"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -32,7 +35,7 @@ itertools = "0.13.0"
 statrs = "0.16"
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1" }
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
-sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde"] }
+sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde"], optional = true }
 
 # gnss-rs = { version = "2.1.3", features = ["serde"] }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }

@@ -12,6 +12,7 @@ use rinex::{
     Error as RinexError,
 };
 
+#[cfg(feature = "sp3")]
 use sp3::{prelude::SP3, Merge as SP3Merge, MergeError as SP3MergeError};
 
 use qc_traits::html::*;
@@ -27,6 +28,7 @@ pub enum Error {
     RinexError(#[from] RinexError),
     #[error("failed to extend rinex context")]
     RinexMergeError(#[from] RinexMergeError),
+    #[cfg(feature = "sp3")]
     #[error("failed to extend sp3 context")]
     SP3MergeError(#[from] SP3MergeError),
 }
@@ -49,7 +51,8 @@ pub enum ProductType {
     ANTEX,
     /// Precise Ionosphere state wrapped in IONEX special RINEX files.
     IONEX,
-    // #[cfg(feature = "sp3")]
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
     /// High precision clock data wrapped in SP3 files.
     HighPrecisionOrbit,
 }
@@ -60,11 +63,12 @@ impl std::fmt::Display for ProductType {
             Self::Observation => write!(f, "Observation"),
             Self::MeteoObservation => write!(f, "Meteo"),
             Self::BroadcastNavigation => write!(f, "Broadcast Navigation"),
-            Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
             Self::HighPrecisionClock => write!(f, "High Precision Clock"),
             Self::ANTEX => write!(f, "ANTEX"),
             Self::IONEX => write!(f, "IONEX"),
             Self::DORIS => write!(f, "DORIS RINEX"),
+            #[cfg(feature = "sp3")]
+            Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
         }
     }
 }
@@ -84,10 +88,11 @@ impl From<RinexType> for ProductType {
 }
 
 enum BlobData {
-    /// SP3 content
-    Sp3(SP3),
     /// RINEX content
     Rinex(Rinex),
+    #[cfg(feature = "sp3")]
+    /// SP3 content
+    Sp3(SP3),
 }
 
 impl BlobData {
@@ -106,6 +111,8 @@ impl BlobData {
         }
     }
     /// Returns reference to inner SP3 data.
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
     pub fn as_sp3(&self) -> Option<&SP3> {
         match self {
             Self::Sp3(s) => Some(s),
@@ -113,6 +120,8 @@ impl BlobData {
         }
     }
     /// Returns mutable reference to inner SP3 data.
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
     pub fn as_mut_sp3(&mut self) -> Option<&mut SP3> {
         match self {
             Self::Sp3(s) => Some(s),
@@ -146,10 +155,11 @@ impl QcContext {
             ProductType::DORIS,
             ProductType::BroadcastNavigation,
             ProductType::MeteoObservation,
-            ProductType::HighPrecisionClock,
-            ProductType::HighPrecisionOrbit,
             ProductType::IONEX,
             ProductType::ANTEX,
+            ProductType::HighPrecisionClock,
+            #[cfg(feature = "sp3")]
+            ProductType::HighPrecisionOrbit,
         ] {
             if let Some(paths) = self.files(product) {
                 /*
@@ -238,6 +248,8 @@ impl QcContext {
         self.data_mut(product)?.as_mut_rinex()
     }
     /// Returns reference to inner SP3 data
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
     pub fn sp3(&self) -> Option<&SP3> {
         self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
     }
@@ -292,6 +304,8 @@ impl QcContext {
             .as_mut_rinex()
     }
     /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
     pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
         self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
     }
@@ -311,6 +325,8 @@ impl QcContext {
     pub fn has_brdc_navigation(&self) -> bool {
         self.brdc_navigation().is_some()
     }
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
     /// Returns true if [ProductType::HighPrecisionOrbit] are present in Self
     pub fn has_sp3(&self) -> bool {
         self.sp3().is_some()
@@ -323,6 +339,8 @@ impl QcContext {
     pub fn has_meteo(&self) -> bool {
         self.meteo().is_some()
     }
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
     /// Returns true if High Precision Orbits also contains temporal information.
     pub fn sp3_has_clock(&self) -> bool {
         if let Some(sp3) = self.sp3() {
@@ -362,6 +380,7 @@ impl QcContext {
     /// Load a single SP3 file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
+    #[cfg(feature = "sp3")]
     pub fn load_sp3(&mut self, path: &Path, sp3: SP3) -> Result<(), Error> {
         let prod_type = ProductType::HighPrecisionOrbit;
         // extend context blob
@@ -439,10 +458,11 @@ impl HtmlReport for QcContext {
                 ProductType::Observation,
                 ProductType::BroadcastNavigation,
                 ProductType::MeteoObservation,
-                ProductType::HighPrecisionOrbit,
                 ProductType::HighPrecisionClock,
                 ProductType::IONEX,
                 ProductType::ANTEX,
+                #[cfg(feature = "sp3")]
+                ProductType::HighPrecisionOrbit,
             ] {
                 tr {
                     td {
@@ -478,10 +498,11 @@ impl std::fmt::Debug for QcContext {
             ProductType::Observation,
             ProductType::BroadcastNavigation,
             ProductType::MeteoObservation,
-            ProductType::HighPrecisionOrbit,
             ProductType::HighPrecisionClock,
             ProductType::IONEX,
             ProductType::ANTEX,
+            #[cfg(feature = "sp3")]
+            ProductType::HighPrecisionOrbit,
         ] {
             if let Some(files) = self.files(product) {
                 write!(f, "\n{}: ", product)?;
