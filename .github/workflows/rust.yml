@@ -53,6 +53,12 @@ jobs:
         sudo apt-get install -y libudev-dev
     
     - uses: actions-rs/cargo@v1
+      name: Build (all features)
+      with:
+        command: build
+        args: --all-features --release
+    
+    - uses: actions-rs/cargo@v1
       name: Test
       with:
         command: test
@@ -63,12 +69,6 @@ jobs:
       with:
         command: test
         args: --verbose --all-features
-    
-    - uses: actions-rs/cargo@v1
-      name: Build (all features)
-      with:
-        command: build
-        args: --all-features --release
     
     - uses: actions-rs/toolchain@v1
       name: Install nightly
