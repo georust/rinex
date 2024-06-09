@@ -2196,10 +2196,7 @@ impl Merge for Header {
 }
 
 #[cfg(feature = "qc")]
-use horrorshow::{helper::doctype, RenderBox};
-
-#[cfg(feature = "qc")]
-use rinex_qc_traits::HtmlReport;
+use qc_traits::html::{box_html, *};
 
 #[cfg(feature = "qc")]
 impl HtmlReport for Header {

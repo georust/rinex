@@ -5,6 +5,10 @@
 
 extern crate gnss_rs as gnss;
 
+#[cfg(feature = "qc")]
+#[macro_use]
+extern crate rinex_qc_traits as qc_traits;
+
 pub mod antex;
 pub mod carrier;
 pub mod clock;
@@ -112,10 +116,6 @@ mod algorithm;
 pub mod preprocessing {
     pub use crate::algorithm::*;
 }
-
-#[cfg(feature = "qc")]
-#[macro_use]
-extern crate horrorshow;
 
 #[cfg(feature = "sp3")]
 mod context;

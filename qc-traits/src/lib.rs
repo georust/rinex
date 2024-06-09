@@ -1,4 +1,2 @@
-//! Specific traits to generate RINEX quality reports.
-
-mod html;
-pub use html::HtmlReport;
+//! Traits to generate RINEX and more broadly, GNSS analysis reports.
+pub mod html;

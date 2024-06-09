@@ -1,11 +1,12 @@
-//! RINEX QC reports in HTML
-use horrorshow::RenderBox;
+//! HTML reports
 
+// Useful re-export for HTML synthesis
+pub use horrorshow::{box_html, helper::doctype, html, RenderBox};
+
+/// HTML Report
 pub trait HtmlReport {
-    /// Renders self to plain HTML.
-    /// Generates a whole HTML entity.
+    /// Renders self to plain HTML, generating a whole entity.
     fn to_html(&self) -> String;
-    /// Renders self as an HTML node
-    /// to embed within external HTML.
+    /// Renders self as an HTML node.
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_>;
 }

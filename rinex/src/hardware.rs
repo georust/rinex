@@ -92,10 +92,7 @@ impl Antenna {
 }
 
 #[cfg(feature = "qc")]
-use horrorshow::RenderBox;
-
-#[cfg(feature = "qc")]
-use rinex_qc_traits::HtmlReport;
+use qc_traits::html::{box_html, *};
 
 #[cfg(feature = "qc")]
 impl HtmlReport for Antenna {

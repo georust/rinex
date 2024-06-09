@@ -1,8 +1,7 @@
-use hifitime::Unit;
-use horrorshow::box_html;
-use rinex::prelude::{Duration, Epoch, EpochFlag, Rinex};
-
 use crate::QcOpts;
+use hifitime::Unit;
+use qc_traits::html::*;
+use rinex::prelude::{Duration, Epoch, EpochFlag, Rinex};
 
 #[derive(Debug, Clone)]
 pub struct QcSamplingAnalysis {
@@ -36,9 +35,6 @@ impl QcSamplingAnalysis {
         }
     }
 }
-
-use horrorshow::RenderBox;
-use rinex_qc_traits::HtmlReport;
 
 impl HtmlReport for QcSamplingAnalysis {
     fn to_html(&self) -> String {

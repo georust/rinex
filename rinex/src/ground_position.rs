@@ -62,10 +62,7 @@ impl std::fmt::UpperHex for GroundPosition {
 }
 
 #[cfg(feature = "qc")]
-use rinex_qc_traits::HtmlReport;
-
-#[cfg(feature = "qc")]
-use horrorshow::RenderBox;
+use qc_traits::html::{box_html, *};
 
 #[cfg(feature = "qc")]
 impl HtmlReport for GroundPosition {
