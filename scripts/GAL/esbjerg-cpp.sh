@@ -1,9 +1,8 @@
-#!/bin/bash
+#!/bin/sh
+# Post processed (+3 week) surveying of the Esbjerg (DNK) lab station
 DATA_DIR=test_resources
 SYSTEM=Gal
 SIGNALS=C1C,C5Q
-
-CONF=config/survey/cpp_kf_eclipse.json
 CONF=config/survey/cpp_lsq.json
 
 ./target/release/rinex-cli \

@@ -69,7 +69,8 @@ This particularly applies to different applications of precise positioning.
 * [`sinex`](sinex/) SNX dedicated core library
 * [`ublox-rnx`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
 This application is currently work in progress
-* [`tools`](tools/) are general purposes and development tools (mostly scripts)
+* [`tools`](tools/) are utility scripts and development tools
+* [`logs`](logs/) is where we store the session logs from our [example scripts](scripts/)
 
 ## Relevant Ecosystem
 
