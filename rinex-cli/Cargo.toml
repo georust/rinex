@@ -40,8 +40,8 @@ rinex-qc = { path = "../rinex-qc", version = "=0.1.14", features = ["serde", "sp
 
 # solver
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
-gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
 # cggtts
 # cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }
