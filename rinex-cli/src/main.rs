@@ -241,8 +241,8 @@ pub fn main() -> Result<(), Error> {
         Some(("tbin", submatches)) => {
             fops::time_binning(&ctx, submatches)?;
         },
-        Some(("sub", submatches)) => {
-            fops::substract(&ctx, submatches)?;
+        Some(("diff", submatches)) => {
+            fops::diff(&ctx, submatches)?;
         },
         _ => error!("no opmode specified!"),
     }
