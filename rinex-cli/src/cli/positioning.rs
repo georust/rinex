@@ -3,8 +3,7 @@ use clap::{value_parser, Arg, ArgAction, Command};
 use rinex::prelude::Duration;
 
 pub fn subcommand() -> Command {
-    Command::new("positioning")
-        .short_flag('p')
+    Command::new("ppp")
         .arg_required_else_help(false)
         .about("Precise Positioning opmode.
 Use this mode to resolve Position Velocity and Time (PVT) solutions from one GNSS context. See -p --help.")

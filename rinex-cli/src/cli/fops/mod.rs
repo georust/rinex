@@ -1,7 +1,7 @@
+pub mod diff;
 pub mod filegen;
 pub mod merge;
 pub mod split;
-pub mod substract;
 pub mod time_binning;
 
 use lazy_static::lazy_static;

@@ -232,10 +232,10 @@ pub fn main() -> Result<(), Error> {
         Some(("split", submatches)) => {
             fops::split(&ctx, submatches)?;
         },
-        Some(("quality-check", submatches)) => {
+        Some(("qc", submatches)) => {
             qc::qc_report(&ctx, submatches)?;
         },
-        Some(("positioning", submatches)) => {
+        Some(("ppp", submatches)) => {
             positioning::precise_positioning(&ctx, submatches)?;
         },
         Some(("tbin", submatches)) => {

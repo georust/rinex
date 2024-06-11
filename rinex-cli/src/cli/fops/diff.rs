@@ -5,8 +5,7 @@ use std::path::PathBuf;
 use super::{SHARED_DATA_ARGS, SHARED_GENERAL_ARGS};
 
 pub fn subcommand() -> Command {
-    Command::new("sub")
-        .long_flag("sub")
+    Command::new("diff")
         .arg_required_else_help(true)
         .about(
             "RINEX(A)-RINEX(B) substraction operation.

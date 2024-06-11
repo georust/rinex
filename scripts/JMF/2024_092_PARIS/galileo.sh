@@ -17,4 +17,4 @@ NAV=test_resources/NAV/V3/BRUX00BEL_R_20240920000_01D_EN.rnx.gz
 ./target/release/rinex-cli \
     -f $OBS -f $NAV -f $SP3 -f $CLK \
     -P Galileo \
-    -p -c $CONF | tee logs/jmf-24092+gal.txt
+    ppp -c $CONF | tee logs/jmf-24092+gal.txt

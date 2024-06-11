@@ -7,8 +7,6 @@ use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
 use rinex_qc::QcContext;
 
-// identification mode
-mod identify;
 // graph mode
 mod graph;
 // QC mode
@@ -21,7 +19,7 @@ pub use workspace::Workspace;
 
 // file operations
 mod fops;
-use fops::{filegen, merge, split, substract, time_binning};
+use fops::{diff, filegen, merge, split, time_binning};
 
 pub struct Cli {
     /// Arguments passed by user
@@ -218,12 +216,11 @@ Otherwise it gets automatically picked up."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
                 .subcommand(filegen::subcommand())
                 .subcommand(graph::subcommand())
-                .subcommand(identify::subcommand())
                 .subcommand(merge::subcommand())
                 .subcommand(positioning::subcommand())
                 .subcommand(qc::subcommand())
                 .subcommand(split::subcommand())
-                .subcommand(substract::subcommand())
+                .subcommand(diff::subcommand())
                 .subcommand(time_binning::subcommand())
                 .get_matches()
             },
