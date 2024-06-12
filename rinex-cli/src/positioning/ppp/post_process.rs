@@ -388,7 +388,7 @@ pub fn post_process(
 
     writeln!(
         fd,
-        "Epoch, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rcvr_clock_bias, tdop"
+        "Epoch, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rx_clock_offset, tdop"
     )?;
 
     for (epoch, solution) in solutions {
