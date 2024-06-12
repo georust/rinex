@@ -1,22 +1,12 @@
 //! Position & Clock data parsing
 use crate::ParsingError;
-use crate::{Epoch, Vector3D, SV};
-use std::collections::BTreeMap;
-/*
- * Positions
- */
-pub type PositionRecord = BTreeMap<Epoch, BTreeMap<SV, Vector3D>>;
+use crate::SV;
 
-/*
- * Clock estimates
- */
-pub type ClockRecord = BTreeMap<Epoch, BTreeMap<SV, f64>>;
-
-pub(crate) fn position_entry(content: &str) -> bool {
+pub fn position_entry(content: &str) -> bool {
     content.starts_with('P')
 }
 
-pub(crate) struct PositionEntry {
+pub struct PositionEntry {
     sv: SV,
     clock: Option<f64>,
     position: (f64, f64, f64),

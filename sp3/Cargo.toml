@@ -15,6 +15,9 @@ readme = "README.md"
 [features]
 default = [] # no features by default
 
+# Unlock methods for Data analysis
+qc = ["rinex-qc-traits"]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
@@ -26,6 +29,7 @@ thiserror = "1"
 map_3d = "0.1.5"
 hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master" }
 # gnss-rs = { version = "2.1.3", features = ["serde"] }
+rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }

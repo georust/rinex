@@ -1,12 +1,16 @@
 //! SP3 precise orbit file parser.
 #![cfg_attr(docrs, feature(doc_cfg))]
-
 extern crate gnss_rs as gnss;
+
+#[cfg(feature = "qc")]
+extern crate rinex_qc_traits as qc_traits;
 
 use gnss::prelude::{Constellation, SV};
 use hifitime::{Duration, Epoch, ParsingError as EpochParsingError, TimeScale};
+use map_3d::{ecef2aer, rad2deg, Ellipsoid};
 use std::collections::BTreeMap;
 
+use gnss_rs::constellation::ParsingError as ConstellationParsingError;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -14,7 +18,6 @@ use thiserror::Error;
 mod tests;
 
 mod header;
-mod merge;
 mod position;
 mod reader;
 mod velocity;
@@ -28,8 +31,8 @@ use header::{
     line2::{is_header_line2, Line2},
 };
 
-use position::{position_entry, ClockRecord, PositionEntry, PositionRecord};
-use velocity::{velocity_entry, ClockRateRecord, VelocityEntry, VelocityRecord};
+use position::{position_entry, PositionEntry};
+use velocity::{velocity_entry, VelocityEntry};
 
 use reader::BufferedReader;
 use std::io::BufRead;
@@ -51,8 +54,6 @@ pub mod prelude {
     pub use gnss::prelude::{Constellation, SV};
     pub use hifitime::{Duration, Epoch, TimeScale};
 }
-
-pub use merge::{Merge, MergeError};
 
 fn file_descriptor(content: &str) -> bool {
     content.starts_with("%c")
@@ -147,6 +148,81 @@ impl std::str::FromStr for OrbitType {
  */
 type Comments = Vec<String>;
 
+/// [SP3Entry] indexer
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SP3Key {
+    /// Spacecraft described as [SV]
+    pub sv: SV,
+    /// Epoch
+    pub epoch: Epoch,
+}
+
+/// [SP3Entry] record file content, sorted per [SP3Key]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SP3Entry {
+    /// Possible clock correction in microsecond with 1E-12 precision.
+    /// Often omitted, files that only have orbital states are most common.
+    pub clock: Option<f64>,
+    /// Clock offset variation, with 0.1ns/s scaling with 1E-16 theoretical precision.
+    /// Rarely present.
+    pub clock_rate: Option<f64>,
+    /// Position vector expressed in the coordinates system, scaling is km and precision
+    /// down to 1mm, depending on fit technique.
+    pub position: Vector3D,
+    /// Possible velocity vector (rarely present) expressed in [km/s] in the same
+    /// reference frame.
+    pub velocity: Option<Vector3D>,
+}
+
+impl SP3Entry {
+    /// Builds new [SP3Entry] with given position and all other
+    /// fields are unknown.
+    pub fn from_position(position: Vector3D) -> Self {
+        Self {
+            position,
+            clock: None,
+            velocity: None,
+            clock_rate: None,
+        }
+    }
+    /// Builds new [SP3Entry] with given position and velocity vector,
+    /// any other fields are unknown
+    pub fn from_position_velocity(position: Vector3D, velocity: Vector3D) -> Self {
+        Self {
+            position,
+            clock: None,
+            clock_rate: None,
+            velocity: Some(velocity),
+        }
+    }
+    /// Copies and returns [Self] with given position vector
+    pub fn with_position(&self, position: Vector3D) -> Self {
+        let mut s = self.clone();
+        s.position = position;
+        s
+    }
+    /// Copies and returns [Self] with given velocity vector
+    pub fn with_velocity(&self, velocity: Vector3D) -> Self {
+        let mut s = self.clone();
+        s.velocity = Some(velocity);
+        s
+    }
+    /// Copies and returns [Self] with given clock offset
+    pub fn with_clock_offset(&self, offset: f64) -> Self {
+        let mut s = self.clone();
+        s.clock = Some(offset);
+        s
+    }
+    /// Copies and returns [Self] with given clock rate
+    pub fn with_clock_rate(&self, rate: f64) -> Self {
+        let mut s = self.clone();
+        s.clock_rate = Some(rate);
+        s
+    }
+}
+
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SP3 {
@@ -181,26 +257,20 @@ pub struct SP3 {
     pub epoch_interval: Duration,
     /// Satellite Vehicles
     pub sv: Vec<SV>,
-    /// Positions expressed in km, with 1mm precision, per Epoch and SV.
-    pub position: PositionRecord,
-    /// Clock offsets with 1E-12 precision per Epoch and SV.
-    pub clock: ClockRecord,
-    /// Velocities (Position derivative estimates) in 10^-1 m/s with 0.1 um/s precision.
-    pub velocities: VelocityRecord,
-    /// Rate of change of clock correction in 0.1 ns/s with 0.1 fs/s precision.
-    pub clock_rate: ClockRateRecord,
+    /// File content are [SP3Entry]s sorted per [SP3Key]
+    pub data: BTreeMap<SP3Key, SP3Entry>,
     /// File header comments, stored as is.
     pub comments: Comments,
 }
 
 #[derive(Debug, Error)]
-pub enum Errors {
+pub enum Error {
     #[error("parsing error")]
     ParsingError(#[from] ParsingError),
     #[error("hifitime parsing error")]
     HifitimeParsingError(#[from] EpochParsingError),
     #[error("constellation parsing error")]
-    ConstellationParsingError(#[from] gnss::constellation::ParsingError),
+    ConstellationParsing(#[from] ConstellationParsingError),
     #[error("unknown or non supported revision \"{0}\"")]
     UnknownVersion(String),
     #[error("unknown data type \"{0}\"")]
@@ -293,12 +363,12 @@ fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingErr
 impl SP3 {
     /// Parses given SP3 file, with possible seamless
     /// .gz decompression, if compiled with the "flate2" feature.
-    pub fn from_path(path: &Path) -> Result<Self, Errors> {
+    pub fn from_path(path: &Path) -> Result<Self, Error> {
         let fullpath = path.to_string_lossy().to_string();
         Self::from_file(&fullpath)
     }
     /// See [Self::from_path]
-    pub fn from_file(path: &str) -> Result<Self, Errors> {
+    pub fn from_file(path: &str) -> Result<Self, Error> {
         let reader = BufferedReader::new(path)?;
 
         let mut version = Version::default();
@@ -316,11 +386,8 @@ impl SP3 {
         let mut mjd_start = (0_u32, 0_f64);
 
         let mut vehicles: Vec<SV> = Vec::new();
-        let mut position = PositionRecord::default();
-        let mut velocities = VelocityRecord::default();
-        let mut clock = ClockRecord::default();
-        let mut clock_rate = ClockRateRecord::default();
         let mut comments = Comments::new();
+        let mut data = BTreeMap::<SP3Key, SP3Entry>::new();
 
         let mut epoch = Epoch::default();
         let mut epochs: Vec<Epoch> = Vec::new();
@@ -347,7 +414,7 @@ impl SP3 {
             }
             if file_descriptor(line) {
                 if line.len() < 60 {
-                    return Err(Errors::ParsingError(ParsingError::MalformedDescriptor(
+                    return Err(Error::ParsingError(ParsingError::MalformedDescriptor(
                         line.to_string(),
                     )));
                 }
@@ -365,50 +432,35 @@ impl SP3 {
             }
             if position_entry(line) {
                 if line.len() < 60 {
-                    /*
-                     * tolerate malformed positions
-                     */
-                    continue;
+                    continue; // tolerates malformed positions
                 }
                 let entry = PositionEntry::from_str(line)?;
-                let (sv, (pos_x, pos_y, pos_z), clk) = entry.to_parts();
+                let (sv, (x_km, y_km, z_km), clk) = entry.to_parts();
 
                 //TODO : move this into %c config frame
                 if !vehicles.contains(&sv) {
                     vehicles.push(sv);
                 }
-
-                if pos_x != 0.0_f64 && pos_y != 0.0_f64 && pos_z != 0.0_f64 {
-                    /*
-                     * Position vector is present & correct
-                     */
-                    if let Some(e) = position.get_mut(&epoch) {
-                        e.insert(sv, (pos_x, pos_y, pos_z));
+                // verify entry validity
+                if x_km != 0.0_f64 && y_km != 0.0_f64 && z_km != 0.0_f64 {
+                    let key = SP3Key { epoch, sv };
+                    if let Some(e) = data.get_mut(&key) {
+                        e.position = (x_km, y_km, z_km);
                     } else {
-                        let mut map: BTreeMap<SV, Vector3D> = BTreeMap::new();
-                        map.insert(sv, (pos_x, pos_y, pos_z));
-                        position.insert(epoch, map);
-                    }
-                }
-                if let Some(clk) = clk {
-                    /*
-                     * Clock data is present & correct
-                     */
-                    if let Some(e) = clock.get_mut(&epoch) {
-                        e.insert(sv, clk);
-                    } else {
-                        let mut map: BTreeMap<SV, f64> = BTreeMap::new();
-                        map.insert(sv, clk);
-                        clock.insert(epoch, map);
+                        if let Some(clk) = clk {
+                            data.insert(
+                                key,
+                                SP3Entry::from_position((x_km, y_km, z_km)).with_clock_offset(clk),
+                            );
+                        } else {
+                            data.insert(key, SP3Entry::from_position((x_km, y_km, z_km)));
+                        }
                     }
                 }
             }
             if velocity_entry(line) {
                 if line.len() < 60 {
-                    /*
-                     * tolerate malformed velocities
-                     */
-                    continue;
+                    continue; // tolerates malformed velocities
                 }
                 let entry = VelocityEntry::from_str(line)?;
                 let (sv, (vel_x, vel_y, vel_z), clk) = entry.to_parts();
@@ -417,29 +469,23 @@ impl SP3 {
                 if !vehicles.contains(&sv) {
                     vehicles.push(sv);
                 }
-
+                // verify entry validity
                 if vel_x != 0.0_f64 && vel_y != 0.0_f64 && vel_z != 0.0_f64 {
-                    /*
-                     * Position vector is present & correct
-                     */
-                    if let Some(e) = velocities.get_mut(&epoch) {
-                        e.insert(sv, (vel_x, vel_y, vel_z));
+                    let key = SP3Key { epoch, sv };
+                    if let Some(e) = data.get_mut(&key) {
+                        *e = e.with_velocity((vel_x, vel_y, vel_z));
+                        if let Some(clk) = clk {
+                            *e = e.with_clock_rate(clk);
+                        }
                     } else {
-                        let mut map: BTreeMap<SV, Vector3D> = BTreeMap::new();
-                        map.insert(sv, (vel_x, vel_y, vel_z));
-                        velocities.insert(epoch, map);
-                    }
-                }
-                if let Some(clk) = clk {
-                    /*
-                     * Clock data is present & correct
-                     */
-                    if let Some(e) = clock_rate.get_mut(&epoch) {
-                        e.insert(sv, clk);
-                    } else {
-                        let mut map: BTreeMap<SV, f64> = BTreeMap::new();
-                        map.insert(sv, clk);
-                        clock_rate.insert(epoch, map);
+                        if let Some(clk) = clk {
+                            data.insert(
+                                key,
+                                SP3Entry::from_position((0.0, 0.0, 0.0)).with_clock_rate(clk),
+                            );
+                        } else {
+                            data.insert(key, SP3Entry::from_position((0.0, 0.0, 0.0)));
+                        }
                     }
                 }
             }
@@ -457,10 +503,7 @@ impl SP3 {
             epoch_interval,
             mjd_start,
             sv: vehicles,
-            position,
-            velocities,
-            clock,
-            clock_rate,
+            data,
             comments,
         })
     }
@@ -485,12 +528,10 @@ impl SP3 {
     pub fn sv(&self) -> impl Iterator<Item = SV> + '_ {
         self.sv.iter().copied()
     }
-    /// Returns an Iterator over SV position estimates, in km
-    /// with 1mm precision.
+    /// Returns an Iterator over SV position estimates, in km with 1mm precision
+    /// and expressed in [self.coord_system].
     pub fn sv_position(&self) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
-        self.position
-            .iter()
-            .flat_map(|(e, sv)| sv.iter().map(|(sv, pos)| (*e, *sv, *pos)))
+        self.data.iter().map(|(k, v)| (k.epoch, k.sv, v.position))
     }
     /// Returns an Iterator over SV elevation and azimuth angle, both in degrees.
     /// ref_geo: referance position expressed in decimal degrees
@@ -499,37 +540,40 @@ impl SP3 {
         ref_geo: Vector3D,
     ) -> impl Iterator<Item = (Epoch, SV, (f64, f64))> + '_ {
         self.sv_position().map(move |(t, sv, (x_km, y_km, z_km))| {
-            let (azim, elev, _) = map_3d::ecef2aer(
+            let (azim, elev, _) = ecef2aer(
                 x_km * 1.0E3,
                 y_km * 1.0E3,
                 z_km * 1.0E3,
                 ref_geo.0,
                 ref_geo.1,
                 ref_geo.2,
-                map_3d::Ellipsoid::WGS84,
+                Ellipsoid::WGS84,
             );
-            (t, sv, (map_3d::rad2deg(elev), map_3d::rad2deg(azim)))
+            (t, sv, (rad2deg(elev), rad2deg(azim)))
         })
     }
     /// Returns an Iterator over SV velocities estimates,
     /// in 10^-1 m/s with 0.1 um/s precision.
     pub fn sv_velocities(&self) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
-        self.velocities
-            .iter()
-            .flat_map(|(e, sv)| sv.iter().map(|(sv, vel)| (*e, *sv, *vel)))
+        self.data.iter().filter_map(|(k, v)| {
+            let velocity = v.velocity?;
+            Some((k.epoch, k.sv, velocity))
+        })
     }
     /// Returns an Iterator over Clock offsets with theoretical 1E-12 precision.
     pub fn sv_clock(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
-        self.clock
-            .iter()
-            .flat_map(|(e, sv)| sv.iter().map(|(sv, clk)| (*e, *sv, *clk)))
+        self.data.iter().filter_map(|(k, v)| {
+            let clock = v.clock?;
+            Some((k.epoch, k.sv, clock))
+        })
     }
-    /// Returns an Iterator over Clock rate of change estimates,
-    /// in 0.1 ns/s with 0.1 fs/s precision.
-    pub fn sv_clock_change(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
-        self.clock_rate
-            .iter()
-            .flat_map(|(e, sv)| sv.iter().map(|(sv, clk)| (*e, *sv, *clk)))
+    /// Returns an Iterator over Clock offset variations, scaling is 0.1 ns/s and theoretical
+    /// precision downto 0.1 fs/s precision.
+    pub fn sv_clock_rate(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
+        self.data.iter().filter_map(|(k, v)| {
+            let rate = v.clock_rate?;
+            Some((k.epoch, k.sv, rate))
+        })
     }
     /// Interpolate Clock (offset) at desired "t" expressed in the timescale you want.
     /// SP3 files usually have a 15' sampling interval which makes this operation
@@ -568,9 +612,9 @@ impl SP3 {
     pub fn comments(&self) -> impl Iterator<Item = &String> + '_ {
         self.comments.iter()
     }
-    /// Interpolates SV position at single instant `t`, results expressed in kilometers ECEF.
-    /// Typically, you want to use an interpolation order of 11 here, to preserve
-    /// data precision.
+    /// Interpolates SV position at single instant `t`, results expressed in kilometers
+    /// and same reference frame. Typical interpolations vary between 7 and 11,
+    /// to preserve the data precision.
     /// For an evenly spaced SP3 file, operation is feasible on Epochs
     /// contained in the interval ](N +1)/2 * τ;  T - (N +1)/2 * τ],
     /// where N is the interpolation order, τ the epoch interval (15 ' is the standard
@@ -644,6 +688,10 @@ impl SP3 {
     }
 }
 
+#[cfg(feature = "qc")]
+use qc_traits::{Merge, MergeError};
+
+#[cfg(feature = "qc")]
 impl Merge for SP3 {
     fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut s = self.clone();
@@ -651,14 +699,14 @@ impl Merge for SP3 {
         Ok(s)
     }
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        // if self.agency != rhs.agency {
-        //     return Err(MergeError::DataProvider);
-        // }
+        if self.agency != rhs.agency {
+            return Err(MergeError::DataProviderAgencyMismatch);
+        }
         if self.time_scale != rhs.time_scale {
-            return Err(MergeError::TimeScale);
+            return Err(MergeError::TimescaleMismatch);
         }
         if self.coord_system != rhs.coord_system {
-            return Err(MergeError::CoordSystem);
+            return Err(MergeError::ReferenceFrameMismatch);
         }
         if self.constellation != rhs.constellation {
             /*
@@ -692,71 +740,27 @@ impl Merge for SP3 {
         }
         // update sampling interval (pessimistic)
         self.epoch_interval = std::cmp::max(self.epoch_interval, rhs.epoch_interval);
-        /*
-         * Merge possible new positions
-         */
-        for (epoch, svnn) in &rhs.position {
-            if let Some(lhs_sv) = self.position.get_mut(epoch) {
-                for (sv, position) in svnn {
-                    lhs_sv.insert(*sv, *position);
+        // Merge new entries
+        // and upgrade missing information (if possible)
+        for (key, entry) in &rhs.data {
+            if let Some(lhs_entry) = self.data.get_mut(key) {
+                if let Some(clock) = entry.clock {
+                    lhs_entry.clock = Some(clock);
+                }
+                if let Some(rate) = entry.clock_rate {
+                    lhs_entry.clock_rate = Some(rate);
+                }
+                if let Some(velocity) = entry.velocity {
+                    lhs_entry.velocity = Some(velocity);
                 }
             } else {
-                // introduce new epoch
-                self.epoch.push(*epoch);
-                self.position.insert(*epoch, svnn.clone());
+                if !self.epoch.contains(&key.epoch) {
+                    self.epoch.push(key.epoch); // new epoch
+                }
+                self.data.insert(key.clone(), entry.clone()); // new entry
             }
         }
-        /*
-         * Merge possible new Clock estimates
-         */
-        for (epoch, svnn) in &rhs.clock {
-            if let Some(lhs_sv) = self.clock.get_mut(epoch) {
-                for (sv, clock) in svnn {
-                    lhs_sv.insert(*sv, *clock);
-                }
-            } else {
-                // introduce new epoch : in clock record
-                self.clock.insert(*epoch, svnn.clone());
-                // introduce new epoch : if not contained in positions
-                let mut found = false;
-                for e in &self.epoch {
-                    found |= *e == *epoch;
-                    if found {
-                        break;
-                    }
-                }
-                if !found {
-                    self.epoch.push(*epoch);
-                }
-            }
-        }
-        /*
-         * Merge possible new Velocities estimates
-         */
-        for (epoch, svnn) in &rhs.velocities {
-            if let Some(lhs_sv) = self.velocities.get_mut(epoch) {
-                for (sv, position) in svnn {
-                    lhs_sv.insert(*sv, *position);
-                }
-            } else {
-                // introduce new epoch
-                self.velocities.insert(*epoch, svnn.clone());
-                // introduce new epoch : if not contained in positions
-                let mut found = false;
-                for e in &self.epoch {
-                    found |= *e == *epoch;
-                    if found {
-                        break;
-                    }
-                }
-                if !found {
-                    self.epoch.push(*epoch);
-                }
-            }
-        }
-
-        // maintain Epochs in correct order
-        self.epoch.sort();
+        self.epoch.sort(); // preserve chronological order
         Ok(())
     }
 }

@@ -1,22 +1,12 @@
 //! Velocity entry parsing
 use crate::ParsingError;
-use crate::{Epoch, Vector3D, SV};
-use std::collections::BTreeMap;
+use crate::SV;
 
-/*
- * SV velocities prediction estimates
- */
-pub type VelocityRecord = BTreeMap<Epoch, BTreeMap<SV, Vector3D>>;
-/*
- * Clock rate of change record content
- */
-pub type ClockRateRecord = BTreeMap<Epoch, BTreeMap<SV, f64>>;
-
-pub(crate) fn velocity_entry(content: &str) -> bool {
+pub fn velocity_entry(content: &str) -> bool {
     content.starts_with('V')
 }
 
-pub(crate) struct VelocityEntry {
+pub struct VelocityEntry {
     sv: SV,
     velocity: (f64, f64, f64),
     clock: Option<f64>,
