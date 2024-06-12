@@ -26,7 +26,7 @@ pub enum Observable {
     /// Pseudo range observation
     PseudoRange(String),
     /// Channel number Pseudo Observable.
-    /// Attached to Pahse or PseudoRange observable to accurately
+    /// Attached to Phase or PseudoRange observable to accurately
     /// described how they were sampled.
     ChannelNumber(String),
     /// Pressure observation in hPa

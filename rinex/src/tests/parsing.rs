@@ -54,6 +54,7 @@ mod test {
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.navigation().count() > 0); // all files have content
                                                                      // Ephemeris verifications
+                            #[cfg(feature = "nav")]
                             for (e, (_, sv_i, eph_i)) in rinex.ephemeris() {
                                 // TODO: verify V4 cases
                                 if revision != "V4" {

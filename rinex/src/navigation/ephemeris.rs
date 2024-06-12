@@ -3,7 +3,6 @@ use crate::constants::Constants;
 use crate::{constants, epoch, prelude::*, version::Version};
 
 use log::warn;
-use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
@@ -35,7 +34,9 @@ pub enum Error {
 /// GPS、BDS、Galieo
 /// - Helps calculate relativistic effects(todo)
 #[derive(Debug, Clone, Copy, Default)]
-pub struct EphemerisHelper {
+#[cfg(feature = "nav")]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
+struct EphemerisHelper {
     // satellite identity
     pub sv: SV,
     /// The difference between the calculated time and the ephemeris reference time
@@ -64,6 +65,11 @@ pub struct EphemerisHelper {
     pub fd_dtr: f64,
 }
 
+#[cfg(feature = "nav")]
+use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
+
+#[cfg(feature = "nav")]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 impl EphemerisHelper {
     pub(crate) fn meo_orbit_to_ecef_rotation_matrix(&self) -> Rotation<f64, 3> {
         // Positive angles mean counterclockwise rotation
@@ -123,11 +129,13 @@ impl EphemerisHelper {
     /// Calculate ecef position and velocity of MEO/IGSO sv
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
+    #[cfg(feature = "nav")]
     pub(crate) fn ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
         (self.ecef_position(), self.ecef_velocity())
     }
 
     /// Calculate ecef position of GEO sv
+    #[cfg(feature = "nav")]
     pub(crate) fn beidou_geo_ecef_position(&self) -> Vector3<f64> {
         let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
         let rotation1 = self.meo_orbit_to_ecef_rotation_matrix();
@@ -137,6 +145,7 @@ impl EphemerisHelper {
     }
 
     /// Calculate ecef velocity of GEO sv
+    #[cfg(feature = "nav")]
     pub(crate) fn beidou_geo_ecef_velocity(&self) -> Vector3<f64> {
         let (x, y) = self.orbit_position;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
@@ -205,16 +214,13 @@ impl EphemerisHelper {
         match self.sv.constellation {
             Constellation::GPS | Constellation::Galileo => Some(self.ecef_position()),
             Constellation::BeiDou => {
-                if Constants::is_beidou_geo(self.sv) {
+                if self.sv.is_beidou_geo() {
                     Some(self.beidou_geo_ecef_position())
                 } else {
                     Some(self.ecef_position())
                 }
             },
-            _ => {
-                warn!("EphemerisHelper currently only supports orbit solutions for BDS GPS GALIEO");
-                None
-            },
+            _ => None,
         }
     }
 
@@ -223,18 +229,13 @@ impl EphemerisHelper {
         match self.sv.constellation {
             Constellation::GPS | Constellation::Galileo => Some(self.ecef_pv()),
             Constellation::BeiDou => {
-                if Constants::is_beidou_geo(self.sv) {
+                if self.sv.is_beidou_geo() {
                     Some(self.beidou_geo_ecef_pv())
                 } else {
                     Some(self.ecef_pv())
                 }
             },
-            _ => {
-                log::warn!(
-                    "EphemerisHelper currently only supports orbit solutions for BDS GPS GALIEO"
-                );
-                None
-            },
+            _ => None,
         }
     }
 }
@@ -373,7 +374,6 @@ impl Ephemeris {
         let sec = self.get_orbit_f64("toe")?;
         let week_dur = Duration::from_days((week * 7) as f64);
         let sec_dur = Duration::from_seconds(sec);
-        let t = Epoch::from_duration(week_dur + sec_dur, sv_ts);
         Some(Epoch::from_duration(week_dur + sec_dur, sv_ts).to_time_scale(TimeScale::GPST))
     }
     /*
@@ -386,6 +386,7 @@ impl Ephemeris {
      * Get the difference between toe and observation epoch,
      * as total seconds elapsed in GPS timescale
      */
+    #[cfg(feature = "nav")]
     pub(crate) fn tk(&self, sv: SV, t: Epoch) -> Option<f64> {
         let toe = self.toe_gpst(sv.timescale()?)?;
         let t_dur = t.to_gpst_duration();
@@ -400,6 +401,7 @@ impl Ephemeris {
     /*
      * get ephemerisHelper
      */
+    #[cfg(feature = "nav")]
     pub(crate) fn ephemeris_helper(&self, sv: SV, t: Epoch) -> Option<EphemerisHelper> {
         // const
         let gm = Constants::gm(sv);
@@ -407,13 +409,8 @@ impl Ephemeris {
         let dtr_f = Constants::dtr_f(sv);
         let mut helper = EphemerisHelper::default();
         helper.sv = sv;
-        // set t_k
-        if let Some(t_k) = self.tk(sv, t) {
-            helper.t_k = t_k
-        } else {
-            log::trace!("{} ephemeris missing or invalid at {}", sv, t);
-            return None;
-        }
+        helper.t_k = self.tk(sv, t)?;
+
         let mut kepler = self.kepler()?;
         // considering the filed a_dot
         if let Some(a_dot) = self.a_dot() {
@@ -438,7 +435,7 @@ impl Ephemeris {
             e_k_lst = e_k;
         }
         if i >= constants::MaxIterNumber::KEPLER {
-            log::warn!("{} kepler iteration overflow", sv);
+            warn!("{}({}) kepler iteration overflow", t, sv);
         }
         let (sin_e_k, cos_e_k) = e_k.sin_cos();
         let v_k = ((1.0 - kepler.e.powi(2)).sqrt() * sin_e_k).atan2(cos_e_k - kepler.e);
@@ -456,7 +453,7 @@ impl Ephemeris {
         // omega_k
         // MEO (GPS, Galieo, BeiDou)
         // IGSO(BeiDou)
-        if Constants::is_beidou_geo(sv) {
+        if sv.is_beidou_geo() {
             helper.omega_k =
                 kepler.omega_0 + perturbations.omega_dot * helper.t_k - omega * kepler.toe;
         } else {

@@ -42,12 +42,10 @@ impl MaxIterNumber {
     pub const KEPLER: u8 = 30;
 }
 
-pub struct Constants;
+/// Const values used in RINEX crate
+pub(crate) struct Constants;
 
-/// const value
 impl Constants {
-    // ellipsoid
-
     // earth
     pub const fn gm(sv: SV) -> f64 {
         match sv.constellation {
@@ -76,27 +74,5 @@ impl Constants {
             Constellation::Galileo => DtrF::GAL,
             _ => DtrF::GPS,
         }
-    }
-
-    // gnss signal
-
-    // physics
-}
-
-/// some function
-impl Constants {
-    /// judge if a sv is BeiDou GEO Satellite
-    pub fn is_beidou_geo(sv: SV) -> bool {
-        if sv.constellation == Constellation::BeiDou {
-            return sv.prn == 1
-                || sv.prn == 2
-                || sv.prn == 3
-                || sv.prn == 4
-                || sv.prn == 5
-                || sv.prn == 59
-                || sv.prn == 60
-                || sv.prn == 61;
-        }
-        false
     }
 }
