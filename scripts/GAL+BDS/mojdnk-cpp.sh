@@ -7,7 +7,7 @@ DATA_DIR=test_resources
 #  BDS PRN>05 <58 (example: no GEO)
 #    In this example, we do not consider BDS(Geo) satellites
 #    compare this one to the other script, where we do
-FILTER="Gal,BDS;>E09,>C05,<C58;C1C,C5Q,C2I,C6I,C7I"
+FILTER="Gal,BDS;>E09;>C05;<C58;C1C,C5Q,C2I,C6I,C7I"
 # Skip 1st hour (example)
 TIMEFRAME=">2020-06-25T01:00:00 UTC"
 CONF=config/survey/cpp_kf.json # pseudo-range(e1/e5); filter:kalman

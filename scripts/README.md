@@ -42,3 +42,5 @@ CGGTTS solutions are special timing oriented solutions, to compare remote clocks
 - [Galileo with SBAS augmentation](./GAL_SBAS)
 - [JMF: sampled by J.M. Friedt @ femto-st.fr (lab agency)](./JMF)
   - 2024-092 Mobile phone observations (Paris/urban)
+- [RINEX(A) - RINEX(B) Differential analysis illustration](./DIFF)
+  - Esbjerg and Mojn (DNK): close range observations
