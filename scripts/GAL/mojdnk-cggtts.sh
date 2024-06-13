@@ -1,5 +1,5 @@
 #!/bin/sh
-# Post processed (+3 week) surveying of the MOJDN (DNK) station clock to GPST
+# Post processed (+3 week) surveying of the MOJN (DNK) station clock to GST
 DATA_DIR=test_resources
 
 # Any strategy may apply to CGGTTS,
@@ -8,12 +8,12 @@ CONF=config/survey/spp_lsq.json # basic SPP+LSQ
 CONF=config/survey/cpp_kf.json # basic CPP+KF
 
 # Example:
-#  GPS >05;<15  CGGTTS allows single SV common view clock comparison
+#  Gal >05;<20  CGGTTS allows single SV common view clock comparison
 #               it is a slower process because it requires more iteration
 #               usually you want to resolve for specific SV only (seen on both sites)
 # Signals: L1+L5 (example)
 # Timeframe: skip two hours (example)
-FILTER="GPS;>G05;<G15;C1C,C1W,C5Q;"
+FILTER="Gal;>E05;<E20;C1C,C1W,C5Q;"
 TIMEFRAME=">2020-06-25T02:00:00 UTC"
 
 ./target/release/rinex-cli \
