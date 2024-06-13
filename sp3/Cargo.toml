@@ -16,7 +16,14 @@ readme = "README.md"
 default = [] # no features by default
 
 # Unlock methods for Data analysis
-qc = ["rinex-qc-traits"]
+qc = [
+    "rinex-qc-traits",
+]
+
+# Unlock processing features
+processing = [
+    "rinex-qc-traits/processing",
+]
 
 [package.metadata.docs.rs]
 all-features = true

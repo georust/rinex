@@ -18,11 +18,11 @@ pub enum Error {
 
 /// Masking trait, to retain specific GNSS data subsets.  
 /// This can be used to retain specific signals or [Constellation]s.
-pub trait Mask {
-    /// Apply mask filter to mutable self.
-    fn mask_mut(&mut self, mask: MaskFilter);
-    /// Immutable mask filter.
-    fn mask(&self, mask: MaskFilter) -> Self;
+pub trait Masking {
+    /// Apply [MaskFilter] to mutable self.
+    fn mask_mut(&mut self, mask: &MaskFilter);
+    /// Apply [MaskFilter] to immutable self.
+    fn mask(&self, mask: &MaskFilter) -> Self;
 }
 
 /// MaskOperand describes how to apply a given mask

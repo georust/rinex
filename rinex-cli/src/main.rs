@@ -6,14 +6,13 @@
 mod cli; // command line interface
 mod fops;
 mod graph;
-mod identification; // high level identification/macros
 mod positioning;
 mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis // positioning + CGGTTS opmode
 
 mod preprocessing;
 use preprocessing::preprocess;
 
-use rinex_qc::QcContext;
+use rinex_qc::prelude::{Preprocessing, QcContext};
 
 use std::path::Path;
 use walkdir::WalkDir;
@@ -222,9 +221,6 @@ pub fn main() -> Result<(), Error> {
         },
         Some(("graph", submatches)) => {
             graph::graph_opmode(&ctx, submatches)?;
-        },
-        Some(("identify", submatches)) => {
-            identification::dataset_identification(&ctx.data, submatches);
         },
         Some(("merge", submatches)) => {
             fops::merge(&ctx, submatches)?;

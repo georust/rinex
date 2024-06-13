@@ -1,10 +1,12 @@
-use crate::{merge, merge::Merge, prelude::*, split, split::Split};
+use crate::{merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split};
 
 use crate::epoch;
-use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
+
+#[cfg(feature = "processing")]
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 pub(crate) fn is_new_tec_plane(line: &str) -> bool {
     line.contains("START OF TEC MAP")
@@ -299,72 +301,32 @@ impl Split for Record {
     }
 }
 
-#[cfg(feature = "processing")]
-use crate::preprocessing::*;
-
-#[cfg(feature = "processing")]
-impl Mask for Record {
-    fn mask(&self, mask: MaskFilter) -> Self {
-        let mut s = self.clone();
-        s.mask_mut(mask);
-        s
-    }
-    fn mask_mut(&mut self, mask: MaskFilter) {
-        match mask.operand {
-            MaskOperand::Equals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
-                _ => {}, // TargetItem:: does not apply
-            },
-            MaskOperand::NotEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
-                _ => {}, // TargetItem:: does not apply
-            },
-            MaskOperand::GreaterEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e >= epoch),
-                _ => {}, // TargetItem:: does not apply
-            },
-            MaskOperand::GreaterThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e > epoch),
-                _ => {}, // TargetItem:: does not apply
-            },
-            MaskOperand::LowerEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e <= epoch),
-                _ => {}, // TargetItem:: does not apply
-            },
-            MaskOperand::LowerThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e < epoch),
-                _ => {}, // TargetItem:: does not apply
-            },
-        }
-    }
-}
-
-#[cfg(feature = "processing")]
-impl Preprocessing for Record {
-    fn filter(&self, f: Filter) -> Self {
-        let mut s = self.clone();
-        s.filter_mut(f);
-        s
-    }
-    fn filter_mut(&mut self, f: Filter) {
-        match f {
-            Filter::Mask(mask) => self.mask_mut(mask),
-            Filter::Smoothing(_) => todo!(),
-            Filter::Decimation(_) => todo!(),
-            Filter::Interp(filter) => self.interpolate_mut(filter.series),
-        }
-    }
-}
-
-#[cfg(feature = "processing")]
-impl Interpolate for Record {
-    fn interpolate(&self, series: TimeSeries) -> Self {
-        let mut s = self.clone();
-        s.interpolate_mut(series);
-        s
-    }
-    fn interpolate_mut(&mut self, _series: TimeSeries) {
-        unimplemented!("ionex:record:interpolate()")
+pub(crate) fn ionex_mask_mut(rec: &mut Record, mask: &MaskFilter) {
+    match mask.operand {
+        MaskOperand::Equals => match mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e == epoch),
+            _ => {}, // FilterItem:: does not apply
+        },
+        MaskOperand::NotEquals => match mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e != epoch),
+            _ => {}, // FilterItem:: does not apply
+        },
+        MaskOperand::GreaterEquals => match mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e >= epoch),
+            _ => {}, // FilterItem:: does not apply
+        },
+        MaskOperand::GreaterThan => match mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e > epoch),
+            _ => {}, // FilterItem:: does not apply
+        },
+        MaskOperand::LowerEquals => match mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e <= epoch),
+            _ => {}, // FilterItem:: does not apply
+        },
+        MaskOperand::LowerThan => match mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e < epoch),
+            _ => {}, // FilterItem:: does not apply
+        },
     }
 }
 

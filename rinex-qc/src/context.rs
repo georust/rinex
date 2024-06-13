@@ -1,5 +1,4 @@
 //! GNSS processing context definition.
-use qc_traits::{Merge, MergeError};
 use thiserror::Error;
 
 use std::collections::HashMap;
@@ -16,7 +15,11 @@ use rinex::{
 #[cfg(feature = "sp3")]
 use sp3::prelude::SP3;
 
-use qc_traits::html::*;
+use qc_traits::{
+    html::*,
+    processing::{Filter, Preprocessing},
+    Merge, MergeError,
+};
 
 /// Context Error
 #[derive(Debug, Error)]
@@ -419,6 +422,13 @@ impl QcContext {
             }
         }
         None
+    }
+    /// Apply preprocessing filter algorithm to mutable [Self].
+    /// Filter will apply to all data contained in the context.
+    pub fn filter_mut(&mut self, filter: &Filter) {
+        if let Some(data) = self.observation_mut() {
+            data.filter_mut(filter)
+        }
     }
 }
 

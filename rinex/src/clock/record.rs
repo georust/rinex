@@ -4,10 +4,18 @@ use thiserror::Error;
 use std::collections::BTreeMap;
 use strum_macros::EnumString;
 
-use crate::{epoch, merge, merge::Merge, prelude::*, split, split::Split, version::Version};
+use crate::{
+    epoch, merge,
+    merge::Merge,
+    prelude::*,
+    prelude::{Duration, SV},
+    split,
+    split::Split,
+    version::Version,
+};
 
-use gnss::prelude::SV;
-use hifitime::Duration;
+#[cfg(feature = "processing")]
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 /// [`ClockKey`] describes each [`ClockProfile`] at a specific [Epoch].
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
@@ -375,83 +383,44 @@ impl Split for Record {
 }
 
 #[cfg(feature = "processing")]
-use crate::preprocessing::*;
-
-#[cfg(feature = "processing")]
-impl Mask for Record {
-    fn mask(&self, mask: MaskFilter) -> Self {
-        let mut s = self.clone();
-        s.mask_mut(mask);
-        s
-    }
-    fn mask_mut(&mut self, mask: MaskFilter) {
-        match mask.operand {
-            MaskOperand::Equals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
-                TargetItem::ConstellationItem(mask) => {
-                    self.retain(|_, data| {
-                        data.retain(|sysclk, _| {
-                            if let Some(sv) = sysclk.clock_type.as_sv() {
-                                mask.contains(&sv.constellation)
-                            } else {
-                                false
-                            }
-                        });
-                        !data.is_empty()
+pub(crate) fn clock_mask_mut(rec: &mut Record, mask: &MaskFilter) {
+    match mask.operand {
+        MaskOperand::Equals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e == *epoch),
+            FilterItem::ConstellationItem(mask) => {
+                rec.retain(|_, data| {
+                    data.retain(|sysclk, _| {
+                        if let Some(sv) = sysclk.clock_type.as_sv() {
+                            mask.contains(&sv.constellation)
+                        } else {
+                            false
+                        }
                     });
-                },
-                _ => {}, // TargetItem::
+                    !data.is_empty()
+                });
             },
-            MaskOperand::NotEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
-                _ => {}, // TargetItem::
-            },
-            MaskOperand::GreaterEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
-                _ => {}, // TargetItem::
-            },
-            MaskOperand::GreaterThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
-                _ => {}, // TargetItem::
-            },
-            MaskOperand::LowerEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
-                _ => {}, // TargetItem::
-            },
-            MaskOperand::LowerThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
-                _ => {}, // TargetItem::
-            },
-        }
-    }
-}
-
-#[cfg(feature = "processing")]
-impl Preprocessing for Record {
-    fn filter(&self, f: Filter) -> Self {
-        let mut s = self.clone();
-        s.filter_mut(f);
-        s
-    }
-    fn filter_mut(&mut self, f: Filter) {
-        match f {
-            Filter::Mask(mask) => self.mask_mut(mask),
-            Filter::Smoothing(_) => todo!(),
-            Filter::Decimation(_) => todo!(),
-            Filter::Interp(filter) => self.interpolate_mut(filter.series),
-        }
-    }
-}
-
-#[cfg(feature = "processing")]
-impl Interpolate for Record {
-    fn interpolate(&self, series: TimeSeries) -> Self {
-        let mut s = self.clone();
-        s.interpolate_mut(series);
-        s
-    }
-    fn interpolate_mut(&mut self, _series: TimeSeries) {
-        unimplemented!("clocks:record:interpolate_mut()");
+            _ => {}, // FilterItem::
+        },
+        MaskOperand::NotEquals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e != *epoch),
+            _ => {}, // FilterItem::
+        },
+        MaskOperand::GreaterEquals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e >= *epoch),
+            _ => {}, // FilterItem::
+        },
+        MaskOperand::GreaterThan => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e > *epoch),
+            _ => {}, // FilterItem::
+        },
+        MaskOperand::LowerEquals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e <= *epoch),
+            _ => {}, // FilterItem::
+        },
+        MaskOperand::LowerThan => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e < *epoch),
+            _ => {}, // FilterItem::
+        },
     }
 }
 

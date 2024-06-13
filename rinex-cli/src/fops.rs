@@ -7,12 +7,11 @@ use std::str::FromStr;
 
 use rinex::{
     prelude::{Duration, Epoch, Rinex, RinexType},
-    preprocessing::*,
     prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     Merge, Split,
 };
 
-use rinex_qc::ProductType;
+use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 
 /*
  * Parses share RINEX production attributes.
@@ -336,8 +335,8 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             // run time binning algorithm
             while last <= end {
                 let rinex = rinex
-                    .filter(Filter::from_str(&format!("< {:?}", last)).unwrap())
-                    .filter(Filter::from_str(&format!(">= {:?}", first)).unwrap());
+                    .filter(&Filter::from_str(&format!("< {:?}", last)).unwrap())
+                    .filter(&Filter::from_str(&format!(">= {:?}", first)).unwrap());
 
                 // generate standardized name
                 let filename = output_filename(&rinex, matches, prod.clone());

@@ -105,15 +105,13 @@ pub mod prod {
 }
 
 #[cfg(feature = "processing")]
-mod algorithm;
+use qc_traits::processing::{MaskFilter, Masking, Preprocessing};
 
-/// Package to include all preprocessing
-/// methods like filtering, data smoothing and masking.
 #[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
-pub mod preprocessing {
-    pub use crate::algorithm::*;
-}
+use crate::{
+    clock::record::clock_mask_mut, doris::record::doris_mask_mut, meteo::record::meteo_mask_mut,
+    navigation::record::navigation_mask_mut, observation::record::observation_mask_mut,
+};
 
 use carrier::Carrier;
 use prelude::*;
@@ -3071,146 +3069,29 @@ impl Split for Rinex {
 }
 
 #[cfg(feature = "processing")]
-use preprocessing::Smooth;
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+impl Preprocessing for Rinex {}
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docrs, doc(cfg(feature = "processing")))]
-impl Smooth for Rinex {
-    fn moving_average(&self, window: Duration) -> Self {
+impl Masking for Rinex {
+    fn mask(&self, f: &MaskFilter) -> Self {
         let mut s = self.clone();
-        s.moving_average_mut(window);
+        s.mask_mut(f);
         s
     }
-    fn moving_average_mut(&mut self, window: Duration) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.moving_average_mut(window);
+    fn mask_mut(&mut self, f: &MaskFilter) {
+        if let Some(rec) = self.record.as_mut_obs() {
+            observation_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_nav() {
+            navigation_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_clock() {
+            clock_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_meteo() {
+            meteo_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_doris() {
+            doris_mask_mut(rec, f)
         }
-    }
-    fn hatch_smoothing(&self) -> Self {
-        let mut s = self.clone();
-        s.hatch_smoothing_mut();
-        s
-    }
-    fn hatch_smoothing_mut(&mut self) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.hatch_smoothing_mut();
-        }
-    }
-}
-
-#[cfg(feature = "processing")]
-use crate::algorithm::{Filter, Preprocessing};
-
-#[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
-/// ```
-/// use rinex::*;
-/// use std::str::FromStr; // filter!
-/// use rinex::preprocessing::*; // .filter_mut()
-///
-/// let rinex = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O")
-///     .unwrap();
-///
-/// // Describe an [Hifitime::Epoch] for efficient datetime focus
-/// let after = filter!(">2022-01-01T10:00:00 UTC");
-/// let before = filter!("< 2022-01-01T10:00:00 UTC"); // whitespace tolerant
-///
-/// // logical Not() operation is supported on all mask operands.
-/// // This may facilitate complex masking operations.
-/// assert_eq!(before, !after);
-///
-/// // Any valid [Hifitime::Epoch] description is supported.
-/// let equals = filter!("=JD 2960 TAI");
-///
-/// // Greater than ">" and lower than "<"
-/// // truly apply to Epochs and Durations only,
-/// // Whereas Equality masks ("=", "!=") apply to any data subsets.
-/// let equals = filter!("=GPS,GLO");
-///
-/// // One exception exist for "SV" items, for example with this:
-/// let greater_than = filter!("> G08,R03");
-///
-/// // will retain PRN > 08 for GPS Constellation
-/// // and PRN > 3 for Glonass Constellation.
-/// let filtered = rinex.filter(greater_than);
-///
-/// // Focus on desired Observables, with an observable mask.
-/// // This can apply to both OBS and Meteo RINEX.
-/// let phase_mask = filter!("L1C,L2C"); // Equals operand is implied
-/// let filtered = rinex.filter(phase_mask);
-///
-/// // Elevation angle filter can only apply to NAV RINEX
-/// // content at the moment.
-/// // In the future, this ops will be feasible if an OBS RINEX content
-/// // is combined to NAV RINEX context.
-/// let rinex = Rinex::from_file("../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
-///     .unwrap();
-///
-/// let mask = filter!("e > 10.0"); // strictly above 10° elevation
-/// let filtered = rinex.filter(mask);
-/// let mask = filter!("a >= 25.0"); // above 25° azimuth
-/// let filtered = rinex.filter(mask);
-///
-/// // Apply an elevation range mask by combining two elevation masks
-/// let mask = filter!("e <= 45.0"); // below 45°
-/// let filtered = rinex.filter(mask);
-///
-/// // filter and orbit fields decimation is not possible at the moment
-/// // // Retain only NAV RINEX Orbit fields you're interested in,
-/// // // with an Orbit mask:
-/// // let mask = filter!("iode,crs"); // retain only these fields,
-/// //                             // notice: case insensitive,
-/// //                             // notice: invalid orbit fields get dropped out
-/// // let filtered = rinex.filter(mask);
-///
-/// // Retain legacy frames only
-/// let mask = filter!("lnav"); // Eq() is implied, "LNAV" recognized
-/// let filtered = rinex.filter(mask);
-///
-/// // Retain modern frames only
-/// let mask = filter!("> lnav");
-/// let filtered = rinex.filter(mask);
-/// ```
-impl Preprocessing for Rinex {
-    fn filter(&self, f: Filter) -> Self {
-        let mut s = self.clone();
-        s.filter_mut(f);
-        s
-    }
-    fn filter_mut(&mut self, f: Filter) {
-        self.record.filter_mut(f);
-    }
-}
-
-#[cfg(feature = "processing")]
-use crate::algorithm::Decimate;
-
-#[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
-impl Decimate for Rinex {
-    fn decimate_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_ratio_mut(r);
-        s
-    }
-    fn decimate_by_ratio_mut(&mut self, r: u32) {
-        self.record.decimate_by_ratio_mut(r);
-    }
-    fn decimate_by_interval(&self, dt: Duration) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_interval_mut(dt);
-        s
-    }
-    fn decimate_by_interval_mut(&mut self, dt: Duration) {
-        self.record.decimate_by_interval_mut(dt);
-    }
-    fn decimate_match_mut(&mut self, rhs: &Self) {
-        self.record.decimate_match_mut(&rhs.record);
-    }
-    fn decimate_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decimate_match_mut(rhs);
-        s
     }
 }
 

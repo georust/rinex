@@ -17,6 +17,14 @@ mod report;
 pub use qc_traits::html::RenderHtml;
 pub use report::QcReport; // re-export
 
+pub mod prelude {
+    pub use crate::context::{ProductType, QcContext};
+    pub use qc_traits::{
+        html::RenderHtml,
+        processing::{Filter, Preprocessing},
+    };
+}
+
 /*
  * Methods used when reporting lenghty vectors or data subsets in a table.
  * Makes tables cleaner and nicer by wrapping string content, into several paragraphs.
