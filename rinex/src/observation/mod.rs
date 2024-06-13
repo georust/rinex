@@ -130,17 +130,6 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
-    /// Timescale helper
-    #[cfg(feature = "processing")]
-    fn timescale(&self) -> TimeScale {
-        match self.time_of_first_obs {
-            Some(ts) => ts.time_scale,
-            None => match self.time_of_last_obs {
-                Some(ts) => ts.time_scale,
-                None => TimeScale::GPST,
-            },
-        }
-    }
     /// Add TIME OF FIRST OBS
     pub(crate) fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
@@ -162,8 +151,21 @@ impl HeaderFields {
     pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
         self.scaling.get(&(c, observable))
     }
+}
+
+#[cfg(feature = "processing")]
+impl HeaderFields {
+    /// Timescale helper
+    fn timescale(&self) -> TimeScale {
+        match self.time_of_first_obs {
+            Some(ts) => ts.time_scale,
+            None => match self.time_of_last_obs {
+                Some(ts) => ts.time_scale,
+                None => TimeScale::GPST,
+            },
+        }
+    }
     /// Modifies in place Self, when applying preprocessing filter ops
-    #[cfg(feature = "processing")]
     pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
         match f.operand {
             MaskOperand::Equals => match &f.item {
@@ -206,12 +208,13 @@ impl HeaderFields {
             },
             MaskOperand::GreaterThan => match &f.item {
                 FilterItem::EpochItem(epoch) => {
-                    if let Some(ts) = self.time_of_first_obs {
-                        if ts < *epoch {
-                            self.time_of_first_obs = Some(*epoch);
+                    let ts = self.timescale();
+                    if let Some(t) = self.time_of_first_obs {
+                        if t < *epoch {
+                            self.time_of_first_obs = Some(epoch.to_time_scale(ts));
                         }
                     } else {
-                        self.time_of_first_obs = Some(*epoch);
+                        self.time_of_first_obs = Some(epoch.to_time_scale(ts));
                     }
                 },
                 _ => {},
