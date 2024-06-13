@@ -25,13 +25,16 @@ Field surveying (currently only static) aims at determining the position of
 reference stations very precisely without a priori knowledge, so they can serve later on as reference stations for differential
 positioning techniques.
 
-We currently sort them by constellation being used in the navigation/surveying process, either
-single constellations, a combination of constellations and possibly SBAS augmentation.  
+Most scripts are sorted by constellation being used in the navigation/surveying or analysis process, either
+single or a combination of constellations might be used, possibly SBAS service too.
 
 When we say BRDC, it emphasizes _real time_ surveying based solely on radio messages, 
 as opposed to _post-processed_ surveying which uses higher accuracy products and exhibits better results.
 
-CGGTTS solutions are special timing oriented solutions, to compare remote clocks to one another.
+CGGTTS solutions are special timing oriented solutions, to compare remote clocks to one another. 
+We demonstrate the synthesis of CGGTTS solutions along our position surveys.
+
+Other file operations are also demonstrated in this repo.
 
 - [GPS](./GPS):
   - Esbjerg and Mojn (DNK) stations surveying
@@ -44,3 +47,6 @@ CGGTTS solutions are special timing oriented solutions, to compare remote clocks
   - 2024-092 Mobile phone observations (Paris/urban)
 - [RINEX(A) - RINEX(B) Differential analysis illustration](./DIFF)
   - Esbjerg and Mojn (DNK): close range observations
+- [Time binning / time reframing examples](./TBIN)
+  - Esbjerg (24h/DNK) station observations
+  - SP3 time binning

@@ -212,11 +212,17 @@ pub fn main() -> Result<(), Error> {
         },
     };
 
+    // On File Operations (Data synthesis)
+    //  prepare one subfolder to store the output products
+    if cli.has_fops_output_product() {
+        ctx.workspace.create_subdir("OUTPUT");
+    }
+
     /*
      * Exclusive opmodes
      */
     match cli.matches.subcommand() {
-        Some(("filegen", submatches)) => {
+        Some(("generate", submatches)) => {
             fops::filegen(&ctx, submatches)?;
         },
         Some(("graph", submatches)) => {
@@ -239,9 +245,6 @@ pub fn main() -> Result<(), Error> {
         },
         Some(("diff", submatches)) => {
             fops::diff(&ctx, submatches)?;
-        },
-        Some(("positioning", submatches)) => {
-            panic!("not supported");
         },
         _ => panic!("no opmode specified!"),
     }

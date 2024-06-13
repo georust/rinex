@@ -102,11 +102,12 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
 
     for product in [
-        ProductType::Observation,
         ProductType::DORIS,
+        ProductType::Observation,
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
+        ProductType::HighPrecisionOrbit,
         ProductType::IONEX,
         ProductType::ANTEX,
     ] {
@@ -117,6 +118,7 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             let output_path = ctx
                 .workspace
                 .root
+                .join("OUTPUT")
                 .join(filename)
                 .to_string_lossy()
                 .to_string();
@@ -291,7 +293,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 }
 
 /*
- * Time reframing: subdivde a RINEX into a batch of equal duration
+ * Time reframing: subdivide a RINEX into a batch of equal duration
  */
 pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
@@ -304,11 +306,13 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     }
 
     for product in [
+        ProductType::IONEX,
+        ProductType::DORIS,
         ProductType::Observation,
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::IONEX,
+        ProductType::HighPrecisionOrbit,
     ] {
         // input data determination
         if let Some(rinex) = ctx_data.rinex(product) {
@@ -344,6 +348,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 let output = ctx
                     .workspace
                     .root
+                    .join("OUTPUT")
                     .join(&filename)
                     .to_string_lossy()
                     .to_string();

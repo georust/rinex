@@ -38,14 +38,14 @@ pub struct Context {
     pub data: QcContext,
     /// Quiet option
     pub quiet: bool,
+    /// Context name is derived from the primary file loaded in Self,
+    /// and mostly used in output products generation.
+    pub name: String,
     /// Workspace is the place where this session will generate data.
     /// By default it is set to $WORKSPACE/$PRIMARYFILE.
     /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
     /// $PRIMARYFILE is determined from the most major file contained in the dataset.
     pub workspace: Workspace,
-    /// Context name is derived from the primary file loaded in Self,
-    /// and mostly used in session products generation.
-    pub name: String,
     /// (RX) reference position to be used in further analysis.
     /// It is either (priority order is important)
     ///  1. manually defined by CLI
@@ -310,6 +310,17 @@ Otherwise it gets automatically picked up."))
         } else {
             self.manual_geodetic()
                 .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
+        }
+    }
+    /// True if File Operations to generate data is being deployed
+    pub fn has_fops_output_product(&self) -> bool {
+        match self.matches.subcommand() {
+            Some(("filegen", _))
+            | Some(("merge", _))
+            | Some(("split", _))
+            | Some(("tbin", _))
+            | Some(("diff", _)) => true,
+            _ => false,
         }
     }
 }
