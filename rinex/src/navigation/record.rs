@@ -690,41 +690,46 @@ fn mask_mut_ineq(rec: &mut Record, target: &FilterItem) {
 fn mask_mut_leq(rec: &mut Record, target: &FilterItem) {
     match target {
         FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e <= *epoch),
-        FilterItem::SvItem(filter) => {
-            // for each constell, grab PRN#
-            let filter: Vec<_> = filter.iter().map(|sv| (sv.constellation, sv.prn)).collect();
-
+        FilterItem::SvItem(items) => {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn <= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn > item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn <= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn > item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn <= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn > item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn <= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn > item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
@@ -744,41 +749,46 @@ fn mask_mut_leq(rec: &mut Record, target: &FilterItem) {
 fn mask_mut_lt(rec: &mut Record, target: &FilterItem) {
     match target {
         FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e < *epoch),
-        FilterItem::SvItem(filter) => {
-            // for each constell, grab PRN#
-            let filter: Vec<_> = filter.iter().map(|sv| (sv.constellation, sv.prn)).collect();
-
+        FilterItem::SvItem(items) => {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn < *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn >= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn < *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn >= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn < *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn >= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn < *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn >= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
@@ -798,41 +808,46 @@ fn mask_mut_lt(rec: &mut Record, target: &FilterItem) {
 fn mask_mut_gt(rec: &mut Record, target: &FilterItem) {
     match target {
         FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e > *epoch),
-        FilterItem::SvItem(filter) => {
-            // for each constell, grab PRN#
-            let filter: Vec<_> = filter.iter().map(|sv| (sv.constellation, sv.prn)).collect();
-
+        FilterItem::SvItem(items) => {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn > *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn <= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn > *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn <= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn > *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn <= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn > *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn <= item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
@@ -852,41 +867,46 @@ fn mask_mut_gt(rec: &mut Record, target: &FilterItem) {
 fn mask_mut_geq(rec: &mut Record, target: &FilterItem) {
     match target {
         FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e >= *epoch),
-        FilterItem::SvItem(filter) => {
-            // for each constell, grab PRN#
-            let filter: Vec<_> = filter.iter().map(|sv| (sv.constellation, sv.prn)).collect();
-
+        FilterItem::SvItem(items) => {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
                     if let Some((_, sv, _)) = fr.as_eph() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn >= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn < item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_ion() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn >= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn < item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_eop() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn >= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn < item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass
                     } else if let Some((_, sv, _)) = fr.as_sto() {
-                        let mut pass = false;
-                        for (constell, prn) in &filter {
-                            if *constell == sv.constellation {
-                                pass |= sv.prn >= *prn;
+                        let mut pass = true;
+                        for item in items {
+                            if item.constellation == sv.constellation {
+                                if sv.prn < item.prn {
+                                    pass = false;
+                                }
                             }
                         }
                         pass

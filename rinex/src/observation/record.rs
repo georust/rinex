@@ -971,12 +971,12 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::SvItem(items) => {
                 rec.retain(|_, (_, svs)| {
                     svs.retain(|sv, _| {
-                        let mut retain = false;
+                        let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                retain = sv.prn >= item.prn;
-                            } else {
-                                retain = true;
+                                if sv.prn < item.prn {
+                                    retain = false;
+                                }
                             }
                         }
                         retain
@@ -1007,12 +1007,12 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::SvItem(items) => {
                 rec.retain(|_, (_, svs)| {
                     svs.retain(|sv, _| {
-                        let mut retain = false;
+                        let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                retain = sv.prn > item.prn;
-                            } else {
-                                retain = true;
+                                if sv.prn <= item.prn {
+                                    retain = false;
+                                }
                             }
                         }
                         retain
@@ -1043,12 +1043,12 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::SvItem(items) => {
                 rec.retain(|_, (_, svs)| {
                     svs.retain(|sv, _| {
-                        let mut retain = false;
+                        let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                retain = sv.prn <= item.prn;
-                            } else {
-                                retain = true;
+                                if sv.prn > item.prn {
+                                    retain = false;
+                                }
                             }
                         }
                         retain
@@ -1079,12 +1079,12 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::SvItem(items) => {
                 rec.retain(|_, (_, svs)| {
                     svs.retain(|sv, _| {
-                        let mut retain = false;
+                        let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                retain = sv.prn < item.prn;
-                            } else {
-                                retain = true;
+                                if sv.prn >= item.prn {
+                                    retain = false;
+                                }
                             }
                         }
                         retain
