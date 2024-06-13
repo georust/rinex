@@ -6,6 +6,9 @@ pub use record::Record;
 use crate::Observable;
 
 #[cfg(feature = "processing")]
+use std::str::FromStr;
+
+#[cfg(feature = "processing")]
 use itertools::Itertools;
 
 #[cfg(feature = "processing")]
@@ -25,12 +28,41 @@ impl HeaderFields {
     #[cfg(feature = "processing")]
     pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
         match f.operand {
-            MaskOperand::Equals => match &f.item {},
-            MaskOperand::NotEquals => match &f.item {},
-            MaskOperand::GreaterThan => match &f.item {},
-            MaskOperand::GreaterEquals => match &f.item {},
-            MaskOperand::LowerThan => match &f.item {},
-            MaskOperand::LowerEquals => match &f.item {},
+            MaskOperand::Equals => match &f.item {
+                FilterItem::ComplexItem(complex) => {
+                    // try to interprate as [Observable]
+                    let observables = complex
+                        .iter()
+                        .filter_map(|f| {
+                            if let Ok(ob) = Observable::from_str(f) {
+                                Some(ob)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    self.codes.retain(|c| observables.contains(&c));
+                },
+                _ => {},
+            },
+            MaskOperand::NotEquals => match &f.item {
+                FilterItem::ComplexItem(complex) => {
+                    // try to interprate as [Observable]
+                    let observables = complex
+                        .iter()
+                        .filter_map(|f| {
+                            if let Ok(ob) = Observable::from_str(f) {
+                                Some(ob)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    self.codes.retain(|c| !observables.contains(&c));
+                },
+                _ => {},
+            },
+            _ => {},
         }
     }
 }
