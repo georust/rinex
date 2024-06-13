@@ -3103,6 +3103,74 @@ use crate::algorithm::{Filter, Preprocessing};
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+/// ```
+/// use rinex::*;
+/// use std::str::FromStr; // filter!
+/// use rinex::preprocessing::*; // .filter_mut()
+///
+/// let rinex = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O")
+///     .unwrap();
+///
+/// // Describe an [Hifitime::Epoch] for efficient datetime focus
+/// let after = filter!(">2022-01-01T10:00:00 UTC");
+/// let before = filter!("< 2022-01-01T10:00:00 UTC"); // whitespace tolerant
+///
+/// // logical Not() operation is supported on all mask operands.
+/// // This may facilitate complex masking operations.
+/// assert_eq!(before, !after);
+///
+/// // Any valid [Hifitime::Epoch] description is supported.
+/// let equals = filter!("=JD 2960 TAI");
+///
+/// // Greater than ">" and lower than "<"
+/// // truly apply to Epochs and Durations only,
+/// // Whereas Equality masks ("=", "!=") apply to any data subsets.
+/// let equals = filter!("=GPS,GLO");
+///
+/// // One exception exist for "SV" items, for example with this:
+/// let greater_than = filter!("> G08,R03");
+///
+/// // will retain PRN > 08 for GPS Constellation
+/// // and PRN > 3 for Glonass Constellation.
+/// let filtered = rinex.filter(greater_than);
+///
+/// // Focus on desired Observables, with an observable mask.
+/// // This can apply to both OBS and Meteo RINEX.
+/// let phase_mask = filter!("L1C,L2C"); // Equals operand is implied
+/// let filtered = rinex.filter(phase_mask);
+///
+/// // Elevation angle filter can only apply to NAV RINEX
+/// // content at the moment.
+/// // In the future, this ops will be feasible if an OBS RINEX content
+/// // is combined to NAV RINEX context.
+/// let rinex = Rinex::from_file("../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
+///     .unwrap();
+///
+/// let mask = filter!("e > 10.0"); // strictly above 10° elevation
+/// let filtered = rinex.filter(mask);
+/// let mask = filter!("a >= 25.0"); // above 25° azimuth
+/// let filtered = rinex.filter(mask);
+///
+/// // Apply an elevation range mask by combining two elevation masks
+/// let mask = filter!("e <= 45.0"); // below 45°
+/// let filtered = rinex.filter(mask);
+///
+/// // filter and orbit fields decimation is not possible at the moment
+/// // // Retain only NAV RINEX Orbit fields you're interested in,
+/// // // with an Orbit mask:
+/// // let mask = filter!("iode,crs"); // retain only these fields,
+/// //                             // notice: case insensitive,
+/// //                             // notice: invalid orbit fields get dropped out
+/// // let filtered = rinex.filter(mask);
+///
+/// // Retain legacy frames only
+/// let mask = filter!("lnav"); // Eq() is implied, "LNAV" recognized
+/// let filtered = rinex.filter(mask);
+///
+/// // Retain modern frames only
+/// let mask = filter!("> lnav");
+/// let filtered = rinex.filter(mask);
+/// ```
 impl Preprocessing for Rinex {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
