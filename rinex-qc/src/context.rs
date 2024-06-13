@@ -1,4 +1,5 @@
 //! GNSS processing context definition.
+use qc_traits::{Merge, MergeError};
 use thiserror::Error;
 
 use std::collections::HashMap;
@@ -13,13 +14,15 @@ use rinex::{
 };
 
 #[cfg(feature = "sp3")]
-use sp3::{prelude::SP3, Merge as SP3Merge, MergeError as SP3MergeError};
+use sp3::prelude::SP3;
 
 use qc_traits::html::*;
 
 /// Context Error
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("failed to extend gnss context")]
+    ContextExtensionError(#[from] MergeError),
     #[error("non supported file format")]
     NonSupportedFileFormat,
     #[error("failed to determine filename")]
@@ -28,9 +31,6 @@ pub enum Error {
     RinexError(#[from] RinexError),
     #[error("failed to extend rinex context")]
     RinexMergeError(#[from] RinexMergeError),
-    #[cfg(feature = "sp3")]
-    #[error("failed to extend sp3 context")]
-    SP3MergeError(#[from] SP3MergeError),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Hash)]
@@ -60,13 +60,13 @@ pub enum ProductType {
 impl std::fmt::Display for ProductType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Observation => write!(f, "Observation"),
-            Self::MeteoObservation => write!(f, "Meteo"),
-            Self::BroadcastNavigation => write!(f, "Broadcast Navigation"),
-            Self::HighPrecisionClock => write!(f, "High Precision Clock"),
             Self::ANTEX => write!(f, "ANTEX"),
             Self::IONEX => write!(f, "IONEX"),
             Self::DORIS => write!(f, "DORIS RINEX"),
+            Self::Observation => write!(f, "Observation"),
+            Self::MeteoObservation => write!(f, "Meteo"),
+            Self::HighPrecisionClock => write!(f, "High Precision Clock"),
+            Self::BroadcastNavigation => write!(f, "Broadcast Navigation (BRDC)"),
             #[cfg(feature = "sp3")]
             Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
         }
@@ -142,8 +142,7 @@ pub struct QcContext {
 }
 
 impl QcContext {
-    /// Returns path to File considered as Primary in this Context.
-    /// Observation then Navigation files are prefered as Primary files.
+    /// Returns path to File considered as Primary product in this Context.
     /// When a unique file had been loaded, it is obviously considered Primary.
     pub fn primary_path(&self) -> Option<&PathBuf> {
         /*

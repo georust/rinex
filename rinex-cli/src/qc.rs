@@ -6,7 +6,7 @@ use std::io::Write;
 
 use crate::cli::Context;
 use crate::Error;
-use rinex_qc::{QcOpts, QcReport};
+use rinex_qc::{QcOpts, QcReport, RenderHtml};
 
 pub fn qc_report(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let cfg = match matches.get_one::<String>("cfg") {
@@ -34,7 +34,7 @@ pub fn qc_report(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     info!("Elevation mask        : {:?}", cfg.elev_mask);
     info!("Sampling gap tolerance: {:?}", cfg.gap_tolerance);
 
-    let html = QcReport::html(&ctx.data, cfg);
+    let html = QcReport::new(&ctx.data, cfg).to_html();
     let report_path = ctx.workspace.root.join("QC.html");
 
     let mut fd = File::create(&report_path).map_err(|_| Error::QcReportCreationError)?;

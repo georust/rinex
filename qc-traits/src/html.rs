@@ -9,7 +9,7 @@ pub trait RenderHtml {
     /// Renders self to plain HTML, generating a whole entity.
     fn to_html(&self) -> String {
         format!(
-        "{}",
+            "{}",
             html! {
                 : doctype::HTML;
                 html {
