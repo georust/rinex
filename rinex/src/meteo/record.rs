@@ -8,7 +8,9 @@ use std::str::FromStr;
 use thiserror::Error;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+use qc_traits::processing::{
+    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
+};
 
 /*
  * Meteo RINEX specific record type.
@@ -192,6 +194,7 @@ impl Split for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 pub(crate) fn meteo_mask_mut(rec: &mut Record, mask: &MaskFilter) {
     match mask.operand {
         MaskOperand::Equals => match &mask.item {
@@ -229,6 +232,40 @@ pub(crate) fn meteo_mask_mut(rec: &mut Record, mask: &MaskFilter) {
         MaskOperand::LowerThan => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e < *epoch),
             _ => {},
+        },
+    }
+}
+
+#[cfg(feature = "processing")]
+pub(crate) fn meteo_decim_mut(rec: &mut Record, f: &DecimationFilter) {
+    if f.item.is_some() {
+        todo!("targetted decimation not supported yet");
+    }
+    match f.filter {
+        DecimationFilterType::Modulo(r) => {
+            let mut i = 0;
+            rec.retain(|_, _| {
+                let retained = (i % r) == 0;
+                i += 1;
+                retained
+            });
+        },
+        DecimationFilterType::Interval(interval) => {
+            let mut last_retained = Option::<Epoch>::None;
+            rec.retain(|e, _| {
+                if let Some(last) = last_retained {
+                    let dt = *e - last;
+                    if dt >= interval {
+                        last_retained = Some(*e);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    last_retained = Some(*e);
+                    true // always retain 1st epoch
+                }
+            });
         },
     }
 }

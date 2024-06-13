@@ -427,7 +427,26 @@ impl QcContext {
     /// Filter will apply to all data contained in the context.
     pub fn filter_mut(&mut self, filter: &Filter) {
         if let Some(data) = self.observation_mut() {
-            data.filter_mut(filter)
+            data.filter_mut(filter);
+        }
+        if let Some(data) = self.brdc_navigation_mut() {
+            data.filter_mut(filter);
+        }
+        if let Some(data) = self.doris_mut() {
+            data.filter_mut(filter);
+        }
+        if let Some(data) = self.meteo_mut() {
+            data.filter_mut(filter);
+        }
+        if let Some(data) = self.clock_mut() {
+            data.filter_mut(filter);
+        }
+        if let Some(data) = self.ionex_mut() {
+            data.filter_mut(filter);
+        }
+        #[cfg(feature = "sp3")]
+        if let Some(data) = self.sp3_mut() {
+            data.filter_mut(filter);
         }
     }
 }

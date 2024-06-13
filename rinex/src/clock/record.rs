@@ -15,7 +15,9 @@ use crate::{
 };
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+use qc_traits::processing::{
+    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
+};
 
 /// [`ClockKey`] describes each [`ClockProfile`] at a specific [Epoch].
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
@@ -421,6 +423,17 @@ pub(crate) fn clock_mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e < *epoch),
             _ => {}, // FilterItem::
         },
+    }
+}
+
+#[cfg(feature = "processing")]
+pub(crate) fn clock_decim_mut(rec: &mut Record, f: &DecimationFilter) {
+    if f.item.is_some() {
+        todo!("targetted decimation not supported yet");
+    }
+    match f.filter {
+        DecimationFilterType::Modulo(r) => {},
+        DecimationFilterType::Interval(interval) => {},
     }
 }
 

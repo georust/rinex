@@ -12,7 +12,9 @@ use crate::observation::EpochFlag;
 use crate::observation::SNR;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+use qc_traits::processing::{
+    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
+};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -1072,6 +1074,40 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                 });
             },
             _ => {},
+        },
+    }
+}
+
+#[cfg(feature = "processing")]
+pub(crate) fn observation_decim_mut(rec: &mut Record, decim: &DecimationFilter) {
+    if decim.item.is_some() {
+        todo!("targetted decimation not supported yet");
+    }
+    match decim.filter {
+        DecimationFilterType::Modulo(r) => {
+            let mut i = 0;
+            rec.retain(|_, _| {
+                let retained = (i % r) == 0;
+                i += 1;
+                retained
+            });
+        },
+        DecimationFilterType::Interval(interval) => {
+            let mut last_retained = Option::<Epoch>::None;
+            rec.retain(|(e, _), _| {
+                if let Some(last) = last_retained {
+                    let dt = *e - last;
+                    if dt >= interval {
+                        last_retained = Some(*e);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    last_retained = Some(*e);
+                    true // always retain 1st epoch
+                }
+            });
         },
     }
 }

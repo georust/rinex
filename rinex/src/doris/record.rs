@@ -12,7 +12,9 @@ use crate::{
 };
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+use qc_traits::processing::{
+    Decimate, DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -175,6 +177,7 @@ pub(crate) fn parse_epoch(
     Ok(((epoch, flag), buffer))
 }
 
+#[cfg(feature = "processing")]
 pub(crate) fn doris_mask_mut(rec: &mut Record, mask: &MaskFilter) {
     match mask.operand {
         MaskOperand::Equals => match &mask.item {
@@ -204,6 +207,40 @@ pub(crate) fn doris_mask_mut(rec: &mut Record, mask: &MaskFilter) {
             _ => {}, //TODO: some other types could apply, like SNR..
         },
         _ => {},
+    }
+}
+
+#[cfg(feature = "processing")]
+pub(crate) fn doris_decim_mut(rec: &mut Record, f: &DecimationFilter) {
+    if f.item.is_some() {
+        todo!("targetted decimation not supported yet");
+    }
+    match f.filter {
+        DecimationFilterType::Modulo(r) => {
+            let mut i = 0;
+            rec.retain(|_, _| {
+                let retained = (i % r) == 0;
+                i += 1;
+                retained
+            });
+        },
+        DecimationFilterType::Interval(interval) => {
+            let mut last_retained = Option::<Epoch>::None;
+            rec.retain(|(e, _), _| {
+                if let Some(last) = last_retained {
+                    let dt = *e - last;
+                    if dt >= interval {
+                        last_retained = Some(*e);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    last_retained = Some(*e);
+                    true // always retain 1st epoch
+                }
+            });
+        },
     }
 }
 

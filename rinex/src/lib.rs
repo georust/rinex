@@ -105,12 +105,16 @@ pub mod prod {
 }
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{MaskFilter, Masking, Preprocessing};
+use qc_traits::processing::{Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing};
 
 #[cfg(feature = "processing")]
 use crate::{
-    clock::record::clock_mask_mut, doris::record::doris_mask_mut, meteo::record::meteo_mask_mut,
-    navigation::record::navigation_mask_mut, observation::record::observation_mask_mut,
+    clock::record::{clock_decim_mut, clock_mask_mut},
+    doris::record::{doris_decim_mut, doris_mask_mut},
+    ionex::record::{ionex_decim_mut, ionex_mask_mut},
+    meteo::record::{meteo_decim_mut, meteo_mask_mut},
+    navigation::record::{navigation_decim_mut, navigation_mask_mut},
+    observation::record::{observation_decim_mut, observation_mask_mut},
 };
 
 use carrier::Carrier;
@@ -3091,10 +3095,34 @@ impl Masking for Rinex {
             meteo_mask_mut(rec, f)
         } else if let Some(rec) = self.record.as_mut_doris() {
             doris_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_ionex() {
+            ionex_mask_mut(rec, f)
         }
     }
 }
 
+#[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+impl Decimate for Rinex {
+    fn decimate(&self, f: &DecimationFilter) -> Self {
+        let mut s = self.clone();
+        s.decimate_mut(f);
+        s
+    }
+    fn decimate_mut(&mut self, f: &DecimationFilter) {
+        if let Some(rec) = self.record.as_mut_obs() {
+            observation_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_nav() {
+            navigation_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_clock() {
+            clock_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_meteo() {
+            meteo_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_doris() {
+            doris_decim_mut(rec, f)
+        }
+    }
+}
 #[cfg(feature = "obs")]
 use observation::Dcb;
 

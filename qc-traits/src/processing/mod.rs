@@ -7,9 +7,12 @@ pub use item::{FilterItem, ItemError};
 mod mask;
 pub use mask::{Error as MaskError, MaskFilter, MaskOperand, Masking};
 
+mod decim;
+pub use decim::{Decimate, DecimationFilter, DecimationFilterType, Error as DecimationError};
+
 /// Preprocessing Trait is usually implemented by GNSS data
 /// to preprocess prior further analysis.
-pub trait Preprocessing: Masking {
+pub trait Preprocessing: Masking + Decimate {
     /// Apply [Filter] algorithm on immutable dataset.
     fn filter(&self, filter: &Filter) -> Self
     where
@@ -17,12 +20,14 @@ pub trait Preprocessing: Masking {
     {
         match filter {
             Filter::Mask(f) => self.mask(f),
+            Filter::Decimation(f) => self.decimate(f),
         }
     }
     /// Apply [Filter] algorithm on mutable dataset.
     fn filter_mut(&mut self, filter: &Filter) {
         match filter {
             Filter::Mask(f) => self.mask_mut(f),
+            Filter::Decimation(f) => self.decimate_mut(f),
         }
     }
 }
@@ -43,12 +48,10 @@ pub enum Error {
     UnknownFilterType(String),
     #[error("invalid mask filter")]
     MaskFilterParsing(#[from] MaskError),
-    // #[error("invalid decimation filter")]
-    // DecimationFilterParsing(#[from] decim::Error),
-    // #[error("invalid smoothing filter")]
-    // SmoothingFilterParsing(#[from] smoothing::Error),
     #[error("invalid filter item")]
     FilterItemError(#[from] ItemError),
+    #[error("invalid decimation filter")]
+    DecimationFilterParsing(#[from] DecimationError),
 }
 
 /// Preprocessing filters, to preprocess RINEX data prior further analysis.
@@ -58,10 +61,8 @@ pub enum Error {
 pub enum Filter {
     /// Mask filter, to focus on specific data subsets
     Mask(MaskFilter),
-    // /// Smoothing filters, used to smooth a data subset
-    // Smoothing(SmoothingFilter),
-    // /// Decimation filter, filters to reduce sample rate
-    // Decimation(DecimationFilter),
+    /// Decimation filter, filters to reduce sample rate
+    Decimation(DecimationFilter),
     // /// Interpolation filter is work in progress and cannot be used at the moment
     // Interp(InterpFilter),
 }
@@ -77,21 +78,16 @@ impl std::ops::Not for Filter {
     fn not(self) -> Self {
         match self {
             Self::Mask(f) => Self::Mask(!f),
+            _ => self.clone(), // does not apply
         }
     }
 }
 
-// impl From<DecimationFilter> for Filter {
-//     fn from(decim: decim::DecimationFilter) -> Self {
-//         Self::Decimation(decim)
-//     }
-// }
-//
-// impl From<SmoothingFilter> for Filter {
-//     fn from(smoothing: SmoothingFilter) -> Self {
-//         Self::Smoothing(smoothing)
-//     }
-// }
+impl From<DecimationFilter> for Filter {
+    fn from(decim: decim::DecimationFilter) -> Self {
+        Self::Decimation(decim)
+    }
+}
 
 impl std::str::FromStr for Filter {
     type Err = Error;
@@ -99,20 +95,12 @@ impl std::str::FromStr for Filter {
         let items: Vec<&str> = content.split(':').collect();
 
         let identifier = items[0].trim();
-        //if identifier.eq("decim") {
-        //    let offset = 6; //"decim:"
-        //    Ok(Self::Decimation(DecimationFilter::from_str(
-        //        content[offset..].trim(),
-        //    )?))
-        //} else if identifier.eq("smooth") {
-        //    let offset = 7; //"smooth:"
-        //    Ok(Self::Smoothing(SmoothingFilter::from_str(
-        //        content[offset..].trim(),
-        //    )?))
-        //} else if identifier.eq("interp") {
-        //    todo!("InterpolationFilter::from_str()");
-        //} else
-        if identifier.eq("mask") {
+        if identifier.eq("decim") {
+            let offset = 6; //"decim:"
+            Ok(Self::Decimation(DecimationFilter::from_str(
+                content[offset..].trim(),
+            )?))
+        } else if identifier.eq("mask") {
             let offset = 5; //"mask:"
             Ok(Self::Mask(MaskFilter::from_str(content[offset..].trim())?))
         } else {
