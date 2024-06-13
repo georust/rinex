@@ -315,10 +315,7 @@ Otherwise it gets automatically picked up."))
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
         match self.matches.subcommand() {
-            Some(("filegen", _))
-            | Some(("merge", _))
-            | Some(("split", _))
-            | Some(("tbin", _))
+            Some(("filegen", _)) | Some(("merge", _)) | Some(("split", _)) | Some(("tbin", _))
             | Some(("diff", _)) => true,
             _ => false,
         }

@@ -111,6 +111,7 @@ use qc_traits::processing::{Decimate, DecimationFilter, MaskFilter, Masking, Pre
 use crate::{
     clock::record::{clock_decim_mut, clock_mask_mut},
     doris::record::{doris_decim_mut, doris_mask_mut},
+    header::header_mask_mut,
     ionex::record::{ionex_decim_mut, ionex_mask_mut},
     meteo::record::{meteo_decim_mut, meteo_mask_mut},
     navigation::record::{navigation_decim_mut, navigation_mask_mut},
@@ -3098,6 +3099,7 @@ impl Masking for Rinex {
         } else if let Some(rec) = self.record.as_mut_ionex() {
             ionex_mask_mut(rec, f)
         }
+        header_mask_mut(&mut self.header, f);
     }
 }
 

@@ -15,6 +15,15 @@ use crate::Bibliography;
 
 pub use record::{LliFlags, ObservationData, Record};
 
+#[cfg(feature = "processing")]
+use crate::prelude::TimeScale;
+
+#[cfg(feature = "processing")]
+use itertools::Itertools;
+
+#[cfg(feature = "processing")]
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+
 macro_rules! fmt_month {
     ($m: expr) => {
         match $m {
@@ -121,6 +130,17 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
+    /// Timescale helper
+    #[cfg(feature = "processing")]
+    fn timescale(&self) -> TimeScale {
+        match self.time_of_first_obs {
+            Some(ts) => ts.time_scale,
+            None => match self.time_of_last_obs {
+                Some(ts) => ts.time_scale,
+                None => TimeScale::GPST,
+            },
+        }
+    }
     /// Add TIME OF FIRST OBS
     pub(crate) fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
@@ -141,6 +161,101 @@ impl HeaderFields {
     /// and given observation. Returns 1.0 by default, so it always applies
     pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
         self.scaling.get(&(c, observable))
+    }
+    /// Modifies in place Self, when applying preprocessing filter ops
+    #[cfg(feature = "processing")]
+    pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
+        match f.operand {
+            MaskOperand::Equals => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    self.time_of_first_obs = Some(epoch.to_time_scale(ts));
+                    self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                },
+                FilterItem::SvItem(svs) => {
+                    let constells = svs
+                        .iter()
+                        .map(|sv| sv.constellation)
+                        .unique()
+                        .collect::<Vec<_>>();
+                    self.codes.retain(|c, _| constells.contains(&c));
+                    self.scaling.retain(|(c, _), _| constells.contains(&c));
+                },
+                FilterItem::ComplexItem(filter) => {},
+                FilterItem::ConstellationItem(constells) => {
+                    self.codes.retain(|c, _| constells.contains(&c));
+                    self.scaling.retain(|(c, _), _| constells.contains(&c));
+                },
+                _ => {},
+            },
+            MaskOperand::NotEquals => match &f.item {
+                FilterItem::SvItem(svs) => {
+                    let constells = svs
+                        .iter()
+                        .map(|sv| sv.constellation)
+                        .unique()
+                        .collect::<Vec<_>>();
+                    self.codes.retain(|c, _| !constells.contains(&c));
+                    self.scaling.retain(|(c, _), _| !constells.contains(&c));
+                },
+                FilterItem::ConstellationItem(constells) => {
+                    self.codes.retain(|c, _| !constells.contains(&c));
+                    self.scaling.retain(|(c, _), _| !constells.contains(&c));
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterThan => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    if let Some(ts) = self.time_of_first_obs {
+                        if ts < *epoch {
+                            self.time_of_first_obs = Some(*epoch);
+                        }
+                    } else {
+                        self.time_of_first_obs = Some(*epoch);
+                    }
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterEquals => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    if let Some(t_first) = self.time_of_first_obs {
+                        if t_first < *epoch {
+                            self.time_of_first_obs = Some(epoch.to_time_scale(ts));
+                        }
+                    } else {
+                        self.time_of_first_obs = Some(epoch.to_time_scale(ts));
+                    }
+                },
+                _ => {},
+            },
+            MaskOperand::LowerThan => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    if let Some(t_last) = self.time_of_last_obs {
+                        if t_last > *epoch {
+                            self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                        }
+                    } else {
+                        self.time_of_last_obs = Some(*epoch);
+                    }
+                },
+                _ => {},
+            },
+            MaskOperand::LowerEquals => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    if let Some(t_last) = self.time_of_last_obs {
+                        if t_last > *epoch {
+                            self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                        }
+                    } else {
+                        self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                    }
+                },
+                _ => {},
+            },
+        }
     }
 }
 

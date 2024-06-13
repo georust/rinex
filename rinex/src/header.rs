@@ -40,6 +40,12 @@ use gnss::constellation::ParsingError as ConstellationParsingError;
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
+#[cfg(feature = "qc")]
+use qc_traits::html::{box_html, *};
+
+#[cfg(feature = "processing")]
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand, Masking};
+
 /// DCB compensation description
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -2196,9 +2202,6 @@ impl Merge for Header {
 }
 
 #[cfg(feature = "qc")]
-use qc_traits::html::{box_html, *};
-
-#[cfg(feature = "qc")]
 impl RenderHtml for Header {
     fn to_html(&self) -> String {
         format!(
@@ -2252,6 +2255,24 @@ impl RenderHtml for Header {
                 }
             }
         }
+    }
+}
+
+#[cfg(feature = "processing")]
+fn header_mask_eq(hd: &mut Header, item: &FilterItem) {}
+
+#[cfg(feature = "processing")]
+pub(crate) fn header_mask_mut(hd: &mut Header, f: &MaskFilter) {
+    match f.operand {
+        MaskOperand::Equals => header_mask_eq(hd, &f.item),
+        MaskOperand::NotEquals => {},
+        MaskOperand::GreaterThan => {},
+        MaskOperand::GreaterEquals => {},
+        MaskOperand::LowerThan => {},
+        MaskOperand::LowerEquals => {},
+    }
+    if let Some(obs) = &mut hd.obs {
+        obs.mask_mut(f);
     }
 }
 
