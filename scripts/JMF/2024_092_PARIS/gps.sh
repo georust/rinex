@@ -9,6 +9,6 @@ CLK=test_resources/CLK/V3/GFZ0OPSRAP_20240920000_01D_05M_ORB.SP3.gz
 NAV=test_resources/NAV/V3/HERT00GBR_R_20240920000_01D_GN.rnx.gz
 
 ./target/release/rinex-cli \
-    -f $OBS -f $NAV -f $SP3 -f $CLK \
     -P GPS \
-    -p -c $CONF | tee logs/jmf-24092+gps.txt
+    -f $OBS -f $NAV -f $SP3 -f $CLK \
+    ppp -c $CONF | tee logs/jmf-24092+gps.txt
