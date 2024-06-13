@@ -791,8 +791,17 @@ impl Masking for SP3 {
                     self.data.retain(|k, _| svs.contains(&k.sv));
                 },
                 FilterItem::ConstellationItem(constells) => {
-                    self.data
-                        .retain(|k, _| constells.contains(&k.sv.constellation));
+                    let mut broad_sbas_filter = false;
+                    for c in constells {
+                        broad_sbas_filter |= *c == Constellation::SBAS;
+                    }
+                    self.data.retain(|k, _| {
+                        if broad_sbas_filter {
+                            k.sv.constellation.is_sbas() || constells.contains(&k.sv.constellation)
+                        } else {
+                            constells.contains(&k.sv.constellation)
+                        }
+                    });
                 },
                 _ => {}, // does not apply
             },
@@ -825,9 +834,6 @@ impl Masking for SP3 {
                         }
                         retain
                     });
-                },
-                FilterItem::SvItem(svs) => {
-                    self.data.retain(|k, _| !svs.contains(&k.sv));
                 },
                 _ => {}, // does not apply
             },

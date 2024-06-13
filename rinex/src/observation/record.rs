@@ -901,6 +901,28 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                     !svs.is_empty()
                 });
             },
+            FilterItem::ComplexItem(filter) => {
+                // try to interprate as [Observable]
+                let observables = filter
+                    .iter()
+                    .filter_map(|f| {
+                        if let Ok(ob) = Observable::from_str(f) {
+                            Some(ob)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if observables.len() > 0 {
+                    rec.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|ob, _| observables.contains(&ob));
+                            !obs.is_empty()
+                        });
+                        !svs.is_empty()
+                    });
+                }
+            },
             _ => {},
         },
         MaskOperand::NotEquals => match &mask.item {
@@ -921,13 +943,26 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                 });
             },
             FilterItem::ComplexItem(filter) => {
-                //rec.retain(|_, (_, svs)| {
-                //    svs.retain(|_, obs| {
-                //        obs.retain(|code, _| !filter.contains(code));
-                //        !obs.is_empty()
-                //    });
-                //    !svs.is_empty()
-                //});
+                // try to interprate as [Observable]
+                let observables = filter
+                    .iter()
+                    .filter_map(|f| {
+                        if let Ok(ob) = Observable::from_str(f) {
+                            Some(ob)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if observables.len() > 0 {
+                    rec.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|ob, _| !observables.contains(&ob));
+                            !obs.is_empty()
+                        });
+                        !svs.is_empty()
+                    });
+                }
             },
             _ => {},
         },

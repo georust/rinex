@@ -5,18 +5,22 @@ use rinex::prelude::Duration;
 pub fn subcommand() -> Command {
     Command::new("ppp")
         .arg_required_else_help(false)
-        .about("Precise Positioning opmode.
-Use this mode to resolve Position Velocity and Time (PVT) solutions from one GNSS context. See -p --help.")
+        .about("Post Processed Positioning.
+Use this mode to perform precise position surveying and resolve PVT solutions
+fron one GNSS context. See --help")
+        .long_about("Post Processed Positioning (ppp) opmode resolves
+PVT solutions from RINEX data sampled by a single receiver.
+Use --cggtts option to operate in TimeOnly and convert the solutions to CGGTTS solutions")
         .arg(Arg::new("cfg")
             .short('c')
             .long("cfg")
             .value_name("FILE")
             .required(false)
             .action(ArgAction::Append)
-            .help("Pass a Position Solver configuration file (JSON). See --help.")
+            .help("Position Solver configuration file (JSON). See --help.")
             .long_help("
 Read the [https://github.com/georust/rinex/wiki/Positioning] tutorial.
-Use [https://github.com/georust/rinex/rinex-cli/config.rtk] as a starting point.
+Use [https://github.com/georust/rinex/config] as a starting point.
 [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/struct.Config.html] is the structure to represent in JSON.
 "))
         .arg(Arg::new("gpx")

@@ -13,7 +13,7 @@ use crate::{
 
 #[cfg(feature = "processing")]
 use qc_traits::processing::{
-    Decimate, DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
+    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
 };
 
 #[cfg(feature = "serde")]

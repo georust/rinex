@@ -92,6 +92,9 @@ impl Cli {
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
                     .about("RINEX post processing")
+                    .long_about("RINEX-Cli is the command line interface
+to operate the RINEX/SP3/RTK toolkit, until a GUI is made available.
+Use it to analyze data, perform file operations and resolve navigation solutions.")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
                     .arg(Arg::new("filepath")
@@ -196,6 +199,7 @@ If none are defined, we will then try to create a local directory named \"WORKSP
             .arg(Arg::new("preprocessing")
                 .short('P')
                 .num_args(1..)
+                .value_delimiter(';')
                 .action(ArgAction::Append)
                 .help("Filter designer. Refer to []."))
             .arg(Arg::new("lli-mask")

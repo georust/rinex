@@ -432,8 +432,31 @@ pub(crate) fn clock_decim_mut(rec: &mut Record, f: &DecimationFilter) {
         todo!("targetted decimation not supported yet");
     }
     match f.filter {
-        DecimationFilterType::Modulo(r) => {},
-        DecimationFilterType::Interval(interval) => {},
+        DecimationFilterType::Modulo(r) => {
+            let mut i = 0;
+            rec.retain(|_, _| {
+                let retained = (i % r) == 0;
+                i += 1;
+                retained
+            });
+        },
+        DecimationFilterType::Interval(interval) => {
+            let mut last_retained = Option::<Epoch>::None;
+            rec.retain(|e, _| {
+                if let Some(last) = last_retained {
+                    let dt = *e - last;
+                    if dt >= interval {
+                        last_retained = Some(*e);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    last_retained = Some(*e);
+                    true // always retain 1st epoch
+                }
+            });
+        },
     }
 }
 

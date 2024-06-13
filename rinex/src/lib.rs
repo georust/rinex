@@ -3120,6 +3120,8 @@ impl Decimate for Rinex {
             meteo_decim_mut(rec, f)
         } else if let Some(rec) = self.record.as_mut_doris() {
             doris_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_ionex() {
+            ionex_decim_mut(rec, f)
         }
     }
 }

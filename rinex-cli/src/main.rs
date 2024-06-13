@@ -240,12 +240,14 @@ pub fn main() -> Result<(), Error> {
         Some(("diff", submatches)) => {
             fops::diff(&ctx, submatches)?;
         },
-        _ => error!("no opmode specified!"),
+        Some(("positioning", submatches)) => {
+            panic!("not supported");
+        },
+        _ => panic!("no opmode specified!"),
     }
 
     if !ctx.quiet {
         ctx.workspace.open_with_web_browser();
     }
-
     Ok(())
 } // main
