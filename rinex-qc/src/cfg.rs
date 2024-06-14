@@ -18,13 +18,19 @@ pub enum Error {
     InvalidReportType,
 }
 
+use std::fmt::Display;
+use std::str::FromStr;
+
 /// [ReportType]
-pub enum ReportType {
+#[derive(Default, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum QcReportType {
     /// In [Summary] mode, only the summary section
     /// of the report is to be generated. It is the lightest
     /// form we can generate.
     Summary,
-    /// In [Light] mode, we have one analysis per input [ProductType]
+    /// In [Light] mode, we have one analysis per input [ProductType].
+    #[Default]
     Light,
     /// In [Full] mode, we generate the [CombinedReport] as well,
     /// which results from the consideration of all input [ProductType]s
@@ -32,7 +38,7 @@ pub enum ReportType {
     Full,
 }
 
-impl std::str::FromStr for ReportType {
+impl FromStr for ReportType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().lowercase() {
@@ -40,6 +46,16 @@ impl std::str::FromStr for ReportType {
             "light" => Ok(Self::Light),
             "full" => Ok(Self::Full),
             _ => Err(Error::InvalidReportType),
+        }
+    }
+}
+
+impl Display for ReportType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            QcClassification::GNSS => f.write_str("GNSS Constellations"),
+            QcClassification::SV => f.write_str("Satellite Vehicles"),
+            QcClassification::Physics => f.write_str("Physics"),
         }
     }
 }
@@ -68,105 +84,26 @@ pub struct ProcessingOpts {
     pub elev_mask_increment: f64,
 }
 
-impl Default for ProcessingOpts {
-    fn default() -> Self {
-        Self {
-            cs: CsStrategy::default(),
-            iono_rate_tolerance: 400.0E-2_f64,
-            iono_rate_tolerance_dt: Duration::from_seconds(60.0_f64),
-            clock_drift_window: Duration::from_seconds(600.0_f64),
-            elev_mask_increment: 10.0_f64,
-        }
-    }
-}
-
-/// Qc Report classification method
-#[derive(Default, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-/// Classify the QC report by desired data set
-pub enum QcClassification {
-    /// Report per GNSS system
-    #[default]
-    GNSS,
-    /// Report per SV
-    SV,
-    /// Report per Physics (Observable, Orbit..)
-    Physics,
-}
-
-impl std::fmt::Display for QcClassification {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            QcClassification::GNSS => f.write_str("GNSS Constellations"),
-            QcClassification::SV => f.write_str("Satellite Vehicles"),
-            QcClassification::Physics => f.write_str("Physics"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-pub struct QcOpts {
+pub struct QcConfig {
     #[cfg_attr(feature = "serde", serde(default))]
-    #[cfg_attr(docs, doc(cfg(feature = "processing")))]
-    pub classification: QcClassification,
-    /// Minimum SNR level to consider in our analysis.
-    /// For example, this is used when determining whether
-    /// an epoch is "complete" or not.
+    pub report: QcReportType,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub min_snr_db: f64,
-    /// Elevation mask
-    pub elev_mask: Option<f64>,
-    /// Min. duration tolerated, so it is not reported as a data gap.
-    /// If None: dominant sample rate is prefered.
-    pub gap_tolerance: Option<Duration>,
-    /// Manually defined Ground position (ECEF)
-    pub ground_position: Option<GroundPosition>,
-    /// Window duration to be used, during RX clock drift analysis
-    #[cfg_attr(feature = "serde", serde(default = "default_drift_window"))]
-    pub clock_drift_window: Duration,
+    pub manual_ecef_reference: Option<(f64, f64, f64)>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub manual_geo_reference: Option<(f64, f64, f64)>,
 }
 
 impl QcOpts {
-    pub fn with_classification(&self, classification: QcClassification) -> Self {
-        let mut s = self.clone();
-        s.classification = classification;
-        s
+    pub fn set_report_type(&mut self, report_type: QcReportType) {
+        self.report = report_type;
     }
-
-    pub fn with_min_snr(&self, snr_db: f64) -> Self {
-        let mut s = self.clone();
-        s.min_snr_db = snr_db;
-        s
+    pub fn set_geo_reference(&self, geo: (f64, f64, f64)) -> Self {
+        self.manual_geo_reference = Some(geo);
     }
-
-    pub fn with_ground_position_ecef(&self, pos: (f64, f64, f64)) -> Self {
-        let mut s = self.clone();
-        s.ground_position = Some(wgs84!(pos.0, pos.1, pos.2));
-        s
-    }
-
-    pub fn with_ground_position_geo(&self, pos: (f64, f64, f64)) -> Self {
-        let mut s = self.clone();
-        s.ground_position = Some(geodetic!(pos.0, pos.1, pos.2));
-        s
-    }
-}
-
-fn default_drift_window() -> Duration {
-    Duration::from_seconds(3600.0)
-}
-
-impl Default for QcOpts {
-    fn default() -> Self {
-        Self {
-            gap_tolerance: None,
-            ground_position: None,
-            min_snr_db: 20.0, // dB
-            elev_mask: None,
-            classification: QcClassification::default(),
-            clock_drift_window: default_drift_window(),
-        }
+    pub fn set_ecef_reference(&self, ecef: (f64, f64, f64)) -> Self {
+        self.manual_ecef_reference = Some(ecef);
     }
 }
 

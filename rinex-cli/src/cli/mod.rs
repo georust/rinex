@@ -34,10 +34,10 @@ impl Default for Cli {
 
 /// Context defined by User.
 pub struct Context {
-    /// Data context defined by user
-    pub data: QcContext,
     /// Quiet option
     pub quiet: bool,
+    /// Data context defined by user
+    pub data: QcContext,
     /// Context name is derived from the primary file loaded in Self,
     /// and mostly used in output products generation.
     pub name: String,

@@ -5,8 +5,8 @@
 extern crate gnss_rs as gnss;
 extern crate rinex_qc_traits as qc_traits;
 
-mod opts;
-pub use opts::{QcClassification, QcOpts};
+mod cfg;
+pub use cfg::{QcConfig};
 
 use qc_traits::html::*;
 

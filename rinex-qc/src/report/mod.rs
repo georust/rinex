@@ -13,11 +13,26 @@ use combined::CombinedReport;
 mod summary;
 use summary::QcSummary;
 
+mod rinex;
+use rinex::RINEXReport;
+
+#[cfg(feature "sp3")]
+mod sp3;
+use sp3::SP3Report;
+
 use crate::cfg::Mode;
 
 // rinex data analysis
 //mod rinex;
 //use rinex::ObservationAnalysis;
+
+enum ProductReport {
+    /// RINEX products report
+    RINEX(RINEXReport),
+    #[cfg(feature = "sp3")]
+    /// SP3 product report
+    SP3(SP3Report),
+}
 
 /// [QcReport] is a generic structure to report complex analysis results
 pub struct QcReport {
