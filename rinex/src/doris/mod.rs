@@ -91,12 +91,30 @@ impl HeaderFields {
     }
     pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
         match f.operand {
-            MaskOperand::Equals => match &f.item {},
-            MaskOperand::NotEquals => match &f.item {},
-            MaskOperand::GreaterThan => match &f.item {},
-            MaskOperand::GreaterEquals => match &f.item {},
-            MaskOperand::LowerThan => match &f.item {},
-            MaskOperand::LowerEquals => match &f.item {},
+            MaskOperand::Equals => match &f.item {
+                FilterItem::EpochItem(epoch) => {},
+                _ => {},
+            },
+            MaskOperand::NotEquals => match &f.item {
+                FilterItem::EpochItem(epoch) => {},
+                _ => {},
+            },
+            MaskOperand::GreaterThan => match &f.item {
+                FilterItem::EpochItem(epoch) => {},
+                _ => {},
+            },
+            MaskOperand::GreaterEquals => match &f.item {
+                FilterItem::EpochItem(epoch) => {},
+                _ => {},
+            },
+            MaskOperand::LowerThan => match &f.item {
+                FilterItem::EpochItem(epoch) => {},
+                _ => {},
+            },
+            MaskOperand::LowerEquals => match &f.item {
+                FilterItem::EpochItem(epoch) => {},
+                _ => {},
+            },
         }
     }
 }
