@@ -2,8 +2,8 @@
 
 Thank you for using our toolbox and trying to make it better 🛰️ 🌍
 
-If you are reporting an error related to one of the applications, [follow these guidelines](#applications-error-reporting).  
-Otherwise, [use those](#core-library-error-reporting) to report core library issues
+When reporting applications issues, please follow the first paragraph.  
+When reporting errors in the core libraries, refer to the second paragraph.
 
 ## Applications error reporting
 
