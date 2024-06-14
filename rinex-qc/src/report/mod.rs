@@ -2,13 +2,11 @@
 use crate::{ProductType, QcContext, QcOpts};
 use qc_traits::html::*;
 use std::collections::HashMap;
+use thiserror::Error;
 
 // shared analysis, that may apply to several products
 mod shared;
 use shared::SamplingReport;
-
-mod combined;
-use combined::CombinedReport;
 
 mod summary;
 use summary::QcSummary;
@@ -16,11 +14,18 @@ use summary::QcSummary;
 mod rinex;
 use rinex::RINEXReport;
 
+mod navi;
+
 #[cfg(feature "sp3")]
 mod sp3;
 use sp3::SP3Report;
 
 use crate::cfg::Mode;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    NonSupportedRINEX,
+}
 
 // rinex data analysis
 //mod rinex;
@@ -34,6 +39,22 @@ enum ProductReport {
     SP3(SP3Report),
 }
 
+impl ProductReport {
+    pub fn as_rinex(&self) -> Option<RINEXReport> {
+        match self {
+            Self::RINEX(report) => Some(report),
+            _ => None,
+        }
+    }
+    #[cfg(feature = "sp3")]
+    pub fn as_sp3(&self) -> Option<SP3Report> {
+        match self {
+            Self::SP3(report) => Some(report),
+            _ => None,
+        }
+    }
+}
+
 /// [QcReport] is a generic structure to report complex analysis results
 pub struct QcReport {
     /// Name of this report.
@@ -41,13 +62,11 @@ pub struct QcReport {
     name: String,
     /// Report Summary (always present)
     summary: QcSummary,
+    /// NAVI QC only available on full + compatible contexts
+    navi: Option<NAVIReport>,
     /// In depth analysis per input product.
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
-    /// Combined analysis, results from the combination of all input products.
-    /// It is highly dependent on the provided combination.
-    /// This only exists when [ReportType::Full] is set.
-    combined: Option<CombinedReport>,
 }
 
 pub struct HtmlContent {
@@ -57,66 +76,6 @@ pub struct HtmlContent {
     body: Box<dyn RenderHtml>,
     /// Footnote (bottom) section
     footnote: Box<dyn RenderHtml>,
-}
-
-impl QcReport {
-    /// GeoRust Logo (Url)
-    /// RINEX Wiki Pages (Url)
-    fn wiki_url() -> &'static str {
-        "https://github.com/georust/rinex/wiki"
-    }
-    /// Github (Online sources)
-    fn github_repo_url() -> &'static str {
-        "https://github.com/georust/rinex"
-    }
-    fn github_issue_url() -> &'static str {
-        "https://github.com/georust/rinex/issues"
-    }
-    //// Builds a new tab for RINEX type dependent data
-    //fn rinex_type_dependent_tab(product: ProductType, rinex: &Rinex) -> HtmlContent {
-    //    match product {
-    //        ProductType::Observation => {
-    //
-    //        },
-    //        product => todo!("non supported product type: {}", product),
-    //    }
-    //}
-    /// Builds a new GNSS report, ready to be rendered
-    pub fn new(context: &QcContext, opts: QcOpts) -> Self {
-        Self {
-            title: context.name(),
-            summary: QcSummary::new(&context),
-            // Build the report, which comprises
-            //   1. one general (high level) context tab
-            //   2. one tab per product type (which can have sub tabs itself)
-            //   3. one complex tab for "shared" analysis
-            items: {
-                let mut items = HashMap::<String, SamplingReport>::new();
-                // one tab per RINEX product
-                for product in [
-                    ProductType::Observation,
-                    ProductType::DORIS,
-                    ProductType::MeteoObservation,
-                    ProductType::BroadcastNavigation,
-                    ProductType::HighPrecisionClock,
-                    ProductType::IONEX,
-                    ProductType::ANTEX,
-                ] {
-                    if let Some(rinex) = context.rinex(product) {
-                        let tab = SamplingReport::from_rinex(rinex);
-                        items.insert(product.to_string(), tab);
-                    }
-                }
-                // one tab for SP3 when supported
-                #[cfg(feature = "sp3")]
-                if let Some(sp3) = context.sp3() {
-                    let tab = SamplingReport::from_sp3(sp3);
-                    items.insert(ProductType::HighPrecisionOrbit.to_string(), tab);
-                }
-                items
-            },
-        }
-    }
 }
 
 impl RenderHtml for HtmlContent {
@@ -145,6 +104,57 @@ impl RenderHtml for HtmlContent {
                     }
                 }
             }
+        }
+    }
+}
+
+impl QcReport {
+    /// GeoRust Logo (Url)
+    /// RINEX Wiki Pages (Url)
+    fn wiki_url() -> &'static str {
+        "https://github.com/georust/rinex/wiki"
+    }
+    /// Github (Online sources)
+    fn github_repo_url() -> &'static str {
+        "https://github.com/georust/rinex"
+    }
+    fn github_issue_url() -> &'static str {
+        "https://github.com/georust/rinex/issues"
+    }
+    /// Builds a new GNSS report, ready to be rendered
+    pub fn new(context: &QcContext, opts: QcOpts) -> Self {
+        Self {
+            title: context.name(),
+            summary: QcSummary::new(&context),
+            // Build the report, which comprises
+            //   1. one general (high level) context tab
+            //   2. one tab per product type (which can have sub tabs itself)
+            //   3. one complex tab for "shared" analysis
+            products: {
+                let mut items = HashMap::<ProductType, ProductReport>::new();
+                // one tab per RINEX product
+                for product in [
+                    ProductType::Observation,
+                    ProductType::DORIS,
+                    ProductType::MeteoObservation,
+                    ProductType::BroadcastNavigation,
+                    ProductType::HighPrecisionClock,
+                    ProductType::IONEX,
+                    ProductType::ANTEX,
+                ] {
+                    if let Some(rinex) = context.rinex(product) {
+                        if let Ok(report) = RINEXReport::new(rinex) {
+                            items.insert(product, report);
+                        }
+                    }
+                }
+                // one tab for SP3 when supported
+                #[cfg(feature = "sp3")]
+                if let Some(sp3) = context.sp3() {
+                    items.insert(ProductType::HighPrecisionOrbit, SP3Report::new(sp3));
+                }
+                items
+            },
         }
     }
 }
@@ -212,7 +222,18 @@ function tabClick(evt, animName) {
                     }
                 }
             }
-            div(id="content") {
+            div(id="summary") {
+                // Create summary tab
+                div(class="w3-sidebar w3-bar-block w3-black w3-card", style="width:200px") {
+                    button(class="w3-bar-item w3-button tabmenu", onclick=&format!("tabClick(event, '{}')", tab)) {
+                        : "Summary"
+                    }
+                }
+                div(id=tab, class="w3-container w3-animate-opacity w3-teal page", style="margin-left:200; display:none;") {
+                    : self.summary.to_inline_html()
+                }
+            }
+            div(id="products") {
                 // Create tabs
                 div(class="w3-sidebar w3-bar-block w3-black w3-card", style="width:200px") {
                     @ for tab in self.items.keys() {
@@ -224,8 +245,20 @@ function tabClick(evt, animName) {
                 // Tab content
                 @ for (index, (tab, item)) in self.items.iter().enumerate() {
                     div(id=tab, class="w3-container w3-animate-opacity w3-teal page", style="margin-left:200; display:none;") {
-                    //div(id=tab, class="w3-container w3-animate-opacity tab", style="margin-left:130p;") {
                         : item.to_inline_html()
+                    }
+                }
+            }
+            @ if let Some(navi) = self.navi {
+                div(id="navi") {
+                    // Create tab
+                    div(class="w3-sidebar w3-bar-block w3-black w3-card", style="width:200px") {
+                        button(class="w3-bar-item w3-button tabmenu", onclick=&format!("tabClick(event, '{}')", tab)) {
+                            : "NAVI"
+                        }
+                    }
+                    div(id=tab, class="w3-container w3-animate-opacity w3-teal page", style="margin-left:200; display:none;") {
+                        : self.navi.to_inline_html()
                     }
                 }
             }

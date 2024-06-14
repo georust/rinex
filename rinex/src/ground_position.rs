@@ -73,32 +73,74 @@ impl RenderHtml for GroundPosition {
         let ecef = (self.0, self.1, self.2);
         let geo = self.to_geodetic();
         box_html! {
-            tr {
-                th {
-                    : "ECEF (WGS84)"
+            table {
+                thread {
+                    tr {
+                        th {
+                            : "ECEF (WGS84)"
+                        }
+                    }
                 }
-                td {
-                    : format!("X: {:.6} m", ecef.0)
-                }
-                td {
-                    : format!("Y: {:.6} m", ecef.1)
-                }
-                td {
-                    : format!("Z: {:.6} m", ecef.2)
+                tbody {
+                    tr {
+                        th {
+                            : "X"
+                        }
+                        td {
+                            : format!("{:.6} m", ecef.0)
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Y"
+                        }
+                        td {
+                            : format!("{:.6} m", ecef.1)
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Z"
+                        }
+                        td {
+                            : format!("{:.6} m", ecef.2)
+                        }
+                    }
                 }
             }
-            tr {
-                th {
-                    : "GEO"
+            table {
+                thead {
+                    tr {
+                        th {
+                            : "GEO"
+                        }
+                    }
                 }
-                td {
-                    : format!("Lat.: {:.6}°", geo.0)
-                }
-                td {
-                    : format!("Lon.: {:.6}°", geo.1)
-                }
-                td {
-                    : format!("Alt.: {:.6} m", geo.2)
+                tbody {
+                    tr {
+                        th {
+                            : "Latitude"
+                        }
+                        td {
+                            : format!("{:.6}°", geo.0)
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Longitude"
+                        }
+                        td {
+                            : format!("{:.6}°", geo.1)
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Altitude"
+                        }
+                        td {
+                            : format!("{:.6}°", geo.2)
+                        }
+                    }
                 }
             }
         }

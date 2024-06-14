@@ -1,7 +1,7 @@
-use thiserror::Error;
 use qc_traits::html::*;
 use rinex::prelude::*;
 use rinex::{geodetic, wgs84};
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{
@@ -29,21 +29,18 @@ pub enum QcReportType {
     /// of the report is to be generated. It is the lightest
     /// form we can generate.
     Summary,
-    /// In [Light] mode, we have one analysis per input [ProductType].
-    #[Default]
-    Light,
     /// In [Full] mode, we generate the [CombinedReport] as well,
     /// which results from the consideration of all input [ProductType]s
     /// at the same time.
+    #[Default]
     Full,
 }
 
-impl FromStr for ReportType {
+impl FromStr for QcReportType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().lowercase() {
             "sum" | "summ" | "summary" => Ok(Self::Summary),
-            "light" => Ok(Self::Light),
             "full" => Ok(Self::Full),
             _ => Err(Error::InvalidReportType),
         }
@@ -53,35 +50,10 @@ impl FromStr for ReportType {
 impl Display for ReportType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            QcClassification::GNSS => f.write_str("GNSS Constellations"),
-            QcClassification::SV => f.write_str("Satellite Vehicles"),
-            QcClassification::Physics => f.write_str("Physics"),
+            Self::Full => f.write_str("Full"),
+            Self::Summary => f.write_str("Summary"),
         }
     }
-}
-
-#[derive(Default, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum CsStrategy {
-    /// Study CS events and report them
-    #[default]
-    Study,
-    /// Study CS events and repair them
-    StudyAndRepair,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Deserialize))]
-pub struct ProcessingOpts {
-    /// Cs analysis/reporting strategy
-    pub cs: CsStrategy,
-    /// Ionospheric variation tolerance
-    pub iono_rate_tolerance: f64,
-    pub iono_rate_tolerance_dt: Duration,
-    /// Clock Drift Moving average window slot
-    pub clock_drift_window: Duration,
-    /// Increment of the elelavtion mask
-    pub elev_mask_increment: f64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -90,130 +62,36 @@ pub struct QcConfig {
     #[cfg_attr(feature = "serde", serde(default))]
     pub report: QcReportType,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub manual_ecef_reference: Option<(f64, f64, f64)>,
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub manual_geo_reference: Option<(f64, f64, f64)>,
+    pub manual_reference: Option<GroundPosition>,
 }
 
-impl QcOpts {
+impl QcConfig {
     pub fn set_report_type(&mut self, report_type: QcReportType) {
         self.report = report_type;
     }
-    pub fn set_geo_reference(&self, geo: (f64, f64, f64)) -> Self {
-        self.manual_geo_reference = Some(geo);
-    }
-    pub fn set_ecef_reference(&self, ecef: (f64, f64, f64)) -> Self {
-        self.manual_ecef_reference = Some(ecef);
+    pub fn set_reference_position(&self, pos: GroundPosition) -> Self {
+        self.manual_reference = pos.clone();
     }
 }
 
-impl RenderHtml for QcOpts {
-    fn to_html(&self) -> String {
-        panic!("qcopts cannot be rendered on its own")
-    }
+impl RenderHtml for QcConfig {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
             tr {
-                th {
-                    : "Classification"
-                }
-                th {
-                    : format!("{}", self.classification)
-                }
-            }
-            tr {
-                th {
-                    : "Min. SNR"
+                td {
+                    : "Report"
                 }
                 td {
-                    : format!("{} dB", self.min_snr_db)
+                    : self.report
                 }
             }
-            tr {
-                th {
-                    : "Elevation mask"
-                }
-                @ if let Some(mask) = self.elev_mask {
+            @ if let Some(position) = self.manual_ecef_reference {
+                tr {
                     td {
-                        : format!("{} °", mask)
+                        : position.to_inline_html()
                     }
-                } else {
-                    td {
-                        : "None"
-                    }
-                }
-            }
-            tr {
-                th {
-                    : "Data gap"
-                }
-                @ if let Some(tol) = self.gap_tolerance {
-                    td {
-                        : format!("{} tolerance", tol)
-                    }
-                } else {
-                    td {
-                        : "No tolerance"
-                    }
-                }
-            }
-            tr {
-                th {
-                    : "Clock Drift Window"
-                }
-                td {
-                    : self.clock_drift_window.to_string()
                 }
             }
         }
-    }
-}
-
-#[cfg(feature = "serde")]
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn qc_opts_serdes() {
-        let content = r#"
-			{
-				"classification": "GNSS"
-			}"#;
-        let _opts: QcOpts = serde_json::from_str(content).unwrap();
-
-        let content = r#"
-			{
-				"classification": "SV"
-			}"#;
-        let _opts: QcOpts = serde_json::from_str(content).unwrap();
-
-        /*let content = r#"
-            {
-                "statistics": {
-                    "window": "10 seconds"
-                }
-            }"#;
-
-        let opts: QcOpts = serde_json::from_str(content).unwrap();
-        assert_eq!(opts.reporting, ReportingStrategy::PerSv);
-        assert_eq!(opts.statistics, Some(StatisticsOpts {
-            window: Slot::Duration(Duration::from_seconds(10.0)),
-        }));
-        assert!(opts.processing.is_none());
-
-        let content = r#"
-            {
-                "statistics": {
-                    "window": "10 %"
-                }
-            }"#;
-
-        let opts: QcOpts = serde_json::from_str(content).unwrap();
-        assert_eq!(opts.reporting, ReportingStrategy::PerSignal);
-        assert_eq!(opts.statistics, Some(StatisticsOpts {
-            window: Slot::Percentage(10.0_f64),
-        }));
-        assert!(opts.processing.is_none());
-        */
     }
 }

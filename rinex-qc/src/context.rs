@@ -408,6 +408,20 @@ impl QcContext {
         }
         Ok(())
     }
+    pub fn nav_compatible(&self) -> bool {
+        self.observation().is_some() && self.brdc_navigation().is_some()
+    }
+    #[cfg(feature = "sp3")]
+    pub fn ppp_compatible(&self) -> bool {
+        self.clock().is_some() || self.sp3_has_clock()
+    }
+    #[cfg(feature = "sp3")]
+    pub fn ppp_ultra_compatible(&self) -> bool {
+        if let Some(clk) = self.clock() {
+            if let Some(obs) = self.observation() {}
+        }
+        false
+    }
     /// Returns possible Reference position defined in this context.
     /// Usually the Receiver location in the laboratory.
     pub fn ground_position(&self) -> Option<GroundPosition> {

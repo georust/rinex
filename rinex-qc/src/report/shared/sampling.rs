@@ -35,7 +35,6 @@ impl SamplingReport {
             sample_rate: rinex.sample_rate(),
             dominant_sample_rate: rinex.dominant_sample_rate(),
             gaps: rinex.data_gaps(None).collect(),
-            // anomalies: rinex.epoch_anomalies().collect(),
         }
     }
     #[cfg(feature = "sp3")]
@@ -47,8 +46,7 @@ impl SamplingReport {
             first_epoch: t_start,
             duration: t_end - t_start,
             sample_rate: Some(sp3.epoch_interval),
-            dominant_sample_rate: Some(sp3.epoch_interval), //TODO?
-            gaps: vec![],                                   //TODO?
+            dominant_sample_rate: Some(sp3.epoch_interval),
         }
     }
 }
@@ -59,27 +57,115 @@ impl RenderHtml for SamplingReport {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
             table {
-                tr {
-                    table {
+                thead {
+                    tr {
+                        th {
+                            : "Time frame"
+                        }
+                    }
+                }
+                tbody {
+                    tr {
+                        th {
+                            : "Start"
+                        }
+                        td {
+                            : self.first_epoch.to_string()
+                        }
+                    }
+                    tr {
+                        th {
+                            : "End"
+                        }
+                        td {
+                            : self.last_epoch.to_string()
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Duration"
+                        }
+                        td {
+                            : self.duration.to_string()
+                        }
+                    }
+                }
+            }
+            @ if let Some(sample_rate) = self.sample_rate {
+                table {
+                    thead {
                         tr {
-                            td {
-                                : "Start"
+                            th {
+                                : "Sampling"
+                            }
+                        }
+                    }
+                    tbody {
+                        tr {
+                            th {
+                                : "Rate"
                             }
                             td {
-                                : self.first_epoch.to_string()
+                                : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
+                            }
+                        }
+                        tr {
+                            th {
+                                : "Period"
+                            }
+                            td {
+                                : format!("{}", sample_rate)
                             }
                         }
                     }
                 }
-                @ if let Some(sample_rate) = self.sample_rate {
-                    tr {
-                        table {
+            }
+            @ if let Some(sample_rate) = self.dominant_sample_rate {
+                table {
+                    thead {
+                        tr {
+                            th {
+                                : "Sampling"
+                            }
+                        }
+                    }
+                    tbody {
+                        tr {
+                            th {
+                                : "Rate"
+                            }
+                            td {
+                                : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
+                            }
+                        }
+                        tr {
+                            th {
+                                : "Period"
+                            }
+                            td {
+                                : format!("{}", sample_rate)
+                            }
+                        }
+                    }
+                }
+            }
+            @ if self.gaps.len() > 0 {
+                table {
+                    thread {
+                        tr {
+                            th {
+                                : "Gaps"
+                            }
+                        }
+                    }
+                    tbody {
+                        @ for (start, duration) in self.gaps.iter() {
                             tr {
-                                td {
-                                    : "Sample rate"
+                                th {
+                                    : start.to_string()
                                 }
                                 td {
-                                    : format!("{} ({:.3} Hz)", sample_rate, 1.0 / sample_rate.to_unit(Unit::Second))
+                                    : duration.to_string()
                                 }
                             }
                         }
