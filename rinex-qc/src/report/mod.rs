@@ -7,16 +7,32 @@ use std::collections::HashMap;
 mod shared;
 use shared::SamplingReport;
 
+mod combined;
+use combined::CombinedReport;
+
+mod summary;
+use summary::QcSummary;
+
+use crate::cfg::Mode;
+
 // rinex data analysis
 //mod rinex;
 //use rinex::ObservationAnalysis;
 
 /// [QcReport] is a generic structure to report complex analysis results
 pub struct QcReport {
-    /// Report Title
-    title: String,
-    /// Items, tabbed by identifier
-    items: HashMap<String, SamplingReport>,
+    /// Name of this report.
+    /// Currently, the report is named after the primary input product.
+    name: String,
+    /// Report Summary (always present)
+    summary: QcSummary,
+    /// In depth analysis per input product.
+    /// In summary mode, these do not exist (empty).
+    products: HashMap<ProductType, ProductReport>,
+    /// Combined analysis, results from the combination of all input products.
+    /// It is highly dependent on the provided combination.
+    /// This only exists when [ReportType::Full] is set.
+    combined: Option<CombinedReport>,
 }
 
 pub struct HtmlContent {
@@ -54,6 +70,7 @@ impl QcReport {
     pub fn new(context: &QcContext, opts: QcOpts) -> Self {
         Self {
             title: context.name(),
+            summary: QcSummary::new(&context),
             // Build the report, which comprises
             //   1. one general (high level) context tab
             //   2. one tab per product type (which can have sub tabs itself)
@@ -63,12 +80,12 @@ impl QcReport {
                 // one tab per RINEX product
                 for product in [
                     ProductType::Observation,
+                    ProductType::DORIS,
                     ProductType::MeteoObservation,
                     ProductType::BroadcastNavigation,
                     ProductType::HighPrecisionClock,
                     ProductType::IONEX,
                     ProductType::ANTEX,
-                    ProductType::DORIS,
                 ] {
                     if let Some(rinex) = context.rinex(product) {
                         let tab = SamplingReport::from_rinex(rinex);

@@ -1,3 +1,4 @@
+use thiserror::Error;
 use qc_traits::html::*;
 use rinex::prelude::*;
 use rinex::{geodetic, wgs84};
@@ -10,6 +11,38 @@ use serde::{
     //Deserializer,
     Serialize,
 };
+
+/// Configuration Error
+#[derive(Debug, Clone, Error)]
+pub enum Error {
+    InvalidReportType,
+}
+
+/// [ReportType]
+pub enum ReportType {
+    /// In [Summary] mode, only the summary section
+    /// of the report is to be generated. It is the lightest
+    /// form we can generate.
+    Summary,
+    /// In [Light] mode, we have one analysis per input [ProductType]
+    Light,
+    /// In [Full] mode, we generate the [CombinedReport] as well,
+    /// which results from the consideration of all input [ProductType]s
+    /// at the same time.
+    Full,
+}
+
+impl std::str::FromStr for ReportType {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().lowercase() {
+            "sum" | "summ" | "summary" => Ok(Self::Summary),
+            "light" => Ok(Self::Light),
+            "full" => Ok(Self::Full),
+            _ => Err(Error::InvalidReportType),
+        }
+    }
+}
 
 #[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
