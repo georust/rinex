@@ -18,14 +18,6 @@
     html, body, #app {
       height: 100%;
     }
-    #app {
-      min-height: 100%;
-      //display: flex;
-      //flex-direction: column;
-    }
-    .main-content {
-      //flex: 1;
-    }
     .footer {
       margin-top: -12px;
     }
@@ -34,32 +26,17 @@
         display: block;
       }
     }
-    $navbar-height: 3.25rem;
-
-.columns {
-  &.is-fullheight {
-    min-height: calc(100vh - (#{$navbar-height} - 0.75rem));
-    max-height: calc(100vh - (#{$navbar-height} - 0.75rem));
-    height: calc(100vh - (#{$navbar-height} - 0.75rem));
-    display: flex;
-    flex-direction: row;
-    justify-content: stretch;
-    .column {
-      overflow-y: auto;
-    }
-  }
-}
   </style>
 
   <div class="columns is-fullheight">
 
-    <div class="column is-3 is-sidebar-menu is-hidden-mobile">
+    <div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile">
       <aside class="menu">
           <p class="menu-label">RINEX QC v0.1.14</p>
+           
           <ul class="menu-list">
-            
             <li>
-              <a>
+              <a id="summary">
                 <span class="icon">
                   <i class="fa fa-home"></i>
                 </span> 
@@ -69,7 +46,7 @@
             </li>
 
             <li>
-              <a>
+              <a id="observations">
                 <span class="icon">
                   <i class="fa-solid fa-tower-cell"></i>
                 </span> 
@@ -79,17 +56,30 @@
             </li>
           
             <li>
-              <a>
+              <a id="brdc">
                 <span class="icon">
                   <i class="fa-solid fa-satellite-dish"></i>
                 </span> 
                 Broadcast Navigation (BRDC)
               </a>
             </span>
+
+            <ul class="menu-list">
+              <li>
+                <a id="brdc">
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite-dish"></i>
+                  </span> 
+                  NESTED
+                </a>
+              </span>
+              </li>
+              </ul>
+
             </li>
 
             <li>
-              <a>
+              <a id="sp3">
                 <span class="icon">
                   <i class="fa-solid fa-satellite"></i>
                 </span> 
@@ -99,7 +89,7 @@
             </li>
 
             <li>
-              <a>
+              <a id="clk">
                 <span class="icon">
                   <i class="fa-solid fa-clock"></i>
                 </span> 
@@ -109,7 +99,7 @@
             </li>
 
             <li>
-              <a>
+              <a id="ionex">
                 <span class="icon">
                   <i class="fa-solid fa-earth-americas"></i>
                 </span> 
@@ -119,7 +109,7 @@
             </li>
 
             <li>
-              <a>
+              <a id="navi">
                 <span class="icon">
                   <i class="fa-solid fa-compass"></i>
                 </span> 
@@ -129,7 +119,7 @@
             </li>
 
             <li>
-              <a>
+              <a id="ppp">
                 <span class="icon">
                   <i class="fa-solid fa-location-crosshairs"></i>
                 </span> 
@@ -161,24 +151,91 @@
         <div class="section">
 
           <div class="table-container">
-            <table class="table is-bordered">
+            <table class="table">
               <tbody>
                 <tr>
-                  <th> 
-                    Primary Input
-                  </td>
+                  <th class="is-info is-bordered"> ESBJERG-(DNK)</th>
+                </tr>
+                <tr>
+                  <th>
+                    Timescale
+                  </th>
                   <td>
-                    ESBJER-(DNK)
+                    GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th>
+                    Compliancy
+                  </th>
+                  <td>
+                    <table>
+                      <tr>                        
+                        <td>
+                        <label class="checkbox">
+                          <input type="checkbox" checked disabled />
+                          NAVI
+                        </label>
+                      </td>
+                        <td>
+                          <label class="checkbox">
+                            <input type="checkbox" checked disabled />
+                            CPP
+                          </label>
+                        </td>
+                        <td>
+                          <label class="checkbox">
+                            <input type="checkbox" checked disabled />
+                            PPP
+                          </label>
+                        </td>
+                        <td>
+                          <label class="checkbox">
+                            <input type="checkbox" disabled />
+                            PPP (Ultra)
+                          </label>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
                 <tr>
                   <th> 
-                    Firmware
+                    Ionosphere Bias
+                  </th>
+                  <td>
+                    <label class="checkbox">
+                      <input type="checkbox" disabled />
+                      Modeling
+                    </label>
                   </td>
                   <td>
-                    Unknown
+                    <label class="checkbox">
+                      <input type="checkbox" disabled />
+                      Measurement
+                    </label>
                   </td>
                 </tr>
+                
+                <tr>
+                  <th> 
+                    Troposphere Bias
+                  </th>
+                  <td>
+                    <label class="checkbox">
+                      <input type="checkbox" disabled />
+                      Modeling
+                    </label>
+                  </td>
+                  <td>
+                    <label class="checkbox">
+                      <input type="checkbox" disabled />
+                      Measurement
+                    </label>
+                  </td>
+                </tr>
+
+
               </tbody>
             </table>
           </div>
@@ -214,13 +271,63 @@
               </table>
             </div>
           </div>
-
-        </div>
+        </div>  
       </div>
+
+      <div id="about:content" class="container" style="display:none">
+        <p>
+          Georust RINEX toolbox
+        </p>
+      </div>
+      
     </div>
 
   </div>
 
+
+
+  <script>
+        
+    var sidebar_menu = document.querySelector(
+      ".is-sidebar-menu"
+    );
+    
+    var sidebar_about = document.querySelector(
+      "#about\content"
+    );
+
+    var summary_report = document.querySelector(
+      ".hero>#summary"
+    );
+
+    var observations_report = document.querySelector(
+      ".hero>#observations"
+    );
+
+    console.log(sidebar_menu);
+    console.log("summary report: "+ summary_report);
+    console.log("observations report: "+ observations_report);
+
+    sidebar_menu.onclick = function(evt) {
+
+      var target_id = evt.originalTarget.id;
+      console.log("clicked id: " + target_id);
+
+      if (target_id == "summary") {
+        summary_report.style = "display:block";
+        observations_report.style = "display:none";
+      } else if (target_id == "observations") {
+
+        summary_report.style = "display:none";
+        observations_report.style = "display:block";
+      }
+    }
+
+    sidebar_about.onclick = function(evt) {
+      console.log("ABOUT");
+    }
+
+</script>
 
 </body>
 </html>
