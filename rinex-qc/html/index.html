@@ -9,7 +9,7 @@
     <script defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <title>GeoRust</title>
+    <title>RINEX QC</title>
 </head>
 
 <body> 
@@ -53,6 +53,44 @@
                 Observations
               </a>
             </span>
+
+
+            <ul class="menu-list">
+              <li>
+                <a id="brdc">
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite"></i>
+                  </span> 
+                  GPS
+                </a>
+              </span>
+              </li>
+              </ul>
+
+              <ul class="menu-list">
+                <li>
+                  <a id="brdc">
+                    <span class="icon">
+                      <i class="fa-solid fa-satellite"></i>
+                    </span> 
+                    Galileo
+                  </a>
+                </span>
+                </li>
+                </ul>
+
+                <ul class="menu-list">
+                  <li>
+                    <a id="brdc">
+                      <span class="icon">
+                        <i class="fa-solid fa-satellite"></i>
+                      </span> 
+                      Glonass
+                    </a>
+                  </span>
+                  </li>
+                  </ul>
+
             </li>
           
             <li>
@@ -63,19 +101,6 @@
                 Broadcast Navigation (BRDC)
               </a>
             </span>
-
-            <ul class="menu-list">
-              <li>
-                <a id="brdc">
-                  <span class="icon">
-                    <i class="fa-solid fa-satellite-dish"></i>
-                  </span> 
-                  NESTED
-                </a>
-              </span>
-              </li>
-              </ul>
-
             </li>
 
             <li>
@@ -131,15 +156,20 @@
           </ul>
 
           <p class="menu-label">
-              <a href="https://github.com/georust/rinex/wiki">Documentation</a>
+              <a href="https://github.com/georust/rinex/wiki" style="margin-left:29px">Documentation</a>
           </p>    
           <p class="menu-label">
-              <a href="https://github.com/georust/rinex/issues">Bug report</a>
+              <a href="https://github.com/georust/rinex/issues" style="margin-left:29px">Bug report</a>
           </p>     
           <p class="menu-label">
-              <a href="https://github.com/georust/rinex">Sources</a>
+              <a href="https://github.com/georust/rinex">
+                <span class="icon">
+                  <i class="fa-brands fa-github"></i>
+                </span> 
+                Sources
+              </a>
           </p>   
-          <p class="menu-label">
+          <p class="menu-label" style="margin-left:29px">
             <a>About</a>
         </p>   
       </aside>
@@ -154,7 +184,7 @@
             <table class="table">
               <tbody>
                 <tr>
-                  <th class="is-info is-bordered"> ESBJERG-(DNK)</th>
+                  <th class="is-info is-bordered" data-tooltip="Tooltip Text"> ESBJERG-(DNK)</th>
                 </tr>
                 <tr>
                   <th>
@@ -162,6 +192,41 @@
                   </th>
                   <td>
                     GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th>
+                    Reference position
+                  </th>
+                  <td>
+                    <table>
+                      <tr>
+                        <th> ECEF </th>
+                      </tr>
+                      <tr>
+                        <th> X </th>
+                        <td> 1 m </td>
+                        <th> Y </th>
+                        <td> 1 m </td>
+                        <th> Z </th>
+                        <td> 1 m </td>
+                      </tr>
+                      <tr>
+                        <th> GEO </th>
+                      </tr>
+                      <tr>
+                        <th> Latitude </th>
+                        <td> 45.12555° </td>
+                        <th> Longitude </th>
+                        <td> 8.123456° </td>
+                        <th> Altitude </th>
+                        <td> 145m </td>
+                      </tr>
+                      <tr>
+                        <th> DMS </th>
+                        <td> 45°12'30" N </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
                 <tr>
@@ -246,6 +311,8 @@
       <div id="observations" class="container" style="display:none">
           <div class="section">
             <div class="table-container">
+              
+
               <table class="table is-bordered">
                 <tbody>
                   <tr>
@@ -269,6 +336,120 @@
                   </tr>
                 </tbody>
               </table>
+
+
+              <table class="table is-bordered">
+                <tbody>
+                  <tr>
+                    <th class="is-info"> Antenna </th>
+                  </tr>
+                  <tr>
+                    <th> 
+                      Model
+                    </td>
+                    <td>
+                      Unknown
+                    </td>
+                  </tr>
+                  <tr>
+                    <th> 
+                      Firmware
+                    </td>
+                    <td>
+                      Unknown
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <table class="table is-bordered">
+                <tbody>
+                  <tr>
+                    <th class="is-info"> Sampling </th>
+                  </tr>
+                  <tr>
+                    <th> 
+                      Start
+                    </td>
+                    <td>
+                      2020-01-01T00:00:00 GPST
+                    </td>
+                  </tr>
+                  <tr>
+                    <th> 
+                      End
+                    </td>
+                    <td>
+                      2020-01-01T00:00:00 GPST
+                    </td>
+                  </tr>
+                  <tr>
+                    <th> 
+                      Duration
+                    </td>
+                    <td>
+                      24 h
+                    </td>
+                  </tr>
+                </tr>
+                <tr>
+                  <th> 
+                    Sampling
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Rate </th>
+                        <td> 0.33 Hz </td>
+                      </tr>
+                      <tr>
+                        <th> Period </th>
+                        <td> 15 min </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Dominant Sampling
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Rate </th>
+                        <td> 0.33 Hz </td>
+                      </tr>
+                      <tr>
+                        <th> Period </th>
+                        <td> 15 min </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                  <tr>
+                    <th> 
+                      Gaps
+                    </td>
+                    <td>
+                      <table class="table">
+                        <tr>
+                          <th> Shortest </th>
+                          <td> 2020-01-01T00:00:00 GPST </td>
+                          <td> 1 hr </td>
+                        </tr>
+                        <tr>
+                          <th> Longest </th>
+                          <td> 2020-01-01T00:00:00 GPST </td>
+                          <td> 1 hr </td>
+                        </tr>
+                      </table>
+                    </td>
+
+                  </tr>
+                </tbody>
+              </table>
+
             </div>
           </div>
         </div>  
@@ -303,10 +484,6 @@
     var observations_report = document.querySelector(
       ".hero>#observations"
     );
-
-    console.log(sidebar_menu);
-    console.log("summary report: "+ summary_report);
-    console.log("observations report: "+ observations_report);
 
     sidebar_menu.onclick = function(evt) {
 
