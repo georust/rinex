@@ -13,7 +13,7 @@ use rinex::navigation::Ephemeris;
 use rinex_qc::QcContext;
 
 pub fn plot_ionospheric_delay(ctx: &QcContext, plot_ctx: &mut PlotContext) {
-    let ref_pos = ctx.ground_position().unwrap_or_default();
+    let ref_pos = ctx.reference_position().unwrap_or_default();
 
     let ref_geo = ref_pos.to_geodetic();
     let lat_lon_ddeg = (ref_geo.0, ref_geo.1);

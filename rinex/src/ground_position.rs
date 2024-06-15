@@ -66,80 +66,67 @@ use qc_traits::html::{box_html, *};
 
 #[cfg(feature = "qc")]
 impl RenderHtml for GroundPosition {
-    fn to_html(&self) -> String {
-        todo!()
-    }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         let ecef = (self.0, self.1, self.2);
         let geo = self.to_geodetic();
         box_html! {
             table {
-                thread {
-                    tr {
-                        th {
-                            : "ECEF (WGS84)"
-                        }
+                tr {
+                    th {
+                        : "ECEF (WGS84)"
                     }
                 }
-                tbody {
-                    tr {
-                        th {
-                            : "X"
-                        }
-                        td {
-                            : format!("{:.6} m", ecef.0)
-                        }
+                tr {
+                    th {
+                        :"X"
                     }
-                    tr {
-                        th {
-                            : "Y"
-                        }
-                        td {
-                            : format!("{:.6} m", ecef.1)
-                        }
+                    td {
+                        : format!("{:.3} m", ecef.0)
                     }
-                    tr {
-                        th {
-                            : "Z"
-                        }
-                        td {
-                            : format!("{:.6} m", ecef.2)
-                        }
+                    th {
+                        : "Y"
+                    }
+                    td {
+                        : format!("{:.3} m", ecef.1)
+                    }
+                    th {
+                       : "Z"
+                    }
+                    td {
+                        : format!("{:.3} m", ecef.2)
                     }
                 }
-            }
-            table {
-                thead {
-                    tr {
-                        th {
-                            : "GEO"
-                        }
+                tr {
+                    th {
+                        : "GEO"
                     }
                 }
-                tbody {
-                    tr {
-                        th {
-                            : "Latitude"
-                        }
-                        td {
-                            : format!("{:.6}°", geo.0)
-                        }
+                tr {
+                    th {
+                        : "Latitude"
                     }
-                    tr {
-                        th {
-                            : "Longitude"
-                        }
-                        td {
-                            : format!("{:.6}°", geo.1)
-                        }
+                    td {
+                        : format!("{:.6}°", geo.0)
                     }
-                    tr {
-                        th {
-                            : "Altitude"
-                        }
-                        td {
-                            : format!("{:.6}°", geo.2)
-                        }
+                    th {
+                        : "Longitude"
+                    }
+                    td {
+                        : format!("{:.6}°", geo.1)
+                    }
+                    th {
+                        : "Altitude"
+                    }
+                    td {
+                        : format!("{:.6}°", geo.2)
+                    }
+                }
+                tr {
+                    th {
+                        : "DMS"
+                    }
+                    td {
+                        : "TODO"
                     }
                 }
             }

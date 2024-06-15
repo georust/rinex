@@ -142,10 +142,4 @@ impl RINEXReport {
             _ => None,
         }
     }
-    pub fn as_nav(&self) -> Option<&NavReport> {
-        match self {
-            Self::Nav(report) => Some(report),
-            _ => None,
-        }
-    }
 }

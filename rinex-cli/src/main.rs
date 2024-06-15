@@ -152,7 +152,7 @@ pub fn main() -> Result<(), Error> {
 
     // User Data parsing
     let mut data_ctx = user_data_parsing(&cli);
-    let ctx_position = data_ctx.ground_position();
+    let ctx_position = data_ctx.reference_position();
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
     // Form context
