@@ -224,7 +224,7 @@ impl RenderHtml for QcReport {
                                             .keys()
                                         {
                                             li {
-                                                a(id=&format!("nested:obs:{}", constell)) {
+                                                a(id=&format!("nested:obs:{}", constell), style="margin-left:29px") {
                                                     span(class="icon") {
                                                         i(class="fa-solid fa-satellite");
                                                     }
@@ -385,6 +385,7 @@ impl RenderHtml for QcReport {
     var clk_report = document.getElementById('hero:clk');
     var ionex_report = document.getElementById('hero:ionex');
     var nested_sp3 = document.getElementById('nested:sp3');
+    var nested_clk = document.getElementById('nested:clk');
     var nested_brdc = document.getElementById('nested:brdc');
     var nested_obs = document.getElementById('nested:observations');
 
@@ -415,6 +416,9 @@ impl RenderHtml for QcReport {
             if (nested_sp3 != null) {{
                 nested_sp3.style = 'display:none';
             }}
+            if (nested_clk != null) {{
+                nested_clk.style = 'display:none';
+            }}
             if (nested_brdc != null) {{
                 nested_brdc.style = 'display:none';
             }}
@@ -422,7 +426,6 @@ impl RenderHtml for QcReport {
                 nested_obs.style = 'display:none';
             }}
             
-
         }} else if (target_id == 'observations') {{
             summary_report.style = 'display:none';
             if (obs_report != null) {{
@@ -446,11 +449,113 @@ impl RenderHtml for QcReport {
             if (nested_sp3 != null) {{
                 nested_sp3.style = 'display:none';
             }}
+            if (nested_clk != null) {{
+                nested_clk.style = 'display:none';
+            }}
             if (nested_brdc != null) {{
                 nested_brdc.style = 'display:none';
             }}
             if (nested_obs != null) {{
                 nested_obs.style = 'display:block';
+            }}
+            
+        }} else if (target_id == 'sp3') {{
+            summary_report.style = 'display:none';
+            if (obs_report != null) {{
+                obs_report.style = 'display:none';
+            }}
+            if (brdc_report != null) {{
+                brdc_report.style = 'display:none';
+            }}
+            if (ionex_report != null) {{
+                ionex_report.style = 'display:none';
+            }}
+            if (sp3_report != null) {{
+                sp3_report.style = 'display:block';
+            }}
+            if (meteo_report != null) {{
+                meteo_report.style = 'display:none';
+            }}
+            if (clk_report != null) {{
+                clk_report.style = 'display:none';
+            }}
+            if (nested_sp3 != null) {{
+                nested_sp3.style = 'display:block';
+            }}
+            if (nested_clk != null) {{
+                nested_clk.style = 'display:none';
+            }}
+            if (nested_brdc != null) {{
+                nested_brdc.style = 'display:none';
+            }}
+            if (nested_obs != null) {{
+                nested_obs.style = 'display:none';
+            }}
+            
+        }} else if (target_id == 'meteo') {{
+            summary_report.style = 'display:none';
+            if (obs_report != null) {{
+                obs_report.style = 'display:none';
+            }}
+            if (brdc_report != null) {{
+                brdc_report.style = 'display:none';
+            }}
+            if (ionex_report != null) {{
+                ionex_report.style = 'display:none';
+            }}
+            if (sp3_report != null) {{
+                sp3_report.style = 'display:none';
+            }}
+            if (meteo_report != null) {{
+                meteo_report.style = 'display:block';
+            }}
+            if (clk_report != null) {{
+                clk_report.style = 'display:none';
+            }}
+            if (nested_sp3 != null) {{
+                nested_sp3.style = 'display:none';
+            }}
+            if (nested_clk != null) {{
+                nested_clk.style = 'display:none';
+            }}
+            if (nested_brdc != null) {{
+                nested_brdc.style = 'display:none';
+            }}
+            if (nested_obs != null) {{
+                nested_obs.style = 'display:none';
+            }}
+            
+        }} else if (target_id == 'clk') {{
+            summary_report.style = 'display:none';
+            if (obs_report != null) {{
+                obs_report.style = 'display:none';
+            }}
+            if (brdc_report != null) {{
+                brdc_report.style = 'display:none';
+            }}
+            if (ionex_report != null) {{
+                ionex_report.style = 'display:none';
+            }}
+            if (sp3_report != null) {{
+                sp3_report.style = 'display:none';
+            }}
+            if (meteo_report != null) {{
+                meteo_report.style = 'display:none';
+            }}
+            if (clk_report != null) {{
+                clk_report.style = 'display:block';
+            }}
+            if (nested_sp3 != null) {{
+                nested_sp3.style = 'display:none';
+            }}
+            if (nested_clk != null) {{
+                nested_clk.style = 'display:block';
+            }}
+            if (nested_brdc != null) {{
+                nested_brdc.style = 'display:none';
+            }}
+            if (nested_obs != null) {{
+                nested_obs.style = 'display:none';
             }}
             
         }}

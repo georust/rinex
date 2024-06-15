@@ -2,6 +2,8 @@
 #![cfg_attr(docrs, feature(doc_cfg))]
 extern crate gnss_rs as gnss;
 
+use itertools::Itertools;
+
 #[cfg(feature = "qc")]
 extern crate rinex_qc_traits as qc_traits;
 
@@ -530,7 +532,11 @@ impl SP3 {
     pub fn last_epoch(&self) -> Option<Epoch> {
         self.epoch.last().copied()
     }
-    /// Returns a unique SV iterator
+    /// Returns a unique [Constellation] iterator
+    pub fn constellation(&self) -> impl Iterator<Item = Constellation> + '_ {
+        self.sv().map(|sv| sv.constellation).unique()
+    }
+    /// Returns a unique [SV] iterator
     pub fn sv(&self) -> impl Iterator<Item = SV> + '_ {
         self.sv.iter().copied()
     }

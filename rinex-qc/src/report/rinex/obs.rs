@@ -50,7 +50,6 @@ pub struct Report {
     pub antenna: Option<Antenna>,
     pub receiver: Option<Receiver>,
     pub sampling: SamplingReport,
-    pub constellations: Vec<Constellation>,
     pub pages: HashMap<Constellation, ConstellationPage>,
 }
 
@@ -68,7 +67,6 @@ impl Report {
             } else {
                 None
             },
-            constellations: rinex.constellation().collect(),
             pages: {
                 let mut pages = HashMap::<Constellation, ConstellationPage>::new();
                 for constellation in rinex.constellation() {
@@ -139,6 +137,9 @@ impl RenderHtml for Report {
                         }
                     }
                 }
+            }
+            div(class="table-container") {
+                : self.sampling.to_inline_html()
             }
         }
     }

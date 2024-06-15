@@ -18,10 +18,15 @@ pub struct SamplingReport {
     pub dominant_sample_rate: Option<Duration>,
     /// Unusual data gaps
     pub gaps: Vec<(Epoch, Duration)>,
+    /// longest gap detected
+    pub longest_gap: Option<(Epoch, Duration)>,
+    /// shortest gap detected
+    pub shortest_gap: Option<(Epoch, Duration)>,
 }
 
 impl SamplingReport {
     pub fn from_rinex(rinex: &Rinex) -> Self {
+        let gaps = rinex.data_gaps(None).collect::<Vec<_>>();
         Self {
             first_epoch: rinex
                 .first_epoch()
@@ -34,7 +39,15 @@ impl SamplingReport {
                 .expect("failed to determine RINEX time frame, badly formed?"),
             sample_rate: rinex.sample_rate(),
             dominant_sample_rate: rinex.dominant_sample_rate(),
-            gaps: rinex.data_gaps(None).collect(),
+            shortest_gap: gaps
+                .iter()
+                .min_by(|(t_a, dur_a), (t_b, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
+                .copied(),
+            longest_gap: gaps
+                .iter()
+                .max_by(|(t_a, dur_a), (t_b, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
+                .copied(),
+            gaps,
         }
     }
     #[cfg(feature = "sp3")]
@@ -42,7 +55,9 @@ impl SamplingReport {
         let t_start = sp3.first_epoch().expect("badly formed sp3: empty?");
         let t_end = sp3.last_epoch().expect("badly formed sp3: empty?");
         Self {
-            gaps: Vec::new(), // TODO
+            gaps: Vec::new(),   // TODO
+            longest_gap: None,  //TODO
+            shortest_gap: None, //TODO
             last_epoch: t_end,
             first_epoch: t_start,
             duration: t_end - t_start,
@@ -57,116 +72,112 @@ use qc_traits::html::*;
 impl RenderHtml for SamplingReport {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            table {
-                thead {
-                    tr {
-                        th {
-                            : "Time frame"
-                        }
-                    }
-                }
-                tbody {
-                    tr {
-                        th {
-                            : "Start"
-                        }
-                        td {
-                            : self.first_epoch.to_string()
-                        }
-                    }
-                    tr {
-                        th {
-                            : "End"
-                        }
-                        td {
-                            : self.last_epoch.to_string()
-                        }
-                    }
-                    tr {
-                        th {
-                            : "Duration"
-                        }
-                        td {
-                            : self.duration.to_string()
-                        }
-                    }
-                }
-            }
-            @ if let Some(sample_rate) = self.sample_rate {
-                table {
-                    thead {
-                        tr {
-                            th {
-                                : "Sampling"
-                            }
-                        }
-                    }
+            div(class="table-container") {
+                table(class="table is-bordered") {
                     tbody {
                         tr {
+                            th(class="is-info") {
+                                : "Time Frame"
+                            }
+                        }
+                        tr {
                             th {
-                                : "Rate"
+                                : "Start"
                             }
                             td {
-                                : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
+                                : self.first_epoch.to_string()
                             }
-                        }
-                        tr {
                             th {
-                                : "Period"
+                                : "End"
                             }
                             td {
-                                : format!("{}", sample_rate)
+                                : self.last_epoch.to_string()
                             }
                         }
-                    }
-                }
-            }
-            @ if let Some(sample_rate) = self.dominant_sample_rate {
-                table {
-                    thead {
                         tr {
                             th {
-                                : "Sampling"
-                            }
-                        }
-                    }
-                    tbody {
-                        tr {
-                            th {
-                                : "Rate"
+                                : "Duration"
                             }
                             td {
-                                : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
+                                : self.duration.to_string()
                             }
                         }
-                        tr {
-                            th {
-                                : "Period"
+                        @ if let Some(sample_rate) = self.sample_rate {
+                            tr {
+                                th(class="is-info") {
+                                    : "Sampling"
+                                }
                             }
-                            td {
-                                : format!("{}", sample_rate)
-                            }
-                        }
-                    }
-                }
-            }
-            @ if self.gaps.len() > 0 {
-                table {
-                    thread {
-                        tr {
-                            th {
-                                : "Gaps"
-                            }
-                        }
-                    }
-                    tbody {
-                        @ for (start, duration) in self.gaps.iter() {
                             tr {
                                 th {
-                                    : start.to_string()
+                                    : "Rate"
                                 }
                                 td {
-                                    : duration.to_string()
+                                    : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
+                                }
+                                th {
+                                    : "Period"
+                                }
+                                td {
+                                    : sample_rate.to_string()
+                                }
+                            }
+                        }
+                        @ if let Some(sample_rate) = self.dominant_sample_rate {
+                            tr {
+                                th(class="is-info") {
+                                    : "Dominant Sampling"
+                                }
+                            }
+                            tr {
+                                th {
+                                    : "Rate"
+                                }
+                                td {
+                                    : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
+                                }
+                                th {
+                                    : "Period"
+                                }
+                                td {
+                                    : sample_rate.to_string()
+                                }
+                            }
+                        }
+                        @ if self.gaps.len() == 0 {
+                            th(class="is-primary") {
+                                : "No gaps detected"
+                            }
+                        } else {
+                            tr {
+                                th(class="is-warning") {
+                                    : &format!("{} Data gaps", self.gaps.len())
+                                }
+                            }
+                            @ if let Some((t_start, dur)) = self.shortest_gap {
+                                tr {
+                                    th {
+                                        : "Shortest"
+                                    }
+                                    td {
+                                        : t_start.to_string()
+                                    }
+                                    td {
+                                        : dur.to_string()
+                                    }
+                                }
+                            }
+                            @ if let Some((t_start, dur)) = self.longest_gap {
+                                tr {
+                                    th {
+                                        : "Longest"
+                                    }
+                                    td {
+                                        : t_start.to_string()
+                                    }
+                                    td {
+                                        : dur.to_string()
+                                    }
                                 }
                             }
                         }

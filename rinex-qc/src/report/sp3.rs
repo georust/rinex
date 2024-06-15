@@ -1,10 +1,14 @@
 use crate::report::shared::SamplingReport;
 use qc_traits::html::*;
-use sp3::prelude::{Constellation, SP3};
+use qc_traits::processing::{Filter, FilterItem, MaskFilter, MaskOperand, Preprocessing};
+use sp3::prelude::{Constellation, SP3, SV};
 use std::collections::HashMap;
 
 //TODO
-pub struct SP3Page {}
+pub struct SP3Page {
+    pub satellites: Vec<SV>,
+    pub sampling: SamplingReport,
+}
 
 pub struct SP3Report {
     pub agency: String,
@@ -27,7 +31,24 @@ impl SP3Report {
             time_scale: sp3.time_scale.to_string(),
             sampling: SamplingReport::from_sp3(sp3),
             constellation: sp3.constellation.to_string(),
-            pages: Default::default(),
+            pages: {
+                let mut pages = HashMap::<Constellation, SP3Page>::new();
+                for constellation in sp3.constellation() {
+                    let filter = Filter::mask(
+                        MaskOperand::Equals,
+                        FilterItem::ConstellationItem(vec![constellation]),
+                    );
+                    let focused = sp3.filter(&filter);
+                    pages.insert(
+                        constellation,
+                        SP3Page {
+                            satellites: focused.sv().collect(),
+                            sampling: SamplingReport::from_sp3(&focused),
+                        },
+                    );
+                }
+                pages
+            },
         }
     }
 }
@@ -35,53 +56,55 @@ impl SP3Report {
 impl RenderHtml for SP3Report {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            table {
-                tr {
-                    th {
-                        : "Agency"
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    tr {
+                        th {
+                            : "Agency"
+                        }
+                        td {
+                            : self.agency.clone()
+                        }
                     }
-                    td {
-                        : self.agency.clone()
+                    tr {
+                        th {
+                            : "Constellation"
+                        }
+                        td {
+                            : self.constellation.clone()
+                        }
                     }
-                }
-                tr {
-                    th {
-                        : "Constellation"
+                    tr {
+                        th {
+                            : "Timescale"
+                        }
+                        td {
+                            : self.time_scale.clone()
+                        }
                     }
-                    td {
-                        : self.constellation.clone()
+                    tr {
+                        th {
+                            : "Reference Frame"
+                        }
+                        td {
+                            : self.coord_system.clone()
+                        }
                     }
-                }
-                tr {
-                    th {
-                        : "Timescale"
+                    tr {
+                        th {
+                            : "Orbit FIT"
+                        }
+                        td {
+                            : self.orbit_fit.clone()
+                        }
                     }
-                    td {
-                        : self.time_scale.clone()
-                    }
-                }
-                tr {
-                    th {
-                        : "Reference Frame"
-                    }
-                    td {
-                        : self.coord_system.clone()
-                    }
-                }
-                tr {
-                    th {
-                        : "Orbit FIT"
-                    }
-                    td {
-                        : self.orbit_fit.clone()
-                    }
-                }
-                tr {
-                    th {
-                        : "Sampling"
-                    }
-                    td {
-                        : self.sampling.to_inline_html()
+                    tr {
+                        th {
+                            : "Sampling"
+                        }
+                        td {
+                            : self.sampling.to_inline_html()
+                        }
                     }
                 }
             }
