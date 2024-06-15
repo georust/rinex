@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon", type="image/x-icon", href="https://raw.githubusercontent.com/georust/meta/master/logo/logo.png" />
+    <script defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <title>GeoRust</title>
+</head>
+
+<body> 
+
+  <style>
+    html, body, #app {
+      height: 100%;
+    }
+    #app {
+      min-height: 100%;
+      //display: flex;
+      //flex-direction: column;
+    }
+    .main-content {
+      //flex: 1;
+    }
+    .footer {
+      margin-top: -12px;
+    }
+    @media screen and (max-width: 768px) {
+      #menu-toggle:checked + .nav-menu {
+        display: block;
+      }
+    }
+    $navbar-height: 3.25rem;
+
+.columns {
+  &.is-fullheight {
+    min-height: calc(100vh - (#{$navbar-height} - 0.75rem));
+    max-height: calc(100vh - (#{$navbar-height} - 0.75rem));
+    height: calc(100vh - (#{$navbar-height} - 0.75rem));
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    .column {
+      overflow-y: auto;
+    }
+  }
+}
+  </style>
+
+  <div class="columns is-fullheight">
+
+    <div class="column is-3 is-sidebar-menu is-hidden-mobile">
+      <aside class="menu">
+          <p class="menu-label">RINEX QC v0.1.14</p>
+          <ul class="menu-list">
+            
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa fa-home"></i>
+                </span> 
+                Summary
+              </a>
+            </span>
+            </li>
+
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa-solid fa-tower-cell"></i>
+                </span> 
+                Observations
+              </a>
+            </span>
+            </li>
+          
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa-solid fa-satellite-dish"></i>
+                </span> 
+                Broadcast Navigation (BRDC)
+              </a>
+            </span>
+            </li>
+
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa-solid fa-satellite"></i>
+                </span> 
+                High Precision Orbit (SP3)
+              </a>
+            </span>
+            </li>
+
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa-solid fa-clock"></i>
+                </span> 
+                High Precision Clock (RINEX)
+              </a>
+            </span>
+            </li>
+
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa-solid fa-earth-americas"></i>
+                </span> 
+                Ionosphere Maps (IONEX)
+              </a>
+            </span>
+            </li>
+
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa-solid fa-compass"></i>
+                </span> 
+                NAVI
+              </a>
+            </span>
+            </li>
+
+            <li>
+              <a>
+                <span class="icon">
+                  <i class="fa-solid fa-location-crosshairs"></i>
+                </span> 
+                Post Processed Positioning (PPP)
+              </a>
+            </span>
+            </li>
+
+          </ul>
+
+          <p class="menu-label">
+              <a href="https://github.com/georust/rinex/wiki">Documentation</a>
+          </p>    
+          <p class="menu-label">
+              <a href="https://github.com/georust/rinex/issues">Bug report</a>
+          </p>     
+          <p class="menu-label">
+              <a href="https://github.com/georust/rinex">Sources</a>
+          </p>   
+          <p class="menu-label">
+            <a>About</a>
+        </p>   
+      </aside>
+    </div>
+
+    <div class="hero is-fullheight"> 
+
+      <div id="summary" class="container" style="display:block">
+        <div class="section">
+
+          <div class="table-container">
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th> 
+                    Primary Input
+                  </td>
+                  <td>
+                    ESBJER-(DNK)
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+      
+      <div id="observations" class="container" style="display:none">
+          <div class="section">
+            <div class="table-container">
+              <table class="table is-bordered">
+                <tbody>
+                  <tr>
+                    <th class="is-info"> GNSS Receiver </th>
+                  </tr>
+                  <tr>
+                    <th> 
+                      Model
+                    </td>
+                    <td>
+                      Unknown
+                    </td>
+                  </tr>
+                  <tr>
+                    <th> 
+                      Firmware
+                    </td>
+                    <td>
+                      Unknown
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
+</body>
+</html>
