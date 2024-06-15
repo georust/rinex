@@ -179,10 +179,10 @@ pub struct QcSummary {
     name: String,
     /// Configuration used
     cfg: QcConfig,
-    /// Main timescale
-    timescale: TimeScale,
     /// Post NAV summary
     nav_post: QcNavPostSummary,
+    /// Main timescale
+    timescale: Option<TimeScale>,
     /// BIAS summary
     bias_sum: QcBiasSummary,
     /// reference position
@@ -217,8 +217,14 @@ impl RenderHtml for QcSummary {
                             th {
                                 : "Timescale"
                             }
-                            td {
-                                : self.timescale.to_string()
+                            @ if let Some(timescale) = self.timescale {
+                                td {
+                                    : timescale.to_string()
+                                }
+                            } else {
+                                td {
+                                    : "Not Applicable"
+                                }
                             }
                         }
                         tr {

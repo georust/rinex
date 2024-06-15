@@ -147,8 +147,28 @@ pub struct QcContext {
 
 impl QcContext {
     /// Returns main [TimeScale] for Self
-    pub fn timescale(&self) -> TimeScale {
-        TimeScale::default() // TODO
+    pub fn timescale(&self) -> Option<TimeScale> {
+        #[cfg(feature = "sp3")]
+        if let Some(sp3) = self.sp3() {
+            return Some(sp3.time_scale);
+        }
+
+        if let Some(obs) = self.observation() {
+            let first = obs.first_epoch()?;
+            Some(first.time_scale)
+        } else if let Some(dor) = self.doris() {
+            let first = dor.first_epoch()?;
+            Some(first.time_scale)
+        } else if let Some(clk) = self.clock() {
+            let first = clk.first_epoch()?;
+            Some(first.time_scale)
+        } else if self.meteo().is_some() {
+            Some(TimeScale::UTC)
+        } else if self.ionex().is_some() {
+            Some(TimeScale::UTC)
+        } else {
+            None
+        }
     }
     /// Returns path to File considered as Primary product in this Context.
     /// When a unique file had been loaded, it is obviously considered Primary.

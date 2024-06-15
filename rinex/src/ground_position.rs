@@ -1,3 +1,4 @@
+use dms_coordinates::DMS;
 use map_3d::{deg2rad, ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 
 #[cfg(feature = "serde")]
@@ -118,7 +119,7 @@ impl RenderHtml for GroundPosition {
                         : "Altitude"
                     }
                     td {
-                        : format!("{:.6}°", geo.2)
+                        : format!("{:.3} m", geo.2)
                     }
                 }
                 tr {
@@ -126,7 +127,13 @@ impl RenderHtml for GroundPosition {
                         : "DMS"
                     }
                     td {
-                        : "TODO"
+                        : DMS::from_ddeg_latitude(geo.0).to_string()
+                    }
+                    th {
+                        : "DMS"
+                    }
+                    td {
+                        : DMS::from_ddeg_longitude(geo.1).to_string()
                     }
                 }
             }
