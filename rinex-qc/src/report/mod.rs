@@ -42,6 +42,79 @@ enum ProductReport {
     SP3(SP3Report),
 }
 
+fn html_id(product: &ProductType) -> &str {
+    match product {
+        ProductType::IONEX => "ionex",
+        ProductType::DORIS => "doris",
+        ProductType::ANTEX => "antex",
+        ProductType::Observation => "observations",
+        ProductType::BroadcastNavigation => "brdc",
+        ProductType::HighPrecisionClock => "clk",
+        ProductType::MeteoObservation => "meteo",
+        #[cfg(feature = "sp3")]
+        ProductType::HighPrecisionOrbit => "sp3",
+    }
+}
+
+impl RenderHtml for ProductReport {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        match self {
+            Self::RINEX(report) => match report {
+                RINEXReport::Obs(report) => {
+                    box_html! {
+                        div(class="section") {
+                            : report.to_inline_html()
+                        }
+                    }
+                },
+                RINEXReport::Doris(report) => {
+                    box_html! {
+                        div(class="section") {
+                            : report.to_inline_html()
+                        }
+                    }
+                },
+                RINEXReport::Ionex(report) => {
+                    box_html! {
+                        div(class="section") {
+                            : report.to_inline_html()
+                        }
+                    }
+                },
+                RINEXReport::Nav(report) => {
+                    box_html! {
+                        div(class="section") {
+                            : report.to_inline_html()
+                        }
+                    }
+                },
+                RINEXReport::Clk(report) => {
+                    box_html! {
+                        div(class="section") {
+                            : report.to_inline_html()
+                        }
+                    }
+                },
+                RINEXReport::Meteo(report) => {
+                    box_html! {
+                        div(class="section") {
+                            : report.to_inline_html()
+                        }
+                    }
+                },
+            },
+            #[cfg(feature = "sp3")]
+            Self::SP3(report) => {
+                box_html! {
+                    div(class="section") {
+                        : report.to_inline_html()
+                    }
+                }
+            },
+        }
+    }
+}
+
 impl ProductReport {
     pub fn as_rinex(&self) -> Option<&RINEXReport> {
         match self {
@@ -112,18 +185,6 @@ impl RenderHtml for HtmlContent {
 }
 
 impl QcReport {
-    /// GeoRust Logo (Url)
-    /// RINEX Wiki Pages (Url)
-    fn wiki_url() -> &'static str {
-        "https://github.com/georust/rinex/wiki"
-    }
-    /// Github (Online sources)
-    fn github_repo_url() -> &'static str {
-        "https://github.com/georust/rinex"
-    }
-    fn github_issue_url() -> &'static str {
-        "https://github.com/georust/rinex/issues"
-    }
     /// Builds a new GNSS report, ready to be rendered
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
         Self {
@@ -169,82 +230,189 @@ impl QcReport {
 impl RenderHtml for QcReport {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            script {
-                :
-"
-function tabClick(evt, animName) {
-  console.log('tabClick: ' + animName);
-  // hide everything
-  var pages = document.getElementsByClassName('page');
-  console.log('pages: ' + pages);
-  for (var i = 1; i == pages.length; i++){
-    pages[i-1].style.display = 'none';
-  }
-  var menu = document.getElementsByClassName('sidebar');
-  console.log('menu: ' + menu);
-  for (var i = 1; i == menu.length; i++){
-    menu[i-1].className = menu[i-1].className.replace(' w3-red', ' w3-black');
-  }
-  
-  document.getElementById(animName).style.display = 'block';
-  evt.currentTarget.className += ' w3-red';
-}
-"
-            } // JS
-            // Create summary tab
-            div(id="sidebar") {
-                div(class="sidebar-top") {
-                    div(class="sidebar-logo") {
-                        img(src=self.georust_logo_url(), style="width:100px;height:100px;")
-                    }
-                    div(class="code-version") {
-                        : env!("CARGO_PKG_VERSION")
-                    }
-                    div(class="bug-report") {
-                        a(href=Self::github_issue_url()) {
-                            : "Bug Report"
+            div(class="columns is-fullheight") {
+                div(id="menubar", class="column is-3 is-sidebar-menu is-hidden-mobile") {
+                    aside(class="menu") {
+                        p(class="menu-label") {
+                            : &format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION"))
+                        }
+                        ul(class="menu-list") {
+                            li {
+                                a(id="summary") {
+                                    span(class="icon") {
+                                        i(class="fa fa-home");
+                                    }
+                                    : "Summary"
+                                }
+                            }
+                            @ for (product, report) in self.products.iter() {
+                                @ if *product == ProductType::Observation {
+                                    li {
+                                        a(id="observations") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-tower-cell");
+                                            }
+                                            : "Observations"
+                                        }
+                                    }
+                                    ul(class="menu-list", id="nested:observations", style="display:none") {
+                                        @ for constell in report
+                                            .as_rinex()
+                                            .unwrap()
+                                            .as_obs()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if *product == ProductType::BroadcastNavigation {
+                                    li {
+                                        a(id="brdc") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-satellite-dish");
+                                            }
+                                            : "Broadcast Navigation (BRDC)"
+                                        }
+                                    }
+                                    ul(class="menu-list", id="nested:brdc", style="display:none") {
+                                        @ for constell in report
+                                            .as_rinex()
+                                            .unwrap()
+                                            .as_nav()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if *product == ProductType::HighPrecisionOrbit {
+                                    li {
+                                        a(id="sp3") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-satellite");
+                                            }
+                                            : "High Precision Orbit (SP3)"
+                                        }
+                                    }
+                                    ul(class="menu-list", id="nested:sp3", style="display:none") {
+                                        @ for constell in report
+                                            .as_sp3()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if *product == ProductType::HighPrecisionClock {
+                                    li {
+                                        a(id="brdc") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-clock");
+                                            }
+                                            : "High Precision Clock (RINEX)"
+                                        }
+                                    }
+                                    ul(class="menu-list", id="nested:clk", style="display:none") {
+                                        @ for constell in report
+                                            .as_rinex()
+                                            .unwrap()
+                                            .as_clk()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if *product == ProductType::MeteoObservation {
+                                    li {
+                                        a(id="meteo") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-cloud-sun-rain");
+                                            }
+                                            : "Meteo Observations"
+                                        }
+                                    }
+                                } else if *product == ProductType::IONEX {
+                                    li {
+                                        a(id="ionex") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-earth-americas");
+                                            }
+                                            : "Ionosphere Maps (IONEX)"
+                                        }
+                                    }
+                                }
+                            } // for products..
+                            p(class="menu-label") {
+                                a(href="https://github.com/georust/rinex/wiki", style="margin-left:29px") {
+                                    : "Documentation"
+                                }
+                            }
+                            p(class="menu-label") {
+                                a(href="https://github.com/georust/rinex/issues", style="margin-left:29px") {
+                                    : "Bug Report"
+                                }
+                            }
+                            p(class="menu-label") {
+                                a(href="https://github.com/georust/rinex") {
+                                    span(class="icon") {
+                                        i(class="fa-brands fa-github");
+                                    }
+                                    : "Sources"
+                                }
+                            }
+                        } //class=menu-list
+                    } //class=menu
+                } // id=menubar
+                div(class="hero is-fullheight") {
+                    div(id="summary", class="container", style="display:block") {
+                        div(class="section") {
+                            : self.summary.to_inline_html()
+                        }
+                    }//id=summary
+                    @ for (product, report) in self.products.iter() {
+                        div(id=html_id(product), class="container", style="display:none") {
+                            div(class="section") {
+                                : report.to_inline_html()
+                            }
                         }
                     }
-                    div(class="source-code") {
-                        a(href=Self::github_repo_url()) {
-                            : "Source code"
-                        }
-                    }
-                    div(class="documentation") {
-                        a(href=Self::wiki_url()) {
-                            : "Online Documentation"
-                        }
-                    }
-                }
-                div(class="w3-sidebar w3-bar-block w3-black w3-card", style="width:200px") {
-                    button(class="w3-bar-item w3-button sidebar", onclick="tabClick(event, 'Summary')") {
-                        : "Summary"
-                    }
-                    @ for tab in self.products.keys() {
-                        button(class="w3-bar-item w3-button sidebar", onclick=&format!("tabClick(event, '{}')", tab)) {
-                            : tab.to_string()
-                        }
-                    }
-                }
-            }
-            div(id="rinex") {
-                div(id="Summary", class="w3-container w3-animate-opacity w3-teal page", style="margin-left:200; display:none;") {
-                    : self.summary.to_inline_html()
-                }
-                // Tab content
-                @ for (tab, item) in self.products.iter() {
-                    @ if let Some(RINEXReport::Obs(report)) = item.as_rinex() {
-                        div(id="Observation", class="w3-container w3-animate-opacity w3-teal page", style="margin-left:200; display:none;") {
-                            : report.to_inline_html()
-                        }
-                    }
-                    @ if let Some(report) = item.as_sp3() {
-                         div(id="High Precision Orbit (SP3)", class="w3-container w3-animate-opacity w3-teal page", style="margin-left:200; display:none;") {
-                             : report.to_inline_html()
-                         }
-                    }
-                }
-            }
+                }//class=hero
+            } // class=columns
+
             @ if let Some(navi) = &self.navi {
                 div(id="navi") {
                     // Create tab

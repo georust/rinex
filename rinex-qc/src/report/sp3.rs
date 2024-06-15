@@ -1,6 +1,10 @@
 use crate::report::shared::SamplingReport;
 use qc_traits::html::*;
-use sp3::prelude::SP3;
+use sp3::prelude::{Constellation, SP3};
+use std::collections::HashMap;
+
+//TODO
+pub struct SP3Page {}
 
 pub struct SP3Report {
     pub agency: String,
@@ -10,6 +14,7 @@ pub struct SP3Report {
     pub constellation: String,
     pub time_scale: String,
     pub sampling: SamplingReport,
+    pub pages: HashMap<Constellation, SP3Page>,
 }
 
 impl SP3Report {
@@ -22,6 +27,7 @@ impl SP3Report {
             time_scale: sp3.time_scale.to_string(),
             sampling: SamplingReport::from_sp3(sp3),
             constellation: sp3.constellation.to_string(),
+            pages: Default::default(),
         }
     }
 }
