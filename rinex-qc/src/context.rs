@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use rinex::{
     merge::{Error as RinexMergeError, Merge as RinexMerge},
-    prelude::{GroundPosition, Rinex},
+    prelude::{GroundPosition, Rinex, TimeScale},
     types::Type as RinexType,
     Error as RinexError,
 };
@@ -145,6 +145,10 @@ pub struct QcContext {
 }
 
 impl QcContext {
+    /// Returns main [TimeScale] for Self
+    pub fn timescale(&self) -> TimeScale {
+        TimeScale::default() // TODO
+    }
     /// Returns path to File considered as Primary product in this Context.
     /// When a unique file had been loaded, it is obviously considered Primary.
     pub fn primary_path(&self) -> Option<&PathBuf> {

@@ -42,6 +42,7 @@ impl SamplingReport {
         let t_start = sp3.first_epoch().expect("badly formed sp3: empty?");
         let t_end = sp3.last_epoch().expect("badly formed sp3: empty?");
         Self {
+            gaps: Vec::new(), // TODO
             last_epoch: t_end,
             first_epoch: t_start,
             duration: t_end - t_start,

@@ -67,6 +67,13 @@ pub enum Filter {
     // Interp(InterpFilter),
 }
 
+impl Filter {
+    /// Builds new [MaskFilter] from given specs
+    pub fn mask(operand: MaskOperand, item: FilterItem) -> Self {
+        Self::Mask(MaskFilter { operand, item })
+    }
+}
+
 impl From<MaskFilter> for Filter {
     fn from(mask: MaskFilter) -> Self {
         Self::Mask(mask)

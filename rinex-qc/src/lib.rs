@@ -8,8 +8,6 @@ extern crate rinex_qc_traits as qc_traits;
 mod cfg;
 pub use cfg::QcConfig;
 
-use qc_traits::html::*;
-
 mod context;
 pub use context::{ProductType, QcContext};
 

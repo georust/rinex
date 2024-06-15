@@ -1,6 +1,5 @@
 use qc_traits::html::*;
 use rinex::prelude::*;
-use rinex::{geodetic, wgs84};
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
@@ -15,13 +14,14 @@ use serde::{
 /// Configuration Error
 #[derive(Debug, Clone, Error)]
 pub enum Error {
+    #[error("invalid report type")]
     InvalidReportType,
 }
 
 use std::fmt::Display;
 use std::str::FromStr;
 
-/// [ReportType]
+/// [QcReportType]
 #[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum QcReportType {
@@ -32,14 +32,14 @@ pub enum QcReportType {
     /// In [Full] mode, we generate the [CombinedReport] as well,
     /// which results from the consideration of all input [ProductType]s
     /// at the same time.
-    #[Default]
+    #[default]
     Full,
 }
 
 impl FromStr for QcReportType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.trim().lowercase() {
+        match s.trim().to_lowercase().as_str() {
             "sum" | "summ" | "summary" => Ok(Self::Summary),
             "full" => Ok(Self::Full),
             _ => Err(Error::InvalidReportType),
@@ -47,7 +47,7 @@ impl FromStr for QcReportType {
     }
 }
 
-impl Display for ReportType {
+impl Display for QcReportType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Full => f.write_str("Full"),
@@ -69,8 +69,8 @@ impl QcConfig {
     pub fn set_report_type(&mut self, report_type: QcReportType) {
         self.report = report_type;
     }
-    pub fn set_reference_position(&self, pos: GroundPosition) -> Self {
-        self.manual_reference = pos.clone();
+    pub fn set_reference_position(&mut self, pos: GroundPosition) {
+        self.manual_reference = Some(pos.clone());
     }
 }
 
@@ -82,10 +82,10 @@ impl RenderHtml for QcConfig {
                     : "Report"
                 }
                 td {
-                    : self.report
+                    : self.report.to_string()
                 }
             }
-            @ if let Some(position) = self.manual_ecef_reference {
+            @ if let Some(position) = self.manual_reference {
                 tr {
                     td {
                         : position.to_inline_html()

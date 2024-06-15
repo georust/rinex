@@ -1,8 +1,12 @@
 use qc_traits::html::*;
+use qc_traits::processing::{Filter, FilterItem, MaskFilter, MaskOperand, Preprocessing};
+
+use std::collections::HashMap;
 
 use rinex::{
+    carrier::Carrier,
     hardware::{Antenna, Receiver},
-    prelude::{Carrier, Constellation, Duration, Epoch},
+    prelude::{Constellation, Duration, Epoch, Observable, Rinex},
 };
 
 use crate::report::shared::SamplingReport;
@@ -13,6 +17,12 @@ pub struct FrequencyPage {
     pub carrier: Carrier,
     /// Loss of sight analysis
     pub gaps: HashMap<(Observable, Epoch), Duration>,
+}
+
+impl RenderHtml for FrequencyPage {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {}
+    }
 }
 
 /// Constellation dependent pagination
@@ -29,6 +39,12 @@ pub struct ConstellationPage {
     pub pages: Vec<FrequencyPage>,
 }
 
+impl RenderHtml for ConstellationPage {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {}
+    }
+}
+
 /// RINEX Observation Report
 pub struct Report {
     pub antenna: Option<Antenna>,
@@ -42,8 +58,13 @@ impl Report {
     pub fn new(rinex: &Rinex) -> Self {
         Self {
             sampling: SamplingReport::from_rinex(rinex),
-            receiver: if let Some(rcvr) = rinex.header.rcvr {
-                Some(rcvr)
+            receiver: if let Some(rcvr) = &rinex.header.rcvr {
+                Some(rcvr.clone())
+            } else {
+                None
+            },
+            antenna: if let Some(ant) = &rinex.header.rcvr_antenna {
+                Some(ant.clone())
             } else {
                 None
             },
@@ -51,7 +72,7 @@ impl Report {
             pages: {
                 let mut pages = HashMap::<Constellation, ConstellationPage>::new();
                 for constellation in rinex.constellation() {
-                    let filter = Filter.mask(
+                    let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),
                     );
@@ -59,7 +80,7 @@ impl Report {
                     pages.insert(
                         constellation,
                         ConstellationPage {
-                            doppler: focused.dopler().count() > 0,
+                            doppler: focused.doppler().count() > 0,
                             spp_compatible: false,
                             cpp_compatible: false,
                             ppp_compatible: false,
@@ -67,9 +88,9 @@ impl Report {
                                 let mut pages = Vec::<FrequencyPage>::new();
                                 for observable in focused.observable() {
                                     if let Ok(carrier) =
-                                        Carrier::from_observable(observable, constellation)
+                                        Carrier::from_observable(constellation, observable)
                                     {
-                                        let filter = Filter.mask(
+                                        let filter = Filter::mask(
                                             MaskOperand::Equals,
                                             FilterItem::ComplexItem(vec![observable.to_string()]),
                                         );
@@ -79,31 +100,33 @@ impl Report {
                                             gaps: {
                                                 let mut gaps =
                                                     HashMap::<(Observable, Epoch), Duration>::new();
-                                                for (t, dur) in focused.data_gaps() {
-                                                    gaps.insert((observable, t), dur);
+                                                for (t, dur) in focused.data_gaps(None) {
+                                                    // gaps.insert((observable, t), dur);
                                                 }
                                                 gaps
                                             },
                                         });
                                     }
                                 }
+                                pages
                             },
                         },
                     );
                 }
+                pages
             },
         }
     }
 }
 
-impl HtmlRender for Report {
+impl RenderHtml for Report {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
             table {
                 th {
                     : "Antenna"
                 }
-                @ if let Some(ant) = self.antenna {
+                @ if let Some(ant) = &self.antenna {
                     td {
                         : ant.to_inline_html()
                     }
@@ -115,7 +138,7 @@ impl HtmlRender for Report {
                 th {
                     : "Receiver"
                 }
-                @ if let Some(rx) = self.receiver {
+                @ if let Some(rx) = &self.receiver {
                     td {
                         : rx.to_inline_html()
                     }
@@ -128,7 +151,7 @@ impl HtmlRender for Report {
                     : "Constellations"
                 }
                 td {
-                    : self.constellations.iter().join(",")
+                    : "TODO" // self.constellations.iter().join(",")
                 }
                 // create constellation dependent tab
                 @ for (constellation, page) in self.pages.iter() {

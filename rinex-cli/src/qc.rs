@@ -6,7 +6,7 @@ use std::io::Write;
 
 use crate::cli::Context;
 use crate::Error;
-use rinex_qc::{QcOpts, QcReport, RenderHtml};
+use rinex_qc::{QcConfig, QcReport, RenderHtml};
 
 pub fn qc_report(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let cfg = match matches.get_one::<String>("cfg") {
@@ -19,7 +19,7 @@ pub fn qc_report(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             cfg
         },
         None => {
-            let cfg = QcOpts::default();
+            let cfg = QcConfig::default();
             info!("using default QC configuration: {:#?}", cfg);
             cfg
         },
@@ -28,11 +28,11 @@ pub fn qc_report(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     /*
      * print more infos
      */
-    info!("Classification method : {:?}", cfg.classification);
-    info!("Reference position    : {:?}", cfg.ground_position);
-    info!("Minimal SNR           : {:?}", cfg.min_snr_db);
-    info!("Elevation mask        : {:?}", cfg.elev_mask);
-    info!("Sampling gap tolerance: {:?}", cfg.gap_tolerance);
+    //info!("Classification method : {:?}", cfg.classification);
+    //info!("Reference position    : {:?}", cfg.ground_position);
+    //info!("Minimal SNR           : {:?}", cfg.min_snr_db);
+    //info!("Elevation mask        : {:?}", cfg.elev_mask);
+    //info!("Sampling gap tolerance: {:?}", cfg.gap_tolerance);
 
     let html = QcReport::new(&ctx.data, cfg).to_html();
     let report_path = ctx.workspace.root.join("QC.html");

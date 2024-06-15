@@ -11,7 +11,7 @@ use qc_traits::html::{box_html, *};
 /// GNSS receiver description
 #[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Rcvr {
+pub struct Receiver {
     /// Receiver (hardware) model
     pub model: String,
     /// Receiver (hardware) identification info
@@ -20,13 +20,13 @@ pub struct Rcvr {
     pub firmware: String, // firmware #
 }
 
-impl std::str::FromStr for Rcvr {
+impl std::str::FromStr for Receiver {
     type Err = std::io::Error;
     fn from_str(line: &str) -> Result<Self, Self::Err> {
         let (id, rem) = line.split_at(20);
         let (make, rem) = rem.split_at(20);
         let (version, _) = rem.split_at(20);
-        Ok(Rcvr {
+        Ok(Receiver {
             sn: id.trim().to_string(),
             model: make.trim().to_string(),
             firmware: version.trim().to_string(),
@@ -159,7 +159,7 @@ impl RenderHtml for Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl RenderHtml for Rcvr {
+impl RenderHtml for Receiver {
     fn to_html(&self) -> String {
         panic!("cannot render hardware::receiver on its own");
     }
@@ -233,7 +233,7 @@ mod test {
     #[test]
     fn rcvr_parser() {
         let content = "2090088             LEICA GR50          4.51                ";
-        let rcvr = Rcvr::from_str(content);
+        let rcvr = Receiver::from_str(content);
         assert!(rcvr.is_ok());
         let rcvr = rcvr.unwrap();
         assert_eq!(rcvr.model, "LEICA GR50");

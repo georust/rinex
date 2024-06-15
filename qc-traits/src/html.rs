@@ -16,10 +16,11 @@ pub trait RenderHtml {
                     head {
                         meta(charset="utf-8");
                         meta(name="viewport", content="width=device-width, initial-scale=1");
+                        link(rel="icon", type="image/x-icon", href=self.georust_logo_url(), style="width:35px;height:35px;");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
+                        link(rel="stylesheet", href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css");
                         link(rel="stylesheet", href="https://www.w3schools.com/w3css/4/w3.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        link(rel="icon", src=self.georust_logo_url(), style="width:35px;height:35px;");
                     }
                     body {
                         : self.to_inline_html()

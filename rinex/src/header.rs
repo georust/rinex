@@ -6,7 +6,7 @@ use crate::{
     doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
-    hardware::{Antenna, Rcvr, SvAntenna},
+    hardware::{Antenna, Receiver, SvAntenna},
     ionex,
     leap::{Error as LeapParsingError, Leap},
     linspace::{Error as LinspaceError, Linspace},
@@ -119,7 +119,7 @@ pub struct Header {
     pub gps_utc_delta: Option<u32>,
     /// Optionnal Receiver information
     #[cfg_attr(feature = "serde", serde(default))]
-    pub rcvr: Option<Rcvr>,
+    pub rcvr: Option<Receiver>,
     /// Optionnal Receiver Antenna information
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr_antenna: Option<Antenna>,
@@ -173,7 +173,7 @@ pub enum ParsingError {
     #[error("failed to parse leap from \"{0}\"")]
     LeapParsingError(#[from] LeapParsingError),
     #[error("failed to parse antenna / receiver infos")]
-    AntennaRcvrError(#[from] std::io::Error),
+    AntennaReceiverError(#[from] std::io::Error),
     #[error("failed to parse ANTEX fields")]
     AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
@@ -255,7 +255,7 @@ impl Header {
         let mut geodetic_marker = Option::<GeodeticMarker>::None;
         let mut cospar = Option::<COSPAR>::None;
         let mut glo_channels: HashMap<SV, i8> = HashMap::new();
-        let mut rcvr: Option<Rcvr> = None;
+        let mut rcvr: Option<Receiver> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<Leap> = None;
@@ -493,7 +493,7 @@ impl Header {
                 observer = obs.trim().to_string();
                 agency = ag.trim().to_string();
             } else if marker.contains("REC # / TYPE / VERS") {
-                if let Ok(receiver) = Rcvr::from_str(content) {
+                if let Ok(receiver) = Receiver::from_str(content) {
                     rcvr = Some(receiver);
                 }
             } else if marker.contains("SYS / PCVS APPLIED") {
@@ -1237,7 +1237,7 @@ impl Header {
     }
 
     /// Adds receiver information to self
-    pub fn with_receiver(&self, r: Rcvr) -> Self {
+    pub fn with_receiver(&self, r: Receiver) -> Self {
         let mut s = self.clone();
         s.rcvr = Some(r);
         s
