@@ -53,23 +53,17 @@
                 Observations
               </a>
             </span>
-
-
-            <ul class="menu-list">
-              <li>
-                <a id="brdc">
-                  <span class="icon">
-                    <i class="fa-solid fa-satellite"></i>
-                  </span> 
-                  GPS
-                </a>
-              </span>
-              </li>
-              </ul>
-
-              <ul class="menu-list">
+              <ul class="menu-list" id="nested:observations" style="display:none">
                 <li>
-                  <a id="brdc">
+                  <a>
+                    <span class="icon">
+                      <i class="fa-solid fa-satellite"></i>
+                    </span> 
+                    GPS
+                  </a>
+                </li>
+                <li>
+                  <a>
                     <span class="icon">
                       <i class="fa-solid fa-satellite"></i>
                     </span> 
@@ -77,21 +71,25 @@
                   </a>
                 </span>
                 </li>
-                </ul>
-
-                <ul class="menu-list">
-                  <li>
-                    <a id="brdc">
-                      <span class="icon">
-                        <i class="fa-solid fa-satellite"></i>
-                      </span> 
-                      Glonass
-                    </a>
-                  </span>
-                  </li>
-                  </ul>
-
+                <li>
+                  <a>
+                    <span class="icon">
+                      <i class="fa-solid fa-satellite"></i>
+                    </span> 
+                    Glonass
+                  </a>
+                </li>
+              </ul>
             </li>
+
+            <li>
+              <a id="meteo">
+                <span class="icon">
+                  <i class="fa-solid fa-tower-cell"></i>
+                </span> 
+                Meteo Observations
+              </a>
+            </span>
           
             <li>
               <a id="brdc">
@@ -101,6 +99,33 @@
                 Broadcast Navigation (BRDC)
               </a>
             </span>
+            <ul class="menu-list" id="nested:brdc" style="display:none">
+              <li>
+                <a>
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite"></i>
+                  </span> 
+                  GPS
+                </a>
+              </li>
+              <li>
+                <a>
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite"></i>
+                  </span> 
+                  Galileo
+                </a>
+              </span>
+              </li>
+              <li>
+                <a>
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite"></i>
+                  </span> 
+                  Glonass
+                </a>
+              </li>
+            </ul>
             </li>
 
             <li>
@@ -111,6 +136,33 @@
                 High Precision Orbit (SP3)
               </a>
             </span>
+            <ul class="menu-list" id="nested:sp3" style="display:none">
+              <li>
+                <a>
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite"></i>
+                  </span> 
+                  GPS
+                </a>
+              </li>
+              <li>
+                <a>
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite"></i>
+                  </span> 
+                  Galileo
+                </a>
+              </span>
+              </li>
+              <li>
+                <a>
+                  <span class="icon">
+                    <i class="fa-solid fa-satellite"></i>
+                  </span> 
+                  Glonass
+                </a>
+              </li>
+            </ul>
             </li>
 
             <li>
@@ -452,7 +504,1035 @@
 
             </div>
           </div>
-        </div>  
+      </div>  
+
+      <div id="brdc" class="container" style="display:none">
+        <div class="section">
+          <div class="table-container">
+            
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> GNSS Receiver </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Antenna </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Sampling </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Start
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    End
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Duration
+                  </td>
+                  <td>
+                    24 h
+                  </td>
+                </tr>
+              </tr>
+              <tr>
+                <th> 
+                  Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <th> 
+                  Dominant Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+                <tr>
+                  <th> 
+                    Gaps
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Shortest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                      <tr>
+                        <th> Longest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div id="meteo" class="container" style="display:none">
+        <div class="section">
+          <div class="table-container">
+            
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> GNSS Receiver </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Antenna </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Sampling </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Start
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    End
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Duration
+                  </td>
+                  <td>
+                    24 h
+                  </td>
+                </tr>
+              </tr>
+              <tr>
+                <th> 
+                  Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <th> 
+                  Dominant Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+                <tr>
+                  <th> 
+                    Gaps
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Shortest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                      <tr>
+                        <th> Longest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div id="ionex" class="container" style="display:none">
+        <div class="section">
+          <div class="table-container">
+            
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> GNSS Receiver </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Antenna </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Sampling </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Start
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    End
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Duration
+                  </td>
+                  <td>
+                    24 h
+                  </td>
+                </tr>
+              </tr>
+              <tr>
+                <th> 
+                  Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <th> 
+                  Dominant Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+                <tr>
+                  <th> 
+                    Gaps
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Shortest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                      <tr>
+                        <th> Longest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div id="sp3" class="container" style="display:none">
+        <div class="section">
+          <div class="table-container">
+            
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> GNSS Receiver </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Antenna </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Sampling </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Start
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    End
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Duration
+                  </td>
+                  <td>
+                    24 h
+                  </td>
+                </tr>
+              </tr>
+              <tr>
+                <th> 
+                  Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <th> 
+                  Dominant Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+                <tr>
+                  <th> 
+                    Gaps
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Shortest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                      <tr>
+                        <th> Longest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div id="clk" class="container" style="display:none">
+        <div class="section">
+          <div class="table-container">
+            
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> GNSS Receiver </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Antenna </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Sampling </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Start
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    End
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Duration
+                  </td>
+                  <td>
+                    24 h
+                  </td>
+                </tr>
+              </tr>
+              <tr>
+                <th> 
+                  Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <th> 
+                  Dominant Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+                <tr>
+                  <th> 
+                    Gaps
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Shortest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                      <tr>
+                        <th> Longest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div id="navi" class="container" style="display:none">
+        <div class="section">
+          <div class="table-container">
+            
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> GNSS Receiver </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Antenna </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Sampling </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Start
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    End
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Duration
+                  </td>
+                  <td>
+                    24 h
+                  </td>
+                </tr>
+              </tr>
+              <tr>
+                <th> 
+                  Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <th> 
+                  Dominant Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+                <tr>
+                  <th> 
+                    Gaps
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Shortest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                      <tr>
+                        <th> Longest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div id="ppp" class="container" style="display:none">
+        <div class="section">
+          <div class="table-container">
+            
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> GNSS Receiver </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Antenna </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Model
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Firmware
+                  </td>
+                  <td>
+                    Unknown
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="table is-bordered">
+              <tbody>
+                <tr>
+                  <th class="is-info"> Sampling </th>
+                </tr>
+                <tr>
+                  <th> 
+                    Start
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    End
+                  </td>
+                  <td>
+                    2020-01-01T00:00:00 GPST
+                  </td>
+                </tr>
+                <tr>
+                  <th> 
+                    Duration
+                  </td>
+                  <td>
+                    24 h
+                  </td>
+                </tr>
+              </tr>
+              <tr>
+                <th> 
+                  Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <th> 
+                  Dominant Sampling
+                </td>
+                <td>
+                  <table class="table">
+                    <tr>
+                      <th> Rate </th>
+                      <td> 0.33 Hz </td>
+                    </tr>
+                    <tr>
+                      <th> Period </th>
+                      <td> 15 min </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+                <tr>
+                  <th> 
+                    Gaps
+                  </td>
+                  <td>
+                    <table class="table">
+                      <tr>
+                        <th> Shortest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                      <tr>
+                        <th> Longest </th>
+                        <td> 2020-01-01T00:00:00 GPST </td>
+                        <td> 1 hr </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
       </div>
 
       <div id="about:content" class="container" style="display:none">
@@ -472,17 +1552,35 @@
     var sidebar_menu = document.querySelector(
       ".is-sidebar-menu"
     );
-    
     var sidebar_about = document.querySelector(
       "#about\content"
     );
-
     var summary_report = document.querySelector(
       ".hero>#summary"
     );
-
     var observations_report = document.querySelector(
       ".hero>#observations"
+    );
+    var brdc_report = document.querySelector(
+      ".hero>#brdc"
+    );
+    var sp3_report = document.querySelector(
+      ".hero>#sp3"
+    );
+    var ionex_report = document.querySelector(
+      ".hero>#ionex"
+    );
+    var clk_report = document.querySelector(
+      ".hero>#clk"
+    );    
+    var meteo_report = document.querySelector(
+      ".hero>#meteo"
+    );
+    var navi_report = document.querySelector(
+      ".hero>#navi"
+    );
+    var ppp_report = document.querySelector(
+      ".hero>#ppp"
     );
 
     sidebar_menu.onclick = function(evt) {
@@ -491,13 +1589,167 @@
       console.log("clicked id: " + target_id);
 
       if (target_id == "summary") {
+        
         summary_report.style = "display:block";
         observations_report.style = "display:none";
-      } else if (target_id == "observations") {
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:none";
 
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "observations") {
+        
         summary_report.style = "display:none";
         observations_report.style = "display:block";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:block";
+
+      } else if (target_id == "brdc") {
+
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:block";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:block";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "ionex") {
+        
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:block";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "clk") {
+        
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:block";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "sp3") {
+        
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:block";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:block";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "navi") {
+        
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:block";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "meteo") {
+        
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:block";
+        clk_report.style = "display:none";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "navi") {
+        
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:block";
+        ppp_report.style = "display:none";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
+      } else if (target_id == "ppp") {
+        
+        summary_report.style = "display:none";
+        observations_report.style = "display:none";
+        brdc_report.style = "display:none";
+        ionex_report.style = "display:none";
+        sp3_report.style = "display:none";
+        meteo_report.style = "display:none";
+        clk_report.style = "display:none";
+        navi_report.style = "display:none";
+        ppp_report.style = "display:block";
+
+        document.getElementById("nested:sp3").style = "display:none";
+        document.getElementById("nested:brdc").style = "display:none";
+        document.getElementById("nested:observations").style = "display:none";
+
       }
+
     }
 
     sidebar_about.onclick = function(evt) {
