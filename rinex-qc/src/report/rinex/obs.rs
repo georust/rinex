@@ -122,44 +122,21 @@ impl Report {
 impl RenderHtml for Report {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            table {
-                th {
-                    : "Antenna"
-                }
-                @ if let Some(ant) = &self.antenna {
-                    td {
-                        : ant.to_inline_html()
-                    }
-                } else {
-                    th {
-                        : "Unknown"
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    @ if let Some(ant) = &self.antenna {
+                        td {
+                            : ant.to_inline_html()
+                        }
                     }
                 }
-                th {
-                    : "Receiver"
-                }
-                @ if let Some(rx) = &self.receiver {
-                    td {
-                        : rx.to_inline_html()
-                    }
-                } else {
-                    th {
-                        : "Unknown"
-                    }
-                }
-                th {
-                    : "Constellations"
-                }
-                td {
-                    : "TODO" // self.constellations.iter().join(",")
-                }
-                // create constellation dependent tab
-                @ for (constellation, page) in self.pages.iter() {
-                    th {
-                        : constellation.to_string()
-                    }
-                    td {
-                        : page.to_inline_html()
+            }//table-container
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    @ if let Some(rx) = &self.receiver {
+                        td {
+                            : rx.to_inline_html()
+                        }
                     }
                 }
             }

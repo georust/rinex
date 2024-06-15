@@ -96,43 +96,46 @@ impl Antenna {
 
 #[cfg(feature = "qc")]
 impl RenderHtml for Antenna {
-    fn to_html(&self) -> String {
-        panic!("cannot render hardware::antenna on its own");
-    }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
             table(class="table is-bordered") {
-                tr {
-                    th {
-                        : "Model"
+                tbody {
+                    tr {
+                        th(class="is-info") {
+                            : "Antenna"
+                        }
                     }
-                    th {
-                        : "SN#"
+                    tr {
+                        th {
+                            : "Model"
+                        }
+                        td {
+                            : self.model.clone()
+                        }
                     }
-                    th {
-                        : "Base Coordinates"
+                    tr {
+                        th {
+                            : "SN#"
+                        }
+                        td {
+                            : self.sn.clone()
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Base Coordinates"
+                        }
+                        td {
+                            @ if let Some(coords) = self.coords {
+                                : format!("({}m, {}m, {}m) (ECEF)",
+                                    coords.0, coords.1, coords.2)
+                            } else {
+                                : "Unknown"
+                            }
+                        }
                     }
                     th {
                         : "Height"
-                    }
-                    th {
-                        : "Eccentricity"
-                    }
-                }
-                tr {
-                    td {
-                        : self.model.clone()
-                    }
-                    td {
-                        : self.sn.clone()
-                    }
-                    td {
-                        @ if let Some(coords) = self.coords {
-                            : format!("({}m, {}m, {}m) (ECEF)",
-                                coords.0, coords.1, coords.2)
-                        } else {
-                            : "Unknown"
-                        }
                     }
                     td {
                         @ if let Some(h) = self.height {
@@ -140,6 +143,9 @@ impl RenderHtml for Antenna {
                         } else {
                             : "Unknown"
                         }
+                    }
+                    th {
+                        : "Eccentricity"
                     }
                     td {
                         @ if let Some(north) = self.northern {
@@ -160,32 +166,40 @@ impl RenderHtml for Antenna {
 
 #[cfg(feature = "qc")]
 impl RenderHtml for Receiver {
-    fn to_html(&self) -> String {
-        panic!("cannot render hardware::receiver on its own");
-    }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
-                tr {
-                    th {
-                        : "Model"
-                    }
-                    th {
-                        : "SN#"
-                    }
-                    th {
-                        : "Firmware"
-                    }
-                }
-                tr {
-                    td {
-                        : self.model.clone()
-                    }
-                    td {
-                        : self.sn.clone()
-                    }
-                    td {
-                        : self.firmware.clone()
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    tbody {
+                        tr {
+                            th(class="is-info") {
+                                : "GNSS Receiver"
+                            }
+                        }
+                        tr {
+                            th {
+                                : "Model"
+                            }
+                            td {
+                                : self.model.clone()
+                            }
+                        }
+                        tr {
+                            th {
+                                : "SN#"
+                            }
+                            td {
+                                : self.sn.clone()
+                            }
+                        }
+                        tr {
+                            th {
+                                : "Firmware"
+                            }
+                            td {
+                                : self.firmware.clone()
+                            }
+                        }
                     }
                 }
             }

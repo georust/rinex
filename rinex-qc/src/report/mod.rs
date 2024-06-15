@@ -1,5 +1,6 @@
 //! Generic analysis report
 use crate::{ProductType, QcConfig, QcContext};
+use itertools::Itertools;
 use qc_traits::html::*;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -29,10 +30,6 @@ pub enum Error {
     #[error("non supported RINEX format")]
     NonSupportedRINEX,
 }
-
-// rinex data analysis
-//mod rinex;
-//use rinex::ObservationAnalysis;
 
 enum ProductReport {
     /// RINEX products report
@@ -145,45 +142,6 @@ pub struct QcReport {
     products: HashMap<ProductType, ProductReport>,
 }
 
-pub struct HtmlContent {
-    /// Header (upper) section
-    head: Box<dyn RenderHtml>,
-    /// Body (middle) section
-    body: Box<dyn RenderHtml>,
-    /// Footnote (bottom) section
-    footnote: Box<dyn RenderHtml>,
-}
-
-impl RenderHtml for HtmlContent {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table; style=\"margin-bottom: 20px\"") {
-                thead {
-                    tr {
-                        td {
-                            : self.head.to_inline_html()
-                        }
-                    }
-                }
-                tbody {
-                    tr {
-                        td {
-                            : self.body.to_inline_html()
-                        }
-                    }
-                }
-                tfoot {
-                    tr {
-                        td {
-                            : self.footnote.to_inline_html()
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
@@ -245,133 +203,135 @@ impl RenderHtml for QcReport {
                                 : "Summary"
                             }
                         }
-                        @ for (product, report) in self.products.iter() {
-                            @ if *product == ProductType::Observation {
-                                li {
-                                    a(id="observations") {
-                                        span(class="icon") {
-                                            i(class="fa-solid fa-tower-cell");
+                        @ for product in self.products.keys().sorted() {
+                            @ if let Some(report) = self.products.get(&product) {
+                                @ if *product == ProductType::Observation {
+                                    li {
+                                        a(id="observations") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-tower-cell");
+                                            }
+                                            : "Observations"
                                         }
-                                        : "Observations"
                                     }
-                                }
-                                ul(class="menu-list", id="nested:observations", style="display:none") {
-                                    @ for constell in report
-                                        .as_rinex()
-                                        .unwrap()
-                                        .as_obs()
-                                        .unwrap()
-                                        .pages
-                                        .keys()
-                                    {
-                                        li {
-                                            a {
-                                                span(class="icon") {
-                                                    i(class="fa-solid fa-satellite");
+                                    ul(class="menu-list", id="nested:observations", style="display:none") {
+                                        @ for constell in report
+                                            .as_rinex()
+                                            .unwrap()
+                                            .as_obs()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a(id=&format!("nested:obs:{}", constell)) {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
                                                 }
-                                                : constell.to_string()
                                             }
                                         }
                                     }
-                                }
-                            } else if *product == ProductType::BroadcastNavigation {
-                                li {
-                                    a(id="brdc") {
-                                        span(class="icon") {
-                                            i(class="fa-solid fa-satellite-dish");
+                                } else if *product == ProductType::BroadcastNavigation {
+                                    li {
+                                        a(id="brdc") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-satellite-dish");
+                                            }
+                                            : "Broadcast Navigation (BRDC)"
                                         }
-                                        : "Broadcast Navigation (BRDC)"
                                     }
-                                }
-                                ul(class="menu-list", id="nested:brdc", style="display:none") {
-                                    @ for constell in report
-                                        .as_rinex()
-                                        .unwrap()
-                                        .as_nav()
-                                        .unwrap()
-                                        .pages
-                                        .keys()
-                                    {
-                                        li {
-                                            a {
-                                                span(class="icon") {
-                                                    i(class="fa-solid fa-satellite");
+                                    ul(class="menu-list", id="nested:brdc", style="display:none") {
+                                        @ for constell in report
+                                            .as_rinex()
+                                            .unwrap()
+                                            .as_nav()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a(id=&format!("nested:brdc:{}", constell)) {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
                                                 }
-                                                : constell.to_string()
                                             }
                                         }
                                     }
-                                }
-                            } else if *product == ProductType::HighPrecisionOrbit {
-                                li {
-                                    a(id="sp3") {
-                                        span(class="icon") {
-                                            i(class="fa-solid fa-satellite");
+                                } else if *product == ProductType::HighPrecisionOrbit {
+                                    li {
+                                        a(id="sp3") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-satellite");
+                                            }
+                                            : "High Precision Orbit (SP3)"
                                         }
-                                        : "High Precision Orbit (SP3)"
                                     }
-                                }
-                                ul(class="menu-list", id="nested:sp3", style="display:none") {
-                                    @ for constell in report
-                                        .as_sp3()
-                                        .unwrap()
-                                        .pages
-                                        .keys()
-                                    {
-                                        li {
-                                            a {
-                                                span(class="icon") {
-                                                    i(class="fa-solid fa-satellite");
+                                    ul(class="menu-list", id="nested:sp3", style="display:none") {
+                                        @ for constell in report
+                                            .as_sp3()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a(id=&format!("nested:sp3:{}", constell)) {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
                                                 }
-                                                : constell.to_string()
                                             }
                                         }
                                     }
-                                }
-                            } else if *product == ProductType::HighPrecisionClock {
-                                li {
-                                    a(id="brdc") {
-                                        span(class="icon") {
-                                            i(class="fa-solid fa-clock");
+                                } else if *product == ProductType::HighPrecisionClock {
+                                    li {
+                                        a(id="clk") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-clock");
+                                            }
+                                            : "High Precision Clock (RINEX)"
                                         }
-                                        : "High Precision Clock (RINEX)"
                                     }
-                                }
-                                ul(class="menu-list", id="nested:clk", style="display:none") {
-                                    @ for constell in report
-                                        .as_rinex()
-                                        .unwrap()
-                                        .as_clk()
-                                        .unwrap()
-                                        .pages
-                                        .keys()
-                                    {
-                                        li {
-                                            a {
-                                                span(class="icon") {
-                                                    i(class="fa-solid fa-satellite");
+                                    ul(class="menu-list", id="nested:clk", style="display:none") {
+                                        @ for constell in report
+                                            .as_rinex()
+                                            .unwrap()
+                                            .as_clk()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a(id=&format!("nested:clk:{}", constell)) {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-satellite");
+                                                    }
+                                                    : constell.to_string()
                                                 }
-                                                : constell.to_string()
                                             }
                                         }
                                     }
-                                }
-                            } else if *product == ProductType::MeteoObservation {
-                                li {
-                                    a(id="meteo") {
-                                        span(class="icon") {
-                                            i(class="fa-solid fa-cloud-sun-rain");
+                                } else if *product == ProductType::MeteoObservation {
+                                    li {
+                                        a(id="meteo") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-cloud-sun-rain");
+                                            }
+                                            : "Meteo Observations"
                                         }
-                                        : "Meteo Observations"
                                     }
-                                }
-                            } else if *product == ProductType::IONEX {
-                                li {
-                                    a(id="ionex") {
-                                        span(class="icon") {
-                                            i(class="fa-solid fa-earth-americas");
+                                } else if *product == ProductType::IONEX {
+                                    li {
+                                        a(id="ionex") {
+                                            span(class="icon") {
+                                                i(class="fa-solid fa-earth-americas");
+                                            }
+                                            : "Ionosphere Maps (IONEX)"
                                         }
-                                        : "Ionosphere Maps (IONEX)"
                                     }
                                 }
                             }
@@ -418,47 +378,81 @@ impl RenderHtml for QcReport {
     var sidebar_menu = document.getElementById('menubar');
     var sidebar_about = document.getElementById('hero:about');
     var summary_report = document.getElementById('hero:summary');
-    var observations_report = document.getElementById('hero:observations');
+    var obs_report = document.getElementById('hero:observations');
     var brdc_report = document.getElementById('hero:brdc');
+    var meteo_report = document.getElementById('hero:meteo');
     var sp3_report = document.getElementById('hero:sp3');
+    var clk_report = document.getElementById('hero:clk');
     var ionex_report = document.getElementById('hero:ionex');
-    var ppp_report = document.getElementById('hero:ppp');
-    var navi_report = document.getElementById('hero:navi');
+    var nested_sp3 = document.getElementById('nested:sp3');
+    var nested_brdc = document.getElementById('nested:brdc');
+    var nested_obs = document.getElementById('nested:observations');
 
     sidebar_menu.onclick = function(evt) {{
         var target_id = evt.originalTarget.id;
         console.log('clicked id: ' + target_id);
-
+        
         if (target_id == 'summary') {{
             summary_report.style = 'display:block';
-            observations_report.style = 'display:none';
-            brdc_report.style = 'display:none';
-            ionex_report.style = 'display:none';
-            sp3_report.style = 'display:none';
-            meteo_report.style = 'display:none';
-            clk_report.style = 'display:none';
-            navi_report.style = 'display:none';
-            ppp_report.style = 'display:none';
-
-            document.getElementById('nested:sp3').style = 'display:none';
-            document.getElementById('nested:brdc').style = 'display:none';
-            document.getElementById('nested:observations').style = 'display:none';
-
-          }} else if (target_id == 'observations') {{
+            if (obs_report != null) {{
+                obs_report.style = 'display:none';
+            }}
+            if (brdc_report != null) {{
+                brdc_report.style = 'display:none';
+            }}
+            if (ionex_report != null) {{
+                ionex_report.style = 'display:none';
+            }}
+            if (sp3_report != null) {{
+                sp3_report.style = 'display:none';
+            }}
+            if (meteo_report != null) {{
+                meteo_report.style = 'display:none';
+            }}
+            if (clk_report != null) {{
+                clk_report.style = 'display:none';
+            }}
+            if (nested_sp3 != null) {{
+                nested_sp3.style = 'display:none';
+            }}
+            if (nested_brdc != null) {{
+                nested_brdc.style = 'display:none';
+            }}
+            if (nested_obs != null) {{
+                nested_obs.style = 'display:none';
+            }}
             
-            summary_report.style = 'display:none';
-            observations_report.style = 'display:block';
-            brdc_report.style = 'display:none';
-            ionex_report.style = 'display:none';
-            sp3_report.style = 'display:none';
-            meteo_report.style = 'display:none';
-            clk_report.style = 'display:none';
-            navi_report.style = 'display:none';
-            ppp_report.style = 'display:none';
 
-            document.getElementById('nested:sp3').style = 'display:none';
-            document.getElementById('nested:brdc').style = 'display:none';
-            document.getElementById('nested:observations').style = 'display:block';
+        }} else if (target_id == 'observations') {{
+            summary_report.style = 'display:none';
+            if (obs_report != null) {{
+                obs_report.style = 'display:block';
+            }}
+            if (brdc_report != null) {{
+                brdc_report.style = 'display:none';
+            }}
+            if (ionex_report != null) {{
+                ionex_report.style = 'display:none';
+            }}
+            if (sp3_report != null) {{
+                sp3_report.style = 'display:none';
+            }}
+            if (meteo_report != null) {{
+                meteo_report.style = 'display:none';
+            }}
+            if (clk_report != null) {{
+                clk_report.style = 'display:none';
+            }}
+            if (nested_sp3 != null) {{
+                nested_sp3.style = 'display:none';
+            }}
+            if (nested_brdc != null) {{
+                nested_brdc.style = 'display:none';
+            }}
+            if (nested_obs != null) {{
+                nested_obs.style = 'display:block';
+            }}
+            
         }}
     }}"
             }
