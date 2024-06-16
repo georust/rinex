@@ -1,12 +1,13 @@
 use crate::report::shared::SamplingReport;
 use crate::report::Error;
+use itertools::Itertools;
 use qc_traits::html::*;
 use qc_traits::processing::{Filter, FilterItem, MaskFilter, MaskOperand, Preprocessing};
 use rinex::prelude::{ClockProfileType, Constellation, Rinex, TimeScale, WorkClock, DOMES, SV};
 use std::collections::HashMap;
 
 pub struct ClkPage {
-    pub satellites: Vec<SV>,
+    satellites: Vec<SV>,
 }
 
 pub struct ClkReport {
@@ -18,10 +19,32 @@ pub struct ClkReport {
     codes: Vec<ClockProfileType>,
     igs_clock_name: Option<String>,
     timescale: Option<TimeScale>,
-    pub pages: HashMap<Constellation, ClkPage>,
+    pages: HashMap<Constellation, ClkPage>,
 }
 
 impl ClkReport {
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            a(id="menu:clk") {
+                span(class="icon") {
+                    i(class="fa-solid fa-clock");
+                }
+                : "High Precision Clock (RINEX)"
+            }
+            ul(class="menu-list", id="menu:tabs:clk", style="display:none") {
+                @ for page in self.pages.keys().sorted() {
+                    li {
+                        a(id=&format!("menu:clk:{}", page), style="margin-left:29px") {
+                            span(class="icon") {
+                                i(class="fa-solid fa-satellite");
+                            }
+                            : page.to_string()
+                        }
+                    }
+                }
+            }
+        }
+    }
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
         let clk_header = rnx.header.clock.as_ref().ok_or(Error::MissingClockHeader)?;
         Ok(Self {

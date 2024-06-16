@@ -43,12 +43,22 @@ enum ProductReport {
     SP3(SP3Report),
 }
 
+impl ProductReport {
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        match self {
+            #[cfg(feature = "sp3")]
+            Self::SP3(report) => report.html_inline_menu_bar(),
+            Self::RINEX(report) => report.html_inline_menu_bar(),
+        }
+    }
+}
+
 fn html_id(product: &ProductType) -> &str {
     match product {
         ProductType::IONEX => "ionex",
         ProductType::DORIS => "doris",
         ProductType::ANTEX => "antex",
-        ProductType::Observation => "observations",
+        ProductType::Observation => "obs",
         ProductType::BroadcastNavigation => "brdc",
         ProductType::HighPrecisionClock => "clk",
         ProductType::MeteoObservation => "meteo",
@@ -189,208 +199,71 @@ impl QcReport {
     }
 }
 
+struct HtmlMenuBar {}
+
+impl HtmlMenuBar {
+    pub fn to_inline_html(report: &QcReport) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            aside(class="menu") {
+                p(class="menu-label") {
+                    : &format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION"))
+                }
+                ul(class="menu-list") {
+                    li {
+                        a(id="menu:summary") {
+                            span(class="icon") {
+                                i(class="fa fa-home");
+                            }
+                            : "Summary"
+                        }
+                    }
+                    @ for product in report.products.keys().sorted() {
+                        @ if let Some(report) = report.products.get(&product) {
+                            li {
+                                : report.html_inline_menu_bar()
+                            }
+                        }
+                    }
+                    p(class="menu-label") {
+                        a(href="https://github.com/georust/rinex/wiki", style="margin-left:29px") {
+                            : "Documentation"
+                        }
+                    }
+                    p(class="menu-label") {
+                        a(href="https://github.com/georust/rinex/issues", style="margin-left:29px") {
+                            : "Bug Report"
+                        }
+                    }
+                    p(class="menu-label") {
+                        a(href="https://github.com/georust/rinex") {
+                            span(class="icon") {
+                                i(class="fa-brands fa-github");
+                            }
+                            : "Sources"
+                        }
+                    }
+                } // menu-list
+            }//menu
+        }
+    }
+}
+
 impl RenderHtml for QcReport {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
         div(class="columns is-fullheight") {
             div(id="menubar", class="column is-3 is-sidebar-menu is-hidden-mobile") {
-                aside(class="menu") {
-                    p(class="menu-label") {
-                        : &format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION"))
-                    }
-                    ul(class="menu-list") {
-                        li {
-                            a(id="summary") {
-                                span(class="icon") {
-                                    i(class="fa fa-home");
-                                }
-                                : "Summary"
-                            }
-                        }
-                        @ for product in self.products.keys().sorted() {
-                            @ if let Some(report) = self.products.get(&product) {
-                                @ if *product == ProductType::Observation {
-                                    li {
-                                        a(id="observations") {
-                                            span(class="icon") {
-                                                i(class="fa-solid fa-tower-cell");
-                                            }
-                                            : "Observations"
-                                        }
-                                    }
-                                    ul(class="menu-list", id="nested:observations", style="display:none") {
-                                        @ for constell in report
-                                            .as_rinex()
-                                            .unwrap()
-                                            .as_obs()
-                                            .unwrap()
-                                            .pages
-                                            .keys()
-                                        {
-                                            li {
-                                                a(id=&format!("nested:obs:{}", constell), style="margin-left:29px") {
-                                                    span(class="icon") {
-                                                        i(class="fa-solid fa-satellite");
-                                                    }
-                                                    : constell.to_string()
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if *product == ProductType::BroadcastNavigation {
-                                    li {
-                                        a(id="brdc") {
-                                            span(class="icon") {
-                                                i(class="fa-solid fa-satellite-dish");
-                                            }
-                                            : "Broadcast Navigation (BRDC)"
-                                        }
-                                    }
-                                    ul(class="menu-list", id="nested:brdc", style="display:none") {
-                                        @ for constell in report
-                                            .as_rinex()
-                                            .unwrap()
-                                            .as_nav()
-                                            .unwrap()
-                                            .pages
-                                            .keys()
-                                        {
-                                            li {
-                                                a(id=&format!("nested:brdc:{}", constell), style="margin-left:29px") {
-                                                    span(class="icon") {
-                                                        i(class="fa-solid fa-satellite");
-                                                    }
-                                                    : constell.to_string()
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if *product == ProductType::HighPrecisionOrbit {
-                                    li {
-                                        a(id="sp3") {
-                                            span(class="icon") {
-                                                i(class="fa-solid fa-satellite");
-                                            }
-                                            : "High Precision Orbit (SP3)"
-                                        }
-                                    }
-                                    ul(class="menu-list", id="nested:sp3", style="display:none") {
-                                        @ for constell in report
-                                            .as_sp3()
-                                            .unwrap()
-                                            .pages
-                                            .keys()
-                                        {
-                                            li {
-                                                a(id=&format!("nested:sp3:{}", constell), style="margin-left:29px") {
-                                                    span(class="icon") {
-                                                        i(class="fa-solid fa-satellite");
-                                                    }
-                                                    : constell.to_string()
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if *product == ProductType::HighPrecisionClock {
-                                    li {
-                                        a(id="clk") {
-                                            span(class="icon") {
-                                                i(class="fa-solid fa-clock");
-                                            }
-                                            : "High Precision Clock (RINEX)"
-                                        }
-                                    }
-                                    ul(class="menu-list", id="nested:clk", style="display:none") {
-                                        @ for constell in report
-                                            .as_rinex()
-                                            .unwrap()
-                                            .as_clk()
-                                            .unwrap()
-                                            .pages
-                                            .keys()
-                                        {
-                                            li {
-                                                a(id=&format!("nested:clk:{}", constell), style="margin-left:29px") {
-                                                    span(class="icon") {
-                                                        i(class="fa-solid fa-satellite");
-                                                    }
-                                                    : constell.to_string()
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if *product == ProductType::MeteoObservation {
-                                    li {
-                                        a(id="meteo") {
-                                            span(class="icon") {
-                                                i(class="fa-solid fa-cloud-sun-rain");
-                                            }
-                                            : "Meteo Observations"
-                                        }
-                                    }
-                                    ul(class="menu-list", id="nested:meteo", style="display:none") {
-                                        @ for ob in report
-                                            .as_rinex()
-                                            .unwrap()
-                                            .as_meteo()
-                                            .unwrap()
-                                            .pages
-                                            .keys()
-                                        {
-                                            li {
-                                                a(id=&format!("nested:meteo:{}", ob), style="margin-left:29px") {
-                                                    span(class="icon") {
-                                                        i(class="fa-solid fa-cloud-sun-rain");
-                                                    }
-                                                    : ob.to_string()
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if *product == ProductType::IONEX {
-                                    li {
-                                        a(id="ionex") {
-                                            span(class="icon") {
-                                                i(class="fa-solid fa-earth-americas");
-                                            }
-                                            : "Ionosphere Maps (IONEX)"
-                                        }
-                                    }
-                                }
-                            }
-                        } // for products..
-                        p(class="menu-label") {
-                            a(href="https://github.com/georust/rinex/wiki", style="margin-left:29px") {
-                                : "Documentation"
-                            }
-                        }
-                        p(class="menu-label") {
-                            a(href="https://github.com/georust/rinex/issues", style="margin-left:29px") {
-                                : "Bug Report"
-                            }
-                        }
-                        p(class="menu-label") {
-                            a(href="https://github.com/georust/rinex") {
-                                span(class="icon") {
-                                    i(class="fa-brands fa-github");
-                                }
-                                : "Sources"
-                            }
-                        }
-                    } //class=menu-list
-                } //class=menu
+                : HtmlMenuBar::to_inline_html(&self)
             } // id=menubar
             div(class="hero is-fullheight") {
-                div(id="hero:summary", class="container", style="display:block") {
+                div(id="summary", class="container is-summary", style="display:block") {
                     div(class="section") {
                         : self.summary.to_inline_html()
                     }
                 }//id=summary
                 @ for (product, report) in self.products.iter() {
                     div(id=&format!("hero:{}", html_id(product)), class="container", style="display:none") {
-                        div(class="section") {
-                            : report.to_inline_html()
-                        }
+                        : report.to_inline_html()
                     }
                 }
             }//class=hero
@@ -399,211 +272,40 @@ impl RenderHtml for QcReport {
             :
 "
     var sidebar_menu = document.getElementById('menubar');
-    var sidebar_about = document.getElementById('hero:about');
-    var summary_report = document.getElementById('hero:summary');
-    var obs_report = document.getElementById('hero:observations');
-    var brdc_report = document.getElementById('hero:brdc');
-    var meteo_report = document.getElementById('hero:meteo');
-    var sp3_report = document.getElementById('hero:sp3');
-    var clk_report = document.getElementById('hero:clk');
-    var ionex_report = document.getElementById('hero:ionex');
-    var nested_sp3 = document.getElementById('nested:sp3');
-    var nested_clk = document.getElementById('nested:clk');
-    var nested_obs = document.getElementById('nested:observations');
-    var nested_brdc = document.getElementById('nested:brdc');
-    var nested_meteo = document.getElementById('nested:meteo');
+    var main_pages = document.getElementsByClassName('is-main');
+    var sub_pages = document.getElementsByClassName('is-page');
     
     sidebar_menu.onclick = function(evt) {{
-        var target_id = evt.originalTarget.id;
-        console.log('clicked id: ' + target_id);
-        
-        if (target_id.includes('nested:')) {{
-            var nested_item = document.getElementById(target_id);
-            if (nested_item != null) {{
-                nested_item.style = 'display:block;margin-left:29px';
+        var clicked_id = evt.originalTarget.id;
+        var category = clicked_id.substring(5).split(':')[0];
+        var tab = clicked_id.substring(5).split(':')[1];
+        var is_tab = category.includes(category + ':');
+        console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +tab);
+
+        if (is_tab == true ) {{
+
+        }} else {{
+            if (category == 'summary') {{
+                var i =1;
+                do {{
+                    if (main_pages[i -1].id == 'summary') {{
+                        main_pages[i-1].style = 'display:block';
+                    }} else {{
+                        main_pages[i-1].style = 'display:none';
+                    }}
+                    i += 1;
+                }} while (i != main_pages.length);
+            }} else {{
+                var i=1;
+                do {{
+                    if (main_pages[i -1].id == category) {{
+                        main_pages[i-1].style = 'display:block';
+                    }} else {{
+                        main_pages[i-1].style = 'display:none';
+                    }}
+                    i += 1;
+                }} while (i != main_pages.length);
             }}
-        }}
-        
-        if (target_id == 'summary') {{
-            summary_report.style = 'display:block';
-            if (obs_report != null) {{
-                obs_report.style = 'display:none';
-            }}
-            if (brdc_report != null) {{
-                brdc_report.style = 'display:none';
-            }}
-            if (ionex_report != null) {{
-                ionex_report.style = 'display:none';
-            }}
-            if (sp3_report != null) {{
-                sp3_report.style = 'display:none';
-            }}
-            if (meteo_report != null) {{
-                meteo_report.style = 'display:none';
-            }}
-            if (clk_report != null) {{
-                clk_report.style = 'display:none';
-            }}
-            if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_clk != null) {{
-                nested_clk.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_obs != null) {{
-                nested_obs.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_meteo != null) {{
-                nested_meteo.style = 'display:none,margin-left:29px';
-            }}
-            
-        }} else if (target_id == 'observations') {{
-            summary_report.style = 'display:none';
-            if (obs_report != null) {{
-                obs_report.style = 'display:block';
-            }}
-            if (brdc_report != null) {{
-                brdc_report.style = 'display:none';
-            }}
-            if (ionex_report != null) {{
-                ionex_report.style = 'display:none';
-            }}
-            if (sp3_report != null) {{
-                sp3_report.style = 'display:none';
-            }}
-            if (meteo_report != null) {{
-                meteo_report.style = 'display:none';
-            }}
-            if (clk_report != null) {{
-                clk_report.style = 'display:none';
-            }}
-            if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_clk != null) {{
-                nested_clk.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_obs != null) {{
-                nested_obs.style = 'display:block,margin-left:29px';
-            }}
-            if (nested_meteo != null) {{
-                nested_meteo.style = 'display:none,margin-left:29px';
-            }}
-            
-        }} else if (target_id == 'sp3') {{
-            summary_report.style = 'display:none';
-            if (obs_report != null) {{
-                obs_report.style = 'display:none';
-            }}
-            if (brdc_report != null) {{
-                brdc_report.style = 'display:none';
-            }}
-            if (ionex_report != null) {{
-                ionex_report.style = 'display:none';
-            }}
-            if (sp3_report != null) {{
-                sp3_report.style = 'display:block';
-            }}
-            if (meteo_report != null) {{
-                meteo_report.style = 'display:none';
-            }}
-            if (clk_report != null) {{
-                clk_report.style = 'display:none';
-            }}
-            if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:block,margin-left:29px';
-            }}
-            if (nested_clk != null) {{
-                nested_clk.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_obs != null) {{
-                nested_obs.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_meteo != null) {{
-                nested_meteo.style = 'display:none,margin-left:29px';
-            }}
-            
-        }} else if (target_id == 'meteo') {{
-            summary_report.style = 'display:none';
-            if (obs_report != null) {{
-                obs_report.style = 'display:none';
-            }}
-            if (brdc_report != null) {{
-                brdc_report.style = 'display:none';
-            }}
-            if (ionex_report != null) {{
-                ionex_report.style = 'display:none';
-            }}
-            if (sp3_report != null) {{
-                sp3_report.style = 'display:none';
-            }}
-            if (meteo_report != null) {{
-                meteo_report.style = 'display:block';
-            }}
-            if (clk_report != null) {{
-                clk_report.style = 'display:none';
-            }}
-            if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_clk != null) {{
-                nested_clk.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_obs != null) {{
-                nested_obs.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_meteo != null) {{
-                nested_meteo.style = 'display:block,margin-left:29px';
-            }}
-            
-        }} else if (target_id == 'clk') {{
-            summary_report.style = 'display:none';
-            if (obs_report != null) {{
-                obs_report.style = 'display:none';
-            }}
-            if (brdc_report != null) {{
-                brdc_report.style = 'display:none';
-            }}
-            if (ionex_report != null) {{
-                ionex_report.style = 'display:none';
-            }}
-            if (sp3_report != null) {{
-                sp3_report.style = 'display:none';
-            }}
-            if (meteo_report != null) {{
-                meteo_report.style = 'display:none';
-            }}
-            if (clk_report != null) {{
-                clk_report.style = 'display:block';
-            }}
-            if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_clk != null) {{
-                nested_clk.style = 'display:block,margin-left:29px';
-            }}
-            if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_obs != null) {{
-                nested_obs.style = 'display:none,margin-left:29px';
-            }}
-            if (nested_meteo != null) {{
-                nested_meteo.style = 'display:none,margin-left:29px';
-            }}
-            
         }}
     }}"
             }

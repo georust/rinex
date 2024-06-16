@@ -47,13 +47,35 @@ impl RenderHtml for ConstellationPage {
 
 /// RINEX Observation Report
 pub struct Report {
-    pub antenna: Option<Antenna>,
-    pub receiver: Option<Receiver>,
-    pub sampling: SamplingReport,
-    pub pages: HashMap<Constellation, ConstellationPage>,
+    antenna: Option<Antenna>,
+    receiver: Option<Receiver>,
+    sampling: SamplingReport,
+    pages: HashMap<Constellation, ConstellationPage>,
 }
 
 impl Report {
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            a(id="menu:obs") {
+                span(class="icon") {
+                    i(class="fa-solid fa-tower-cell");
+                }
+                : "Observations"
+            }
+            ul(class="menu-list", id="menu:tabs:obs", style="display:none") {
+                @ for constell in self.pages.keys() {
+                    li {
+                        a(id=&format!("menu:obs:{}", constell), style="margin-left:29px") {
+                            span(class="icon") {
+                                i(class="fa-solid fa-satellite");
+                            }
+                            : constell.to_string()
+                        }
+                    }
+                }
+            }
+        }
+    }
     pub fn new(rinex: &Rinex) -> Self {
         Self {
             sampling: SamplingReport::from_rinex(rinex),
@@ -120,27 +142,36 @@ impl Report {
 impl RenderHtml for Report {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
-                    @ if let Some(ant) = &self.antenna {
-                        td {
-                            : ant.to_inline_html()
+            div(class="table-container is-main", id="obs", style="display:none") {
+                @ if let Some(rx) = &self.receiver {
+                    table(class="table is-bordered") {
+                        th(class="is-info") {
+                            : "Receiver"
                         }
-                    }
-                }
-            }//table-container
-            div(class="table-container") {
-                table(class="table is-bordered") {
-                    @ if let Some(rx) = &self.receiver {
                         td {
                             : rx.to_inline_html()
                         }
                     }
                 }
-            }
-            div(class="table-container") {
-                : self.sampling.to_inline_html()
-            }
+                @ if let Some(ant) = &self.antenna {
+                    table(class="table is-bordered") {
+                        th(class="is-info") {
+                            : "Antenna"
+                        }
+                        td {
+                            : ant.to_inline_html()
+                        }
+                    }
+                }
+                table(class="table is-bordered") {
+                    th(class="is-info") {
+                        : "Sampling"
+                    }
+                    td {
+                        : self.sampling.to_inline_html()
+                    }
+                }
+            }//table-container
         }
     }
 }

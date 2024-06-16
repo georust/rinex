@@ -1,6 +1,7 @@
 mod obs;
 // mod nav;
 // mod meteo;
+use itertools::Itertools;
 use rinex::prelude::Constellation;
 
 mod clock;
@@ -24,7 +25,37 @@ use std::collections::HashMap;
 pub struct NavPage {}
 // TODO
 pub struct NavReport {
-    pub pages: HashMap<Constellation, NavPage>,
+    pages: HashMap<Constellation, NavPage>,
+}
+
+impl NavReport {
+    pub fn new(rnx: &Rinex) -> Self {
+        Self {
+            pages: Default::default(),
+        }
+    }
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            a(id="menu:brdc") {
+                span(class="icon") {
+                    i(class="fa-solid fa-satellite-dish");
+                }
+                : "Broadcast Navigation (BRDC)"
+            }
+            ul(class="menu-list", id="menu:tabs:brdc", style="display:none") {
+                @ for page in self.pages.keys().sorted() {
+                    li {
+                        a(id=&format!("menu:brdc:{}", page), style="margin-left:29px") {
+                            span(class="icon") {
+                                i(class="fa-solid fa-satellite");
+                            }
+                            : page.to_string()
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl RenderHtml for NavReport {
@@ -44,6 +75,16 @@ impl DorisReport {
             pages: Default::default(),
         }
     }
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            a(id="menu:doris") {
+                span(class="icon") {
+                    i(class="fa-solid fa-tower-cell");
+                }
+                : "DORIS Observatoins"
+            }
+        }
+    }
 }
 
 impl RenderHtml for DorisReport {
@@ -59,18 +100,21 @@ impl IonexReport {
     pub fn new(rnx: &Rinex) -> Self {
         Self {}
     }
-}
-impl RenderHtml for IonexReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            a(id="menu:ionex") {
+                span(class="icon") {
+                    i(class="fa-solid fa-earth-americas");
+                }
+                : "Ionosphere Maps (IONEX)"
+            }
+        }
     }
 }
 
-impl NavReport {
-    pub fn new(rnx: &Rinex) -> Self {
-        Self {
-            pages: Default::default(),
-        }
+impl RenderHtml for IonexReport {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {}
     }
 }
 
@@ -94,6 +138,16 @@ impl RINEXReport {
             RinexType::ObservationData => Ok(Self::Obs(ObsReport::new(rnx))),
             RinexType::IonosphereMaps => Ok(Self::Ionex(IonexReport::new(rnx))),
             _ => Err(Error::NonSupportedRINEX),
+        }
+    }
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        match self {
+            Self::Obs(report) => report.html_inline_menu_bar(),
+            Self::Nav(report) => report.html_inline_menu_bar(),
+            Self::Clk(report) => report.html_inline_menu_bar(),
+            Self::Meteo(report) => report.html_inline_menu_bar(),
+            Self::Doris(report) => report.html_inline_menu_bar(),
+            Self::Ionex(report) => report.html_inline_menu_bar(),
         }
     }
     pub fn as_obs(&self) -> Option<&ObsReport> {

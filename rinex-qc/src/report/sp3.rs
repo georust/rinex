@@ -1,13 +1,64 @@
 use crate::report::shared::SamplingReport;
+use itertools::Itertools;
 use qc_traits::html::*;
 use qc_traits::processing::{Filter, FilterItem, MaskFilter, MaskOperand, Preprocessing};
 use sp3::prelude::{Constellation, SP3, SV};
 use std::collections::HashMap;
 
-//TODO
 pub struct SP3Page {
-    pub satellites: Vec<SV>,
-    pub sampling: SamplingReport,
+    has_clock: bool,
+    has_velocity: bool,
+    has_clock_drift: bool,
+    satellites: Vec<SV>,
+    sampling: SamplingReport,
+}
+
+impl RenderHtml for SP3Page {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    tr {
+                        th(class="is-info") {
+                            : "General"
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Velocity"
+                        }
+                        td {
+                            : self.has_velocity.to_string()
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Clock offset"
+                        }
+                        td {
+                            : self.has_clock.to_string()
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Clock drift"
+                        }
+                        td {
+                            : self.has_clock_drift.to_string()
+                        }
+                    }
+                    tr {
+                        th(class="is-info") {
+                            : "Satellites"
+                        }
+                        td {
+                            : self.satellites.iter().map(|sv| sv.to_string()).join(",")
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct SP3Report {
@@ -22,6 +73,28 @@ pub struct SP3Report {
 }
 
 impl SP3Report {
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            a(id="menu:sp3") {
+                span(class="icon") {
+                    i(class="fa-solid fa-satellite");
+                }
+                : "High Precision Orbit (SP3)"
+            }
+            ul(class="menu-list", id="menu:tabs:sp3", style="display:none") {
+                @ for page in self.pages.keys().sorted() {
+                    li {
+                        a(id=&format!("menu:sp3:{}", page), class="tab:sp3", style="margin-left:29px") {
+                            span(class="icon") {
+                                i(class="fa-solid fa-satellite");
+                            }
+                            : page.to_string()
+                        }
+                    }
+                }
+            }
+        }
+    }
     pub fn new(sp3: &SP3) -> Self {
         Self {
             agency: sp3.agency.clone(),
@@ -43,7 +116,10 @@ impl SP3Report {
                         constellation,
                         SP3Page {
                             satellites: focused.sv().collect(),
+                            has_clock: focused.sv_clock().count() > 0,
                             sampling: SamplingReport::from_sp3(&focused),
+                            has_velocity: focused.sv_velocities().count() > 0,
+                            has_clock_drift: focused.sv_clock_rate().count() > 0,
                         },
                     );
                 }
@@ -56,7 +132,7 @@ impl SP3Report {
 impl RenderHtml for SP3Report {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            div(class="table-container") {
+            div(class="table-container is-main", id="sp3", style="display-none") {
                 table(class="table is-bordered") {
                     tr {
                         th {
@@ -104,6 +180,20 @@ impl RenderHtml for SP3Report {
                         }
                         td {
                             : self.sampling.to_inline_html()
+                        }
+                    }
+                }//table
+            }//table-container
+            @ for (constell, page) in self.pages.iter() {
+                div(class="table-container is-page", id=&format!("sp3:{}", constell), style="display:none") {
+                    table(class="table is-bordered") {
+                        tr {
+                            th(class="is-info") {
+                                : constell.to_string()
+                            }
+                        }
+                        tr {
+                            : page.to_inline_html()
                         }
                     }
                 }

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use qc_traits::html::*;
 use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::{
@@ -17,10 +18,32 @@ pub struct MeteoReport {
     sensors: Vec<Sensor>,
     agency: Option<String>,
     sampling: SamplingReport,
-    pub pages: HashMap<String, MeteoPage>,
+    pages: HashMap<String, MeteoPage>,
 }
 
 impl MeteoReport {
+    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            a(id="menu:meteo") {
+                span(class="icon") {
+                    i(class="fa-solid fa-cloud-sun-rain");
+                }
+                : "Meteo Observations"
+            }
+            ul(class="menu-list", id="menu:tabs:meteo", style="display:none") {
+                @ for page in self.pages.keys().sorted() {
+                    li {
+                        a(id=&format!("menu:meteo:{}", page), style="margin-left:29px") {
+                            span(class="icon") {
+                                i(class="fa-solid fa-cloud-sun-rain");
+                            }
+                            : page.to_string()
+                        }
+                    }
+                }
+            }
+        }
+    }
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
         let header = rnx.header.meteo.as_ref().ok_or(Error::MissingMeteoHeader)?;
         Ok(Self {
