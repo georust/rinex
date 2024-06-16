@@ -1,7 +1,9 @@
 //! Meteo RINEX module
 pub mod record;
-pub mod sensor;
 pub use record::Record;
+
+pub mod sensor;
+use sensor::Sensor;
 
 use crate::Observable;
 
@@ -21,7 +23,7 @@ pub struct HeaderFields {
     /// Observation types contained in this file
     pub codes: Vec<Observable>,
     /// Sensors that produced the following observables
-    pub sensors: Vec<sensor::Sensor>,
+    pub sensors: Vec<Sensor>,
 }
 
 impl HeaderFields {

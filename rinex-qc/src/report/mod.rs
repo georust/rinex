@@ -29,6 +29,10 @@ use crate::cfg::QcReportType;
 pub enum Error {
     #[error("non supported RINEX format")]
     NonSupportedRINEX,
+    #[error("missing Clock RINEX header")]
+    MissingClockHeader,
+    #[error("missing Meteo RINEX header")]
+    MissingMeteoHeader,
 }
 
 enum ProductReport {

@@ -631,7 +631,8 @@ impl Header {
 
                 for sensor in meteo.sensors.iter_mut() {
                     if sensor.observable == observable {
-                        *sensor = sensor.with_position((x, y, z, h))
+                        *sensor = sensor.with_position(GroundPosition::from_ecef_wgs84((x, y, z)));
+                        *sensor = sensor.with_height(h);
                     }
                 }
             } else if marker.contains("LEAP SECOND") {

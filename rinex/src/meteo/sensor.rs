@@ -1,7 +1,11 @@
 //! Meteo sensor
 use crate::observable;
+use crate::prelude::GroundPosition;
 use crate::Observable;
 use thiserror::Error;
+
+#[cfg(feature = "qc")]
+use qc_traits::html::*;
 
 /// Meteo Observation Sensor
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
@@ -17,7 +21,76 @@ pub struct Sensor {
     pub accuracy: Option<f32>,
     /// Posible sensor location (ECEF) and possible
     /// height eccentricity
-    pub position: Option<(f64, f64, f64, f64)>,
+    pub position: Option<GroundPosition>,
+    /// Possible sensor height eccentricity (m)
+    pub height: Option<f64>,
+}
+
+impl RenderHtml for Sensor {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            table(class="table is-bordered") {
+                tr {
+                    th {
+                        : "Observable"
+                    }
+                    td {
+                        : self.observable.to_string()
+                    }
+                }
+                @ if let Some(model) = &self.model {
+                    tr {
+                        th {
+                            : "Model"
+                        }
+                        td {
+                            : model
+                        }
+                    }
+                }
+                @ if let Some(sensor) = &self.sensor_type {
+                    tr {
+                        th {
+                            : "Sensor Type"
+                        }
+                        td {
+                            : sensor
+                        }
+                    }
+                }
+                @ if let Some(accuracy) = self.accuracy {
+                    tr {
+                        th {
+                            : "Sensor Accuracy"
+                        }
+                        td {
+                            : format!("{:.3E}", accuracy)
+                        }
+                    }
+                }
+                @ if let Some(pos) = self.position {
+                    tr {
+                        th {
+                            : "Sensor position"
+                        }
+                        td {
+                            : pos.to_inline_html()
+                        }
+                    }
+                }
+                @ if let Some(h) = self.height {
+                    tr {
+                        th {
+                            : "Height"
+                        }
+                        td {
+                            : format!("{:.3} m", h)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -57,8 +130,9 @@ impl std::str::FromStr for Sensor {
                     None
                 }
             },
-            observable: Observable::from_str(observable.trim())?,
+            height: None,
             position: None,
+            observable: Observable::from_str(observable.trim())?,
         })
     }
 }
@@ -84,11 +158,12 @@ impl std::fmt::Display for Sensor {
         }
         writeln!(f, "{} SENSOR MOD/TYPE/ACC", self.observable)?;
 
-        if let Some((x, y, z, h)) = self.position {
+        if let Some(pos) = self.position {
+            let (x, y, z) = pos.to_ecef_wgs84();
             write!(f, "{:14.4}", x)?;
             write!(f, "{:14.4}", y)?;
             write!(f, "{:14.4}", z)?;
-            write!(f, "{:14.4}", h)?;
+            write!(f, "{:14.4}", pos.altitude())?;
             writeln!(f, " {} SENSOR POS XYZ/H", self.observable)?
         }
         Ok(())
@@ -114,9 +189,14 @@ impl Sensor {
         s.observable = observable;
         s
     }
-    pub fn with_position(&self, pos: (f64, f64, f64, f64)) -> Self {
+    pub fn with_position(&self, pos: GroundPosition) -> Self {
         let mut s = self.clone();
         s.position = Some(pos);
+        s
+    }
+    pub fn with_height(&self, h: f64) -> Self {
+        let mut s = self.clone();
+        s.height = Some(h);
         s
     }
     pub fn with_accuracy(&self, accuracy: f32) -> Self {

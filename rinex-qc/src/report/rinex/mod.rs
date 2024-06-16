@@ -1,7 +1,14 @@
 mod obs;
 // mod nav;
 // mod meteo;
-// mod clock;
+use rinex::prelude::Constellation;
+
+mod clock;
+use clock::ClkReport;
+
+mod meteo;
+use meteo::MeteoReport;
+
 // mod ionex;
 use crate::report::Error;
 
@@ -14,16 +21,6 @@ use rinex::prelude::{Observable, Rinex, RinexType};
 use std::collections::HashMap;
 
 // TODO
-pub struct MeteoReport {}
-
-impl RenderHtml for MeteoReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
-    }
-}
-
-// TODO
-use rinex::prelude::Constellation;
 pub struct NavPage {}
 // TODO
 pub struct NavReport {
@@ -54,17 +51,6 @@ impl RenderHtml for DorisReport {
         box_html! {}
     }
 }
-pub struct ClkPage {}
-// TODO
-pub struct ClkReport {
-    pub pages: HashMap<Constellation, ClkPage>,
-}
-
-impl RenderHtml for ClkReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
-    }
-}
 
 //TODO
 pub struct IonexReport {}
@@ -80,21 +66,7 @@ impl RenderHtml for IonexReport {
     }
 }
 
-impl MeteoReport {
-    pub fn new(rnx: &Rinex) -> Self {
-        Self {}
-    }
-}
-
 impl NavReport {
-    pub fn new(rnx: &Rinex) -> Self {
-        Self {
-            pages: Default::default(),
-        }
-    }
-}
-
-impl ClkReport {
     pub fn new(rnx: &Rinex) -> Self {
         Self {
             pages: Default::default(),
@@ -116,10 +88,10 @@ impl RINEXReport {
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
         match rnx.header.rinex_type {
             RinexType::DORIS => Ok(Self::Doris(DorisReport::new(rnx))),
-            RinexType::MeteoData => Ok(Self::Meteo(MeteoReport::new(rnx))),
+            RinexType::ClockData => Ok(Self::Clk(ClkReport::new(rnx)?)),
+            RinexType::MeteoData => Ok(Self::Meteo(MeteoReport::new(rnx)?)),
             RinexType::NavigationData => Ok(Self::Nav(NavReport::new(rnx))),
             RinexType::ObservationData => Ok(Self::Obs(ObsReport::new(rnx))),
-            RinexType::ClockData => Ok(Self::Clk(ClkReport::new(rnx))),
             RinexType::IonosphereMaps => Ok(Self::Ionex(IonexReport::new(rnx))),
             _ => Err(Error::NonSupportedRINEX),
         }
