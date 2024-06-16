@@ -9,7 +9,25 @@ use std::collections::HashMap;
 
 use crate::report::{shared::SamplingReport, Error};
 
+use crate::plot::Plot;
+
+fn obs2unit(ob: &Observable) -> String {
+    match observable {
+        Observable::Pressure => "hPa".to_string(),
+        Observable::Temperature => "°C".to_string(),
+        Observable::HumidityRate | Observable::RainIncrement => "%".to_string(),
+        Observable::ZenithWetDelay | Observable::ZenithDryDelay | Observable::ZenithTotalDelay => {
+            "s".to_string()
+        },
+        Observable::WindDirection => "°".to_string(),
+        Observable::WindSpeed => "m/s".to_string(),
+        Observable::HailIndicator => "boolean".to_string(),
+        _ => "not applicable".to_string(),
+    }
+}
+
 pub struct MeteoPage {
+    plot: Plot,
     sampling: SamplingReport,
 }
 
@@ -51,18 +69,18 @@ impl MeteoReport {
                 }
                 : "Meteo Observations"
             }
-            ul(class="menu-list", id="menu:tabs:meteo", style="display:none") {
-                @ for page in self.pages.keys().sorted() {
-                    li {
-                        a(id=&format!("menu:meteo:{}", page), style="margin-left:29px") {
-                            span(class="icon") {
-                                i(class="fa-solid fa-cloud-sun-rain");
-                            }
-                            : page.to_string()
-                        }
-                    }
-                }
-            }
+            //ul(class="menu-list", id="menu:tabs:meteo", style="display:none") {
+            //    @ for page in self.pages.keys().sorted() {
+            //        li {
+            //            a(id=&format!("menu:meteo:{}", page), style="margin-left:29px") {
+            //                span(class="icon") {
+            //                    i(class="fa-solid fa-cloud-sun-rain");
+            //                }
+            //                : page.to_string()
+            //            }
+            //        }
+            //    }
+            //}
         }
     }
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
@@ -79,9 +97,47 @@ impl MeteoReport {
                         FilterItem::ComplexItem(vec![observable.to_string()]),
                     );
                     let focused = rnx.filter(&filter);
+                    let title = format!("{} Observations", observable);
+                    let y_label = format!("{} [{}]", observable, obs2unit(observable));
+                    let html_id = observable.to_string();
+                    let mut plot = if *observable == Observable::WindDirection {
+                        Plot::new_polar()
+                    } else {
+                        Plot::new_time_domain(&html_id, &title, &y_label)
+                    };
+                    let data_x = rnx
+                        .meteo()
+                        .flat_map(|(t, observations)| {
+                            observations.iter().filter_map(|(obs, _)| {
+                                if obs == observable {
+                                    Some(*t)
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    let data_y = rnx
+                        .meteo()
+                        .flat_map(|(_, observations)| {
+                            observations.iter().filter_map(|(obs, value)| {
+                                if obs == observable {
+                                    Some(*value)
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    let trace =
+                        Plot::new_timedomain_chart(&html_id, Mode::LinesMarkers, data_x, data_y)
+                            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
+                    plot.add_trace(trace);
+
                     pages.insert(
                         obs2physics(observable),
                         MeteoPage {
+                            plot,
                             sampling: SamplingReport::from_rinex(&focused),
                         },
                     );

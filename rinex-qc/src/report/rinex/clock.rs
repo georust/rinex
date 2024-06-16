@@ -31,18 +31,18 @@ impl ClkReport {
                 }
                 : "High Precision Clock (RINEX)"
             }
-            ul(class="menu-list", id="menu:tabs:clk", style="display:none") {
-                @ for page in self.pages.keys().sorted() {
-                    li {
-                        a(id=&format!("menu:clk:{}", page), style="margin-left:29px") {
-                            span(class="icon") {
-                                i(class="fa-solid fa-satellite");
-                            }
-                            : page.to_string()
-                        }
-                    }
-                }
-            }
+            //ul(class="menu-list", id="menu:tabs:clk", style="display:none") {
+            //    @ for page in self.pages.keys().sorted() {
+            //        li {
+            //            a(id=&format!("menu:clk:{}", page), style="margin-left:29px") {
+            //                span(class="icon") {
+            //                    i(class="fa-solid fa-satellite");
+            //                }
+            //                : page.to_string()
+            //            }
+            //        }
+            //    }
+            //}
         }
     }
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {

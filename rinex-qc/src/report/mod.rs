@@ -285,6 +285,16 @@ impl RenderHtml for QcReport {
         console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +is_tab);
 
         if (is_tab == true ) {
+            var i=1;
+            var targetted_tab = category+':'+tab;
+            do {
+                if (main_pages[i -1].id == category) {
+                    main_pages[i-1].style = 'display:block';
+                } else {
+                    main_pages[i-1].style = 'display:none';
+                }
+                i += 1;
+            } while (i != main_pages.length);
 
         } else {
             var i=1;

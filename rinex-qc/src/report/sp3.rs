@@ -81,18 +81,18 @@ impl SP3Report {
                 }
                 : "High Precision Orbit (SP3)"
             }
-            ul(class="menu-list", id="menu:tabs:sp3", style="display:block") {
-                @ for page in self.pages.keys().sorted() {
-                    li {
-                        a(id=&format!("menu:sp3:{}", page), class="tab:sp3", style="margin-left:29px") {
-                            span(class="icon") {
-                                i(class="fa-solid fa-satellite");
-                            }
-                            : page.to_string()
-                        }
-                    }
-                }
-            }
+            //ul(class="menu-list", id="menu:tabs:sp3", style="display:block") {
+            //    @ for page in self.pages.keys().sorted() {
+            //        li {
+            //            a(id=&format!("menu:sp3:{}", page), class="tab:sp3", style="margin-left:29px") {
+            //                span(class="icon") {
+            //                    i(class="fa-solid fa-satellite");
+            //                }
+            //                : page.to_string()
+            //            }
+            //        }
+            //    }
+            //}
         }
     }
     pub fn new(sp3: &SP3) -> Self {

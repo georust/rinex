@@ -62,18 +62,18 @@ impl Report {
                 }
                 : "Observations"
             }
-            ul(class="menu-list", id="menu:tabs:obs", style="display:none") {
-                @ for constell in self.pages.keys() {
-                    li {
-                        a(id=&format!("menu:obs:{}", constell), style="margin-left:29px") {
-                            span(class="icon") {
-                                i(class="fa-solid fa-satellite");
-                            }
-                            : constell.to_string()
-                        }
-                    }
-                }
-            }
+            //ul(class="menu-list", id="menu:tabs:obs", style="display:none") {
+            //    @ for constell in self.pages.keys() {
+            //        li {
+            //            a(id=&format!("menu:obs:{}", constell), style="margin-left:29px") {
+            //                span(class="icon") {
+            //                    i(class="fa-solid fa-satellite");
+            //                }
+            //                : constell.to_string()
+            //            }
+            //        }
+            //    }
+            //}
         }
     }
     pub fn new(rinex: &Rinex) -> Self {
