@@ -13,6 +13,27 @@ pub struct MeteoPage {
     sampling: SamplingReport,
 }
 
+impl RenderHtml for MeteoPage {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    tbody {
+                        tr {
+                            th(class="is-info") {
+                                : "Sampling"
+                            }
+                            td {
+                                : self.sampling.to_inline_html()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Meteo RINEX analysis
 pub struct MeteoReport {
     sensors: Vec<Sensor>,
@@ -123,6 +144,22 @@ impl RenderHtml for MeteoReport {
                             }
                             td {
                                 : self.sampling.to_inline_html()
+                            }
+                        }
+                    }
+                }
+            }//table
+            @ for constell in self.pages.keys().sorted() {
+                @ if let Some(page) = self.pages.get(constell) {
+                    div(class="table-container is-page", id=&format!("meteo:{}", constell), style="display:block") {
+                        table(class="table is-bordered") {
+                            tr {
+                                th(class="is-info") {
+                                    : constell.to_string()
+                                }
+                                td {
+                                    : page.to_inline_html()
+                                }
                             }
                         }
                     }

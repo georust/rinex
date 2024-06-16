@@ -149,9 +149,9 @@ impl RenderHtml for Report {
                             th(class="is-info") {
                                 : "Receiver"
                             }
-                        }
-                        tr {
-                            : rx.to_inline_html()
+                            td {
+                                : rx.to_inline_html()
+                            }
                         }
                     }
                 }
@@ -161,9 +161,9 @@ impl RenderHtml for Report {
                             th(class="is-info") {
                                 : "Antenna"
                             }
-                        }
-                        tr {
-                            : ant.to_inline_html()
+                            td {
+                                : ant.to_inline_html()
+                            }
                         }
                     }
                 }

@@ -81,18 +81,18 @@ impl SP3Report {
                 }
                 : "High Precision Orbit (SP3)"
             }
-            //ul(class="menu-list", id="menu:tabs:sp3", style="display:none") {
-            //    @ for page in self.pages.keys().sorted() {
-            //        li {
-            //            a(id=&format!("menu:sp3:{}", page), class="tab:sp3", style="margin-left:29px") {
-            //                span(class="icon") {
-            //                    i(class="fa-solid fa-satellite");
-            //                }
-            //                : page.to_string()
-            //            }
-            //        }
-            //    }
-            //}
+            ul(class="menu-list", id="menu:tabs:sp3", style="display:block") {
+                @ for page in self.pages.keys().sorted() {
+                    li {
+                        a(id=&format!("menu:sp3:{}", page), class="tab:sp3", style="margin-left:29px") {
+                            span(class="icon") {
+                                i(class="fa-solid fa-satellite");
+                            }
+                            : page.to_string()
+                        }
+                    }
+                }
+            }
         }
     }
     pub fn new(sp3: &SP3) -> Self {
@@ -184,16 +184,18 @@ impl RenderHtml for SP3Report {
                     }
                 }//table
             }//table-container
-            @ for (constell, page) in self.pages.iter() {
-                div(class="table-container is-page", id=&format!("sp3:{}", constell), style="display:none") {
-                    table(class="table is-bordered") {
-                        tr {
-                            th(class="is-info") {
-                                : constell.to_string()
+            @ for constell in self.pages.keys().sorted() {
+                @ if let Some(page) = self.pages.get(constell) {
+                    div(class="table-container is-page", id=&format!("sp3:{}", constell), style="display:block") {
+                        table(class="table is-bordered") {
+                            tr {
+                                th(class="is-info") {
+                                    : constell.to_string()
+                                }
+                                td {
+                                    : page.to_inline_html()
+                                }
                             }
-                        }
-                        tr {
-                            : page.to_inline_html()
                         }
                     }
                 }

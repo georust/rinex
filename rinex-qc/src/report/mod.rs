@@ -261,9 +261,11 @@ impl RenderHtml for QcReport {
                         : self.summary.to_inline_html()
                     }
                 }//id=summary
-                @ for (product, report) in self.products.iter() {
-                    div(id=&html_id(product), class="container is-main", style="display:none") {
-                        : report.to_inline_html()
+                @ for product in self.products.keys().sorted() {
+                    @ if let Some(report) = self.products.get(product) {
+                        div(id=&html_id(product), class="container is-main", style="display:none") {
+                            : report.to_inline_html()
+                        }
                     }
                 }
             }//class=hero

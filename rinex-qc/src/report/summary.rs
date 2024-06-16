@@ -33,12 +33,12 @@ impl RenderHtml for QcNavPostSummary {
                     tr {
                         td {
                             @ if self.nav_compatible {
-                                span(class="icon") {
+                                span(class="icon", style="color:green") {
                                     i(class="fa-solid fa-circle-check");
                                 }
                                 : "NAVI"
                             } else {
-                                span(class="icon") {
+                                span(class="icon", style="color:red") {
                                     i(class="fa-solid fa-circle-xmark");
                                 }
                                 : "NAVI"
@@ -46,12 +46,12 @@ impl RenderHtml for QcNavPostSummary {
                         }
                         td {
                             @ if self.cpp_compatible {
-                                span(class="icon") {
+                                span(class="icon", style="color:green") {
                                     i(class="fa-solid fa-circle-check");
                                 }
                                 : "CPP"
                             } else {
-                                span(class="icon") {
+                                span(class="icon", style="color:red") {
                                     i(class="fa-solid fa-circle-xmark");
                                 }
                                 : "CPP"
@@ -59,12 +59,12 @@ impl RenderHtml for QcNavPostSummary {
                         }
                         td {
                             @ if self.ppp_compatible {
-                                span(class="icon") {
+                                span(class="icon", style="color:green") {
                                     i(class="fa-solid fa-circle-check");
                                 }
                                 : "PPP"
                             } else {
-                                span(class="icon") {
+                                span(class="icon", style="color:red") {
                                     i(class="fa-solid fa-circle-xmark");
                                 }
                                 : "PPP"
@@ -72,12 +72,12 @@ impl RenderHtml for QcNavPostSummary {
                         }
                         td {
                             @ if self.ppp_ultra_compatible {
-                                span(class="icon") {
+                                span(class="icon", style="color:green") {
                                     i(class="fa-solid fa-circle-check");
                                 }
                                 : "PPP (Ultra)"
                             } else {
-                                span(class="icon") {
+                                span(class="icon", style="color:red") {
                                     i(class="fa-solid fa-circle-xmark");
                                 }
                                 : "PPP (Ultra)"
@@ -117,14 +117,14 @@ impl RenderHtml for QcBiasSummary {
                         }
                         @ if self.tropo_bias_model_optimization {
                             td {
-                                span(class="icon") {
+                                span(class="icon", style="color:green") {
                                     i(class="fa-solid fa-circle-check");
                                 }
                                 : "Model optimization"
                             }
                         } else {
                             td {
-                                span(class="icon") {
+                                span(class="icon", style="color:red") {
                                     i(class="fa-solid fa-circle-xmark");
                                 }
                                 : "Model optimization"
@@ -137,14 +137,14 @@ impl RenderHtml for QcBiasSummary {
                         }
                         @ if self.iono_bias_model_optimization {
                             td {
-                                span(class="icon") {
+                                span(class="icon", style="color:green") {
                                     i(class="fa-solid fa-circle-check");
                                 }
                                 : "Model optimization"
                             }
                         } else {
                             td {
-                                span(class="icon") {
+                                span(class="icon", style="color:red") {
                                     i(class="fa-solid fa-circle-xmark");
                                 }
                                 : "Model optimization"
@@ -152,14 +152,14 @@ impl RenderHtml for QcBiasSummary {
                         }
                         @ if self.iono_bias_cancelling {
                             td {
-                                span(class="icon") {
+                                span(class="icon", style="color:green") {
                                     i(class="fa-solid fa-circle-check");
                                 }
-                                : "Cancellation"
+                                : "Cancelling"
                             }
                         } else {
                             td {
-                                span(class="icon") {
+                                span(class="icon", style="color:red") {
                                     i(class="fa-solid fa-circle-xmark");
                                 }
                                 : "Cancelling"
@@ -263,9 +263,9 @@ impl RenderHtml for QcSummary {
                             th(class="is-info") {
                                 : "Bias"
                             }
-                        }
-                        tr {
-                            : self.bias_sum.to_inline_html()
+                            td {
+                                : self.bias_sum.to_inline_html()
+                            }
                         }
                     }
                 }
