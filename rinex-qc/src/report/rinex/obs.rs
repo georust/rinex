@@ -142,23 +142,27 @@ impl Report {
 impl RenderHtml for Report {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            div(class="table-container is-main", id="obs", style="display:none") {
+            div(class="table-container") {
                 @ if let Some(rx) = &self.receiver {
                     table(class="table is-bordered") {
-                        th(class="is-info") {
-                            : "Receiver"
+                        tr {
+                            th(class="is-info") {
+                                : "Receiver"
+                            }
                         }
-                        td {
+                        tr {
                             : rx.to_inline_html()
                         }
                     }
                 }
                 @ if let Some(ant) = &self.antenna {
                     table(class="table is-bordered") {
-                        th(class="is-info") {
-                            : "Antenna"
+                        tr {
+                            th(class="is-info") {
+                                : "Antenna"
+                            }
                         }
-                        td {
+                        tr {
                             : ant.to_inline_html()
                         }
                     }

@@ -145,12 +145,20 @@ impl RenderHtml for SamplingReport {
                             }
                         }
                         @ if self.gaps.len() == 0 {
-                            th(class="is-primary") {
-                                : "No gaps detected"
+                            tr {
+                                th(class="is-primary") {
+                                    : "Data gaps"
+                                }
+                                td {
+                                    : "No gaps detected"
+                                }
                             }
                         } else {
                             tr {
                                 th(class="is-warning") {
+                                    : "Data gaps"
+                                }
+                                td {
                                     : &format!("{} Data gaps", self.gaps.len())
                                 }
                             }

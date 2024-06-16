@@ -256,13 +256,13 @@ impl RenderHtml for QcReport {
                 : HtmlMenuBar::to_inline_html(&self)
             } // id=menubar
             div(class="hero is-fullheight") {
-                div(id="summary", class="container is-summary", style="display:block") {
+                div(id="summary", class="container is-main", style="display:block") {
                     div(class="section") {
                         : self.summary.to_inline_html()
                     }
                 }//id=summary
                 @ for (product, report) in self.products.iter() {
-                    div(id=&format!("hero:{}", html_id(product)), class="container", style="display:none") {
+                    div(id=&html_id(product), class="container is-main", style="display:none") {
                         : report.to_inline_html()
                     }
                 }
@@ -275,39 +275,27 @@ impl RenderHtml for QcReport {
     var main_pages = document.getElementsByClassName('is-main');
     var sub_pages = document.getElementsByClassName('is-page');
     
-    sidebar_menu.onclick = function(evt) {{
+    sidebar_menu.onclick = function(evt) {
         var clicked_id = evt.originalTarget.id;
         var category = clicked_id.substring(5).split(':')[0];
         var tab = clicked_id.substring(5).split(':')[1];
-        var is_tab = category.includes(category + ':');
-        console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +tab);
+        var is_tab = clicked_id.split(':').length == 3;
+        console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +is_tab);
 
-        if (is_tab == true ) {{
+        if (is_tab == true ) {
 
-        }} else {{
-            if (category == 'summary') {{
-                var i =1;
-                do {{
-                    if (main_pages[i -1].id == 'summary') {{
-                        main_pages[i-1].style = 'display:block';
-                    }} else {{
-                        main_pages[i-1].style = 'display:none';
-                    }}
-                    i += 1;
-                }} while (i != main_pages.length);
-            }} else {{
-                var i=1;
-                do {{
-                    if (main_pages[i -1].id == category) {{
-                        main_pages[i-1].style = 'display:block';
-                    }} else {{
-                        main_pages[i-1].style = 'display:none';
-                    }}
-                    i += 1;
-                }} while (i != main_pages.length);
-            }}
-        }}
-    }}"
+        } else {
+            var i=1;
+            do {
+                if (main_pages[i -1].id == category) {
+                    main_pages[i-1].style = 'display:block';
+                } else {
+                    main_pages[i-1].style = 'display:none';
+                }
+                i += 1;
+            } while (i != main_pages.length);
+        }
+    }"
             }
         }
     }

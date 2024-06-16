@@ -134,11 +134,13 @@ impl RenderHtml for ClkReport {
                             }
                         }
                         @ if let Some(timescale) = self.timescale {
-                            th {
-                                : "Timescale"
-                            }
-                            td {
-                                : timescale.to_string()
+                            tr {
+                                th {
+                                    : "Timescale"
+                                }
+                                td {
+                                    : timescale.to_string()
+                                }
                             }
                         }
                     }

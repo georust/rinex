@@ -252,19 +252,19 @@ impl RenderHtml for QcSummary {
                             }
                         }
                         tr {
-                            th {
+                            th(class="is-info") {
                                 : "Compliancy"
                             }
-                        }
-                        td {
-                            : self.nav_post.to_inline_html()
+                            td {
+                                : self.nav_post.to_inline_html()
+                            }
                         }
                         tr {
-                            th {
+                            th(class="is-info") {
                                 : "Bias"
                             }
                         }
-                        td {
+                        tr {
                             : self.bias_sum.to_inline_html()
                         }
                     }

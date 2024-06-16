@@ -101,11 +101,6 @@ impl RenderHtml for Antenna {
             table(class="table is-bordered") {
                 tbody {
                     tr {
-                        th(class="is-info") {
-                            : "Antenna"
-                        }
-                    }
-                    tr {
                         th {
                             : "Model"
                         }
@@ -171,11 +166,6 @@ impl RenderHtml for Receiver {
             div(class="table-container") {
                 table(class="table is-bordered") {
                     tbody {
-                        tr {
-                            th(class="is-info") {
-                                : "GNSS Receiver"
-                            }
-                        }
                         tr {
                             th {
                                 : "Model"

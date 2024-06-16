@@ -2,702 +2,683 @@
 <html>
 
 <head>
-	<meta charset="UTF-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/georust/meta/master/logo/logo.png">
-	<script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/georust/meta/master/logo/logo.png">
+    <script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <title>RINEX QC</title>
 
 <body>
-	<div class="columns is-fullheight">
+    <div class="columns is-fullheight">
+        <div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile">
+            <aside class="menu">
+                <p class="menu-label">RINEX-QC v0.1.14</p>
+                <ul class="menu-list">
+                    <li><a id="menu:summary"><span class="icon"><i class="fa fa-home"></i></span>Summary</a></li>
+                    <li><a id="menu:obs"><span class="icon"><i
+                                    class="fa-solid fa-tower-cell"></i></span>Observations</a>
+                        <ul class="menu-list" id="menu:tabs:obs" style="display:none">
+                            <li><a id="menu:obs:GAL" style="margin-left:29px"><span class="icon"><i
+                                            class="fa-solid fa-satellite"></i></span>GAL</a></li>
+                        </ul>
+                    </li>
+                    <li><a id="menu:meteo"><span class="icon"><i class="fa-solid fa-cloud-sun-rain"></i></span>Meteo
+                            Observations</a>
+                        <ul class="menu-list" id="menu:tabs:meteo" style="display:none">
+                            <li><a id="menu:meteo:Moisture" style="margin-left:29px"><span class="icon"><i
+                                            class="fa-solid fa-cloud-sun-rain"></i></span>Moisture</a></li>
+                            <li><a id="menu:meteo:Pressure" style="margin-left:29px"><span class="icon"><i
+                                            class="fa-solid fa-cloud-sun-rain"></i></span>Pressure</a></li>
+                            <li><a id="menu:meteo:Temperature" style="margin-left:29px"><span class="icon"><i
+                                            class="fa-solid fa-cloud-sun-rain"></i></span>Temperature</a></li>
+                        </ul>
+                    </li>
+                    <li><a id="menu:brdc"><span class="icon"><i class="fa-solid fa-satellite-dish"></i></span>Broadcast
+                            Navigation (BRDC)</a>
+                        <ul class="menu-list" id="menu:tabs:brdc" style="display:none"></ul>
+                    </li>
+                    <li><a id="menu:clk"><span class="icon"><i class="fa-solid fa-clock"></i></span>High Precision Clock
+                            (RINEX)</a>
+                        <ul class="menu-list" id="menu:tabs:clk" style="display:none">
+                            <li><a id="menu:clk:GAL" style="margin-left:29px"><span class="icon"><i
+                                            class="fa-solid fa-satellite"></i></span>GAL</a></li>
+                        </ul>
+                    </li>
+                    <li><a id="menu:sp3"><span class="icon"><i class="fa-solid fa-satellite"></i></span>High Precision
+                            Orbit (SP3)</a></li>
+                    <p class="menu-label"><a href="https://github.com/georust/rinex/wiki"
+                            style="margin-left:29px">Documentation</a></p>
+                    <p class="menu-label"><a href="https://github.com/georust/rinex/issues" style="margin-left:29px">Bug
+                            Report</a></p>
+                    <p class="menu-label"><a href="https://github.com/georust/rinex"><span class="icon"><i
+                                    class="fa-brands fa-github"></i></span>Sources</a></p>
+                </ul>
+            </aside>
+        </div>
+        <div class="hero is-fullheight">
+            <div id="summary" class="container is-main" style="display:block">
+                <div class="section">
+                    <div class="table-container">
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <th class="is-info is-bordered">MOJN00DNK_R_20201770000_01D_30S_MO</th>
+                                </tr>
+                                <tr>
+                                    <th>Timescale</th>
+                                    <td>GPST</td>
+                                </tr>
+                                <tr>
+                                    <th>Reference position</th>
+                                    <td>
+                                        <table>
+                                            <tr>
+                                                <th>ECEF (WGS84)</th>
+                                            </tr>
+                                            <tr>
+                                                <th>X</th>
+                                                <td>3628427.912 m</td>
+                                                <th>Y</th>
+                                                <td>562059.094 m</td>
+                                                <th>Z</th>
+                                                <td>5197872.215 m</td>
+                                            </tr>
+                                            <tr>
+                                                <th>GEO</th>
+                                            </tr>
+                                            <tr>
+                                                <th>Latitude</th>
+                                                <td>54.944315°</td>
+                                                <th>Longitude</th>
+                                                <td>8.805378°</td>
+                                                <th>Altitude</th>
+                                                <td>57.129 m</td>
+                                            </tr>
+                                            <tr>
+                                                <th>DMS</th>
+                                                <td>54°56'39.5344&quot;N</td>
+                                                <th>DMS</th>
+                                                <td>8°48'19.3625&quot;E</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="is-info">Compliancy</th>
+                                    <td>
+                                        <table class="table">
+                                            <tbody>
+                                                <tr>
+                                                    <td><span class="icon"><i
+                                                                class="fa-solid fa-circle-check"></i></span>NAVI</td>
+                                                    <td><span class="icon"><i
+                                                                class="fa-solid fa-circle-check"></i></span>CPP</td>
+                                                    <td><span class="icon"><i
+                                                                class="fa-solid fa-circle-check"></i></span>PPP</td>
+                                                    <td><span class="icon"><i
+                                                                class="fa-solid fa-circle-check"></i></span>PPP (Ultra)
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="is-info">Bias</th>
+                                </tr>
+                                <tr>
+                                    <table class="table">
+                                        <tbody>
+                                            <tr>
+                                                <th>Troposphere Bias</th>
+                                                <td><span class="icon"><i
+                                                            class="fa-solid fa-circle-check"></i></span>Model
+                                                    optimization</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Ionosphere Bias</th>
+                                                <td><span class="icon"><i
+                                                            class="fa-solid fa-circle-xmark"></i></span>Model
+                                                    optimization</td>
+                                                <td><span class="icon"><i
+                                                            class="fa-solid fa-circle-check"></i></span>Cancellation
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="obs" class="container is-main" style="display:none">
+                <div class="section">
+                    <div class="table-container">
+                        <table class="table is-bordered">
+                            <tr>
+                                <th class="is-info">Receiver</th>
+                            </tr>
+                            <tr>
+                                <div class="table-container">
+                                    <table class="table is-bordered">
+                                        <tbody>
+                                            <tr>
+                                                <th>Model</th>
+                                                <td>SEPT POLARX5</td>
+                                            </tr>
+                                            <tr>
+                                                <th>SN#</th>
+                                                <td>3022663</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Firmware</th>
+                                                <td>5.3.0</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </tr>
+                        </table>
+                        <table class="table is-bordered">
+                            <tr>
+                                <th class="is-info">Antenna</th>
+                            </tr>
+                            <tr>
+                                <table class="table is-bordered">
+                                    <tbody>
+                                        <tr>
+                                            <th>Model</th>
+                                            <td>726855</td>
+                                        </tr>
+                                        <tr>
+                                            <th>SN#</th>
+                                            <td>LEIAR25.R4 LEIT</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Base Coordinates</th>
+                                            <td>Unknown</td>
+                                        </tr>
+                                        <th>Height</th>
+                                        <td>0.1878 m</td>
+                                        <th>Eccentricity</th>
+                                        <td>0m N, 0m E</td>
+                                    </tbody>
+                                </table>
+                            </tr>
+                        </table>
+                        <table class="table is-bordered">
+                            <th class="is-info">Sampling</th>
+                            <td>
+                                <div class="table-container">
+                                    <table class="table is-bordered">
+                                        <tbody>
+                                            <tr>
+                                                <th class="is-info">Time Frame</th>
+                                            </tr>
+                                            <tr>
+                                                <th>Start</th>
+                                                <td>2020-06-25T00:00:30 GPST</td>
+                                                <th>End</th>
+                                                <td>2020-06-25T23:59:30 GPST</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Duration</th>
+                                                <td>23 h 59 min</td>
+                                            </tr>
+                                            <tr>
+                                                <th class="is-info">Sampling</th>
+                                            </tr>
+                                            <tr>
+                                                <th>Rate</th>
+                                                <td>0.033 Hz</td>
+                                                <th>Period</th>
+                                                <td>30 s</td>
+                                            </tr>
+                                            <tr>
+                                                <th class="is-info">Dominant Sampling</th>
+                                            </tr>
+                                            <tr>
+                                                <th>Rate</th>
+                                                <td>0.033 Hz</td>
+                                                <th>Period</th>
+                                                <td>30 s</td>
+                                            </tr>
+                                            <tr>
+                                                <th class="is-primary">Data gaps</th>
+                                                <td>No gaps detected</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="clk" class="container is-main" style="display:none">
+                <div class="section">
+                    <div class="table-container">
+                        <table class="table is-bordered">
+                            <tbody>
+                                <tr>
+                                    <th class="is-info">Agency</th>
+                                    <td>CNES/CLS TOULOUSE,FRANCE Contact:igs-ac@cls.fr</td>
+                                </tr>
+                                <tr>
+                                    <th>IGS Clock Name</th>
+                                    <td>GRG</td>
+                                </tr>
+                                <tr>
+                                    <th>Timescale</th>
+                                    <td>GPST</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-container">
+                            <table class="table is-bordered">
+                                <tbody>
+                                    <tr>
+                                        <th class="is-info">Time Frame</th>
+                                    </tr>
+                                    <tr>
+                                        <th>Start</th>
+                                        <td>2020-06-25T00:00:30 GPST</td>
+                                        <th>End</th>
+                                        <td>2020-06-25T23:59:30 GPST</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Duration</th>
+                                        <td>23 h 59 min</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="is-info">Dominant Sampling</th>
+                                    </tr>
+                                    <tr>
+                                        <th>Rate</th>
+                                        <td>0.033 Hz</td>
+                                        <th>Period</th>
+                                        <td>30 s</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="is-primary">Data gaps</th>
+                                        <td>No gaps detected</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="sp3" class="container is-main" style="display:none">
+                <div class="section">
+                    <div class="table-container">
+                        <table class="table is-bordered">
+                            <tr>
+                                <th>Agency</th>
+                                <td>GRGS</td>
+                            </tr>
+                            <tr>
+                                <th>Constellation</th>
+                                <td>MIXED</td>
+                            </tr>
+                            <tr>
+                                <th>Timescale</th>
+                                <td>GPST</td>
+                            </tr>
+                            <tr>
+                                <th>Reference Frame</th>
+                                <td>IGb14</td>
+                            </tr>
+                            <tr>
+                                <th>Orbit FIT</th>
+                                <td>FIT</td>
+                            </tr>
+                            <tr>
+                                <th>Sampling</th>
+                                <td>
+                                    <div class="table-container">
+                                        <table class="table is-bordered">
+                                            <tbody>
+                                                <tr>
+                                                    <th class="is-info">Time Frame</th>
+                                                </tr>
+                                                <tr>
+                                                    <th>Start</th>
+                                                    <td>2020-06-25T00:00:00 GPST</td>
+                                                    <th>End</th>
+                                                    <td>2020-06-25T23:45:00 GPST</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Duration</th>
+                                                    <td>23 h 45 min</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="is-info">Sampling</th>
+                                                </tr>
+                                                <tr>
+                                                    <th>Rate</th>
+                                                    <td>0.001 Hz</td>
+                                                    <th>Period</th>
+                                                    <td>15 min</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="is-info">Dominant Sampling</th>
+                                                </tr>
+                                                <tr>
+                                                    <th>Rate</th>
+                                                    <td>0.001 Hz</td>
+                                                    <th>Period</th>
+                                                    <td>15 min</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="is-primary">Data gaps</th>
+                                                    <td>No gaps detected</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="table-container is-page" id="sp3:GLO" style="display:none">
+                        <table class="table is-bordered">
+                            <tr>
+                                <th class="is-info">GLO</th>
+                            </tr>
+                            <tr>
+                                <div class="table-container">
+                                    <table class="table is-bordered">
+                                        <tr>
+                                            <th class="is-info">General</th>
+                                        </tr>
+                                        <tr>
+                                            <th>Velocity</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Clock offset</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Clock drift</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="is-info">Satellites</th>
+                                            <td>E01,E02,E03,E04,E05,E07,E08,E09,E11,E12,E13,E14,E15,E18,E19,E21,E24,E25,E26,E27,E30,E31,E33,E36,R01,R02,R03,R04,R05,R07,R08,R09,R11,R12,R13,R14,R15,R16,R17,R18,R19,R20,R21,R23,R24,G01,G02,G03,G05,G06,G07,G08,G09,G10,G11,G12,G13,G14,G15,G16,G17,G18,G19,G20,G21,G22,G24,G25,G26,G27,G28,G29,G30,G31,G32
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="table-container is-page" id="sp3:GPS" style="display:none">
+                        <table class="table is-bordered">
+                            <tr>
+                                <th class="is-info">GPS</th>
+                            </tr>
+                            <tr>
+                                <div class="table-container">
+                                    <table class="table is-bordered">
+                                        <tr>
+                                            <th class="is-info">General</th>
+                                        </tr>
+                                        <tr>
+                                            <th>Velocity</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Clock offset</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Clock drift</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="is-info">Satellites</th>
+                                            <td>E01,E02,E03,E04,E05,E07,E08,E09,E11,E12,E13,E14,E15,E18,E19,E21,E24,E25,E26,E27,E30,E31,E33,E36,R01,R02,R03,R04,R05,R07,R08,R09,R11,R12,R13,R14,R15,R16,R17,R18,R19,R20,R21,R23,R24,G01,G02,G03,G05,G06,G07,G08,G09,G10,G11,G12,G13,G14,G15,G16,G17,G18,G19,G20,G21,G22,G24,G25,G26,G27,G28,G29,G30,G31,G32
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="table-container is-page" id="sp3:GAL" style="display:none">
+                        <table class="table is-bordered">
+                            <tr>
+                                <th class="is-info">GAL</th>
+                            </tr>
+                            <tr>
+                                <div class="table-container">
+                                    <table class="table is-bordered">
+                                        <tr>
+                                            <th class="is-info">General</th>
+                                        </tr>
+                                        <tr>
+                                            <th>Velocity</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Clock offset</th>
+                                            <td>true</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Clock drift</th>
+                                            <td>false</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="is-info">Satellites</th>
+                                            <td>E01,E02,E03,E04,E05,E07,E08,E09,E11,E12,E13,E14,E15,E18,E19,E21,E24,E25,E26,E27,E30,E31,E33,E36,R01,R02,R03,R04,R05,R07,R08,R09,R11,R12,R13,R14,R15,R16,R17,R18,R19,R20,R21,R23,R24,G01,G02,G03,G05,G06,G07,G08,G09,G10,G11,G12,G13,G14,G15,G16,G17,G18,G19,G20,G21,G22,G24,G25,G26,G27,G28,G29,G30,G31,G32
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="meteo" class="container is-main" style="display:none">
+                <div class="section">
+                    <div class="table-container">
+                        <table class="table is-bordered">
+                            <tbody>
+                                <tr>
+                                    <th class="is-info">Agency</th>
+                                    <td>Unknown</td>
+                                </tr>
+                                <tr>
+                                    <th>Temperature sensor</th>
+                                    <td>
+                                        <table class="table is-bordered">
+                                            <tr>
+                                                <th>Observable</th>
+                                                <td>TD</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Model</th>
+                                                <td>Vaisala</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Sensor Type</th>
+                                                <td>HMP45A-P</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Sensor Accuracy</th>
+                                                <td>1.000E-1</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Pressure sensor</th>
+                                    <td>
+                                        <table class="table is-bordered">
+                                            <tr>
+                                                <th>Observable</th>
+                                                <td>PR</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Model</th>
+                                                <td>Vaisala</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Sensor Type</th>
+                                                <td>PTU200</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Sensor Accuracy</th>
+                                                <td>1.000E-1</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Sensor position</th>
+                                                <td>
+                                                    <table>
+                                                        <tr>
+                                                            <th>ECEF (WGS84)</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>X</th>
+                                                            <td>0.000 m</td>
+                                                            <th>Y</th>
+                                                            <td>0.000 m</td>
+                                                            <th>Z</th>
+                                                            <td>0.000 m</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>GEO</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>Latitude</th>
+                                                            <td>NaN°</td>
+                                                            <th>Longitude</th>
+                                                            <td>0.000000°</td>
+                                                            <th>Altitude</th>
+                                                            <td>NaN m</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>DMS</th>
+                                                            <td>0°0'NaN&quot;N</td>
+                                                            <th>DMS</th>
+                                                            <td>0°0'0.0000&quot;E</td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Height</th>
+                                                <td>132.818 m</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Moisture sensor</th>
+                                    <td>
+                                        <table class="table is-bordered">
+                                            <tr>
+                                                <th>Observable</th>
+                                                <td>HR</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Model</th>
+                                                <td>Vaisala</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Sensor Type</th>
+                                                <td>HMP45A-P</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Sensor Accuracy</th>
+                                                <td>1.500E0</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="is-info">Sampling</th>
+                                    <td>
+                                        <div class="table-container">
+                                            <table class="table is-bordered">
+                                                <tbody>
+                                                    <tr>
+                                                        <th class="is-info">Time Frame</th>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Start</th>
+                                                        <td>2023-09-11T00:00:00 UTC</td>
+                                                        <th>End</th>
+                                                        <td>2023-09-11T23:55:00 UTC</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Duration</th>
+                                                        <td>23 h 55 min</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="is-info">Dominant Sampling</th>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Rate</th>
+                                                        <td>0.003 Hz</td>
+                                                        <th>Period</th>
+                                                        <td>5 min</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="is-primary">Data gaps</th>
+                                                        <td>No gaps detected</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="brdc" class="container is-main" style="display:none">
+                <div class="section"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        var sidebar_menu = document.getElementById('menubar');
+        var main_pages = document.getElementsByClassName('is-main');
+        var sub_pages = document.getElementsByClassName('is-page');
 
-		<div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile">
-			<aside class="menu">
-				<p class="menu-label">RINEX-QC v0.1.14</p>
-				<ul class="menu-list">
-					<li><a id="menu:summary"><span class="icon"><i class="fa fa-home"></i></span>Summary</a></li>
-					<li><a id="menu:obs"><span class="icon"><i class="fa-solid fa-tower-cell"></i></span>Observations</a>
-						<ul class="menu-list" id="menu:tabs:obs" style="display:none">
-							<li><a id="menu:obs:GAL" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-satellite"></i></span>GAL</a></li>
-						</ul>
-					</li>
-					<li><a id="menu:meteo"><span class="icon"><i class="fa-solid fa-cloud-sun-rain"></i></span>Meteo Observations</a>
-						<ul class="menu-list" id="menu:tabs:meteo" style="display:none">
-							<li><a id="menu:meteo:Moisture" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-cloud-sun-rain"></i></span>Moisture</a></li>
-							<li><a id="menu:meteo:Pressure" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-cloud-sun-rain"></i></span>Pressure</a></li>
-							<li><a id="menu:meteo:Temperature" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-cloud-sun-rain"></i></span>Temperature</a></li>
-						</ul>
-					</li>
-					<li><a id="menu:brdc"><span class="icon"><i class="fa-solid fa-satellite-dish"></i></span>Broadcast Navigation
-							(BRDC)</a>
-						<ul class="menu-list" id="menu:tabs:brdc" style="display:none"></ul>
-					</li>
-					<li><a id="menu:clk"><span class="icon"><i class="fa-solid fa-clock"></i></span>High Precision Clock (RINEX)</a>
-						<ul class="menu-list" id="menu:tabs:clk" style="display:none">
-							<li><a id="menu:clk:GAL" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-satellite"></i></span>GAL</a></li>
-						</ul>
-					</li>
-					<li><a id="menu:sp3"><span class="icon"><i class="fa-solid fa-satellite"></i></span>High Precision Orbit (SP3)</a>
-						<ul class="menu-list" id="menu:tabs:sp3" style="display:block">
-							<li><a id="menu:sp3:GPS" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-satellite"></i></span>GPS</a></li>
-							<li><a id="menu:sp3:GLO" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-satellite"></i></span>GLO</a></li>
-							<li><a id="menu:sp3:GAL" style="margin-left:29px"><span class="icon"><i
-											class="fa-solid fa-satellite"></i></span>GAL</a>
-								</li>
-						</ul>
-					</li>
-					<p class="menu-label"><a href="https://github.com/georust/rinex/wiki"
-							style="margin-left:29px">Documentation</a></p>
-					<p class="menu-label"><a href="https://github.com/georust/rinex/issues" style="margin-left:29px">Bug
-							Report</a></p>
-					<p class="menu-label"><a href="https://github.com/georust/rinex"><span class="icon"><i
-									class="fa-brands fa-github"></i></span>Sources</a></p>
-				</ul>
-			</aside>
-		</div>
+        sidebar_menu.onclick = function (evt) {
+            var clicked_id = evt.originalTarget.id;
+            var category = clicked_id.substring(5).split(':')[0];
+            var tab = clicked_id.substring(5).split(':')[1];
+            var is_tab = clicked_id.split(':').length == 3;
+            console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' + is_tab);
 
-		<div class="hero is-fullheight">
-			
-			<div id="summary" class="container is-main" style="display:block">
-				<div class="section">
-					<div class="table-container">
-						<table class="table">
-							<tbody>
-								<tr>
-									<th class="is-info is-bordered">MOJN00DNK_R_20201770000_01D_30S_MO</th>
-								</tr>
-								<tr>
-									<th>Timescale</th>
-									<td>GPST</td>
-								</tr>
-								<tr>
-									<th>Reference position</th>
-									<td>
-										<table>
-											<tr>
-												<th>ECEF (WGS84)</th>
-											</tr>
-											<tr>
-												<th>X</th>
-												<td>3628427.912 m</td>
-												<th>Y</th>
-												<td>562059.094 m</td>
-												<th>Z</th>
-												<td>5197872.215 m</td>
-											</tr>
-											<tr>
-												<th>GEO</th>
-											</tr>
-											<tr>
-												<th>Latitude</th>
-												<td>54.944315°</td>
-												<th>Longitude</th>
-												<td>8.805378°</td>
-												<th>Altitude</th>
-												<td>57.129 m</td>
-											</tr>
-											<tr>
-												<th>DMS</th>
-												<td>54°56'39.5344&quot;N</td>
-												<th>DMS</th>
-												<td>8°48'19.3625&quot;E</td>
-											</tr>
-										</table>
-									</td>
-								</tr>
-								<tr>
-									<th>Compliancy</th>
-								</tr>
-								<td>
-									<table class="table">
-										<tbody>
-											<tr>
-												<td><span class="icon"><i class="fa-solid fa-circle-check"></i></span>NAVI</td>
-												<td><span class="icon"><i class="fa-solid fa-circle-check"></i></span>CPP</td>
-												<td><span class="icon"><i class="fa-solid fa-circle-check"></i></span>PPP</td>
-												<td><span class="icon"><i class="fa-solid fa-circle-check"></i></span>PPP (Ultra)</td>
-											</tr>
-										</tbody>
-									</table>
-								</td>
-								<tr>
-									<th>Bias</th>
-								</tr>
-								<td>
-									<table class="table">
-										<tbody>
-											<tr>
-												<th>Troposphere Bias</th>
-												<td><span class="icon"><i class="fa-solid fa-circle-check"></i></span>Model optimization</td>
-											</tr>
-											<tr>
-												<th>Ionosphere Bias</th>
-												<td><span class="icon"><i class="fa-solid fa-circle-xmark"></i></span>Model optimization</td>
-												<td><span class="icon"><i class="fa-solid fa-circle-check"></i></span>Cancellation</td>
-											</tr>
-										</tbody>
-									</table>
-								</td>
-							</tbody>
-						</table>
-					</div>
-				</div>
-			</div>
-			
-			<div class="container is-main" id="meteo" style="display:none">
-				<div class="section">
-					<div class="table-container">
-						<table class="table is-bordered">
-							<tbody>
-								<tr>
-									<th class="is-info">Agency</th>
-									<td>Unknown</td>
-								</tr>
-								<tr>
-									<th>Temperature sensor</th>
-									<td>
-										<table class="table is-bordered">
-											<tr>
-												<th>Observable</th>
-												<td>TD</td>
-											</tr>
-											<tr>
-												<th>Model</th>
-												<td>Vaisala</td>
-											</tr>
-											<tr>
-												<th>Sensor Type</th>
-												<td>HMP45A-P</td>
-											</tr>
-											<tr>
-												<th>Sensor Accuracy</th>
-												<td>1.000E-1</td>
-											</tr>
-										</table>
-									</td>
-								</tr>
-								<tr>
-									<th>Pressure sensor</th>
-									<td>
-										<table class="table is-bordered">
-											<tr>
-												<th>Observable</th>
-												<td>PR</td>
-											</tr>
-											<tr>
-												<th>Model</th>
-												<td>Vaisala</td>
-											</tr>
-											<tr>
-												<th>Sensor Type</th>
-												<td>PTU200</td>
-											</tr>
-											<tr>
-												<th>Sensor Accuracy</th>
-												<td>1.000E-1</td>
-											</tr>
-											<tr>
-												<th>Sensor position</th>
-												<td>
-													<table>
-														<tr>
-															<th>ECEF (WGS84)</th>
-														</tr>
-														<tr>
-															<th>X</th>
-															<td>0.000 m</td>
-															<th>Y</th>
-															<td>0.000 m</td>
-															<th>Z</th>
-															<td>0.000 m</td>
-														</tr>
-														<tr>
-															<th>GEO</th>
-														</tr>
-														<tr>
-															<th>Latitude</th>
-															<td>NaN°</td>
-															<th>Longitude</th>
-															<td>0.000000°</td>
-															<th>Altitude</th>
-															<td>NaN m</td>
-														</tr>
-														<tr>
-															<th>DMS</th>
-															<td>0°0'NaN&quot;N</td>
-															<th>DMS</th>
-															<td>0°0'0.0000&quot;E</td>
-														</tr>
-													</table>
-												</td>
-											</tr>
-											<tr>
-												<th>Height</th>
-												<td>132.818 m</td>
-											</tr>
-										</table>
-									</td>
-								</tr>
-								<tr>
-									<th>Moisture sensor</th>
-									<td>
-										<table class="table is-bordered">
-											<tr>
-												<th>Observable</th>
-												<td>HR</td>
-											</tr>
-											<tr>
-												<th>Model</th>
-												<td>Vaisala</td>
-											</tr>
-											<tr>
-												<th>Sensor Type</th>
-												<td>HMP45A-P</td>
-											</tr>
-											<tr>
-												<th>Sensor Accuracy</th>
-												<td>1.500E0</td>
-											</tr>
-										</table>
-									</td>
-								</tr>
-								<tr>
-									<th class="is-info">Sampling</th>
-									<td>
-										<div class="table-container">
-											<table class="table is-bordered">
-												<tbody>
-													<tr>
-														<th class="is-info">Time Frame</th>
-													</tr>
-													<tr>
-														<th>Start</th>
-														<td>2023-09-11T00:00:00 UTC</td>
-														<th>End</th>
-														<td>2023-09-11T23:55:00 UTC</td>
-													</tr>
-													<tr>
-														<th>Duration</th>
-														<td>23 h 55 min</td>
-													</tr>
-													<tr>
-														<th class="is-info">Dominant Sampling</th>
-													</tr>
-													<tr>
-														<th>Rate</th>
-														<td>0.003 Hz</td>
-														<th>Period</th>
-														<td>5 min</td>
-													</tr>
-													<th class="is-primary">No gaps detected</th>
-												</tbody>
-											</table>
-										</div>
-									</td>
-								</tr>
-							</tbody>
-						</table>
-					</div>
-				</div>
-			</div>
-			
-			<div id="clk" class="container is-main" style="display:none">
-				<div class="section">
-					<div class="table-container">
-						<table class="table is-bordered">
-							<tbody>
-								<tr>
-									<th class="is-info">Agency</th>
-									<td>CNES/CLS TOULOUSE,FRANCE Contact:igs-ac@cls.fr</td>
-								</tr>
-								<tr>
-									<th>IGS Clock Name</th>
-									<td>GRG</td>
-								</tr>
-								<th>Timescale</th>
-								<td>GPST</td>
-							</tbody>
-						</table>
-					</div>
-					<div class="table-container">
-						<div class="table-container">
-							<table class="table is-bordered">
-								<tbody>
-									<tr>
-										<th class="is-info">Time Frame</th>
-									</tr>
-									<tr>
-										<th>Start</th>
-										<td>2020-06-25T00:00:30 GPST</td>
-										<th>End</th>
-										<td>2020-06-25T23:59:30 GPST</td>
-									</tr>
-									<tr>
-										<th>Duration</th>
-										<td>23 h 59 min</td>
-									</tr>
-									<tr>
-										<th class="is-info">Dominant Sampling</th>
-									</tr>
-									<tr>
-										<th>Rate</th>
-										<td>0.033 Hz</td>
-										<th>Period</th>
-										<td>30 s</td>
-									</tr>
-									<th class="is-primary">No gaps detected</th>
-								</tbody>
-							</table>
-						</div>
-					</div>
-				</div>
-			</div>
-			
-			<div id="obs" class="container is-main" style="display:none">
-				<div class="section">
-					<div class="table-container">
-						<table class="table is-bordered">
-							<th class="is-info">Receiver</th>
-							<td>
-								<div class="table-container">
-									<table class="table is-bordered">
-										<tbody>
-											<tr>
-												<th class="is-info">GNSS Receiver</th>
-											</tr>
-											<tr>
-												<th>Model</th>
-												<td>SEPT POLARX5</td>
-											</tr>
-											<tr>
-												<th>SN#</th>
-												<td>3022663</td>
-											</tr>
-											<tr>
-												<th>Firmware</th>
-												<td>5.3.0</td>
-											</tr>
-										</tbody>
-									</table>
-								</div>
-							</td>
-						</table>
-						<table class="table is-bordered">
-							<th class="is-info">Antenna</th>
-							<td>
-								<table class="table is-bordered">
-									<tbody>
-										<tr>
-											<th class="is-info">Antenna</th>
-										</tr>
-										<tr>
-											<th>Model</th>
-											<td>726855</td>
-										</tr>
-										<tr>
-											<th>SN#</th>
-											<td>LEIAR25.R4 LEIT</td>
-										</tr>
-										<tr>
-											<th>Base Coordinates</th>
-											<td>Unknown</td>
-										</tr>
-										<th>Height</th>
-										<td>0.1878 m</td>
-										<th>Eccentricity</th>
-										<td>0m N, 0m E</td>
-									</tbody>
-								</table>
-							</td>
-						</table>
-						<table class="table is-bordered">
-							<th class="is-info">Sampling</th>
-							<td>
-								<div class="table-container">
-									<table class="table is-bordered">
-										<tbody>
-											<tr>
-												<th class="is-info">Time Frame</th>
-											</tr>
-											<tr>
-												<th>Start</th>
-												<td>2020-06-25T00:00:30 GPST</td>
-												<th>End</th>
-												<td>2020-06-25T23:59:30 GPST</td>
-											</tr>
-											<tr>
-												<th>Duration</th>
-												<td>23 h 59 min</td>
-											</tr>
-											<tr>
-												<th class="is-info">Sampling</th>
-											</tr>
-											<tr>
-												<th>Rate</th>
-												<td>0.033 Hz</td>
-												<th>Period</th>
-												<td>30 s</td>
-											</tr>
-											<tr>
-												<th class="is-info">Dominant Sampling</th>
-											</tr>
-											<tr>
-												<th>Rate</th>
-												<td>0.033 Hz</td>
-												<th>Period</th>
-												<td>30 s</td>
-											</tr>
-											<th class="is-primary">No gaps detected</th>
-										</tbody>
-									</table>
-								</div>
-							</td>
-						</table>
-					</div>
-				</div>
-			</div>
+            if (is_tab == true) {
 
-			<!--
-			<div class="container is-main" id="sp3" style="display:none">
-				<div class="section">
-					<div class="table-container">
-						<table class="table is-bordered">
-							<tr>
-								<th>Agency</th>
-								<td>GRGS</td>
-							</tr>
-							<tr>
-								<th>Constellation</th>
-								<td>MIXED</td>
-							</tr>
-							<tr>
-								<th>Timescale</th>
-								<td>GPST</td>
-							</tr>
-							<tr>
-								<th>Reference Frame</th>
-								<td>IGb14</td>
-							</tr>
-							<tr>
-								<th>Orbit FIT</th>
-								<td>FIT</td>
-							</tr>
-							<tr>
-								<th>Sampling</th>
-								<td>
-									<div class="table-container">
-										<table class="table is-bordered">
-											<tbody>
-												<tr>
-													<th class="is-info">Time Frame</th>
-												</tr>
-												<tr>
-													<th>Start</th>
-													<td>2020-06-25T00:00:00 GPST</td>
-													<th>End</th>
-													<td>2020-06-25T23:45:00 GPST</td>
-												</tr>
-												<tr>
-													<th>Duration</th>
-													<td>23 h 45 min</td>
-												</tr>
-												<tr>
-													<th class="is-info">Sampling</th>
-												</tr>
-												<tr>
-													<th>Rate</th>
-													<td>0.001 Hz</td>
-													<th>Period</th>
-													<td>15 min</td>
-												</tr>
-												<tr>
-													<th class="is-info">Dominant Sampling</th>
-												</tr>
-												<tr>
-													<th>Rate</th>
-													<td>0.001 Hz</td>
-													<th>Period</th>
-													<td>15 min</td>
-												</tr>
-												<th class="is-primary">No gaps detected</th>
-											</tbody>
-										</table>
-									</div>
-								</td>
-							</tr>
-						</table>
-					</div>
-					<div class="table-container is-page" id="sp3:GLO" style="display:none">
-						<table class="table is-bordered">
-							<tr>
-								<th class="is-info">GLO</th>
-							</tr>
-							<tr>
-								<div class="table-container">
-									<table class="table is-bordered">
-										<tr>
-											<th class="is-info">General</th>
-										</tr>
-										<tr>
-											<th>Velocity</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th>Clock offset</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th>Clock drift</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th class="is-info">Satellites</th>
-											<td>
-												E01,E02,E03,E04,E05,E07,E08,E09,E11,E12,E13,E14,E15,E18,E19,E21,E24,E25,E26,E27,E30,E31,E33,E36,R01,R02,R03,R04,R05,R07,R08,R09,R11,R12,R13,R14,R15,R16,R17,R18,R19,R20,R21,R23,R24,G01,G02,G03,G05,G06,G07,G08,G09,G10,G11,G12,G13,G14,G15,G16,G17,G18,G19,G20,G21,G22,G24,G25,G26,G27,G28,G29,G30,G31,G32
-											</td>
-										</tr>
-									</table>
-								</div>
-							</tr>
-						</table>
-					</div>
-					<div class="table-container is-page" id="sp3:GAL" style="display:none">
-						<table class="table is-bordered">
-							<tr>
-								<th class="is-info">GAL</th>
-							</tr>
-							<tr>
-								<div class="table-container">
-									<table class="table is-bordered">
-										<tr>
-											<th class="is-info">General</th>
-										</tr>
-										<tr>
-											<th>Velocity</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th>Clock offset</th>
-											<td>true</td>
-										</tr>
-										<tr>
-											<th>Clock drift</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th class="is-info">Satellites</th>
-											<td>
-												E01,E02,E03,E04,E05,E07,E08,E09,E11,E12,E13,E14,E15,E18,E19,E21,E24,E25,E26,E27,E30,E31,E33,E36,R01,R02,R03,R04,R05,R07,R08,R09,R11,R12,R13,R14,R15,R16,R17,R18,R19,R20,R21,R23,R24,G01,G02,G03,G05,G06,G07,G08,G09,G10,G11,G12,G13,G14,G15,G16,G17,G18,G19,G20,G21,G22,G24,G25,G26,G27,G28,G29,G30,G31,G32
-											</td>
-										</tr>
-									</table>
-								</div>
-							</tr>
-						</table>
-					</div>
-					<div class="table-container is-page" id="sp3:GPS" style="display:none">
-						<table class="table is-bordered">
-							<tr>
-								<th class="is-info">GPS</th>
-							</tr>
-							<tr>
-								<div class="table-container">
-									<table class="table is-bordered">
-										<tr>
-											<th class="is-info">General</th>
-										</tr>
-										<tr>
-											<th>Velocity</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th>Clock offset</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th>Clock drift</th>
-											<td>false</td>
-										</tr>
-										<tr>
-											<th class="is-info">Satellites</th>
-											<td>
-												E01,E02,E03,E04,E05,E07,E08,E09,E11,E12,E13,E14,E15,E18,E19,E21,E24,E25,E26,E27,E30,E31,E33,E36,R01,R02,R03,R04,R05,R07,R08,R09,R11,R12,R13,R14,R15,R16,R17,R18,R19,R20,R21,R23,R24,G01,G02,G03,G05,G06,G07,G08,G09,G10,G11,G12,G13,G14,G15,G16,G17,G18,G19,G20,G21,G22,G24,G25,G26,G27,G28,G29,G30,G31,G32
-											</td>
-										</tr>
-									</table>
-								</div>
-							</tr>
-						</table>
-					</div>
-				</div>
-			</div>
-			
-			 <div id="brdc" class="container is-main" style="display:none">
-				<div class="section"></div>
-			</div>
-			
-
-
-		-->
-
-		</div>
-	</div>
-	<script>
-		var sidebar_menu = document.getElementById('menubar');
-
-		var main_pages = document.getElementsByClassName("is-main");
-		var sub_pages = document.getElementsByClassName("is-page");
-
-		sidebar_menu.onclick = function (evt) {
-			{
-				var clicked_id = evt.originalTarget.id;
-				var category = clicked_id.substring(5).split(':')[0];
-				var is_tab = clicked_id.split(':').length > 2;
-				console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' + is_tab);
-
-				if (is_tab ) {
-					
-				} else {
-
-					if (category == "summary") {
-						var i = 1;
-						do  {
-							if (main_pages[i-1].id == "summary") {
-								main_pages[i-1].style = 'display:block';
-							} else {
-								main_pages[i-1].style = 'display:none';
-							}
-							i += 1;
-						} while (i != main_pages.length);
-
-					} else {
-
-						var i =1;
-						do {
-							if (main_pages[i -1].id == category) {
-								main_pages[i -1].style = 'display:block';
-								console.log("MATCHED");
-							} else {
-								main_pages[i -1].style = 'display:none';
-							}
-							console.log(main_pages[i -1]);
-							i += 1;
-						} while (i != main_pages.length);
-					}
-				}
-			}
-		}</script>
+            } else {
+                var i = 1;
+                do {
+                    if (main_pages[i - 1].id == category) {
+                        main_pages[i - 1].style = 'display:block';
+                    } else {
+                        main_pages[i - 1].style = 'display:none';
+                    }
+                    i += 1;
+                } while (i != main_pages.length);
+            }
+        }</script>
 </body>
 
 </html>
