@@ -256,7 +256,7 @@ impl RenderHtml for QcReport {
                                             .keys()
                                         {
                                             li {
-                                                a(id=&format!("nested:brdc:{}", constell)) {
+                                                a(id=&format!("nested:brdc:{}", constell), style="margin-left:29px") {
                                                     span(class="icon") {
                                                         i(class="fa-solid fa-satellite");
                                                     }
@@ -282,7 +282,7 @@ impl RenderHtml for QcReport {
                                             .keys()
                                         {
                                             li {
-                                                a(id=&format!("nested:sp3:{}", constell)) {
+                                                a(id=&format!("nested:sp3:{}", constell), style="margin-left:29px") {
                                                     span(class="icon") {
                                                         i(class="fa-solid fa-satellite");
                                                     }
@@ -310,7 +310,7 @@ impl RenderHtml for QcReport {
                                             .keys()
                                         {
                                             li {
-                                                a(id=&format!("nested:clk:{}", constell)) {
+                                                a(id=&format!("nested:clk:{}", constell), style="margin-left:29px") {
                                                     span(class="icon") {
                                                         i(class="fa-solid fa-satellite");
                                                     }
@@ -326,6 +326,25 @@ impl RenderHtml for QcReport {
                                                 i(class="fa-solid fa-cloud-sun-rain");
                                             }
                                             : "Meteo Observations"
+                                        }
+                                    }
+                                    ul(class="menu-list", id="nested:meteo", style="display:none") {
+                                        @ for ob in report
+                                            .as_rinex()
+                                            .unwrap()
+                                            .as_meteo()
+                                            .unwrap()
+                                            .pages
+                                            .keys()
+                                        {
+                                            li {
+                                                a(id=&format!("nested:meteo:{}", ob), style="margin-left:29px") {
+                                                    span(class="icon") {
+                                                        i(class="fa-solid fa-cloud-sun-rain");
+                                                    }
+                                                    : ob.to_string()
+                                                }
+                                            }
                                         }
                                     }
                                 } else if *product == ProductType::IONEX {
@@ -390,12 +409,20 @@ impl RenderHtml for QcReport {
     var ionex_report = document.getElementById('hero:ionex');
     var nested_sp3 = document.getElementById('nested:sp3');
     var nested_clk = document.getElementById('nested:clk');
-    var nested_brdc = document.getElementById('nested:brdc');
     var nested_obs = document.getElementById('nested:observations');
-
+    var nested_brdc = document.getElementById('nested:brdc');
+    var nested_meteo = document.getElementById('nested:meteo');
+    
     sidebar_menu.onclick = function(evt) {{
         var target_id = evt.originalTarget.id;
         console.log('clicked id: ' + target_id);
+        
+        if (target_id.includes('nested:')) {{
+            var nested_item = document.getElementById(target_id);
+            if (nested_item != null) {{
+                nested_item.style = 'display:block;margin-left:29px';
+            }}
+        }}
         
         if (target_id == 'summary') {{
             summary_report.style = 'display:block';
@@ -418,16 +445,19 @@ impl RenderHtml for QcReport {
                 clk_report.style = 'display:none';
             }}
             if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none';
+                nested_sp3.style = 'display:none,margin-left:29px';
             }}
             if (nested_clk != null) {{
-                nested_clk.style = 'display:none';
+                nested_clk.style = 'display:none,margin-left:29px';
             }}
             if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none';
+                nested_brdc.style = 'display:none,margin-left:29px';
             }}
             if (nested_obs != null) {{
-                nested_obs.style = 'display:none';
+                nested_obs.style = 'display:none,margin-left:29px';
+            }}
+            if (nested_meteo != null) {{
+                nested_meteo.style = 'display:none,margin-left:29px';
             }}
             
         }} else if (target_id == 'observations') {{
@@ -451,16 +481,19 @@ impl RenderHtml for QcReport {
                 clk_report.style = 'display:none';
             }}
             if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none';
+                nested_sp3.style = 'display:none,margin-left:29px';
             }}
             if (nested_clk != null) {{
-                nested_clk.style = 'display:none';
+                nested_clk.style = 'display:none,margin-left:29px';
             }}
             if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none';
+                nested_brdc.style = 'display:none,margin-left:29px';
             }}
             if (nested_obs != null) {{
-                nested_obs.style = 'display:block';
+                nested_obs.style = 'display:block,margin-left:29px';
+            }}
+            if (nested_meteo != null) {{
+                nested_meteo.style = 'display:none,margin-left:29px';
             }}
             
         }} else if (target_id == 'sp3') {{
@@ -484,16 +517,19 @@ impl RenderHtml for QcReport {
                 clk_report.style = 'display:none';
             }}
             if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:block';
+                nested_sp3.style = 'display:block,margin-left:29px';
             }}
             if (nested_clk != null) {{
-                nested_clk.style = 'display:none';
+                nested_clk.style = 'display:none,margin-left:29px';
             }}
             if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none';
+                nested_brdc.style = 'display:none,margin-left:29px';
             }}
             if (nested_obs != null) {{
-                nested_obs.style = 'display:none';
+                nested_obs.style = 'display:none,margin-left:29px';
+            }}
+            if (nested_meteo != null) {{
+                nested_meteo.style = 'display:none,margin-left:29px';
             }}
             
         }} else if (target_id == 'meteo') {{
@@ -517,16 +553,19 @@ impl RenderHtml for QcReport {
                 clk_report.style = 'display:none';
             }}
             if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none';
+                nested_sp3.style = 'display:none,margin-left:29px';
             }}
             if (nested_clk != null) {{
-                nested_clk.style = 'display:none';
+                nested_clk.style = 'display:none,margin-left:29px';
             }}
             if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none';
+                nested_brdc.style = 'display:none,margin-left:29px';
             }}
             if (nested_obs != null) {{
-                nested_obs.style = 'display:none';
+                nested_obs.style = 'display:none,margin-left:29px';
+            }}
+            if (nested_meteo != null) {{
+                nested_meteo.style = 'display:block,margin-left:29px';
             }}
             
         }} else if (target_id == 'clk') {{
@@ -550,16 +589,19 @@ impl RenderHtml for QcReport {
                 clk_report.style = 'display:block';
             }}
             if (nested_sp3 != null) {{
-                nested_sp3.style = 'display:none';
+                nested_sp3.style = 'display:none,margin-left:29px';
             }}
             if (nested_clk != null) {{
-                nested_clk.style = 'display:block';
+                nested_clk.style = 'display:block,margin-left:29px';
             }}
             if (nested_brdc != null) {{
-                nested_brdc.style = 'display:none';
+                nested_brdc.style = 'display:none,margin-left:29px';
             }}
             if (nested_obs != null) {{
-                nested_obs.style = 'display:none';
+                nested_obs.style = 'display:none,margin-left:29px';
+            }}
+            if (nested_meteo != null) {{
+                nested_meteo.style = 'display:none,margin-left:29px';
             }}
             
         }}

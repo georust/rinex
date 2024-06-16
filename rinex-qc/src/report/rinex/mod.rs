@@ -108,6 +108,12 @@ impl RINEXReport {
             _ => None,
         }
     }
+    pub fn as_meteo(&self) -> Option<&MeteoReport> {
+        match self {
+            Self::Meteo(report) => Some(report),
+            _ => None,
+        }
+    }
     pub fn as_clk(&self) -> Option<&ClkReport> {
         match self {
             Self::Clk(report) => Some(report),

@@ -1,14 +1,23 @@
-use crate::report::Error;
 use qc_traits::html::*;
+use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::{
     meteo::sensor::Sensor,
     prelude::{Observable, Rinex},
 };
+use std::collections::HashMap;
 
-// TODO
+use crate::report::{shared::SamplingReport, Error};
+
+pub struct MeteoPage {
+    sampling: SamplingReport,
+}
+
+/// Meteo RINEX analysis
 pub struct MeteoReport {
     sensors: Vec<Sensor>,
     agency: Option<String>,
+    sampling: SamplingReport,
+    pub pages: HashMap<String, MeteoPage>,
 }
 
 impl MeteoReport {
@@ -17,6 +26,24 @@ impl MeteoReport {
         Ok(Self {
             agency: None,
             sensors: header.sensors.clone(),
+            sampling: SamplingReport::from_rinex(&rnx),
+            pages: {
+                let mut pages = HashMap::<String, MeteoPage>::new();
+                for observable in rnx.observable() {
+                    let filter = Filter::mask(
+                        MaskOperand::Equals,
+                        FilterItem::ComplexItem(vec![observable.to_string()]),
+                    );
+                    let focused = rnx.filter(&filter);
+                    pages.insert(
+                        obs2physics(observable),
+                        MeteoPage {
+                            sampling: SamplingReport::from_rinex(&focused),
+                        },
+                    );
+                }
+                pages
+            },
         })
     }
 }
@@ -65,6 +92,14 @@ impl RenderHtml for MeteoReport {
                                 td {
                                     : sensor.to_inline_html()
                                 }
+                            }
+                        }
+                        tr {
+                            th(class="is-info") {
+                                : "Sampling"
+                            }
+                            td {
+                                : self.sampling.to_inline_html()
                             }
                         }
                     }
