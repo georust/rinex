@@ -8,6 +8,9 @@ extern crate rinex_qc_traits as qc_traits;
 mod cfg;
 pub use cfg::QcConfig;
 
+#[cfg(feature = "plot")]
+mod plot;
+
 mod context;
 pub use context::{ProductType, QcContext};
 

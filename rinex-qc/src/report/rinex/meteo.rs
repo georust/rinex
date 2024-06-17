@@ -9,10 +9,27 @@ use std::collections::HashMap;
 
 use crate::report::{shared::SamplingReport, Error};
 
-use crate::plot::Plot;
+#[cfg(feature = "plot")]
+use crate::plot::{MarkerSymbol, Mode, Plot};
+
+fn obs2physics(ob: &Observable) -> String {
+    match ob {
+        Observable::Pressure => "Pressure".to_string(),
+        Observable::Temperature => "Temperature".to_string(),
+        Observable::HumidityRate => "Moisture".to_string(),
+        Observable::ZenithWetDelay => "Wet Delay".to_string(),
+        Observable::ZenithDryDelay => "Dry Delay".to_string(),
+        Observable::ZenithTotalDelay => "Wet+Dry Delay".to_string(),
+        Observable::WindDirection => "Wind Direction".to_string(),
+        Observable::WindSpeed => "Wind Speed".to_string(),
+        Observable::RainIncrement => "Rain Increment".to_string(),
+        Observable::HailIndicator => "Hail".to_string(),
+        _ => "Not applicable".to_string(),
+    }
+}
 
 fn obs2unit(ob: &Observable) -> String {
-    match observable {
+    match ob {
         Observable::Pressure => "hPa".to_string(),
         Observable::Temperature => "°C".to_string(),
         Observable::HumidityRate | Observable::RainIncrement => "%".to_string(),
@@ -27,6 +44,7 @@ fn obs2unit(ob: &Observable) -> String {
 }
 
 pub struct MeteoPage {
+    #[cfg(feature = "plot")]
     plot: Plot,
     sampling: SamplingReport,
 }
@@ -101,9 +119,9 @@ impl MeteoReport {
                     let y_label = format!("{} [{}]", observable, obs2unit(observable));
                     let html_id = observable.to_string();
                     let mut plot = if *observable == Observable::WindDirection {
-                        Plot::new_polar()
+                        unimplemented!("meteo:: wind direction plot");
                     } else {
-                        Plot::new_time_domain(&html_id, &title, &y_label)
+                        Plot::new_time_domain(&html_id, &title, &y_label, true)
                     };
                     let data_x = rnx
                         .meteo()
@@ -129,9 +147,13 @@ impl MeteoReport {
                             })
                         })
                         .collect::<Vec<_>>();
-                    let trace =
-                        Plot::new_timedomain_chart(&html_id, Mode::LinesMarkers, data_x, data_y)
-                            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
+                    let trace = Plot::new_timedomain_chart(
+                        &html_id,
+                        Mode::LinesMarkers,
+                        MarkerSymbol::TriangleUp,
+                        &data_x,
+                        data_y,
+                    );
                     plot.add_trace(trace);
 
                     pages.insert(
@@ -145,22 +167,6 @@ impl MeteoReport {
                 pages
             },
         })
-    }
-}
-
-fn obs2physics(ob: &Observable) -> String {
-    match ob {
-        Observable::Pressure => "Pressure".to_string(),
-        Observable::Temperature => "Temperature".to_string(),
-        Observable::HumidityRate => "Moisture".to_string(),
-        Observable::ZenithWetDelay => "Wet Delay".to_string(),
-        Observable::ZenithDryDelay => "Dry Delay".to_string(),
-        Observable::ZenithTotalDelay => "Wet+Dry Delay".to_string(),
-        Observable::WindDirection => "Wind Direction".to_string(),
-        Observable::WindSpeed => "Wind Speed".to_string(),
-        Observable::RainIncrement => "Rain Increment".to_string(),
-        Observable::HailIndicator => "Hail".to_string(),
-        _ => "Not applicable".to_string(),
     }
 }
 
