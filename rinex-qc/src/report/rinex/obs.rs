@@ -1,6 +1,7 @@
 use qc_traits::html::*;
-use qc_traits::processing::{Filter, FilterItem, MaskFilter, MaskOperand, Preprocessing};
+use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 
+use itertools::Itertools;
 use std::collections::HashMap;
 
 use rinex::{
@@ -9,19 +10,29 @@ use rinex::{
     prelude::{Constellation, Duration, Epoch, Observable, Rinex},
 };
 
+use crate::plot::Plot;
 use crate::report::shared::SamplingReport;
 
 /// Frequency dependent pagination
 pub struct FrequencyPage {
-    /// Carrier
-    pub carrier: Carrier,
-    /// Loss of sight analysis
-    pub gaps: HashMap<(Observable, Epoch), Duration>,
+    /// Sampling
+    sampling: SamplingReport,
 }
 
 impl RenderHtml for FrequencyPage {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
+        box_html! {
+            table(class="table is-bordered") {
+                tr {
+                    th(class="is-info") {
+                        : "Sampling"
+                    }
+                    td {
+                        : self.sampling.to_inline_html()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -36,12 +47,102 @@ pub struct ConstellationPage {
     /// True if PPP compatible
     pub ppp_compatible: bool,
     /// Frequency dependent pagination
-    pub pages: Vec<FrequencyPage>,
+    pub pages: HashMap<Carrier, FrequencyPage>,
 }
 
 impl RenderHtml for ConstellationPage {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
+        box_html! {
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    tbody {
+                        tr {
+                            th {
+                                : "Has Doppler"
+                            }
+                            td {
+                                : self.doppler.to_string()
+                            }
+                            @ if self.doppler {
+                                td {
+                                    span(class="icon", style="color:green") {
+                                        i(class="fa-solid fa-circle-check");
+                                    }
+                                }
+                            } else {
+                                td {
+                                    span(class="icon", style="color:red") {
+                                        i(class="fa-solid fa-circle-xmark");
+                                    }
+                                }
+                            }
+                        }
+                        tr {
+                            th {
+                                : "SPP Compatible"
+                            }
+                            @ if self.spp_compatible {
+                                td {
+                                    span(class="icon", style="color:green") {
+                                        i(class="fa-solid fa-circle-check");
+                                    }
+                                }
+                            } else {
+                                td {
+                                    span(class="icon", style="color:red") {
+                                        i(class="fa-solid fa-circle-xmark");
+                                    }
+                                }
+                            }
+                        }
+                        tr {
+                            th {
+                                : "CPP compatible"
+                            }
+                            @ if self.cpp_compatible {
+                                td {
+                                    span(class="icon", style="color:green") {
+                                        i(class="fa-solid fa-circle-check");
+                                    }
+                                }
+                            } else {
+                                td {
+                                    span(class="icon", style="color:red") {
+                                        i(class="fa-solid fa-circle-xmark");
+                                    }
+                                }
+                            }
+                        }
+                        tr {
+                            th {
+                                : "PPP compatible"
+                            }
+                            @ if self.ppp_compatible {
+                                span(class="icon", style="color:green") {
+                                    i(class="fa-solid fa-circle-check");
+                                }
+                            } else {
+                                span(class="icon", style="color:red") {
+                                    i(class="fa-solid fa-circle-xmark");
+                                }
+                            }
+                        }
+                        @ for carrier in self.pages.keys().sorted() {
+                            @ if let Some(page) = self.pages.get(carrier) {
+                                tr {
+                                    th(class="is-info") {
+                                        : carrier.to_string()
+                                    }
+                                    td {
+                                        : page.to_inline_html()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -105,7 +206,7 @@ impl Report {
                             cpp_compatible: false,
                             ppp_compatible: false,
                             pages: {
-                                let mut pages = Vec::<FrequencyPage>::new();
+                                let mut pages = HashMap::<Carrier, FrequencyPage>::new();
                                 for observable in focused.observable() {
                                     if let Ok(carrier) =
                                         Carrier::from_observable(constellation, observable)
@@ -115,17 +216,12 @@ impl Report {
                                             FilterItem::ComplexItem(vec![observable.to_string()]),
                                         );
                                         let focused = focused.filter(&filter);
-                                        pages.push(FrequencyPage {
+                                        pages.insert(
                                             carrier,
-                                            gaps: {
-                                                let mut gaps =
-                                                    HashMap::<(Observable, Epoch), Duration>::new();
-                                                for (t, dur) in focused.data_gaps(None) {
-                                                    // gaps.insert((observable, t), dur);
-                                                }
-                                                gaps
+                                            FrequencyPage {
+                                                sampling: SamplingReport::from_rinex(&focused),
                                             },
-                                        });
+                                        );
                                     }
                                 }
                                 pages

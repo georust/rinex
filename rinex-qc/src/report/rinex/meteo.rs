@@ -49,6 +49,57 @@ pub struct MeteoPage {
     sampling: SamplingReport,
 }
 
+impl MeteoPage {
+    fn new(observable: &Observable, rnx: &Rinex) -> Self {
+        let title = format!("{} Observations", observable);
+        let y_label = format!("{} [{}]", observable, obs2unit(observable));
+        let html_id = observable.to_string();
+        let mut plot = if *observable == Observable::WindDirection {
+            unimplemented!("meteo:: wind direction plot");
+        } else {
+            Plot::new_time_domain(&html_id, &title, &y_label, true)
+        };
+        let data_x = rnx
+            .meteo()
+            .flat_map(|(t, observations)| {
+                observations.iter().filter_map(
+                    |(obs, _)| {
+                        if obs == observable {
+                            Some(*t)
+                        } else {
+                            None
+                        }
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        let data_y = rnx
+            .meteo()
+            .flat_map(|(_, observations)| {
+                observations.iter().filter_map(|(obs, value)| {
+                    if obs == observable {
+                        Some(*value)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        let trace = Plot::new_timedomain_chart(
+            &html_id,
+            Mode::LinesMarkers,
+            MarkerSymbol::TriangleUp,
+            &data_x,
+            data_y,
+        );
+        plot.add_trace(trace);
+        Self {
+            plot,
+            sampling: SamplingReport::from_rinex(rnx),
+        }
+    }
+}
+
 impl RenderHtml for MeteoPage {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
@@ -61,6 +112,11 @@ impl RenderHtml for MeteoPage {
                             }
                             td {
                                 : self.sampling.to_inline_html()
+                            }
+                        }
+                        tr {
+                            td {
+                                : self.plot.to_inline_html()
                             }
                         }
                     }
@@ -115,53 +171,9 @@ impl MeteoReport {
                         FilterItem::ComplexItem(vec![observable.to_string()]),
                     );
                     let focused = rnx.filter(&filter);
-                    let title = format!("{} Observations", observable);
-                    let y_label = format!("{} [{}]", observable, obs2unit(observable));
-                    let html_id = observable.to_string();
-                    let mut plot = if *observable == Observable::WindDirection {
-                        unimplemented!("meteo:: wind direction plot");
-                    } else {
-                        Plot::new_time_domain(&html_id, &title, &y_label, true)
-                    };
-                    let data_x = rnx
-                        .meteo()
-                        .flat_map(|(t, observations)| {
-                            observations.iter().filter_map(|(obs, _)| {
-                                if obs == observable {
-                                    Some(*t)
-                                } else {
-                                    None
-                                }
-                            })
-                        })
-                        .collect::<Vec<_>>();
-                    let data_y = rnx
-                        .meteo()
-                        .flat_map(|(_, observations)| {
-                            observations.iter().filter_map(|(obs, value)| {
-                                if obs == observable {
-                                    Some(*value)
-                                } else {
-                                    None
-                                }
-                            })
-                        })
-                        .collect::<Vec<_>>();
-                    let trace = Plot::new_timedomain_chart(
-                        &html_id,
-                        Mode::LinesMarkers,
-                        MarkerSymbol::TriangleUp,
-                        &data_x,
-                        data_y,
-                    );
-                    plot.add_trace(trace);
-
                     pages.insert(
                         obs2physics(observable),
-                        MeteoPage {
-                            plot,
-                            sampling: SamplingReport::from_rinex(&focused),
-                        },
+                        MeteoPage::new(observable, &focused),
                     );
                 }
                 pages
