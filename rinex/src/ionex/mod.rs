@@ -38,6 +38,15 @@ pub enum MappingFunction {
     QFac,
 }
 
+impl std::fmt::Display for MappingFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::CosZ => write!(f, "Cos(z)"),
+            Self::QFac => write!(f, "Q-factor"),
+        }
+    }
+}
+
 /// Possible source of DCBs
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

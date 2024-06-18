@@ -1,7 +1,10 @@
 use hifitime::Epoch;
 use plotly::{
     common::{Font, HoverInfo, Marker, Side, Title},
-    layout::{Axis, Center, DragMode, Mapbox, MapboxStyle, Margin},
+    layout::{
+        Axis, Center, DragMode, Mapbox, MapboxStyle, Margin, RangeSelector, RangeSlider,
+        SelectorButton, SelectorStep,
+    },
     Layout, Plot as Plotly, Scatter, Trace,
 };
 use qc_traits::html::*;
@@ -27,6 +30,21 @@ impl Plot {
         y_axis_label: &str,
         show_legend: bool,
     ) -> Self {
+        let mut buttons = Vec::<SelectorButton>::new();
+        for (step, count, label) in [
+            (SelectorStep::All, 1, "all"),
+            (SelectorStep::Second, 10, "10s"),
+            (SelectorStep::Second, 30, "30s"),
+            (SelectorStep::Minute, 1, "1min"),
+            (SelectorStep::Hour, 1, "1hr"),
+            (SelectorStep::Hour, 4, "4hr"),
+            (SelectorStep::Day, 1, "1day"),
+            (SelectorStep::Month, 1, "1mon"),
+        ] {
+            buttons.push(
+                SelectorButton::new().count(count).label(label).step(step), //.step_mode(StepMode::ToDate/Backward)
+            );
+        }
         let layout = Layout::new()
             .title(Title::new(title))
             .x_axis(
@@ -34,7 +52,9 @@ impl Plot {
                     .title(Title::new("MJD"))
                     .zero_line(true)
                     .show_tick_labels(true)
-                    .dtick(0.1)
+                    .dtick(0.25)
+                    .range_slider(RangeSlider::new().visible(true))
+                    .range_selector(RangeSelector::new().buttons(buttons))
                     .tick_format("{:05}"),
             )
             .y_axis(Axis::new().title(Title::new(y_axis_label)).zero_line(true))
@@ -87,7 +107,7 @@ impl Plot {
     }
     /// Builds new Skyplot
     pub fn sky_plot(plot_id: &str, title: &str) -> Self {
-        Self::new_polar(plot_id, title, "Elevation [°]", "Azimuth [°]")
+        Self::new_polar(plot_id, title, "Elevation (Deg°)", "Azimuth (Deg°)")
     }
     /// Builds new Polar plot
     pub fn new_polar(plot_id: &str, title: &str, x_label: &str, y_label: &str) -> Self {
@@ -142,10 +162,12 @@ impl Plot {
         symbol: MarkerSymbol,
         t: &Vec<Epoch>,
         y: Vec<Y>,
-    ) -> Box<Scatter<f64, Y>> {
+    ) -> Box<Scatter<String, Y>> {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
-        Scatter::new(t.iter().map(|t| t.to_mjd_utc_days()).collect(), y)
+        //Scatter::new(t.iter().map(|t| t.to_mjd_utc_days()).collect(), y)
+        Scatter::new(t.iter().map(|t| t.to_string()).collect(), y)
             .mode(mode)
+            .web_gl_mode(true)
             .hover_text_array(txt)
             .hover_info(HoverInfo::All)
             .marker(Marker::new().symbol(symbol))

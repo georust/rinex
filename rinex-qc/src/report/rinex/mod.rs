@@ -10,6 +10,9 @@ use clock::ClkReport;
 mod meteo;
 use meteo::MeteoReport;
 
+mod ionex;
+use ionex::IonexReport;
+
 // mod ionex;
 use crate::report::Error;
 
@@ -93,31 +96,6 @@ impl RenderHtml for DorisReport {
     }
 }
 
-//TODO
-pub struct IonexReport {}
-
-impl IonexReport {
-    pub fn new(rnx: &Rinex) -> Self {
-        Self {}
-    }
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:ionex") {
-                span(class="icon") {
-                    i(class="fa-solid fa-earth-americas");
-                }
-                : "Ionosphere Maps (IONEX)"
-            }
-        }
-    }
-}
-
-impl RenderHtml for IonexReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
-    }
-}
-
 /// RINEX type dependent report
 pub enum RINEXReport {
     Obs(ObsReport),
@@ -136,7 +114,7 @@ impl RINEXReport {
             RinexType::MeteoData => Ok(Self::Meteo(MeteoReport::new(rnx)?)),
             RinexType::NavigationData => Ok(Self::Nav(NavReport::new(rnx))),
             RinexType::ObservationData => Ok(Self::Obs(ObsReport::new(rnx))),
-            RinexType::IonosphereMaps => Ok(Self::Ionex(IonexReport::new(rnx))),
+            RinexType::IonosphereMaps => Ok(Self::Ionex(IonexReport::new(rnx)?)),
             _ => Err(Error::NonSupportedRINEX),
         }
     }
