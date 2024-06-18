@@ -158,6 +158,8 @@ pub struct QcReport {
     /// In depth analysis per input product.
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
+    /// Custom chapters
+    custom_parts: HashMap<String, Box<dyn RenderHtml>>,
 }
 
 impl QcReport {
@@ -166,6 +168,7 @@ impl QcReport {
         Self {
             navi: None,
             name: context.name(),
+            custom_parts: HashMap::new(),
             summary: QcSummary::new(&context, &cfg),
             // Build the report, which comprises
             //   1. one general (high level) context tab
@@ -201,8 +204,13 @@ impl QcReport {
             },
         }
     }
+    /// Add a custom chapter to the report
+    pub fn add_custom(&mut self, section: &str, chapter: Box<dyn RenderHtml>) {
+        self.custom_parts.insert(section.to_string(), chapter);
+    }
 }
 
+/// HTML menu bar
 struct HtmlMenuBar {}
 
 impl HtmlMenuBar {
