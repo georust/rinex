@@ -49,11 +49,11 @@ processing = []
 
 # Unlock Quality Check (QC) methods and traits.
 # Allows to generate complete QC reports for RINEX or entire contexts.
-qc = ["rinex-qc-traits", "horrorshow"] 
+qc = ["rinex-qc-traits", "horrorshow"]
 
 # Unlock SP3 support to be able to integrate SP3 precise orbits
 # into a complete Context.
-sp3 = ["dep:sp3", "walkdir"] 
+sp3 = ["dep:sp3", "walkdir"]
 
 # Unlock all features, all at once
 full = [
@@ -87,7 +87,7 @@ num-derive = "0.4"
 num-traits = "0.2.15"
 regex = "1"
 thiserror = "1"
-bitflags = { version = "2.3", features = ["serde"] } 
+bitflags = { version = "2.3", features = ["serde"] }
 lazy_static = "1.4"
 map_3d = "0.1.5"
 strum = "0.26"
@@ -96,12 +96,22 @@ num-integer = "0.1.44"
 itertools = "0.13.0"
 geo = { version = "0.28", optional = true }
 wkt = { version = "0.10.0", default-features = false, optional = true }
-serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
-flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = ["serde", "std"] }
+serde = { version = "1.0", optional = true, default-features = false, features = [
+    "derive",
+] }
+flate2 = { version = "1.0.24", optional = true, default-features = false, features = [
+    "zlib",
+] }
+hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = [
+    "serde",
+    "std",
+] }
 horrorshow = { version = "0.8", optional = true }
 nalgebra = { version = "0.32.3" }
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = [
+    "serde",
+] }
+anise = { git = "https://github.com/nyx-space/anise.git", branch = "master" }
 
 # RINEX QC dedicated traits
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }

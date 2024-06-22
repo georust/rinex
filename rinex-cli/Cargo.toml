@@ -7,7 +7,12 @@ description = "Command line tool parse and analyze RINEX data"
 homepage = "https://github.com/georust/rinex"
 repository = "https://github.com/georust/rinex"
 keywords = ["rinex", "gps", "glonass", "galileo", "timing"]
-categories = ["science", "science::geo", "command-line-interface", "command-line-utilities"]
+categories = [
+    "science",
+    "science::geo",
+    "command-line-interface",
+    "command-line-utilities",
+]
 edition = "2021"
 readme = "README.md"
 rust-version = "1.64"
@@ -30,20 +35,31 @@ map_3d = "0.1.5"
 colorous = "1.0"
 horrorshow = "0.8"
 clap = { version = "4.4.13", features = ["derive", "color"] }
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = ["serde", "std"] }
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = [
+    "serde",
+    "std",
+] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = [
+    "serde",
+] }
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 plotly = { git = "https://github.com/plotly/plotly.rs", branch = "main" }
-rinex-qc = { path = "../rinex-qc", version = "=0.1.14", features = ["serde"] } 
-sp3 = { path = "../sp3", version = "=1.0.8",  features = ["serde", "flate2"] }
+rinex-qc = { path = "../rinex-qc", version = "=0.1.14", features = ["serde"] }
+sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde", "flate2"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 # solver
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+# gnss-rtk = { git = "https://github.com/ChristopherRabotin/gnss-rtk", branch = "main", features = [
+#     "serde",
+# ] }
+gnss-rtk = { path = "../../gnss-rtk", features = ["serde"] }
 
 # cggtts
 # cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
-cggtts = { git = "https://github.com/gwbres/cggtts", branch = "dev", features = ["serde", "scheduler"] }
+cggtts = { git = "https://github.com/gwbres/cggtts", branch = "dev", features = [
+    "serde",
+    "scheduler",
+] }
