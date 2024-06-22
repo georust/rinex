@@ -4,7 +4,7 @@ use plotly::{
     ScatterPolar,
 };
 use rinex::prelude::{Epoch, GroundPosition};
-use rinex_qc::QcContext;
+use rinex_qc::prelude::QcContext;
 
 /*
  * Skyplot view

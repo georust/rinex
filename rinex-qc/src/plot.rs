@@ -1,4 +1,6 @@
 use hifitime::Epoch;
+use maud::{html, Markup, PreEscaped, Render};
+pub use plotly::common::{MarkerSymbol, Mode};
 use plotly::{
     common::{Font, HoverInfo, Marker, Side, Title},
     layout::{
@@ -7,15 +9,22 @@ use plotly::{
     },
     Layout, Plot as Plotly, Scatter, Trace,
 };
-use qc_traits::html::*;
-
-pub use plotly::common::{MarkerSymbol, Mode};
 
 use serde::Serialize;
 
 pub struct Plot {
-    plotly: Plotly,
+    pub plotly: Plotly,
     plot_id: String,
+}
+
+impl Render for Plot {
+    fn render(&self) -> Markup {
+        html! {
+            script {
+                (PreEscaped (self.plotly.to_inline_html(None)))
+            }
+        }
+    }
 }
 
 impl Plot {
@@ -171,15 +180,5 @@ impl Plot {
             .hover_text_array(txt)
             .hover_info(HoverInfo::All)
             .marker(Marker::new().symbol(symbol))
-    }
-}
-
-impl RenderHtml for Plot {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="plot", id=&self.plot_id) {
-                : self.plotly.to_inline_html(None)
-            }
-        }
     }
 }

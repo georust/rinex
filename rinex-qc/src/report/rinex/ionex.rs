@@ -1,5 +1,5 @@
 use crate::report::Error;
-use qc_traits::html::*;
+use maud::{html, Markup, Render};
 use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
@@ -28,82 +28,82 @@ impl IonexReport {
             map_dimension: header.map_dimension,
         })
     }
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:ionex") {
-                span(class="icon") {
-                    i(class="fa-solid fa-earth-americas");
+    pub fn html_inline_menu_bar(&self) -> Markup {
+        html! {
+            a id="menu:ionex" {
+                span class="icon" {
+                    i class="fa-solid fa-earth-americas" {}
                 }
-                : "Ionosphere Maps (IONEX)"
+                "Ionosphere Maps (IONEX)"
             }
         }
     }
 }
 
-impl RenderHtml for IonexReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table is-bordered") {
+impl Render for IonexReport {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table is-bordered" {
                 tr {
-                    @ if self.map_dimension == 2 {
-                        th(class="is-info") {
-                            : "2D IONEX"
+                    @if self.map_dimension == 2 {
+                        th class="is-info"{
+                            "2D IONEX"
                         }
-                    } else {
-                        th(class="is-info") {
-                            : "3D IONEX"
+                    } @else {
+                        th class="is-info" {
+                            "3D IONEX"
                         }
                     }
                 }
                 tr {
                     th {
-                        : "Number of Maps"
+                        "Number of Maps"
                     }
                     td {
-                        : self.nb_of_maps
+                        (self.nb_of_maps)
                     }
                 }
                 tr {
                     th {
-                        : "Epoch of first map"
+                        "Epoch of first map"
                     }
                     td {
-                        : self.epoch_first_map.to_string()
+                        (self.epoch_first_map.to_string())
                     }
                 }
                 tr {
                     th {
-                        : "Epoch of Last map"
+                        "Epoch of Last map"
                     }
                     td {
-                        : self.epoch_last_map.to_string()
+                        (self.epoch_last_map.to_string())
                     }
                 }
                 tr {
                     th {
-                        : "Reference"
+                        "Reference"
                     }
                     td {
-                        : self.reference.to_string()
+                        (self.reference.to_string())
                     }
                 }
-                @ if let Some(desc) = &self.description {
+                @if let Some(desc) = &self.description {
                     tr {
                         th {
-                            : "Description"
+                            "Description"
                         }
                         td {
-                            : desc
+                            (desc)
                         }
                     }
                 }
-                @ if let Some(mapf) = &self.mapping {
+                @if let Some(mapf) = &self.mapping {
                     tr {
                         th {
-                            : "Mapping function"
+                            "Mapping function"
                         }
                         td {
-                            : mapf.to_string()
+                            (mapf.to_string())
                         }
                     }
                 }

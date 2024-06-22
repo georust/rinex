@@ -1,4 +1,4 @@
-use qc_traits::html::*;
+use maud::{html, Markup, Render};
 use rinex::prelude::*;
 use thiserror::Error;
 
@@ -74,21 +74,21 @@ impl QcConfig {
     }
 }
 
-impl RenderHtml for QcConfig {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
+impl Render for QcConfig {
+    fn render(&self) -> Markup {
+        html! {
             tr {
                 td {
-                    : "Report"
+                    "Report"
                 }
                 td {
-                    : self.report.to_string()
+                    (self.report.to_string())
                 }
             }
-            @ if let Some(position) = self.manual_reference {
+            @if let Some(position) = self.manual_reference {
                 tr {
                     td {
-                        : position.to_inline_html()
+                        (position.render())
                     }
                 }
             }

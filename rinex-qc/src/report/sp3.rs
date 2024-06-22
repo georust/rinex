@@ -1,7 +1,7 @@
 use crate::report::shared::SamplingReport;
 use itertools::Itertools;
-use qc_traits::html::*;
-use qc_traits::processing::{Filter, FilterItem, MaskFilter, MaskOperand, Preprocessing};
+use maud::{html, Markup, Render};
+use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use sp3::prelude::{Constellation, SP3, SV};
 use std::collections::HashMap;
 
@@ -13,46 +13,46 @@ pub struct SP3Page {
     sampling: SamplingReport,
 }
 
-impl RenderHtml for SP3Page {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
+impl Render for SP3Page {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tr {
-                        th(class="is-info") {
-                            : "General"
+                        th class="is-info" {
+                            "General"
                         }
                     }
                     tr {
                         th {
-                            : "Velocity"
+                            "Velocity"
                         }
                         td {
-                            : self.has_velocity.to_string()
+                            (self.has_velocity.to_string())
                         }
                     }
                     tr {
                         th {
-                            : "Clock offset"
+                            "Clock offset"
                         }
                         td {
-                            : self.has_clock.to_string()
+                            (self.has_clock.to_string())
                         }
                     }
                     tr {
                         th {
-                            : "Clock drift"
+                            "Clock drift"
                         }
                         td {
-                            : self.has_clock_drift.to_string()
+                            (self.has_clock_drift.to_string())
                         }
                     }
                     tr {
-                        th(class="is-info") {
-                            : "Satellites"
+                        th class="is-info" {
+                            "Satellites"
                         }
                         td {
-                            : self.satellites.iter().map(|sv| sv.to_string()).join(",")
+                            (self.satellites.iter().map(|sv| sv.to_string()).join(","))
                         }
                     }
                 }
@@ -73,13 +73,13 @@ pub struct SP3Report {
 }
 
 impl SP3Report {
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:sp3") {
-                span(class="icon") {
-                    i(class="fa-solid fa-satellite");
+    pub fn html_inline_menu_bar(&self) -> Markup {
+        html! {
+            a id="menu:sp3" {
+                span class="icon" {
+                    i class="fa-solid fa-satellite" {}
                 }
-                : "High Precision Orbit (SP3)"
+                "High Precision Orbit (SP3)"
             }
             //ul(class="menu-list", id="menu:tabs:sp3", style="display:block") {
             //    @ for page in self.pages.keys().sorted() {
@@ -129,71 +129,71 @@ impl SP3Report {
     }
 }
 
-impl RenderHtml for SP3Report {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
+impl Render for SP3Report {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tr {
                         th {
-                            : "Agency"
+                            "Agency"
                         }
                         td {
-                            : self.agency.clone()
+                            (self.agency.clone())
                         }
                     }
                     tr {
                         th {
-                            : "Constellation"
+                            "Constellation"
                         }
                         td {
-                            : self.constellation.clone()
+                            (self.constellation.clone())
                         }
                     }
                     tr {
                         th {
-                            : "Timescale"
+                            "Timescale"
                         }
                         td {
-                            : self.time_scale.clone()
+                            (self.time_scale.clone())
                         }
                     }
                     tr {
                         th {
-                            : "Reference Frame"
+                            "Reference Frame"
                         }
                         td {
-                            : self.coord_system.clone()
+                            (self.coord_system.clone())
                         }
                     }
                     tr {
                         th {
-                            : "Orbit FIT"
+                            "Orbit FIT"
                         }
                         td {
-                            : self.orbit_fit.clone()
+                            (self.orbit_fit.clone())
                         }
                     }
                     tr {
                         th {
-                            : "Sampling"
+                            "Sampling"
                         }
                         td {
-                            : self.sampling.to_inline_html()
+                            (self.sampling.render())
                         }
                     }
                 }//table
             }//table-container
-            @ for constell in self.pages.keys().sorted() {
-                @ if let Some(page) = self.pages.get(constell) {
-                    div(class="table-container is-page", id=&format!("sp3:{}", constell), style="display:block") {
-                        table(class="table is-bordered") {
+            @for constell in self.pages.keys().sorted() {
+                @if let Some(page) = self.pages.get(constell) {
+                    div class="table-container is-page" id=(format!("sp3:{}", constell)) style="display:block" {
+                        table class="table is-bordered" {
                             tr {
-                                th(class="is-info") {
-                                    : constell.to_string()
+                                th class="is-info" {
+                                    (constell.to_string())
                                 }
                                 td {
-                                    : page.to_inline_html()
+                                    (page.render())
                                 }
                             }
                         }

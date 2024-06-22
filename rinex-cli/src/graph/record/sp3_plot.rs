@@ -1,7 +1,7 @@
 use crate::graph::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible}; //Marker, MarkerSymbol
 use rinex::prelude::{Epoch, SV};
-use rinex_qc::QcContext;
+use rinex_qc::prelude::QcContext;
 use std::collections::HashMap;
 
 /*

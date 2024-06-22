@@ -4,7 +4,7 @@ use crate::graph::PlotContext;
 //     ScatterPolar,
 // };
 // use rinex::prelude::Epoch;
-use rinex_qc::QcContext;
+use rinex_qc::prelude::QcContext;
 
 /*
  * NAVI plot is an advanced 3D view

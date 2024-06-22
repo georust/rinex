@@ -1,6 +1,6 @@
 //! NAVI report is include on navigation compatible contexts
-use crate::QcContext;
-use qc_traits::html::*;
+use crate::context::QcContext;
+use maud::{html, Markup, Render};
 use rinex::prelude::{Constellation, Epoch};
 use std::collections::{BTreeMap, HashMap};
 
@@ -29,8 +29,8 @@ impl NAVIReport {
     }
 }
 
-impl RenderHtml for NAVIReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
+impl Render for NAVIReport {
+    fn render(&self) -> Markup {
+        html! {}
     }
 }

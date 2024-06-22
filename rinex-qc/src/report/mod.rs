@@ -1,7 +1,7 @@
 //! Generic analysis report
-use crate::{ProductType, QcConfig, QcContext};
+use crate::prelude::{ProductType, QcConfig, QcContext};
 use itertools::Itertools;
-use qc_traits::html::*;
+use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -22,8 +22,6 @@ mod sp3;
 
 #[cfg(feature = "sp3")]
 use sp3::SP3Report;
-
-use crate::cfg::QcReportType;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -48,7 +46,7 @@ enum ProductReport {
 }
 
 impl ProductReport {
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+    pub fn html_inline_menu_bar(&self) -> Markup {
         match self {
             #[cfg(feature = "sp3")]
             Self::SP3(report) => report.html_inline_menu_bar(),
@@ -71,58 +69,58 @@ fn html_id(product: &ProductType) -> &str {
     }
 }
 
-impl RenderHtml for ProductReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+impl Render for ProductReport {
+    fn render(&self) -> Markup {
         match self {
             Self::RINEX(report) => match report {
                 RINEXReport::Obs(report) => {
-                    box_html! {
-                        div(class="section") {
-                            : report.to_inline_html()
+                    html! {
+                        div class="section" {
+                            (report.render())
                         }
                     }
                 },
                 RINEXReport::Doris(report) => {
-                    box_html! {
-                        div(class="section") {
-                            : report.to_inline_html()
+                    html! {
+                        div class="section" {
+                            (report.render())
                         }
                     }
                 },
                 RINEXReport::Ionex(report) => {
-                    box_html! {
-                        div(class="section") {
-                            : report.to_inline_html()
+                    html! {
+                        div class="section" {
+                            (report.render())
                         }
                     }
                 },
                 RINEXReport::Nav(report) => {
-                    box_html! {
-                        div(class="section") {
-                            : report.to_inline_html()
+                    html! {
+                        div class="section" {
+                            (report.render())
                         }
                     }
                 },
                 RINEXReport::Clk(report) => {
-                    box_html! {
-                        div(class="section") {
-                            : report.to_inline_html()
+                    html! {
+                        div class="section" {
+                            (report.render())
                         }
                     }
                 },
                 RINEXReport::Meteo(report) => {
-                    box_html! {
-                        div(class="section") {
-                            : report.to_inline_html()
+                    html! {
+                        div class="section" {
+                            (report.render())
                         }
                     }
                 },
             },
             #[cfg(feature = "sp3")]
             Self::SP3(report) => {
-                box_html! {
-                    div(class="section") {
-                        : report.to_inline_html()
+                html! {
+                    div class="section" {
+                        (report.render())
                     }
                 }
             },
@@ -159,7 +157,7 @@ pub struct QcReport {
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
     /// Custom chapters
-    custom_parts: HashMap<String, Box<dyn RenderHtml>>,
+    custom_parts: HashMap<String, Box<dyn Render>>,
 }
 
 impl QcReport {
@@ -205,7 +203,7 @@ impl QcReport {
         }
     }
     /// Add a custom chapter to the report
-    pub fn add_custom(&mut self, section: &str, chapter: Box<dyn RenderHtml>) {
+    pub fn add_custom(&mut self, section: &str, chapter: Box<dyn Render>) {
         self.custom_parts.insert(section.to_string(), chapter);
     }
 }
@@ -214,44 +212,44 @@ impl QcReport {
 struct HtmlMenuBar {}
 
 impl HtmlMenuBar {
-    pub fn to_inline_html(report: &QcReport) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            aside(class="menu") {
-                p(class="menu-label") {
-                    : &format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION"))
+    pub fn render(report: &QcReport) -> Markup {
+        html! {
+            aside class="menu" {
+                p class="menu-label" {
+                    (format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION")))
                 }
-                ul(class="menu-list") {
+                ul class="menu-list" {
                     li {
-                        a(id="menu:summary") {
-                            span(class="icon") {
-                                i(class="fa fa-home");
+                        a id="menu:summary" {
+                            span class="icon" {
+                                i class="fa fa-home" {}
                             }
-                            : "Summary"
+                            "Summary"
                         }
                     }
-                    @ for product in report.products.keys().sorted() {
-                        @ if let Some(report) = report.products.get(&product) {
+                    @for product in report.products.keys().sorted() {
+                        @if let Some(report) = report.products.get(&product) {
                             li {
-                                : report.html_inline_menu_bar()
+                                (report.html_inline_menu_bar())
                             }
                         }
                     }
-                    p(class="menu-label") {
-                        a(href="https://github.com/georust/rinex/wiki", style="margin-left:29px") {
-                            : "Documentation"
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
+                            "Documentation"
                         }
                     }
-                    p(class="menu-label") {
-                        a(href="https://github.com/georust/rinex/issues", style="margin-left:29px") {
-                            : "Bug Report"
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
+                            "Bug Report"
                         }
                     }
-                    p(class="menu-label") {
-                        a(href="https://github.com/georust/rinex") {
-                            span(class="icon") {
-                                i(class="fa-brands fa-github");
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex" {
+                            span class="icon" {
+                                i class="fa-brands fa-github" {}
                             }
-                            : "Sources"
+                            "Sources"
                         }
                     }
                 } // menu-list
@@ -260,66 +258,91 @@ impl HtmlMenuBar {
     }
 }
 
-impl RenderHtml for QcReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-        div(class="columns is-fullheight") {
-            div(id="menubar", class="column is-3 is-sidebar-menu is-hidden-mobile") {
-                : HtmlMenuBar::to_inline_html(&self)
-            } // id=menubar
-            div(class="hero is-fullheight") {
-                div(id="summary", class="container is-main", style="display:block") {
-                    div(class="section") {
-                        : self.summary.to_inline_html()
-                    }
-                }//id=summary
-                @ for product in self.products.keys().sorted() {
-                    @ if let Some(report) = self.products.get(product) {
-                        div(id=&html_id(product), class="container is-main", style="display:none") {
-                            : report.to_inline_html()
+impl Render for QcReport {
+    fn render(&self) -> Markup {
+        html! {
+            (DOCTYPE)
+            html {
+                head {
+                    meta charset="utf-8";
+                    meta http-equip="X-UA-Compatible" content="IE-edge";
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                    link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/georust/meta/master/logo/logo.png";
+                    //script src="https://cdn.plot.ly/plotly-2.12.1.min.js";
+                    //script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js";
+                    //script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js";
+                    link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css";
+                    link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css";
+                }//head
+                body {
+                        //div id="plotly-html-element" class="plotly-graph-div" style="height:100%; width:100;" {
+                        //}
+                        div id="title" {
+                            title {
+                                "RINEX QC"
+                            }
                         }
-                    }
-                }
-            }//class=hero
-        } // class=columns
-        script {
-            :
-"
-    var sidebar_menu = document.getElementById('menubar');
-    var main_pages = document.getElementsByClassName('is-main');
-    var sub_pages = document.getElementsByClassName('is-page');
-    
-    sidebar_menu.onclick = function(evt) {
-        var clicked_id = evt.originalTarget.id;
-        var category = clicked_id.substring(5).split(':')[0];
-        var tab = clicked_id.substring(5).split(':')[1];
-        var is_tab = clicked_id.split(':').length == 3;
-        console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +is_tab);
+                        div id="body" {
+                            div class="columns is-fullheight" {
+                                div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile" {
+                                    (HtmlMenuBar::render(&self))
+                                } // id=menubar
+                                div class="hero is-fullheight" {
+                                    div id="summary" class="container is-main" style="display:block" {
+                                        div class="section" {
+                                            (self.summary.render())
+                                        }
+                                    }//id=summary
+                                    @for product in self.products.keys().sorted() {
+                                        @if let Some(report) = self.products.get(product) {
+                                            div id=(html_id(product)) class="container is-main" style="display:none" {
+                                                (report.render())
+                                            }
+                                        }
+                                    }
+                                }//class=hero
+                            } // class=columns
+                        }
+                        script {
+                          (PreEscaped(
+            "
+            var sidebar_menu = document.getElementById('menubar');
+            var main_pages = document.getElementsByClassName('is-main');
+            var sub_pages = document.getElementsByClassName('is-page');
+            
+            sidebar_menu.onclick = function(evt) {
+                var clicked_id = evt.originalTarget.id;
+                var category = clicked_id.substring(5).split(':')[0];
+                var tab = clicked_id.substring(5).split(':')[1];
+                var is_tab = clicked_id.split(':').length == 3;
+                console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +is_tab);
 
-        if (is_tab == true ) {
-            var i=1;
-            var targetted_tab = category+':'+tab;
-            do {
-                if (main_pages[i -1].id == category) {
-                    main_pages[i-1].style = 'display:block';
-                } else {
-                    main_pages[i-1].style = 'display:none';
-                }
-                i += 1;
-            } while (i != main_pages.length);
+                if (is_tab == true ) {
+                    var i=1;
+                    var targetted_tab = category+':'+tab;
+                    do {
+                        if (main_pages[i -1].id == category) {
+                            main_pages[i-1].style = 'display:block';
+                        } else {
+                            main_pages[i-1].style = 'display:none';
+                        }
+                        i += 1;
+                    } while (i != main_pages.length);
 
-        } else {
-            var i=1;
-            do {
-                if (main_pages[i -1].id == category) {
-                    main_pages[i-1].style = 'display:block';
-                } else {
-                    main_pages[i-1].style = 'display:none';
+                } else {
+                    var i=1;
+                    do {
+                        if (main_pages[i -1].id == category) {
+                            main_pages[i-1].style = 'display:block';
+                        } else {
+                            main_pages[i-1].style = 'display:none';
+                        }
+                        i += 1;
+                    } while (i != main_pages.length);
                 }
-                i += 1;
-            } while (i != main_pages.length);
-        }
-    }"
+            }"))
+                        } //JS
+                }//body
             }
         }
     }

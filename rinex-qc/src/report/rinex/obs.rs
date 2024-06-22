@@ -1,16 +1,14 @@
-use qc_traits::html::*;
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
-
 use itertools::Itertools;
+use maud::{html, Markup, Render};
+use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use std::collections::HashMap;
 
 use rinex::{
     carrier::Carrier,
     hardware::{Antenna, Receiver},
-    prelude::{Constellation, Duration, Epoch, Observable, Rinex},
+    prelude::{Constellation, Rinex},
 };
 
-use crate::plot::Plot;
 use crate::report::shared::SamplingReport;
 
 /// Frequency dependent pagination
@@ -19,16 +17,16 @@ pub struct FrequencyPage {
     sampling: SamplingReport,
 }
 
-impl RenderHtml for FrequencyPage {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table is-bordered") {
+impl Render for FrequencyPage {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table is-bordered" {
                 tr {
-                    th(class="is-info") {
-                        : "Sampling"
+                    th class="is-info" {
+                        "Sampling"
                     }
                     td {
-                        : self.sampling.to_inline_html()
+                        (self.sampling.render())
                     }
                 }
             }
@@ -50,91 +48,91 @@ pub struct ConstellationPage {
     pub pages: HashMap<Carrier, FrequencyPage>,
 }
 
-impl RenderHtml for ConstellationPage {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
+impl Render for ConstellationPage {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tbody {
                         tr {
                             th {
-                                : "Has Doppler"
+                                "Has Doppler"
                             }
                             td {
-                                : self.doppler.to_string()
+                                (self.doppler.to_string())
                             }
-                            @ if self.doppler {
+                            @if self.doppler {
                                 td {
-                                    span(class="icon", style="color:green") {
-                                        i(class="fa-solid fa-circle-check");
+                                    span class="icon" style="color:green" {
+                                        i class="fa-solid fa-circle-check" {}
                                     }
                                 }
                             } else {
                                 td {
-                                    span(class="icon", style="color:red") {
-                                        i(class="fa-solid fa-circle-xmark");
+                                    span class="icon" style="color:red" {
+                                        i class="fa-solid fa-circle-xmark" {}
                                     }
                                 }
                             }
                         }
                         tr {
                             th {
-                                : "SPP Compatible"
+                                "SPP Compatible"
                             }
-                            @ if self.spp_compatible {
+                            @if self.spp_compatible {
                                 td {
-                                    span(class="icon", style="color:green") {
-                                        i(class="fa-solid fa-circle-check");
+                                    span class="icon" style="color:green" {
+                                        i class="fa-solid fa-circle-check" {}
                                     }
                                 }
                             } else {
                                 td {
-                                    span(class="icon", style="color:red") {
-                                        i(class="fa-solid fa-circle-xmark");
+                                    span class="icon" style="color:red" {
+                                        i class="fa-solid fa-circle-xmark" {}
                                     }
                                 }
                             }
                         }
                         tr {
                             th {
-                                : "CPP compatible"
+                                "CPP compatible"
                             }
-                            @ if self.cpp_compatible {
+                            @if self.cpp_compatible {
                                 td {
-                                    span(class="icon", style="color:green") {
-                                        i(class="fa-solid fa-circle-check");
+                                    span class="icon" style="color:green" {
+                                        i class="fa-solid fa-circle-check" {}
                                     }
                                 }
                             } else {
                                 td {
-                                    span(class="icon", style="color:red") {
-                                        i(class="fa-solid fa-circle-xmark");
+                                    span class="icon" style="color:red" {
+                                        i class="fa-solid fa-circle-xmark" {}
                                     }
                                 }
                             }
                         }
                         tr {
                             th {
-                                : "PPP compatible"
+                                "PPP compatible"
                             }
-                            @ if self.ppp_compatible {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                            @if self.ppp_compatible {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                            } else {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                            } @else {
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
                             }
                         }
-                        @ for carrier in self.pages.keys().sorted() {
-                            @ if let Some(page) = self.pages.get(carrier) {
+                        @for carrier in self.pages.keys().sorted() {
+                            @if let Some(page) = self.pages.get(carrier) {
                                 tr {
-                                    th(class="is-info") {
-                                        : carrier.to_string()
+                                    th class="is-info" {
+                                        (carrier.to_string())
                                     }
                                     td {
-                                        : page.to_inline_html()
+                                        (page.render())
                                     }
                                 }
                             }
@@ -155,13 +153,13 @@ pub struct Report {
 }
 
 impl Report {
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:obs") {
-                span(class="icon") {
-                    i(class="fa-solid fa-tower-cell");
+    pub fn html_inline_menu_bar(&self) -> Markup {
+        html! {
+            a id="menu:obs" {
+                span class="icon" {
+                    i class="fa-solid fa-tower-cell" {}
                 }
-                : "Observations"
+                "Observations"
             }
             //ul(class="menu-list", id="menu:tabs:obs", style="display:none") {
             //    @ for constell in self.pages.keys() {
@@ -235,40 +233,40 @@ impl Report {
     }
 }
 
-impl RenderHtml for Report {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                @ if let Some(rx) = &self.receiver {
-                    table(class="table is-bordered") {
+impl Render for Report {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                @if let Some(rx) = &self.receiver {
+                    table class="table is-bordered" {
                         tr {
-                            th(class="is-info") {
-                                : "Receiver"
+                            th class="is-info" {
+                                "Receiver"
                             }
                             td {
-                                : rx.to_inline_html()
+                                (rx.render())
                             }
                         }
                     }
                 }
-                @ if let Some(ant) = &self.antenna {
-                    table(class="table is-bordered") {
+                @if let Some(ant) = &self.antenna {
+                    table class="table is-bordered" {
                         tr {
-                            th(class="is-info") {
-                                : "Antenna"
+                            th class="is-info" {
+                                "Antenna"
                             }
                             td {
-                                : ant.to_inline_html()
+                                 (ant.render()                            )
                             }
                         }
                     }
                 }
-                table(class="table is-bordered") {
-                    th(class="is-info") {
-                        : "Sampling"
+                table class="table is-bordered" {
+                    th class="is-info" {
+                        "Sampling"
                     }
                     td {
-                        : self.sampling.to_inline_html()
+                        (self.sampling.render())
                     }
                 }
             }//table-container

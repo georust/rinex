@@ -6,7 +6,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "qc")]
-use qc_traits::html::{box_html, *};
+use maud::{html, Markup, Render};
 
 /// GNSS receiver description
 #[derive(Default, Clone, Debug, PartialEq)]
@@ -95,62 +95,62 @@ impl Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl RenderHtml for Antenna {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table is-bordered") {
+impl Render for Antenna {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table is-bordered" {
                 tbody {
                     tr {
                         th {
-                            : "Model"
+                            "Model"
                         }
                         td {
-                            : self.model.clone()
+                            (self.model.clone())
                         }
                     }
                     tr {
                         th {
-                            : "SN#"
+                            "SN#"
                         }
                         td {
-                            : self.sn.clone()
+                            (self.sn.clone())
                         }
                     }
                     tr {
                         th {
-                            : "Base Coordinates"
+                            "Base Coordinates"
                         }
                         td {
-                            @ if let Some(coords) = self.coords {
-                                : format!("({}m, {}m, {}m) (ECEF)",
-                                    coords.0, coords.1, coords.2)
-                            } else {
-                                : "Unknown"
+                            @if let Some(coords) = self.coords {
+                                (format!("({}m, {}m, {}m) (ECEF)",
+                                    coords.0, coords.1, coords.2))
+                            } @else {
+                                "Unknown"
                             }
                         }
                     }
                     th {
-                        : "Height"
+                        "Height"
                     }
                     td {
-                        @ if let Some(h) = self.height {
-                            : format!("{} m", h)
-                        } else {
-                            : "Unknown"
+                        @if let Some(h) = self.height {
+                            (format!("{} m", h))
+                        } @else {
+                            "Unknown"
                         }
                     }
                     th {
-                        : "Eccentricity"
+                        "Eccentricity"
                     }
                     td {
-                        @ if let Some(north) = self.northern {
-                            @ if let Some(east) = self.eastern {
-                                : format!("{}m N, {}m E", north, east)
+                        @if let Some(north) = self.northern {
+                            @if let Some(east) = self.eastern {
+                                (format!("{}m N, {}m E", north, east))
                             } else {
-                                : "Unknown"
+                                "Unknown"
                             }
-                        } else {
-                            : "Unknown"
+                        } @else {
+                            "Unknown"
                         }
                     }
                 }
@@ -160,34 +160,34 @@ impl RenderHtml for Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl RenderHtml for Receiver {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
+impl Render for Receiver {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tbody {
                         tr {
                             th {
-                                : "Model"
+                                "Model"
                             }
                             td {
-                                : self.model.clone()
+                                (self.model.clone())
                             }
                         }
                         tr {
                             th {
-                                : "SN#"
+                                "SN#"
                             }
                             td {
-                                : self.sn.clone()
+                                (self.sn.clone())
                             }
                         }
                         tr {
                             th {
-                                : "Firmware"
+                                "Firmware"
                             }
                             td {
-                                : self.firmware.clone()
+                                (self.firmware.clone())
                             }
                         }
                     }

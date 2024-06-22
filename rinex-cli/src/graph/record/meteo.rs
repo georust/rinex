@@ -14,69 +14,15 @@ pub fn plot_meteo_observations(ctx: &Context, plot_context: &mut PlotContext, cs
                                           * 1 plot per physics
                                           */
     for observable in rnx.observable() {
-        let unit = match observable {
-            Observable::Pressure => "hPa",
-            Observable::Temperature => "°C",
-            Observable::HumidityRate | Observable::RainIncrement => "%",
-            Observable::ZenithWetDelay
-            | Observable::ZenithDryDelay
-            | Observable::ZenithTotalDelay => "s",
-            Observable::WindDirection => "°",
-            Observable::WindSpeed => "m/s",
-            Observable::HailIndicator => "",
-            _ => unreachable!(),
-        };
-        if *observable == Observable::WindDirection {
-            // we plot this one differently: on a compass similar to skyplot
-            continue;
-        }
-        plot_context.add_timedomain_plot(
-            &format!("{} Observations", observable),
-            &format!("{} [{}]", observable, unit),
-        );
-        let data_x: Vec<_> = rnx
-            .meteo()
-            .flat_map(|(e, observations)| {
-                observations.iter().filter_map(
-                    |(obs, _value)| {
-                        if obs == observable {
-                            Some(*e)
-                        } else {
-                            None
-                        }
-                    },
-                )
-            })
-            .collect();
-        let data_y: Vec<_> = rnx
-            .meteo()
-            .flat_map(|(_e, observations)| {
-                observations.iter().filter_map(|(obs, value)| {
-                    if obs == observable {
-                        Some(*value)
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect();
-        let trace = build_chart_epoch_axis(
-            &observable.to_string(),
-            Mode::LinesMarkers,
-            data_x.clone(),
-            data_y.clone(),
-        )
-        .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
-        plot_context.add_trace(trace);
-        if csv_export {
-            let filename = format!("{}.csv", observable);
-            let title = format!("{} observations", observable);
-            let labels = format!("Epoch, {} [{}]", observable, unit);
-            let mut csv = CSV::new(&ctx.workspace, &filename, &title, &labels)
-                .expect("failed to render data as CSV");
-            csv.export_timedomain(&data_x, &data_y)
-                .expect("failed to render data as CSV");
-        }
+        //if csv_export {
+        //    let filename = format!("{}.csv", observable);
+        //    let title = format!("{} observations", observable);
+        //    let labels = format!("Epoch, {} [{}]", observable, unit);
+        //    let mut csv = CSV::new(&ctx.workspace, &filename, &title, &labels)
+        //        .expect("failed to render data as CSV");
+        //    csv.export_timedomain(&data_x, &data_y)
+        //        .expect("failed to render data as CSV");
+        //}
     }
     /*
      * Plot Wind Direction

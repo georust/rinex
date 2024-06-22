@@ -17,7 +17,6 @@ use rinex::{
 use sp3::prelude::SP3;
 
 use qc_traits::{
-    html::*,
     processing::{Filter, Preprocessing},
     Merge, MergeError,
 };

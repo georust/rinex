@@ -2,7 +2,7 @@ use crate::graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotConte
 use plotly::common::{Mode, Visible};
 use rinex::navigation::Ephemeris;
 use rinex::prelude::*;
-use rinex_qc::QcContext;
+use rinex_qc::prelude::QcContext;
 
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};

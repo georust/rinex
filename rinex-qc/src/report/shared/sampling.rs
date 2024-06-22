@@ -1,4 +1,5 @@
 use hifitime::Unit;
+use maud::{html, Markup, Render};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
 #[cfg(feature = "sp3")]
@@ -67,124 +68,122 @@ impl SamplingReport {
     }
 }
 
-use qc_traits::html::*;
-
-impl RenderHtml for SamplingReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
+impl Render for SamplingReport {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tbody {
                         tr {
-                            th(class="is-info") {
-                                : "Time Frame"
+                            th class="is-info" {
+                                "Time Frame"
                             }
                         }
                         tr {
                             th {
-                                : "Start"
+                                "Start"
                             }
                             td {
-                                : self.first_epoch.to_string()
+                                (self.first_epoch.to_string())
                             }
                             th {
-                                : "End"
+                                "End"
                             }
                             td {
-                                : self.last_epoch.to_string()
+                                (self.last_epoch.to_string())
                             }
                         }
                         tr {
                             th {
-                                : "Duration"
+                                "Duration"
                             }
                             td {
-                                : self.duration.to_string()
+                                (self.duration.to_string())
                             }
                         }
-                        @ if let Some(sample_rate) = self.sample_rate {
+                        @if let Some(sample_rate) = self.sample_rate {
                             tr {
-                                th(class="is-info") {
-                                    : "Sampling"
+                                th class="is-info" {
+                                    "Sampling"
                                 }
                             }
                             tr {
                                 th {
-                                    : "Rate"
+                                    "Rate"
                                 }
                                 td {
-                                    : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
+                                    (format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second)))
                                 }
                                 th {
-                                    : "Period"
+                                    "Period"
                                 }
                                 td {
-                                    : sample_rate.to_string()
-                                }
-                            }
-                        }
-                        @ if let Some(sample_rate) = self.dominant_sample_rate {
-                            tr {
-                                th(class="is-info") {
-                                    : "Dominant Sampling"
-                                }
-                            }
-                            tr {
-                                th {
-                                    : "Rate"
-                                }
-                                td {
-                                    : format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second))
-                                }
-                                th {
-                                    : "Period"
-                                }
-                                td {
-                                    : sample_rate.to_string()
+                                    (sample_rate.to_string())
                                 }
                             }
                         }
-                        @ if self.gaps.len() == 0 {
+                        @if let Some(sample_rate) = self.dominant_sample_rate {
                             tr {
-                                th(class="is-primary") {
-                                    : "Data gaps"
-                                }
-                                td {
-                                    : "No gaps detected"
+                                th class="is-info" {
+                                    "Dominant Sampling"
                                 }
                             }
-                        } else {
                             tr {
-                                th(class="is-warning") {
-                                    : "Data gaps"
+                                th {
+                                    "Rate"
                                 }
                                 td {
-                                    : &format!("{} Data gaps", self.gaps.len())
+                                    (format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second)))
+                                }
+                                th {
+                                    "Period"
+                                }
+                                td {
+                                    (sample_rate.to_string())
                                 }
                             }
-                            @ if let Some((t_start, dur)) = self.shortest_gap {
+                        }
+                        @if self.gaps.len() == 0 {
+                            tr {
+                                th class="is-primary" {
+                                    "Data gaps"
+                                }
+                                td {
+                                    "No gaps detected"
+                                }
+                            }
+                        } @else {
+                            tr {
+                                th class="is-warning" {
+                                    "Data gaps"
+                                }
+                                td {
+                                    (format!("{} Data gaps", self.gaps.len()))
+                                }
+                            }
+                            @if let Some((t_start, dur)) = self.shortest_gap {
                                 tr {
                                     th {
-                                        : "Shortest"
+                                        "Shortest"
                                     }
                                     td {
-                                        : t_start.to_string()
+                                        (t_start.to_string())
                                     }
                                     td {
-                                        : dur.to_string()
+                                        (dur.to_string())
                                     }
                                 }
                             }
-                            @ if let Some((t_start, dur)) = self.longest_gap {
+                            @if let Some((t_start, dur)) = self.longest_gap {
                                 tr {
                                     th {
-                                        : "Longest"
+                                        "Longest"
                                     }
                                     td {
-                                        : t_start.to_string()
+                                        (t_start.to_string())
                                     }
                                     td {
-                                        : dur.to_string()
+                                        (dur.to_string())
                                     }
                                 }
                             }

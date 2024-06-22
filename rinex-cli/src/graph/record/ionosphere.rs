@@ -10,7 +10,7 @@ use plotly::common::{
 use rinex::carrier::Carrier;
 use rinex::navigation::Ephemeris;
 // use rinex::navigation::KbModel;
-use rinex_qc::QcContext;
+use rinex_qc::prelude::QcContext;
 
 pub fn plot_ionospheric_delay(ctx: &QcContext, plot_ctx: &mut PlotContext) {
     let ref_pos = ctx.reference_position().unwrap_or_default();

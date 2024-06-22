@@ -6,22 +6,17 @@ extern crate gnss_rs as gnss;
 extern crate rinex_qc_traits as qc_traits;
 
 mod cfg;
-pub use cfg::QcConfig;
 
 #[cfg(feature = "plot")]
 mod plot;
 
 mod context;
-pub use context::{ProductType, QcContext};
-
 mod report;
-pub use qc_traits::html::RenderHtml;
-pub use report::QcReport; // re-export
 
 pub mod prelude {
+    pub use crate::cfg::QcConfig;
     pub use crate::context::{ProductType, QcContext};
-    pub use qc_traits::{
-        html::RenderHtml,
-        processing::{Filter, Preprocessing},
-    };
+    pub use crate::report::QcReport;
+    pub use maud::Render;
+    pub use qc_traits::processing::{Filter, Preprocessing};
 }

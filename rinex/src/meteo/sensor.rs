@@ -5,7 +5,7 @@ use crate::Observable;
 use thiserror::Error;
 
 #[cfg(feature = "qc")]
-use qc_traits::html::*;
+use maud::{html, Markup, Render};
 
 /// Meteo Observation Sensor
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
@@ -26,66 +26,42 @@ pub struct Sensor {
     pub height: Option<f64>,
 }
 
-impl RenderHtml for Sensor {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table is-bordered") {
+impl Render for Sensor {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table is-bordered" {
                 tr {
-                    th {
-                        : "Observable"
-                    }
-                    td {
-                        : self.observable.to_string()
+                    th { "Observable" }
+                    td { (self.observable.to_string()) }
+                }
+                @if let Some(model) = &self.model {
+                    tr {
+                        th { "Model" }
+                        td { (model) }
                     }
                 }
-                @ if let Some(model) = &self.model {
+                @if let Some(sensor) = &self.sensor_type {
                     tr {
-                        th {
-                            : "Model"
-                        }
-                        td {
-                            : model
-                        }
+                        th { "Sensor Type" }
+                        td { (sensor) }
                     }
                 }
-                @ if let Some(sensor) = &self.sensor_type {
+                @if let Some(accuracy) = self.accuracy {
                     tr {
-                        th {
-                            : "Sensor Type"
-                        }
-                        td {
-                            : sensor
-                        }
+                        th { "Sensor Accuracy" }
+                        td { (format!("{:.3E}", accuracy)) }
                     }
                 }
-                @ if let Some(accuracy) = self.accuracy {
+                @if let Some(pos) = self.position {
                     tr {
-                        th {
-                            : "Sensor Accuracy"
-                        }
-                        td {
-                            : format!("{:.3E}", accuracy)
-                        }
+                        th { "Sensor position" }
+                        td { (pos.render()) }
                     }
                 }
-                @ if let Some(pos) = self.position {
+                @if let Some(h) = self.height {
                     tr {
-                        th {
-                            : "Sensor position"
-                        }
-                        td {
-                            : pos.to_inline_html()
-                        }
-                    }
-                }
-                @ if let Some(h) = self.height {
-                    tr {
-                        th {
-                            : "Height"
-                        }
-                        td {
-                            : format!("{:.3} m", h)
-                        }
+                        th { "Height" }
+                        td { (format!("{:.3} m", h)) }
                     }
                 }
             }

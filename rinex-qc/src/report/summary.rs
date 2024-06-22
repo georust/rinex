@@ -1,7 +1,6 @@
-use crate::{QcConfig, QcContext};
+use crate::prelude::{QcConfig, QcContext};
+use maud::{html, Markup, Render};
 use rinex::prelude::{GroundPosition, TimeScale};
-
-use qc_traits::html::*;
 
 pub struct QcNavPostSummary {
     /// Navigation compatible
@@ -25,62 +24,62 @@ impl QcNavPostSummary {
     }
 }
 
-impl RenderHtml for QcNavPostSummary {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table") {
+impl Render for QcNavPostSummary {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table is-bordered" {
                 tbody {
                     tr {
                         td {
-                            @ if self.nav_compatible {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                            @if self.nav_compatible {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                                : "NAVI"
+                                "NAVI"
                             } else {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                                span class="icon" style="color:red"{
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
-                                : "NAVI"
+                                "NAVI"
                             }
                         }
                         td {
-                            @ if self.cpp_compatible {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                            @if self.cpp_compatible {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                                : "CPP"
+                                "CPP"
                             } else {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                                span class="icon" style="color:red"{
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
-                                : "CPP"
+                                "CPP"
                             }
                         }
                         td {
-                            @ if self.ppp_compatible {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                            @if self.ppp_compatible {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                                : "PPP"
+                                "PPP"
                             } else {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
-                                : "PPP"
+                                "PPP"
                             }
                         }
                         td {
-                            @ if self.ppp_ultra_compatible {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                            @if self.ppp_ultra_compatible {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                                : "PPP (Ultra)"
+                                "PPP (Ultra)"
                             } else {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
-                                : "PPP (Ultra)"
+                                "PPP (Ultra)"
                             }
                         }
                     }
@@ -106,63 +105,63 @@ impl QcBiasSummary {
     }
 }
 
-impl RenderHtml for QcBiasSummary {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table") {
+impl Render for QcBiasSummary {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table" {
                 tbody {
                     tr {
                         th {
-                            : "Troposphere Bias"
+                            "Troposphere Bias"
                         }
-                        @ if self.tropo_bias_model_optimization {
+                        @if self.tropo_bias_model_optimization {
                             td {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                                : "Model optimization"
+                                "Model optimization"
                             }
                         } else {
                             td {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
-                                : "Model optimization"
+                                "Model optimization"
                             }
                         }
                     }
                     tr {
                         th {
-                            : "Ionosphere Bias"
+                            "Ionosphere Bias"
                         }
-                        @ if self.iono_bias_model_optimization {
+                        @if self.iono_bias_model_optimization {
                             td {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                                : "Model optimization"
+                                "Model optimization"
                             }
                         } else {
                             td {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
-                                : "Model optimization"
+                                "Model optimization"
                             }
                         }
-                        @ if self.iono_bias_cancelling {
+                        @if self.iono_bias_cancelling {
                             td {
-                                span(class="icon", style="color:green") {
-                                    i(class="fa-solid fa-circle-check");
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
                                 }
-                                : "Cancelling"
+                                "Cancelling"
                             }
                         } else {
                             td {
-                                span(class="icon", style="color:red") {
-                                    i(class="fa-solid fa-circle-xmark");
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
                                 }
-                                : "Cancelling"
+                                "Cancelling"
                             }
                         }
                     }
@@ -202,69 +201,69 @@ impl QcSummary {
     }
 }
 
-impl RenderHtml for QcSummary {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table") {
+impl Render for QcSummary {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tbody {
                         tr {
-                            th(class="is-info is-bordered") {
-                                : self.name.clone()
+                            th class="is-info is-bordered" {
+                                (self.name.clone())
                             }
                         }
                         tr {
                             th {
-                                : "Timescale"
+                                "Timescale"
                             }
-                            @ if let Some(timescale) = self.timescale {
+                            @if let Some(timescale) = self.timescale {
                                 td {
-                                    : timescale.to_string()
+                                    (timescale.to_string())
+                                }
+                            } @else {
+                                td {
+                                    "Not Applicable"
+                                }
+                            }
+                        }
+                        tr {
+                            @if let Some(position) = self.cfg.manual_reference {
+                                th {
+                                    "(Manual) Reference position"
+                                }
+                                td {
+                                    (position.render())
+                                }
+                            } @else if let Some(position) = self.reference_position {
+                                th {
+                                    "Reference position"
+                                }
+                                td {
+                                    (position.render())
                                 }
                             } else {
+                                th {
+                                    "Reference position"
+                                }
                                 td {
-                                    : "Not Applicable"
+                                    "None"
                                 }
                             }
                         }
                         tr {
-                            @ if let Some(position) = self.cfg.manual_reference {
-                                th {
-                                    : "(Manual) Reference position"
-                                }
-                                td {
-                                    : position.to_inline_html()
-                                }
-                            } else if let Some(position) = self.reference_position {
-                                th {
-                                    : "Reference position"
-                                }
-                                td {
-                                    : position.to_inline_html()
-                                }
-                            } else {
-                                th {
-                                    : "Reference position"
-                                }
-                                td {
-                                    : "None"
-                                }
-                            }
-                        }
-                        tr {
-                            th(class="is-info") {
-                                : "Compliancy"
+                            th class="is-info" {
+                                "Compliancy"
                             }
                             td {
-                                : self.nav_post.to_inline_html()
+                                (self.nav_post.render())
                             }
                         }
                         tr {
-                            th(class="is-info") {
-                                : "Bias"
+                            th class="is-info" {
+                                "Bias"
                             }
                             td {
-                                : self.bias_sum.to_inline_html()
+                                (self.bias_sum.render())
                             }
                         }
                     }

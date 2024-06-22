@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use qc_traits::html::*;
+use maud::{html, Markup, Render};
 use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::{
     meteo::sensor::Sensor,
@@ -100,23 +100,23 @@ impl MeteoPage {
     }
 }
 
-impl RenderHtml for MeteoPage {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
+impl Render for MeteoPage {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tbody {
                         tr {
-                            th(class="is-info") {
-                                : "Sampling"
+                            th class="is-info" {
+                                "Sampling"
                             }
                             td {
-                                : self.sampling.to_inline_html()
+                                (self.sampling.render())
                             }
                         }
                         tr {
                             td {
-                                : self.plot.to_inline_html()
+                                (self.plot.render())
                             }
                         }
                     }
@@ -135,13 +135,13 @@ pub struct MeteoReport {
 }
 
 impl MeteoReport {
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:meteo") {
-                span(class="icon") {
-                    i(class="fa-solid fa-cloud-sun-rain");
+    pub fn html_inline_menu_bar(&self) -> Markup {
+        html! {
+            a id="menu:meteo" {
+                span class="icon" {
+                    i class="fa-solid fa-cloud-sun-rain" {}
                 }
-                : "Meteo Observations"
+                "Meteo Observations"
             }
             //ul(class="menu-list", id="menu:tabs:meteo", style="display:none") {
             //    @ for page in self.pages.keys().sorted() {
@@ -182,57 +182,57 @@ impl MeteoReport {
     }
 }
 
-impl RenderHtml for MeteoReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
-                    tbody {
-                        tr {
-                            th(class="is-info") {
-                                : "Agency"
-                            }
-                            @ if let Some(agency) = &self.agency {
-                                td {
-                                    : agency
-                                }
-                            } else {
-                                td {
-                                    : "Unknown"
-                                }
-                            }
-                        }
-                        @ for sensor in self.sensors.iter() {
-                            tr {
-                                th {
-                                    : &format!("{} sensor", obs2physics(&sensor.observable))
-                                }
-                                td {
-                                    : sensor.to_inline_html()
-                                }
-                            }
-                        }
-                        tr {
-                            th(class="is-info") {
-                                : "Sampling"
-                            }
-                            td {
-                                : self.sampling.to_inline_html()
-                            }
-                        }
-                    }
-                }
+impl Render for MeteoReport {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                //table class="table is-bordered" {
+                //    tbody {
+                //        tr {
+                //            th class="is-info" {
+                //                "Agency"
+                //            }
+                //            @if let Some(agency) = &self.agency {
+                //                td {
+                //                    agency
+                //                }
+                //            } else {
+                //                td {
+                //                    "Unknown"
+                //                }
+                //            }
+                //        }
+                //        @for sensor in self.sensors.iter() {
+                //            tr {
+                //                th {
+                //                  (&format!("{} sensor", obs2physics(&sensor.observable)))
+                //                }
+                //                td {
+                //                    (sensor.render())
+                //                }
+                //            }
+                //        }
+                //        tr {
+                //            th class="is-info" {
+                //                "Sampling"
+                //            }
+                //            td {
+                //                (self.sampling.render())
+                //            }
+                //        }
+                //    }
+                //}
             }//table
-            @ for constell in self.pages.keys().sorted() {
-                @ if let Some(page) = self.pages.get(constell) {
-                    div(class="table-container is-page", id=&format!("meteo:{}", constell), style="display:block") {
-                        table(class="table is-bordered") {
+            @for key in self.pages.keys().sorted() {
+                @if let Some(page) = self.pages.get(key) {
+                    div class="table-container is-page" id=(format!("meteo:{}", key)) style="display:block" {
+                        table class="table is-bordered" {
                             tr {
-                                th(class="is-info") {
-                                    : constell.to_string()
+                                th class="is-info" {
+                                    (key.to_string())
                                 }
                                 td {
-                                    : page.to_inline_html()
+                                    (page.render())
                                 }
                             }
                         }

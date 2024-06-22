@@ -49,6 +49,7 @@ doris = []
 # Unlock Quality Check (QC) methods and traits.
 # Allows to generate complete QC reports for RINEX or entire contexts.
 qc = [
+    "maud",
     "rinex-qc-traits", 
 ] 
 
@@ -106,6 +107,7 @@ hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde", "domes", "cospar"] }
 
 # RINEX QC dedicated traits
+maud = { version = "0.26", optional = true }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
 
 [dev-dependencies]

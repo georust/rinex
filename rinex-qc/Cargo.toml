@@ -23,7 +23,6 @@ sp3 = ["dep:sp3"]
 # Unlock graphical analysis (plots rendering), otherwise reports are solely text based
 plot = [
     "dep:plotly", 
-    "serde",
 ]
 
 [package.metadata.docs.rs]
@@ -31,13 +30,13 @@ all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
+maud = "0.26"
 thiserror = "1"
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master" }
 strum = "0.26"
-strum_macros = "0.26"
-horrorshow = "0.8"
-itertools = "0.13.0"
 statrs = "0.16"
+itertools = "0.13.0"
+strum_macros = "0.26"
+hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master" }
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde"], optional = true }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", features = ["processing"] }

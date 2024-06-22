@@ -1,9 +1,9 @@
 use crate::report::shared::SamplingReport;
 use crate::report::Error;
 // use itertools::Itertools;
-use qc_traits::html::*;
+use maud::{html, Markup, Render};
 use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
-use rinex::prelude::{ClockProfileType, Constellation, Rinex, TimeScale, WorkClock, DOMES, SV};
+use rinex::prelude::{ClockProfileType, Constellation, Rinex, TimeScale, DOMES, SV};
 use std::collections::HashMap;
 
 pub struct ClkPage {
@@ -23,13 +23,13 @@ pub struct ClkReport {
 }
 
 impl ClkReport {
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:clk") {
-                span(class="icon") {
-                    i(class="fa-solid fa-clock");
+    pub fn html_inline_menu_bar(&self) -> Markup {
+        html! {
+            a id="menu:clk" {
+                span class="icon" {
+                    i class="fa-solid fa-clock" {}
                 }
-                : "High Precision Clock (RINEX)"
+                "High Precision Clock (RINEX)"
             }
             //ul(class="menu-list", id="menu:tabs:clk", style="display:none") {
             //    @ for page in self.pages.keys().sorted() {
@@ -77,77 +77,77 @@ impl ClkReport {
     }
 }
 
-impl RenderHtml for ClkReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(class="table-container") {
-                table(class="table is-bordered") {
+impl Render for ClkReport {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
                     tbody {
-                        @ if let Some(clk_name) = &self.clk_name {
+                        @if let Some(clk_name) = &self.clk_name {
                             tr {
-                                th(class="is-info") {
-                                    : "Agency"
+                                th class="is-info" {
+                                    "Agency"
                                 }
                                 td {
-                                    : clk_name
+                                    (clk_name)
                                 }
                             }
                         }
-                        @ if let Some(site) = &self.site {
+                        @if let Some(site) = &self.site {
                             tr {
                                 th {
-                                    : "Clock Site"
+                                    "Clock Site"
                                 }
                                 td {
-                                    : site
+                                    (site)
                                 }
                             }
                         }
-                        @ if let Some(domes) = &self.domes {
+                        @if let Some(domes) = &self.domes {
                             tr {
                                 th {
-                                    : "DOMES #ID"
+                                    "DOMES #ID"
                                 }
                                 td {
-                                    : domes.to_string()
+                                    (domes.to_string())
                                 }
                             }
                         }
-                        @ if let Some(ref_clk) = &self.ref_clock {
+                        @if let Some(ref_clk) = &self.ref_clock {
                             tr {
                                 th {
-                                    : "Reference Clock"
+                                    "Reference Clock"
                                 }
                                 td {
-                                    : ref_clk
+                                    (ref_clk)
                                 }
                             }
                         }
-                        @ if let Some(igs_name) = &self.igs_clock_name {
+                        @if let Some(igs_name) = &self.igs_clock_name {
                             tr {
                                 th {
-                                    : "IGS Clock Name"
+                                    "IGS Clock Name"
                                 }
                                 td {
-                                    : igs_name
+                                    (igs_name)
                                 }
                             }
                         }
-                        @ if let Some(timescale) = self.timescale {
+                        @if let Some(timescale) = self.timescale {
                             tr {
                                 th {
-                                    : "Timescale"
+                                    "Timescale"
                                 }
                                 td {
-                                    : timescale.to_string()
+                                    (timescale.to_string())
                                 }
                             }
                         }
                     }
                 }
             }
-            div(class="table-container") {
-                : self.sampling.to_inline_html()
+            div class="table-container" {
+                (self.sampling.render())
             }
         }
     }

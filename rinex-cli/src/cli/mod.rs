@@ -5,7 +5,7 @@ use std::{
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
-use rinex_qc::QcContext;
+use rinex_qc::prelude::QcContext;
 
 // graph mode
 mod graph;

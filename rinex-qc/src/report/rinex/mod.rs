@@ -16,12 +16,11 @@ use ionex::IonexReport;
 // mod ionex;
 use crate::report::Error;
 
-use qc_traits::html::*;
-use qc_traits::processing::{FilterItem, MaskOperand};
+use maud::{html, Markup, Render};
 
 use obs::Report as ObsReport;
 
-use rinex::prelude::{Observable, Rinex, RinexType};
+use rinex::prelude::{Rinex, RinexType};
 use std::collections::HashMap;
 
 // TODO
@@ -37,22 +36,22 @@ impl NavReport {
             pages: Default::default(),
         }
     }
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:brdc") {
-                span(class="icon") {
-                    i(class="fa-solid fa-satellite-dish");
+    pub fn html_inline_menu_bar(&self) -> Markup {
+        html! {
+            a id="menu:brdc" {
+                span class="icon" {
+                    i class="fa-solid fa-satellite-dish" {}
                 }
-                : "Broadcast Navigation (BRDC)"
+                "Broadcast Navigation (BRDC)"
             }
-            ul(class="menu-list", id="menu:tabs:brdc", style="display:none") {
-                @ for page in self.pages.keys().sorted() {
+            ul class="menu-list" id="menu:tabs:brdc" style="display:none" {
+                @for page in self.pages.keys().sorted() {
                     li {
-                        a(id=&format!("menu:brdc:{}", page), style="margin-left:29px") {
-                            span(class="icon") {
-                                i(class="fa-solid fa-satellite");
+                        a id=(format!("menu:brdc:{}", page)) style="margin-left:29px" {
+                            span class="icon" {
+                                i class="fa-solid fa-satellite" {}
                             }
-                            : page.to_string()
+                            (page.to_string())
                         }
                     }
                 }
@@ -61,9 +60,9 @@ impl NavReport {
     }
 }
 
-impl RenderHtml for NavReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
+impl Render for NavReport {
+    fn render(&self) -> Markup {
+        html! {}
     }
 }
 
@@ -78,21 +77,21 @@ impl DorisReport {
             pages: Default::default(),
         }
     }
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            a(id="menu:doris") {
-                span(class="icon") {
-                    i(class="fa-solid fa-tower-cell");
+    pub fn html_inline_menu_bar(&self) -> Markup {
+        html! {
+            a id="menu:doris" {
+                span class="icon" {
+                    i class="fa-solid fa-tower-cell" {}
                 }
-                : "DORIS Observatoins"
+                "DORIS Observatoins"
             }
         }
     }
 }
 
-impl RenderHtml for DorisReport {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {}
+impl Render for DorisReport {
+    fn render(&self) -> Markup {
+        html! {}
     }
 }
 
@@ -118,7 +117,7 @@ impl RINEXReport {
             _ => Err(Error::NonSupportedRINEX),
         }
     }
-    pub fn html_inline_menu_bar(&self) -> Box<dyn RenderBox + '_> {
+    pub fn html_inline_menu_bar(&self) -> Markup {
         match self {
             Self::Obs(report) => report.html_inline_menu_bar(),
             Self::Nav(report) => report.html_inline_menu_bar(),

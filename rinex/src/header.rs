@@ -41,7 +41,7 @@ use gnss::constellation::ParsingError as ConstellationParsingError;
 use serde::Serialize;
 
 #[cfg(feature = "qc")]
-use qc_traits::html::{box_html, *};
+use maud::{html, Markup, Render};
 
 #[cfg(feature = "processing")]
 use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand, Masking};
@@ -2203,56 +2203,23 @@ impl Merge for Header {
 }
 
 #[cfg(feature = "qc")]
-impl RenderHtml for Header {
-    fn to_html(&self) -> String {
-        format!(
-            "{}",
-            html! {
-                : doctype::HTML;
-                html {
-                    head {
-                        meta(content="text/html", charset="utf-8");
-                        meta(name="viewport", content="width=device-width, initial-scale=1");
-                        link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
-                        title {
-                            : "RINEX Header analysis"
-                        }
-                    }
-                    body {
-                        : self.to_inline_html()
-                    }
-                }
-            }
-        )
-    }
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
+impl Render for Header {
+    fn render(&self) -> Markup {
+        html! {
             tr {
-                th {
-                    : "Antenna"
-                }
-                @ if let Some(antenna) = &self.rcvr_antenna {
-                    td {
-                        : antenna.to_inline_html()
-                    }
-                } else {
-                    td {
-                        : "No information"
-                    }
+                th { "Antenna" }
+                @if let Some(antenna) = &self.rcvr_antenna {
+                    td { (antenna.render()) }
+                } @else {
+                    td { "No information" }
                 }
             }
             tr {
-                th {
-                    : "Receiver"
-                }
+                th { "Receiver" }
                 @ if let Some(rcvr) = &self.rcvr {
-                    td {
-                        : rcvr.to_inline_html()
-                    }
+                    td { (rcvr.render()) }
                 } else {
-                    td {
-                        : "No information"
-                    }
+                    td { "No information" }
                 }
             }
         }

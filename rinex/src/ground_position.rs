@@ -4,6 +4,9 @@ use map_3d::{deg2rad, ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "qc")]
+use maud::{html, Markup, Render};
+
 #[derive(Default, Copy, Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GroundPosition(f64, f64, f64);
@@ -63,77 +66,74 @@ impl std::fmt::UpperHex for GroundPosition {
 }
 
 #[cfg(feature = "qc")]
-use qc_traits::html::{box_html, *};
-
-#[cfg(feature = "qc")]
-impl RenderHtml for GroundPosition {
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+impl Render for GroundPosition {
+    fn render(&self) -> Markup {
         let ecef = (self.0, self.1, self.2);
         let geo = self.to_geodetic();
-        box_html! {
+        html! {
             table {
                 tr {
                     th {
-                        : "ECEF (WGS84)"
+                        "ECEF (WGS84)"
                     }
                 }
                 tr {
                     th {
-                        :"X"
+                        "X"
                     }
                     td {
-                        : format!("{:.3} m", ecef.0)
+                        (format!("{:.3} m", ecef.0))
                     }
                     th {
-                        : "Y"
+                        "Y"
                     }
                     td {
-                        : format!("{:.3} m", ecef.1)
+                        (format!("{:.3} m", ecef.1))
                     }
                     th {
-                       : "Z"
+                       "Z"
                     }
                     td {
-                        : format!("{:.3} m", ecef.2)
+                        (format!("{:.3} m", ecef.2))
                     }
                 }
                 tr {
                     th {
-                        : "GEO"
+                        "GEO"
                     }
                 }
                 tr {
                     th {
-                        : "Latitude"
+                        "Latitude"
                     }
                     td {
-                        : format!("{:.6}°", geo.0)
+                        (format!("{:.6}°", geo.0))
                     }
                     th {
-                        : "Longitude"
+                        "Longitude"
                     }
                     td {
-                        : format!("{:.6}°", geo.1)
+                        (format!("{:.6}°", geo.1))
                     }
                     th {
-                        : "Altitude"
+                        "Altitude"
                     }
                     td {
-                        : format!("{:.3} m", geo.2)
+                        (format!("{:.3} m", geo.2))
                     }
                 }
                 tr {
                     th {
-                        : "DMS"
+                        "DMS"
                     }
                     td {
-                        : DMS::from_ddeg_latitude(geo.0).to_string()
+                        (DMS::from_ddeg_latitude(geo.0).to_string())
                     }
                     th {
-                        : "DMS"
+                        "DMS"
                     }
                     td {
-                        : DMS::from_ddeg_longitude(geo.1).to_string()
+                        (DMS::from_ddeg_longitude(geo.1).to_string())
                     }
                 }
             }
