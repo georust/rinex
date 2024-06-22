@@ -20,8 +20,11 @@ pub struct Plot {
 impl Render for Plot {
     fn render(&self) -> Markup {
         html! {
+            //iframe {
+            //    (PreEscaped (self.plotly.to_html()))
+            //}
             script {
-                (PreEscaped (self.plotly.to_inline_html(None)))
+                (PreEscaped (self.plotly.to_html()))
             }
         }
     }

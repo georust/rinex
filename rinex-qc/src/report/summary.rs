@@ -36,7 +36,7 @@ impl Render for QcNavPostSummary {
                                     i class="fa-solid fa-circle-check" {}
                                 }
                                 "NAVI"
-                            } else {
+                            } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
@@ -49,7 +49,7 @@ impl Render for QcNavPostSummary {
                                     i class="fa-solid fa-circle-check" {}
                                 }
                                 "CPP"
-                            } else {
+                            } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
@@ -62,7 +62,7 @@ impl Render for QcNavPostSummary {
                                     i class="fa-solid fa-circle-check" {}
                                 }
                                 "PPP"
-                            } else {
+                            } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
@@ -75,7 +75,7 @@ impl Render for QcNavPostSummary {
                                     i class="fa-solid fa-circle-check" {}
                                 }
                                 "PPP (Ultra)"
-                            } else {
+                            } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
@@ -121,7 +121,7 @@ impl Render for QcBiasSummary {
                                 }
                                 "Model optimization"
                             }
-                        } else {
+                        } @else {
                             td {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
@@ -141,7 +141,7 @@ impl Render for QcBiasSummary {
                                 }
                                 "Model optimization"
                             }
-                        } else {
+                        } @else {
                             td {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
@@ -156,7 +156,7 @@ impl Render for QcBiasSummary {
                                 }
                                 "Cancelling"
                             }
-                        } else {
+                        } @else {
                             td {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
@@ -241,7 +241,7 @@ impl Render for QcSummary {
                                 td {
                                     (position.render())
                                 }
-                            } else {
+                            } @else {
                                 th {
                                     "Reference position"
                                 }

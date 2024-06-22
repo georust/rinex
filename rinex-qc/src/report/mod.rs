@@ -268,9 +268,9 @@ impl Render for QcReport {
                     meta http-equip="X-UA-Compatible" content="IE-edge";
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/georust/meta/master/logo/logo.png";
-                    //script src="https://cdn.plot.ly/plotly-2.12.1.min.js";
-                    //script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js";
-                    //script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js";
+                    script src="https://cdn.plot.ly/plotly-2.12.1.min.js" {};
+                    script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js" {};
+                    script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" {};
                     link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css";
                     link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css";
                 }//head
