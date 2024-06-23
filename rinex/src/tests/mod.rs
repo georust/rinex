@@ -12,17 +12,14 @@ mod production;
 #[cfg(feature = "clock")]
 mod clock;
 
-//#[cfg(feature = "processing")]
-// mod decimation;
+#[cfg(feature = "processing")]
+mod processing;
 
 #[cfg(feature = "doris")]
 mod doris;
 
 #[cfg(feature = "ionex")]
 mod ionex;
-
-#[cfg(feature = "processing")]
-mod masking;
 
 #[cfg(feature = "meteo")]
 mod meteo;
@@ -32,9 +29,3 @@ mod nav;
 
 #[cfg(feature = "obs")]
 mod obs;
-
-// #[cfg(feature = "processing")]
-// mod sampling;
-
-// #[cfg(feature = "processing")]
-// mod smoothing;
