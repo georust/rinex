@@ -6,7 +6,6 @@
 extern crate gnss_rs as gnss;
 
 #[cfg(feature = "qc")]
-#[macro_use]
 extern crate rinex_qc_traits as qc_traits;
 
 pub mod antex;
@@ -3626,14 +3625,8 @@ impl Rinex {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::str::FromStr;
-    #[test]
-    fn test_macros() {
-        let _ = observable!("L1C");
-        let _ = filter!("GPS");
-        let _ = filter!("G08, G09");
-    }
     use crate::{fmt_comment, is_rinex_comment};
+    use std::str::FromStr;
     #[test]
     fn fmt_comments_singleline() {
         for desc in [

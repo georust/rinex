@@ -247,34 +247,40 @@ pub(crate) fn parse_ionex_utc(s: &str) -> Result<Epoch, ParsingError> {
     for (index, field) in s.split_ascii_whitespace().enumerate() {
         match index {
             0 => {
-                y = field.trim().parse::<i32>().map_err(|_| {
-                    ParsingError::DateTimeParsing(String::from("year"), field.to_string())
-                })?;
+                y = field
+                    .trim()
+                    .parse::<i32>()
+                    .map_err(|_| ParsingError::YearField(field.to_string()))?;
             },
             1 => {
-                m = field.trim().parse::<u8>().map_err(|_| {
-                    ParsingError::DateTimeParsing(String::from("month"), field.to_string())
-                })?;
+                m = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::MonthField(field.to_string()))?;
             },
             2 => {
-                d = field.trim().parse::<u8>().map_err(|_| {
-                    ParsingError::DateTimeParsing(String::from("day"), field.to_string())
-                })?;
+                d = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::DayField(field.to_string()))?;
             },
             3 => {
-                hh = field.trim().parse::<u8>().map_err(|_| {
-                    ParsingError::DateTimeParsing(String::from("hours"), field.to_string())
-                })?;
+                hh = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::HoursField(field.to_string()))?;
             },
             4 => {
-                mm = field.trim().parse::<u8>().map_err(|_| {
-                    ParsingError::DateTimeParsing(String::from("mins"), field.to_string())
-                })?;
+                mm = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::MinutesField(field.to_string()))?;
             },
             5 => {
-                ss = field.trim().parse::<u8>().map_err(|_| {
-                    ParsingError::DateTimeParsing(String::from("seconds"), field.to_string())
-                })?;
+                ss = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::SecondsField(field.to_string()))?;
             },
             _ => {},
         }

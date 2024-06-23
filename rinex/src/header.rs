@@ -46,7 +46,7 @@ use serde::Serialize;
 use maud::{html, Markup, Render};
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand, Masking};
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 /// DCB compensation description
 #[derive(Debug, Clone, Default, PartialEq)]

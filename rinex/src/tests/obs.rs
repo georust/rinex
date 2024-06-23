@@ -1,10 +1,8 @@
 #[cfg(test)]
 mod test {
-    use crate::filter;
     use crate::marker::MarkerType;
     use crate::observable;
     use crate::observation::SNR;
-    use crate::preprocessing::*;
     use crate::tests::toolkit::obsrinex_check_observables;
     use crate::tests::toolkit::test_observation_rinex;
     use crate::{erratic_time_frame, evenly_spaced_time_frame, tests::toolkit::TestTimeFrame};
@@ -1117,18 +1115,6 @@ mod test {
         assert_eq!(marker.name, "ESBC00DNK");
         assert_eq!(marker.number(), Some("10118M001".to_string()));
         assert_eq!(marker.marker_type, Some(MarkerType::Geodetic));
-
-        /*
-         * Test preprocessing
-         */
-        let dut = rnx.filter(filter!("GPS"));
-        assert_eq!(dut.constellation().count(), 1);
-        assert_eq!(dut.sv().count(), 31);
-
-        let dut = rnx.filter(filter!("SBAS"));
-        assert_eq!(dut.constellation().count(), 3);
-        assert_eq!(dut.sv().count(), 5);
-
         /*
          * Observation specific
          */

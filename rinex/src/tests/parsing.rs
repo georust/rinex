@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod test {
-    use crate::navigation::NavMsgType;
     use crate::prelude::*;
     use crate::tests::toolkit::is_null_rinex;
     use std::path::PathBuf;

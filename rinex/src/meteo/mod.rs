@@ -11,9 +11,6 @@ use crate::Observable;
 use std::str::FromStr;
 
 #[cfg(feature = "processing")]
-use itertools::Itertools;
-
-#[cfg(feature = "processing")]
 use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 /// Meteo specific header fields

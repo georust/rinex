@@ -21,9 +21,6 @@ pub use system::RefSystem;
 use serde::Serialize;
 
 #[cfg(feature = "processing")]
-use itertools::Itertools;
-
-#[cfg(feature = "processing")]
 use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]

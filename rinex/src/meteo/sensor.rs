@@ -139,7 +139,8 @@ impl std::fmt::Display for Sensor {
             write!(f, "{:14.4}", x)?;
             write!(f, "{:14.4}", y)?;
             write!(f, "{:14.4}", z)?;
-            write!(f, "{:14.4}", pos.altitude())?;
+            let h = self.height.unwrap_or(0.0);
+            write!(f, "{:14.4}", h);
             writeln!(f, " {} SENSOR POS XYZ/H", self.observable)?
         }
         Ok(())
@@ -185,9 +186,10 @@ impl Sensor {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::prelude::GroundPosition;
     use std::str::FromStr;
     #[test]
-    fn to_str() {
+    fn test_formatting() {
         let s = Sensor::new(Observable::Temperature);
         assert_eq!(
             s.to_string(),
@@ -210,7 +212,8 @@ mod test {
             "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC\n"
         );
 
-        let s = s.with_position((0.0, 0.0, 0.0, 1234.5678));
+        let mut s = s.with_position(GroundPosition::from_ecef_wgs84((0.0, 0.0, 0.0)));
+        s.height = Some(1234.5678);
         assert_eq!(
             s.to_string(),
             "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC
