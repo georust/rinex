@@ -6,7 +6,7 @@ mod test {
     #[test]
     fn constell_esbcdnk() {
         let rnx =
-            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S.crx.gz")
+            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
 
         let mask = Filter::mask(
