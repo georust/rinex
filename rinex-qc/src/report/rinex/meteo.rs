@@ -6,7 +6,6 @@ use rinex::{
     prelude::{Observable, Rinex},
 };
 use std::collections::HashMap;
-use std::f64::consts::PI;
 
 use crate::report::{shared::SamplingReport, Error};
 
@@ -166,6 +165,7 @@ impl MeteoPage {
                 })
                 .collect::<Vec<_>>();
             let trace = Plot::new_timedomain_chart(
+                &observable.to_string(),
                 Mode::LinesMarkers,
                 MarkerSymbol::TriangleUp,
                 &data_x,

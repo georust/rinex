@@ -221,6 +221,7 @@ impl Plot {
     }
     /// Builds new Time domain chart
     pub fn new_timedomain_chart<Y: Clone + Default + Serialize>(
+        name: &str,
         mode: Mode,
         symbol: MarkerSymbol,
         t: &Vec<Epoch>,
@@ -229,6 +230,7 @@ impl Plot {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
         //Scatter::new(t.iter().map(|t| t.to_mjd_utc_days()).collect(), y)
         Scatter::new(t.iter().map(|t| t.to_string()).collect(), y)
+            .name(name)
             .mode(mode)
             .web_gl_mode(true)
             .hover_text_array(txt)

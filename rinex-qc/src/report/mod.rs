@@ -306,42 +306,80 @@ impl Render for QcReport {
                         script {
                           (PreEscaped(
 "
-  var sidebar_menu = document.getElementById('menubar');
-  var main_pages = document.getElementsByClassName('is-main');
-  var sub_pages = document.getElementsByClassName('is-page');
+		var sidebar_menu = document.getElementById('menubar');
+		var main_pages = document.getElementsByClassName('is-main');
+		var sub_pages = document.getElementsByClassName('is-page');
 
-  sidebar_menu.onclick = function(evt) {
-    var clicked_id = evt.originalTarget.id;
-    var category = clicked_id.substring(5).split(':')[0];
-    var tab = clicked_id.substring(5).split(':')[1];
-    var is_tab = clicked_id.split(':').length == 3;
-    console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +is_tab);
+		sidebar_menu.onclick = function (evt) {
+			var clicked_id = evt.originalTarget.id;
+			var category = clicked_id.substring(5).split(':')[0];
+			var tab = clicked_id.substring(5).split(':')[1];
+			var is_tab = clicked_id.split(':').length == 3;
+			var menu_subtabs = document.getElementsByClassName('menu:subtab');
+			console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' + is_tab);
 
-    if (is_tab == true ) {
-      var targetted_tab = category+':'+tab;
-      for (var i=0; i<main_pages.length; i++) {
-        if (main_pages[i].id == category) {
-          console.log('Matched: '+main_pages[i].id);
-          main_pages[i].style = 'display:block';
-        } else {
-          main_pages[i].style = 'display:none';
-        }
-      }
-    } else {
-      var targetted_tab = category+':'+tab;
-      for (var i=0; i<main_pages.length; i++) {
-        if (main_pages[i].id == category) {
-          console.log('Matched: '+main_pages[i].id);
-          main_pages[i].style = 'display:block';
-        } else {
-          main_pages[i].style = 'display:none';
-        }
-      }
-    }
-  }
+			if (is_tab == true) {
+				// show tabs for this category
+				var cat_tabs = 'menu:'+category;
+				for (var i = 0; i < menu_subtabs.length; i++) {
+					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
+						menu_subtabs[i].style = 'display:block';
+					} else {
+						menu_subtabs[i].style = 'display:none';
+					}
+				}
+				// hide any other main page
+				for (var i = 0; i < main_pages.length; i++) {
+					if (main_pages[i].id != category) {
+						main_pages[i].style = 'display:none';
+					}
+				}
+				// show specialized content
+				var targetted_content = 'body:' + category + ':' + tab;
+				for (var i = 0; i < sub_pages.length; i++) {
+					if (sub_pages[i].id == targetted_content) {
+						sub_pages[i].style = 'display:block';
+					} else {
+						sub_pages[i].style = 'display:none';
+					}
+				}
+
+			} else {
+				// show tabs for this category
+				var cat_tabs = 'menu:'+category;
+				for (var i = 0; i < menu_subtabs.length; i++) {
+					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
+						menu_subtabs[i].style = 'display:block';
+					} else {
+						menu_subtabs[i].style = 'display:none';
+					}
+				}
+				// hide any other main page
+				for (var i = 0; i < main_pages.length; i++) {
+					if (main_pages[i].id == category) {
+						main_pages[i].style = 'display:block';
+					} else {
+						main_pages[i].style = 'display:none';
+					}
+				}
+				// click on parent: show first specialized content
+				var done = false;
+				for (var i = 0; i < sub_pages.length; i++) {
+					if (done == false) {
+						if (sub_pages[i].id.includes('body:'+category)) {
+							sub_pages[i].style = 'display:block';
+							done = true;
+						} else {
+							sub_pages[i].style = 'display:none';
+						}
+					} else {
+						sub_pages[i].style = 'display:none';
+					}
+				}
+			}
+		}
 "
-                          ))
-                        } //JS
+                        ))} //JS
                 }//body
             }
         }

@@ -539,9 +539,6 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
      */
     if matches.get_flag("obs") {
         let mut plot_ctx = PlotContext::new();
-        if ctx.data.has_observation() {
-            record::plot_observations(ctx, &mut plot_ctx, csv_export);
-        }
         if ctx.data.has_doris() {
             record::plot_doris_observations(ctx, &mut plot_ctx, csv_export);
         }

@@ -10,10 +10,9 @@ NAV=$DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz
 CLK=$DATA_DIR/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz
 
 # Example:
-#   Gal >09: any other constellation and PRN
-#            will not be included to the report
-#  Skip first hour of that day (example)
-FILTER="Galileo;>E09;<E15;>2020-06-25T00:00:00 UTC"
+#   Gal >09
+#   BDS (non GEO)
+FILTER="Gal,BDS;>E09;>C05;<C58"
 
 ./target/release/rinex-cli \
     -P "$FILTER" \

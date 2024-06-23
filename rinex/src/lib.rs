@@ -1736,26 +1736,17 @@ use crate::observation::{record::code_multipath, LliFlags, SNR};
 impl Rinex {
     /// Returns a Unique Iterator over identified [`Carrier`]s
     pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier> + '_> {
-        Box::new(self.observation().flat_map(|(_, (_, sv))| {
-            sv.iter().flat_map(|(sv, observations)| {
-                observations
-                    .keys()
-                    .filter_map(|observable| {
-                        if let Ok(carrier) = observable.carrier(sv.constellation) {
-                            Some(carrier)
-                        } else {
-                            None
-                        }
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, sv))| {
+                    sv.iter().flat_map(|(sv, observations)| {
+                        observations.keys().filter_map(|observable| {
+                            Some(observable.carrier(sv.constellation).ok()?)
+                        })
                     })
-                    .fold(vec![], |mut list, item| {
-                        if !list.contains(&item) {
-                            list.push(item);
-                        }
-                        list
-                    })
-                    .into_iter()
-            })
-        }))
+                })
+                .unique(),
+        )
     }
     /// Returns a Unique Iterator over signal Codes, like "1C" or "1P"
     /// for precision code.

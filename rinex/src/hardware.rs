@@ -146,7 +146,7 @@ impl Render for Antenna {
                         @if let Some(north) = self.northern {
                             @if let Some(east) = self.eastern {
                                 (format!("{}m N, {}m E", north, east))
-                            } else {
+                            } @else {
                                 "Unknown"
                             }
                         } @else {
