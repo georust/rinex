@@ -6,6 +6,9 @@ use rinex::prelude::Constellation;
 mod clock;
 use clock::ClkReport;
 
+mod doris;
+use doris::DorisReport;
+
 mod meteo;
 use meteo::MeteoReport;
 
@@ -59,35 +62,6 @@ impl NavReport {
 }
 
 impl Render for NavReport {
-    fn render(&self) -> Markup {
-        html! {}
-    }
-}
-
-pub struct DorisPage {}
-// TODO
-pub struct DorisReport {
-    pub pages: HashMap<Constellation, DorisPage>,
-}
-impl DorisReport {
-    pub fn new(rnx: &Rinex) -> Self {
-        Self {
-            pages: Default::default(),
-        }
-    }
-    pub fn html_inline_menu_bar(&self) -> Markup {
-        html! {
-            a id="menu:doris" {
-                span class="icon" {
-                    i class="fa-solid fa-tower-cell" {}
-                }
-                "DORIS Observatoins"
-            }
-        }
-    }
-}
-
-impl Render for DorisReport {
     fn render(&self) -> Markup {
         html! {}
     }

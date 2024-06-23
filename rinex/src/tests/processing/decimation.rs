@@ -4,8 +4,8 @@ mod decimation {
     use crate::prelude::*;
     use crate::preprocessing::*;
     //use itertools::Itertools;
+    use qc_traits::processing::Decimate;
     use std::path::Path;
-
     #[test]
     #[cfg(feature = "flate2")]
     fn obs_decimation() {
@@ -23,15 +23,16 @@ mod decimation {
         let mut rinex = rinex.unwrap();
         let len = rinex.epoch().count();
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
+        let filter = DecimationFilter::duration(Duration::from_seconds(60.0));
+        rinex.decimate_mut(&filter);
         let count = rinex.epoch().count();
-        assert_eq!(count, len / 2, "decimate(1'): error",);
+        assert_eq!(count, len / 2, "decimate(1'): error");
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
+        rinex.decimate_mut(Duration::from_seconds(60.0));
         let count = rinex.epoch().count();
-        assert_eq!(count, len / 2, "decimate(1'): error",);
+        assert_eq!(count, len / 2, "decimate(1'): error");
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(120.0));
+        rinex.decimate_mut(Duration::from_seconds(120.0));
         let count = rinex.epoch().count();
         assert_eq!(count, len / 4, "decimate(2'): error",);
     }

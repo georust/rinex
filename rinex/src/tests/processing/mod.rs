@@ -1,1 +1,2 @@
+mod decimation;
 mod masking;

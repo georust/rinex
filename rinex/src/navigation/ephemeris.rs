@@ -109,20 +109,20 @@ impl EphemerisHelper {
         // First Derivative of orbit position
         let (fd_x, fd_y) = self.orbit_velocity();
         // First Derivative of rotation Matrix
-        let mut fd_R = na::SMatrix::<f64, 3, 4>::zeros();
-        fd_R[(0, 0)] = cos_omega_k;
-        fd_R[(0, 1)] = -sin_omega_k * cos_i_k;
-        fd_R[(0, 2)] = -(x * sin_omega_k + y * cos_omega_k * cos_i_k);
-        fd_R[(0, 3)] = y * sin_omega_k * sin_i_k;
-        fd_R[(1, 0)] = sin_omega_k;
-        fd_R[(1, 1)] = cos_omega_k * cos_i_k;
-        fd_R[(1, 2)] = x * cos_omega_k - y * sin_omega_k * cos_i_k;
-        fd_R[(1, 3)] = y * cos_omega_k * sin_i_k;
-        fd_R[(2, 1)] = sin_i_k;
-        fd_R[(2, 3)] = y * cos_i_k;
+        let mut fd_r = na::SMatrix::<f64, 3, 4>::zeros();
+        fd_r[(0, 0)] = cos_omega_k;
+        fd_r[(0, 1)] = -sin_omega_k * cos_i_k;
+        fd_r[(0, 2)] = -(x * sin_omega_k + y * cos_omega_k * cos_i_k);
+        fd_r[(0, 3)] = y * sin_omega_k * sin_i_k;
+        fd_r[(1, 0)] = sin_omega_k;
+        fd_r[(1, 1)] = cos_omega_k * cos_i_k;
+        fd_r[(1, 2)] = x * cos_omega_k - y * sin_omega_k * cos_i_k;
+        fd_r[(1, 3)] = y * cos_omega_k * sin_i_k;
+        fd_r[(2, 1)] = sin_i_k;
+        fd_r[(2, 3)] = y * cos_i_k;
 
         let rhs = Vector4::new(fd_x, fd_y, self.fd_omega_k, self.fd_i_k);
-        let vel = fd_R * rhs;
+        let vel = fd_r * rhs;
         vel
     }
 

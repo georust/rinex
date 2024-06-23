@@ -17,7 +17,7 @@ pub enum DecimationFilterType {
     /// Simple modulo decimation
     Modulo(u32),
     /// Duration decimation
-    Interval(Duration),
+    Duration(Duration),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -28,6 +28,29 @@ pub struct DecimationFilter {
     /// When item is None, all data is to be decimated.
     /// When item is specified, only that subset is to be decimated.
     pub item: Option<FilterItem>,
+}
+
+impl DecimationFilter {
+    /// Builds a new Duration decimation filter
+    pub fn duration(dt: Duration) -> Self {
+        Self {
+            item: None,
+            filter: DecimationFilterType::Duration(dt),
+        }
+    }
+    /// Builds new Modulo decimation filter
+    pub fn modulo(modulo: u32) -> Self {
+        Self {
+            item: None,
+            filter: DecimationFilterType::Modulo(modulo),
+        }
+    }
+    /// Adds targetted item to be decimated
+    pub fn with_item(&self, item: FilterItem) -> Self {
+        let mut s = self.clone();
+        s.item = Some(item.clone());
+        s
+    }
 }
 
 /// The [Decimate] trait is implemented to reduce data rate prior analysis.
@@ -52,7 +75,7 @@ impl std::str::FromStr for DecimationFilter {
                         None // no subset description
                     }
                 },
-                filter: DecimationFilterType::Interval(dt),
+                filter: DecimationFilterType::Duration(dt),
             })
         } else if let Ok(r) = items[0].trim().parse::<u32>() {
             Ok(Self {

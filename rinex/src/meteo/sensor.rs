@@ -140,7 +140,7 @@ impl std::fmt::Display for Sensor {
             write!(f, "{:14.4}", y)?;
             write!(f, "{:14.4}", z)?;
             let h = self.height.unwrap_or(0.0);
-            write!(f, "{:14.4}", h);
+            write!(f, "{:14.4}", h)?;
             writeln!(f, " {} SENSOR POS XYZ/H", self.observable)?
         }
         Ok(())

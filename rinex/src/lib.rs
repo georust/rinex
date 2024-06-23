@@ -1293,6 +1293,8 @@ impl Rinex {
     pub fn epoch(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
         if let Some(r) = self.record.as_obs() {
             Box::new(r.iter().map(|((k, _), _)| *k))
+        } else if let Some(r) = self.record.as_doris() {
+            Box::new(r.iter().map(|((k, _), _)| *k))
         } else if let Some(r) = self.record.as_nav() {
             Box::new(r.iter().map(|(k, _)| *k))
         } else if let Some(r) = self.record.as_meteo() {

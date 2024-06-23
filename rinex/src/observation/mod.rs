@@ -154,6 +154,9 @@ impl HeaderFields {
 }
 
 #[cfg(feature = "processing")]
+use std::str::FromStr;
+
+#[cfg(feature = "processing")]
 impl HeaderFields {
     /// Timescale helper
     fn timescale(&self) -> TimeScale {
@@ -183,7 +186,26 @@ impl HeaderFields {
                     self.codes.retain(|c, _| constells.contains(&c));
                     self.scaling.retain(|(c, _), _| constells.contains(&c));
                 },
-                FilterItem::ComplexItem(filter) => {},
+                FilterItem::ComplexItem(complex) => {
+                    // try to interprate as [Observable]
+                    let observables = complex
+                        .iter()
+                        .filter_map(|f| {
+                            if let Ok(ob) = Observable::from_str(f) {
+                                Some(ob)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    if observables.len() > 0 {
+                        self.codes.retain(|_, obs| {
+                            obs.retain(|ob| observables.contains(&ob));
+                            !obs.is_empty()
+                        });
+                        self.scaling.retain(|(_, c), _| !observables.contains(c));
+                    }
+                },
                 FilterItem::ConstellationItem(constells) => {
                     self.codes.retain(|c, _| constells.contains(&c));
                     self.scaling.retain(|(c, _), _| constells.contains(&c));
@@ -203,6 +225,26 @@ impl HeaderFields {
                 FilterItem::ConstellationItem(constells) => {
                     self.codes.retain(|c, _| !constells.contains(&c));
                     self.scaling.retain(|(c, _), _| !constells.contains(&c));
+                },
+                FilterItem::ComplexItem(complex) => {
+                    // try to interprate as [Observable]
+                    let observables = complex
+                        .iter()
+                        .filter_map(|f| {
+                            if let Ok(ob) = Observable::from_str(f) {
+                                Some(ob)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    if observables.len() > 0 {
+                        self.codes.retain(|_, obs| {
+                            obs.retain(|ob| observables.contains(&ob));
+                            !obs.is_empty()
+                        });
+                        self.scaling.retain(|(_, c), _| !observables.contains(c));
+                    }
                 },
                 _ => {},
             },

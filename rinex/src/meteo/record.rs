@@ -276,7 +276,7 @@ pub(crate) fn meteo_decim_mut(rec: &mut Record, f: &DecimationFilter) {
                 retained
             });
         },
-        DecimationFilterType::Interval(interval) => {
+        DecimationFilterType::Duration(interval) => {
             let mut last_retained = Option::<Epoch>::None;
             rec.retain(|e, _| {
                 if let Some(last) = last_retained {

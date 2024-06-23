@@ -18,9 +18,6 @@ pub use station::Station;
 use crate::prelude::TimeScale;
 
 #[cfg(feature = "processing")]
-use itertools::Itertools;
-
-#[cfg(feature = "processing")]
 use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 /// DORIS Station & record parsing error
