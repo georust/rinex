@@ -47,8 +47,6 @@ fn obs2unit(ob: &Observable) -> String {
 struct WindDirectionReport {
     #[cfg(feature = "plot")]
     compass_plot: Plot,
-    #[cfg(feature = "plot")]
-    time_domain_plot: Plot,
 }
 
 impl Render for WindDirectionReport {
@@ -60,11 +58,6 @@ impl Render for WindDirectionReport {
                         tr {
                             td {
                                 (self.compass_plot.render())
-                            }
-                        }
-                        tr {
-                            td {
-                                (self.time_domain_plot.render())
                             }
                         }
                     }
@@ -141,43 +134,7 @@ impl MeteoPage {
                     }
                 }
             }
-            let mut time_domain_plot =
-                Plot::new_time_domain(&html_id, "Wind Direction", "Angle [°]", true);
-            let data_x =
-                rnx.meteo()
-                    .flat_map(|(t, observations)| {
-                        observations.iter().filter_map(|(obs, _)| {
-                            if obs == observable {
-                                Some(*t)
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .collect::<Vec<_>>();
-            let data_y = rnx
-                .meteo()
-                .flat_map(|(_, observations)| {
-                    observations.iter().filter_map(|(obs, value)| {
-                        if obs == observable {
-                            Some(*value)
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .collect::<Vec<_>>();
-            let trace = Plot::new_timedomain_chart(
-                Mode::LinesMarkers,
-                MarkerSymbol::TriangleUp,
-                &data_x,
-                data_y,
-            );
-            time_domain_plot.add_trace(trace);
-            let report = WindDirectionReport {
-                compass_plot,
-                time_domain_plot,
-            };
+            let report = WindDirectionReport { compass_plot };
             Self {
                 sampling: SamplingReport::from_rinex(rnx),
                 inner: ObservableDependent::WindDirection(report),
