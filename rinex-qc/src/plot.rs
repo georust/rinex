@@ -2,15 +2,59 @@ use hifitime::Epoch;
 use maud::{html, Markup, PreEscaped, Render};
 pub use plotly::common::{MarkerSymbol, Mode};
 use plotly::{
-    common::{Font, HoverInfo, Marker, Side, Title},
+    common::{Font, HoverInfo, Marker, Side, Title, Visible},
     layout::{
         Axis, Center, DragMode, Mapbox, MapboxStyle, Margin, RangeSelector, RangeSlider,
         SelectorButton, SelectorStep,
     },
-    Layout, Plot as Plotly, Scatter, Trace,
+    Layout, Plot as Plotly, Scatter, ScatterPolar, Trace,
 };
 
 use serde::Serialize;
+
+pub struct CompassArrow {
+    pub scatter: Box<ScatterPolar<f64, f64>>,
+}
+
+impl CompassArrow {
+    /// Creates new [CompassArrow] to be projected in Polar.
+    /// tip_base_fraction: fraction of r base as unitary fraction.
+    /// tip_angle_deg: angle with base in degrees
+    pub fn new(
+        mode: Mode,
+        rho: f64,
+        theta: f64,
+        hover_text: String,
+        visible: bool,
+        tip_base_fraction: f64,
+        tip_angle_deg: f64,
+    ) -> Self {
+        let (tip_left_rho, tip_left_theta) =
+            (rho * (1.0 - tip_base_fraction), theta + tip_angle_deg);
+        let (tip_right_rho, tip_right_theta) =
+            (rho * (1.0 - tip_base_fraction), theta - tip_angle_deg);
+        Self {
+            scatter: {
+                ScatterPolar::new(
+                    vec![0.0, theta, tip_left_theta, theta, tip_right_theta],
+                    vec![0.0, rho, tip_left_rho, rho, tip_right_rho],
+                )
+                .mode(mode)
+                .web_gl_mode(true)
+                .hover_text_array(vec![hover_text])
+                .hover_info(HoverInfo::All)
+                .visible({
+                    if visible {
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                })
+                .connect_gaps(false)
+            },
+        }
+    }
+}
 
 pub struct Plot {
     plotly: Plotly,
@@ -115,11 +159,23 @@ impl Plot {
         }
     }
     /// Builds new Skyplot
-    pub fn sky_plot(plot_id: &str, title: &str) -> Self {
-        Self::new_polar(plot_id, title, "Elevation (Deg°)", "Azimuth (Deg°)")
+    pub fn sky_plot(plot_id: &str, title: &str, show_legend: bool) -> Self {
+        Self::new_polar(
+            plot_id,
+            title,
+            "Elevation (Deg°)",
+            "Azimuth (Deg°)",
+            show_legend,
+        )
     }
     /// Builds new Polar plot
-    pub fn new_polar(plot_id: &str, title: &str, x_label: &str, y_label: &str) -> Self {
+    pub fn new_polar(
+        plot_id: &str,
+        title: &str,
+        x_label: &str,
+        y_label: &str,
+        show_legend: bool,
+    ) -> Self {
         let mut plotly = Plotly::new();
         let layout = Layout::new()
             .title(Title::new(title))
@@ -129,7 +185,7 @@ impl Plot {
                     .zero_line(true),
             )
             .y_axis(Axis::new().title(Title::new(y_label)).zero_line(true))
-            .show_legend(true)
+            .show_legend(show_legend)
             .auto_size(true);
         Self {
             plotly,
@@ -163,10 +219,8 @@ impl Plot {
             plot_id: plot_id.to_string(),
         }
     }
-    /// Builds new standardized Time domain chart, to stacked
-    /// on a Time domain plot.
+    /// Builds new Time domain chart
     pub fn new_timedomain_chart<Y: Clone + Default + Serialize>(
-        chart_id: &str,
         mode: Mode,
         symbol: MarkerSymbol,
         t: &Vec<Epoch>,

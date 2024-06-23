@@ -47,6 +47,8 @@ Other file operations are also demonstrated in this repo.
   - 2024-092 Mobile phone observations (Paris/urban)
 - [RINEX(A) - RINEX(B) Differential analysis illustration](./DIFF)
   - Esbjerg and Mojn (DNK): close range observations
+- [Meteo observations exploitation](./METEO)
+  - Complete modern Meteo observations (QC)
 - [Time binning / time reframing examples](./TBIN)
   - Esbjerg (24h/DNK) station observations
   - SP3 time binning
