@@ -54,6 +54,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 # gnss-rtk = { git = "https://github.com/ChristopherRabotin/gnss-rtk", branch = "main", features = [
 #     "serde",
 # ] }
+# Using your fork
 gnss-rtk = { path = "../../gnss-rtk", features = ["serde"] }
 
 # cggtts
