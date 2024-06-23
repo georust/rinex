@@ -5,7 +5,7 @@ use crate::{constants, epoch, prelude::*, version::Version};
 use anise::almanac::Almanac;
 use anise::constants::frames::{EARTH_J2000, IAU_EARTH_FRAME};
 use anise::prelude::Orbit;
-use nalgebra::{Rotation, Rotation3, Vector3};
+use nalgebra::Vector3;
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
@@ -262,7 +262,7 @@ impl Ephemeris {
      */
     pub(crate) fn ephemeris_helper(&self, sv: SV, t: Epoch) -> Option<EphemerisHelper> {
         // const
-        let gm = Constants::gm(sv);
+        let gm_m3_s2 = Constants::gm(sv);
         let omega = Constants::omega(sv);
         let dtr_f = Constants::dtr_f(sv);
         let mut helper = EphemerisHelper {
@@ -284,7 +284,7 @@ impl Ephemeris {
         let perturbations = self.perturbations()?;
 
         // m_k, e_k, v_k calculation
-        let n0 = (gm / kepler.a.powi(3)).sqrt();
+        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt();
         let n = n0 + perturbations.dn;
         let m_k = kepler.m_0 + n * helper.t_k;
         // Iterative calculation of e_k
@@ -357,7 +357,7 @@ impl Ephemeris {
                 helper.u_k,
                 v_k,
                 t,
-                EARTH_J2000,
+                EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
             )
             .unwrap(),
         );

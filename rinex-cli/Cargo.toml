@@ -51,7 +51,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 # solver
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/ChristopherRabotin/gnss-rtk", branch = "main", features = [
+# gnss-rtk = { git = "https://github.com/ChristopherRabotin/gnss-rtk", branch = "deps/nyx-2.0.0-beta", features = [
 #     "serde",
 # ] }
 # Using your fork
@@ -64,3 +64,4 @@ cggtts = { git = "https://github.com/gwbres/cggtts", branch = "dev", features = 
     "serde",
     "scheduler",
 ] }
+bytes = "1.6.0"
