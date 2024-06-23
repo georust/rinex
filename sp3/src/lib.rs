@@ -925,7 +925,7 @@ impl Decimate for SP3 {
                     retained
                 });
             },
-            DecimationFilterType::Interval(interval) => {
+            DecimationFilterType::Duration(interval) => {
                 self.epoch_interval = interval;
                 let mut last_retained = Option::<Epoch>::None;
                 self.data.retain(|k, _| {
