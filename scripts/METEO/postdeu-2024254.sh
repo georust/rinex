@@ -1,5 +1,5 @@
 #!/bin/sh
-# QC report example when providing a complete/modern meteo file
+# QC report example when providing meteo observations (standalone)
 DATA_DIR=test_resources
 
 # Report automatically adapts to provided context

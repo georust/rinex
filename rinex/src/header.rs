@@ -4,6 +4,7 @@ use crate::{
     clock::ClockProfileType,
     clock::WorkClock,
     doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
+    epoch::parse_ionex_utc as parse_ionex_utc_epoch,
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
@@ -31,11 +32,12 @@ use std::collections::HashMap;
 use std::io::prelude::*;
 use std::str::FromStr;
 
-use gnss_rs::cospar::Error as CosparParsingError;
 use hifitime::Unit;
 use thiserror::Error;
 
-use gnss::constellation::ParsingError as ConstellationParsingError;
+use gnss_rs::{
+    constellation::ParsingError as ConstellationParsingError, cospar::Error as CosparParsingError,
+};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -1032,6 +1034,14 @@ impl Header {
                 //   if "DESCRIPTION" is to be encountered in other RINEX
                 //   we can safely test RinexType here because its already been determined
                 ionex = ionex.with_description(content.trim())
+            } else if marker.contains("EPOCH OF FIRST MAP") {
+                if let Ok(epoch) = parse_ionex_utc_epoch(content.trim()) {
+                    ionex = ionex.with_epoch_of_first_map(epoch);
+                }
+            } else if marker.contains("EPOCH OF LAST MAP") {
+                if let Ok(epoch) = parse_ionex_utc_epoch(content.trim()) {
+                    ionex = ionex.with_epoch_of_last_map(epoch);
+                }
             } else if marker.contains("OBSERVABLES USED") {
                 // IONEX observables
                 ionex = ionex.with_observables(content.trim())

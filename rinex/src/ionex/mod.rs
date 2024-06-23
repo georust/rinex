@@ -119,6 +119,18 @@ impl Default for HeaderFields {
 }
 
 impl HeaderFields {
+    /// Copies self with given time of first map
+    pub fn with_epoch_of_first_map(&self, t: Epoch) -> Self {
+        let mut s = self.clone();
+        s.epoch_of_first_map = t;
+        s
+    }
+    /// Copies self with given time of last map
+    pub fn with_epoch_of_last_map(&self, t: Epoch) -> Self {
+        let mut s = self.clone();
+        s.epoch_of_last_map = t;
+        s
+    }
     /// Copies and builds Self with given Reference System
     pub fn with_reference_system(&self, reference: RefSystem) -> Self {
         let mut s = self.clone();

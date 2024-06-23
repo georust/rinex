@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use rinex::{
     carrier::Carrier,
     hardware::{Antenna, Receiver},
-    prelude::{Constellation, Observable, Rinex},
+    prelude::{Constellation, Observable, Rinex, SV},
 };
 
 use crate::report::shared::SamplingReport;
@@ -54,6 +54,11 @@ impl Physics {
     }
 }
 
+struct Combination {
+    lhs: Observable,
+    rhs: Observable,
+}
+
 /// Frequency dependent pagination
 struct FrequencyPage {
     /// Sampling
@@ -61,12 +66,23 @@ struct FrequencyPage {
     #[cfg(feature = "plot")]
     /// One plot per physics
     raw_plots: HashMap<Physics, Plot>,
+    #[cfg(feature = "plot")]
+    /// One plot per combination,
+    combination_plots: HashMap<Combination, Plot>,
+    #[cfg(feature = "plot")]
+    /// Code Multipath
+    multipath_plot: Plot,
 }
 
 impl FrequencyPage {
     pub fn new(rinex: &Rinex) -> Self {
         Self {
             sampling: SamplingReport::from_rinex(rinex),
+            #[cfg(feature = "plot")]
+            combination_plots: HashMap::new(),
+            #[cfg(feature = "plot")]
+            multipath_plot: Plot::new_time_domain("code_mp", "Code Multipath", "Bias [m]", true),
+            #[cfg(feature = "plot")]
             raw_plots: {
                 let mut plots = HashMap::<Physics, Plot>::new();
                 let svnn = rinex.sv().collect::<Vec<_>>();
@@ -76,7 +92,7 @@ impl FrequencyPage {
                     let physics = Physics::from_observable(ob);
                     let title = physics.plot_title();
                     let y_label = physics.y_label();
-                    let mut plot = Plot::new_time_domain("phase_plot", &title, &y_label, true);
+                    let mut plot = Plot::new_time_domain(&title, &title, &y_label, true);
                     for sv in &svnn {
                         let obs_x_ok = rinex
                             .observation()
@@ -156,6 +172,8 @@ impl Render for FrequencyPage {
 
 /// Constellation dependent pagination
 struct ConstellationPage {
+    /// List of SV
+    sv: Vec<SV>,
     /// True if Standard Positioning compatible
     spp_compatible: bool,
     /// True if Code Dual Frequency Positioning compatible
@@ -163,39 +181,39 @@ struct ConstellationPage {
     /// True if PPP compatible
     ppp_compatible: bool,
     /// Signal dependent pagination
-    frequencies: HashMap<Carrier, FrequencyPage>,
+    frequencies: HashMap<String, FrequencyPage>,
 }
 
 impl ConstellationPage {
     pub fn new(constellation: Constellation, rinex: &Rinex) -> Self {
+        let sv_list = rinex.sv().collect::<Vec<_>>();
+        let mut frequencies = HashMap::<String, FrequencyPage>::new();
+        for carrier in rinex.carrier().sorted() {
+            let mut observables = Vec::<Observable>::new();
+            for observable in rinex.observable() {
+                if Carrier::from_observable(constellation, observable).is_ok() {
+                    observables.push(observable.clone());
+                }
+            }
+            let filter = Filter::mask(
+                MaskOperand::Equals,
+                FilterItem::ComplexItem(
+                    observables
+                        .iter()
+                        .map(|ob| ob.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+            );
+            let focused = rinex.filter(&filter);
+            FrequencyPage::new(&focused);
+            frequencies.insert(format!("{:?}", carrier), FrequencyPage::new(&focused));
+        }
         Self {
+            sv: sv_list,
+            frequencies,
             spp_compatible: false, //TODO
             cpp_compatible: false, //TODO
             ppp_compatible: false, //TODO
-            frequencies: {
-                let mut frequencies = HashMap::<Carrier, FrequencyPage>::new();
-                for carrier in rinex.carrier().sorted() {
-                    let mut observables = Vec::<Observable>::new();
-                    for observable in rinex.observable() {
-                        if Carrier::from_observable(constellation, observable).is_ok() {
-                            observables.push(observable.clone());
-                        }
-                    }
-                    let filter = Filter::mask(
-                        MaskOperand::Equals,
-                        FilterItem::ComplexItem(
-                            observables
-                                .iter()
-                                .map(|ob| ob.to_string())
-                                .collect::<Vec<_>>(),
-                        ),
-                    );
-                    let focused = rinex.filter(&filter);
-                    FrequencyPage::new(&focused);
-                    frequencies.insert(carrier, FrequencyPage::new(&focused));
-                }
-                frequencies
-            },
         }
     }
 }
@@ -252,6 +270,22 @@ impl Render for ConstellationPage {
                                         i class="fa-solid fa-circle-xmark" {};
                                     }
                                 }
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "SV"
+                            }
+                            td {
+                                (self.sv.iter().sorted().join(", "))
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Signals"
+                            }
+                            td {
+                                (self.frequencies.keys().sorted().join(", "))
                             }
                         }
                         @for signal in self.frequencies.keys().sorted() {
@@ -327,7 +361,6 @@ impl Report {
             constellations: {
                 let mut constellations = HashMap::<Constellation, ConstellationPage>::new();
                 for constellation in rinex.constellation() {
-                    println!("constell: {}", constellation);
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),

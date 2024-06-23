@@ -4,7 +4,6 @@ mod test {
     use crate::tests::toolkit::doris_check_stations;
 
     use crate::prelude::*;
-    use itertools::Itertools;
     use std::path::Path;
 
     #[test]

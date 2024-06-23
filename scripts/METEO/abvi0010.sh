@@ -1,5 +1,5 @@
 #!/bin/sh
-# QC report example when providing a complete/modern meteo file
+# QC report example when providing a meteo observations (standalone)
 DATA_DIR=test_resources
 
 # This is our only example that contains Wind Direction + Wind speed observations.
