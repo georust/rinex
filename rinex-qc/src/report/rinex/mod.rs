@@ -1,6 +1,5 @@
 mod obs;
-// mod nav;
-// mod meteo;
+
 use itertools::Itertools;
 use rinex::prelude::Constellation;
 
@@ -13,7 +12,6 @@ use meteo::MeteoReport;
 mod ionex;
 use ionex::IonexReport;
 
-// mod ionex;
 use crate::report::Error;
 
 use maud::{html, Markup, Render};

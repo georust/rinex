@@ -305,42 +305,42 @@ impl Render for QcReport {
                         }
                         script {
                           (PreEscaped(
-            "
-            var sidebar_menu = document.getElementById('menubar');
-            var main_pages = document.getElementsByClassName('is-main');
-            var sub_pages = document.getElementsByClassName('is-page');
-            
-            sidebar_menu.onclick = function(evt) {
-                var clicked_id = evt.originalTarget.id;
-                var category = clicked_id.substring(5).split(':')[0];
-                var tab = clicked_id.substring(5).split(':')[1];
-                var is_tab = clicked_id.split(':').length == 3;
-                console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +is_tab);
+"
+  var sidebar_menu = document.getElementById('menubar');
+  var main_pages = document.getElementsByClassName('is-main');
+  var sub_pages = document.getElementsByClassName('is-page');
 
-                if (is_tab == true ) {
-                    var i=1;
-                    var targetted_tab = category+':'+tab;
-                    do {
-                        if (main_pages[i -1].id == category) {
-                            main_pages[i-1].style = 'display:block';
-                        } else {
-                            main_pages[i-1].style = 'display:none';
-                        }
-                        i += 1;
-                    } while (i != main_pages.length);
+  sidebar_menu.onclick = function(evt) {
+    var clicked_id = evt.originalTarget.id;
+    var category = clicked_id.substring(5).split(':')[0];
+    var tab = clicked_id.substring(5).split(':')[1];
+    var is_tab = clicked_id.split(':').length == 3;
+    console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' +is_tab);
 
-                } else {
-                    var i=1;
-                    do {
-                        if (main_pages[i -1].id == category) {
-                            main_pages[i-1].style = 'display:block';
-                        } else {
-                            main_pages[i-1].style = 'display:none';
-                        }
-                        i += 1;
-                    } while (i != main_pages.length);
-                }
-            }"))
+    if (is_tab == true ) {
+      var targetted_tab = category+':'+tab;
+      for (var i=0; i<main_pages.length; i++) {
+        if (main_pages[i].id == category) {
+          console.log('Matched: '+main_pages[i].id);
+          main_pages[i].style = 'display:block';
+        } else {
+          main_pages[i].style = 'display:none';
+        }
+      }
+    } else {
+      var targetted_tab = category+':'+tab;
+      for (var i=0; i<main_pages.length; i++) {
+        if (main_pages[i].id == category) {
+          console.log('Matched: '+main_pages[i].id);
+          main_pages[i].style = 'display:block';
+        } else {
+          main_pages[i].style = 'display:none';
+        }
+      }
+    }
+  }
+"
+                          ))
                         } //JS
                 }//body
             }

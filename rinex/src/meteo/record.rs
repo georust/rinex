@@ -200,20 +200,46 @@ pub(crate) fn meteo_mask_mut(rec: &mut Record, mask: &MaskFilter) {
         MaskOperand::Equals => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e == *epoch),
             FilterItem::ComplexItem(filter) => {
-                //rec.retain(|_, data| {
-                //    data.retain(|code, _| filter.contains(code));
-                //    !data.is_empty()
-                //});
+                // try to interprate as [Observable]
+                let observables = filter
+                    .iter()
+                    .filter_map(|f| {
+                        if let Ok(ob) = Observable::from_str(f) {
+                            Some(ob)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if observables.len() > 0 {
+                    rec.retain(|_, data| {
+                        data.retain(|code, _| observables.contains(code));
+                        !data.is_empty()
+                    });
+                }
             },
             _ => {},
         },
         MaskOperand::NotEquals => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e != *epoch),
             FilterItem::ComplexItem(filter) => {
-                //rec.retain(|_, data| {
-                //    data.retain(|code, _| !filter.contains(code));
-                //    !data.is_empty()
-                //});
+                // try to interprate as [Observable]
+                let observables = filter
+                    .iter()
+                    .filter_map(|f| {
+                        if let Ok(ob) = Observable::from_str(f) {
+                            Some(ob)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if observables.len() > 0 {
+                    rec.retain(|_, data| {
+                        data.retain(|code, _| !observables.contains(code));
+                        !data.is_empty()
+                    });
+                }
             },
             _ => {},
         },

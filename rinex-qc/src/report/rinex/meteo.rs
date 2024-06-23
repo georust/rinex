@@ -115,6 +115,9 @@ impl Render for MeteoPage {
                             }
                         }
                         tr {
+                            th class="is-info" {
+                                "Observations"
+                            }
                             td {
                                 (self.plot.render())
                             }
@@ -143,18 +146,6 @@ impl MeteoReport {
                 }
                 "Meteo Observations"
             }
-            //ul(class="menu-list", id="menu:tabs:meteo", style="display:none") {
-            //    @ for page in self.pages.keys().sorted() {
-            //        li {
-            //            a(id=&format!("menu:meteo:{}", page), style="margin-left:29px") {
-            //                span(class="icon") {
-            //                    i(class="fa-solid fa-cloud-sun-rain");
-            //                }
-            //                : page.to_string()
-            //            }
-            //        }
-            //    }
-            //}
         }
     }
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
@@ -186,42 +177,42 @@ impl Render for MeteoReport {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {
-                //table class="table is-bordered" {
-                //    tbody {
-                //        tr {
-                //            th class="is-info" {
-                //                "Agency"
-                //            }
-                //            @if let Some(agency) = &self.agency {
-                //                td {
-                //                    agency
-                //                }
-                //            } else {
-                //                td {
-                //                    "Unknown"
-                //                }
-                //            }
-                //        }
-                //        @for sensor in self.sensors.iter() {
-                //            tr {
-                //                th {
-                //                  (&format!("{} sensor", obs2physics(&sensor.observable)))
-                //                }
-                //                td {
-                //                    (sensor.render())
-                //                }
-                //            }
-                //        }
-                //        tr {
-                //            th class="is-info" {
-                //                "Sampling"
-                //            }
-                //            td {
-                //                (self.sampling.render())
-                //            }
-                //        }
-                //    }
-                //}
+                table class="table is-bordered" {
+                    tbody {
+                        tr {
+                            th class="is-info" {
+                                "Agency"
+                            }
+                            @if let Some(agency) = &self.agency {
+                                td {
+                                    (agency)
+                                }
+                            } @else {
+                                td {
+                                    "Unknown"
+                                }
+                            }
+                        }
+                        @for sensor in self.sensors.iter() {
+                            tr {
+                                th {
+                                  (&format!("{} sensor", obs2physics(&sensor.observable)))
+                                }
+                                td {
+                                    (sensor.render())
+                                }
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Sampling"
+                            }
+                            td {
+                                (self.sampling.render())
+                            }
+                        }
+                    }
+                }
             }//table
             @for key in self.pages.keys().sorted() {
                 @if let Some(page) = self.pages.get(key) {

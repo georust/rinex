@@ -13,18 +13,15 @@ use plotly::{
 use serde::Serialize;
 
 pub struct Plot {
-    pub plotly: Plotly,
+    plotly: Plotly,
     plot_id: String,
 }
 
 impl Render for Plot {
     fn render(&self) -> Markup {
         html! {
-            //iframe {
-            //    (PreEscaped (self.plotly.to_html()))
-            //}
-            script {
-                (PreEscaped (self.plotly.to_html()))
+            div {
+                (PreEscaped (self.plotly.to_inline_html(None)))
             }
         }
     }
@@ -61,10 +58,10 @@ impl Plot {
             .title(Title::new(title))
             .x_axis(
                 Axis::new()
-                    .title(Title::new("MJD"))
+                    .title(Title::new("Epoch"))
                     .zero_line(true)
                     .show_tick_labels(true)
-                    .dtick(0.25)
+                    .dtick(100.0)
                     .range_slider(RangeSlider::new().visible(true))
                     .range_selector(RangeSelector::new().buttons(buttons))
                     .tick_format("{:05}"),
