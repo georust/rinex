@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use rinex::{
     carrier::Carrier,
     hardware::{Antenna, Receiver},
-    prelude::{Constellation, Observable, Rinex, SV},
+    prelude::{Constellation, Duration, Epoch, Observable, Rinex, SV},
 };
 
-use crate::report::shared::SamplingReport;
+use crate::report::shared::{EpochSlider, SamplingReport};
 
 #[cfg(feature = "plot")]
 use crate::plot::{MarkerSymbol, Mode, Plot};
@@ -174,6 +174,12 @@ impl Render for FrequencyPage {
 struct ConstellationPage {
     /// List of SV
     sv: Vec<SV>,
+    /// First epoch
+    first_epoch: Epoch,
+    /// Last epoch
+    last_epoch: Epoch,
+    /// Timeframe
+    duration: Duration,
     /// True if Standard Positioning compatible
     spp_compatible: bool,
     /// True if Code Dual Frequency Positioning compatible
@@ -182,11 +188,18 @@ struct ConstellationPage {
     ppp_compatible: bool,
     /// Signal dependent pagination
     frequencies: HashMap<String, FrequencyPage>,
+    /// SV per epoch
+    sv_epoch: HashMap<Epoch, Vec<SV>>,
 }
 
 impl ConstellationPage {
     pub fn new(constellation: Constellation, rinex: &Rinex) -> Self {
+        let mut spp_compatible = false; // TODO
+        let mut cpp_compatible = false; // TODO
+        let mut ppp_compatible = false; // TODO
         let sv_list = rinex.sv().collect::<Vec<_>>();
+        let first_epoch = rinex.first_epoch().unwrap_or_default();
+        let last_epoch = rinex.last_epoch().unwrap_or_default();
         let mut frequencies = HashMap::<String, FrequencyPage>::new();
         for carrier in rinex.carrier().sorted() {
             let mut observables = Vec::<Observable>::new();
@@ -211,9 +224,13 @@ impl ConstellationPage {
         Self {
             sv: sv_list,
             frequencies,
-            spp_compatible: false, //TODO
-            cpp_compatible: false, //TODO
-            ppp_compatible: false, //TODO
+            spp_compatible,
+            cpp_compatible,
+            ppp_compatible,
+            sv_epoch: rinex.sv_epoch().collect(),
+            first_epoch,
+            last_epoch,
+            duration: last_epoch - first_epoch,
         }
     }
 }
@@ -278,6 +295,21 @@ impl Render for ConstellationPage {
                             }
                             td {
                                 (self.sv.iter().sorted().join(", "))
+                            }
+                        }
+                        @if !self.sv_epoch.is_empty() {
+                            @let slider = EpochSlider::new(
+                                self.first_epoch,
+                                self.last_epoch,
+                                self.duration,
+                            );
+                            tr {
+                                th {
+                                    (slider.render())
+                                }
+                                td id="sv_epoch" {
+                                    (self.sv_epoch.get(&self.first_epoch).unwrap().iter().join(", "))
+                                }
                             }
                         }
                         tr {

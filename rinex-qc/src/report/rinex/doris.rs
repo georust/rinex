@@ -51,6 +51,7 @@ pub struct DorisReport {
     sampling: SamplingReport,
     signals: HashMap<Carrier, SignalPage>,
 }
+
 impl DorisReport {
     pub fn new(rinex: &Rinex) -> Self {
         Self {

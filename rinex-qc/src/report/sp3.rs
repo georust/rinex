@@ -1,9 +1,10 @@
-use crate::report::shared::SamplingReport;
 use itertools::Itertools;
 use maud::{html, Markup, Render};
 use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use sp3::prelude::{Constellation, SP3, SV};
 use std::collections::HashMap;
+
+use crate::report::shared::SamplingReport;
 
 pub struct SP3Page {
     has_clock: bool,
