@@ -1,16 +1,21 @@
 use hifitime::Epoch;
 use maud::{html, Markup, PreEscaped, Render};
-pub use plotly::common::{MarkerSymbol, Mode};
 use plotly::{
-    common::{Font, HoverInfo, Marker, Side, Title, Visible},
+    common::{Font, HoverInfo, Side, Title, Visible},
     layout::{
-        Axis, Center, DragMode, Mapbox, MapboxStyle, Margin, RangeSelector, RangeSlider,
-        SelectorButton, SelectorStep,
+        Axis, Center, DragMode, Mapbox, Margin, RangeSelector, RangeSlider, SelectorButton,
+        SelectorStep,
     },
-    Layout, Plot as Plotly, Scatter, ScatterPolar, Trace,
+    DensityMapbox, Layout, Plot as Plotly, Scatter, ScatterMapbox, ScatterPolar, Trace,
 };
 
 use serde::Serialize;
+
+pub use plotly::{
+    color::NamedColor,
+    common::{Marker, MarkerSymbol, Mode},
+    layout::MapboxStyle,
+};
 
 pub struct CompassArrow {
     pub scatter: Box<ScatterPolar<f64, f64>>,
@@ -193,7 +198,7 @@ impl Plot {
         }
     }
     /// Builds new World Map
-    pub fn new_world_map(
+    pub fn world_map(
         plot_id: &str,
         title: &str,
         map_style: MapboxStyle,
@@ -218,6 +223,38 @@ impl Plot {
             plotly,
             plot_id: plot_id.to_string(),
         }
+    }
+    /// Builds new Mapbox trace
+    pub fn mapbox<T: Clone + Default + Serialize>(
+        lat: Vec<T>,
+        lon: Vec<T>,
+        legend: &str,
+        symbol: MarkerSymbol,
+        color: NamedColor,
+        opacity: f64,
+    ) -> Box<ScatterMapbox<T, T>> {
+        ScatterMapbox::new(lat, lon).marker(
+            Marker::new()
+                .size(3)
+                .symbol(symbol)
+                .color(color)
+                .opacity(opacity),
+        )
+    }
+    /// Builds new Density Mapbox trace
+    pub fn density_mapbox<T: Clone + Default + Serialize>(
+        lat: Vec<T>,
+        lon: Vec<T>,
+        z: Vec<T>,
+        legend: &str,
+        opacity: f64,
+        zoom: u8,
+    ) -> Box<DensityMapbox<T, T, T>> {
+        DensityMapbox::new(lat, lon, z)
+            .name(legend)
+            .opacity(opacity)
+            .zauto(true)
+            .zoom(zoom)
     }
     /// Builds new Time domain chart
     pub fn new_timedomain_chart<Y: Clone + Default + Serialize>(

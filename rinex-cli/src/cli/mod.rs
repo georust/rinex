@@ -7,9 +7,6 @@ use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
 use rinex_qc::prelude::QcContext;
 
-// graph mode
-mod graph;
-// QC mode
 mod qc;
 // positioning mode
 mod positioning;
@@ -219,7 +216,6 @@ Otherwise it gets automatically picked up."))
                     .help("Define the (RX) antenna position manualy, in decimal degrees."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
                 .subcommand(filegen::subcommand())
-                .subcommand(graph::subcommand())
                 .subcommand(merge::subcommand())
                 .subcommand(positioning::subcommand())
                 .subcommand(qc::subcommand())

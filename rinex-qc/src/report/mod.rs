@@ -259,6 +259,7 @@ impl HtmlMenuBar {
 }
 
 impl Render for QcReport {
+    /// Renders Menu to navigate self
     fn render(&self) -> Markup {
         html! {
             (DOCTYPE)

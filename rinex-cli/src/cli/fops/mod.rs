@@ -32,6 +32,11 @@ Otherwise, this ecosystem prefers modern (longer) filenames that contain more in
             .long("gzip")
             .action(ArgAction::SetTrue)
             .help("Append .gz suffix and perform seamless Gzip compression."),
+        Arg::new("csv")
+            .long("csv")
+            .action(ArgAction::SetTrue)
+            .help("Extract dataset and generate as CSV instead of RINEX/SP3.
+Use this when targetting third party tools."),
         Arg::new("agency")
             .short('a')
             .long("agency")

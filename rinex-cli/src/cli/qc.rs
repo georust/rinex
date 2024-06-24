@@ -4,12 +4,12 @@ use clap::{Arg, ArgAction, Command};
 pub fn subcommand() -> Command {
     Command::new("qc")
         .arg_required_else_help(false)
-        .about(
-            "Quality Check/Control analyzes GNSS data and generates HTML reports.
-This is typically used prior ppp, to make sure the context is compatible with targetted accuracy. The generated report depends on the provided data. We only support observations from a single receiver. See --help
-"
+        .about("RINEX and/or SP3 analysis")
+        .long_about(
+            "Use this mode to generate text/HTML based reports.
+Reports will integrate Plots if application is compiled with `plot` feature.
+Refer to online Wiki and scripts/ database for examples.",
         )
-        .long_about("TODO")
         .arg(
             Arg::new("cfg")
                 .short('c')
@@ -17,10 +17,12 @@ This is typically used prior ppp, to make sure the context is compatible with ta
                 .required(false)
                 .value_name("FILE")
                 .action(ArgAction::Append)
-                .help(
-                    "Pass a QC configuration file (JSON).
-[] is the structure to represent in JSON.
-See [] for meaningful examples.",
-                ),
+                .help("QC configuration file (JSON)"),
+        )
+        .arg(
+            Arg::new("no-stat")
+                .long("no-stat")
+                .action(ArgAction::SetTrue)
+                .help("Disable statistical annotation on some of the plots."),
         )
 }

@@ -1,5 +1,4 @@
 mod doris;
-mod ionex;
 mod ionosphere;
 mod navigation;
 mod sp3_plot;
@@ -13,7 +12,6 @@ use crate::cli::Context;
 use crate::graph::PlotContext;
 use clap::ArgMatches;
 
-use ionex::plot_tec_map;
 use ionosphere::plot_ionospheric_delay;
 
 pub fn plot_atmosphere_conditions(ctx: &Context, plot_ctx: &mut PlotContext, matches: &ArgMatches) {
@@ -22,9 +20,5 @@ pub fn plot_atmosphere_conditions(ctx: &Context, plot_ctx: &mut PlotContext, mat
     }
     if matches.get_flag("ionod") {
         plot_ionospheric_delay(&ctx.data, plot_ctx);
-    }
-    if matches.get_flag("tec") {
-        let ionex = ctx.data.ionex().expect("--tec required IONEX");
-        plot_tec_map(ionex, ((0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64)), plot_ctx);
     }
 }
