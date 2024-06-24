@@ -14,9 +14,6 @@ use summary::QcSummary;
 mod rinex;
 use rinex::RINEXReport;
 
-mod navi;
-use navi::NAVIReport;
-
 #[cfg(feature = "sp3")]
 mod sp3;
 
@@ -151,8 +148,6 @@ pub struct QcReport {
     name: String,
     /// Report Summary (always present)
     summary: QcSummary,
-    /// NAVI QC only available on full + compatible contexts
-    navi: Option<NAVIReport>,
     /// In depth analysis per input product.
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
@@ -164,7 +159,6 @@ impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
         Self {
-            navi: None,
             name: context.name(),
             custom_parts: HashMap::new(),
             summary: QcSummary::new(&context, &cfg),
@@ -195,7 +189,7 @@ impl QcReport {
                 if let Some(sp3) = context.sp3() {
                     items.insert(
                         ProductType::HighPrecisionOrbit,
-                        ProductReport::SP3(SP3Report::new(sp3)),
+                        ProductReport::SP3(SP3Report::new(sp3, context.reference_position())),
                     );
                 }
                 items
@@ -259,7 +253,6 @@ impl HtmlMenuBar {
 }
 
 impl Render for QcReport {
-    /// Renders Menu to navigate self
     fn render(&self) -> Markup {
         html! {
             (DOCTYPE)
