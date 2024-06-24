@@ -1,6 +1,11 @@
 use hifitime::Unit;
 use maud::{html, Markup, Render};
-use rinex::prelude::{Duration, Epoch, Rinex};
+use rinex::prelude::{Duration, Epoch, Rinex, SV};
+use std::collections::HashMap;
+
+use itertools::Itertools;
+
+use crate::report::shared::EpochSlider;
 
 #[cfg(feature = "sp3")]
 use sp3::SP3;
@@ -42,7 +47,7 @@ impl SamplingReport {
                 .expect("failed to determine RINEX time frame, badly formed?"),
             sample_rate: rinex.sample_rate(),
             dominant_sample_rate: rinex.dominant_sample_rate(),
-            sv_epoch: rinex.sv_epoch.collect(),
+            sv_epoch: rinex.sv_epoch().collect(),
             shortest_gap: gaps
                 .iter()
                 .min_by(|(t_a, dur_a), (t_b, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
@@ -203,7 +208,7 @@ impl Render for SamplingReport {
                                     (slider.render())
                                 }
                                 td id="sv_epoch" {
-                                    (self.sv_epoch.get(self.first_epoch).unwrap().join(", "))
+                                    (self.sv_epoch.get(&self.first_epoch).unwrap().iter().join(", "))
                                 }
                             }
                         }
