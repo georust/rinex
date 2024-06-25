@@ -7,7 +7,6 @@ use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
 use rinex_qc::prelude::QcContext;
 
-mod qc;
 // positioning mode
 mod positioning;
 
@@ -181,6 +180,10 @@ If none are defined, we will then try to create a local directory named \"WORKSP
                 .short('C')
                 .action(ArgAction::SetTrue)
                 .help("Filters out all BeiDou vehicles"))
+            .arg(Arg::new("bds-geo-filter")
+                .long("CG")
+                .action(ArgAction::SetTrue)
+                .help("Filter out all BeiDou Geo vehicles"))
             .arg(Arg::new("qzss-filter")
                 .short('J')
                 .action(ArgAction::SetTrue)
@@ -199,10 +202,6 @@ If none are defined, we will then try to create a local directory named \"WORKSP
                 .value_delimiter(';')
                 .action(ArgAction::Append)
                 .help("Filter designer. Refer to []."))
-            .arg(Arg::new("lli-mask")
-                .long("lli-mask")
-                .help("Applies given LLI AND() mask. 
-Also drops observations that did not come with an LLI flag"))
             .next_help_heading("Receiver Antenna")
                 .arg(Arg::new("rx-ecef")
                     .long("rx-ecef")
@@ -218,7 +217,6 @@ Otherwise it gets automatically picked up."))
                 .subcommand(filegen::subcommand())
                 .subcommand(merge::subcommand())
                 .subcommand(positioning::subcommand())
-                .subcommand(qc::subcommand())
                 .subcommand(split::subcommand())
                 .subcommand(diff::subcommand())
                 .subcommand(time_binning::subcommand())
@@ -260,6 +258,9 @@ Otherwise it gets automatically picked up."))
     }
     pub fn bds_filter(&self) -> bool {
         self.matches.get_flag("bds-filter")
+    }
+    pub fn bds_geo_filter(&self) -> bool {
+        self.matches.get_flag("bds-geo-filter")
     }
     pub fn qzss_filter(&self) -> bool {
         self.matches.get_flag("qzss-filter")

@@ -14,7 +14,9 @@ use preprocessing::preprocess;
 
 use rinex_qc::prelude::{Preprocessing, QcContext};
 
+use std::collcetions::HashMap;
 use std::path::Path;
+
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
@@ -28,6 +30,8 @@ use cli::{Cli, Context, Workspace};
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
 use env_logger::{Builder, Target};
+
+use maud::Render;
 
 #[macro_use]
 extern crate log;
@@ -221,36 +225,44 @@ pub fn main() -> Result<(), Error> {
     /*
      * Exclusive opmodes
      */
+    let mut custom_chapters = HashMap::<String, Box<dyn Render>>::new();
+
     match cli.matches.subcommand() {
+        /*
+         *  File operations abort here and do not windup in analysis opmode.
+         *  Users needs to then deploy analysis mode on previously generated files.
+         */
         Some(("generate", submatches)) => {
             fops::filegen(&ctx, submatches)?;
-        },
-        Some(("graph", submatches)) => {
-            graph::graph_opmode(&ctx, submatches)?;
+            return Ok(());
         },
         Some(("merge", submatches)) => {
             fops::merge(&ctx, submatches)?;
+            return Ok(());
         },
         Some(("split", submatches)) => {
             fops::split(&ctx, submatches)?;
-        },
-        Some(("qc", submatches)) => {
-            qc::qc_report(&ctx, submatches)?;
-        },
-        Some(("ppp", submatches)) => {
-            positioning::precise_positioning(&ctx, submatches)?;
+            return Ok(());
         },
         Some(("tbin", submatches)) => {
             fops::time_binning(&ctx, submatches)?;
+            return Ok(());
         },
         Some(("diff", submatches)) => {
             fops::diff(&ctx, submatches)?;
+            return Ok(());
         },
-        _ => panic!("no opmode specified!"),
+        Some(("ppp", submatches)) => {
+            let chapter = positioning::precise_positioning(&ctx, submatches)?;
+            custom_chapters.insert(chapter);
+        },
     }
 
+    // qc mode
+    qc::qc_report(&ctx, custom_chapters)?;
     if !ctx.quiet {
         ctx.workspace.open_with_web_browser();
     }
+
     Ok(())
 } // main
