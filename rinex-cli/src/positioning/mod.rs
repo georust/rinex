@@ -20,7 +20,7 @@ use rinex::{
     prelude::{Constellation, Rinex},
 };
 
-use rinex_qc::prelude::{html, Markup, Render};
+use rinex_qc::prelude::{html, Markup, QcExtraPage, Render};
 
 use rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
@@ -42,25 +42,12 @@ pub use interp::Buffer as BufferTrait;
 pub enum Error {
     #[error("solver error")]
     SolverError(#[from] RTKError),
+    #[error("no solutions: check your settings or input")]
+    NoSolutions,
     #[error("ppp post processing error")]
     PPPPostProcessingError(#[from] PPPPostProcessingError),
     #[error("cggtts post processing error")]
     CGGTTSPostProcessingError(#[from] CGGTTSPostProcessingError),
-}
-
-/// "ppp" solutions report
-pub enum Report {
-    PPP(PPPReport),
-    CGGTTS(CggttsReport),
-}
-
-impl Render for Report {
-    fn render(&self) -> Markup {
-        match self {
-            Self::PPP(report) => report.render(),
-            Self::CGGTTS(report) => report.render(),
-        }
-    }
 }
 
 /*
@@ -235,7 +222,7 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
         .map(|(_, model)| NgModel { a: model.a })
 }
 
-pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<Report, Error> {
+pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtraPage, Error> {
     /* Load customized config script, or use defaults */
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
@@ -342,15 +329,14 @@ a static reference position"
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
-        let report = cggtts_post_process(ctx, tracks, matches)?;
-        Ok(Report::CGGTTS(report))
+        let report = CggttsReport::new(&ctx, &tracks);
+        Ok(report.formalize())
     } else {
         /* PPP */
         let solutions = ppp::resolve(ctx, solver);
         if solutions.len() > 0 {
-            /* save solutions (graphs, reports..) */
-            let report = ppp_post_process(ctx, &cfg, solutions, matches)?;
-            Ok(Report::PPP(report))
+            let report = PPPReport::new(&ctx, &solutions);
+            Ok(report.formalize())
         } else {
             error!("solver did not generate a single solution");
             error!("verify your input data and configuration setup");

@@ -12,7 +12,7 @@ mod qc; // QC report generator // plotting operations // file operation helpers 
 mod preprocessing;
 use preprocessing::preprocess;
 
-use rinex_qc::prelude::{Preprocessing, QcContext};
+use rinex_qc::prelude::{Preprocessing, QcContext, QcExtraPage};
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -224,7 +224,7 @@ pub fn main() -> Result<(), Error> {
     /*
      * Exclusive opmodes
      */
-    let mut custom_chapters = HashMap::<String, Box<dyn Render>>::new();
+    let mut extra_pages = Vec::<QcExtraPage>::new();
 
     match cli.matches.subcommand() {
         /*
@@ -253,12 +253,12 @@ pub fn main() -> Result<(), Error> {
         },
         Some(("ppp", submatches)) => {
             let chapter = positioning::precise_positioning(&ctx, submatches)?;
-            custom_chapters.insert("Precise Positioning".to_string(), chapter);
+            extra_pages.push(chapter);
         },
     }
 
     // qc mode
-    qc::qc_report(&ctx, custom_chapters)?;
+    qc::qc_report(&ctx, extra_pages)?;
     if !ctx.quiet {
         ctx.workspace.open_with_web_browser();
     }

@@ -18,7 +18,7 @@ pub mod prelude {
         cfg::QcConfig,
         context::{ProductType, QcContext},
         plot::Plot,
-        report::QcReport,
+        report::{QcExtraPage, QcReport},
     };
     pub use maud::{html, Markup, Render};
     pub use qc_traits::processing::{Filter, Preprocessing};

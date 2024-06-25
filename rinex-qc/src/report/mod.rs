@@ -152,6 +152,14 @@ impl ProductReport {
     }
 }
 
+/// [QcExtraPage] you can add to customize [QcReport]
+pub struct QcExtraPage {
+    /// tab for pagination
+    pub tab: Box<dyn Render>,
+    /// content
+    pub content: Box<dyn Render>,
+}
+
 /// [QcReport] is a generic structure to report complex analysis results
 pub struct QcReport {
     /// Name of this report.
@@ -163,7 +171,7 @@ pub struct QcReport {
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
     /// Custom chapters
-    custom_parts: HashMap<String, Box<dyn Render>>,
+    custom_chapters: Vec<QcExtraPage>,
 }
 
 impl QcReport {
@@ -171,7 +179,7 @@ impl QcReport {
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
         Self {
             name: context.name(),
-            custom_parts: HashMap::new(),
+            custom_chapters: Vec::new(),
             summary: QcSummary::new(&context, &cfg),
             // Build the report, which comprises
             //   1. one general (high level) context tab
@@ -210,16 +218,11 @@ impl QcReport {
         }
     }
     /// Add a custom chapter to the report
-    pub fn add_custom(&mut self, section: &str, chapter: Box<dyn Render>) {
-        self.custom_parts.insert(section.to_string(), chapter);
+    pub fn add_chapter(&mut self, chapter: QcExtraPage) {
+        self.custom_chapters.push(chapter);
     }
-}
-
-/// HTML menu bar
-struct HtmlMenuBar {}
-
-impl HtmlMenuBar {
-    pub fn render(report: &QcReport) -> Markup {
+    /// Generates a menu bar to nagivate [Self]
+    fn menu_bar(&self) -> Markup {
         html! {
             aside class="menu" {
                 p class="menu-label" {
@@ -234,11 +237,16 @@ impl HtmlMenuBar {
                             "Summary"
                         }
                     }
-                    @for product in report.products.keys().sorted() {
-                        @if let Some(report) = report.products.get(&product) {
+                    @for product in self.products.keys().sorted() {
+                        @if let Some(report) = self.products.get(&product) {
                             li {
                                 (report.html_inline_menu_bar())
                             }
+                        }
+                    }
+                    @for chapter in self.custom_chapters.iter() {
+                        li {
+                            (chapter.tab.render())
                         }
                     }
                     p class="menu-label" {
@@ -292,7 +300,7 @@ impl Render for QcReport {
                         div id="body" {
                             div class="columns is-fullheight" {
                                 div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile" {
-                                    (HtmlMenuBar::render(&self))
+                                    (self.menu_bar())
                                 } // id=menubar
                                 div class="hero is-fullheight" {
                                     div id="summary" class="container is-main" style="display:block" {

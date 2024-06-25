@@ -6,13 +6,10 @@ use std::io::Write;
 
 use crate::cli::Context;
 use crate::Error;
-use rinex_qc::prelude::{QcConfig, QcReport, Render};
+use rinex_qc::prelude::{QcConfig, QcExtraPage, QcReport, Render};
 use std::collections::HashMap;
 
-pub fn qc_report(
-    ctx: &Context,
-    custom_chapters: HashMap<String, Box<dyn Render>>,
-) -> Result<(), Error> {
+pub fn qc_report(ctx: &Context, extra_pages: Vec<QcExtraPage>) -> Result<(), Error> {
     let cfg = QcConfig::default();
     info!("using default QC configuration: {:#?}", cfg);
 
