@@ -14,9 +14,12 @@ mod context;
 mod report;
 
 pub mod prelude {
-    pub use crate::cfg::QcConfig;
-    pub use crate::context::{ProductType, QcContext};
-    pub use crate::report::QcReport;
-    pub use maud::Render;
+    pub use crate::{
+        cfg::QcConfig,
+        context::{ProductType, QcContext},
+        plot::Plot,
+        report::QcReport,
+    };
+    pub use maud::{html, Markup, Render};
     pub use qc_traits::processing::{Filter, Preprocessing};
 }

@@ -1,19 +1,26 @@
 use crate::cli::Context;
+use clap::ArgMatches;
 use std::cell::RefCell;
 use std::fs::read_to_string;
 
 mod ppp; // precise point positioning
-use ppp::post_process as ppp_post_process;
-use ppp::PostProcessingError as PPPPostProcessingError;
+use ppp::{
+    post_process as ppp_post_process, PostProcessingError as PPPPostProcessingError,
+    Report as PPPReport,
+};
 
 mod cggtts; // CGGTTS special solver
-use cggtts::post_process as cggtts_post_process;
-use cggtts::PostProcessingError as CGGTTSPostProcessingError;
+use cggtts::{
+    post_process as cggtts_post_process, PostProcessingError as CGGTTSPostProcessingError,
+    Report as CggttsReport,
+};
 
-use clap::ArgMatches;
-use gnss::prelude::Constellation; // SV};
-use rinex::carrier::Carrier;
-use rinex::prelude::Rinex;
+use rinex::{
+    carrier::Carrier,
+    prelude::{Constellation, Rinex},
+};
+
+use rinex_qc::prelude::{html, Markup, Render};
 
 use rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
@@ -39,6 +46,21 @@ pub enum Error {
     PPPPostProcessingError(#[from] PPPPostProcessingError),
     #[error("cggtts post processing error")]
     CGGTTSPostProcessingError(#[from] CGGTTSPostProcessingError),
+}
+
+/// "ppp" solutions report
+pub enum Report {
+    PPP(PPPReport),
+    CGGTTS(CggttsReport),
+}
+
+impl Render for Report {
+    fn render(&self) -> Markup {
+        match self {
+            Self::PPP(report) => report.render(),
+            Self::CGGTTS(report) => report.render(),
+        }
+    }
 }
 
 /*
@@ -213,7 +235,7 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
         .map(|(_, model)| NgModel { a: model.a })
 }
 
-pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<Report, Error> {
     /* Load customized config script, or use defaults */
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
@@ -320,17 +342,19 @@ a static reference position"
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
-        cggtts_post_process(ctx, tracks, matches)?;
+        let report = cggtts_post_process(ctx, tracks, matches)?;
+        Ok(Report::CGGTTS(report))
     } else {
         /* PPP */
         let solutions = ppp::resolve(ctx, solver);
         if solutions.len() > 0 {
             /* save solutions (graphs, reports..) */
-            ppp_post_process(ctx, &cfg, solutions, matches)?;
+            let report = ppp_post_process(ctx, &cfg, solutions, matches)?;
+            Ok(Report::PPP(report))
         } else {
             error!("solver did not generate a single solution");
             error!("verify your input data and configuration setup");
+            Err(Error::NoSolutions)
         }
     }
-    Ok(())
 }

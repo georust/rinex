@@ -14,7 +14,7 @@ use preprocessing::preprocess;
 
 use rinex_qc::prelude::{Preprocessing, QcContext};
 
-use std::collcetions::HashMap;
+use std::collections::HashMap;
 use std::path::Path;
 
 use walkdir::WalkDir;
@@ -23,6 +23,7 @@ extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
 use rinex::prelude::Rinex;
+use rinex_qc::prelude::Render;
 use sp3::prelude::SP3;
 
 use cli::{Cli, Context, Workspace};
@@ -30,8 +31,6 @@ use cli::{Cli, Context, Workspace};
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
 use env_logger::{Builder, Target};
-
-use maud::Render;
 
 #[macro_use]
 extern crate log;
@@ -254,7 +253,7 @@ pub fn main() -> Result<(), Error> {
         },
         Some(("ppp", submatches)) => {
             let chapter = positioning::precise_positioning(&ctx, submatches)?;
-            custom_chapters.insert(chapter);
+            custom_chapters.insert("Precise Positioning".to_string(), chapter);
         },
     }
 

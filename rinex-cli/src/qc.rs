@@ -7,8 +7,6 @@ use std::io::Write;
 use crate::cli::Context;
 use crate::Error;
 use rinex_qc::prelude::{QcConfig, QcReport, Render};
-
-use maud::Render;
 use std::collections::HashMap;
 
 pub fn qc_report(

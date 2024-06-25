@@ -5,6 +5,9 @@ use std::collections::HashMap;
 mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};
 
+mod report;
+pub use report::Report;
+
 use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, prelude::Observable};
