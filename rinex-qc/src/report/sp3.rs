@@ -1,11 +1,12 @@
 use itertools::Itertools;
-use std::collections::HashMap;
 use maud::{html, Markup, Render};
 use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+use std::collections::HashMap;
 
-use rinex::prelude::{GroundPosition};
+use rinex::{navigation::Ephemeris, prelude::GroundPosition};
+
 use sp3::prelude::{Constellation, SP3, SV};
-    
+
 #[cfg(feature = "sp3")]
 use crate::plot::Plot;
 
@@ -18,7 +19,7 @@ pub struct SP3Page {
     satellites: Vec<SV>,
     sampling: SamplingReport,
     #[cfg(feature = "sp3")]
-    skyplot: Option<Plot>,
+    sky_plot: Option<Plot>,
 }
 
 impl Render for SP3Page {
@@ -61,6 +62,16 @@ impl Render for SP3Page {
                         }
                         td {
                             (self.satellites.iter().map(|sv| sv.to_string()).join(","))
+                        }
+                    }
+                    @if let Some(plot) = &self.sky_plot {
+                        tr {
+                            th class="is-info" {
+                                "Sky Compass"
+                            }
+                            td {
+                                (plot.render())
+                            }
                         }
                     }
                 }
@@ -120,8 +131,8 @@ impl SP3Report {
                         FilterItem::ConstellationItem(vec![constellation]),
                     );
                     let focused = sp3.filter(&filter);
-                    let epochs = focused.epoch().collect::<Vec<_>();
-                    let satellites = focused.sv().collect::<Vec<_>();
+                    let epochs = focused.epoch().collect::<Vec<_>>();
+                    let satellites = focused.sv().collect::<Vec<_>>();
                     pages.insert(
                         constellation,
                         SP3Page {
@@ -130,34 +141,43 @@ impl SP3Report {
                             has_velocity: focused.sv_velocities().count() > 0,
                             has_clock_drift: focused.sv_clock_rate().count() > 0,
                             #[cfg(feature = "plot")]
-                            skyplot: if let Some(reference) = reference {
-                                let mut plot = Plot::skyplot("sp3_sky", "Skyplot", true);
+                            sky_plot: if let Some(reference) = reference {
+                                let mut plot = Plot::sky_plot("sp3_sky", "Skyplot", true);
                                 let (rx_x, rx_y, rx_z) = reference.to_ecef_wgs84();
                                 for (sv_index, sv) in satellites.iter().enumerate() {
-                                    let rho = focused.sv_position()
+                                    let rho = focused
+                                        .sv_position()
                                         .filter_map(|(t, svnn, sv_pos)| {
-                                            if svnn == sv {
-                                                let el = Ephemeris::elevation_azimuth().0;
+                                            if svnn == *sv {
+                                                let el = Ephemeris::elevation_azimuth(
+                                                    sv_pos,
+                                                    (rx_x, rx_y, rx_z),
+                                                )
+                                                .0;
+                                                Some(el)
                                             } else {
                                                 None
                                             }
                                         })
                                         .collect::<Vec<_>>();
-                                    let theta = focused.sv_position()
+                                    let theta = focused
+                                        .sv_position()
                                         .filter_map(|(t, svnn, sv_pos)| {
-                                            if svnn == sv {
-                                                let el = Ephemeris::elevation_azimuth().1;
+                                            if svnn == *sv {
+                                                let az = Ephemeris::elevation_azimuth(
+                                                    sv_pos,
+                                                    (rx_x, rx_y, rx_z),
+                                                )
+                                                .0;
+                                                Some(az)
                                             } else {
                                                 None
                                             }
                                         })
                                         .collect::<Vec<_>>();
-                                    let trace = Plot::sky_trace(
-                                        epochs.clone(),
-                                        rho,
-                                        theta,
-                                        sv_index < 5,
-                                    ).name(format!("{:X}", sv));
+                                    let trace =
+                                        Plot::sky_trace(epochs.clone(), rho, theta, sv_index < 5)
+                                            .name(format!("{:X}", sv));
                                     plot.add_trace(trace);
                                 }
                                 Some(plot)

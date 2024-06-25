@@ -15,6 +15,9 @@ use meteo::MeteoReport;
 mod ionex;
 use ionex::IonexReport;
 
+mod nav;
+use nav::NavReport;
+
 use crate::report::Error;
 
 use maud::{html, Markup, Render};
@@ -23,49 +26,6 @@ use obs::Report as ObsReport;
 
 use rinex::prelude::{Rinex, RinexType};
 use std::collections::HashMap;
-
-// TODO
-pub struct NavPage {}
-// TODO
-pub struct NavReport {
-    pages: HashMap<Constellation, NavPage>,
-}
-
-impl NavReport {
-    pub fn new(rnx: &Rinex) -> Self {
-        Self {
-            pages: Default::default(),
-        }
-    }
-    pub fn html_inline_menu_bar(&self) -> Markup {
-        html! {
-            a id="menu:brdc" {
-                span class="icon" {
-                    i class="fa-solid fa-satellite-dish" {}
-                }
-                "Broadcast Navigation (BRDC)"
-            }
-            ul class="menu-list" id="menu:tabs:brdc" style="display:none" {
-                @for page in self.pages.keys().sorted() {
-                    li {
-                        a id=(format!("menu:brdc:{}", page)) style="margin-left:29px" {
-                            span class="icon" {
-                                i class="fa-solid fa-satellite" {}
-                            }
-                            (page.to_string())
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl Render for NavReport {
-    fn render(&self) -> Markup {
-        html! {}
-    }
-}
 
 /// RINEX type dependent report
 pub enum RINEXReport {
@@ -78,12 +38,12 @@ pub enum RINEXReport {
 }
 
 impl RINEXReport {
-    pub fn new(rnx: &Rinex) -> Result<Self, Error> {
+    pub fn new(rnx: &Rinex, sky_plot: bool) -> Result<Self, Error> {
         match rnx.header.rinex_type {
             RinexType::DORIS => Ok(Self::Doris(DorisReport::new(rnx))),
             RinexType::ClockData => Ok(Self::Clk(ClkReport::new(rnx)?)),
             RinexType::MeteoData => Ok(Self::Meteo(MeteoReport::new(rnx)?)),
-            RinexType::NavigationData => Ok(Self::Nav(NavReport::new(rnx))),
+            RinexType::NavigationData => Ok(Self::Nav(NavReport::new(rnx, sky_plot))),
             RinexType::ObservationData => Ok(Self::Obs(ObsReport::new(rnx))),
             RinexType::IonosphereMaps => Ok(Self::Ionex(IonexReport::new(rnx)?)),
             _ => Err(Error::NonSupportedRINEX),

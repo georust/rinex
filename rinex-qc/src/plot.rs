@@ -175,8 +175,8 @@ impl Plot {
     }
     /// Trace for a skyplot
     pub fn sky_trace<T: Default + Clone + Serialize>(
-        t: Vec<Epoch>, 
-        rho: Vec<T>, 
+        t: Vec<Epoch>,
+        rho: Vec<T>,
         theta: Vec<T>,
         visible: bool,
     ) -> Box<ScatterPolar<T, T>> {
@@ -193,7 +193,7 @@ impl Plot {
                 }
             })
             .connect_gaps(false)
-            //TODO alpha gradient per time
+        //TODO alpha gradient per time
     }
     /// Builds new Polar plot
     pub fn new_polar(

@@ -168,6 +168,8 @@ impl QcReport {
             //   3. one complex tab for "shared" analysis
             products: {
                 let mut items = HashMap::<ProductType, ProductReport>::new();
+                let sp3_sky_plot = context.has_sp3() && !context.has_brdc_navigation();
+                let brdc_sky_plot = !context.has_sp3() && context.has_brdc_navigation();
                 // one tab per RINEX product
                 for product in [
                     ProductType::Observation,
@@ -179,7 +181,7 @@ impl QcReport {
                     ProductType::ANTEX,
                 ] {
                     if let Some(rinex) = context.rinex(product) {
-                        if let Ok(report) = RINEXReport::new(rinex) {
+                        if let Ok(report) = RINEXReport::new(rinex, brdc_sky_plot) {
                             items.insert(product, ProductReport::RINEX(report));
                         }
                     }

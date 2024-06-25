@@ -31,9 +31,6 @@ use record::{
 mod context;
 pub use context::PlotContext;
 
-mod skyplot;
-use skyplot::skyplot;
-
 mod naviplot;
 
 mod combination;
@@ -513,10 +510,7 @@ fn gnss_combination_plot(matches: &ArgMatches) -> bool {
 
 /* Returns True if Navigation plot is to be generated */
 fn navigation_plot(matches: &ArgMatches) -> bool {
-    matches.get_flag("skyplot")
-        || matches.get_flag("orbit")
-        || matches.get_flag("orbit-residual")
-        || matches.get_flag("sv-clock")
+    matches.get_flag("orbit") || matches.get_flag("orbit-residual") || matches.get_flag("sv-clock")
 }
 
 /* Returns True if Atmosphere conditions is to be generated */
@@ -645,15 +639,6 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     if navigation_plot(matches) {
         let mut plot_ctx = PlotContext::new();
 
-        if matches.get_flag("skyplot") {
-            let rx_ecef = ctx
-                .rx_ecef
-                .expect("skyplot requires the receiver location to be defined.");
-            if ctx.data.sp3().is_none() && ctx.data.brdc_navigation().is_none() {
-                panic!("skyplot requires either BRDC or SP3.");
-            }
-            skyplot(&ctx.data, rx_ecef, &mut plot_ctx);
-        }
         if matches.get_flag("orbit") {
             plot_sv_nav_orbits(&ctx.data, &mut plot_ctx);
         }
