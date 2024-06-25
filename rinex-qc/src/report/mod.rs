@@ -20,6 +20,17 @@ mod sp3;
 #[cfg(feature = "sp3")]
 use sp3::SP3Report;
 
+pub(crate) fn tooltipped(text: &str, hover: &str) -> Markup {
+    html! {
+        div class="tooltip" {
+            span class="tooltiptext" {
+                (hover)
+            }
+            (text)
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("non supported RINEX format")]

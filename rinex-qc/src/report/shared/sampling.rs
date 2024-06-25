@@ -8,6 +8,8 @@ use sp3::SP3;
 
 /// [SamplingReport] applies to all time domain products
 pub struct SamplingReport {
+    /// Total epochs
+    pub total: usize,
     /// First [`Epoch`] identified in time
     pub first_epoch: Epoch,
     /// Last [`Epoch`] identified in time
@@ -30,6 +32,7 @@ impl SamplingReport {
     pub fn from_rinex(rinex: &Rinex) -> Self {
         let gaps = rinex.data_gaps(None).collect::<Vec<_>>();
         Self {
+            total: rinex.epoch().count(),
             first_epoch: rinex
                 .first_epoch()
                 .expect("failed to determine first RINEX epoch, badly formed?"),

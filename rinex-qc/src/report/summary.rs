@@ -1,6 +1,8 @@
-use crate::prelude::{QcConfig, QcContext};
 use maud::{html, Markup, Render};
 use rinex::prelude::{GroundPosition, TimeScale};
+
+use crate::prelude::{QcConfig, QcContext};
+use crate::report::tooltipped;
 
 pub struct QcNavPostSummary {
     /// Navigation compatible
@@ -35,12 +37,12 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "NAVI"
+                                (tooltipped("NAVI", "Navigation compatible context"))
                             } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "NAVI"
+                                (tooltipped("NAVI", "Navigation compatible context. Contains at least pseudo range observations along navigation data."))
                             }
                         }
                         td {
@@ -48,12 +50,12 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "CPP"
+                                (tooltipped("CPP", "CPP navigation compatible context. Dual frequency pseudo range observations."))
                             } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "CPP"
+                                (tooltipped("CPP", "CPP navigation compatible context. Dual frequency pseudo range observations."))
                             }
                         }
                         td {
@@ -61,12 +63,12 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "PPP"
+                                (tooltipped("PPP", "PPP navigation compatible context. Dual frequency pseudo range + phase range observations."))
                             } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "PPP"
+                                (tooltipped("PPP", "PPP navigation compatible context. Dual frequency pseudo range + phase range observations."))
                             }
                         }
                         td {
@@ -74,12 +76,12 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "PPP (Ultra)"
+                                (tooltipped("PPP (Ultra)", "PPP Ultra precisision compatible. Dual frequency pseudo range + phase range observations and Clock RINEX without time interpolation."))
                             } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "PPP (Ultra)"
+                                (tooltipped("PPP (Ultra)", "PPP Ultra precisision compatible. Dual frequency pseudo range + phase range observations and Clock RINEX without time interpolation."))
                             }
                         }
                     }

@@ -61,6 +61,12 @@ struct Combination {
 
 /// Frequency dependent pagination
 struct FrequencyPage {
+    /// Total SPP compatible epochs
+    total_spp_epochs: usize,
+    /// Total CPP compatible epochs
+    total_cpp_epochs: usize,
+    /// Total PPP compatible epochs
+    total_ppp_epochs: usize,
     /// Sampling
     sampling: SamplingReport,
     #[cfg(feature = "plot")]
@@ -76,8 +82,30 @@ struct FrequencyPage {
 
 impl FrequencyPage {
     pub fn new(rinex: &Rinex) -> Self {
+        let mut total_spp_epochs = 0;
+        let mut total_cpp_epochs = 0;
+        let mut total_ppp_epochs = 0;
+        let sampling = SamplingReport::from_rinex(rinex);
+        for (_, (_, svnn)) in rinex.observation() {
+            let mut nb_pr = 0;
+            let mut nb_ph = 0;
+            for (_, obs) in svnn.iter() {}
+            if nb_pr > 0 {
+                total_spp_epochs += 1;
+            }
+            if nb_pr > 1 {
+                total_cpp_epochs += 1;
+                if nb_ph > 1 {
+                    total_ppp_epochs += 1;
+                }
+            }
+        }
         Self {
-            sampling: SamplingReport::from_rinex(rinex),
+            sampling,
+            total_cpp_epochs,
+            total_spp_epochs,
+            total_ppp_epochs,
+            total_epochs: sampling.total,
             #[cfg(feature = "plot")]
             combination_plots: HashMap::new(),
             #[cfg(feature = "plot")]
@@ -149,6 +177,39 @@ impl Render for FrequencyPage {
                     }
                     td {
                         (self.sampling.render())
+                    }
+                }
+                tr {
+                    th class="is-info" {
+                        "Epochs"
+                    }
+                    td {
+                        table class="table is-bordered" {
+                            tr {
+                                th class="is-info" {
+                                    "SPP Compatible"
+                                }
+                                td {
+                                    (format!("{}/{} ({}%)", self.spp_epochs, self.total_epochs, self.spp_epochs * 100 / self.total_epochs))
+                                }
+                            }
+                            tr {
+                                th class="is-info" {
+                                    "CPP Compatible"
+                                }
+                                td {
+                                    (format!("{}/{} ({}%)", self.cpp_epochs, self.total_epochs, self.cpp_epochs * 100 / self.total_epochs))
+                                }
+                            }
+                            tr {
+                                th class="is-info" {
+                                    "PPP Compatible"
+                                }
+                                td {
+                                    (format!("{}/{} ({}%)", self.ppp_epochs, self.total_epochs, self.ppp_epochs * 100 / self.total_epochs))
+                                }
+                            }
+                        }
                     }
                 }
                 tr {
