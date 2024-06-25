@@ -1,13 +1,55 @@
-use crate::report::shared::SamplingReport;
-use crate::report::Error;
-// use itertools::Itertools;
+use itertools::Itertools;
 use maud::{html, Markup, Render};
 use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::prelude::{ClockProfileType, Constellation, Rinex, TimeScale, DOMES, SV};
 use std::collections::HashMap;
 
+#[cfg(feature = "plot")]
+use crate::plot::Plot;
+use crate::report::shared::SamplingReport;
+use crate::report::Error;
+
 pub struct ClkPage {
     satellites: Vec<SV>,
+    #[cfg(feature = "plot")]
+    offset_plot: Plot,
+    #[cfg(feature = "plot")]
+    drift_plot: Plot,
+}
+
+impl Render for ClkPage {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tr {
+                        th class="is-info" {
+                            "Satellites"
+                        }
+                        td {
+                            (self.satellites.iter().join(", "))
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Clock offset"
+                        }
+                        td {
+                            (self.offset_plot.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Clock drift"
+                        }
+                        td {
+                            (self.drift_plot.render())
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct ClkReport {
@@ -68,6 +110,26 @@ impl ClkReport {
                         constellation,
                         ClkPage {
                             satellites: focused.sv().collect(),
+                            #[cfg(feature = "plot")]
+                            offset_plot: {
+                                let mut plot = Plot::new_time_domain(
+                                    "clock_offset",
+                                    "Clock Offset",
+                                    "Offset [s]",
+                                    true,
+                                );
+                                plot
+                            },
+                            #[cfg(feature = "plot")]
+                            drift_plot: {
+                                let mut plot = Plot::new_time_domain(
+                                    "clock_drift",
+                                    "Clock Drift",
+                                    "Drift [s/s]",
+                                    true,
+                                );
+                                plot
+                            },
                         },
                     );
                 }
@@ -148,6 +210,22 @@ impl Render for ClkReport {
             }
             div class="table-container" {
                 (self.sampling.render())
+            }
+            @for constell in self.pages.keys().sorted() {
+                @if let Some(page) = self.pages.get(&constell) {
+                    div class="table-container" {
+                        table class="table is-bordered" {
+                            tr {
+                                th class="is-info" {
+                                    (constell.to_string())
+                                }
+                                td {
+                                    (page.render())
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

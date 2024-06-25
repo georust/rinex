@@ -105,7 +105,6 @@ impl FrequencyPage {
             total_cpp_epochs,
             total_spp_epochs,
             total_ppp_epochs,
-            total_epochs: sampling.total,
             #[cfg(feature = "plot")]
             combination_plots: HashMap::new(),
             #[cfg(feature = "plot")]
@@ -190,7 +189,7 @@ impl Render for FrequencyPage {
                                     "SPP Compatible"
                                 }
                                 td {
-                                    (format!("{}/{} ({}%)", self.spp_epochs, self.total_epochs, self.spp_epochs * 100 / self.total_epochs))
+                                    (format!("{}/{} ({}%)", self.total_spp_epochs, self.sampling.total, self.total_spp_epochs * 100 / self.sampling.total))
                                 }
                             }
                             tr {
@@ -198,7 +197,7 @@ impl Render for FrequencyPage {
                                     "CPP Compatible"
                                 }
                                 td {
-                                    (format!("{}/{} ({}%)", self.cpp_epochs, self.total_epochs, self.cpp_epochs * 100 / self.total_epochs))
+                                    (format!("{}/{} ({}%)", self.total_cpp_epochs, self.sampling.total, self.total_cpp_epochs * 100 / self.sampling.total))
                                 }
                             }
                             tr {
@@ -206,7 +205,7 @@ impl Render for FrequencyPage {
                                     "PPP Compatible"
                                 }
                                 td {
-                                    (format!("{}/{} ({}%)", self.ppp_epochs, self.total_epochs, self.ppp_epochs * 100 / self.total_epochs))
+                                    (format!("{}/{} ({}%)", self.total_ppp_epochs, self.sampling.total, self.total_ppp_epochs * 100 / self.sampling.total))
                                 }
                             }
                         }
