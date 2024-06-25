@@ -1,4 +1,4 @@
-//! RINEX Quality analysis library
+//! RINEX/GNSS data analysis library
 #![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
 #![cfg_attr(docrs, feature(doc_cfg))]
 
