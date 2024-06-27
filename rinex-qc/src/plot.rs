@@ -1,7 +1,7 @@
 use hifitime::Epoch;
 use maud::{html, Markup, PreEscaped, Render};
 use plotly::{
-    common::{Font, HoverInfo, Side, Title, Visible},
+    common::{Font, HoverInfo, Side, Visible},
     layout::{
         Axis, Center, DragMode, Mapbox, Margin, RangeSelector, RangeSlider, SelectorButton,
         SelectorStep,
@@ -104,10 +104,10 @@ impl Plot {
             );
         }
         let layout = Layout::new()
-            .title(Title::new(title))
+            .title(title)
             .x_axis(
                 Axis::new()
-                    .title(Title::new("Epoch"))
+                    .title("Epoch")
                     .zero_line(true)
                     .show_tick_labels(true)
                     .dtick(100.0)
@@ -115,7 +115,7 @@ impl Plot {
                     .range_selector(RangeSelector::new().buttons(buttons))
                     .tick_format("{:05}"),
             )
-            .y_axis(Axis::new().title(Title::new(y_axis_label)).zero_line(true))
+            .y_axis(Axis::new().title(y_axis_label).zero_line(true))
             .show_legend(show_legend)
             .auto_size(true);
         let mut plotly = Plotly::new();
@@ -135,22 +135,22 @@ impl Plot {
         show_legend: bool,
     ) -> Self {
         let layout = Layout::new()
-            .title(Title::new(title).side(Side::Top))
+            .title(title)
             .x_axis(
                 Axis::new()
-                    .title(Title::new(x_label))
+                    .title(x_label)
                     .zero_line(true)
                     .show_tick_labels(false),
             )
             .y_axis(
                 Axis::new()
-                    .title(Title::new(y_label))
+                    .title(y_label)
                     .zero_line(true)
                     .show_tick_labels(false),
             )
             .z_axis(
                 Axis::new()
-                    .title(Title::new(z_label))
+                    .title(z_label)
                     .zero_line(true)
                     .show_tick_labels(false),
             )
@@ -205,13 +205,13 @@ impl Plot {
     ) -> Self {
         let mut plotly = Plotly::new();
         let layout = Layout::new()
-            .title(Title::new(title))
+            .title(title)
             .x_axis(
                 Axis::new()
-                    .title(Title::new(x_label).side(Side::Top))
+                    .title(x_label)
                     .zero_line(true),
             )
-            .y_axis(Axis::new().title(Title::new(y_label)).zero_line(true))
+            .y_axis(Axis::new().title(y_label).zero_line(true))
             .show_legend(show_legend)
             .auto_size(true);
         Self {
@@ -229,7 +229,7 @@ impl Plot {
         show_legend: bool,
     ) -> Self {
         let layout = Layout::new()
-            .title(Title::new(title).font(Font::default()))
+            .title(title)
             .drag_mode(DragMode::Zoom)
             .margin(Margin::new().top(0).left(0).bottom(0).right(0))
             .show_legend(show_legend)
