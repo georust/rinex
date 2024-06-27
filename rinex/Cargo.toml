@@ -102,7 +102,7 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = [
     "zlib",
 ] }
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = [
+hifitime = { version = "4.0.0-alpha", features = [
     "serde",
     "std",
 ] }

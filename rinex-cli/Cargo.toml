@@ -35,7 +35,7 @@ map_3d = "0.1.5"
 colorous = "1.0"
 horrorshow = "0.8"
 clap = { version = "4.4.13", features = ["derive", "color"] }
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = [
+hifitime = { version = "4.0.0-alpha", features = [
     "serde",
     "std",
 ] }
