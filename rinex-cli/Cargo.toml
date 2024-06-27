@@ -30,7 +30,7 @@ map_3d = "0.1.5"
 colorous = "1.0"
 horrorshow = "0.8"
 clap = { version = "4.4.13", features = ["derive", "color"] }
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", features = ["serde", "std"] }
+hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 plotly = { git = "https://github.com/plotly/plotly.rs", branch = "main" }
