@@ -26,5 +26,5 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
 thiserror = "1"
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master", optional = true }
+hifitime = { version = "4.0.0-alpha", optional = true }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde", "domes", "cospar"], optional = true }

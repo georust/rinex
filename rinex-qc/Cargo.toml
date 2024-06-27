@@ -36,7 +36,7 @@ strum = "0.26"
 statrs = "0.16"
 itertools = "0.13.0"
 strum_macros = "0.26"
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master" }
+hifitime = "4.0.0-alpha"
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde"], optional = true }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", features = ["processing"] }

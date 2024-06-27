@@ -35,7 +35,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 thiserror = "1"
 map_3d = "0.1.5"
 itertools = "0.13.0"
-hifitime = { git = "https://github.com/nyx-space/hifitime.git", branch = "master" }
+hifitime = "4.0.0-alpha"
 # gnss-rs = { version = "2.1.3", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
