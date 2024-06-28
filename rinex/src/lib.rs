@@ -1764,6 +1764,41 @@ impl Rinex {
                 .unique(),
         )
     }
+    /// Returns Unique Iterator over all feasible Pseudo range and Phase range combination,
+    /// expressed as (lhs: Observable, rhs: Observable).
+    /// Regardless which one is to consider as reference signal.
+    /// Use [pseudo_range_combinations()] or [phase_range_combinations()]
+    /// to reduce to specific physical observations.
+    pub fn signal_combinations(&self) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
+        Box::new(
+            self.pseudo_range_combinations()
+                .zip(self.phase_range_combinations()),
+        )
+    }
+    /// See [signal_combinations()]
+    pub fn pseudo_range_combinations(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
+        self.signal_combinations().filter_map(|(lhs, rhs)| {
+            if lhs.is_pseudorange_observable() {
+                Some((lhs, rhs))
+            } else {
+                None
+            }
+        })
+    }
+    /// See [signal_combinations()]
+    pub fn phase_range_combinations(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
+        self.signal_combinations().filter_map(|(lhs, rhs)| {
+            if lhs.is_phase_observable() {
+                Some((lhs, rhs))
+            } else {
+                None
+            }
+        })
+    }
     /// Returns ([`Epoch`] [`EpochFlag`]) iterator, where each {`EpochFlag`]
     /// validates or invalidates related [`Epoch`]
     /// ```

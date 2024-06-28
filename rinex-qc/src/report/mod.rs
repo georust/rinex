@@ -17,6 +17,10 @@ use rinex::RINEXReport;
 #[cfg(feature = "sp3")]
 mod sp3;
 
+// preprocessed navi
+mod navi;
+use navi::QcNavi;
+
 #[cfg(feature = "sp3")]
 use sp3::SP3Report;
 
@@ -167,6 +171,8 @@ pub struct QcReport {
     name: String,
     /// Report Summary (always present)
     summary: QcSummary,
+    /// Preprocessed NAVI (only when compatible)
+    navi: Option<QcNavi>,
     /// In depth analysis per input product.
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
@@ -177,10 +183,17 @@ pub struct QcReport {
 impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
+        let summary = QcSummary::new(&context, &cfg);
         Self {
             name: context.name(),
             custom_chapters: Vec::new(),
-            summary: QcSummary::new(&context, &cfg),
+            navi: {
+                if summary.navi.nav_compatible {
+                    Some(QcNavi::new(context))
+                } else {
+                    None
+                }
+            },
             // Build the report, which comprises
             //   1. one general (high level) context tab
             //   2. one tab per product type (which can have sub tabs itself)
@@ -215,6 +228,7 @@ impl QcReport {
                 }
                 items
             },
+            summary,
         }
     }
     /// Add a custom chapter to the report
