@@ -61,6 +61,29 @@ impl Default for Observable {
 }
 
 impl Observable {
+    /// Returns true if Self and rhs describe the same physical observation.
+    /// For example, both are phase observations.
+    pub fn same_physics(&self, rhs: &Observable) -> bool {
+        match self {
+            Self::SSI(_) => matches!(rhs, Self::SSI(_)),
+            Self::Phase(_) => matches!(rhs, Self::Phase(_)),
+            Self::Power(_) => matches!(rhs, Self::Power(_)),
+            Self::Doppler(_) => matches!(rhs, Self::Doppler(_)),
+            Self::PseudoRange(_) => matches!(rhs, Self::PseudoRange(_)),
+            Self::ChannelNumber(_) => matches!(rhs, Self::ChannelNumber(_)),
+            Self::Pressure => matches!(rhs, Self::Pressure),
+            Self::Temperature => matches!(rhs, Self::Temperature),
+            Self::HumidityRate => matches!(rhs, Self::HumidityRate),
+            Self::ZenithWetDelay => matches!(rhs, Self::ZenithWetDelay),
+            Self::ZenithDryDelay => matches!(rhs, Self::ZenithDryDelay),
+            Self::ZenithTotalDelay => matches!(rhs, Self::ZenithTotalDelay),
+            Self::WindSpeed => matches!(rhs, Self::WindSpeed),
+            Self::WindDirection => matches!(rhs, Self::WindDirection),
+            Self::RainIncrement => matches!(rhs, Self::RainIncrement),
+            Self::HailIndicator => matches!(rhs, Self::RainIncrement),
+            Self::FrequencyRatio => matches!(rhs, Self::FrequencyRatio),
+        }
+    }
     pub fn is_phase_observable(&self) -> bool {
         matches!(self, Self::Phase(_))
     }

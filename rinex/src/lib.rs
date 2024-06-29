@@ -1772,32 +1772,61 @@ impl Rinex {
     pub fn signal_combinations(&self) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
         Box::new(
             self.pseudo_range_combinations()
-                .zip(self.phase_range_combinations()),
+                .chain(self.phase_range_combinations()),
         )
     }
     /// See [signal_combinations()]
     pub fn pseudo_range_combinations(
         &self,
     ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
-        self.signal_combinations().filter_map(|(lhs, rhs)| {
-            if lhs.is_pseudorange_observable() {
-                Some((lhs, rhs))
-            } else {
-                None
-            }
-        })
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, svnn))| {
+                    svnn.iter().flat_map(|(_, obs)| {
+                        obs.iter().flat_map(|(lhs_ob, _)| {
+                            obs.iter().flat_map(move |(rhs_ob, _)| {
+                                if lhs_ob.is_pseudorange_observable() && lhs_ob.same_physics(rhs_ob)
+                                {
+                                    if lhs_ob != rhs_ob {
+                                        Some((lhs_ob, rhs_ob))
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                    })
+                })
+                .unique(),
+        )
     }
     /// See [signal_combinations()]
     pub fn phase_range_combinations(
         &self,
     ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
-        self.signal_combinations().filter_map(|(lhs, rhs)| {
-            if lhs.is_phase_observable() {
-                Some((lhs, rhs))
-            } else {
-                None
-            }
-        })
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, svnn))| {
+                    svnn.iter().flat_map(|(_, obs)| {
+                        obs.iter().flat_map(|(lhs_ob, _)| {
+                            obs.iter().flat_map(move |(rhs_ob, _)| {
+                                if lhs_ob.is_phase_observable() && lhs_ob.same_physics(rhs_ob) {
+                                    if lhs_ob != rhs_ob {
+                                        Some((lhs_ob, rhs_ob))
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                    })
+                })
+                .unique(),
+        )
     }
     /// Returns ([`Epoch`] [`EpochFlag`]) iterator, where each {`EpochFlag`]
     /// validates or invalidates related [`Epoch`]

@@ -2,7 +2,6 @@ use crate::report::Error;
 use maud::{html, Markup, Render};
 use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
-use std::collections::BTreeMap;
 
 #[cfg(feature = "plot")]
 use crate::plot::{MapboxStyle, Marker, MarkerSymbol, NamedColor, Plot};

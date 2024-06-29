@@ -1,7 +1,7 @@
-mod obs;
-
 use itertools::Itertools;
-use rinex::prelude::Constellation;
+
+mod obs;
+use obs::Report as ObsReport;
 
 mod clock;
 use clock::ClkReport;
@@ -20,12 +20,9 @@ use nav::NavReport;
 
 use crate::report::Error;
 
-use maud::{html, Markup, Render};
-
-use obs::Report as ObsReport;
+use maud::Markup;
 
 use rinex::prelude::{Rinex, RinexType};
-use std::collections::HashMap;
 
 /// RINEX type dependent report
 pub enum RINEXReport {
