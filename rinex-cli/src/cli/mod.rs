@@ -3,8 +3,10 @@ use std::{
     str::FromStr,
 };
 
+use itertools::Itertools;
+
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use rinex::prelude::*;
+use hashes::sha1::{Digest, Sha1};
 use rinex_qc::prelude::QcContext;
 
 // positioning mode
@@ -76,6 +78,28 @@ impl Context {
         std::fs::File::create(path).unwrap_or_else(|e| {
             panic!("failed to create {}: {:?}", path.display(), e);
         })
+    }
+    /*
+     * We hash all vital CLI information.
+     * This helps in determining whether we need to update an existing report
+     * or not.
+     */
+    pub fn hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        let mut string = self
+            .input_directories()
+            .sorted()
+            .chain(self.input_files().sorted())
+            .chain(self.preprocessing().sorted())
+            .join(",");
+        if let Some(geo) = self.manual_geodetic() {
+            string.push_str(&format!("{.5},{.5},{.5}", geo));
+        }
+        if let Some(ecef) = self.manual_ecef() {
+            string.push_str(&format!("{.5},{.5},{.5}", ecef));
+        }
+        string.hash(&mut hasher);
+        hasher.finish()
     }
 }
 

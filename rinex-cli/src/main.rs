@@ -7,10 +7,12 @@ mod cli; // command line interface
 mod fops;
 mod graph;
 mod positioning;
-mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis // positioning + CGGTTS opmode
 
 mod preprocessing;
 use preprocessing::preprocess;
+
+mod qc;
+use qc::Report;
 
 use rinex_qc::prelude::{Preprocessing, QcContext, QcExtraPage};
 
@@ -130,12 +132,11 @@ fn user_data_parsing(cli: &Cli) -> QcContext {
             warn!("non supported file format \"{}\"", path.display());
         }
     }
-
     /*
-     * Preprocess whole context
+     * Preprocessing
      */
     preprocess(&mut ctx, cli);
-    debug!("{:?}", ctx);
+    debug!("{:?}", ctx); // context visualization
     ctx
 }
 
@@ -257,8 +258,14 @@ pub fn main() -> Result<(), Error> {
         },
     }
 
-    // qc mode
-    qc::qc_report(&ctx, extra_pages)?;
+    // Make report
+    Report::new(&ctx);
+    // Customize, depending on previous ops
+    for extra in extra_pages {
+        report.customize(extra);
+    }
+    // Generate report
+    report.generate()?;
     if !ctx.quiet {
         ctx.workspace.open_with_web_browser();
     }
