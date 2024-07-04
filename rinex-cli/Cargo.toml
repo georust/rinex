@@ -48,6 +48,8 @@ rinex-qc = { path = "../rinex-qc", version = "=0.1.14", features = ["serde"] }
 sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde", "flate2"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
+anise = "0.4.0"
+
 # solver
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
