@@ -108,9 +108,7 @@ hifitime = { version = "4.0.0-alpha", features = [
 ] }
 horrorshow = { version = "0.8", optional = true }
 nalgebra = { version = "0.32.3" }
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = [
-    "serde",
-] }
+gnss-rs = { version = "2.2.0", features = ["serde"] }
 anise = { git = "https://github.com/nyx-space/anise.git", branch = "master" }
 
 # RINEX QC dedicated traits

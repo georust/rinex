@@ -1,7 +1,6 @@
 use crate::{cli::Context, positioning::BufferTrait};
 use std::collections::HashMap;
 
-use bytes::Bytes;
 use gnss_rtk::prelude::{
     Almanac, Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, Vector3, EARTH_J2000,
     SPK, SUN_J2000, SV,
