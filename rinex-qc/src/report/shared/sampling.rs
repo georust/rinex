@@ -46,11 +46,11 @@ impl SamplingReport {
             dominant_sample_rate: rinex.dominant_sample_rate(),
             shortest_gap: gaps
                 .iter()
-                .min_by(|(t_a, dur_a), (t_b, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
+                .min_by(|(_, dur_a), (_, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
                 .copied(),
             longest_gap: gaps
                 .iter()
-                .max_by(|(t_a, dur_a), (t_b, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
+                .max_by(|(_, dur_a), (_, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
                 .copied(),
             gaps,
         }

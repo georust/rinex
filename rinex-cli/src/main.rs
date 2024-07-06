@@ -5,7 +5,6 @@
 //mod analysis; // basic analysis
 mod cli; // command line interface
 mod fops;
-mod graph;
 mod positioning;
 
 mod preprocessing;

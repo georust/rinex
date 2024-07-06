@@ -6,20 +6,14 @@ use clap::ArgMatches;
 use std::io::Write;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("failed to write cggtts file (permission denied)")]
-    IoError(#[from] std::io::Error),
-}
-
 /*
  * CGGTTS file generation and solutions post processing
  */
 pub fn post_process(
     ctx: &Context,
-    mut tracks: Vec<Track>,
+    tracks: &mut Vec<Track>,
     matches: &ArgMatches,
-) -> Result<(), Error> {
+) -> std::io::Result<()> {
     /*
      * CGGTTS formation and customization
      */

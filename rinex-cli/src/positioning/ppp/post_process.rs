@@ -5,7 +5,6 @@ use std::{
 
 use crate::{
     cli::Context,
-    graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext},
 };
 
 use clap::ArgMatches;

@@ -4,16 +4,10 @@ use std::cell::RefCell;
 use std::fs::read_to_string;
 
 mod ppp; // precise point positioning
-use ppp::{
-    post_process as ppp_post_process, PostProcessingError as PPPPostProcessingError,
-    Report as PPPReport,
-};
+use ppp::Report as PPPReport;
 
 mod cggtts; // CGGTTS special solver
-use cggtts::{
-    post_process as cggtts_post_process, PostProcessingError as CGGTTSPostProcessingError,
-    Report as CggttsReport,
-};
+use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
 use rinex::{
     carrier::Carrier,
@@ -44,10 +38,8 @@ pub enum Error {
     SolverError(#[from] RTKError),
     #[error("no solutions: check your settings or input")]
     NoSolutions,
-    #[error("ppp post processing error")]
-    PPPPostProcessingError(#[from] PPPPostProcessingError),
-    #[error("cggtts post processing error")]
-    CGGTTSPostProcessingError(#[from] CGGTTSPostProcessingError),
+    #[error("i/o error")]
+    StdioError(#[from] std::io::Error),
 }
 
 /*
@@ -329,6 +321,7 @@ a static reference position"
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
+        cggtts_post_process(&ctx, &mut tracks, matches)?;
         let report = CggttsReport::new(&ctx, &tracks);
         //Ok(report.formalize())
         Err(Error::NoSolutions)

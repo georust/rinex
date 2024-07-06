@@ -13,9 +13,6 @@ use std::collections::BTreeMap;
 
 use rinex::{carrier::Carrier, observation::LliFlags, prelude::SV};
 
-mod post_process;
-pub use post_process::{post_process, Error as PostProcessingError};
-
 mod report;
 pub use report::Report;
 

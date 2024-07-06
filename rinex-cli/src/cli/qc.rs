@@ -11,18 +11,17 @@ Reports will integrate Plots if application is compiled with `plot` feature.
 Refer to online Wiki and scripts/ database for examples.",
         )
         .arg(
-            Arg::new("cfg")
-                .short('c')
-                .long("cfg")
-                .required(false)
-                .value_name("FILE")
-                .action(ArgAction::Append)
-                .help("QC configuration file (JSON)"),
+            Arg::new("nostats")
+                .long("nostats")
+                .action(ArgAction::SetTrue)
+                .help("Disable statistical annotations (deviation, mean..)"),
         )
         .arg(
-            Arg::new("no-stat")
-                .long("no-stat")
+            Arg::new("force")
+                .long("force")
                 .action(ArgAction::SetTrue)
-                .help("Disable statistical annotation on some of the plots."),
-        )
+                .help("Force report regeneration.
+Report is generated on first run (new command line options),
+otherwise it is only incremented.
+This option will force report re-generation, even if command line has not changed")
 }
