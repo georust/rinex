@@ -330,13 +330,14 @@ a static reference position"
         /* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
         let report = CggttsReport::new(&ctx, &tracks);
-        Ok(report.formalize())
+        //Ok(report.formalize())
+        Err(Error::NoSolutions)
     } else {
         /* PPP */
         let solutions = ppp::resolve(ctx, solver);
         if solutions.len() > 0 {
             let report = PPPReport::new(&ctx, &solutions);
-            Ok(report.formalize())
+            Err(Error::NoSolutions)
         } else {
             error!("solver did not generate a single solution");
             error!("verify your input data and configuration setup");

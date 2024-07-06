@@ -45,12 +45,12 @@ pub struct Report {
 }
 
 impl Report {
-    pub fn formalize(&self) -> QcExtraPage {
-        QcExtraPage {
-            tab: Box::new(self.tab),
-            content: Box::new(self.content),
-        }
-    }
+    //pub fn formalize(&self) -> QcExtraPage {
+    //    QcExtraPage {
+    //        tab: Box::new(&self.tab),
+    //        content: Box::new(&self.content),
+    //    }
+    //}
     pub fn new(ctx: &Context, solutions: &BTreeMap<Epoch, PVTSolution>) -> Self {
         Self {
             tab: ReportTab {},

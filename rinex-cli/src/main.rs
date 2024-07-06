@@ -14,18 +14,14 @@ use preprocessing::preprocess;
 mod qc;
 use qc::Report;
 
-use rinex_qc::prelude::{Preprocessing, QcContext, QcExtraPage};
-
-use std::collections::HashMap;
+use rinex_qc::prelude::{QcContext, QcExtraPage};
 use std::path::Path;
-
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
 extern crate gnss_rtk as rtk;
 
 use rinex::prelude::Rinex;
-use rinex_qc::prelude::Render;
 use sp3::prelude::SP3;
 
 use cli::{Cli, Context, Workspace};
@@ -41,6 +37,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("i/o error")]
+    StdioError(#[from] std::io::Error),
     #[error("rinex error")]
     RinexError(#[from] rinex::Error),
     #[error("missing OBS RINEX")]
@@ -256,16 +254,20 @@ pub fn main() -> Result<(), Error> {
             let chapter = positioning::precise_positioning(&ctx, submatches)?;
             extra_pages.push(chapter);
         },
+        _ => {},
     }
 
-    // Make report
-    Report::new(&ctx);
-    // Customize, depending on previous ops
+    // report
+    let mut report = Report::new(&cli, &ctx);
+
+    // customization
     for extra in extra_pages {
         report.customize(extra);
     }
-    // Generate report
-    report.generate()?;
+
+    // generation
+    report.generate(&ctx)?;
+
     if !ctx.quiet {
         ctx.workspace.open_with_web_browser();
     }

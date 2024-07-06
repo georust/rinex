@@ -47,12 +47,12 @@ pub struct Report {
 }
 
 impl Report {
-    pub fn formalize(&self) -> QcExtraPage {
-        QcExtraPage {
-            tab: Box::new(self.tab),
-            content: Box::new(self.content),
-        }
-    }
+    //pub fn formalize(&self) -> QcExtraPage {
+    //    QcExtraPage {
+    //        tab: Box::new(self.tab.clone()),
+    //        content: Box::new(self.content.clone()),
+    //    }
+    //}
     pub fn new(ctx: &Context, solutions: &Vec<Track>) -> Self {
         Self {
             tab: ReportTab {},

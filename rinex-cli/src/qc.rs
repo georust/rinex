@@ -1,18 +1,15 @@
 //! File Quality opmode
-use clap::ArgMatches;
 use log::{debug, error, info, warn};
+use tl::{parse as html_parser, ParserOptions as HtmlParserOptions, VDom};
 
 use std::{
     fs::{read_to_string, File},
     io::Write,
 };
 
-use crate::{
-    cli::{Cli, Context},
-    Error,
-};
+use crate::cli::{Cli, Context};
 
-use rinex_qc::prelude::{QcConfig, QcExtraPage, QcReport, Render};
+use rinex_qc::prelude::{Markup, QcConfig, QcExtraPage, QcReport, Render};
 
 /// Quality check report
 pub enum Report<'a> {
@@ -21,12 +18,12 @@ pub enum Report<'a> {
     /// Reporting/analysis iteration.
     /// Report has previously been generated, we do not
     /// regenerate its entirety but only custom pages
-    Iteration(VDom<&a>),
+    Iteration(VDom<'a>),
 }
 
 impl<'a> Report<'a> {
     /// Create a new report
-    pub fn new(cli: &'a Cli, ctx: &'a Context) -> Self<'a> {
+    pub fn new(cli: &'a Cli, ctx: &'a Context) -> Self {
         let cfg = QcConfig::default();
         info!("using default QC configuration: {:#?}", cfg);
 
@@ -38,18 +35,19 @@ impl<'a> Report<'a> {
                 if let Ok(prev_hash) = content.parse::<u64>() {
                     if prev_hash == cli.hash() {
                         if let Ok(html) = read_to_string(report_path) {
-                            let opts = HtmlParserOptions::new().tracks_ids().track_classes();
-                            match html_parser(&html, opts) {
-                                Ok(html) => {
-                                    info!("previous report is preserved");
-                                    Self::Iteration(html)
-                                },
-                                Err(e) => {
-                                    error!("illegal html content: {}", e);
-                                    warn!("forcing new report generation");
-                                    Self::Pending(QcReport::new(&ctx.data, cfg))
-                                },
-                            }
+                            let opts = HtmlParserOptions::new().track_ids().track_classes();
+                            //match html_parser(&html, opts) {
+                            //    Ok(parsed) => {
+                            //        info!("previous report is preserved");
+                            //        Self::Iteration(parsed)
+                            //    },
+                            //    Err(e) => {
+                            //        error!("illegal html content: {}", e);
+                            //        warn!("forcing new report generation");
+                            //        Self::Pending(QcReport::new(&ctx.data, cfg))
+                            //    },
+                            //}
+                            Self::Pending(QcReport::new(&ctx.data, cfg))
                         } else {
                             error!("failed to parse previous report");
                             warn!("forcing new report generation");
@@ -76,21 +74,22 @@ impl<'a> Report<'a> {
         }
     }
     /// Customize report with extra page
-    pub fn customize(&'a mut self, page: QcExtraPage) {
+    pub fn customize(&mut self, page: QcExtraPage) {
         match self {
             Self::Pending(report) => report.add_chapter(page),
+            Self::Iteration(report) => {}, //TODO
         }
     }
     /// Render as html
-    fn to_html(&'a self) -> Self {
+    fn to_html(&self) -> Markup {
         match self {
             Self::Pending(report) => report.render(),
-            Self::Iteration(report) => report.render(),
+            Self::Iteration(report) => Markup::default(), //TODO, report.render(),
         }
     }
     /// Generate (dump) report
-    pub fn generate(&'a self, ctx: &Context) -> std::io::Result<()> {
-        let html = self.to_html();
+    pub fn generate(&self, ctx: &Context) -> std::io::Result<()> {
+        let html = self.to_html().into_string();
         let path = ctx.workspace.root.join("index.html");
         let mut fd = File::create(&path)?;
         write!(fd, "{}", html)?;

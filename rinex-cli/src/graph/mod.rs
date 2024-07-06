@@ -1,6 +1,5 @@
 use crate::{cli::Context, Error};
 use clap::ArgMatches;
-use rinex::observation::{Combination, Combine, Dcb};
 
 use plotly::{
     common::{
@@ -31,9 +30,6 @@ mod context;
 pub use context::PlotContext;
 
 mod naviplot;
-
-mod combination;
-use combination::{plot_gnss_code_mp, plot_gnss_combination, plot_gnss_dcb};
 
 mod csv; // export to CSV instead of plotting
 
@@ -100,19 +96,13 @@ pub fn build_timedomain_2y_plot(title: &str, y1_title: &str, y2_title: &str) -> 
  */
 pub fn build_default_polar_plot(title: &str) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title))
+        .title(title)
         .x_axis(
-            Axis::new()
-                .title(Title::new("Latitude [°]").side(Side::Top))
-                .zero_line(true), //.show_tick_labels(show_tick_labels)
-                                  //.dtick(dx_tick)
-                                  //.tick_format(tick_fmt)
+            Axis::new().title("Latitude [°]").zero_line(true), //.show_tick_labels(show_tick_labels)
+                                                               //.dtick(dx_tick)
+                                                               //.tick_format(tick_fmt)
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new("Longitude [°]"))
-                .zero_line(true),
-        )
+        .y_axis(Axis::new().title("Longitude [°]").zero_line(true))
         .show_legend(true)
         .auto_size(true);
     let mut p = Plot::new();
@@ -134,7 +124,7 @@ pub fn build_world_map(
 ) -> Plot {
     let mut p = Plot::new();
     let layout = Layout::new()
-        .title(Title::new(title).font(Font::default()))
+        .title(title)
         .drag_mode(DragMode::Zoom)
         .margin(Margin::new().top(0).left(0).bottom(0).right(0))
         .show_legend(show_legend)
@@ -165,20 +155,16 @@ fn build_plot(
     x_tick_fmt: &str,
 ) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title).font(title_font))
+        .title(title)
         .x_axis(
             Axis::new()
-                .title(Title::new(x_axis_title).side(title_side))
+                .title(x_axis_title)
                 .zero_line(zero_line.0)
                 .show_tick_labels(show_xtick_labels)
                 .dtick(dx_tick)
                 .tick_format(x_tick_fmt),
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new(y_axis_title))
-                .zero_line(zero_line.0),
-        )
+        .y_axis(Axis::new().title(y_axis_title).zero_line(zero_line.0))
         .show_legend(show_legend)
         .auto_size(auto_size);
     let mut p = Plot::new();
@@ -201,23 +187,19 @@ fn build_plot_2y(
     xtick_fmt: &str,
 ) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title).font(title_font))
+        .title(title)
         .x_axis(
             Axis::new()
-                .title(Title::new(x_title).side(title_side))
+                .title(x_title)
                 .zero_line(zero_line.0)
                 .show_tick_labels(show_xtick_labels)
                 .dtick(dx_tick)
                 .tick_format(xtick_fmt),
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new(y1_title))
-                .zero_line(zero_line.1),
-        )
+        .y_axis(Axis::new().title(y1_title).zero_line(zero_line.1))
         .y_axis2(
             Axis::new()
-                .title(Title::new(y2_title))
+                .title(y2_title)
                 .overlaying("y")
                 .side(AxisSide::Right)
                 .zero_line(zero_line.1),
@@ -241,23 +223,15 @@ fn build_3d_plot(
     auto_size: bool,
 ) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title).font(title_font))
+        .title(title)
         .x_axis(
             Axis::new()
-                .title(Title::new(x_title).side(title_side))
+                .title(x_title)
                 .zero_line(zero_line.0)
                 .show_tick_labels(false),
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new(y_title))
-                .zero_line(zero_line.1),
-        )
-        .z_axis(
-            Axis::new()
-                .title(Title::new(z_title))
-                .zero_line(zero_line.2),
-        )
+        .y_axis(Axis::new().title(y_title).zero_line(zero_line.1))
+        .z_axis(Axis::new().title(z_title).zero_line(zero_line.2))
         .show_legend(show_legend)
         .auto_size(auto_size);
     let mut p = Plot::new();
@@ -303,15 +277,6 @@ pub fn build_3d_chart_epoch_label<T: Clone + Default + Serialize>(
         .hover_info(HoverInfo::All)
 }
 
-/* Returns True if GNSS combination is to be plotted */
-fn gnss_combination_plot(matches: &ArgMatches) -> bool {
-    matches.get_flag("if")
-        || matches.get_flag("gf")
-        || matches.get_flag("wl")
-        || matches.get_flag("nl")
-        || matches.get_flag("mw")
-}
-
 /* Returns True if Navigation plot is to be generated */
 fn navigation_plot(matches: &ArgMatches) -> bool {
     matches.get_flag("orbit") || matches.get_flag("orbit-residual") || matches.get_flag("sv-clock")
@@ -344,101 +309,6 @@ pub fn graph_opmode(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         /* save observations */
         ctx.workspace
             .render_html("OBSERVATIONS.html", &plot_ctx.to_html());
-    }
-    /*
-     * GNSS combinations graphs
-     */
-    if gnss_combination_plot(matches) {
-        let data = ctx
-            .data
-            .observation()
-            .ok_or(Error::MissingObservationRinex)?;
-
-        let mut plot_ctx = PlotContext::new();
-        if matches.get_flag("if") {
-            let combination = data.combine(Combination::IonosphereFree);
-            plot_gnss_combination(
-                &combination,
-                &mut plot_ctx,
-                "Ionosphere Free combination",
-                "Meters of delay",
-            );
-        }
-        if matches.get_flag("gf") {
-            let combination = data.combine(Combination::GeometryFree);
-            plot_gnss_combination(
-                &combination,
-                &mut plot_ctx,
-                "Geometry Free combination",
-                "Meters of delay",
-            );
-        }
-        if matches.get_flag("wl") {
-            let combination = data.combine(Combination::WideLane);
-            plot_gnss_combination(
-                &combination,
-                &mut plot_ctx,
-                "Wide Lane combination",
-                "Meters of delay",
-            );
-        }
-        if matches.get_flag("nl") {
-            let combination = data.combine(Combination::NarrowLane);
-            plot_gnss_combination(
-                &combination,
-                &mut plot_ctx,
-                "Narrow Lane combination",
-                "Meters of delay",
-            );
-        }
-        if matches.get_flag("mw") {
-            let combination = data.combine(Combination::MelbourneWubbena);
-            plot_gnss_combination(
-                &combination,
-                &mut plot_ctx,
-                "Melbourne Wubbena combination",
-                "Meters of delay",
-            );
-        }
-
-        /* save combinations */
-        ctx.workspace
-            .render_html("COMBINATIONS.html", &plot_ctx.to_html());
-    }
-    /*
-     * DCB visualization
-     */
-    if matches.get_flag("dcb") {
-        let data = ctx
-            .data
-            .observation()
-            .ok_or(Error::MissingObservationRinex)?;
-
-        let mut plot_ctx = PlotContext::new();
-        let data = data.dcb();
-        plot_gnss_dcb(
-            &data,
-            &mut plot_ctx,
-            "Differential Code Bias",
-            "Differential Code Bias [s]",
-        );
-
-        /* save DCB */
-        ctx.workspace.render_html("DCB.html", &plot_ctx.to_html());
-    }
-    if matches.get_flag("mp") {
-        let data = ctx
-            .data
-            .observation()
-            .ok_or(Error::MissingObservationRinex)?;
-
-        let mut plot_ctx = PlotContext::new();
-        let data = data.code_multipath();
-        plot_gnss_code_mp(&data, &mut plot_ctx, "Code Multipath", "Meters of delay");
-
-        /* save MP */
-        ctx.workspace
-            .render_html("MULTIPATH.html", &plot_ctx.to_html());
     }
     if navigation_plot(matches) {
         let mut plot_ctx = PlotContext::new();

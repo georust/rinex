@@ -27,6 +27,7 @@ itertools = "0.13"
 map_3d = "0.1.5"
 colorous = "1.0"
 plotly = "0.9"
+maud = "0.26"
 clap = { version = "4.4.13", features = ["derive", "color"] }
 
 gnss-rs = { version = "2.2", features = ["serde"] }
