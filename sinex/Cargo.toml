@@ -18,7 +18,6 @@ readme = "README.md"
 [dependencies]
 chrono = "0.4"
 thiserror = "1"
-strum = { version = "0.26", features = ["derive"] }
 strum_macros = "0.26"
-# gnss-rs = { version = "2.1.3", features = ["serde"] }
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+strum = { version = "0.26", features = ["derive"] }
+gnss-rs = { version = "2.2", features = ["serde"] }

@@ -20,22 +20,22 @@ tl = "0.7"
 walkdir = "2.4.0"
 geo-types = "0.7.11"
 env_logger = "0.11"
-# rand = "0.8.4"
 serde_json = "1"
 lazy_static = "1.4"
 thiserror = "1"
 itertools = "0.13"
 map_3d = "0.1.5"
-# ndarray = "0.15"
 colorous = "1.0"
+plotly = "0.9"
 clap = { version = "4.4.13", features = ["derive", "color"] }
+
+gnss-rs = { version = "2.2", features = ["serde"] }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
+
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
-plotly = { git = "https://github.com/plotly/plotly.rs", branch = "main" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 sp3 = { path = "../sp3", version = "=1.0.8",  features = ["serde", "flate2"] }
 rinex-qc = { path = "../rinex-qc", version = "=0.1.14", features = ["serde", "sp3"] } 
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 
 # solver
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
@@ -45,4 +45,4 @@ gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", featur
 # cggtts
 # cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
-cggtts = { git = "https://github.com/gwbres/cggtts", branch = "dev", features = ["serde", "scheduler"] }
+cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"] }
