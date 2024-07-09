@@ -300,19 +300,13 @@ pub fn build_timedomain_2y_plot(title: &str, y1_title: &str, y2_title: &str) -> 
  */
 pub fn build_default_polar_plot(title: &str) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title))
+        .title(title)
         .x_axis(
-            Axis::new()
-                .title(Title::new("Latitude [°]").side(Side::Top))
-                .zero_line(true), //.show_tick_labels(show_tick_labels)
-                                  //.dtick(dx_tick)
-                                  //.tick_format(tick_fmt)
+            Axis::new().title("Latitude [°]").zero_line(true), //.show_tick_labels(show_tick_labels)
+                                                               //.dtick(dx_tick)
+                                                               //.tick_format(tick_fmt)
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new("Longitude [°]"))
-                .zero_line(true),
-        )
+        .y_axis(Axis::new().title("Longitude [°]").zero_line(true))
         .show_legend(true)
         .auto_size(true);
     let mut p = Plot::new();
@@ -334,7 +328,7 @@ pub fn build_world_map(
 ) -> Plot {
     let mut p = Plot::new();
     let layout = Layout::new()
-        .title(Title::new(title).font(Font::default()))
+        .title(title)
         .drag_mode(DragMode::Zoom)
         .margin(Margin::new().top(0).left(0).bottom(0).right(0))
         .show_legend(show_legend)
@@ -365,20 +359,16 @@ fn build_plot(
     x_tick_fmt: &str,
 ) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title).font(title_font))
+        .title(title)
         .x_axis(
             Axis::new()
-                .title(Title::new(x_axis_title).side(title_side))
+                .title(x_axis_title)
                 .zero_line(zero_line.0)
                 .show_tick_labels(show_xtick_labels)
                 .dtick(dx_tick)
                 .tick_format(x_tick_fmt),
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new(y_axis_title))
-                .zero_line(zero_line.0),
-        )
+        .y_axis(Axis::new().title(y_axis_title).zero_line(zero_line.0))
         .show_legend(show_legend)
         .auto_size(auto_size);
     let mut p = Plot::new();
@@ -401,23 +391,19 @@ fn build_plot_2y(
     xtick_fmt: &str,
 ) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title).font(title_font))
+        .title(title)
         .x_axis(
             Axis::new()
-                .title(Title::new(x_title).side(title_side))
+                .title(x_title)
                 .zero_line(zero_line.0)
                 .show_tick_labels(show_xtick_labels)
                 .dtick(dx_tick)
                 .tick_format(xtick_fmt),
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new(y1_title))
-                .zero_line(zero_line.1),
-        )
+        .y_axis(Axis::new().title(y1_title).zero_line(zero_line.1))
         .y_axis2(
             Axis::new()
-                .title(Title::new(y2_title))
+                .title(y2_title)
                 .overlaying("y")
                 .side(AxisSide::Right)
                 .zero_line(zero_line.1),
@@ -441,23 +427,15 @@ fn build_3d_plot(
     auto_size: bool,
 ) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title).font(title_font))
+        .title(title)
         .x_axis(
             Axis::new()
-                .title(Title::new(x_title).side(title_side))
+                .title(x_title)
                 .zero_line(zero_line.0)
                 .show_tick_labels(false),
         )
-        .y_axis(
-            Axis::new()
-                .title(Title::new(y_title))
-                .zero_line(zero_line.1),
-        )
-        .z_axis(
-            Axis::new()
-                .title(Title::new(z_title))
-                .zero_line(zero_line.2),
-        )
+        .y_axis(Axis::new().title(y_title).zero_line(zero_line.1))
+        .z_axis(Axis::new().title(z_title).zero_line(zero_line.2))
         .show_legend(show_legend)
         .auto_size(auto_size);
     let mut p = Plot::new();
