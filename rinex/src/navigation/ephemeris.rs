@@ -233,7 +233,6 @@ impl Ephemeris {
         let sec = self.get_orbit_f64("toe")?;
         let week_dur = Duration::from_days((week * 7) as f64);
         let sec_dur = Duration::from_seconds(sec);
-        let t = Epoch::from_duration(week_dur + sec_dur, sv_ts);
         Some(Epoch::from_duration(week_dur + sec_dur, sv_ts).to_time_scale(TimeScale::GPST))
     }
     /*

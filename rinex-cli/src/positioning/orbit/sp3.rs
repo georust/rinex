@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
     Almanac, Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, Vector3, EARTH_J2000,
-    SPK, SUN_J2000, SV,
+    SUN_J2000, SV,
 };
 
 use rinex::carrier::Carrier;
