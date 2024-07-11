@@ -37,7 +37,7 @@ horrorshow = "0.8"
 clap = { version = "4.4.13", features = ["derive", "color"] }
 plotly = { git = "https://github.com/plotly/plotly.rs", branch = "main" }
 
-anise = "0.4.0"
+anise = "0.4.1"
 gnss-rs = { version = "2.2.0", features = ["serde"] }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
