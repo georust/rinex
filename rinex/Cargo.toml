@@ -106,10 +106,11 @@ hifitime = { version = "4.0.0-alpha", features = [
     "serde",
     "std",
 ] }
+
+anise = "0.4.1"
 horrorshow = { version = "0.8", optional = true }
 nalgebra = { version = "0.32.3" }
 gnss-rs = { version = "2.2.0", features = ["serde"] }
-anise = { git = "https://github.com/nyx-space/anise.git", branch = "master" }
 
 # RINEX QC dedicated traits
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", optional = true }

@@ -1,7 +1,6 @@
 //! CGGTTS special resolution opmoode.
 use clap::ArgMatches;
 use std::collections::HashMap;
-use std::str::FromStr;
 
 mod post_process;
 pub use post_process::{post_process, Error as PostProcessingError};

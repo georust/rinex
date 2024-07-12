@@ -6,13 +6,10 @@ use plotly::{
     common::{
         AxisSide,
         //DashType,
-        Font,
         HoverInfo,
         Marker,
         MarkerSymbol,
         Mode,
-        Side,
-        Title,
     },
     layout::{Axis, Center, DragMode, Mapbox, MapboxStyle, Margin},
     Layout, Plot, Scatter, Scatter3D,
@@ -244,8 +241,6 @@ pub fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
 pub fn build_timedomain_plot(title: &str, y_title: &str) -> Plot {
     build_plot(
         title,
-        Side::Top,
-        Font::default(),
         "MJD",
         y_title,
         (true, true), // y=0 lines
@@ -263,8 +258,6 @@ pub fn build_timedomain_plot(title: &str, y_title: &str) -> Plot {
 pub fn build_default_3d_plot(title: &str, x_title: &str, y_title: &str, z_title: &str) -> Plot {
     build_3d_plot(
         title,
-        Side::Top,
-        Font::default(),
         x_title,
         y_title,
         z_title,
@@ -281,8 +274,6 @@ pub fn build_default_3d_plot(title: &str, x_title: &str, y_title: &str, z_title:
 pub fn build_timedomain_2y_plot(title: &str, y1_title: &str, y2_title: &str) -> Plot {
     build_plot_2y(
         title,
-        Side::Top,
-        Font::default(),
         "MJD",
         y1_title,
         y2_title,
@@ -347,8 +338,6 @@ pub fn build_world_map(
  */
 fn build_plot(
     title: &str,
-    title_side: Side,
-    title_font: Font,
     x_axis_title: &str,
     y_axis_title: &str,
     zero_line: (bool, bool), // plots a bold line @ (x=0,y=0)
@@ -378,8 +367,6 @@ fn build_plot(
 
 fn build_plot_2y(
     title: &str,
-    title_side: Side,
-    title_font: Font,
     x_title: &str,
     y1_title: &str,
     y2_title: &str,
@@ -417,8 +404,6 @@ fn build_plot_2y(
 
 fn build_3d_plot(
     title: &str,
-    title_side: Side,
-    title_font: Font,
     x_title: &str,
     y_title: &str,
     z_title: &str,
