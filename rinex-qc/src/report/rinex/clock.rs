@@ -4,12 +4,15 @@ use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::prelude::{ClockProfileType, Constellation, Rinex, TimeScale, DOMES, SV};
 use std::collections::HashMap;
 
-#[cfg(feature = "plot")]
-use crate::plot::Plot;
 use crate::report::shared::SamplingReport;
 use crate::report::Error;
 
-pub struct ClkPage {
+#[cfg(feature = "plot")]
+use crate::plot::{MarkerSymbol, Mode, Plot};
+
+/// [ClockPage] per [Constellation]
+struct ConstellPage {
+    /// satellites
     satellites: Vec<SV>,
     #[cfg(feature = "plot")]
     offset_plot: Plot,
@@ -17,7 +20,89 @@ pub struct ClkPage {
     drift_plot: Plot,
 }
 
-impl Render for ClkPage {
+impl ConstellPage {
+    fn new(rinex: &Rinex) -> Self {
+        let satellites = rinex.sv().collect::<Vec<_>>();
+
+        Self {
+            #[cfg(feature = "plot")]
+            offset_plot: {
+                let mut plot =
+                    Plot::new_time_domain("clock_offset", "Clock Offset", "Offset [s]", true);
+                for sv in &satellites {
+                    let label = sv.to_string();
+                    let plot_x = rinex
+                        .precise_sv_clock()
+                        .filter_map(|(t, svnn, _, _)| if *sv == svnn { Some(t) } else { None })
+                        .collect::<Vec<_>>();
+                    let plot_y = rinex
+                        .precise_sv_clock()
+                        .filter_map(
+                            |(_, svnn, _, prof)| {
+                                if *sv == svnn {
+                                    Some(prof.bias)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .collect::<Vec<_>>();
+                    let trace = Plot::new_timedomain_chart(
+                        &label,
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &plot_x,
+                        plot_y,
+                    );
+                    plot.add_trace(trace);
+                }
+                plot
+            },
+            #[cfg(feature = "plot")]
+            drift_plot: {
+                let mut plot =
+                    Plot::new_time_domain("clock_drift", "Clock Drift", "Drift [s/s]", true);
+                for sv in &satellites {
+                    let label = sv.to_string();
+                    let plot_x = rinex
+                        .precise_sv_clock()
+                        .filter_map(|(t, svnn, _, prof)| {
+                            let drift = prof.drift?;
+                            if *sv == svnn {
+                                Some(t)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let plot_y = rinex
+                        .precise_sv_clock()
+                        .filter_map(|(_, svnn, _, prof)| {
+                            let drift = prof.drift?;
+                            if *sv == svnn {
+                                Some(drift)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::new_timedomain_chart(
+                        &label,
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &plot_x,
+                        plot_y,
+                    );
+                    plot.add_trace(trace);
+                }
+                plot
+            },
+            satellites,
+        }
+    }
+}
+
+impl Render for ConstellPage {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {
@@ -61,7 +146,7 @@ pub struct ClkReport {
     codes: Vec<ClockProfileType>,
     igs_clock_name: Option<String>,
     timescale: Option<TimeScale>,
-    pages: HashMap<Constellation, ClkPage>,
+    constellations: HashMap<Constellation, ConstellPage>,
 }
 
 impl ClkReport {
@@ -73,18 +158,18 @@ impl ClkReport {
                 }
                 "High Precision Clock (RINEX)"
             }
-            //ul(class="menu-list", id="menu:tabs:clk", style="display:none") {
-            //    @ for page in self.pages.keys().sorted() {
-            //        li {
-            //            a(id=&format!("menu:clk:{}", page), style="margin-left:29px") {
-            //                span(class="icon") {
-            //                    i(class="fa-solid fa-satellite");
-            //                }
-            //                : page.to_string()
-            //            }
-            //        }
-            //    }
-            //}
+            ul class="menu-list" style="display:none" {
+                @for constell in self.constellations.keys().sorted() {
+                    li {
+                        a id=(&format!("menu:clk:{}", constell)) class="menu:subtab" style="margin-left:29px" {
+                            span class="icon" {
+                                i class="fa-solid fa-satellite" {};
+                            }
+                            (constell.to_string())
+                        }
+                    }
+                }
+            }
         }
     }
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
@@ -98,40 +183,15 @@ impl ClkReport {
             ref_clock: clk_header.ref_clock.clone(),
             timescale: clk_header.timescale.clone(),
             sampling: SamplingReport::from_rinex(rnx),
-            pages: {
-                let mut pages = HashMap::<Constellation, ClkPage>::new();
+            constellations: {
+                let mut pages = HashMap::<Constellation, ConstellPage>::new();
                 for constellation in rnx.constellation() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),
                     );
                     let focused = rnx.filter(&filter);
-                    pages.insert(
-                        constellation,
-                        ClkPage {
-                            satellites: focused.sv().collect(),
-                            #[cfg(feature = "plot")]
-                            offset_plot: {
-                                let mut plot = Plot::new_time_domain(
-                                    "clock_offset",
-                                    "Clock Offset",
-                                    "Offset [s]",
-                                    true,
-                                );
-                                plot
-                            },
-                            #[cfg(feature = "plot")]
-                            drift_plot: {
-                                let mut plot = Plot::new_time_domain(
-                                    "clock_drift",
-                                    "Clock Drift",
-                                    "Drift [s/s]",
-                                    true,
-                                );
-                                plot
-                            },
-                        },
-                    );
+                    pages.insert(constellation, ConstellPage::new(&focused));
                 }
                 pages
             },
@@ -211,8 +271,8 @@ impl Render for ClkReport {
             div class="table-container" {
                 (self.sampling.render())
             }
-            @for constell in self.pages.keys().sorted() {
-                @if let Some(page) = self.pages.get(&constell) {
+            @for constell in self.constellations.keys().sorted() {
+                @if let Some(page) = self.constellations.get(&constell) {
                     div class="table-container" {
                         table class="table is-bordered" {
                             tr {

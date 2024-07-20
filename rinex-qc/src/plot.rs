@@ -107,10 +107,10 @@ impl Plot {
             .title(title)
             .x_axis(
                 Axis::new()
-                    .title("Epoch")
+                    .title("MJD (UTC)")
                     .zero_line(true)
                     .show_tick_labels(true)
-                    .dtick(100.0)
+                    .dtick(0.25)
                     .range_slider(RangeSlider::new().visible(true))
                     .range_selector(RangeSelector::new().buttons(buttons))
                     .tick_format("{:05}"),
@@ -281,10 +281,9 @@ impl Plot {
         symbol: MarkerSymbol,
         t: &Vec<Epoch>,
         y: Vec<Y>,
-    ) -> Box<Scatter<String, Y>> {
+    ) -> Box<Scatter<f64, Y>> {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
-        //Scatter::new(t.iter().map(|t| t.to_mjd_utc_days()).collect(), y)
-        Scatter::new(t.iter().map(|t| t.to_string()).collect(), y)
+        Scatter::new(t.iter().map(|t| t.to_mjd_utc_days()).collect(), y)
             .name(name)
             .mode(mode)
             .web_gl_mode(true)

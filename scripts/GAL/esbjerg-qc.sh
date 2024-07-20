@@ -20,5 +20,4 @@ FILTER="Galileo;>E09;<E26;<2020-06-25T23:00:00 UTC"
     -f $OBS \
     -f $NAV \
     -f $CLK \
-    -f $SP3 \
-    qc
+    -f $SP3
