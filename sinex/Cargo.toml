@@ -18,6 +18,8 @@ readme = "README.md"
 [dependencies]
 chrono = "0.4"
 thiserror = "1"
+
 strum_macros = "0.26"
 strum = { version = "0.26", features = ["derive"] }
-gnss-rs = { version = "2.2", features = ["serde"] }
+
+gnss-rs = { version = "2.2.0", features = ["serde"] }

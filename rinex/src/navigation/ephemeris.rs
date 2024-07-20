@@ -2,12 +2,19 @@ use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::constants::Constants;
 use crate::{constants, epoch, prelude::*, version::Version};
 
+use anise::almanac::Almanac;
+use anise::constants::frames::{EARTH_J2000, IAU_EARTH_FRAME};
+use anise::prelude::Orbit;
 use log::warn;
+
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 
 use gnss::prelude::SV;
+
+#[cfg(feature = "nav")]
+use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -63,177 +70,28 @@ struct EphemerisHelper {
     pub dtr: f64,
     /// First Derivative of Relativistic Effect Correction
     pub fd_dtr: f64,
+    /// ANISE Orbit
+    pub orbit: Option<Orbit>,
 }
-
-#[cfg(feature = "nav")]
-use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
 
 #[cfg(feature = "nav")]
 #[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 impl EphemerisHelper {
-    pub(crate) fn meo_orbit_to_ecef_rotation_matrix(&self) -> Rotation<f64, 3> {
-        // Positive angles mean counterclockwise rotation
-        let rotation_x = Rotation3::from_axis_angle(&Vector3::x_axis(), self.i_k);
-        let rotation_z = Rotation3::from_axis_angle(&Vector3::z_axis(), self.omega_k);
-        rotation_z * rotation_x
-    }
-
-    pub(crate) fn geo_orbit_to_ecef_rotation_matrix(&self) -> Rotation<f64, 3> {
-        let rotation_x = Rotation::from_axis_angle(&Vector3::x_axis(), 5.0f64.to_radians());
-        let rotation_z =
-            Rotation::from_axis_angle(&Vector3::z_axis(), -constants::Omega::BDS * self.t_k);
-        rotation_z * rotation_x
-    }
-
-    pub(crate) fn orbit_velocity(&self) -> (f64, f64) {
-        let (sin_u_k, cos_u_k) = self.u_k.sin_cos();
-        let fd_x = self.fd_r_k * cos_u_k - self.r_k * self.fd_u_k * sin_u_k;
-        let fd_y = self.fd_r_k * sin_u_k + self.r_k * self.fd_u_k * cos_u_k;
-        (fd_x, fd_y)
-    }
-
-    /// Calculate ecef position of MEO/IGSO sv
-    /// work for GPS,Galieo,BeiDou(MEO/IGSO)
-    pub(crate) fn ecef_position(&self) -> Vector3<f64> {
-        let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
-        let ecef_xyz = self.meo_orbit_to_ecef_rotation_matrix() * orbit_xyz;
-        ecef_xyz
-    }
-
-    /// Calculate ecef velocity of MEO/IGSO sv
-    /// work for GPS,Galieo,BeiDou(MEO/IGSO)
-    pub(crate) fn ecef_velocity(&self) -> Vector3<f64> {
-        let (x, y) = self.orbit_position;
-        let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
-        let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
-        // First Derivative of orbit position
-        let (fd_x, fd_y) = self.orbit_velocity();
-        // First Derivative of rotation Matrix
-        let mut fd_r = na::SMatrix::<f64, 3, 4>::zeros();
-        fd_r[(0, 0)] = cos_omega_k;
-        fd_r[(0, 1)] = -sin_omega_k * cos_i_k;
-        fd_r[(0, 2)] = -(x * sin_omega_k + y * cos_omega_k * cos_i_k);
-        fd_r[(0, 3)] = y * sin_omega_k * sin_i_k;
-        fd_r[(1, 0)] = sin_omega_k;
-        fd_r[(1, 1)] = cos_omega_k * cos_i_k;
-        fd_r[(1, 2)] = x * cos_omega_k - y * sin_omega_k * cos_i_k;
-        fd_r[(1, 3)] = y * cos_omega_k * sin_i_k;
-        fd_r[(2, 1)] = sin_i_k;
-        fd_r[(2, 3)] = y * cos_i_k;
-
-        let rhs = Vector4::new(fd_x, fd_y, self.fd_omega_k, self.fd_i_k);
-        let vel = fd_r * rhs;
-        vel
-    }
-
     /// Calculate ecef position and velocity of MEO/IGSO sv
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
-    #[cfg(feature = "nav")]
-    pub(crate) fn ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
-        (self.ecef_position(), self.ecef_velocity())
-    }
-
-    /// Calculate ecef position of GEO sv
-    #[cfg(feature = "nav")]
-    pub(crate) fn beidou_geo_ecef_position(&self) -> Vector3<f64> {
-        let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
-        let rotation1 = self.meo_orbit_to_ecef_rotation_matrix();
-        let rotation2 = self.geo_orbit_to_ecef_rotation_matrix();
-        let ecef_xyz = rotation2 * rotation1 * orbit_xyz;
-        ecef_xyz
-    }
-
-    /// Calculate ecef velocity of GEO sv
-    #[cfg(feature = "nav")]
-    pub(crate) fn beidou_geo_ecef_velocity(&self) -> Vector3<f64> {
-        let (x, y) = self.orbit_position;
-        let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
-        let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
-        let (fd_x, fd_y) = self.orbit_velocity();
-        let fd_xgk = -y * self.fd_omega_k - fd_y * cos_i_k * sin_omega_k + fd_x * cos_omega_k;
-        let fd_ygk = x * self.fd_omega_k + fd_y * cos_i_k * cos_omega_k + fd_x * sin_omega_k;
-        let fd_zgk = fd_y * sin_i_k + y * self.fd_i_k * cos_i_k;
-
-        let rx = Rotation3::from_axis_angle(&Vector3::x_axis(), 5.0);
-        let rz = Rotation3::from_axis_angle(&Vector3::z_axis(), -constants::Omega::BDS * self.t_k);
-        let (sin_omega_tk, cos_omega_tk) = (constants::Omega::BDS * self.t_k).sin_cos();
-        let fd_rz = self.fd_omega_k
-            * na::Matrix3::new(
-                -sin_omega_tk,
-                cos_omega_tk,
-                0.0,
-                -cos_omega_tk,
-                -sin_omega_tk,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-            );
-        let pos = self.beidou_geo_ecef_position();
-        let fd_pos = Vector3::new(fd_xgk, fd_ygk, fd_zgk);
-        let vel = fd_rz * rx * pos + rz * rx * fd_pos;
-        vel
-    }
-
-    /// Calculate ecef position and velocity of BeiDou GEO sv
-    /// # Return
-    /// ( Position(x,y,z),Velecity(x,y,z) )
-    pub(crate) fn beidou_geo_ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
-        let (x, y) = self.orbit_position;
-        let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
-        let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
-        let (fd_x, fd_y) = self.orbit_velocity();
-        let fd_xgk = -y * self.fd_omega_k - fd_y * cos_i_k * sin_omega_k + fd_x * cos_omega_k;
-        let fd_ygk = x * self.fd_omega_k + fd_y * cos_i_k * cos_omega_k + fd_x * sin_omega_k;
-        let fd_zgk = fd_y * sin_i_k + y * self.fd_i_k * cos_i_k;
-
-        let rx = Rotation3::from_axis_angle(&Vector3::x_axis(), 5.0);
-        let rz = Rotation3::from_axis_angle(&Vector3::z_axis(), -constants::Omega::BDS * self.t_k);
-        let (sin_omega_tk, cos_omega_tk) = (constants::Omega::BDS * self.t_k).sin_cos();
-        let fd_rz = self.fd_omega_k
-            * na::Matrix3::new(
-                -sin_omega_tk,
-                cos_omega_tk,
-                0.0,
-                -cos_omega_tk,
-                -sin_omega_tk,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-            );
-        let pos = self.beidou_geo_ecef_position();
-        let fd_pos = Vector3::new(fd_xgk, fd_ygk, fd_zgk);
-        let vel = fd_rz * rx * pos + rz * rx * fd_pos;
-        (pos, vel)
-    }
-
-    /// get ecef position
-    pub fn position(&self) -> Option<Vector3<f64>> {
-        match self.sv.constellation {
-            Constellation::GPS | Constellation::Galileo => Some(self.ecef_position()),
-            Constellation::BeiDou => {
-                if self.sv.is_beidou_geo() {
-                    Some(self.beidou_geo_ecef_position())
-                } else {
-                    Some(self.ecef_position())
-                }
-            },
-            _ => None,
-        }
+    pub(crate) fn ecef_pv(&self, almanac: &Almanac) -> (Vector3<f64>, Vector3<f64>) {
+        let orbit_ecef = almanac
+            .transform_to(self.orbit.unwrap(), IAU_EARTH_FRAME, None)
+            .unwrap();
+        (orbit_ecef.radius_km * 1e-3, orbit_ecef.velocity_km_s * 1e-3)
     }
 
     /// get ecef position and velocity
-    pub fn position_velocity(&self) -> Option<(Vector3<f64>, Vector3<f64>)> {
+    pub fn position_velocity(&self, almanac: &Almanac) -> Option<(Vector3<f64>, Vector3<f64>)> {
         match self.sv.constellation {
-            Constellation::GPS | Constellation::Galileo => Some(self.ecef_pv()),
-            Constellation::BeiDou => {
-                if self.sv.is_beidou_geo() {
-                    Some(self.beidou_geo_ecef_pv())
-                } else {
-                    Some(self.ecef_pv())
-                }
+            Constellation::GPS | Constellation::Galileo | Constellation::BeiDou => {
+                Some(self.ecef_pv(almanac))
             },
             _ => None,
         }
@@ -404,12 +262,21 @@ impl Ephemeris {
     #[cfg(feature = "nav")]
     pub(crate) fn ephemeris_helper(&self, sv: SV, t: Epoch) -> Option<EphemerisHelper> {
         // const
-        let gm = Constants::gm(sv);
+        let gm_m3_s2 = Constants::gm(sv);
         let omega = Constants::omega(sv);
         let dtr_f = Constants::dtr_f(sv);
-        let mut helper = EphemerisHelper::default();
-        helper.sv = sv;
-        helper.t_k = self.tk(sv, t)?;
+
+        let mut helper = EphemerisHelper {
+            sv,
+            ..Default::default()
+        };
+        // set t_k
+        if let Some(t_k) = self.tk(sv, t) {
+            helper.t_k = t_k
+        } else {
+            log::trace!("{} ephemeris missing or invalid at {}", sv, t);
+            return None;
+        }
 
         let mut kepler = self.kepler()?;
         // considering the filed a_dot
@@ -419,7 +286,7 @@ impl Ephemeris {
         let perturbations = self.perturbations()?;
 
         // m_k, e_k, v_k calculation
-        let n0 = (gm / kepler.a.powi(3)).sqrt();
+        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt();
         let n = n0 + perturbations.dn;
         let m_k = kepler.m_0 + n * helper.t_k;
         // Iterative calculation of e_k
@@ -481,6 +348,21 @@ impl Ephemeris {
         // Relativistic Effect Correction
         helper.dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
         helper.fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
+
+        // Finally, build the orbit state
+        helper.orbit = Some(
+            Orbit::try_keplerian(
+                kepler.a,
+                kepler.e,
+                helper.i_k,
+                helper.omega_k,
+                helper.u_k,
+                v_k,
+                t,
+                EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
+            )
+            .unwrap(),
+        );
 
         Some(helper)
     }
@@ -675,7 +557,9 @@ impl Ephemeris {
     /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
     pub fn kepler2position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let helper = self.ephemeris_helper(sv, t)?;
-        let pos = helper.position()?;
+        // Build the orbit in the Earth J2000 (inertial) frame.
+        // let orbit = Orbit::try_keplerian(kepler.a, kepler.e, inc, raan, aop, ta, epoch, frame)
+        let pos = helper.orbit?.radius_km;
         Some((pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0))
     }
     /*
@@ -690,9 +574,10 @@ impl Ephemeris {
         &self,
         sv: SV,
         t: Epoch,
+        almanac: &Almanac,
     ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
         let helper = self.ephemeris_helper(sv, t)?;
-        let (pos, vel) = helper.position_velocity()?;
+        let (pos, vel) = helper.position_velocity(almanac)?;
         Some((
             (pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0),
             (vel.x, vel.y, vel.z),
@@ -726,6 +611,7 @@ impl Ephemeris {
         &self,
         sv: SV,
         epoch: Epoch,
+        almanac: &Almanac,
     ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
         let (x_km, y_km, z_km, vx, vy, vz) = (
             self.get_orbit_f64("satPosX"),
@@ -743,7 +629,7 @@ impl Ephemeris {
                  */
                 Some(((x_km, y_km, z_km), (vx, vy, vz)))
             },
-            _ => self.kepler2position_velocity(sv, epoch),
+            _ => self.kepler2position_velocity(sv, epoch, almanac),
         }
     }
     /// Helper method to calculate elevation and azimuth angles, both in degrees,

@@ -2,11 +2,13 @@ use crate::{cli::Context, positioning::BufferTrait};
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    Arc, Bodies, Cosm, Epoch, Frame, InterpolationResult as RTKInterpolationResult, LightTimeCalc,
-    TimeScale, Vector3, SV,
+    Almanac, Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, Vector3, EARTH_J2000,
+    SUN_J2000, SV,
 };
 
 use rinex::carrier::Carrier;
+
+use anise::almanac::metaload::MetaFile;
 
 #[derive(Debug)]
 struct Buffer {
@@ -49,13 +51,13 @@ impl BufferTrait<(f64, f64, f64)> for Buffer {
 /*
  * Evaluates Sun / Earth vector in meters ECEF at "t"
  */
-fn sun_unit_vector(ref_frame: &Frame, cosmic: &Arc<Cosm>, t: Epoch) -> Vector3<f64> {
-    let sun_body = Bodies::Sun; // This only works in the solar system..
-    let orbit = cosmic.celestial_state(sun_body.ephem_path(), t, *ref_frame, LightTimeCalc::None);
+fn sun_unit_vector(almanac: &Almanac, t: Epoch) -> Vector3<f64> {
+    let earth2sun = almanac.transform(EARTH_J2000, SUN_J2000, t, None).unwrap();
+
     Vector3::new(
-        orbit.x_km * 1000.0,
-        orbit.y_km * 1000.0,
-        orbit.z_km * 1000.0,
+        earth2sun.radius_km.x * 1000.0,
+        earth2sun.radius_km.y * 1000.0,
+        earth2sun.radius_km.z * 1000.0,
     )
 }
 
@@ -68,9 +70,15 @@ pub struct Orbit<'a> {
 
 impl<'a> Orbit<'a> {
     pub fn from_ctx(ctx: &'a Context, order: usize) -> Self {
-        let cosmic = Cosm::de438();
+        let meta = MetaFile {
+            uri: "http://public-data.nyxspace.com/anise/v0.4/de440s.bsp".to_string(),
+            crc32: Some(3072159656), // Specifying the CRC allows only downloading the data once.
+        };
+        let almanac = Almanac::default()
+            .load_from_metafile(meta)
+            .unwrap_or_else(|e| panic!("failed to build Almanac: {}", e));
+
         let sp3 = ctx.data.sp3().unwrap();
-        let earth_frame = cosmic.frame("EME2000"); // this only works on planet Earth..
         Self {
             order,
             epochs: 0,
@@ -85,7 +93,7 @@ impl<'a> Orbit<'a> {
                         let k = -r_sat
                             / (r_sat[0].powi(2) + r_sat[1].powi(2) + r_sat[3].powi(2)).sqrt();
 
-                        let r_sun = sun_unit_vector(&earth_frame, &cosmic, t);
+                        let r_sun = sun_unit_vector(&almanac, t);
                         let norm = ((r_sun[0] - r_sat[0]).powi(2)
                             + (r_sun[1] - r_sat[1]).powi(2)
                             + (r_sun[2] - r_sat[2]).powi(2))
