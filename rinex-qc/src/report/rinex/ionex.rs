@@ -36,7 +36,8 @@ impl IonexReport {
                 let mut plot = Plot::world_map(
                     "ionex_tec",
                     "Ionosphere TEC maps",
-                    MapboxStyle::StamenTerrain,
+                    //MapboxStyle::StamenTerrain,
+                    MapboxStyle::Basic,
                     (32.5, -40.0),
                     1,
                     true,
@@ -52,52 +53,52 @@ impl IonexReport {
                     NamedColor::Black,
                     0.5,
                 );
-                plot.add_trace(grid);
-                // one map per timeframe
-                //let mut tec_maps = BTreeMap::<Epoch, Plot>::new();
-                //for epoch in rnx.epoch() {
-                //    let lat: Vec<_> = rnx
-                //        .tec()
-                //        .filter_map(
-                //            |(t, lat, _, _, _)| {
-                //                if t == epoch {
-                //                    Some(lat)
-                //                } else {
-                //                    None
-                //                }
-                //            },
-                //        )
-                //        .collect();
-                //    let lon: Vec<_> = rnx
-                //        .tec()
-                //        .filter_map(
-                //            |(t, _, lon, _, _)| {
-                //                if t == epoch {
-                //                    Some(lon)
-                //                } else {
-                //                    None
-                //                }
-                //            },
-                //        )
-                //        .collect();
-                //    let tec: Vec<_> = rnx
-                //        .tec()
-                //        .filter_map(
-                //            |(t, _, _, _, tec)| {
-                //                if t == epoch {
-                //                    Some(tec)
-                //                } else {
-                //                    None
-                //                }
-                //            },
-                //        )
-                //        .collect();
-                //    tec_maps.insert(
-                //        epoch,
-                //        Plot::density_mapbox(lat, lon, tec)
-                //            .name(epoch.to_string().opacity(0.66).zauto(true).zoom(3)),
-                //    );
-                //}
+                //plot.add_trace(grid);
+
+                // one trace(=map) per Epoch
+                for (epoch_index, epoch) in rnx.epoch().enumerate() {
+                    // build tec map
+                    let lat = rnx
+                        .tec()
+                        .filter_map(
+                            |(t, lat, _, _, _)| {
+                                if t == epoch {
+                                    Some(lat)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .collect::<Vec<_>>();
+                    let long = rnx
+                        .tec()
+                        .filter_map(
+                            |(t, _, long, _, _)| {
+                                if t == epoch {
+                                    Some(long)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .collect::<Vec<_>>();
+                    let tec = rnx
+                        .tec()
+                        .filter_map(
+                            |(t, _, _, _, tec)| {
+                                if t == epoch {
+                                    Some(tec)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .collect::<Vec<_>>();
+                    let label = epoch.to_string();
+                    let trace =
+                        Plot::density_mapbox(lat, long, tec, &label, 0.66, 3, epoch_index == 0);
+                    //plot.add_trace(trace);
+                }
                 plot
             },
         })
@@ -183,7 +184,7 @@ impl Render for IonexReport {
                 }
                 tr {
                     th {
-                        "Epoch Slider"
+                        "TEC Map"
                     }
                 }
                 tr {

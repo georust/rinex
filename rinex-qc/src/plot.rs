@@ -62,7 +62,9 @@ impl CompassArrow {
 }
 
 pub struct Plot {
+    /// [Plotly]
     plotly: Plotly,
+    /// html (div) id
     plot_id: String,
 }
 
@@ -267,12 +269,20 @@ impl Plot {
         legend: &str,
         opacity: f64,
         zoom: u8,
+        visible: bool,
     ) -> Box<DensityMapbox<T, T, T>> {
         DensityMapbox::new(lat, lon, z)
             .name(legend)
             .opacity(opacity)
             .zauto(true)
             .zoom(zoom)
+            .visible({
+                if visible {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            })
     }
     /// Builds new Time domain chart
     pub fn new_timedomain_chart<Y: Clone + Default + Serialize>(
