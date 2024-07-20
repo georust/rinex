@@ -321,7 +321,7 @@ a static reference position"
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
-        cggtts_post_process(&ctx, &mut tracks, matches)?;
+        cggtts_post_process(&ctx, &tracks, matches)?;
         let report = CggttsReport::new(&ctx, &tracks);
         //Ok(report.formalize())
         Err(Error::NoSolutions)

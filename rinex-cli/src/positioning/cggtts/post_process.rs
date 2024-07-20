@@ -11,7 +11,7 @@ use thiserror::Error;
  */
 pub fn post_process(
     ctx: &Context,
-    tracks: &mut Vec<Track>,
+    tracks: &Vec<Track>,
     matches: &ArgMatches,
 ) -> std::io::Result<()> {
     /*
@@ -67,10 +67,8 @@ pub fn post_process(
             env!("CARGO_PKG_VERSION")
         ));
 
-    tracks.sort_by(|a, b| a.epoch.cmp(&b.epoch));
-
     for track in tracks {
-        cggtts.tracks.push(track);
+        cggtts.tracks.push(track.clone());
     }
 
     let mut fd = ctx.workspace.create_file(&cggtts.filename());

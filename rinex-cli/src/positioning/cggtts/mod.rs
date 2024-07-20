@@ -407,5 +407,7 @@ where
         info!("{:?} - {} until next track", t, next_release.unwrap() - *t);
     } //.observations()
 
+    tracks.sort_by(|a, b| a.epoch.cmp(&b.epoch));
+
     Ok(tracks)
 }
