@@ -6,7 +6,7 @@ use plotly::{
         Axis, Center, DragMode, Mapbox, Margin, RangeSelector, RangeSlider, SelectorButton,
         SelectorStep,
     },
-    DensityMapbox, Layout, Plot as Plotly, Scatter, ScatterMapbox, ScatterPolar, Trace,
+    DensityMapbox, Layout, Plot as Plotly, Scatter, ScatterGeo, ScatterMapbox, ScatterPolar, Trace,
 };
 
 use serde::Serialize;
@@ -260,6 +260,14 @@ impl Plot {
                 .color(color)
                 .opacity(opacity),
         )
+    }
+    /// Builds ScatterGeo
+    pub fn scattergeo<T: Clone + Default + Serialize>(
+        lat: Vec<T>,
+        lon: Vec<T>,
+        legend: &str,
+    ) -> Box<ScatterGeo<T, T>> {
+        ScatterGeo::new(lat, lon)
     }
     /// Builds new Density Mapbox trace
     pub fn density_mapbox<T: Clone + Default + Serialize>(
