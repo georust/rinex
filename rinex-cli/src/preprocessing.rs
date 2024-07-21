@@ -2,7 +2,7 @@ use log::error;
 use std::str::FromStr;
 
 use crate::Cli;
-use rinex_qc::prelude::{Filter, Preprocessing, QcContext};
+use rinex_qc::prelude::{Filter, QcContext};
 
 pub fn preprocess(ctx: &mut QcContext, cli: &Cli) {
     // GNSS filters

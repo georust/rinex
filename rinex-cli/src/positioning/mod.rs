@@ -14,7 +14,7 @@ use rinex::{
     prelude::{Constellation, Rinex},
 };
 
-use rinex_qc::prelude::{html, Markup, QcExtraPage, Render};
+use rinex_qc::prelude::QcExtraPage;
 
 use rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,

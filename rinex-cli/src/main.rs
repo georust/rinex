@@ -222,7 +222,7 @@ pub fn main() -> Result<(), Error> {
     /*
      * Exclusive opmodes
      */
-    let mut extra_pages = Vec::<QcExtraPage>::new();
+    let mut extra_pages = Vec::<(String, QcExtraPage)>::new();
 
     match cli.matches.subcommand() {
         /*
@@ -251,7 +251,7 @@ pub fn main() -> Result<(), Error> {
         },
         Some(("ppp", submatches)) => {
             let chapter = positioning::precise_positioning(&ctx, submatches)?;
-            extra_pages.push(chapter);
+            extra_pages.push(("ppp".to_string(), chapter));
         },
         _ => {},
     }
@@ -260,12 +260,12 @@ pub fn main() -> Result<(), Error> {
     let mut report = Report::new(&cli, &ctx);
 
     // customization
-    for extra in extra_pages {
-        report.customize(extra);
+    for (id, extra) in extra_pages {
+        report.customize(&id, extra);
     }
 
     // generation
-    report.generate(&ctx)?;
+    report.generate(&cli, &ctx)?;
 
     if !ctx.quiet {
         ctx.workspace.open_with_web_browser();

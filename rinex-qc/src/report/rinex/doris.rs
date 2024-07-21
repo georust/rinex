@@ -8,7 +8,7 @@ use crate::plot::Plot;
 
 use rinex::{
     carrier::Carrier,
-    prelude::{Constellation, Observable, Rinex, SV},
+    prelude::{Observable, Rinex},
 };
 
 struct SignalPage {

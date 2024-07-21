@@ -1,8 +1,7 @@
+use crate::prelude::QcContext;
 use maud::{html, Markup, Render};
-use rinex::prelude::{GroundPosition, TimeScale};
-
-use crate::prelude::{QcConfig, QcContext};
-use crate::report::tooltipped;
+// use crate::report::tooltipped;
+// use rinex::prelude::{GroundPosition, TimeScale};
 
 pub struct QcBiasSummary {
     iono_bias_cancelling: bool,

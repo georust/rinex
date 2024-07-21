@@ -11,14 +11,12 @@ use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::GroundPosition;
 use rinex_qc::prelude::QcContext;
 
-// positioning mode
+mod fops;
 mod positioning;
-
 mod workspace;
+
 pub use workspace::Workspace;
 
-// file operations
-mod fops;
 use fops::{diff, filegen, merge, split, time_binning};
 
 pub struct Cli {
@@ -98,7 +96,6 @@ Use it to analyze data, perform file operations and resolve navigation solutions
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
                     .arg(Arg::new("filepath")
-                        .short('f')
                         .long("fp")
                         .value_name("FILE")
                         .action(ArgAction::Append)
@@ -118,14 +115,14 @@ Supported formats are:
 
 Example (1): Load a single file
 rinex-cli \\
-    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 
 Example (2): define a PPP compliant context
 rinex-cli \\
-    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
-    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \\
-    -f test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \\ 
-    -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \\
+    --fp test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \\ 
+    --fp test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz
 "))
                     .arg(Arg::new("directory")
                         .short('d')
@@ -155,7 +152,7 @@ but you can extend that with --depth. Refer to -f for more information."))
                         .short('q')
                         .long("quiet")
                         .action(ArgAction::SetTrue)
-                        .help("Disable all terminal output. Also disables automatic HTML reports opening."))
+                        .help("Disable all terminal output. Disables automatic report opener (Web browser)."))
                     .arg(Arg::new("workspace")
                         .short('w')
                         .long("workspace")
@@ -166,6 +163,23 @@ but you can extend that with --depth. Refer to -f for more information."))
 By default the $RINEX_WORKSPACE variable is prefered if it is defined.
 You can also use this flag to customize it. 
 If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
+        .next_help_heading("Report customization")
+        .arg(
+            Arg::new("force")
+                .short('f')
+                .long("force")
+                .action(ArgAction::SetTrue)
+                .help("Force report synthesis.
+By default, report synthesis happens once per input set (file combnation and cli options).
+Use this option to force report regeneration.
+This has no effect on file operations that do not synthesize a report."))
+        .arg(
+            Arg::new("nostats")
+                .long("nostats")
+                .action(ArgAction::SetTrue)
+                .help("Hide statistical annotations that might be present in some plots.
+This has no effect on applications compiled without plot and statistical options.")
+        )
         .next_help_heading("Preprocessing")
             .about("Preprocessing todo")
             .arg(Arg::new("gps-filter")
@@ -320,6 +334,10 @@ Otherwise it gets automatically picked up."))
             | Some(("diff", _)) => true,
             _ => false,
         }
+    }
+    /// True if forced report synthesis is requested
+    pub fn force_report_synthesis(&self) -> bool {
+        self.matches.get_flag("force")
     }
     /*
      * We hash all vital CLI information.

@@ -5,12 +5,12 @@ use rinex::prelude::Duration;
 pub fn subcommand() -> Command {
     Command::new("ppp")
         .arg_required_else_help(false)
-        .about("Post Processed Positioning.
-Use this mode to perform precise position surveying and resolve PVT solutions
-fron one GNSS context. See --help")
+        .about("Post Processed Positioning. Use this mode to deploy the precise position solver.
+The solutions are added to the final report as an extra chapter. See --help")
         .long_about("Post Processed Positioning (ppp) opmode resolves
-PVT solutions from RINEX data sampled by a single receiver.
-Use --cggtts option to operate in TimeOnly and convert the solutions to CGGTTS solutions")
+PVT solutions from RINEX data sampled by a single receiver (! This is not RTK!).
+The solutions are presented in the analysis report (post processed results chapter).
+Use --cggtts to convert solutions to CGGTTS special format.")
         .arg(Arg::new("cfg")
             .short('c')
             .long("cfg")

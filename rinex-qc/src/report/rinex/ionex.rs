@@ -4,7 +4,7 @@ use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
 #[cfg(feature = "plot")]
-use crate::plot::{MapboxStyle, Marker, MarkerSymbol, NamedColor, Plot};
+use crate::plot::{MapboxStyle, MarkerSymbol, NamedColor, Plot};
 
 pub struct IonexReport {
     nb_of_maps: usize,

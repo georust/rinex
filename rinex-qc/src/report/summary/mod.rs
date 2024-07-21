@@ -2,7 +2,7 @@ use maud::{html, Markup, Render};
 use rinex::prelude::{GroundPosition, TimeScale};
 
 use crate::prelude::{QcConfig, QcContext};
-use crate::report::tooltipped;
+//use crate::report::tooltipped;
 
 mod nav_post;
 use nav_post::QcNavPostSummary;

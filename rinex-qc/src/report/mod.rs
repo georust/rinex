@@ -329,6 +329,13 @@ impl Render for QcReport {
                                             }
                                         }
                                     }
+                                    div id="extra" class="container is-main" style="display:none" {
+                                        @for (index, chapter) in self.custom_chapters.iter().enumerate() {
+                                            div id=(&format!("extra={}", index)) class="contain is-main" style="display:none" {
+                                                (chapter.content.render())
+                                            }
+                                        }
+                                    }
                                 }//class=hero
                             } // class=columns
                         }

@@ -1,7 +1,7 @@
 use crate::cli::Context;
-use rinex_qc::prelude::{html, Markup, Plot, QcContext, QcExtraPage, Render};
-use rtk::prelude::{Carrier, Config, Epoch, Method, PVTSolution, SV};
-use std::collections::{BTreeMap, HashMap};
+use rinex_qc::prelude::{html, Markup, Plot, Render};
+use rtk::prelude::{Epoch, PVTSolution};
+use std::collections::BTreeMap;
 
 struct ReportTab {}
 

@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 mod obs;
 use obs::Report as ObsReport;
 

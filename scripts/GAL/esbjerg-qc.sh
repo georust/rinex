@@ -17,7 +17,7 @@ FILTER="Galileo;>E09;<E26;<2020-06-25T23:00:00 UTC"
 
 ./target/release/rinex-cli \
     -P $FILTER \
-    -f $OBS \
-    -f $NAV \
-    -f $CLK \
-    -f $SP3
+    --fp $OBS \
+    --fp $NAV \
+    --fp $CLK \
+    --fp $SP3

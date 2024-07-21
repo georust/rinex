@@ -4,7 +4,6 @@ use cggtts::prelude::*;
 use cggtts::Coordinates;
 use clap::ArgMatches;
 use std::io::Write;
-use thiserror::Error;
 
 /*
  * CGGTTS file generation and solutions post processing

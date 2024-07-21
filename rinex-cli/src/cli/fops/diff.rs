@@ -8,8 +8,8 @@ pub fn subcommand() -> Command {
     Command::new("diff")
         .arg_required_else_help(true)
         .about(
-            "RINEX(A)-RINEX(B) substraction operation.
-This is typically used to compare two GNSS receivers together.",
+            "RINEX(A)-RINEX(B) substraction operation. This is a simple mean
+to compare two GNSS receivers to one another, by direct PR or Phase data comparison.",
         )
         .arg(
             Arg::new("file")
