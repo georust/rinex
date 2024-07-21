@@ -3,12 +3,10 @@ use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
     Almanac, Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, Vector3, EARTH_J2000,
-    SPK, SUN_J2000, SV,
+    SUN_J2000, SV,
 };
 
 use rinex::carrier::Carrier;
-
-use anise::almanac::metaload::MetaFile;
 
 #[derive(Debug)]
 struct Buffer {
@@ -70,13 +68,8 @@ pub struct Orbit<'a> {
 
 impl<'a> Orbit<'a> {
     pub fn from_ctx(ctx: &'a Context, order: usize) -> Self {
-        let meta = MetaFile {
-            uri: "http://public-data.nyxspace.com/anise/v0.4/de440s.bsp".to_string(),
-            crc32: Some(3072159656), // Specifying the CRC allows only downloading the data once.
-        };
-        let almanac = Almanac::default()
-            .load_from_metafile(meta)
-            .unwrap_or_else(|e| panic!("failed to build Almanac: {}", e));
+        let almanac =
+            Almanac::until_2035().unwrap_or_else(|e| panic!("failed to build Almanac: {}", e));
 
         let sp3 = ctx.data.sp3().unwrap();
         Self {
