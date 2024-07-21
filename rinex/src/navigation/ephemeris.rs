@@ -288,6 +288,7 @@ impl Ephemeris {
 
         // m_k is most like the mean anomaly because it's computed from an initial value which is linear compared to time.
         let m_k = kepler.m_0 + n * helper.t_k;
+
         // Iterative calculation of e_k
         let mut e_k_lst: f64 = 0.0;
         let mut e_k: f64;
@@ -327,6 +328,18 @@ impl Ephemeris {
                 - omega * kepler.toe;
         }
 
+        let orbital_state = Orbit::try_keplerian(
+            kepler.a * 1e-3,
+            kepler.e,
+            helper.i_k.to_degrees(),
+            helper.omega_k.to_degrees(),
+            kepler.omega.to_degrees(),
+            v_k.to_degrees(),
+            t,
+            EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
+        )
+        .ok()?;
+
         // calculate  First Derivative of e_k,phi_k,u_k,r_k,i_k,omega_k
         let fd_e_k = n / (1.0 - kepler.e * e_k.cos());
         let fd_phi_k = ((1.0 + kepler.e) / (1.0 - kepler.e)).sqrt()
@@ -348,35 +361,9 @@ impl Ephemeris {
         helper.dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
         helper.fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
 
-        // Finally, build the orbit state
+        // Finally, set the orbit state
 
-        /*
-        EphemerisHelper { sv: SV { prn: 1, constellation: Galileo },
-        t_k: 2399.909133027, u_k: -4.3880464096403236, r_k: 29600145.54210954, i_k: 0.9828285267592843,
-        omega_k: -24.98922466246264,
-        fd_u_k: 0.0001239730389705991, fd_r_k: -0.3381032657695905, fd_i_k: -6.550515109491676e-10, fd_omega_k: -7.292635096929443e-5,
-        orbit_position: (-9433143.20831963, 28056807.112096712), dtr: 2.3312931302024e-10, fd_dtr: 1.0969494065275496e-15, orbit: None }
-
-
-        Kepler { a: 29600151.608907063, e: 9.651726577431e-5, i_0: 0.9828300354102, omega_0: 0.2123311367413, m_0: -1.906166238332, omega: -2.779211125665, toe: 343200.0 }
-
-        SV { prn: 1, constellation: Galileo }
-
-         */
-
-        helper.orbit = Some(
-            Orbit::try_keplerian(
-                kepler.a,
-                kepler.e,
-                helper.i_k.to_degrees(),
-                helper.omega_k.to_degrees(),
-                kepler.omega.to_degrees(),
-                v_k.to_degrees(),
-                t,
-                EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
-            )
-            .ok()?,
-        );
+        helper.orbit = Some(orbital_state);
 
         Some(helper)
     }
@@ -556,7 +543,7 @@ impl Ephemeris {
         // Build the orbit in the Earth J2000 (inertial) frame.
         // let orbit = Orbit::try_keplerian(kepler.a, kepler.e, inc, raan, aop, ta, epoch, frame)
         let pos = helper.orbit?.radius_km;
-        Some((pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0))
+        Some((pos.x, pos.y, pos.z))
     }
     /*
      * Kepler position and velocity solver at desired instant "t" for given "sv"
@@ -574,10 +561,7 @@ impl Ephemeris {
     ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
         let helper = self.ephemeris_helper(sv, t)?;
         let (pos, vel) = helper.position_velocity(almanac)?;
-        Some((
-            (pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0),
-            (vel.x, vel.y, vel.z),
-        ))
+        Some(((pos.x, pos.y, pos.z), (vel.x, vel.y, vel.z)))
     }
     /// Returns SV position in km ECEF, based off Self Ephemeris data,
     /// and for given Satellite Vehicle at given Epoch.
