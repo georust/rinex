@@ -10,8 +10,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 
-use map_3d::rad2deg;
-
 use gnss::prelude::SV;
 
 /// Parsing errors
@@ -287,10 +285,12 @@ impl Ephemeris {
         // m_k, e_k, v_k calculation
         let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt();
         let n = n0 + perturbations.dn;
+
+        // m_k is most like the mean anomaly because it's computed from an initial value which is linear compared to time.
         let m_k = kepler.m_0 + n * helper.t_k;
         // Iterative calculation of e_k
         let mut e_k_lst: f64 = 0.0;
-        let mut e_k: f64 = 0.0;
+        let mut e_k: f64;
         let mut i = 0;
         loop {
             e_k = m_k + kepler.e * e_k_lst.sin();
@@ -316,7 +316,7 @@ impl Ephemeris {
         helper.r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + det_r_k;
         helper.i_k = kepler.i_0 + perturbations.i_dot * helper.t_k + det_i_k;
 
-        // omega_k
+        // omega_k -- Probably the RAAN because of the RAAN dot, and RAAN drifts fast.
         // MEO (GPS, Galieo, BeiDou)
         // IGSO(BeiDou)
         if sv.is_beidou_geo() {
@@ -349,14 +349,29 @@ impl Ephemeris {
         helper.fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
 
         // Finally, build the orbit state
+
+        /*
+        EphemerisHelper { sv: SV { prn: 1, constellation: Galileo },
+        t_k: 2399.909133027, u_k: -4.3880464096403236, r_k: 29600145.54210954, i_k: 0.9828285267592843,
+        omega_k: -24.98922466246264,
+        fd_u_k: 0.0001239730389705991, fd_r_k: -0.3381032657695905, fd_i_k: -6.550515109491676e-10, fd_omega_k: -7.292635096929443e-5,
+        orbit_position: (-9433143.20831963, 28056807.112096712), dtr: 2.3312931302024e-10, fd_dtr: 1.0969494065275496e-15, orbit: None }
+
+
+        Kepler { a: 29600151.608907063, e: 9.651726577431e-5, i_0: 0.9828300354102, omega_0: 0.2123311367413, m_0: -1.906166238332, omega: -2.779211125665, toe: 343200.0 }
+
+        SV { prn: 1, constellation: Galileo }
+
+         */
+
         helper.orbit = Some(
             Orbit::try_keplerian(
                 kepler.a,
                 kepler.e,
-                rad2deg(helper.i_k),
-                rad2deg(helper.omega_k),
-                rad2deg(helper.u_k),
-                rad2deg(v_k),
+                helper.i_k.to_degrees(),
+                helper.omega_k.to_degrees(),
+                kepler.omega.to_degrees(),
+                v_k.to_degrees(),
                 t,
                 EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
             )
@@ -617,32 +632,32 @@ impl Ephemeris {
     /// between a reference position (in meter ECEF WGS84) and a resolved
     /// SV position in the sky, expressed in meter ECEF WGS84.
     pub fn elevation_azimuth(
-        sv_position: (f64, f64, f64),
+        sv_position_m: (f64, f64, f64),
         reference_position: (f64, f64, f64),
     ) -> (f64, f64) {
-        let (sv_x, sv_y, sv_z) = sv_position;
+        let (sv_x_m, sv_y_m, sv_z_m) = sv_position_m;
         // convert ref position to radians(lat, lon)
-        let (ref_x, ref_y, ref_z) = reference_position;
-        let (ref_lat, ref_lon, _) =
-            map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
+        let (ref_x_m, ref_y_m, ref_z_m) = reference_position;
+        let (ref_lat_rad, ref_lon_rad, _) =
+            map_3d::ecef2geodetic(ref_x_m, ref_y_m, ref_z_m, map_3d::Ellipsoid::WGS84);
 
         // ||sv - ref_pos|| pseudo range
-        let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
+        let a_i = (sv_x_m - ref_x_m, sv_y_m - ref_y_m, sv_z_m - ref_z_m);
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
         let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm);
 
         // ECEF to VEN 3X3 transform matrix
         let ecef_to_ven = (
             (
-                ref_lat.cos() * ref_lon.cos(),
-                ref_lat.cos() * ref_lon.sin(),
-                ref_lat.sin(),
+                ref_lat_rad.cos() * ref_lon_rad.cos(),
+                ref_lat_rad.cos() * ref_lon_rad.sin(),
+                ref_lat_rad.sin(),
             ),
-            (-ref_lon.sin(), ref_lon.cos(), 0.0_f64),
+            (-ref_lon_rad.sin(), ref_lon_rad.cos(), 0.0_f64),
             (
-                -ref_lat.sin() * ref_lon.cos(),
-                -ref_lat.sin() * ref_lon.sin(),
-                ref_lat.cos(),
+                -ref_lat_rad.sin() * ref_lon_rad.cos(),
+                -ref_lat_rad.sin() * ref_lon_rad.sin(),
+                ref_lat_rad.cos(),
             ),
         );
         // ECEF to VEN transform
@@ -667,9 +682,9 @@ impl Ephemeris {
         epoch: Epoch,
         reference: GroundPosition,
     ) -> Option<(f64, f64)> {
-        let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
+        let (sv_x_km, sv_y_km, sv_z_km) = self.sv_position(sv, epoch)?;
         Some(Self::elevation_azimuth(
-            (sv_x * 1.0E3, sv_y * 1.0E3, sv_z * 1.0E3),
+            (sv_x_km * 1.0E3, sv_y_km * 1.0E3, sv_z_km * 1.0E3),
             reference.to_ecef_wgs84(),
         ))
     }
