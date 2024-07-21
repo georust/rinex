@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 
+use map_3d::rad2deg;
+
 use gnss::prelude::SV;
 
 /// Parsing errors
@@ -317,7 +319,7 @@ impl Ephemeris {
         // omega_k
         // MEO (GPS, Galieo, BeiDou)
         // IGSO(BeiDou)
-        if Constants::is_beidou_geo(sv) {
+        if sv.is_beidou_geo() {
             helper.omega_k =
                 kepler.omega_0 + perturbations.omega_dot * helper.t_k - omega * kepler.toe;
         } else {
@@ -351,10 +353,10 @@ impl Ephemeris {
             Orbit::try_keplerian(
                 kepler.a,
                 kepler.e,
-                helper.i_k,
-                helper.omega_k,
-                helper.u_k,
-                v_k,
+                rad2deg(helper.i_k),
+                rad2deg(helper.omega_k),
+                rad2deg(helper.u_k),
+                rad2deg(v_k),
                 t,
                 EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
             )

@@ -82,21 +82,3 @@ impl Constants {
 
     // physics
 }
-
-/// some function
-impl Constants {
-    /// judge if a sv is BeiDou GEO Satellite
-    pub fn is_beidou_geo(sv: SV) -> bool {
-        if sv.constellation == Constellation::BeiDou {
-            return sv.prn == 1
-                || sv.prn == 2
-                || sv.prn == 3
-                || sv.prn == 4
-                || sv.prn == 5
-                || sv.prn == 59
-                || sv.prn == 60
-                || sv.prn == 61;
-        }
-        false
-    }
-}
