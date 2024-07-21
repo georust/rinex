@@ -360,7 +360,7 @@ impl Ephemeris {
                 t,
                 EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
             )
-            .unwrap(),
+            .ok()?,
         );
 
         Some(helper)
