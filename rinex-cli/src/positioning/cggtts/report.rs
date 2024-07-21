@@ -22,10 +22,10 @@ struct ReportContent {
 impl ReportContent {
     pub fn new(ctx: &Context, solutions: &Vec<Track>) -> Self {
         Self {
-            refsys_plot: Plot::new_time_domain("test", "test", "test", true),
-            sv_plot: Plot::new_time_domain("test", "test", "test", true),
-            ionod_plot: Plot::new_time_domain("test", "test", "test", true),
-            tropod_plot: Plot::new_time_domain("test", "test", "test", true),
+            refsys_plot: Plot::timedomain_plot("test", "test", "test", true),
+            sv_plot: Plot::timedomain_plot("test", "test", "test", true),
+            ionod_plot: Plot::timedomain_plot("test", "test", "test", true),
+            tropod_plot: Plot::timedomain_plot("test", "test", "test", true),
         }
     }
 }

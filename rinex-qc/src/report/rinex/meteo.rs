@@ -107,7 +107,7 @@ impl MeteoPage {
         let html_id = observable.to_string();
         if *observable == Observable::WindDirection {
             let mut compass_plot =
-                Plot::new_time_domain(&html_id, "Wind Direction", "Angle [°]", true);
+                Plot::timedomain_plot(&html_id, "Wind Direction", "Angle [°]", true);
             for (index, (t, observations)) in rnx.meteo().enumerate() {
                 let visible = index > 0;
                 for (ob, value) in observations.iter() {
@@ -139,7 +139,7 @@ impl MeteoPage {
                 inner: ObservableDependent::WindDirection(report),
             }
         } else {
-            let mut plot = Plot::new_time_domain(&html_id, &title, &y_label, true);
+            let mut plot = Plot::timedomain_plot(&html_id, &title, &y_label, true);
             let data_x =
                 rnx.meteo()
                     .flat_map(|(t, observations)| {
@@ -164,7 +164,7 @@ impl MeteoPage {
                     })
                 })
                 .collect::<Vec<_>>();
-            let trace = Plot::new_timedomain_chart(
+            let trace = Plot::timedomain_chart(
                 &observable.to_string(),
                 Mode::LinesMarkers,
                 MarkerSymbol::TriangleUp,

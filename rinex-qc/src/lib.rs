@@ -14,10 +14,11 @@ mod context;
 mod report;
 
 pub mod prelude {
+    #[cfg(feature = "plot")]
+    pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use crate::{
         cfg::QcConfig,
         context::{ProductType, QcContext},
-        plot::Plot,
         report::{QcExtraPage, QcReport},
     };
     pub use maud::{html, Markup, Render};

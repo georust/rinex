@@ -30,14 +30,14 @@ impl Render for SignalPlot {
 
 impl SignalPlot {
     pub fn new(obs_rinex: &Rinex, context: &QcContext) -> Self {
-        let mut spp_plot = Plot::new_time_domain("test", "test", "test", true);
+        let mut spp_plot = Plot::timedomain_plot("test", "test", "test", true);
         let mut spp_ok_t = Vec::<Epoch>::new();
         let mut spp_ok_y = Vec::<u8>::new();
         let mut spp_no_nav_t = Vec::<Epoch>::new();
         let mut spp_no_nav_y = Vec::<u8>::new();
 
-        let mut cpp_plot = Plot::new_time_domain("test", "test", "test", true);
-        let mut ppp_plot = Plot::new_time_domain("test", "test", "test", true);
+        let mut cpp_plot = Plot::timedomain_plot("test", "test", "test", true);
+        let mut ppp_plot = Plot::timedomain_plot("test", "test", "test", true);
         for prn in obs_rinex.sv().map(|sv| sv.prn) {}
         Self {
             spp_plot,
@@ -71,9 +71,9 @@ impl Render for CombinationPlot {
 
 impl CombinationPlot {
     pub fn new(obs_rinex: &Rinex, context: &QcContext) -> Self {
-        let mut spp_plot = Plot::new_time_domain("test", "test", "test", true);
-        let mut cpp_plot = Plot::new_time_domain("test", "test", "test", true);
-        let mut ppp_plot = Plot::new_time_domain("test", "test", "test", true);
+        let mut spp_plot = Plot::timedomain_plot("test", "test", "test", true);
+        let mut cpp_plot = Plot::timedomain_plot("test", "test", "test", true);
+        let mut ppp_plot = Plot::timedomain_plot("test", "test", "test", true);
         let mut spp_ok_t = Vec::<Epoch>::new();
         let mut spp_ok_y = Vec::<u8>::new();
         let mut spp_no_nav_t = Vec::<Epoch>::new();

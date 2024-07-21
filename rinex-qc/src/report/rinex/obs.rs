@@ -108,7 +108,7 @@ impl FrequencyPage {
             #[cfg(feature = "plot")]
             combination_plots: HashMap::new(),
             #[cfg(feature = "plot")]
-            multipath_plot: Plot::new_time_domain("code_mp", "Code Multipath", "Bias [m]", true),
+            multipath_plot: Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true),
             #[cfg(feature = "plot")]
             raw_plots: {
                 let mut plots = HashMap::<Physics, Plot>::new();
@@ -119,7 +119,7 @@ impl FrequencyPage {
                     let physics = Physics::from_observable(ob);
                     let title = physics.plot_title();
                     let y_label = physics.y_label();
-                    let mut plot = Plot::new_time_domain(&title, &title, &y_label, true);
+                    let mut plot = Plot::timedomain_plot(&title, &title, &y_label, true);
                     for sv in &svnn {
                         let obs_x_ok = rinex
                             .observation()
@@ -149,7 +149,7 @@ impl FrequencyPage {
                                 })
                             })
                             .collect::<Vec<_>>();
-                        let trace = Plot::new_timedomain_chart(
+                        let trace = Plot::timedomain_chart(
                             &format!("{}({})", sv, ob),
                             Mode::Markers,
                             MarkerSymbol::Cross,
@@ -447,7 +447,7 @@ impl Report {
             },
             #[cfg(feature = "plot")]
             clock_plot: {
-                let mut plot = Plot::new_time_domain("rx_clock", "Clock offset", "Second", true);
+                let mut plot = Plot::timedomain_plot("rx_clock", "Clock offset", "Second", true);
                 plot
             },
             constellations: {

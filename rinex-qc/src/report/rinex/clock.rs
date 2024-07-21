@@ -28,7 +28,7 @@ impl ConstellPage {
             #[cfg(feature = "plot")]
             offset_plot: {
                 let mut plot =
-                    Plot::new_time_domain("clock_offset", "Clock Offset", "Offset [s]", true);
+                    Plot::timedomain_plot("clock_offset", "Clock Offset", "Offset [s]", true);
                 for sv in &satellites {
                     let label = sv.to_string();
                     let plot_x = rinex
@@ -47,7 +47,7 @@ impl ConstellPage {
                             },
                         )
                         .collect::<Vec<_>>();
-                    let trace = Plot::new_timedomain_chart(
+                    let trace = Plot::timedomain_chart(
                         &label,
                         Mode::Markers,
                         MarkerSymbol::Cross,
@@ -61,7 +61,7 @@ impl ConstellPage {
             #[cfg(feature = "plot")]
             drift_plot: {
                 let mut plot =
-                    Plot::new_time_domain("clock_drift", "Clock Drift", "Drift [s/s]", true);
+                    Plot::timedomain_plot("clock_drift", "Clock Drift", "Drift [s/s]", true);
                 for sv in &satellites {
                     let label = sv.to_string();
                     let plot_x = rinex
@@ -86,7 +86,7 @@ impl ConstellPage {
                             }
                         })
                         .collect::<Vec<_>>();
-                    let trace = Plot::new_timedomain_chart(
+                    let trace = Plot::timedomain_chart(
                         &label,
                         Mode::Markers,
                         MarkerSymbol::Cross,

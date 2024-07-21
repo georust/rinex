@@ -84,7 +84,7 @@ impl Plot {
         self.plotly.add_trace(t);
     }
     /// Builds new standardized 1D Time domain plot
-    pub fn new_time_domain(
+    pub fn timedomain_plot(
         plot_id: &str,
         title: &str,
         y_axis_label: &str,
@@ -128,7 +128,7 @@ impl Plot {
         }
     }
     /// Builds new 3D plot
-    pub fn new_3d_plot(
+    pub fn plot_3d(
         plot_id: &str,
         title: &str,
         x_label: &str,
@@ -167,7 +167,7 @@ impl Plot {
     }
     /// Builds new Skyplot
     pub fn sky_plot(plot_id: &str, title: &str, show_legend: bool) -> Self {
-        Self::new_polar(
+        Self::polar_plot(
             plot_id,
             title,
             "Elevation (Deg°)",
@@ -198,7 +198,7 @@ impl Plot {
         //TODO alpha gradient per time
     }
     /// Builds new Polar plot
-    pub fn new_polar(
+    pub fn polar_plot(
         plot_id: &str,
         title: &str,
         x_label: &str,
@@ -285,7 +285,7 @@ impl Plot {
             })
     }
     /// Builds new Time domain chart
-    pub fn new_timedomain_chart<Y: Clone + Default + Serialize>(
+    pub fn timedomain_chart<Y: Clone + Default + Serialize>(
         name: &str,
         mode: Mode,
         symbol: MarkerSymbol,
