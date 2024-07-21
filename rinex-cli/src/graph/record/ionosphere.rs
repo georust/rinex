@@ -1,4 +1,5 @@
 use crate::graph::{build_chart_epoch_axis, PlotContext};
+use anise::almanac::Almanac;
 // use hifitime::{Epoch, TimeScale};
 use plotly::common::{
     //Marker,
@@ -18,6 +19,8 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let ref_geo = ref_pos.to_geodetic();
     let lat_lon_ddeg = (ref_geo.0, ref_geo.1);
     let ref_ecef_wgs84 = ref_pos.to_ecef_wgs84();
+
+    let almanac = Almanac::until_2035().unwrap();
 
     if let Some(obs) = ctx.observation() {
         if let Some(nav) = ctx.brdc_navigation() {
@@ -53,7 +56,7 @@ pub fn plot_ionospheric_delay(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                              */
                             let sv_position = match ctx.sp3() {
                                 Some(sp3) => sp3.sv_position_interpolate(sv, *t, 11),
-                                None => nav.sv_position_interpolate(sv, *t, 11),
+                                None => nav.sv_position_interpolate(sv, *t, 11, &almanac),
                             };
                             let sv_position = sv_position?;
                             let (elev, azim) =

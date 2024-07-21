@@ -72,10 +72,14 @@ impl EphemerisHelper {
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
     pub(crate) fn ecef_pv(&self, almanac: &Almanac) -> (Vector3<f64>, Vector3<f64>) {
-        let orbit_ecef = almanac
-            .transform_to(self.orbit.unwrap(), IAU_EARTH_FRAME, None)
-            .unwrap();
-        (orbit_ecef.radius_km * 1e-3, orbit_ecef.velocity_km_s * 1e-3)
+        // let orbit_ecef = almanac
+        //     .transform_to(self.orbit.unwrap(), IAU_EARTH_FRAME, None)
+        //     .unwrap();
+        // (orbit_ecef.radius_km, orbit_ecef.velocity_km_s)
+        (
+            self.orbit.unwrap().radius_km,
+            self.orbit.unwrap().velocity_km_s,
+        )
     }
 
     /// get ecef position and velocity
@@ -538,12 +542,15 @@ impl Ephemeris {
     /// "t" should not be expressed in UTC time scale as Hifitime doesn't consider
     /// the leap seconds.
     /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
-    pub fn kepler2position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
-        let helper = self.ephemeris_helper(sv, t)?;
-        // Build the orbit in the Earth J2000 (inertial) frame.
-        // let orbit = Orbit::try_keplerian(kepler.a, kepler.e, inc, raan, aop, ta, epoch, frame)
-        let pos = helper.orbit?.radius_km;
-        Some((pos.x, pos.y, pos.z))
+    pub fn kepler2position(&self, sv: SV, t: Epoch, almanac: &Almanac) -> Option<(f64, f64, f64)> {
+        // let helper = self.ephemeris_helper(sv, t)?;
+        // // Build the orbit in the Earth J2000 (inertial) frame.
+        // // let orbit = Orbit::try_keplerian(kepler.a, kepler.e, inc, raan, aop, ta, epoch, frame)
+        // let pos = helper.orbit?.radius_km;
+        // Some((pos.x, pos.y, pos.z))
+
+        self.kepler2position_velocity(sv, t, almanac)
+            .map(|(pos, _vel)| pos)
     }
     /*
      * Kepler position and velocity solver at desired instant "t" for given "sv"
@@ -566,7 +573,7 @@ impl Ephemeris {
     /// Returns SV position in km ECEF, based off Self Ephemeris data,
     /// and for given Satellite Vehicle at given Epoch.
     /// Either by solving Kepler equations, or directly if such data is available.
-    pub fn sv_position(&self, sv: SV, epoch: Epoch) -> Option<(f64, f64, f64)> {
+    pub fn sv_position(&self, sv: SV, epoch: Epoch, almanac: &Almanac) -> Option<(f64, f64, f64)> {
         let (x_km, y_km, z_km) = (
             self.get_orbit_f64("satPosX"),
             self.get_orbit_f64("satPosY"),
@@ -580,7 +587,7 @@ impl Ephemeris {
                  */
                 Some((x_km, y_km, z_km))
             },
-            _ => self.kepler2position(sv, epoch),
+            _ => self.kepler2position(sv, epoch, almanac),
         }
     }
     /// Returns SV position in km ECEF and velocity is m/s ECEF,
@@ -665,8 +672,9 @@ impl Ephemeris {
         sv: SV,
         epoch: Epoch,
         reference: GroundPosition,
+        almanac: &Almanac,
     ) -> Option<(f64, f64)> {
-        let (sv_x_km, sv_y_km, sv_z_km) = self.sv_position(sv, epoch)?;
+        let (sv_x_km, sv_y_km, sv_z_km) = self.sv_position(sv, epoch, almanac)?;
         Some(Self::elevation_azimuth(
             (sv_x_km * 1.0E3, sv_y_km * 1.0E3, sv_z_km * 1.0E3),
             reference.to_ecef_wgs84(),

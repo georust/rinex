@@ -50,6 +50,7 @@ extern crate num_derive;
 extern crate lazy_static;
 
 pub mod reader;
+use anise::almanac::Almanac;
 use reader::BufferedReader;
 
 pub mod writer;
@@ -2345,9 +2346,13 @@ impl Rinex {
     ///     // z: z(t) [km ECEF]
     /// }
     /// ```
-    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
-            if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
+    pub fn sv_position(
+        &self,
+        almanac: &Almanac,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
+        let almanac_clone = almanac.clone();
+        Box::new(self.ephemeris().filter_map(move |(e, (_, sv, ephemeris))| {
+            if let Some((x, y, z)) = ephemeris.sv_position(sv, *e, &almanac_clone) {
                 Some((*e, sv, (x, y, z)))
             } else {
                 // non feasible calculations.
@@ -2373,6 +2378,7 @@ impl Rinex {
         sv: SV,
         t: Epoch,
         order: usize,
+        almanac: &Almanac,
     ) -> Option<(f64, f64, f64)> {
         let odd_order = order % 2 > 0;
         let dt = match self.sample_rate() {
@@ -2389,7 +2395,7 @@ impl Rinex {
         };
 
         let sv_position: Vec<_> = self
-            .sv_position()
+            .sv_position(almanac)
             .filter_map(|(e, svnn, (x, y, z))| {
                 if sv == svnn {
                     Some((e, (x, y, z)))
@@ -2467,8 +2473,11 @@ impl Rinex {
     ///     // alt: [m ECEF]
     /// }
     /// ```
-    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        Box::new(self.sv_position().map(|(e, sv, (x, y, z))| {
+    pub fn sv_position_geo(
+        &self,
+        almanac: &Almanac,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
+        Box::new(self.sv_position(almanac).map(|(e, sv, (x, y, z))| {
             let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
             (e, sv, (lat, lon, alt))
         }))
@@ -2518,6 +2527,7 @@ impl Rinex {
     pub fn sv_elevation_azimuth(
         &self,
         ref_position: Option<GroundPosition>,
+        almanac: &Almanac,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64))> + '_> {
         let ground_position = match ref_position {
             Some(pos) => pos, // user value superceeds, in case it is passed
@@ -2531,10 +2541,13 @@ impl Rinex {
                 }
             },
         };
+        // Cloning is cheap
+        let almanac_clone = almanac.clone();
         Box::new(
             self.ephemeris()
                 .filter_map(move |(epoch, (_, sv, ephemeris))| {
-                    if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position)
+                    if let Some((elev, azim)) =
+                        ephemeris.sv_elev_azim(sv, *epoch, ground_position, &almanac_clone)
                     {
                         Some((*epoch, sv, (elev, azim)))
                     } else {

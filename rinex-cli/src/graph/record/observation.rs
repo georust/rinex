@@ -1,4 +1,5 @@
 use crate::cli::Context;
+use anise::almanac::Almanac;
 use plotly::{
     color::NamedColor,
     common::{Marker, MarkerSymbol, Mode, Visible},
@@ -70,6 +71,8 @@ pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: 
         HashMap::with_capacity(1024);
     let mut dataset_bad: HashMap<Physics, HashMap<String, HashMap<SV, Vec<(Epoch, f64)>>>> =
         HashMap::with_capacity(1024);
+
+    let almanac = Almanac::until_2035().unwrap();
 
     for ((epoch, flag), (clock_offset, vehicles)) in record {
         if flag.is_ok() {
@@ -297,8 +300,8 @@ pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: 
                         let data = good_x
                             .iter()
                             .filter_map(|t| {
-                                nav.sv_position_interpolate(*sv, *t, 5)
-                                    .map(|(x_km, y_km, z_km)| {
+                                nav.sv_position_interpolate(*sv, *t, 5, &almanac).map(
+                                    |(x_km, y_km, z_km)| {
                                         (
                                             *t,
                                             Ephemeris::elevation_azimuth(
@@ -307,7 +310,8 @@ pub fn plot_observations(ctx: &Context, plot_ctx: &mut PlotContext, csv_export: 
                                             )
                                             .0,
                                         )
-                                    })
+                                    },
+                                )
                             })
                             .collect::<Vec<_>>();
                         // plot
