@@ -97,6 +97,7 @@ pub mod prelude {
     pub use crate::types::Type as RinexType;
     pub use crate::Error;
     pub use crate::Rinex;
+    pub use anise::prelude::Almanac;
     pub use gnss::prelude::Constellation;
     pub use gnss::prelude::SV;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
@@ -2339,7 +2340,9 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// for (epoch, sv, (x, y, z)) in rinex.sv_position() {
+    /// let almanac = Almanac::until_2035().unwrap();
+    ///
+    /// for (epoch, sv, (x, y, z)) in rinex.sv_position(&almanac) {
     ///     // sv: satellite vehicle
     ///     // x: x(t) [km ECEF]
     ///     // y: y(t) [km ECEF]
@@ -2466,7 +2469,9 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo() {
+    /// let almanac = Almanac::until_2035().unwrap();
+    ///
+    /// for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo(&almanac) {
     ///     // sv: satellite vehicle
     ///     // lat [ddeg]
     ///     // lon [ddeg]
@@ -2518,7 +2523,9 @@ impl Rinex {
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let data = rinex.sv_elevation_azimuth(Some(ref_pos));
+    /// let almanac = Almanac::until_2035().unwrap();
+    ///
+    /// let data = rinex.sv_elevation_azimuth(Some(ref_pos), &almanac);
     /// for (epoch, sv, (elev, azim)) in data {
     ///     // azim: azimuth in °
     ///     // elev: elevation in °
