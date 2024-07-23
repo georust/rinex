@@ -302,6 +302,7 @@ impl Render for QcReport {
                     script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" {};
                     link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css";
                     link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css";
+                    link rel="stylesheet" href="https://unpkg.com/balloon-css/balloon.min.css";
                 }//head
                 body {
                         //div id="plotly-html-element" class="plotly-graph-div" style="height:100%; width:100;" {

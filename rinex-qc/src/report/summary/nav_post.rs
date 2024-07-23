@@ -1,8 +1,6 @@
+use crate::prelude::QcContext;
 use maud::{html, Markup, Render};
 //use rinex::prelude::{GroundPosition, TimeScale};
-
-use crate::prelude::QcContext;
-use crate::report::tooltipped;
 
 pub struct QcNavPostSummary {
     /// Navigation compatible
@@ -37,12 +35,14 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                (tooltipped("NAVI", "Post processed navigation is not feasible."))
+                                "NAVI" // "Post processed navigation is not feasible."))
                             } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                (tooltipped("NAVI", "Post processed navigation is feasible: Pseudo range + BRDC or SP3"))
+                                button aria-label="Post processed navigation is feasible: Pseudo Range + BRDC and/or SP3" data-balloon-pos="up" {
+                                    "NAVI"
+                                }
                             }
                         }
                         td {
@@ -50,12 +50,12 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                (tooltipped("CPP", "CPP navigation compatible (dual freq. pseudo range)"))
+                                "CPP" // "CPP navigation compatible (dual freq. pseudo range)"))
                             } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                (tooltipped("CPP", "Incompatible with CPP navigation: missing secondary frequency."))
+                                "CPP" // "Incompatible with CPP navigation: missing secondary frequency."))
                             }
                         }
                         td {
@@ -63,12 +63,12 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                (tooltipped("PPP", "PPP navigation compatible (dual freq. + phase range)"))
+                                "PPP" // "PPP navigation compatible (dual freq. + phase range)"))
                             } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                (tooltipped("PPP", "Incompatible with PPP navigation: missing secondary frequency or phase range."))
+                                "PPP" // "Incompatible with PPP navigation: missing secondary frequency or phase range."))
                             }
                         }
                         td {
@@ -76,12 +76,12 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                (tooltipped("PPP (Ultra)", "PPP Ultra precise navigation"))
+                                "PPP (Ultra)" // "PPP Ultra precise navigation"))
                             } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                (tooltipped("PPP (Ultra)", "PPP Ultra incompatible: OBS + CLK should be synchronous in same timescale"))
+                                "PPP (Ultra)" // "PPP Ultra incompatible: OBS + CLK should be synchronous in same timescale"))
                             }
                         }
                     }
