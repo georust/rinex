@@ -8,7 +8,7 @@ use crate::report::shared::SamplingReport;
 use crate::report::Error;
 
 #[cfg(feature = "plot")]
-use crate::plot::{MarkerSymbol, Mode, Plot};
+use crate::plot::{MarkerSymbol, Mode, Plot, Visible};
 
 /// [ClockPage] per [Constellation]
 struct ConstellPage {
@@ -29,7 +29,7 @@ impl ConstellPage {
             offset_plot: {
                 let mut plot =
                     Plot::timedomain_plot("clock_offset", "Clock Offset", "Offset [s]", true);
-                for sv in &satellites {
+                for (sv_index, sv) in satellites.iter().enumerate() {
                     let label = sv.to_string();
                     let plot_x = rinex
                         .precise_sv_clock()
@@ -53,7 +53,14 @@ impl ConstellPage {
                         MarkerSymbol::Cross,
                         &plot_x,
                         plot_y,
-                    );
+                    )
+                    .visible({
+                        if sv_index == 0 {
+                            Visible::True
+                        } else {
+                            Visible::LegendOnly
+                        }
+                    });
                     plot.add_trace(trace);
                 }
                 plot
@@ -109,7 +116,9 @@ impl Render for ConstellPage {
                 table class="table is-bordered" {
                     tr {
                         th class="is-info" {
-                            "Satellites"
+                            button aria-label="Embedded Clocks described in this file." data-balloon-pos="right" {
+                                "Satellites"
+                            }
                         }
                         td {
                             (self.satellites.iter().join(", "))
@@ -117,7 +126,9 @@ impl Render for ConstellPage {
                     }
                     tr {
                         th class="is-info" {
-                            "Clock offset"
+                            button aria-label="Offset to Constellation" data-balloon-pos="right" {
+                                "Clock offset"
+                            }
                         }
                         td {
                             (self.offset_plot.render())
@@ -125,7 +136,9 @@ impl Render for ConstellPage {
                     }
                     tr {
                         th class="is-info" {
-                            "Clock drift"
+                            button aria-label="Drift with respect to Constellation" data-balloon-pos="right" {
+                                "Clock drift"
+                            }
                         }
                         td {
                             (self.drift_plot.render())
@@ -258,7 +271,10 @@ impl Render for ClkReport {
                         @if let Some(timescale) = self.timescale {
                             tr {
                                 th {
-                                    "Timescale"
+                                    button aria-label="Timescale in which Clock states are expressed.
+        In PPP context, this should be identical to your Observation RINEX for optimal precision." data-balloon-pos="right" {
+                                        "Timescale"
+                                    }
                                 }
                                 td {
                                     (timescale.to_string())

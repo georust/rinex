@@ -201,7 +201,9 @@ impl Render for SP3Report {
                 table class="table is-bordered" {
                     tr {
                         th {
-                            "Agency"
+                            button aria-label="Production Center" data-balloon-pos="right" {
+                                "Agency"
+                            }
                         }
                         td {
                             (self.agency.clone())
@@ -209,7 +211,9 @@ impl Render for SP3Report {
                     }
                     tr {
                         th {
-                            "Constellation"
+                            button aria-label="Fitted constellations" data-balloon-pos="right" {
+                                "Constellation"
+                            }
                         }
                         td {
                             (self.constellation.clone())
@@ -217,7 +221,9 @@ impl Render for SP3Report {
                     }
                     tr {
                         th {
-                            "Timescale"
+                            button aria-label="Timescale in which post-fit coordinates are expressed." data-balloon-pos="right" {
+                                "Timescale"
+                            }
                         }
                         td {
                             (self.time_scale.clone())
@@ -225,7 +231,9 @@ impl Render for SP3Report {
                     }
                     tr {
                         th {
-                            "Reference Frame"
+                            button aria-label="Reference frame in which post-fit coordinates are expressed." data-balloon-pos="right" {
+                                "Reference Frame"
+                            }
                         }
                         td {
                             (self.coord_system.clone())
@@ -233,7 +241,9 @@ impl Render for SP3Report {
                     }
                     tr {
                         th {
-                            "Orbit FIT"
+                            button aria-label="Coordinates determination technique." data-balloon-pos="right" {
+                                "Orbit FIT"
+                            }
                         }
                         td {
                             (self.orbit_fit.clone())

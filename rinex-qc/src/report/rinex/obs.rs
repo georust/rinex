@@ -180,7 +180,9 @@ impl Render for FrequencyPage {
                 }
                 tr {
                     th class="is-info" {
-                        "Epochs"
+                        button aria-label="Epochs analysis" data-balloon-pos="right" {
+                            "Epochs"
+                        }
                     }
                     td {
                         table class="table is-bordered" {
@@ -363,10 +365,12 @@ impl Render for ConstellationPage {
                         }
                         tr {
                             th class="is-info" {
-                                "Satellites"
+                                button aria-label="Observed Satellites" data-balloon-pos="right" {
+                                    "Satellites"
+                                }
                             }
                             td {
-                                (self.sv.iter().sorted().join(", "))
+                                (self.sv.iter().unique().sorted().join(", "))
                             }
                         }
                         @if !self.sv_epoch.is_empty() {

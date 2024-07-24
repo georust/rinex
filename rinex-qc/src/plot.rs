@@ -1,7 +1,7 @@
 use hifitime::Epoch;
 use maud::{html, Markup, PreEscaped, Render};
 use plotly::{
-    common::{Font, HoverInfo, Side, Visible},
+    common::{Font, HoverInfo, Side},
     layout::{
         Axis, Center, DragMode, Mapbox, Margin, RangeSelector, RangeSlider, SelectorButton,
         SelectorStep,
@@ -13,7 +13,7 @@ use serde::Serialize;
 
 pub use plotly::{
     color::NamedColor,
-    common::{Marker, MarkerSymbol, Mode},
+    common::{Marker, MarkerSymbol, Mode, Visible},
     layout::MapboxStyle,
 };
 

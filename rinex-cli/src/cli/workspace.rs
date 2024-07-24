@@ -70,7 +70,7 @@ impl Workspace {
     /// Opens root path with prefered web browser
     #[cfg(target_os = "linux")]
     pub fn open_with_web_browser(&self) {
-        let fullpath = self.root.to_string_lossy().to_string();
+        let fullpath = self.root.join("index.html").to_string_lossy().to_string();
         let web_browsers = vec!["firefox", "chromium"];
         for browser in web_browsers {
             let child = Command::new(browser).args([fullpath.clone()]).spawn();
@@ -82,7 +82,7 @@ impl Workspace {
     /// Opens root path with prefered web browser
     #[cfg(target_os = "macos")]
     pub fn open_with_web_browser(&self) {
-        let fullpath = self.root.to_string_lossy().to_string();
+        let fullpath = self.root.join("index.html").to_string_lossy().to_string();
         Command::new("open")
             .args(&[fullpath])
             .output()
@@ -91,7 +91,7 @@ impl Workspace {
     /// Opens root path with prefered web browser
     #[cfg(target_os = "windows")]
     pub fn open_with_web_browser(&self) {
-        let fullpath = self.root.to_string_lossy().to_string();
+        let fullpath = self.root.join("index.html").to_string_lossy().to_string();
         Command::new("cmd")
             .arg("/C")
             .arg(format!(r#"start {}"#, fullpath))
