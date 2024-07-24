@@ -171,6 +171,58 @@ impl Render for ReportContent {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {
+                table class="table is-bordered" {
+                    tbody {
+                        tr {
+                            th class="is-info" {
+                                "Satellites"
+                            }
+                            td {
+                                (self.satellites.iter().join(" ,"))
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "SV Plot"
+                            }
+                            td {
+                                (self.sv_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "RX Clock offset"
+                            }
+                            td {
+                                (self.clk_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Coordinates"
+                            }
+                            td {
+                                (self.xy_err_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "NAVI"
+                            }
+                            td {
+                                (self.navi_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "DOP"
+                            }
+                            td {
+                                (self.dop_plot.render())
+                            }
+                        }
+                    }
+                }
             }
         }
     }
