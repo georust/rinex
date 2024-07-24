@@ -28,15 +28,19 @@ reference stations very precisely without a priori knowledge, so they can serve 
 positioning techniques.
 
 Most scripts are sorted by constellation being used in the navigation/surveying or analysis process, either
-single or a combination of constellations might be used, possibly SBAS service too.
+single or a combination of constellations might be used, possibly GEO or SBAS service too.
 
 When we say BRDC, it emphasizes _real time_ surveying based solely on radio messages, 
 as opposed to _post-processed_ surveying which uses higher accuracy products and exhibits better results.
 
-CGGTTS solutions are special timing oriented solutions, to compare remote clocks to one another. 
-We demonstrate the synthesis of CGGTTS solutions along our position surveys.
+`-qc-sum` scripts will only generate a summary report (shortened). The summary
+(quicker) report is typically used along other opmodes (like `ppp`) when solely focused on post processing,
+plain (lengthy) reports are prefered prior post processing, to adjust or verify parameters. 
 
-Other file operations are also demonstrated in this repo.
+CGGTTS solutions are special timing oriented solutions, to compare remote clocks to one another. 
+We demonstrate the synthesis of CGGTTS solutions with our position surveys.
+
+Other file operations like RINEX files management is also demonstrated.
 
 - [GPS](./GPS):
   - Esbjerg and Mojn (DNK) stations surveying
@@ -44,13 +48,16 @@ Other file operations are also demonstrated in this repo.
   - Esbjerg and Mojn (DNK) stations surveying
 - [BeiDou](./BDS):
   - Esbjerg and Mojn (DNK) stations surveying
+- [BeiDou (GEO)](./BDS-GEO):
+  - Esbjerg and Mojn (DNK) stations surveying
+  - Navigation with GEO augmentation
 - [Galileo with SBAS augmentation](./GAL_SBAS)
 - [JMF: sampled by J.M. Friedt @ femto-st.fr (lab agency)](./JMF)
   - 2024-092 Mobile phone observations (Paris/urban)
-- [RINEX(A) - RINEX(B) Differential analysis illustration](./DIFF)
+- [RINEX(A) - RINEX(B): differential analysis](./DIFF)
   - Esbjerg and Mojn (DNK): close range observations
 - [Meteo observations exploitation](./METEO)
   - Complete modern Meteo observations (QC)
-- [Time binning / time reframing examples](./TBIN)
+- [Time binning: time reframing examples](./TBIN)
   - Esbjerg (24h/DNK) station observations
   - SP3 time binning
