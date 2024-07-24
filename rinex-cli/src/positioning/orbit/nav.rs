@@ -1,6 +1,7 @@
 use crate::cli::Context;
 use std::collections::HashMap;
 
+use anise::almanac::Almanac;
 use gnss_rtk::prelude::{Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, SV};
 
 use rinex::navigation::Ephemeris;
@@ -42,7 +43,12 @@ impl<'a> Orbit<'a> {
             false
         }
     }
-    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
+    pub fn next_at(
+        &mut self,
+        t: Epoch,
+        sv: SV,
+        almanac: &Almanac,
+    ) -> Option<RTKInterpolationResult> {
         let sv_ts = sv.timescale()?;
 
         while !self.feasible(t, sv, sv_ts) {
@@ -110,7 +116,7 @@ impl<'a> Orbit<'a> {
                         },
                     )?;
 
-                    let (x_km, y_km, z_km) = eph_i.kepler2position(sv, t)?;
+                    let (x_km, y_km, z_km) = eph_i.kepler2position(sv, t, almanac)?;
                     let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);
                     Some(RTKInterpolationResult::from_position((x, y, z)))
                 }

@@ -1,7 +1,8 @@
 use crate::cli::Context;
-use rinex_qc::prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, Render};
-use rtk::prelude::{Epoch, PVTSolution, SV};
 use std::collections::BTreeMap;
+
+use rtk::prelude::{Epoch, PVTSolution, SV};
+use rinex_qc::prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, Render, QcExtraPage};
 
 use itertools::Itertools;
 
@@ -182,12 +183,12 @@ pub struct Report {
 }
 
 impl Report {
-    //pub fn formalize(&self) -> QcExtraPage {
-    //    QcExtraPage {
-    //        tab: Box::new(&self.tab),
-    //        content: Box::new(&self.content),
-    //    }
-    //}
+    pub fn formalize(self) -> QcExtraPage {
+        QcExtraPage {
+            tab: Box::new(self.tab),
+            content: Box::new(self.content),
+        }
+    }
     pub fn new(ctx: &Context, solutions: &BTreeMap<Epoch, PVTSolution>) -> Self {
         Self {
             tab: ReportTab {},

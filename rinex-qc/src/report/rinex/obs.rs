@@ -351,7 +351,7 @@ impl Render for ConstellationPage {
                         }
                         tr {
                             th class="is-info" {
-                                "SV"
+                                "Satellites"
                             }
                             td {
                                 (self.sv.iter().sorted().join(", "))

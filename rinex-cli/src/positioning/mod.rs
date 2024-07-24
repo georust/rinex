@@ -2,6 +2,7 @@ use crate::cli::Context;
 use clap::ArgMatches;
 use std::cell::RefCell;
 use std::fs::read_to_string;
+use anise::almanac::Almanac;
 
 mod ppp; // precise point positioning
 use ppp::Report as PPPReport;
@@ -310,12 +311,15 @@ a static reference position"
     } else {
         None
     };
+    
+    let almanac = Almanac::until_2035()
+        .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
 
     let solver = Solver::new(
         &cfg,
         apriori,
         /* state vector interpolator */
-        |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
+        |t, sv, _order| orbit.borrow_mut().next_at(t, sv, &almanac),
     )?;
 
     if matches.get_flag("cggtts") {
@@ -330,7 +334,7 @@ a static reference position"
         let solutions = ppp::resolve(ctx, solver);
         if solutions.len() > 0 {
             let report = PPPReport::new(&ctx, &solutions);
-            Err(Error::NoSolutions)
+            Ok(report.formalize())
         } else {
             error!("solver did not generate a single solution");
             error!("verify your input data and configuration setup");

@@ -1,4 +1,5 @@
 use crate::graph::{build_chart_epoch_axis, PlotContext};
+use anise::almanac::Almanac;
 use plotly::common::{Mode, Visible}; //Marker, MarkerSymbol
 use rinex::prelude::{Epoch, SV};
 use rinex_qc::prelude::QcContext;
@@ -35,7 +36,9 @@ pub fn plot_residual_ephemeris(ctx: &QcContext, plot_ctx: &mut PlotContext) {
 
     let mut residuals: HashMap<SV, (Vec<(f64, f64, f64)>, Vec<Epoch>)> = HashMap::new();
 
-    for (t, nav_sv, (x_km, y_km, z_km)) in nav.sv_position() {
+    let almanac = Almanac::until_2035().unwrap();
+
+    for (t, nav_sv, (x_km, y_km, z_km)) in nav.sv_position(&almanac) {
         if let Some((_, _, (sp3_x, sp3_y, sp3_z))) = sp3
             .sv_position()
             .find(|(e_sp3, sv_sp3, (_, _, _))| *e_sp3 == t && *sv_sp3 == nav_sv)

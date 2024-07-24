@@ -1,4 +1,5 @@
 use crate::cli::Context;
+use anise::almanac::Almanac;
 use gnss_rtk::prelude::{Epoch, InterpolationResult, SV};
 
 mod sp3;
@@ -20,10 +21,10 @@ impl<'a> Orbit<'a> {
             Self::NAV(NAVOrbit::from_ctx(ctx))
         }
     }
-    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<InterpolationResult> {
+    pub fn next_at(&mut self, t: Epoch, sv: SV, almanac: &Almanac) -> Option<InterpolationResult> {
         match self {
             Self::SP3(orbit) => orbit.next_at(t, sv),
-            Self::NAV(orbit) => orbit.next_at(t, sv),
+            Self::NAV(orbit) => orbit.next_at(t, sv, &almanac),
         }
     }
 }
