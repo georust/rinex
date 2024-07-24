@@ -245,7 +245,7 @@ impl Ephemeris {
     pub(crate) fn a_dot(&self) -> Option<f64> {
         self.get_orbit_f64("a_dot")
     }
-     /*
+    /*
      * Parses ephemeris from given line iterator
      */
     pub(crate) fn parse_v2v3(
@@ -478,19 +478,18 @@ impl Ephemeris {
             helper.omega_k = kepler.omega_0 + (perturbations.omega_dot - omega) * helper.t_k
                 - omega * kepler.toe;
         }
-        
-        let orbital_state = 
-            Orbit::try_keplerian(
-                kepler.a * 1e-3,
-                kepler.e,
-                helper.i_k.to_degrees(),
-                helper.omega_k.to_degrees(),
-                kepler.omega.to_degrees(),
-                v_k.to_degrees(),
-                t,
-                EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
-            )
-            .ok()?;
+
+        let orbital_state = Orbit::try_keplerian(
+            kepler.a * 1e-3,
+            kepler.e,
+            helper.i_k.to_degrees(),
+            helper.omega_k.to_degrees(),
+            kepler.omega.to_degrees(),
+            v_k.to_degrees(),
+            t,
+            EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
+        )
+        .ok()?;
 
         // calculate  First Derivative of e_k,phi_k,u_k,r_k,i_k,omega_k
         let fd_e_k = n / (1.0 - kepler.e * e_k.cos());
