@@ -327,8 +327,7 @@ a static reference position"
         let tracks = cggtts::resolve(ctx, solver, matches)?;
         cggtts_post_process(&ctx, &tracks, matches)?;
         let report = CggttsReport::new(&ctx, &tracks);
-        //Ok(report.formalize())
-        Err(Error::NoSolutions)
+        Ok(report.formalize())
     } else {
         /* PPP */
         let solutions = ppp::resolve(ctx, solver);

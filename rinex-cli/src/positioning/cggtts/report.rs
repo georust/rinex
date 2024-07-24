@@ -1,5 +1,5 @@
 use crate::cli::Context;
-use rinex_qc::prelude::{html, Markup, Plot, Render};
+use rinex_qc::prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render};
 
 use cggtts::prelude::Track;
 
@@ -45,12 +45,12 @@ pub struct Report {
 }
 
 impl Report {
-    //pub fn formalize(&self) -> QcExtraPage {
-    //    QcExtraPage {
-    //        tab: Box::new(self.tab.clone()),
-    //        content: Box::new(self.content.clone()),
-    //    }
-    //}
+    pub fn formalize(self) -> QcExtraPage {
+        QcExtraPage {
+            tab: Box::new(self.tab),
+            content: Box::new(self.content),
+        }
+    }
     pub fn new(ctx: &Context, solutions: &Vec<Track>) -> Self {
         Self {
             tab: ReportTab {},
