@@ -21,10 +21,8 @@ struct ReportContent {
     sv_plot: Plot,
     /// clk_plot
     clk_plot: Plot,
-    /// north_east
-    north_east_plot: Plot,
-    /// altitude
-    altitude_plot: Plot,
+    /// neu_plot
+    neu_plot: Plot,
     /// coords_err
     coords_err_plot: Plot,
     /// 3d_plot
@@ -60,33 +58,115 @@ impl ReportContent {
             })
             .into_iter()
             .unique()
+            .sorted()
             .collect::<Vec<_>>();
 
         Self {
             sv_plot: {
                 let mut plot = Plot::timedomain_plot("sv_plot", "SV ID#", "PRN #", true);
+                for sv in satellites.iter() {
+                    let epochs = solutions
+                        .iter()
+                        .filter_map(|(t, sol)| {
+                            if sol.sv.keys().contains(sv) {
+                                Some(*t)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let prn = epochs.iter().map(|_| sv.prn).collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &epochs,
+                        prn,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
-            north_east_plot: {
+            neu_plot: {
                 let mut plot = Plot::timedomain_plot(
                     "north_east",
-                    "North/East Coordinates",
+                    "North/East/Up Coordinates",
                     "Coordinates [m]",
                     true,
                 );
                 plot
             },
-            altitude_plot: {
-                let mut plot = Plot::timedomain_plot("altitude", "Altitude", "Altitude [m]", true);
-                plot
-            },
             tropod_plot: {
                 let mut plot =
                     Plot::timedomain_plot("tropo", "Troposphere Bias", "Error [m]", true);
+                for sv in satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|(t, sol)| {
+                            if sol.sv.keys().contains(sv) {
+                                Some(*t)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|(_, sol)| {
+                            if let Some(value) =
+                                sol.sv.iter().filter(|(s, _)| *s == sv).reduce(|k, _| k)
+                            {
+                                value.1.tropo_bias.value()
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
             ionod_plot: {
                 let mut plot = Plot::timedomain_plot("iono", "Ionosphere Bias", "Error [m]", true);
+                for sv in satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|(t, sol)| {
+                            if sol.sv.keys().contains(sv) {
+                                Some(*t)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|(_, sol)| {
+                            if let Some(value) =
+                                sol.sv.iter().filter(|(s, _)| *s == sv).reduce(|k, _| k)
+                            {
+                                value.1.iono_bias.value()
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
             tdop_plot: {
@@ -277,24 +357,7 @@ impl Render for ReportContent {
                                 "N/E/U coordinates"
                             }
                             td {
-                                table class="table is-bordered" {
-                                    tr {
-                                        th class="is-info" {
-                                            "North/East"
-                                        }
-                                        td {
-                                            (self.north_east_plot.render())
-                                        }
-                                    }
-                                    tr {
-                                        th class="is-info" {
-                                            "Altitude"
-                                        }
-                                        td {
-                                            (self.altitude_plot.render())
-                                        }
-                                    }
-                                }
+                                (self.neu_plot.render())
                             }
                         }
                         tr {
