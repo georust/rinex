@@ -1,8 +1,8 @@
 use crate::cli::Context;
 use std::collections::BTreeMap;
 
+use rinex_qc::prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render};
 use rtk::prelude::{Epoch, PVTSolution, SV};
-use rinex_qc::prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, Render, QcExtraPage};
 
 use itertools::Itertools;
 

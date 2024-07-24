@@ -52,7 +52,10 @@ impl Render for QcSummary {
                         }
                         tr {
                             th {
-                                "Timescale"
+                                button aria-label="Timescale in which samples observation are expressed.
+        Navigation solutions are expressed in this timescale by default." data-balloon-pos="right" {
+                                    "Timescale"
+                                }
                             }
                             @if let Some(timescale) = self.timescale {
                                 td {
@@ -60,37 +63,55 @@ impl Render for QcSummary {
                                 }
                             } @else {
                                 td {
-                                    "Not Applicable"
+                                    button aria-label="This dataset is not a timeserie." data-balloon-pos="up" {
+                                        "Not Applicable"
+                                    }
                                 }
                             }
                         }
                         tr {
                             @if let Some(position) = self.cfg.manual_reference {
                                 th {
-                                    "(Manual) Reference position"
+                                    button aria-label="Ground based reference position" data-balloon-pos="up" {
+                                        "(Manual) Reference position"
+                                    }
                                 }
                                 td {
-                                    (position.render())
+                                    button aria-label="Provided by custom command line" data-balloon-pos="up" {
+                                        (position.render())
+                                    }
                                 }
                             } @else if let Some(position) = self.reference_position {
                                 th {
-                                    "Reference position"
+                                    button aria-label="Ground based (RX) position" data-balloon-pos="up" {
+                                        "Reference position"
+                                    }
                                 }
                                 td {
-                                    (position.render())
+                                    button aria-label="Parsed from RINEX header" data-balloon-pos="up" {
+                                        (position.render())
+                                    }
                                 }
                             } @else {
                                 th {
-                                    "Reference position"
+                                    button aria-label="Ground based reference position" data-balloon-pos="up" {
+                                        "Reference position"
+                                    }
                                 }
                                 td {
-                                    "None"
+                                    button aria-label="Compass projection is disabled.
+Most navigation geometric/attibutes filter cannot apply.
+Initial survey/guess is implied." data-balloon-pos="up" {
+                                        "None"
+                                    }
                                 }
                             }
                         }
                         tr {
                             th class="is-info" {
-                                "Compliancy"
+                                button aria-label="Context / Dataset compliancy" data-balloon-pos="right" {
+                                    "Compliancy"
+                                }
                             }
                             td {
                                 (self.navi.render())
@@ -98,7 +119,9 @@ impl Render for QcSummary {
                         }
                         tr {
                             th class="is-info" {
-                                "Bias"
+                                button aria-label="Physical and Environmental bias analysis & cancellation capabilities" data-balloon-pos="right" {
+                                    "Bias"
+                                }
                             }
                             td {
                                 (self.bias_sum.render())

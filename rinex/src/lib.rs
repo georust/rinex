@@ -94,8 +94,8 @@ pub mod prelude {
     pub use crate::{Error, Rinex};
     // pub re-export
     pub use anise::prelude::Almanac;
-    pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
     pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
+    pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
 /// Package dedicated to file production.

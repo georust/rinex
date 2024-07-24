@@ -186,7 +186,9 @@ impl Render for FrequencyPage {
                         table class="table is-bordered" {
                             tr {
                                 th class="is-info" {
-                                    "SPP Compatible"
+                                    button aria-label="Total SPP compatible Epochs" data-balloon-pos="right" {
+                                        "SPP Compatible"
+                                    }
                                 }
                                 td {
                                     (format!("{}/{} ({}%)", self.total_spp_epochs, self.sampling.total, self.total_spp_epochs * 100 / self.sampling.total))
@@ -194,7 +196,9 @@ impl Render for FrequencyPage {
                             }
                             tr {
                                 th class="is-info" {
-                                    "CPP Compatible"
+                                    button aria-label="Total CPP compatible Epochs" data-balloon-pos="right" {
+                                        "CPP Compatible"
+                                    }
                                 }
                                 td {
                                     (format!("{}/{} ({}%)", self.total_cpp_epochs, self.sampling.total, self.total_cpp_epochs * 100 / self.sampling.total))
@@ -202,7 +206,9 @@ impl Render for FrequencyPage {
                             }
                             tr {
                                 th class="is-info" {
-                                    "PPP Compatible"
+                                    button aria-label="Total PPP compatible Epochs" data-balloon-pos="right" {
+                                        "PPP Compatible"
+                                    }
                                 }
                                 td {
                                     (format!("{}/{} ({}%)", self.total_ppp_epochs, self.sampling.total, self.total_ppp_epochs * 100 / self.sampling.total))
@@ -303,7 +309,9 @@ impl Render for ConstellationPage {
                     tbody {
                         tr {
                             th {
-                                "SPP Compatible"
+                                button aria-label="Pseudo Range single frequency navigation" data-balloon-pos="right" {
+                                    "SPP Compatible"
+                                }
                             }
                             td {
                                 @if self.spp_compatible {
@@ -319,7 +327,9 @@ impl Render for ConstellationPage {
                         }
                         tr {
                             th {
-                                "CPP compatible"
+                                button aria-label="Pseudo Range dual frequency navigation" data-balloon-pos="right" {
+                                    "CPP compatible"
+                                }
                             }
                             td {
                                 @if self.cpp_compatible {
@@ -335,7 +345,9 @@ impl Render for ConstellationPage {
                         }
                         tr {
                             th {
-                                "PPP compatible"
+                                button aria-label="Dual frequency Pseudo + Phase Range navigation" data-balloon-pos="right" {
+                                    "PPP compatible"
+                                }
                             }
                             td {
                                 @if self.ppp_compatible {

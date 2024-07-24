@@ -35,12 +35,14 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "NAVI" // "Post processed navigation is not feasible."))
+                                button aria-label="Post processed navigation is feasible" data-balloon-pos="up" {
+                                    "NAVI"
+                                }
                             } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                button aria-label="Post processed navigation is feasible: Pseudo Range + BRDC and/or SP3" data-balloon-pos="up" {
+                                button aria-label="Post processed navigation is not feasible. You must provide at least Pseudo Range + NAV (BRDC) RINEX and SP3 if desired." data-balloon-pos="up" {
                                     "NAVI"
                                 }
                             }
@@ -50,12 +52,16 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "CPP" // "CPP navigation compatible (dual freq. pseudo range)"))
+                                button aria-label="Code Based Precise Positioning. Direct IONOD cancelling." data-balloon-pos="up" {
+                                    "CPP"
+                                }
                             } @else {
                                 span class="icon" style="color:red"{
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "CPP" // "Incompatible with CPP navigation: missing secondary frequency."))
+                                button aria-label="Code Based Precise Positioning not feasible. Missing secondary frequency." data-balloon-pos="up" {
+                                    "CPP"
+                                }
                             }
                         }
                         td {
@@ -63,12 +69,16 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "PPP" // "PPP navigation compatible (dual freq. + phase range)"))
+                                button aria-label="Precise Point Positioning is feasible. Dual PR+PH navigation with direct IONOD cancelling." data-balloon-pos="up" {
+                                    "PPP"
+                                }
                             } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "PPP" // "Incompatible with PPP navigation: missing secondary frequency or phase range."))
+                                button aria-label="Precise Point Positioning is not feasible. Missing Phase Data and/or secondary frequency and/or SP3 and/or CLK RINEX." data-balloon-pos="up" {
+                                    "PPP"
+                                }
                             }
                         }
                         td {
@@ -76,12 +86,16 @@ impl Render for QcNavPostSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "PPP (Ultra)" // "PPP Ultra precise navigation"))
+                                button aria-label="Ultimate PPP: CLK RINEX synchronous to OBS RINEX" data-balloon-pos="up" {
+                                    "PPP (Ultra)"
+                                }
                             } @else {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "PPP (Ultra)" // "PPP Ultra incompatible: OBS + CLK should be synchronous in same timescale"))
+                                button aria-label="Ultimate PPP: CLK RINEX is not synchronous to OBS RINEX" data-balloon-pos="up" {
+                                    "PPP (Ultra)"
+                                }
                             }
                         }
                     }

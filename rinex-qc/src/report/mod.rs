@@ -305,8 +305,6 @@ impl Render for QcReport {
                     link rel="stylesheet" href="https://unpkg.com/balloon-css/balloon.min.css";
                 }//head
                 body {
-                        //div id="plotly-html-element" class="plotly-graph-div" style="height:100%; width:100;" {
-                        //}
                         div id="title" {
                             title {
                                 "RINEX QC"

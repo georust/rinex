@@ -1,8 +1,8 @@
 use crate::cli::Context;
+use anise::almanac::Almanac;
 use clap::ArgMatches;
 use std::cell::RefCell;
 use std::fs::read_to_string;
-use anise::almanac::Almanac;
 
 mod ppp; // precise point positioning
 use ppp::Report as PPPReport;
@@ -311,7 +311,7 @@ a static reference position"
     } else {
         None
     };
-    
+
     let almanac = Almanac::until_2035()
         .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
 

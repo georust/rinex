@@ -26,27 +26,37 @@ impl Render for QcBiasSummary {
                 tbody {
                     tr {
                         th {
-                            "Troposphere Bias"
+                            button aria-label="Troposphere bias cancelling" data-balloon-pos="up" {
+                                "Troposphere Bias"
+                            }
                         }
                         @if self.tropo_bias_model_optimization {
                             td {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "Model optimization"
+                                button aria-label="Troposphere bias model can be optimized.
+        Standard internal model is optimized with regional measurements" data-balloon-pos="up" {
+                                    "Model optimization"
+                                }
                             }
                         } @else {
                             td {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "Model optimization"
+                                button aria-label="Troposphere bias model cannot be optimized: missing Meteo IONEX.
+        Bias modelling will solely rely on internal standard models." data-balloon-pos="up" {
+                                    "Model optimization"
+                                }
                             }
                         }
                     }
                     tr {
                         th {
-                            "Ionosphere Bias"
+                            button aria-label="Ionosphere bias cancelling" data-balloon-pos="up" {
+                                "Ionosphere Bias"
+                            }
                         }
                         @if self.iono_bias_model_optimization {
                             td {
@@ -60,7 +70,10 @@ impl Render for QcBiasSummary {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "Model optimization"
+                                button aria-label="Ionosphere bias model cannot be optimized: missing IONEX.
+        This will not impact your solutions if direct cancellation is feasible." data-balloon-pos="up" {
+                                    "Model optimization"
+                                }
                             }
                         }
                         @if self.iono_bias_cancelling {
@@ -68,14 +81,18 @@ impl Render for QcBiasSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "Cancelling"
+                                button aria-label="Direct IONOD cancellation by signal observation." data-balloon-pos="up" {
+                                    "Cancelling"
+                                }
                             }
                         } @else {
                             td {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                "Cancelling"
+                                button aria-label="Direct IONOD cancellation is not feasible: missing secondary frequency." data-balloon-pos="up" {
+                                    "Cancelling"
+                                }
                             }
                         }
                     }
