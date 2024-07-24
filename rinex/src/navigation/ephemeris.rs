@@ -245,133 +245,7 @@ impl Ephemeris {
     pub(crate) fn a_dot(&self) -> Option<f64> {
         self.get_orbit_f64("a_dot")
     }
-    /*
-     * Get the difference between toe and observation epoch,
-     * as total seconds elapsed in GPS timescale
-     */
-    pub(crate) fn tk(&self, sv: SV, t: Epoch) -> Option<f64> {
-        let toe = self.toe_gpst(sv.timescale()?)?;
-        let t_dur = t.to_gpst_duration();
-        let t_k = (t_dur - toe.duration).to_seconds();
-        let dur = Self::max_dtoe(sv.constellation)?;
-        if t_k.abs() <= dur.to_seconds() {
-            Some(t_k)
-        } else {
-            None
-        }
-    }
-    /*
-     * get ephemerisHelper
-     */
-    pub(crate) fn ephemeris_helper(&self, sv: SV, t: Epoch) -> Option<EphemerisHelper> {
-        // const
-        let gm_m3_s2 = Constants::gm(sv);
-        let omega = Constants::omega(sv);
-        let dtr_f = Constants::dtr_f(sv);
-        let mut helper = EphemerisHelper {
-            sv,
-            ..Default::default()
-        };
-        // set t_k
-        if let Some(t_k) = self.tk(sv, t) {
-            helper.t_k = t_k
-        } else {
-            log::trace!("{} ephemeris missing or invalid at {}", sv, t);
-            return None;
-        }
-        let mut kepler = self.kepler()?;
-        // considering the filed a_dot
-        if let Some(a_dot) = self.a_dot() {
-            kepler.a += a_dot * helper.t_k;
-        }
-        let perturbations = self.perturbations()?;
-
-        // m_k, e_k, v_k calculation
-        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt();
-        let n = n0 + perturbations.dn;
-
-        // m_k is most like the mean anomaly because it's computed from an initial value which is linear compared to time.
-        let m_k = kepler.m_0 + n * helper.t_k;
-
-        // Iterative calculation of e_k
-        let mut e_k_lst: f64 = 0.0;
-        let mut e_k: f64;
-        let mut i = 0;
-        loop {
-            e_k = m_k + kepler.e * e_k_lst.sin();
-            if (e_k - e_k_lst).abs() < 1e-10 {
-                break;
-            }
-            i += 1;
-            e_k_lst = e_k;
-        }
-        if i >= constants::MaxIterNumber::KEPLER {
-            log::warn!("{} kepler iteration overflow", sv);
-        }
-        let (sin_e_k, cos_e_k) = e_k.sin_cos();
-        let v_k = ((1.0 - kepler.e.powi(2)).sqrt() * sin_e_k).atan2(cos_e_k - kepler.e);
-
-        // u_k, r_k, i_k
-        let phi_k = v_k + kepler.omega;
-        let (sin2_phi_k, cos2_phi_k) = (2.0 * phi_k).sin_cos();
-        let det_u_k = perturbations.cus * sin2_phi_k + perturbations.cuc * cos2_phi_k;
-        let det_r_k = perturbations.crs * sin2_phi_k + perturbations.crc * cos2_phi_k;
-        let det_i_k = perturbations.cis * sin2_phi_k + perturbations.cic * cos2_phi_k;
-        helper.u_k = phi_k + det_u_k;
-        helper.r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + det_r_k;
-        helper.i_k = kepler.i_0 + perturbations.i_dot * helper.t_k + det_i_k;
-
-        // omega_k -- Probably the RAAN because of the RAAN dot, and RAAN drifts fast.
-        // MEO (GPS, Galieo, BeiDou)
-        // IGSO(BeiDou)
-        if sv.is_beidou_geo() {
-            helper.omega_k =
-                kepler.omega_0 + perturbations.omega_dot * helper.t_k - omega * kepler.toe;
-        } else {
-            helper.omega_k = kepler.omega_0 + (perturbations.omega_dot - omega) * helper.t_k
-                - omega * kepler.toe;
-        }
-
-        let orbital_state = Orbit::try_keplerian(
-            kepler.a * 1e-3,
-            kepler.e,
-            helper.i_k.to_degrees(),
-            helper.omega_k.to_degrees(),
-            kepler.omega.to_degrees(),
-            v_k.to_degrees(),
-            t,
-            EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
-        )
-        .ok()?;
-
-        // calculate  First Derivative of e_k,phi_k,u_k,r_k,i_k,omega_k
-        let fd_e_k = n / (1.0 - kepler.e * e_k.cos());
-        let fd_phi_k = ((1.0 + kepler.e) / (1.0 - kepler.e)).sqrt()
-            * ((v_k / 2.0).cos() / (e_k / 2.0).cos()).powi(2)
-            * fd_e_k;
-        helper.fd_u_k =
-            (perturbations.cus * cos2_phi_k - perturbations.cuc * sin2_phi_k) * fd_phi_k * 2.0
-                + fd_phi_k;
-        helper.fd_r_k = kepler.a * kepler.e * e_k.sin() * fd_e_k
-            + 2.0 * (perturbations.crs * cos2_phi_k - perturbations.crc * sin2_phi_k) * fd_phi_k;
-        helper.fd_i_k = perturbations.i_dot
-            + 2.0 * (perturbations.cis * cos2_phi_k - perturbations.cic * sin2_phi_k) * fd_phi_k;
-        helper.fd_omega_k = perturbations.omega_dot - omega;
-
-        // orbit position
-        helper.orbit_position = (helper.r_k * helper.u_k.cos(), helper.r_k * helper.u_k.sin());
-
-        // Relativistic Effect Correction
-        helper.dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
-        helper.fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
-
-        // Finally, set the orbit state
-
-        helper.orbit = Some(orbital_state);
-
-        Some(helper)
-    }
-    /*
+     /*
      * Parses ephemeris from given line iterator
      */
     pub(crate) fn parse_v2v3(
@@ -535,7 +409,128 @@ impl Ephemeris {
         s.set_orbit_f64("omegaDot", perturbations.omega_dot);
         s
     }
+    /// Converts Self to [EphemerisHelper]
+    fn ephemeris_helper(&self, sv: SV, t: Epoch) -> Option<EphemerisHelper> {
+        // const
+        let gm_m3_s2 = Constants::gm(sv);
+        let omega = Constants::omega(sv);
+        let dtr_f = Constants::dtr_f(sv);
+        let mut helper = EphemerisHelper {
+            sv,
+            ..Default::default()
+        };
+        // set t_k
+        if let Some(t_k) = self.tk(sv, t) {
+            helper.t_k = t_k
+        } else {
+            log::trace!("{} ephemeris missing or invalid at {}", sv, t);
+            return None;
+        }
+        let mut kepler = self.kepler()?;
+        // considering the filed a_dot
+        if let Some(a_dot) = self.a_dot() {
+            kepler.a += a_dot * helper.t_k;
+        }
+        let perturbations = self.perturbations()?;
 
+        // m_k, e_k, v_k calculation
+        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt();
+        let n = n0 + perturbations.dn;
+
+        // m_k: mean anomaly
+        let m_k = kepler.m_0 + n * helper.t_k;
+
+        // Iterative calculation of e_k
+        let mut e_k_lst: f64 = 0.0;
+        let mut e_k: f64 = 0.0;
+        let mut i = 0;
+        loop {
+            e_k = m_k + kepler.e * e_k_lst.sin();
+            if (e_k - e_k_lst).abs() < 1e-10 {
+                break;
+            }
+            i += 1;
+            e_k_lst = e_k;
+        }
+        if i >= constants::MaxIterNumber::KEPLER {
+            log::warn!("{} kepler iteration overflow", sv);
+        }
+        let (sin_e_k, cos_e_k) = e_k.sin_cos();
+        let v_k = ((1.0 - kepler.e.powi(2)).sqrt() * sin_e_k).atan2(cos_e_k - kepler.e);
+
+        // u_k, r_k, i_k
+        let phi_k = v_k + kepler.omega;
+        let (sin2_phi_k, cos2_phi_k) = (2.0 * phi_k).sin_cos();
+        let det_u_k = perturbations.cus * sin2_phi_k + perturbations.cuc * cos2_phi_k;
+        let det_r_k = perturbations.crs * sin2_phi_k + perturbations.crc * cos2_phi_k;
+        let det_i_k = perturbations.cis * sin2_phi_k + perturbations.cic * cos2_phi_k;
+        helper.u_k = phi_k + det_u_k;
+        helper.r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + det_r_k;
+        helper.i_k = kepler.i_0 + perturbations.i_dot * helper.t_k + det_i_k;
+
+        // omega_k: RAAN
+        // MEO (GPS, Galieo, BeiDou)
+        // IGSO(BeiDou)
+        if sv.is_beidou_geo() {
+            helper.omega_k =
+                kepler.omega_0 + perturbations.omega_dot * helper.t_k - omega * kepler.toe;
+        } else {
+            helper.omega_k = kepler.omega_0 + (perturbations.omega_dot - omega) * helper.t_k
+                - omega * kepler.toe;
+        }
+        
+        let orbital_state = 
+            Orbit::try_keplerian(
+                kepler.a * 1e-3,
+                kepler.e,
+                helper.i_k.to_degrees(),
+                helper.omega_k.to_degrees(),
+                kepler.omega.to_degrees(),
+                v_k.to_degrees(),
+                t,
+                EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
+            )
+            .ok()?;
+
+        // calculate  First Derivative of e_k,phi_k,u_k,r_k,i_k,omega_k
+        let fd_e_k = n / (1.0 - kepler.e * e_k.cos());
+        let fd_phi_k = ((1.0 + kepler.e) / (1.0 - kepler.e)).sqrt()
+            * ((v_k / 2.0).cos() / (e_k / 2.0).cos()).powi(2)
+            * fd_e_k;
+        helper.fd_u_k =
+            (perturbations.cus * cos2_phi_k - perturbations.cuc * sin2_phi_k) * fd_phi_k * 2.0
+                + fd_phi_k;
+        helper.fd_r_k = kepler.a * kepler.e * e_k.sin() * fd_e_k
+            + 2.0 * (perturbations.crs * cos2_phi_k - perturbations.crc * sin2_phi_k) * fd_phi_k;
+        helper.fd_i_k = perturbations.i_dot
+            + 2.0 * (perturbations.cis * cos2_phi_k - perturbations.cic * sin2_phi_k) * fd_phi_k;
+        helper.fd_omega_k = perturbations.omega_dot - omega;
+
+        // orbit position
+        helper.orbit_position = (helper.r_k * helper.u_k.cos(), helper.r_k * helper.u_k.sin());
+
+        // Relativistic Effect Correction
+        helper.dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
+        helper.fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
+
+        // Finally, set the orbit state
+        helper.orbit = Some(orbital_state);
+
+        Some(helper)
+    }
+    /// Get the difference between toe and observation epoch,
+    /// as total seconds elapsed in GPS timescale
+    fn tk(&self, sv: SV, t: Epoch) -> Option<f64> {
+        let toe = self.toe_gpst(sv.timescale()?)?;
+        let t_dur = t.to_gpst_duration();
+        let t_k = (t_dur - toe.duration).to_seconds();
+        let dur = Self::max_dtoe(sv.constellation)?;
+        if t_k.abs() <= dur.to_seconds() {
+            Some(t_k)
+        } else {
+            None
+        }
+    }
     /// Kepler position solver at desired instant "t" for given "sv"
     /// based off Self. Self must be correctly selected in navigation
     /// record.
@@ -552,15 +547,14 @@ impl Ephemeris {
         self.kepler2position_velocity(sv, t, almanac)
             .map(|(pos, _vel)| pos)
     }
-    /*
-     * Kepler position and velocity solver at desired instant "t" for given "sv"
-     * based off Self. Self must be correctly selected in navigation
-     * record.
-     * "t" should not be expressed in UTC time scale as the hifitime doesn't consider
-     * the leap seconds
-     * See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
-     */
-    pub(crate) fn kepler2position_velocity(
+
+    /// Kepler position and velocity solver at desired instant "t" for given "sv"
+    /// based off Self. Self must be correctly selected in navigation
+    /// record.
+    /// "t" should not be expressed in UTC time scale as the hifitime doesn't consider
+    /// the leap seconds
+    /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
+    fn kepler2position_velocity(
         &self,
         sv: SV,
         t: Epoch,

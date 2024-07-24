@@ -88,7 +88,6 @@ pub mod prelude {
     pub use crate::context::{ProductType, RnxContext};
     pub use crate::cospar::COSPAR;
     pub use crate::domes::Domes;
-    #[cfg(feature = "doris")]
     pub use crate::doris::Station;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
