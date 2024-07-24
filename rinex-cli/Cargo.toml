@@ -48,9 +48,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
 # gnss-rtk = { path = "../../gnss-rtk", features = ["serde"] }
-gnss-rtk = { git = "https://github.com/ChristopherRabotin/gnss-rtk", branch = "fix/anise-frame-data", features = [
-    "serde",
-] } # TODO: Revert to official git after merging gnss-rtk change.
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
 # cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
