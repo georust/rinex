@@ -37,7 +37,7 @@ horrorshow = "0.8"
 clap = { version = "4.4.13", features = ["derive", "color"] }
 plotly = { git = "https://github.com/plotly/plotly.rs", branch = "main" }
 
-anise = "0.4.1"
+anise = { version = "0.4.2", features = ["embed_ephem"] }
 gnss-rs = { version = "2.2.0", features = ["serde"] }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
@@ -47,9 +47,12 @@ sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde", "flate2"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 # gnss-rtk = { version = "0.4.5", features = ["serde"] }
-# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+# gnss-rtk = { path = "../../gnss-rtk", features = ["serde"] }
 gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
 # cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
-cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"]}
+cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = [
+    "serde",
+    "scheduler",
+] }

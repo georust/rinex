@@ -1350,6 +1350,8 @@ mod test {
     #[cfg(feature = "flate2")]
     #[ignore]
     fn sv_interp() {
+        use anise::almanac::Almanac;
+
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -1363,6 +1365,7 @@ mod test {
             "failed to parse NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz, error: {:?}",
             rinex.err()
         );
+        let almanac = Almanac::until_2035().unwrap();
         let rinex = rinex.unwrap();
         let first_epoch = rinex.first_epoch().expect("failed to determine 1st epoch");
         let last_epoch = rinex.last_epoch().expect("failed to determine last epoch");
@@ -1373,9 +1376,10 @@ mod test {
             let tmin = first_epoch + (order / 2) * dt;
             let tmax = last_epoch - (order / 2) * dt;
             println!("running Interp({}) testbench..", order);
-            for (index, (epoch, sv, (x, y, z))) in rinex.sv_position().enumerate() {
+            for (index, (epoch, sv, (x, y, z))) in rinex.sv_position(&almanac).enumerate() {
                 let feasible = epoch > tmin && epoch <= tmax;
-                let interpolated = rinex.sv_position_interpolate(sv, epoch, order as usize);
+                let interpolated =
+                    rinex.sv_position_interpolate(sv, epoch, order as usize, &almanac);
                 let achieved = interpolated.is_some();
                 //DEBUG
                 println!(

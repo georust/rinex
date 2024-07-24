@@ -1,4 +1,5 @@
 use crate::graph::PlotContext;
+use anise::almanac::Almanac;
 use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
@@ -11,6 +12,8 @@ use rinex::prelude::{Epoch, GroundPosition, RnxContext};
 pub fn skyplot(ctx: &RnxContext, rx_ecef: (f64, f64, f64), plot_context: &mut PlotContext) {
     plot_context.add_polar2d_plot("Skyplot");
 
+    let almanac = Almanac::until_2035().unwrap();
+
     if let Some(rnx) = ctx.brdc_navigation() {
         for (svnn_index, svnn) in rnx.sv().enumerate() {
             // per sv
@@ -18,7 +21,7 @@ pub fn skyplot(ctx: &RnxContext, rx_ecef: (f64, f64, f64), plot_context: &mut Pl
             // Rho   = degrees(elev)
             // Theta = degrees(azim)
             let data: Vec<(Epoch, f64, f64)> = rnx
-                .sv_elevation_azimuth(Some(GroundPosition::from_ecef_wgs84(rx_ecef)))
+                .sv_elevation_azimuth(Some(GroundPosition::from_ecef_wgs84(rx_ecef)), &almanac)
                 .filter_map(|(epoch, sv, (elev, azi))| {
                     if sv == svnn {
                         let rho = elev;
