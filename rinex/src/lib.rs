@@ -99,6 +99,8 @@ pub mod prelude {
     pub use anise::prelude::Almanac;
     pub use gnss::prelude::Constellation;
     pub use gnss::prelude::SV;
+    #[cfg(feature = "nav")]
+    pub use hifitime::ut1::DeltaTaiUt1;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
@@ -2786,6 +2788,17 @@ impl Rinex {
                 }
             })
         }))
+    }
+    /// Forms a Ut1 Provider as an [DeltaTaiUt1] Iterator from [Self] which must
+    /// be a NAV V4 RINEX file with EOP messages.
+    pub fn ut1_provider(&self) -> Box<dyn Iterator<Item = DeltaTaiUt1> + '_> {
+        Box::new(
+            self.earth_orientation()
+                .map(|(t, (_, _sv, eop))| DeltaTaiUt1 {
+                    epoch: *t,
+                    delta_tai_minus_ut1: Duration::from_seconds(eop.delta_ut1.0),
+                }),
+        )
     }
 }
 
