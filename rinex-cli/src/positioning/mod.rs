@@ -332,7 +332,7 @@ a static reference position"
         /* PPP */
         let solutions = ppp::resolve(ctx, solver);
         if solutions.len() > 0 {
-            let report = PPPReport::new(&ctx, &solutions);
+            let report = PPPReport::new(&cfg, &ctx, &solutions);
             Ok(report.formalize())
         } else {
             error!("solver did not generate a single solution");

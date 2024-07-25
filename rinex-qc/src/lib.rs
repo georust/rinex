@@ -8,7 +8,7 @@ extern crate rinex_qc_traits as qc_traits;
 mod cfg;
 
 #[cfg(feature = "plot")]
-mod plot;
+pub mod plot;
 
 mod context;
 mod report;

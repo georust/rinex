@@ -1,10 +1,19 @@
 use crate::cli::Context;
 use std::collections::BTreeMap;
 
-use rinex_qc::prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render};
-use rtk::prelude::{Epoch, PVTSolution, SV};
+use rtk::prelude::{
+    Config as NaviConfig, Duration, Epoch, Filter as NaviFilter, Method as NaviMethod, PVTSolution,
+    TimeScale, SV,
+};
+
+use rinex_qc::{
+    plot::MapboxStyle,
+    prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render},
+};
 
 use itertools::Itertools;
+
+use map_3d::{ecef2geodetic, Ellipsoid};
 
 struct ReportTab {}
 
@@ -16,6 +25,14 @@ impl Render for ReportTab {
 
 enum Technique {
     GeodeticSurvey,
+}
+
+impl std::fmt::Display for Technique {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::GeodeticSurvey => write!(f, "Geodetic Survey"),
+        }
+    }
 }
 
 impl Technique {
@@ -34,7 +51,7 @@ struct Summary {
     filter: NaviFilter,
     first_epoch: Epoch,
     last_epoch: Epoch,
-    duration: Epoch,
+    duration: Duration,
     timescale: TimeScale,
     final_neu: (f64, f64, f64),
     final_err_m: (f64, f64, f64),
@@ -114,6 +131,7 @@ impl Render for Summary {
 
 impl Summary {
     fn new(
+        cfg: &NaviConfig,
         ctx: &Context,
         solutions: &BTreeMap<Epoch, PVTSolution>,
         err_ecef: (f64, f64, f64),
@@ -123,6 +141,7 @@ impl Summary {
         let (mut first_epoch, mut last_epoch) = (Epoch::default(), Epoch::default());
         let (mut final_err_x, mut final_err_y, mut final_err_z) = (0.0_f64, 0.0_f64, 0.0_f64);
         let (mut final_neu_x, mut final_neu_y, mut final_neu_z) = (0.0_f64, 0.0_f64, 0.0_f64);
+        let (mut worst_err_x, mut worst_err_y, mut worst_err_z) = (0.0_f64, 0.0_f64, 0.0_f64);
         for (index, (t, sol)) in solutions.iter().enumerate() {
             if index == 0 {
                 first_epoch = *t;
@@ -153,7 +172,10 @@ impl Summary {
             first_epoch,
             last_epoch,
             timescale,
+            method: cfg.method,
+            filter: cfg.solver.filter,
             duration: last_epoch - first_epoch,
+            technique: Technique::GeodeticSurvey,
             final_err_m: (final_err_x, final_err_y, final_err_z),
             worst_err_m: (worst_err_x, worst_err_y, worst_err_z),
             final_neu: (final_neu_x, final_neu_y, final_neu_z),
@@ -193,12 +215,12 @@ struct ReportContent {
 }
 
 impl ReportContent {
-    pub fn new(ctx: &Context, solutions: &BTreeMap<Epoch, PVTSolution>) -> Self {
+    pub fn new(cfg: &NaviConfig, ctx: &Context, solutions: &BTreeMap<Epoch, PVTSolution>) -> Self {
         let epochs = solutions.keys().cloned().collect::<Vec<_>>();
 
         let (x0_ecef, y0_ecef, z0_ecef) = ctx.rx_ecef.unwrap_or_default();
-        let (lat0_ddeg, lon0_ddeg, _) = ecef2geodetic((x0_ecef, y0_ecef, z0_ecef));
-        let (lat0_rad, lon0_rad) = (la0_ddeg.radians(), lon0_ddeg.radians());
+        let (lat0_ddeg, lon0_ddeg, _) = ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
+        let (lat0_rad, lon0_rad) = (lat0_ddeg.to_radians(), lon0_ddeg.to_radians());
 
         let satellites = solutions
             .values()
@@ -215,12 +237,12 @@ impl ReportContent {
             .collect::<Vec<_>>();
 
         Self {
-            summary: Summary::new(ctx, solutions),
+            summary: Summary::new(cfg, ctx, solutions, (x0_ecef, y0_ecef, z0_ecef)),
             map_proj: {
                 let mut map_proj = Plot::world_map(
                     "map_proj",
                     "Map Projection",
-                    MapboxTyle::StamenTerrain,
+                    MapboxStyle::StamenTerrain,
                     (lat0_ddeg, lon0_ddeg),
                     18,
                     true,
@@ -414,7 +436,7 @@ impl ReportContent {
 
                 let vdop = solutions
                     .iter()
-                    .map(|(_, sol)| sol.vdop(rx_lat_rad, rx_long_rad))
+                    .map(|(_, sol)| sol.vdop(lat0_rad, lon0_rad))
                     .collect::<Vec<_>>();
 
                 let trace = Plot::timedomain_chart(
@@ -428,7 +450,7 @@ impl ReportContent {
 
                 let hdop = solutions
                     .iter()
-                    .map(|(_, sol)| sol.hdop(rx_lat_rad, rx_long_rad))
+                    .map(|(_, sol)| sol.hdop(lat0_rad, lon0_rad))
                     .collect::<Vec<_>>();
 
                 let trace = Plot::timedomain_chart(
@@ -658,10 +680,10 @@ impl Report {
             content: Box::new(self.content),
         }
     }
-    pub fn new(ctx: &Context, solutions: &BTreeMap<Epoch, PVTSolution>) -> Self {
+    pub fn new(cfg: &NaviConfig, ctx: &Context, solutions: &BTreeMap<Epoch, PVTSolution>) -> Self {
         Self {
             tab: ReportTab {},
-            content: ReportContent::new(ctx, solutions),
+            content: ReportContent::new(cfg, ctx, solutions),
         }
     }
 }

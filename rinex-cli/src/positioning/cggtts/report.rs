@@ -13,19 +13,19 @@ impl Render for ReportTab {
 
 /// Solutions report
 struct ReportContent {
-    refsys_plot: Plot,
     sv_plot: Plot,
     ionod_plot: Plot,
+    refsys_plot: Plot,
     tropod_plot: Plot,
 }
 
 impl ReportContent {
     pub fn new(ctx: &Context, solutions: &Vec<Track>) -> Self {
         Self {
-            refsys_plot: Plot::timedomain_plot("test", "test", "test", true),
             sv_plot: Plot::timedomain_plot("test", "test", "test", true),
             ionod_plot: Plot::timedomain_plot("test", "test", "test", true),
             tropod_plot: Plot::timedomain_plot("test", "test", "test", true),
+            refsys_plot: Plot::timedomain_plot("test", "test", "test", true),
         }
     }
 }
