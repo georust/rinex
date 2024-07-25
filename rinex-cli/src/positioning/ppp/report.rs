@@ -317,27 +317,12 @@ impl ReportContent {
                     .iter()
                     .map(|(_, sol)| sol.velocity.z)
                     .collect::<Vec<_>>();
-                let trace = Plot::timedomain_chart(
-                    "vel_x",
-                    Mode::LinesMarkers,
-                    MarkerSymbol::Cross,
-                    &epochs,
-                    x,
-                );
-                let trace = Plot::timedomain_chart(
-                    "vel_y",
-                    Mode::LinesMarkers,
-                    MarkerSymbol::Cross,
-                    &epochs,
-                    y,
-                );
-                let trace = Plot::timedomain_chart(
-                    "vel_z",
-                    Mode::LinesMarkers,
-                    MarkerSymbol::Cross,
-                    &epochs,
-                    z,
-                );
+                let trace =
+                    Plot::timedomain_chart("vel_x", Mode::Markers, MarkerSymbol::Cross, &epochs, x);
+                let trace =
+                    Plot::timedomain_chart("vel_y", Mode::Markers, MarkerSymbol::Cross, &epochs, y);
+                let trace =
+                    Plot::timedomain_chart("vel_z", Mode::Markers, MarkerSymbol::Cross, &epochs, z);
                 plot
             },
             tropod_plot: {
@@ -427,7 +412,7 @@ impl ReportContent {
 
                 let trace = Plot::timedomain_chart(
                     "tdop",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     tdop,
@@ -446,7 +431,7 @@ impl ReportContent {
 
                 let trace = Plot::timedomain_chart(
                     "gdop",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     gdop,
@@ -460,7 +445,7 @@ impl ReportContent {
 
                 let trace = Plot::timedomain_chart(
                     "vdop",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     vdop,
@@ -474,7 +459,7 @@ impl ReportContent {
 
                 let trace = Plot::timedomain_chart(
                     "hdop",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     hdop,
@@ -493,7 +478,7 @@ impl ReportContent {
 
                 let mut trace = Plot::timedomain_chart(
                     "offset",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     dt,
@@ -502,10 +487,10 @@ impl ReportContent {
                 plot
             },
             coords_err_plot: {
-                let mut plot = Plot::timedomain_plot("xy_plot", "X/Y Error", "Error [m]", true);
+                let mut plot = Plot::timedomain_plot("xy_plot", "X/Y/Z Error", "Error [m]", true);
                 let trace = Plot::timedomain_chart(
                     "x err",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     solutions
@@ -516,7 +501,7 @@ impl ReportContent {
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
                     "y err",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     solutions
@@ -527,7 +512,7 @@ impl ReportContent {
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
                     "z err",
-                    Mode::LinesMarkers,
+                    Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
                     solutions
