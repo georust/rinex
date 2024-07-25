@@ -90,7 +90,7 @@ impl Report {
     fn render(&self) -> String {
         match self {
             Self::Pending(report) => report.render().into_string(),
-            Self::Iteration(report) => String::default(),
+            Self::Iteration(report) => report.clone(),
         }
     }
     /// Generate (dump) report

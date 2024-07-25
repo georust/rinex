@@ -19,7 +19,14 @@ struct ReportTab {}
 
 impl Render for ReportTab {
     fn render(&self) -> Markup {
-        html! {}
+        html! {
+            a id="menu:ppp" {
+                span class="icon" {
+                    i class="fa-solid fa-location-crosshairs" {}
+                }
+                "PPP Solutions"
+            }
+        }
     }
 }
 
@@ -687,6 +694,7 @@ impl Report {
     pub fn formalize(self) -> QcExtraPage {
         QcExtraPage {
             tab: Box::new(self.tab),
+            html_id: "ppp".to_string(),
             content: Box::new(self.content),
         }
     }

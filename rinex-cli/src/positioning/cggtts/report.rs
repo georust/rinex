@@ -8,7 +8,14 @@ struct ReportTab {}
 
 impl Render for ReportTab {
     fn render(&self) -> Markup {
-        html! {}
+        html! {
+            a id="menu:ppp" {
+                span class="icon" {
+                    i class="fa-solid fa-clock" {}
+                }
+                "CGGTTS Solutions"
+            }
+        }
     }
 }
 
@@ -69,7 +76,6 @@ impl Render for Summary {
                             }
                         }
                         tr {
-                        tr {
                             th class="is-info" {
                                 "Track duration"
                             }
@@ -77,6 +83,7 @@ impl Render for Summary {
                                 (self.trk_duration.to_string())
                             }
                         }
+                        tr {
                             th class="is-info" {
                                 "First Epoch"
                             }
@@ -245,6 +252,7 @@ impl Report {
     pub fn formalize(self) -> QcExtraPage {
         QcExtraPage {
             tab: Box::new(self.tab),
+            html_id: "cggtts".to_string(),
             content: Box::new(self.content),
         }
     }
