@@ -36,8 +36,7 @@ impl IonexReport {
                 let mut plot = Plot::world_map(
                     "ionex_tec",
                     "Ionosphere TEC maps",
-                    //MapboxStyle::StamenTerrain,
-                    MapboxStyle::Basic,
+                    MapboxStyle::StamenTerrain,
                     (32.5, -40.0),
                     1,
                     true,
