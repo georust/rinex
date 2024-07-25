@@ -21,7 +21,9 @@ obs = []
 
 # Unlock NAV RINEX full support. 
 # Unlocks dedicated browsing methods and navigation dedicated methods.
-nav = []
+nav = [
+    "hifitime/ut1",
+]
 
 # Unlock METEO RINEX full support.
 # Unlocks dedicated browsing methods and dedicated analysis.
@@ -53,7 +55,10 @@ qc = ["rinex-qc-traits", "horrorshow"]
 
 # Unlock SP3 support to be able to integrate SP3 precise orbits
 # into a complete Context.
-sp3 = ["dep:sp3", "walkdir"]
+sp3 = [
+    "dep:sp3", 
+    "walkdir",
+]
 
 # Unlock all features, all at once
 full = [
