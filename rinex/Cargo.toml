@@ -20,10 +20,11 @@ default = []
 obs = []
 
 # NAV RINEX full support. 
-# Unlocks BRDC calculations, including Keplerian calculations (Ephemeris)
-# and all NAV RINEX iteration and exploitation methods.
+# Unlocks BRDC calculations, including Keplerian calculations (Ephemeris),
+# all NAV RINEX iteration and exploitation, including Ut1Provider.
 nav = [
     "dep:nalgebra",
+    "hifitime/ut1",
 ]
 
 # Unlock METEO RINEX full support.
