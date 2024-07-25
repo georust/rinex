@@ -9,7 +9,7 @@ struct ReportTab {}
 impl Render for ReportTab {
     fn render(&self) -> Markup {
         html! {
-            a id="menu:ppp" {
+            a id="menu:cggtts" {
                 span class="icon" {
                     i class="fa-solid fa-clock" {}
                 }
@@ -33,7 +33,11 @@ impl Summary {
         let mut trk_duration = Duration::default();
         let mut cv_class = CommonViewClass::default();
         let (mut first_epoch, mut last_epoch) = (Epoch::default(), Epoch::default());
-        let satellites = solutions.iter().map(|trk| trk.sv).collect::<Vec<_>>();
+        let satellites = solutions
+            .iter()
+            .map(|trk| trk.sv)
+            .unique()
+            .collect::<Vec<_>>();
         for (trk_index, track) in solutions.iter().enumerate() {
             if trk_index == 0 {
                 cv_class = track.class;
@@ -57,7 +61,7 @@ impl Render for Summary {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {
-                div class="table is-bordered" {
+                table class="table is-bordered" {
                     tbody {
                         tr {
                             th class="is-info" {
@@ -121,7 +125,7 @@ struct ReportContent {
     elev_plot: Plot,
     sky_plot: Plot,
     ionod_plot: Plot,
-    srsv_plot: Plot,
+    refsv_plot: Plot,
     refsys_plot: Plot,
     tropod_plot: Plot,
 }
@@ -129,15 +133,57 @@ struct ReportContent {
 impl ReportContent {
     pub fn new(ctx: &Context, solutions: &Vec<Track>) -> Self {
         let epochs = solutions.iter().map(|trk| trk.epoch).collect::<Vec<_>>();
+        let summary = Summary::new(ctx, solutions);
         Self {
-            summary: Summary::new(ctx, solutions),
             sv_plot: {
                 let mut plot = Plot::timedomain_plot("sv_plot", "SV Plot", "PRN #", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(sv.prn) } else { None })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
             elev_plot: {
                 let mut plot =
                     Plot::timedomain_plot("elev_plot", "Elevation", "Elevation [°]", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                Some(trk.elevation)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
             ionod_plot: {
@@ -148,20 +194,93 @@ impl ReportContent {
             tropod_plot: {
                 let mut plot =
                     Plot::timedomain_plot("tropod_plot", "Tropospheric Delay", "Error [m]", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                Some(trk.data.mdtr)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
             refsys_plot: {
                 let mut plot = Plot::timedomain_plot("refsys_plot", "REFSYS", "REFSYS [s]", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                Some(trk.data.refsys)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
-            srsv_plot: {
-                let mut plot = Plot::timedomain_plot("srsv_plot", "SRSV", "SRSV [s]", true);
+            refsv_plot: {
+                let mut plot = Plot::timedomain_plot("refsv_plot", "REFSV", "SRSV [s]", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                Some(trk.data.refsv)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
             sky_plot: {
                 let mut plot = Plot::sky_plot("sky_plot", "Sky Plot", true);
                 plot
             },
+            summary,
         }
     }
 }
@@ -170,7 +289,7 @@ impl Render for ReportContent {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {
-                table class="is-bordered" {
+                table class="table is-bordered" {
                     tbody {
                         tr {
                             th class="is-info" {
@@ -214,10 +333,10 @@ impl Render for ReportContent {
                         }
                         tr {
                             th class="is-info" {
-                                "SRSV"
+                                "REFSV"
                             }
                             td {
-                                (self.srsv_plot.render())
+                                (self.refsv_plot.render())
                             }
                         }
                         tr {
