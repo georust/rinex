@@ -52,6 +52,7 @@ struct Summary {
     first_epoch: Epoch,
     last_epoch: Epoch,
     duration: Duration,
+    satellites: Vec<SV>,
     timescale: TimeScale,
     final_neu: (f64, f64, f64),
     final_err_m: (f64, f64, f64),
@@ -75,6 +76,16 @@ impl Render for Summary {
                             }
                             td {
                                 (self.method.to_string())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                button aria-label="Satellites that contributed to the solutions" data-balloon-pos="right" {
+                                    "Satellites"
+                                }
+                            }
+                            td {
+                                (self.satellites.iter().join(" ,"))
                             }
                         }
                         tr {
@@ -142,6 +153,21 @@ impl Summary {
         let (mut final_err_x, mut final_err_y, mut final_err_z) = (0.0_f64, 0.0_f64, 0.0_f64);
         let (mut final_neu_x, mut final_neu_y, mut final_neu_z) = (0.0_f64, 0.0_f64, 0.0_f64);
         let (mut worst_err_x, mut worst_err_y, mut worst_err_z) = (0.0_f64, 0.0_f64, 0.0_f64);
+
+        let satellites = solutions
+            .values()
+            .map(|sol| sol.sv())
+            .fold(vec![], |mut list, svnn| {
+                for sv in svnn {
+                    list.push(sv);
+                }
+                list
+            })
+            .into_iter()
+            .unique()
+            .sorted()
+            .collect::<Vec<_>>();
+
         for (index, (t, sol)) in solutions.iter().enumerate() {
             if index == 0 {
                 first_epoch = *t;
@@ -172,6 +198,7 @@ impl Summary {
             first_epoch,
             last_epoch,
             timescale,
+            satellites,
             method: cfg.method,
             filter: cfg.solver.filter,
             duration: last_epoch - first_epoch,
@@ -184,8 +211,6 @@ impl Summary {
 }
 
 struct ReportContent {
-    /// satellites
-    satellites: Vec<SV>,
     /// summary
     summary: Summary,
     /// sv_plot
@@ -222,22 +247,9 @@ impl ReportContent {
         let (lat0_ddeg, lon0_ddeg, _) = ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
         let (lat0_rad, lon0_rad) = (lat0_ddeg.to_radians(), lon0_ddeg.to_radians());
 
-        let satellites = solutions
-            .values()
-            .map(|sol| sol.sv())
-            .fold(vec![], |mut list, svnn| {
-                for sv in svnn {
-                    list.push(sv);
-                }
-                list
-            })
-            .into_iter()
-            .unique()
-            .sorted()
-            .collect::<Vec<_>>();
+        let summary = Summary::new(cfg, ctx, solutions, (x0_ecef, y0_ecef, z0_ecef));
 
         Self {
-            summary: Summary::new(cfg, ctx, solutions, (x0_ecef, y0_ecef, z0_ecef)),
             map_proj: {
                 let mut map_proj = Plot::world_map(
                     "map_proj",
@@ -251,7 +263,7 @@ impl ReportContent {
             },
             sv_plot: {
                 let mut plot = Plot::timedomain_plot("sv_plot", "SV ID#", "PRN #", true);
-                for sv in satellites.iter() {
+                for sv in summary.satellites.iter() {
                     let epochs = solutions
                         .iter()
                         .filter_map(|(t, sol)| {
@@ -324,7 +336,7 @@ impl ReportContent {
             tropod_plot: {
                 let mut plot =
                     Plot::timedomain_plot("tropo", "Troposphere Bias", "Error [m]", true);
-                for sv in satellites.iter() {
+                for sv in summary.satellites.iter() {
                     let x = solutions
                         .iter()
                         .filter_map(|(t, sol)| {
@@ -360,7 +372,7 @@ impl ReportContent {
             },
             ionod_plot: {
                 let mut plot = Plot::timedomain_plot("iono", "Ionosphere Bias", "Error [m]", true);
-                for sv in satellites.iter() {
+                for sv in summary.satellites.iter() {
                     let x = solutions
                         .iter()
                         .filter_map(|(t, sol)| {
@@ -534,7 +546,7 @@ impl ReportContent {
                 let mut plot = Plot::timedomain_plot("navi_plot", "NAVI Plot", "Error [m]", true);
                 plot
             },
-            satellites,
+            summary,
         }
     }
 }
@@ -547,12 +559,10 @@ impl Render for ReportContent {
                     tbody {
                         tr {
                             th class="is-info" {
-                                button aria-label="Satellites that contributed to the solutions" data-balloon-pos="right" {
-                                    "Satellites"
-                                }
+                                "Summary"
                             }
                             td {
-                                (self.satellites.iter().join(" ,"))
+                                (self.summary.render())
                             }
                         }
                         tr {
