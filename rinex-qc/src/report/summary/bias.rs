@@ -63,14 +63,17 @@ impl Render for QcBiasSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                "Model optimization"
+                                button aria-label="Ionosphere bias model optimized by IONEX measurement/prediction.
+        This will not impact your solutions if direct cancellation is feasible." data-balloon-pos="up" {
+                                    "Model optimization"
+                                }
                             }
                         } @else {
                             td {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                button aria-label="Ionosphere bias model cannot be optimized: missing IONEX.
+                                button aria-label="Ionosphere bias model cannot be optimized: import a IONEX (special RINEX).
         This will not impact your solutions if direct cancellation is feasible." data-balloon-pos="up" {
                                     "Model optimization"
                                 }

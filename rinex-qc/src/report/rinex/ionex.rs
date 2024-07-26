@@ -4,7 +4,13 @@ use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
 #[cfg(feature = "plot")]
-use crate::plot::{MapboxStyle, MarkerSymbol, NamedColor, Plot};
+use crate::plot::{MapboxStyle, MarkerSymbol, NamedColor, Plot, Visible};
+
+#[cfg(feature = "plot")]
+use plotly::{
+    layout::update_menu::{Button, ButtonBuilder, UpdateMenu, UpdateMenuDirection, UpdateMenuType},
+    Bar, DensityMapbox,
+};
 
 pub struct IonexReport {
     nb_of_maps: usize,
@@ -21,43 +27,31 @@ pub struct IonexReport {
 
 impl IonexReport {
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
+        let nb_of_maps = rnx.epoch().count();
         let header = rnx.header.ionex.as_ref().ok_or(Error::MissingIonexHeader)?;
         Ok(Self {
-            nb_of_maps: rnx.epoch().count(),
-            epoch_first_map: header.epoch_of_first_map,
-            epoch_last_map: header.epoch_of_last_map,
-            sampling_interval: rnx.dominant_sample_rate().ok_or(Error::SamplingAnalysis)?,
-            mapping: header.mapping.clone(),
-            description: header.description.clone(),
-            reference: header.reference.clone(),
+            nb_of_maps,
             map_dimension: header.map_dimension,
+            epoch_last_map: header.epoch_of_last_map,
+            epoch_first_map: header.epoch_of_first_map,
+            mapping: header.mapping.clone(),
+            reference: header.reference.clone(),
+            description: header.description.clone(),
+            sampling_interval: rnx.dominant_sample_rate().ok_or(Error::SamplingAnalysis)?,
             #[cfg(feature = "plot")]
             world_map: {
                 let mut plot = Plot::world_map(
                     "ionex_tec",
                     "Ionosphere TEC maps",
-                    MapboxStyle::StamenTerrain,
+                    MapboxStyle::OpenStreetMap,
                     (32.5, -40.0),
-                    1,
+                    0,
                     true,
                 );
-                let grid_lat = Vec::<f64>::new();
-                let grid_lon = Vec::<f64>::new();
-                // plot grid
-                let grid = Plot::mapbox(
-                    grid_lat,
-                    grid_lon,
-                    "grid",
-                    MarkerSymbol::Circle,
-                    NamedColor::Black,
-                    0.5,
-                    true,
-                );
-                //plot.add_trace(grid);
-
+                let mut buttons = Vec::<Button>::new();
                 // one trace(=map) per Epoch
                 for (epoch_index, epoch) in rnx.epoch().enumerate() {
-                    // build tec map
+                    let label = epoch.to_string();
                     let lat = rnx
                         .tec()
                         .filter_map(
@@ -94,11 +88,37 @@ impl IonexReport {
                             },
                         )
                         .collect::<Vec<_>>();
-                    let label = epoch.to_string();
-                    let trace =
-                        Plot::density_mapbox(lat, long, tec, &label, 0.66, 3, epoch_index == 0);
-                    //plot.add_trace(trace);
+
+                    let trace = Plot::density_mapbox(
+                        lat.clone(),
+                        long.clone(),
+                        tec,
+                        &label,
+                        0.6,
+                        3,
+                        epoch_index == 0,
+                    );
+                    plot.add_trace(trace);
+
+                    buttons.push(
+                        ButtonBuilder::new()
+                            .name("Epoch")
+                            .label(&label)
+                            .push_restyle(DensityMapbox::<f64, f64, f64>::modify_visible(
+                                (0..nb_of_maps)
+                                    .map(|i| {
+                                        if epoch_index == i {
+                                            Visible::True
+                                        } else {
+                                            Visible::False
+                                        }
+                                    })
+                                    .collect(),
+                            ))
+                            .build(),
+                    );
                 }
+                plot.add_custom_controls(buttons);
                 plot
             },
         })
@@ -122,11 +142,15 @@ impl Render for IonexReport {
                 tr {
                     @if self.map_dimension == 2 {
                         th class="is-info"{
-                            "2D IONEX"
+                            button aria-label="Isosurface TEC maps" data-balloon-pos="right" {
+                                "2D IONEX"
+                            }
                         }
                     } @else {
                         th class="is-info" {
-                            "3D IONEX"
+                            button aria-label="Isofurface TEC maps by altitude layers" data-balloon-pos="right" {
+                                "3D IONEX"
+                            }
                         }
                     }
                 }
@@ -175,7 +199,9 @@ impl Render for IonexReport {
                 @if let Some(mapf) = &self.mapping {
                     tr {
                         th {
-                            "Mapping function"
+                            button aria-label="Mapping function used in TEC map evaluation" data-balloon-pos="right" {
+                                "Mapping function"
+                            }
                         }
                         td {
                             (mapf.to_string())

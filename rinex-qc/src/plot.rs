@@ -3,6 +3,7 @@ use maud::{html, Markup, PreEscaped, Render};
 use plotly::{
     common::{Font, HoverInfo, Side},
     layout::{
+        update_menu::{Button, UpdateMenu},
         Axis, Center, DragMode, Mapbox, Margin, RangeSelector, RangeSlider, SelectorButton,
         SelectorStep,
     },
@@ -83,6 +84,14 @@ impl Plot {
     /// Adds one [Trace] to self
     pub fn add_trace(&mut self, t: Box<dyn Trace>) {
         self.plotly.add_trace(t);
+    }
+    /// Define custom controls for [Self]
+    pub fn add_custom_controls(&mut self, buttons: Vec<Button>) {
+        let layout = self.plotly.layout();
+        let layout = layout
+            .clone()
+            .update_menus(vec![UpdateMenu::new().y(0.8).buttons(buttons)]);
+        self.plotly.set_layout(layout);
     }
     /// Builds new standardized 1D Time domain plot
     pub fn timedomain_plot(
