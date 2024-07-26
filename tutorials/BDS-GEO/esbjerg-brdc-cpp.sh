@@ -1,6 +1,6 @@
 #!/bin/sh
 DATA_DIR=test_resources
-CONF=config/survey/cpp_kf.json
+CONF=tutorials/config/survey/cpp_kf.json
 
 SYSTEM=BeiDou # All BeiDou
 #SIGNALS=C2I,C6I

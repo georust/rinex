@@ -5,7 +5,7 @@
 DATA_DIR=test_resources
 # In this example, we use signals E1+E5(PR) for Galileo SV PRN>08
 FILTER="Gal;>E08;C1C,C5Q" 
-CONF=config/survey/cpp_kf.json # basic CPP+Kf
+CONF=tutorials/config/survey/cpp_kf.json # basic CPP+Kf
 
 ./target/release/rinex-cli \
     -P $FILTER \

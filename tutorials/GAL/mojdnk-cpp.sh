@@ -8,7 +8,7 @@ DATA_DIR=test_resources
 FILTER="Gal;>E09;C1C,C5Q"
 # Skip 1st hour (example)
 TIMEFRAME=">2020-06-25T01:00:00 UTC"
-CONF=config/survey/cpp_kf.json # pseudo-range(e1/e5); filter:kalman
+CONF=tutorials/config/survey/cpp_kf.json # pseudo-range(=e1,e5); filter:kalman
 
 ./target/release/rinex-cli \
     -P $FILTER "$TIMEFRAME" \

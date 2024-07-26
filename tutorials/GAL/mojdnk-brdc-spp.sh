@@ -3,7 +3,7 @@
 DATA_DIR=test_resources
 # Example: E1 All Galileo
 FILTER="Gal;C1C"
-CONF=config/survey/spp_lsq.json # =pseudorange;LSQ
+CONF=tutorials/config/survey/spp_lsq.json # =pseudorange;LSQ
 
 ./target/release/rinex-cli \
    -P $FILTER \

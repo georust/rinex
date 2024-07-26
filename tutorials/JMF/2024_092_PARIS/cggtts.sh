@@ -29,8 +29,8 @@ CLOCK=JMF-ANDROID
 
 # Any strategy may apply to CGGTTS,
 # it will just modify and possibly improve the solutions
-CONF=config/survey/spp_lsq.json
-CONF=config/survey/cpp_kf.json
+CONF=tutorials/config/survey/spp_lsq.json
+CONF=tutorials/config/survey/cpp_kf.json
 
 OBS=test_resources/OBS/V3/GEOP092I.24o.gz
 SP3=test_resources/SP3/GFZ0OPSRAP_20240920000_01D_05M_CLK.CLK.gz

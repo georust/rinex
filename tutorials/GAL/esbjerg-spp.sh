@@ -3,7 +3,7 @@
 DATA_DIR=test_resources
 # Example: E1(PR) for Galileo SV PRN>14
 FILTER="Gal;>E14;C1C"
-CONF=config/survey/spp_lsq.json # Basic SPP;filter=LSQ
+CONF=tutorials/config/survey/spp_lsq.json # Basic SPP;filter=LSQ
 
 ./target/release/rinex-cli \
     -P $FILTER \

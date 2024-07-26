@@ -1,6 +1,6 @@
 #!/bin/sh
 DATA_DIR=test_resources
-CONF=config/survey/cpp_lsq.json
+CONF=tutorials/config/survey/cpp_lsq.json
 SYSTEM=BeiDou # All BeiDou
 
 ./target/release/rinex-cli \

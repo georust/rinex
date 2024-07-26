@@ -3,7 +3,7 @@
 DATA_DIR=test_resources
 # In this example, we consider all Gal vehicles
 SYSTEM=Gal
-CONF=config/survey/spp_lsq.json # basic SPP conf
+CONF=tutorials/config/survey/spp_lsq.json # basic SPP conf
 
 ./target/release/rinex-cli \
     -P Gal \

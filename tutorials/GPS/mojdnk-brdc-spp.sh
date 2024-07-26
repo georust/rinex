@@ -5,7 +5,7 @@ DATA_DIR=test_resources
 #   GPS >05 : any other is dropped
 #    L5 only: not using L1 nor L2
 FILTER="GPS;>G05;C5Q"
-CONF=config/survey/spp_lsq.json
+CONF=tutorials/config/survey/spp_lsq.json
 # Example: skip last hour of that day
 TIMEFRAME="<2020-06-25T23:00:00 UTC"
 

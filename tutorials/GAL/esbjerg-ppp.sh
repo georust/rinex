@@ -3,7 +3,7 @@
 DATA_DIR=test_resources
 # E1/E5 PPP for Gal+PRN>08 (Example)
 FILTER="Gal;>=E09;C1C,C5Q,L1C,L5Q"
-CONF=config/survey/ppp_kf.json # PPP;filter=kalman;x17
+CONF=tutorials/config/survey/ppp_kf.json # PPP;filter=kalman;x17
 
 ./target/release/rinex-cli \
     -P $FILTER \
