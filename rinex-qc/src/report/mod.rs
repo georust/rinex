@@ -281,7 +281,7 @@ impl QcReport {
                     }
                     @if let Some(orbit) = &self.orbit {
                         li {
-                            (orbit.render())
+                            (orbit.html_inline_menu_bar())
                         }
                     }
                     @for chapter in self.custom_chapters.iter() {
@@ -352,6 +352,11 @@ impl Render for QcReport {
                                             div id=(html_id(product)) class="container is-main" style="display:none" {
                                                 (report.render())
                                             }
+                                        }
+                                    }
+                                    @if let Some(orbit) = &self.orbit {
+                                        div id="orbit" class="container is-main" style="display:none" {
+                                            (orbit.render())
                                         }
                                     }
                                     div id="extra-chapters" class="container" style="display:block" {

@@ -9,7 +9,6 @@ use crate::{
 pub struct OrbitReport {
     map_proj: Plot,
     globe_proj: Plot,
-    plot2d: Plot,
     sky_plot: Plot,
 }
 
@@ -80,11 +79,6 @@ impl OrbitReport {
                 );
                 map_proj
             },
-            plot2d: {
-                let mut plot =
-                    Plot::timedomain_plot("orbit_plot2d", "Orbit Projection", "SV", true);
-                plot
-            },
         }
     }
     pub fn html_inline_menu_bar(&self) -> Markup {
@@ -99,4 +93,37 @@ impl OrbitReport {
     }
 }
 
-impl Render for OrbitReport {}
+impl Render for OrbitReport {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tr {
+                        th class="is-info" {
+                            "Map projection"
+                        }
+                        td {
+                            (self.map_proj.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Globe projection"
+                        }
+                        td {
+                            (self.globe_proj.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Sky plot"
+                        }
+                        td {
+                            (self.sky_plot.render())
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
