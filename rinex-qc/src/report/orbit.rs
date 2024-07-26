@@ -8,8 +8,8 @@ use crate::{
 
 pub struct OrbitReport {
     map_proj: Plot,
-    globe_proj: Plot,
     sky_plot: Plot,
+    globe_proj: Plot,
 }
 
 impl OrbitReport {
@@ -54,7 +54,9 @@ impl OrbitReport {
                         plot.add_trace(trace);
                     }
                 }
-                if brdc_skyplot {}
+                if brdc_skyplot {
+                    let nav = ctx.brdc_navigation().unwrap();
+                }
                 plot
             },
             map_proj: {

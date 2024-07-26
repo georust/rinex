@@ -7,13 +7,13 @@ use rtk::prelude::{
 };
 
 use rinex_qc::{
-    plot::{MapboxStyle, NamedColor, Visible},
-    prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render},
+    plot::{MapboxStyle, NamedColor},
+    prelude::{html, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render},
 };
 
 use itertools::Itertools;
 
-use map_3d::{ecef2geodetic, Ellipsoid};
+use map_3d::{ecef2enu, ecef2geodetic, geodetic2enu, Ellipsoid};
 
 struct ReportTab {}
 
@@ -62,9 +62,8 @@ struct Summary {
     duration: Duration,
     satellites: Vec<SV>,
     timescale: TimeScale,
-    final_neu: (f64, f64, f64),
+    final_geo: (f64, f64, f64),
     final_err_m: (f64, f64, f64),
-    worst_err_m: (f64, f64, f64),
 }
 
 impl Render for Summary {
@@ -151,7 +150,16 @@ impl Render for Summary {
                                 table class="table is-bordered" {
                                     tr {
                                         th class="is-info" {
-                                            "NEU"
+                                            "WGS84"
+                                        }
+                                        td {
+                                            (format!("x={:.5}°", self.final_geo.0.to_degrees()))
+                                        }
+                                        td {
+                                            (format!("x={:.5}°", self.final_geo.1.to_degrees()))
+                                        }
+                                        td {
+                                            (format!("alt={:.3}°", self.final_geo.2))
                                         }
                                     }
                                     tr {
@@ -183,14 +191,15 @@ impl Summary {
         cfg: &NaviConfig,
         ctx: &Context,
         solutions: &BTreeMap<Epoch, PVTSolution>,
-        err_ecef: (f64, f64, f64),
+        rx_ecef: (f64, f64, f64),
     ) -> Self {
-        let (x0, y0, z0) = err_ecef;
+        let (x0, y0, z0) = rx_ecef;
+        let (lat0_rad, lon0_rad, alt0_m) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
+
         let mut timescale = TimeScale::default();
         let (mut first_epoch, mut last_epoch) = (Epoch::default(), Epoch::default());
-        let (mut final_err_x, mut final_err_y, mut final_err_z) = (0.0_f64, 0.0_f64, 0.0_f64);
-        let (mut final_neu_x, mut final_neu_y, mut final_neu_z) = (0.0_f64, 0.0_f64, 0.0_f64);
-        let (mut worst_err_x, mut worst_err_y, mut worst_err_z) = (0.0_f64, 0.0_f64, 0.0_f64);
+        let mut final_err_m = (0.0_f64, 0.0_f64, 0.0_f64);
+        let mut final_geo = (0.0_f64, 0.0_f64, 0.0_f64);
 
         let satellites = solutions
             .values()
@@ -215,19 +224,13 @@ impl Summary {
                 sol.position.y - y0,
                 sol.position.z - z0,
             );
-            final_err_x = err_x;
-            final_err_y = err_y;
-            final_err_z = err_z;
-
-            if err_x > worst_err_x {
-                worst_err_x = err_x;
-            }
-            if err_y > worst_err_y {
-                worst_err_y = err_y;
-            }
-            if err_z > worst_err_z {
-                worst_err_z = err_z;
-            }
+            final_err_m = (err_x, err_y, err_z);
+            final_geo = ecef2geodetic(
+                sol.position.x,
+                sol.position.y,
+                sol.position.z,
+                Ellipsoid::WGS84,
+            );
 
             last_epoch = *t;
             timescale = sol.timescale;
@@ -237,6 +240,8 @@ impl Summary {
             last_epoch,
             timescale,
             satellites,
+            final_geo,
+            final_err_m,
             orbit: {
                 if ctx.data.has_sp3() {
                     format!("Interpolation X{}", cfg.interp_order)
@@ -248,9 +253,6 @@ impl Summary {
             filter: cfg.solver.filter,
             duration: last_epoch - first_epoch,
             technique: Technique::GeodeticSurvey,
-            final_err_m: (final_err_x, final_err_y, final_err_z),
-            worst_err_m: (worst_err_x, worst_err_y, worst_err_z),
-            final_neu: (final_neu_x, final_neu_y, final_neu_z),
         }
     }
 }
@@ -290,7 +292,8 @@ impl ReportContent {
         let epochs = solutions.keys().cloned().collect::<Vec<_>>();
 
         let (x0_ecef, y0_ecef, z0_ecef) = ctx.rx_ecef.unwrap_or_default();
-        let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
+        let (lat0_rad, lon0_rad, alt0_m) =
+            ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
         let (lat0_ddeg, lon0_ddeg) = (lat0_rad.to_degrees(), lon0_rad.to_degrees());
 
         let summary = Summary::new(cfg, ctx, solutions, (x0_ecef, y0_ecef, z0_ecef));
@@ -374,10 +377,53 @@ impl ReportContent {
             neu_plot: {
                 let mut plot = Plot::timedomain_plot(
                     "neu_plot",
-                    "North/East/Up Coordinates",
+                    "North / East / Up Coordinates",
                     "Coordinates [m]",
                     true,
                 );
+                let neu = solutions
+                    .iter()
+                    .map(|(_, sol)| {
+                        let (lat_rad, lon_rad, alt_m) = ecef2geodetic(
+                            sol.position.x,
+                            sol.position.y,
+                            sol.position.z,
+                            Ellipsoid::WGS84,
+                        );
+                        let enu = geodetic2enu(
+                            lat_rad,
+                            lon_rad,
+                            alt_m,
+                            lat0_rad,
+                            lon0_rad,
+                            alt0_m,
+                            Ellipsoid::WGS84,
+                        );
+                        (enu.1.to_degrees(), enu.0.to_degrees(), enu.2)
+                    })
+                    .collect::<Vec<_>>();
+                let north = neu.iter().map(|neu| neu.0).collect::<Vec<_>>();
+                let east = neu.iter().map(|neu| neu.1).collect::<Vec<_>>();
+                let up = neu.iter().map(|neu| neu.2).collect::<Vec<_>>();
+                let trace = Plot::timedomain_chart(
+                    "north",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    north,
+                );
+                plot.add_trace(trace);
+                let trace = Plot::timedomain_chart(
+                    "east",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    east,
+                );
+                plot.add_trace(trace);
+                let trace =
+                    Plot::timedomain_chart("upt", Mode::Markers, MarkerSymbol::Cross, &epochs, up);
+                plot.add_trace(trace);
                 plot
             },
             vel_plot: {
@@ -740,8 +786,30 @@ impl Render for ReportContent {
                         }
                         tr {
                             th class="is-info" {
-                                button aria-label="Geometric Dillution of Precision" data-balloon-pos="right" {
-                                    "DOP"
+                                "DOP"
+                            }
+                            td {
+                                div class="table-container" {
+                                    table class="table is-bordered" {
+                                        tr {
+                                            th class="is-info" {
+                                                "Geometric DOP"
+                                            }
+                                            td {
+                                                (self.dop_plot.render())
+                                            }
+                                        }
+                                        tr {
+                                            th class="is-info" {
+                                                "Temporal DOP"
+                                            }
+                                            td {
+                                                (self.tdop_plot.render())
+                                            }
+                                        }
+                                        button aria-label="Geometric Dillution of Precision" data-balloon-pos="right" {
+                                        }
+                                    }
                                 }
                             }
                             td {
