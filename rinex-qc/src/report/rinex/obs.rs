@@ -420,9 +420,9 @@ pub struct Report {
     antenna: Option<Antenna>,
     receiver: Option<Receiver>,
     sampling: SamplingReport,
+    constellations: HashMap<String, ConstellationPage>,
     #[cfg(feature = "plot")]
     clock_plot: Plot,
-    constellations: HashMap<Constellation, ConstellationPage>,
 }
 
 impl Report {
@@ -467,17 +467,43 @@ impl Report {
                 plot
             },
             constellations: {
-                let mut constellations = HashMap::<Constellation, ConstellationPage>::new();
+                let mut constellations = HashMap::<String, ConstellationPage>::new();
                 for constellation in rinex.constellation() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),
                     );
-                    let focused = rinex.filter(&filter);
-                    constellations.insert(
-                        constellation,
-                        ConstellationPage::new(constellation, &focused),
-                    );
+                    if constellation == Constellation::BeiDou {
+                        // MEO mask
+                        let meo1 = Filter::mask(
+                            MaskOperand::GreaterThan,
+                            FilterItem::SvItem(vec![SV::new(Constellation::BeiDou, 5)]),
+                        );
+                        let meo2 = Filter::mask(
+                            MaskOperand::LowerThan,
+                            FilterItem::SvItem(vec![SV::new(Constellation::BeiDou, 58)]),
+                        );
+                        let meo = rinex.filter(&meo1).filter(&meo2);
+
+                        constellations.insert(
+                            "BeiDou (MEO)".to_string(),
+                            ConstellationPage::new(constellation, &meo),
+                        );
+
+                        // GEO mask
+                        let geo = rinex.filter(&!meo1).filter(&!meo2);
+
+                        constellations.insert(
+                            "BeiDou (GEO)".to_string(),
+                            ConstellationPage::new(constellation, &geo),
+                        );
+                    } else {
+                        let focused = rinex.filter(&filter);
+                        constellations.insert(
+                            constellation.to_string(),
+                            ConstellationPage::new(constellation, &focused),
+                        );
+                    }
                 }
                 constellations
             },

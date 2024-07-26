@@ -7,7 +7,7 @@ use rtk::prelude::{
 };
 
 use rinex_qc::{
-    plot::MapboxStyle,
+    plot::{MapboxStyle, NamedColor, Visible},
     prelude::{html, Marker, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render},
 };
 
@@ -139,6 +139,29 @@ impl Render for Summary {
                             th class="is-info" {
                                 "Final"
                             }
+                            td {
+                                table class="table is-bordered" {
+                                    tr {
+                                        th class="is-info" {
+                                            "NEU"
+                                        }
+                                    }
+                                    tr {
+                                        th class="is-info" {
+                                            "Error (m)"
+                                        }
+                                        td {
+                                            (format!("x={:.3E}", self.final_err_m.0))
+                                        }
+                                        td {
+                                            (format!("y={:.3E}", self.final_err_m.1))
+                                        }
+                                        td {
+                                            (format!("z={:.3E}", self.final_err_m.2))
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -248,11 +271,12 @@ struct ReportContent {
 
 impl ReportContent {
     pub fn new(cfg: &NaviConfig, ctx: &Context, solutions: &BTreeMap<Epoch, PVTSolution>) -> Self {
+        let nb_solutions = solutions.len();
         let epochs = solutions.keys().cloned().collect::<Vec<_>>();
 
         let (x0_ecef, y0_ecef, z0_ecef) = ctx.rx_ecef.unwrap_or_default();
-        let (lat0_ddeg, lon0_ddeg, _) = ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
-        let (lat0_rad, lon0_rad) = (lat0_ddeg.to_radians(), lon0_ddeg.to_radians());
+        let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
+        let (lat0_ddeg, lon0_ddeg) = (lat0_rad.to_degrees(), lon0_rad.to_degrees());
 
         let summary = Summary::new(cfg, ctx, solutions, (x0_ecef, y0_ecef, z0_ecef));
 
@@ -261,11 +285,50 @@ impl ReportContent {
                 let mut map_proj = Plot::world_map(
                     "map_proj",
                     "Map Projection",
-                    MapboxStyle::StamenTerrain,
+                    MapboxStyle::OpenStreetMap,
                     (lat0_ddeg, lon0_ddeg),
                     18,
                     true,
                 );
+                let apriori = Plot::mapbox(
+                    vec![lat0_ddeg],
+                    vec![lon0_ddeg],
+                    "apriori",
+                    MarkerSymbol::Circle,
+                    NamedColor::Red,
+                    1.0,
+                    true,
+                );
+                map_proj.add_trace(apriori);
+                let mut prev_pct = 0;
+                for (index, (_, sol_i)) in solutions.iter().enumerate() {
+                    let pct = index * 100 / nb_solutions;
+                    if pct % 10 == 0 && index > 0 && pct != prev_pct || index == nb_solutions - 1 {
+                        let (name, visible) = if index == nb_solutions - 1 {
+                            ("FINAL".to_string(), true)
+                        } else {
+                            (format!("Solver: {:02}%", pct), false)
+                        };
+                        let (lat_rad, lon_rad, _) = ecef2geodetic(
+                            sol_i.position.x,
+                            sol_i.position.y,
+                            sol_i.position.z,
+                            Ellipsoid::WGS84,
+                        );
+                        let (lat_ddeg, lon_ddeg) = (lat_rad.to_degrees(), lon_rad.to_degrees());
+                        let scatter = Plot::mapbox(
+                            vec![lat_ddeg],
+                            vec![lon_ddeg],
+                            &name,
+                            MarkerSymbol::Circle,
+                            NamedColor::Black,
+                            1.0,
+                            visible,
+                        );
+                        map_proj.add_trace(scatter);
+                    }
+                    prev_pct = pct;
+                }
                 map_proj
             },
             sv_plot: {
@@ -319,10 +382,13 @@ impl ReportContent {
                     .collect::<Vec<_>>();
                 let trace =
                     Plot::timedomain_chart("vel_x", Mode::Markers, MarkerSymbol::Cross, &epochs, x);
+                plot.add_trace(trace);
                 let trace =
                     Plot::timedomain_chart("vel_y", Mode::Markers, MarkerSymbol::Cross, &epochs, y);
+                plot.add_trace(trace);
                 let trace =
                     Plot::timedomain_chart("vel_z", Mode::Markers, MarkerSymbol::Cross, &epochs, z);
+                plot.add_trace(trace);
                 plot
             },
             tropod_plot: {
@@ -532,6 +598,25 @@ impl ReportContent {
                     "Z Error [m]",
                     true,
                 );
+                let trace = Plot::chart_3d(
+                    "Error",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    solutions
+                        .values()
+                        .map(|sol| sol.position.x - x0_ecef)
+                        .collect(),
+                    solutions
+                        .values()
+                        .map(|sol| sol.position.y - y0_ecef)
+                        .collect(),
+                    solutions
+                        .values()
+                        .map(|sol| sol.position.z - z0_ecef)
+                        .collect(),
+                );
+                plot.add_trace(trace);
                 plot
             },
             navi_plot: {
@@ -559,9 +644,15 @@ impl Render for ReportContent {
                         }
                         tr {
                             th class="is-info" {
-                                button aria-label="NAVI Plot" data-balloon-pos="right" {
-                                    "NAVI"
-                                }
+                                "Map Proj"
+                            }
+                            td {
+                                (self.map_proj.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "NAVI Plot"
                             }
                             td {
                                 (self.navi_plot.render())

@@ -51,6 +51,7 @@ impl IonexReport {
                     MarkerSymbol::Circle,
                     NamedColor::Black,
                     0.5,
+                    true,
                 );
                 //plot.add_trace(grid);
 

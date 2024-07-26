@@ -6,7 +6,8 @@ use plotly::{
         Axis, Center, DragMode, Mapbox, Margin, RangeSelector, RangeSlider, SelectorButton,
         SelectorStep,
     },
-    DensityMapbox, Layout, Plot as Plotly, Scatter, ScatterGeo, ScatterMapbox, ScatterPolar, Trace,
+    DensityMapbox, Layout, Plot as Plotly, Scatter, Scatter3D, ScatterGeo, ScatterMapbox,
+    ScatterPolar, Trace,
 };
 
 use serde::Serialize;
@@ -252,14 +253,24 @@ impl Plot {
         symbol: MarkerSymbol,
         color: NamedColor,
         opacity: f64,
+        visible: bool,
     ) -> Box<ScatterMapbox<T, T>> {
-        ScatterMapbox::new(lat, lon).marker(
-            Marker::new()
-                .size(3)
-                .symbol(symbol)
-                .color(color)
-                .opacity(opacity),
-        )
+        ScatterMapbox::new(lat, lon)
+            .marker(
+                Marker::new()
+                    .size(3)
+                    .symbol(symbol)
+                    .color(color)
+                    .opacity(opacity),
+            )
+            .name(legend)
+            .visible({
+                if visible {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            })
     }
     /// Builds ScatterGeo
     pub fn scattergeo<T: Clone + Default + Serialize>(
@@ -291,6 +302,24 @@ impl Plot {
                     Visible::LegendOnly
                 }
             })
+    }
+    /// Builds new 3D chart
+    pub fn chart_3d<T: Clone + Default + Serialize>(
+        name: &str,
+        mode: Mode,
+        symbol: MarkerSymbol,
+        t: &Vec<Epoch>,
+        x: Vec<T>,
+        y: Vec<T>,
+        z: Vec<T>,
+    ) -> Box<Scatter3D<T, T, T>> {
+        let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
+        Scatter3D::new(x, y, z)
+            .mode(mode)
+            .name(name)
+            .hover_text_array(txt)
+            .hover_info(HoverInfo::All)
+            .marker(Marker::new().symbol(symbol))
     }
     /// Builds new Time domain chart
     pub fn timedomain_chart<Y: Clone + Default + Serialize>(
