@@ -1,9 +1,10 @@
 //! Generic analysis report
-use crate::prelude::{ProductType, QcConfig, QcContext};
 use itertools::Itertools;
 use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 use std::collections::HashMap;
 use thiserror::Error;
+
+use crate::prelude::{ProductType, QcConfig, QcContext, QcReportType};
 
 // shared analysis, that may apply to several products
 mod shared;
@@ -192,11 +193,12 @@ impl QcReport {
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
         let ref_position = context.reference_position();
         let summary = QcSummary::new(&context, &cfg);
+        let summary_only = cfg.report == QcReportType::Summary;
         Self {
             name: context.name(),
             custom_chapters: Vec::new(),
             navi: {
-                if summary.navi.nav_compatible {
+                if summary.navi.nav_compatible && !summary_only {
                     Some(QcNavi::new(context))
                 } else {
                     None
@@ -208,35 +210,36 @@ impl QcReport {
             //   3. one complex tab for "shared" analysis
             products: {
                 let mut items = HashMap::<ProductType, ProductReport>::new();
-                // one tab per RINEX product
-                for product in [
-                    ProductType::Observation,
-                    ProductType::DORIS,
-                    ProductType::MeteoObservation,
-                    ProductType::BroadcastNavigation,
-                    ProductType::HighPrecisionClock,
-                    ProductType::IONEX,
-                    ProductType::ANTEX,
-                ] {
-                    if let Some(rinex) = context.rinex(product) {
-                        if let Ok(report) = RINEXReport::new(rinex) {
-                            items.insert(product, ProductReport::RINEX(report));
+                if !summary_only {
+                    // one tab per RINEX product
+                    for product in [
+                        ProductType::Observation,
+                        ProductType::DORIS,
+                        ProductType::MeteoObservation,
+                        ProductType::BroadcastNavigation,
+                        ProductType::HighPrecisionClock,
+                        ProductType::IONEX,
+                        ProductType::ANTEX,
+                    ] {
+                        if let Some(rinex) = context.rinex(product) {
+                            if let Ok(report) = RINEXReport::new(rinex) {
+                                items.insert(product, ProductReport::RINEX(report));
+                            }
                         }
                     }
-                }
-                // one tab for SP3 when supported
-                #[cfg(feature = "sp3")]
-                if let Some(sp3) = context.sp3() {
-                    items.insert(
-                        ProductType::HighPrecisionOrbit,
-                        ProductReport::SP3(SP3Report::new(sp3, ref_position)),
-                    );
+                    // one tab for SP3 when supported
+                    #[cfg(feature = "sp3")]
+                    if let Some(sp3) = context.sp3() {
+                        items.insert(
+                            ProductType::HighPrecisionOrbit,
+                            ProductReport::SP3(SP3Report::new(sp3, ref_position)),
+                        );
+                    }
                 }
                 items
             },
-            summary,
             orbit: {
-                if context.has_sp3() || context.has_brdc_navigation() {
+                if (context.has_sp3() || context.has_brdc_navigation()) && !summary_only {
                     Some(OrbitReport::new(
                         context,
                         ref_position,
@@ -246,6 +249,7 @@ impl QcReport {
                     None
                 }
             },
+            summary,
         }
     }
     /// Add a custom chapter to the report
@@ -273,6 +277,11 @@ impl QcReport {
                             li {
                                 (report.html_inline_menu_bar())
                             }
+                        }
+                    }
+                    @if let Some(orbit) = &self.orbit {
+                        li {
+                            (orbit.render())
                         }
                     }
                     @for chapter in self.custom_chapters.iter() {
