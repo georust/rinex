@@ -13,7 +13,12 @@ use rinex_qc::{
 
 use itertools::Itertools;
 
-use map_3d::{ecef2enu, ecef2geodetic, geodetic2enu, Ellipsoid};
+use map_3d::{
+    //ecef2enu,
+    ecef2geodetic,
+    geodetic2enu,
+    Ellipsoid,
+};
 
 struct ReportTab {}
 
@@ -74,7 +79,9 @@ impl Render for Summary {
                     tbody {
                         tr {
                             th class="is-info" {
-                                (self.technique.to_string())
+                                button aria-label=(self.technique.tooltip()) data-balloon-pos="right" {
+                                    (self.technique.to_string())
+                                }
                             }
                         }
                         tr {

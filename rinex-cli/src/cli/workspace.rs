@@ -1,8 +1,6 @@
 //! Workspace definition and helper
 use std::{
-    fs::create_dir_all,
-    fs::File,
-    io::Write,
+    fs::{create_dir_all, File},
     path::{Path, PathBuf},
     process::Command,
 };

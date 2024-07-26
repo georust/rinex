@@ -82,7 +82,14 @@ impl Report {
                         panic!("report customization failure");
                     }
                 } else {
-                    panic!("report customization failure");
+                    let pat = format!(
+                        "<div id=\"extra-chapters\" class=\"container\" style=\"display:block\">"
+                    );
+                    if let Some(offset) = content.find(&pat) {
+                        content.insert_str(offset + pat.len(), &new_content);
+                    } else {
+                        panic!("report customization failure");
+                    }
                 }
             },
         }

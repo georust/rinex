@@ -59,6 +59,14 @@ impl Render for SP3Page {
                             (self.satellites.iter().map(|sv| sv.to_string()).join(","))
                         }
                     }
+                    tr {
+                        th class="is-info" {
+                            "Sampling"
+                        }
+                        td {
+                            (self.sampling.render())
+                        }
+                    }
                 }
             }
         }

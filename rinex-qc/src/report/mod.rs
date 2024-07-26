@@ -22,8 +22,8 @@ use orbit::OrbitReport;
 mod sp3;
 
 // preprocessed navi
-mod navi;
-use navi::QcNavi;
+// mod navi;
+// use navi::QcNavi;
 
 #[cfg(feature = "sp3")]
 use sp3::SP3Report;
@@ -177,8 +177,8 @@ pub struct QcReport {
     name: String,
     /// Report Summary (always present)
     summary: QcSummary,
-    /// Preprocessed NAVI (only when compatible)
-    navi: Option<QcNavi>,
+    // /// Preprocessed NAVI (only when compatible)
+    // navi: Option<QcNavi>,
     /// Orbital projections (only when compatible)
     orbit: Option<OrbitReport>,
     /// In depth analysis per input product.
@@ -197,13 +197,13 @@ impl QcReport {
         Self {
             name: context.name(),
             custom_chapters: Vec::new(),
-            navi: {
-                if summary.navi.nav_compatible && !summary_only {
-                    Some(QcNavi::new(context))
-                } else {
-                    None
-                }
-            },
+            // navi: {
+            //    if summary.navi.nav_compatible && !summary_only {
+            //        Some(QcNavi::new(context))
+            //    } else {
+            //        None
+            //    }
+            //},
             // Build the report, which comprises
             //   1. one general (high level) context tab
             //   2. one tab per product type (which can have sub tabs itself)

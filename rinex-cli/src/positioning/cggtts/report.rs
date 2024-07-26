@@ -2,6 +2,7 @@ use crate::cli::Context;
 use itertools::Itertools;
 
 use cggtts::prelude::{CommonViewClass, Duration, Epoch, Track, SV};
+use rinex::prelude::GroundPosition;
 use rinex_qc::prelude::{html, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render};
 
 struct ReportTab {}
@@ -20,12 +21,13 @@ impl Render for ReportTab {
 }
 
 struct Summary {
+    last_epoch: Epoch,
+    first_epoch: Epoch,
+    duration: Duration,
     satellites: Vec<SV>,
     trk_duration: Duration,
-    first_epoch: Epoch,
-    last_epoch: Epoch,
-    duration: Duration,
     cv_class: CommonViewClass,
+    ground_pos: GroundPosition,
 }
 
 impl Summary {
@@ -53,6 +55,7 @@ impl Summary {
             first_epoch,
             last_epoch,
             duration: last_epoch - first_epoch,
+            ground_pos: ctx.data.reference_position().unwrap(),
         }
     }
 }
@@ -63,14 +66,6 @@ impl Render for Summary {
             div class="table-container" {
                 table class="table is-bordered" {
                     tbody {
-                        tr {
-                            th class="is-info" {
-                                "Satellites"
-                            }
-                            td {
-                                (self.satellites.iter().join(", "))
-                            }
-                        }
                         tr {
                             th class="is-info" {
                                 "Common View"
@@ -85,6 +80,22 @@ impl Render for Summary {
                             }
                             td {
                                 (self.trk_duration.to_string())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Position"
+                            }
+                            td {
+                                (self.ground_pos.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Satellites"
+                            }
+                            td {
+                                (self.satellites.iter().join(", "))
                             }
                         }
                         tr {
