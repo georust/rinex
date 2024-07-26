@@ -1,8 +1,8 @@
 Static surveying
 ================
 
-Use these scripts to get started or perform static geodetic surveys using `RINEX-Cli` and 
-the `-c` option of the `-p` opmode.
+All these scripts are compatible with the `ppp` opmode and loaded via `-c`.
+Refer to the wiki pages and tutorial scripts for example.
 
 Static geodetic surveying aims at solving the coordinates of a future Reference Station,
 without apriori knowledge and with high precision as possible.

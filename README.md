@@ -58,9 +58,8 @@ It is growing as some sort of Anubis/Teqc/Glab combination. No GUI currently ava
 It integrates a PVT and CGGTTS solutions solver.  
 The application is auto-generated for a few architectures, you can directly
 [download it from Github.com](https://github.com/georust/rinex/releases)
-* [`config`](config/) contains a set of configuration scripts to customize how a few opmodes of RINEX-Cli behave.
-This particularly applies to different applications of precise positioning.
-* [`scripts`](scripts/) a set of Shell scripts to perform advanced tasks, like field surveying examples
+* [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
+to get started quickly. The examples span pretty much everything our applications allow.
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
@@ -70,7 +69,7 @@ This particularly applies to different applications of precise positioning.
 * [`ublox-rnx`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
 This application is currently work in progress
 * [`tools`](tools/) are utility scripts and development tools
-* [`logs`](logs/) is where we store the session logs from our [example scripts](scripts/)
+* [`logs`](logs/) is dedicated to store session logs, if you work within this workspace directly.
 
 ## Relevant Ecosystem
 

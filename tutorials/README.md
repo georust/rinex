@@ -13,7 +13,7 @@ cd georust-rinex
 cargo build --release --all-features
 
 # Now try one of the survey scripts, for example:
-./scripts/GAL/mojdnk-cpp.sh
+./tutorials/GAL/mojdnk-cpp.sh
 ```
 
 Surveying and other RINEX-Cli applications will generate logs. Our examples scripts
@@ -42,6 +42,7 @@ We demonstrate the synthesis of CGGTTS solutions with our position surveys.
 
 Other file operations like RINEX files management is also demonstrated.
 
+- [Config](./config)
 - [GPS](./GPS):
   - Esbjerg and Mojn (DNK) stations surveying
 - [Galileo](./GAL):
