@@ -42,7 +42,7 @@ We demonstrate the synthesis of CGGTTS solutions with our position surveys.
 
 Other file operations like RINEX files management is also demonstrated.
 
-- [Config](./config)
+- [Config](./config) are special preset that some tutorials may use
 - [GPS](./GPS):
   - Esbjerg and Mojn (DNK) stations surveying
 - [Galileo](./GAL):
