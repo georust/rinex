@@ -9,4 +9,4 @@ FILE=test_resources/SP3/ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz
 
 ./target/release/rinex-cli \
     -P $FILTER \
-    -f $FILE tbin "3 hour"
+    --fp $FILE tbin "3 hour"

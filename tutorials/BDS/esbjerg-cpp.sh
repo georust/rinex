@@ -9,7 +9,7 @@ DATA_DIR=test_resources
 FILTER=BeiDou
 
 # Custom surveying config
-CONF=config/survey/cpp_lsq.json
+CONF=tutorials/config/survey/cpp_lsq.json
 
 ./target/release/rinex-cli \
     -P $FILTER \

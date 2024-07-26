@@ -11,14 +11,13 @@ DATA_DIR=test_resources/CRNX/V3
 FILTER=">E05;<E20" # Focus on Gal>05,<20 (any signals)
 TIMEFRAME=">2020-06-25T02:00:00 UTC" # skip 2hr (example)
 
-# generate ""differenced"" observation RINEX=obs(A)-obs(B)
+# Generate ""differenced"" observation RINEX=obs(A)-obs(B)
 ./target/release/rinex-cli \
     -q \
     -P $FILTER "$TIMEFRAME" \
-    -f $DATA_DIR/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --fp $DATA_DIR/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     diff $DATA_DIR/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz
 
-# Run graphical analysis on differenced observations
+# Analyze differenced observations
 ./target/release/rinex-cli \
-    -f $WORKSPACE/ESBC00DNK_R_20201770000_01D_30S_MO/DIFFERENCED.crx.gz \
-    -g --obs
+    --fp $WORKSPACE/ESBC00DNK_R_20201770000_01D_30S_MO/DIFFERENCED.crx.gz

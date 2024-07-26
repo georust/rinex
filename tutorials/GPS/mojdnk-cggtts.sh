@@ -4,8 +4,8 @@ DATA_DIR=test_resources
 
 # Any strategy may apply to CGGTTS,
 # it will just modify and possibly improve the solutions
-CONF=config/survey/spp_lsq.json # basic SPP+LSQ
-CONF=config/survey/cpp_kf.json # basic CPP+KF
+CONF=tutorials/config/survey/spp_lsq.json # basic SPP+LSQ
+CONF=tutorials/config/survey/cpp_kf.json # basic CPP+KF
 
 # Example:
 #  GPS >05;<15  CGGTTS allows single SV common view clock comparison
@@ -18,8 +18,8 @@ TIMEFRAME=">2020-06-25T02:00:00 UTC"
 
 ./target/release/rinex-cli \
     -P $FILTER "$TIMEFRAME" \
-    -f $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -f $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
-    -f $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
-    -f $DATA_DIR/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \
-    ppp -c $CONF --cggtts | tee logs/mojn-gal+cggtts.txt
+    --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
+    --fp $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
+    --fp $DATA_DIR/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \
+    ppp -c $CONF --cggtts

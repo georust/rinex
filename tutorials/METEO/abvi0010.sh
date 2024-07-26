@@ -8,4 +8,4 @@ DATA_DIR=test_resources
 METEO=$DATA_DIR/MET/V2/abvi0010.15m
 
 # Example: complete analysis
-./target/release/rinex-cli -f $METEO qc
+./target/release/rinex-cli --fp $METEO

@@ -5,8 +5,8 @@ SYSTEM=GPS # all GPS
 
 # Any strategy may apply to CGGTTS,
 # it will just modify and possibly improve the solutions
-CONF=config/survey/spp_lsq.json
-CONF=config/survey/cpp_kf.json
+CONF=tutorials/config/survey/spp_lsq.json
+CONF=tutorials/config/survey/cpp_kf.json
 
 # Any Pseudo Range: remove one to reduce the possible solutions
 SIGNALS=C1C,C1W,C2L,C2W,C5Q
@@ -17,11 +17,11 @@ SIGNALS=C1C,C1W,C2L,C2W,C5Q
 SV=G05,G08,G15,G24 # This is just an example, remove this to resolve for all SV
 
 ./target/release/rinex-cli \
-    -f $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -f $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    -f $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
-    -f $DATA_DIR/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \
+    --fp $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --fp $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    --fp $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
+    --fp $DATA_DIR/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \
     -P $SYSTEM \
     -P $SIGNALS \
     -P $SV \
-    -p -c $CONF --cggtts | tee logs/esbjr-gal+cggtts.txt
+    ppp -c $CONF --cggtts

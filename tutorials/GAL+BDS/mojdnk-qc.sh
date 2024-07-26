@@ -16,5 +16,4 @@ FILTER="Gal,BDS;>E09;>C05;<C58"
 
 ./target/release/rinex-cli \
     -P "$FILTER" \
-    -f $OBS \
-    qc
+    --fp $OBS

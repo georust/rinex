@@ -39,7 +39,9 @@ NAV=test_resources/NAV/V3/HERT00GBR_R_20240920000_01D_GN.rnx.gz
 
 ./target/release/rinex-cli \
     -P $FILTER \
-    -f $OBS -f $NAV -f $SP3 -f $CLK \
+    --fp $OBS \
+    --fp $NAV \
+    --fp $SP3 \
+    --fp $CLK \
     ppp -c $CONF \
-    --cggtts --lab $PRODUCER --clk $CLOCK -t "$TRACKING" \
-    | tee logs/jmf-24092+cggtts.txt
+    --cggtts --lab $PRODUCER --clk $CLOCK -t "$TRACKING"
