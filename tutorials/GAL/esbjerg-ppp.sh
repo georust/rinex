@@ -11,4 +11,4 @@ CONF=tutorials/config/survey/ppp_kf.json # PPP;filter=kalman;x17
     --fp $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     --fp $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
     --fp $DATA_DIR/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \
-    ppp -c $CONF | tee logs/esbjr-gal+ppp.txt
+    ppp -c $CONF
