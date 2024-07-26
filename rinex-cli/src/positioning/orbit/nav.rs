@@ -74,7 +74,7 @@ impl<'a> Orbit<'a> {
 
                     let t_gpst = t.to_time_scale(TimeScale::GPST).duration.to_seconds();
                     let toc_gpst = toc_i.to_time_scale(TimeScale::GPST).duration.to_seconds();
-                    let dt = t_gpst - toc_gpst;
+                    //let dt = t_gpst - toc_gpst;
 
                     let (x, y, z) = (
                         eph_i.get_orbit_f64("satPosX")? * 1.0E3,
@@ -85,16 +85,16 @@ impl<'a> Orbit<'a> {
                     if x == 0.0 || y == 0.0 || z == 0.0 {
                         return None;
                     }
-                    let (vx_kms, vy_kms, vz_kms) = (
-                        eph_i.get_orbit_f64("velX")? * 1.0E3,
-                        eph_i.get_orbit_f64("velY")? * 1.0E3,
-                        eph_i.get_orbit_f64("velZ")? * 1.0E3,
-                    );
-                    let (ax_kms, ay_kms, az_kms) = (
-                        eph_i.get_orbit_f64("accelX")? * 1.0E3,
-                        eph_i.get_orbit_f64("accelY")? * 1.0E3,
-                        eph_i.get_orbit_f64("accelZ")? * 1.0E3,
-                    );
+                    //let (vx_kms, vy_kms, vz_kms) = (
+                    //    eph_i.get_orbit_f64("velX")? * 1.0E3,
+                    //    eph_i.get_orbit_f64("velY")? * 1.0E3,
+                    //    eph_i.get_orbit_f64("velZ")? * 1.0E3,
+                    //);
+                    //let (ax_kms, ay_kms, az_kms) = (
+                    //    eph_i.get_orbit_f64("accelX")? * 1.0E3,
+                    //    eph_i.get_orbit_f64("accelY")? * 1.0E3,
+                    //    eph_i.get_orbit_f64("accelZ")? * 1.0E3,
+                    //);
                     //let (x, y, z) = (
                     //    x
                     //        + vx_kms * dt,

@@ -58,15 +58,6 @@ impl Workspace {
         info!("{} has been generated", fullpath);
         fd
     }
-    /// Renders new HTML content into new HTML file,
-    /// with automated report open (if desired)
-    pub fn render_html(&self, filename: &str, html: &str) {
-        let mut fd = self.create_file(filename);
-        write!(fd, "{}", html).unwrap_or_else(|e| {
-            panic!("failed to render HTML content: {}", e);
-        });
-        info!("html rendered in \"{}\"", filename);
-    }
     /// Opens root path with prefered web browser
     #[cfg(target_os = "linux")]
     pub fn open_with_web_browser(&self) {

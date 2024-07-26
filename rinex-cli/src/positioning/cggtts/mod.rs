@@ -98,7 +98,7 @@ where
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    let mut initialized = false; // solver state
+    // let mut initialized = false; // solver state
     let mut time = Time::from_ctx(ctx);
 
     // CGGTTS specifics

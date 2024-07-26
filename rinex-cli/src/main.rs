@@ -255,7 +255,8 @@ pub fn main() -> Result<(), Error> {
     }
 
     // report
-    let mut report = Report::new(&cli, &ctx);
+    let cfg = cli.qc_config();
+    let mut report = Report::new(&cli, &ctx, cfg);
 
     // customization
     for extra in extra_pages {

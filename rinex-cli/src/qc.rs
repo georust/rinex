@@ -20,10 +20,7 @@ pub enum Report {
 
 impl Report {
     /// Create a new report
-    pub fn new(cli: &Cli, ctx: &Context) -> Self {
-        let cfg = QcConfig::default();
-        info!("using default QC configuration: {:#?}", cfg);
-
+    pub fn new(cli: &Cli, ctx: &Context, cfg: QcConfig) -> Self {
         let report_path = ctx.workspace.root.join("index.html");
         let hash_path = ctx.workspace.root.join(".hash");
         if !cli.force_report_synthesis() && report_path.exists() && hash_path.exists() {
@@ -67,11 +64,16 @@ impl Report {
                 // Render new html content
                 let new_content = page.content.render().into_string();
                 // replace within boundaries
-                let start_pat =
-                    "<div id=\"ppp\" class=\"container is-main\" style=\"display:none\">";
-                let end_pat = "<div id=\"end:ppp\" style=\"display:none\"></div>";
-                if let Some(start) = content.find(start_pat) {
-                    if let Some(end) = content.find(end_pat) {
+                let start_pat = format!(
+                    "<div id=\"{}\" class=\"container is-main\" style=\"display:none\">",
+                    page.html_id
+                );
+                let end_pat = format!(
+                    "<div id=\"end:{}\" style=\"display:none\"></div>",
+                    page.html_id
+                );
+                if let Some(start) = content.find(&start_pat) {
+                    if let Some(end) = content.find(&end_pat) {
                         content.replace_range(
                             start..=end + end_pat.len(),
                             &format!("{}{}{}", start_pat, new_content, end_pat),
