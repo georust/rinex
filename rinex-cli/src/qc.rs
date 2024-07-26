@@ -1,6 +1,12 @@
-//! File Quality opmode
+//! Analysis report
 use log::{error, info, warn};
-use tl::{parse as html_parser, ParserOptions as HtmlParserOptions};
+
+use tl::{
+    parse as parse_html, 
+    ParserOptions as HtmlParserOptions, 
+    Node as HtmlNode,
+    VDom as HtmlVDom,
+};
 
 use std::{
     fs::{read_to_string, File},
@@ -33,19 +39,8 @@ impl Report {
                 if let Ok(prev_hash) = content.parse::<u64>() {
                     if prev_hash == cli.hash() {
                         if let Ok(content) = read_to_string(report_path) {
-                            // parse prev HTML
-                            let opts = HtmlParserOptions::new();
-                            match html_parser(&content, opts) {
-                                Ok(parsed) => {
-                                    info!("preserving previous report");
-                                    Self::Iteration(content.clone())
-                                },
-                                Err(e) => {
-                                    error!("illegal html content: {}", e);
-                                    warn!("forcing new report synthesis");
-                                    Self::Pending(QcReport::new(&ctx.data, cfg))
-                                },
-                            }
+                            info!("preserving previous report");
+                            Self::Iteration(content.to_string())
                         } else {
                             error!("failed to parse previous report");
                             warn!("forcing new report synthesis");
@@ -62,26 +57,60 @@ impl Report {
                 }
             } else {
                 // new report
-                info!("generating new report");
+                info!("report synthesis");
                 Self::Pending(QcReport::new(&ctx.data, cfg))
             }
         } else {
             // new report
-            info!("generating new report");
+            info!("report synthesis");
             Self::Pending(QcReport::new(&ctx.data, cfg))
         }
     }
     /// Customize report with extra page
-    pub fn customize(&mut self, id: &str, page: QcExtraPage) {
+    pub fn customize(&mut self, page: QcExtraPage) {
         match self {
             Self::Pending(report) => report.add_chapter(page),
-            Self::Iteration(content) => {
-                let opts = HtmlParserOptions::new().track_ids().track_classes();
-                let mut html = html_parser(&content, opts).unwrap_or_else(|e| {
-                    panic!("html customization failed unexpectedly: {}", e);
-                });
-                if let Some(node) = html.get_element_by_id("extra") {
-                    println!("{:?}", node);
+            Self::Iteration(ref mut content) => {
+                // Render new html content
+                let new_content = page
+                    .content
+                    .render()
+                    .into_string();
+                // Parse previous content
+                let opts = HtmlParserOptions::new()
+                    .track_ids()
+                    .track_classes();
+                match parse_html(&content.clone(), opts) {
+                    Ok(mut vdom) => {
+                        // Preserve base, rewrite custom chapter
+                        if let Ok(new_vdom) = parse_html(&new_content, Default::default()) {
+                            if let Some(new_node) = new_vdom.nodes().get(0) {
+                                if let Some(new_tag) = new_node.as_tag() {
+                                    for node in vdom.nodes_mut() {
+                                        if let Some(tag) = node.as_tag() {
+                                            if let Some(tag_id) = tag.attributes().id() {
+                                                if *tag_id == *page.html_id {
+                                                    // overwrite
+                                                    *node = HtmlNode::Tag(new_tag.clone());
+                                                }
+                                            }
+                                        }
+                                    }
+                                    // replace old content
+                                    *content = vdom.outer_html();
+                                } else {
+                                    error!("{} new chapter renders unexpected html", page.html_id);
+                                }
+                            } else {
+                                error!("{} new chapter renders empty html", page.html_id);
+                            }
+                        } else {
+                            error!("{} new chapter renders invalid html", page.html_id);
+                        }
+                    },
+                    Err(e) => {
+                        panic!("previous report is not valid html: {}", e);
+                    },
                 }
             },
         }
@@ -89,8 +118,8 @@ impl Report {
     /// Render as html
     fn render(&self) -> String {
         match self {
+            Self::Iteration(report) => report.to_string(),
             Self::Pending(report) => report.render().into_string(),
-            Self::Iteration(report) => report.clone(),
         }
     }
     /// Generate (dump) report

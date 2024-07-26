@@ -56,6 +56,7 @@ struct Summary {
     technique: Technique,
     method: NaviMethod,
     filter: NaviFilter,
+    orbit: String,
     first_epoch: Epoch,
     last_epoch: Epoch,
     duration: Duration,
@@ -83,6 +84,13 @@ impl Render for Summary {
                             }
                             td {
                                 (self.method.to_string())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                            }
+                            td {
+                                (self.orbit)
                             }
                         }
                         tr {
@@ -229,6 +237,13 @@ impl Summary {
             last_epoch,
             timescale,
             satellites,
+            orbit: {
+                if ctx.data.has_sp3() {
+                    format!("Interpolation X{}", cfg.interp_order)
+                } else {
+                    "Kepler".to_string()
+                }
+            },
             method: cfg.method,
             filter: cfg.solver.filter,
             duration: last_epoch - first_epoch,

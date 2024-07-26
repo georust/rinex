@@ -73,7 +73,9 @@ impl Workspace {
         let fullpath = self.root.join("index.html").to_string_lossy().to_string();
         let web_browsers = vec!["firefox", "chromium"];
         for browser in web_browsers {
-            let child = Command::new(browser).args([fullpath.clone()]).spawn();
+            let child = Command::new(browser)
+                .arg(fullpath.clone())
+                .spawn();
             if child.is_ok() {
                 return;
             }
