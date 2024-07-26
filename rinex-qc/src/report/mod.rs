@@ -14,6 +14,9 @@ use summary::QcSummary;
 mod rinex;
 use rinex::RINEXReport;
 
+mod orbit;
+use orbit::OrbitReport;
+
 #[cfg(feature = "sp3")]
 mod sp3;
 
@@ -175,6 +178,8 @@ pub struct QcReport {
     summary: QcSummary,
     /// Preprocessed NAVI (only when compatible)
     navi: Option<QcNavi>,
+    /// Orbital projections (only when compatible)
+    orbit: Option<OrbitReport>,
     /// In depth analysis per input product.
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
@@ -185,6 +190,7 @@ pub struct QcReport {
 impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
+        let ref_position = context.reference_position();
         let summary = QcSummary::new(&context, &cfg);
         Self {
             name: context.name(),
@@ -202,8 +208,6 @@ impl QcReport {
             //   3. one complex tab for "shared" analysis
             products: {
                 let mut items = HashMap::<ProductType, ProductReport>::new();
-                let sp3_sky_plot = context.has_sp3() && !context.has_brdc_navigation();
-                let brdc_sky_plot = !context.has_sp3() && context.has_brdc_navigation();
                 // one tab per RINEX product
                 for product in [
                     ProductType::Observation,
@@ -215,7 +219,7 @@ impl QcReport {
                     ProductType::ANTEX,
                 ] {
                     if let Some(rinex) = context.rinex(product) {
-                        if let Ok(report) = RINEXReport::new(rinex, brdc_sky_plot) {
+                        if let Ok(report) = RINEXReport::new(rinex) {
                             items.insert(product, ProductReport::RINEX(report));
                         }
                     }
@@ -225,12 +229,23 @@ impl QcReport {
                 if let Some(sp3) = context.sp3() {
                     items.insert(
                         ProductType::HighPrecisionOrbit,
-                        ProductReport::SP3(SP3Report::new(sp3, context.reference_position())),
+                        ProductReport::SP3(SP3Report::new(sp3, ref_position)),
                     );
                 }
                 items
             },
             summary,
+            orbit: {
+                if context.has_sp3() || context.has_brdc_navigation() {
+                    Some(OrbitReport::new(
+                        context,
+                        ref_position,
+                        cfg.force_brdc_skyplot,
+                    ))
+                } else {
+                    None
+                }
+            },
         }
     }
     /// Add a custom chapter to the report

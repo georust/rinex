@@ -4,12 +4,12 @@ use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
 #[cfg(feature = "plot")]
-use crate::plot::{MapboxStyle, MarkerSymbol, NamedColor, Plot, Visible};
+use crate::plot::{MapboxStyle, Plot, Visible};
 
 #[cfg(feature = "plot")]
 use plotly::{
-    layout::update_menu::{Button, ButtonBuilder, UpdateMenu, UpdateMenuDirection, UpdateMenuType},
-    Bar, DensityMapbox,
+    layout::update_menu::{Button, ButtonBuilder},
+    DensityMapbox,
 };
 
 pub struct IonexReport {

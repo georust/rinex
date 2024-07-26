@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::GroundPosition;
-use rinex_qc::prelude::QcContext;
+use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
 
 mod fops;
 mod positioning;
@@ -165,7 +165,13 @@ You can also use this flag to customize it.
 If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
         .next_help_heading("Report customization")
         .arg(
-            Arg::new("force")
+            Arg::new("report-sum")
+                .long("sum")
+                .action(ArgAction::SetTrue)
+                .help("Restrict report to summary header only (quicker rendition)")
+        )
+        .arg(
+            Arg::new("report-force")
                 .short('f')
                 .long("force")
                 .action(ArgAction::SetTrue)
@@ -174,7 +180,14 @@ By default, report synthesis happens once per input set (file combnation and cli
 Use this option to force report regeneration.
 This has no effect on file operations that do not synthesize a report."))
         .arg(
-            Arg::new("nostats")
+            Arg::new("report-brdc-sky")
+                .long("brdc-sky")
+                .action(ArgAction::SetTrue)
+                .help("When SP3 and/or BRDC RINEX is present,
+the skyplot (compass) projection is only calculated from the SP3 coordinates (highest precision). Use this option to also calculate it from radio messages (for comparison purposes for example).")
+        )
+        .arg(
+            Arg::new("report-nostats")
                 .long("nostats")
                 .action(ArgAction::SetTrue)
                 .help("Hide statistical annotations that might be present in some plots.
@@ -337,7 +350,7 @@ Otherwise it gets automatically picked up."))
     }
     /// True if forced report synthesis is requested
     pub fn force_report_synthesis(&self) -> bool {
-        self.matches.get_flag("force")
+        self.matches.get_flag("report-force")
     }
     /*
      * We hash all vital CLI information.
@@ -361,5 +374,17 @@ Otherwise it gets automatically picked up."))
         }
         string.hash(&mut hasher);
         hasher.finish()
+    }
+    /// Returns QcConfig from command line
+    pub fn qc_config(&self) -> QcConfig {
+        QcConfig {
+            manual_reference: None,
+            report: if self.matches.get_flag("report-sum") {
+                QcReportType::Summary
+            } else {
+                QcReportType::Full
+            },
+            force_brdc_skyplot: self.matches.get_flag("report-brdc-sky"),
+        }
     }
 }

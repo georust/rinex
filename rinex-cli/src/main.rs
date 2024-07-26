@@ -48,8 +48,6 @@ pub enum Error {
     MergeError(#[from] rinex::merge::Error),
     #[error("split ops failure")]
     SplitError(#[from] rinex::split::Error),
-    #[error("failed to create QC report: permission denied!")]
-    QcReportCreationError,
     #[error("positioning solver error")]
     PositioningSolverError(#[from] positioning::Error),
 }

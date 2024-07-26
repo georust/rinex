@@ -4,28 +4,14 @@ use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::prelude::{Constellation, Rinex, SV};
 use std::collections::HashMap;
 
-#[cfg(feature = "sp3")]
-use crate::plot::Plot;
-
 struct ConstellationPage {
     satellites: Vec<SV>,
-    #[cfg(feature = "plot")]
-    sky_plot: Option<Plot>,
 }
 
 impl ConstellationPage {
-    fn new(rinex: &Rinex, sky_plot: bool) -> Self {
+    fn new(rinex: &Rinex) -> Self {
         Self {
             satellites: rinex.sv().collect(),
-            #[cfg(feature = "plot")]
-            sky_plot: {
-                if sky_plot {
-                    let mut plot = Plot::sky_plot("brdc_sky", "Skyplot", true);
-                    Some(plot)
-                } else {
-                    None
-                }
-            },
         }
     }
 }
@@ -43,16 +29,6 @@ impl Render for ConstellationPage {
                             (self.satellites.iter().join(", "))
                         }
                     }
-                    @if let Some(plot) = &self.sky_plot {
-                        tr {
-                            th class="is-info" {
-                                "Sky Compass"
-                            }
-                            td {
-                                (plot.render())
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -64,7 +40,7 @@ pub struct NavReport {
 }
 
 impl NavReport {
-    pub fn new(rinex: &Rinex, sky_plot: bool) -> Self {
+    pub fn new(rinex: &Rinex) -> Self {
         Self {
             pages: {
                 let mut pages = HashMap::<Constellation, ConstellationPage>::new();
@@ -74,7 +50,7 @@ impl NavReport {
                         FilterItem::ConstellationItem(vec![constell]),
                     );
                     let focused = rinex.filter(&filter);
-                    pages.insert(constell, ConstellationPage::new(&focused, sky_plot));
+                    pages.insert(constell, ConstellationPage::new(&focused));
                 }
                 pages
             },

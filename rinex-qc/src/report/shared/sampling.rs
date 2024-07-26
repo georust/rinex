@@ -1,7 +1,6 @@
 use hifitime::Unit;
 use maud::{html, Markup, Render};
-use rinex::prelude::{Duration, Epoch, Rinex, SV};
-use std::collections::HashMap;
+use rinex::prelude::{Duration, Epoch, Rinex};
 
 #[cfg(feature = "sp3")]
 use sp3::SP3;

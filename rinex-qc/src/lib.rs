@@ -17,7 +17,7 @@ pub mod prelude {
     #[cfg(feature = "plot")]
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use crate::{
-        cfg::QcConfig,
+        cfg::{QcConfig, QcReportType},
         context::{ProductType, QcContext},
         report::{QcExtraPage, QcReport},
     };

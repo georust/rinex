@@ -3,13 +3,7 @@ use rinex::prelude::*;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::{
-    //de::Error,
-    //Serializer,
-    Deserialize,
-    //Deserializer,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 /// Configuration Error
 #[derive(Debug, Clone, Error)]
@@ -63,6 +57,11 @@ pub struct QcConfig {
     pub report: QcReportType,
     #[cfg_attr(feature = "serde", serde(default))]
     pub manual_reference: Option<GroundPosition>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    /// When both SP3 and BRDC NAV are present,
+    /// SP3 is prefered for skyplot project: set true here to
+    /// also compute for BRDC NAV.
+    pub force_brdc_skyplot: bool,
 }
 
 impl QcConfig {

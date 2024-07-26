@@ -33,12 +33,12 @@ pub enum RINEXReport {
 }
 
 impl RINEXReport {
-    pub fn new(rnx: &Rinex, sky_plot: bool) -> Result<Self, Error> {
+    pub fn new(rnx: &Rinex) -> Result<Self, Error> {
         match rnx.header.rinex_type {
             RinexType::DORIS => Ok(Self::Doris(DorisReport::new(rnx))),
             RinexType::ClockData => Ok(Self::Clk(ClkReport::new(rnx)?)),
             RinexType::MeteoData => Ok(Self::Meteo(MeteoReport::new(rnx)?)),
-            RinexType::NavigationData => Ok(Self::Nav(NavReport::new(rnx, sky_plot))),
+            RinexType::NavigationData => Ok(Self::Nav(NavReport::new(rnx))),
             RinexType::ObservationData => Ok(Self::Obs(ObsReport::new(rnx))),
             RinexType::IonosphereMaps => Ok(Self::Ionex(IonexReport::new(rnx)?)),
             _ => Err(Error::NonSupportedRINEX),

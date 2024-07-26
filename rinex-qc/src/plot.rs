@@ -1,11 +1,10 @@
 use hifitime::Epoch;
 use maud::{html, Markup, PreEscaped, Render};
 use plotly::{
-    common::{Font, HoverInfo, Side},
+    common::HoverInfo,
     layout::{
-        update_menu::{Button, UpdateMenu},
-        Axis, Center, DragMode, Mapbox, Margin, RangeSelector, RangeSlider, SelectorButton,
-        SelectorStep,
+        update_menu::UpdateMenu, Axis, Center, DragMode, Mapbox, Margin, RangeSelector,
+        RangeSlider, SelectorButton, SelectorStep,
     },
     DensityMapbox, Layout, Plot as Plotly, Scatter, Scatter3D, ScatterGeo, ScatterMapbox,
     ScatterPolar, Trace,
@@ -16,7 +15,10 @@ use serde::Serialize;
 pub use plotly::{
     color::NamedColor,
     common::{Marker, MarkerSymbol, Mode, Visible},
-    layout::MapboxStyle,
+    layout::{
+        update_menu::{Button, ButtonBuilder},
+        MapboxStyle,
+    },
 };
 
 pub struct CompassArrow {
