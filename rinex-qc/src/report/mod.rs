@@ -335,6 +335,8 @@ impl Render for QcReport {
                                             div id=(chapter.html_id) class="container is-main" style="display:none" {
                                                 (chapter.content.render())
                                             }
+                                            div id=(&format!("end:{}", chapter.html_id)) style="display:none" {
+                                            }
                                         }
                                     }
                                 }//class=hero

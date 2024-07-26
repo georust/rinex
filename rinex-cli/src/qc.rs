@@ -1,13 +1,6 @@
 //! Analysis report
 use log::{error, info, warn};
 
-use tl::{
-    parse as parse_html, 
-    ParserOptions as HtmlParserOptions, 
-    Node as HtmlNode,
-    VDom as HtmlVDom,
-};
-
 use std::{
     fs::{read_to_string, File},
     io::Write,
@@ -72,45 +65,22 @@ impl Report {
             Self::Pending(report) => report.add_chapter(page),
             Self::Iteration(ref mut content) => {
                 // Render new html content
-                let new_content = page
-                    .content
-                    .render()
-                    .into_string();
-                // Parse previous content
-                let opts = HtmlParserOptions::new()
-                    .track_ids()
-                    .track_classes();
-                match parse_html(&content.clone(), opts) {
-                    Ok(mut vdom) => {
-                        // Preserve base, rewrite custom chapter
-                        if let Ok(new_vdom) = parse_html(&new_content, Default::default()) {
-                            if let Some(new_node) = new_vdom.nodes().get(0) {
-                                if let Some(new_tag) = new_node.as_tag() {
-                                    for node in vdom.nodes_mut() {
-                                        if let Some(tag) = node.as_tag() {
-                                            if let Some(tag_id) = tag.attributes().id() {
-                                                if *tag_id == *page.html_id {
-                                                    // overwrite
-                                                    *node = HtmlNode::Tag(new_tag.clone());
-                                                }
-                                            }
-                                        }
-                                    }
-                                    // replace old content
-                                    *content = vdom.outer_html();
-                                } else {
-                                    error!("{} new chapter renders unexpected html", page.html_id);
-                                }
-                            } else {
-                                error!("{} new chapter renders empty html", page.html_id);
-                            }
-                        } else {
-                            error!("{} new chapter renders invalid html", page.html_id);
-                        }
-                    },
-                    Err(e) => {
-                        panic!("previous report is not valid html: {}", e);
-                    },
+                let new_content = page.content.render().into_string();
+                // replace within boundaries
+                let start_pat =
+                    "<div id=\"ppp\" class=\"container is-main\" style=\"display:none\">";
+                let end_pat = "<div id=\"end:ppp\" style=\"display:none\"></div>";
+                if let Some(start) = content.find(start_pat) {
+                    if let Some(end) = content.find(end_pat) {
+                        content.replace_range(
+                            start..=end + end_pat.len(),
+                            &format!("{}{}{}", start_pat, new_content, end_pat),
+                        );
+                    } else {
+                        panic!("report customization failure");
+                    }
+                } else {
+                    panic!("report customization failure");
                 }
             },
         }
