@@ -83,6 +83,8 @@ use hifitime::Unit;
 pub mod prelude {
     #[cfg(feature = "antex")]
     pub use crate::antex::AntennaMatcher;
+    #[cfg(feature = "obs")]
+    pub use crate::carrier::Carrier;
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
     pub use crate::doris::Station;
