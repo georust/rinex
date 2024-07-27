@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
+    use itertools::Itertools;
     use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
     use std::str::FromStr;
     #[test]
-    fn constell_esbcdnk() {
+    fn obs_gnss_v3_esbcdnk() {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
@@ -28,7 +29,7 @@ mod test {
         assert_eq!(dut.sv().count(), 5, "mask:constell(SBAS) failed");
     }
     #[test]
-    fn sv_filter_v3_duth0630() {
+    fn obs_sv_v3_duth0630() {
         let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         let mask = Filter::mask(
             MaskOperand::Equals,
@@ -41,7 +42,7 @@ mod test {
         assert_eq!(rnx.sv().count(), 2);
     }
     #[test]
-    fn gnss_filter_v3_duth0630() {
+    fn obs_gnss_v3_duth0630() {
         let mut rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         let mask = Filter::mask(
             MaskOperand::Equals,
@@ -51,43 +52,81 @@ mod test {
         assert_eq!(rnx.sv().count(), 12);
     }
     #[test]
-    #[ignore]
-    fn v2_cari0010_07m_phys_filter() {
-        let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
-        let mask = Filter::mask(
-            MaskOperand::Equals,
-            FilterItem::ComplexItem(vec!["L1C".to_string()]),
-        );
-        let dut = rnx.filter(&mask);
-        assert_eq!(dut.observable().count(), 0);
-
-        let mask = Filter::mask(
-            MaskOperand::Equals,
-            FilterItem::ComplexItem(vec!["L1C".to_string()]),
-        );
-        let dut = rnx.filter(&mask);
-        assert_eq!(dut.observable().count(), 1);
-    }
-    #[test]
-    fn v2_clar0020_00m_phys_filter() {
+    fn meteo_obsrv_v2_clar0020() {
         let rnx = Rinex::from_file("../test_resources/MET/V2/clar0020.00m").unwrap();
 
-        let mask = Filter::mask(
-            MaskOperand::Equals,
-            FilterItem::ComplexItem(vec!["L1C".to_string()]),
-        );
-        let dut = rnx.filter(&mask);
-        assert_eq!(dut.observable().count(), 0);
-
-        let mask = Filter::mask(
+        let pressure = Filter::mask(
             MaskOperand::Equals,
             FilterItem::ComplexItem(vec!["PR".to_string()]),
         );
-        let dut = rnx.filter(&mask);
+        let dut = rnx.filter(&pressure);
         assert_eq!(dut.observable().count(), 1);
+
+        let temp = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["TD".to_string()]),
+        );
+        let dut = rnx.filter(&temp);
+        assert_eq!(dut.observable().count(), 1);
+
+        let moist = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["HR".to_string()]),
+        );
+        let dut = rnx.filter(&moist);
+        assert_eq!(dut.observable().count(), 1);
+
+        let none = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["L1C".to_string()]),
+        );
+        let dut = rnx.filter(&none);
+        assert_eq!(dut.observable().count(), 0);
     }
     #[test]
-    fn v2_cari0010_07m_time_filter() {
+    fn obs_observ_v3_duth0630() {
+        let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
+
+        let total = rinex.observable().count();
+        assert_eq!(total, 12);
+
+        let pr_l1 = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["C1C".to_string()]),
+        );
+        let rnx = rinex.filter(&pr_l1);
+        assert_eq!(rnx.observable().count(), 1);
+
+        let pr_dop_l1 = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["C1C".to_string(), "D1C".to_string()]),
+        );
+        let rnx = rinex.filter(&pr_dop_l1);
+        assert_eq!(rnx.observable().count(), 2);
+
+        let pr_l1_dop_l2 = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["C1C".to_string(), "D2W".to_string()]),
+        );
+        let rnx = rinex.filter(&pr_l1_dop_l2);
+        assert_eq!(rnx.observable().count(), 2);
+
+        let not_pr_l1 = Filter::mask(
+            MaskOperand::NotEquals,
+            FilterItem::ComplexItem(vec!["C1C".to_string()]),
+        );
+        let rnx = rinex.filter(&not_pr_l1);
+        assert_eq!(rnx.observable().count(), total - 1);
+
+        let not_pr_l1_dop_l2 = Filter::mask(
+            MaskOperand::NotEquals,
+            FilterItem::ComplexItem(vec!["C1C".to_string(), "D2W".to_string()]),
+        );
+        let rnx = rinex.filter(&not_pr_l1_dop_l2);
+        assert_eq!(rnx.observable().count(), total - 2);
+    }
+    #[test]
+    fn meteo_time_v2_cari0010() {
         let rnx = Rinex::from_file("../test_resources/MET/V2/cari0010.07m").unwrap();
 
         let mask = Filter::mask(
@@ -117,5 +156,44 @@ mod test {
         );
         let dut = rnx.filter(&mask);
         assert_eq!(dut.epoch().count(), 1);
+    }
+    #[test]
+    fn obs_signals_v3_duth0630() {
+        let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
+
+        let total = rinex.carrier().count();
+        assert_eq!(total, 4);
+
+        let carriers = rinex.carrier().sorted().collect::<Vec<_>>();
+        assert_eq!(
+            carriers,
+            vec![
+                Carrier::L1,
+                Carrier::L2,
+                Carrier::G1(None),
+                Carrier::G2(None),
+            ]
+        );
+
+        let l1_only = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["C1C".to_string(), "D1C".to_string()]),
+        );
+        let dut = rinex.filter(&l1_only);
+        assert_eq!(dut.carrier().count(), 2);
+        assert_eq!(dut.constellation().count(), 2);
+        assert_eq!(
+            dut.carrier().collect::<Vec<_>>(),
+            vec![Carrier::L1, Carrier::G1(None)]
+        );
+
+        let glo_l2_only = Filter::mask(
+            MaskOperand::Equals,
+            FilterItem::ComplexItem(vec!["D2P".to_string()]),
+        );
+        let dut = rinex.filter(&glo_l2_only);
+        assert_eq!(dut.carrier().count(), 1);
+        assert_eq!(dut.constellation().count(), 1);
+        assert_eq!(dut.carrier().collect::<Vec<_>>(), vec![Carrier::G2(None)]);
     }
 }

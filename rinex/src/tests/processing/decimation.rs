@@ -2,13 +2,11 @@
 #[cfg(test)]
 mod decimation {
     use crate::prelude::*;
-    use crate::preprocessing::*;
-    //use itertools::Itertools;
-    use qc_traits::processing::Decimate;
+    use qc_traits::processing::{Decimate, DecimationFilter};
     use std::path::Path;
     #[test]
     #[cfg(feature = "flate2")]
-    fn obs_decimation() {
+    fn obs_dt_decimation() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -23,22 +21,24 @@ mod decimation {
         let mut rinex = rinex.unwrap();
         let len = rinex.epoch().count();
 
-        let filter = DecimationFilter::duration(Duration::from_seconds(60.0));
-        rinex.decimate_mut(&filter);
+        let dt_60s = DecimationFilter::duration(Duration::from_seconds(60.0));
+        let dt_120s = DecimationFilter::duration(Duration::from_seconds(120.0));
+
+        rinex.decimate_mut(&dt_60s);
         let count = rinex.epoch().count();
         assert_eq!(count, len / 2, "decimate(1'): error");
 
-        rinex.decimate_mut(Duration::from_seconds(60.0));
+        rinex.decimate_mut(&dt_60s);
         let count = rinex.epoch().count();
         assert_eq!(count, len / 2, "decimate(1'): error");
 
-        rinex.decimate_mut(Duration::from_seconds(120.0));
+        rinex.decimate_mut(&dt_120s);
         let count = rinex.epoch().count();
         assert_eq!(count, len / 4, "decimate(2'): error",);
     }
     #[test]
     #[cfg(feature = "flate2")]
-    fn meteo_decimation() {
+    fn meteo_dt_decimation() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -53,21 +53,25 @@ mod decimation {
         let mut rinex = rinex.unwrap();
         let len = rinex.epoch().count();
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
+        let dt_60s = DecimationFilter::duration(Duration::from_seconds(60.0));
+        let dt_360s = DecimationFilter::duration(Duration::from_seconds(360.0));
+        let dt_900s = DecimationFilter::duration(Duration::from_seconds(900.0));
+
+        rinex.decimate_mut(&dt_60s);
         let count = rinex.epoch().count();
         assert_eq!(count, len, "decimate(1'): error",);
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(360.0));
+        rinex.decimate_mut(&dt_360s);
         let count = rinex.epoch().count();
         assert_eq!(count, len / 2, "decimate(6'): error",);
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(900.0));
+        rinex.decimate_mut(&dt_900s);
         let count = rinex.epoch().count();
         assert_eq!(count, len / 4, "decimate(15'): error",);
     }
     #[test]
     #[cfg(feature = "flate2")]
-    fn nav_decimation() {
+    fn nav_dt_decimation() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -79,14 +83,17 @@ mod decimation {
         let rinex = Rinex::from_file(fullpath.as_ref());
         assert!(rinex.is_ok(), "failed to parse \"{}\"", fullpath);
 
+        let dt_60s = DecimationFilter::duration(Duration::from_seconds(60.0));
+        let dt_61s = DecimationFilter::duration(Duration::from_seconds(61.0));
+
         let mut rinex = rinex.unwrap();
         let _len = rinex.epoch().count();
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(60.0));
+        rinex.decimate_mut(&dt_60s);
         let count = rinex.epoch().count();
         assert_eq!(count, 1013, "decimate(1'): error",);
 
-        rinex.decimate_by_interval_mut(Duration::from_seconds(61.0));
+        rinex.decimate_mut(&dt_61s);
         let count = rinex.epoch().count();
         assert_eq!(count, 1013, "decimate(1'+1s): error",);
     }
