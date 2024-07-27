@@ -819,9 +819,6 @@ impl Render for ReportContent {
                                     }
                                 }
                             }
-                            td {
-                                (self.dop_plot.render())
-                            }
                         }
                         tr {
                             th class="is-info" {
