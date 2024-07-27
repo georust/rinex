@@ -195,11 +195,11 @@ impl Render for Summary {
 
 impl Summary {
     fn new(
-            cfg: &NaviConfig,
-            ctx: &Context,
-            solutions: &BTreeMap<Epoch, PVTSolution>,
-            rx_ecef: (f64, f64, f64),
-          ) -> Self {
+        cfg: &NaviConfig,
+        ctx: &Context,
+        solutions: &BTreeMap<Epoch, PVTSolution>,
+        rx_ecef: (f64, f64, f64),
+    ) -> Self {
         let (x0, y0, z0) = rx_ecef;
         let (lat0_rad, lon0_rad, alt0_m) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
 

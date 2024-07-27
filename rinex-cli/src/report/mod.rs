@@ -61,26 +61,20 @@ impl Report {
             Self::Pending(report) => report.add_chapter(page),
             Self::Iteration(ref mut content) => {
                 // Render new html content
-                let new_tab = page
-                    .tab
-                    .render()
-                    .into_string();
-                let new_content = page
-                    .content
-                    .render()
-                    .into_string();
+                let new_tab = page.tab.render().into_string();
+                let new_content = page.content.render().into_string();
                 if content.find(&new_tab).is_none() {
                     // tab creation
                     let pattern = "<li><a id=\"menu:";
                     if let Some(last) = content.rfind(&pattern) {
-                        content.insert_str(last, &format!(
-                            "<li>{}</li>", new_tab,
-                        ));
+                        content.insert_str(last, &format!("<li>{}</li>", new_tab,));
                     }
                 }
-                let pattern = 
-                    format!("<div id=\"{}\" class=\"container is-main\" style=\"display:none\">", page.html_id);
-                if let Some(start) = content.find(&pattern){
+                let pattern = format!(
+                    "<div id=\"{}\" class=\"container is-main\" style=\"display:none\">",
+                    page.html_id
+                );
+                if let Some(start) = content.find(&pattern) {
                     // overwrite with new content
                     let end_pat = format!(
                         "<div id=\"end:{}\" style=\"display:none\"></div>",
@@ -94,14 +88,20 @@ impl Report {
                     }
                 } else {
                     // first run
-                    for known_chapter in [
-                        "ppp",
-                        "cggtts",
-                    ] {
-                        let pattern =  format!("<div id=\"end:{}\" style=\"display:none\"></div>", known_chapter);
-                        let intro = format!("<div id=\"{}\" class=\"container is-main\" style=\"display:none\">", page.html_id);
-                        let conclusion =  format!("<div id=\"end:{}\" style=\"display:none\"></div>", page.html_id);
-                        if let Some(start) = content.rfind(&pattern){
+                    for known_chapter in ["ppp", "cggtts"] {
+                        let pattern = format!(
+                            "<div id=\"end:{}\" style=\"display:none\"></div>",
+                            known_chapter
+                        );
+                        let intro = format!(
+                            "<div id=\"{}\" class=\"container is-main\" style=\"display:none\">",
+                            page.html_id
+                        );
+                        let conclusion = format!(
+                            "<div id=\"end:{}\" style=\"display:none\"></div>",
+                            page.html_id
+                        );
+                        if let Some(start) = content.rfind(&pattern) {
                             content.insert_str(
                                 start + pattern.len(),
                                 &format!("{}{}{}", intro, new_content, conclusion),
