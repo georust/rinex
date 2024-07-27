@@ -3,11 +3,8 @@ use log::{error, info, warn};
 
 use std::{
     fs::{read_to_string, File},
-    io::Write,
+    io::{Read, Write},
 };
-
-mod div;
-use div::find as find_div;
 
 use crate::cli::{Cli, Context};
 
@@ -33,10 +30,9 @@ impl Report {
                     if prev_hash == cli.hash() {
                         if let Ok(content) = read_to_string(report_path) {
                             info!("preserving previous report");
-                            Self::Iteration(content.to_string())
+                            Self::Iteration(content)
                         } else {
-                            error!("failed to parse previous report");
-                            warn!("forcing new report synthesis");
+                            info!("generating new report");
                             Self::Pending(QcReport::new(&ctx.data, cfg))
                         }
                     } else {
@@ -65,36 +61,53 @@ impl Report {
             Self::Pending(report) => report.add_chapter(page),
             Self::Iteration(ref mut content) => {
                 // Render new html content
-                let new_content = page.content.render().into_string();
-                // replace within boundaries
-                let start_pat = format!(
-                    "<div id=\"{}\" class=\"container is-main\" style=\"display:none\">",
-                    page.html_id
-                );
-                let end_pat = format!(
-                    "<div id=\"end:{}\" style=\"display:none\"></div>",
-                    page.html_id
-                );
-                if let Some(start) = content.find(&start_pat) {
+                let new_tab = page
+                    .tab
+                    .render()
+                    .into_string();
+                let new_content = page
+                    .content
+                    .render()
+                    .into_string();
+                if content.find(&new_tab).is_none() {
+                    // tab creation
+                    let pattern = "<li><a id=\"menu:";
+                    if let Some(last) = content.rfind(&pattern) {
+                        content.insert_str(last, &format!(
+                            "<li>{}</li>", new_tab,
+                        ));
+                    }
+                }
+                let pattern = 
+                    format!("<div id=\"{}\" class=\"container is-main\" style=\"display:none\">", page.html_id);
+                if let Some(start) = content.find(&pattern){
+                    // overwrite with new content
+                    let end_pat = format!(
+                        "<div id=\"end:{}\" style=\"display:none\"></div>",
+                        page.html_id
+                    );
                     if let Some(end) = content.find(&end_pat) {
                         content.replace_range(
                             start..=end + end_pat.len(),
-                            &format!("{}{}{}", start_pat, new_content, end_pat),
+                            &format!("{}{}{}", pattern, new_content, end_pat),
                         );
-                    } else {
-                        panic!("report customization failure");
                     }
                 } else {
-                    // add navigation tab
-                    let new_tab = page.tab.render().into_string();
-
-                    let pat = format!(
-                        "<div id=\"extra-chapters\" class=\"container\" style=\"display:block\">"
-                    );
-                    if let Some(offset) = content.find(&pat) {
-                        content.insert_str(offset + pat.len(), &new_content);
-                    } else {
-                        panic!("report customization failure");
+                    // first run
+                    for known_chapter in [
+                        "ppp",
+                        "cggtts",
+                    ] {
+                        let pattern =  format!("<div id=\"end:{}\" style=\"display:none\"></div>", known_chapter);
+                        let intro = format!("<div id=\"{}\" class=\"container is-main\" style=\"display:none\">", page.html_id);
+                        let conclusion =  format!("<div id=\"end:{}\" style=\"display:none\"></div>", page.html_id);
+                        if let Some(start) = content.rfind(&pattern){
+                            content.insert_str(
+                                start + pattern.len(),
+                                &format!("{}{}{}", intro, new_content, conclusion),
+                            );
+                            break;
+                        }
                     }
                 }
             },
@@ -103,8 +116,8 @@ impl Report {
     /// Render as html
     fn render(&self) -> String {
         match self {
-            Self::Iteration(report) => report.to_string(),
             Self::Pending(report) => report.render().into_string(),
+            Self::Iteration(report) => report.to_string(),
         }
     }
     /// Generate (dump) report

@@ -377,7 +377,6 @@ impl Render for QcReport {
 		var sidebar_menu = document.getElementById('menubar');
 		var main_pages = document.getElementsByClassName('is-main');
 		var sub_pages = document.getElementsByClassName('is-page');
-        var extra_chapters = document.getElementsByClassName('is-extra');
 
 		sidebar_menu.onclick = function (evt) {
 			var clicked_id = evt.originalTarget.id;
@@ -412,12 +411,6 @@ impl Render for QcReport {
 						sub_pages[i].style = 'display:none';
 					}
 				}
-
-                // hide all extra chapters
-                for (var i =0; i < extra_chapters.length; i++) {
-                    extra_chapters[i].style = 'display:none';
-                }
-
 			} else {
 				// show tabs for this category
 				var cat_tabs = 'menu:'+category;
@@ -450,14 +443,6 @@ impl Render for QcReport {
 						sub_pages[i].style = 'display:none';
 					}
 				}
-                // Show matched extra chapter, hide others
-                for (var i =0; i < extra_chapters.length; i++) {
-                    if (extra_chapters[i].id == category) {
-                        extra_chapters[i].style = 'display:block';
-                    } else {
-                        extra_chapters[i].style = 'display:none';
-                    }
-                }
 			}
 		}
 "
