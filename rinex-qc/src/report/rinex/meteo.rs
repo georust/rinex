@@ -9,7 +9,6 @@ use std::collections::HashMap;
 
 use crate::report::{shared::SamplingReport, Error};
 
-#[cfg(feature = "plot")]
 use crate::plot::{CompassArrow, MarkerSymbol, Mode, Plot};
 
 fn obs2physics(ob: &Observable) -> String {
@@ -44,7 +43,6 @@ fn obs2unit(ob: &Observable) -> String {
 }
 
 struct WindDirectionReport {
-    #[cfg(feature = "plot")]
     compass_plot: Plot,
 }
 
@@ -68,7 +66,6 @@ impl Render for WindDirectionReport {
 
 struct SinglePlotReport {
     observable: String,
-    #[cfg(feature = "plot")]
     plot: Plot,
 }
 
@@ -81,7 +78,6 @@ impl Render for SinglePlotReport {
 }
 
 enum ObservableDependent {
-    #[cfg(feature = "plot")]
     SinglePlot(SinglePlotReport),
     WindDirection(WindDirectionReport),
 }
@@ -109,7 +105,7 @@ impl MeteoPage {
             let mut compass_plot =
                 Plot::timedomain_plot(&html_id, "Wind Direction", "Angle [°]", true);
             for (index, (t, observations)) in rnx.meteo().enumerate() {
-                let visible = index > 0;
+                let visible = index == 0;
                 for (ob, value) in observations.iter() {
                     if *ob == Observable::WindDirection {
                         let hover_text = t.to_string();
@@ -302,25 +298,32 @@ impl Render for MeteoReport {
                                 (self.sampling.render())
                             }
                         }
-                    }
-                }
-            }//table
-            @for key in self.pages.keys().sorted() {
-                @if let Some(page) = self.pages.get(key) {
-                    div class="table-container is-page" id=(format!("meteo:{}", key)) style="display:block" {
-                        table class="table is-bordered" {
-                            tr {
-                                th class="is-info" {
-                                    (key.to_string())
-                                }
-                                td {
-                                    (page.render())
+                        tr {
+                            th class="is-info" {
+                                "Observations"
+                            }
+                            td {
+                                div class="table-container" {
+                                    table class="table is-bordered" {
+                                        @for key in self.pages.keys().sorted() {
+                                            @if let Some(page) = self.pages.get(key) {
+                                                tr {
+                                                    th class="is-info" {
+                                                        (format!("{} observations", key))
+                                                    }
+                                                    td {
+                                                        (page.render())
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
+            }//table
         }
     }
 }
