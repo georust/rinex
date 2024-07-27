@@ -278,11 +278,14 @@ impl ConstellationPage {
                     }
                 }
             }
-            let filter =
-                Filter::equals(&observables.iter().map(|ob| ob.to_string()).join(", ")).unwrap();
-            let focused = rinex.filter(&filter);
-            FrequencyPage::new(&focused);
-            frequencies.insert(format!("{:?}", carrier), FrequencyPage::new(&focused));
+            if observables.len() > 0 {
+                let filter =
+                    Filter::equals(&observables.iter().map(|ob| ob.to_string()).join(", "))
+                        .unwrap();
+                let focused = rinex.filter(&filter);
+                FrequencyPage::new(&focused);
+                frequencies.insert(format!("{:?}", carrier), FrequencyPage::new(&focused));
+            }
         }
         Self {
             sv: sv_list,
@@ -470,14 +473,8 @@ impl Report {
                     );
                     if constellation == Constellation::BeiDou {
                         // MEO mask
-                        let meo1 = Filter::mask(
-                            MaskOperand::GreaterThan,
-                            FilterItem::SvItem(vec![SV::new(Constellation::BeiDou, 5)]),
-                        );
-                        let meo2 = Filter::mask(
-                            MaskOperand::LowerThan,
-                            FilterItem::SvItem(vec![SV::new(Constellation::BeiDou, 58)]),
-                        );
+                        let meo1 = Filter::greater_than("C05").unwrap();
+                        let meo2 = Filter::lower_than("C58").unwrap();
                         let meo = rinex.filter(&meo1).filter(&meo2);
 
                         constellations.insert(
