@@ -272,13 +272,14 @@ impl ConstellationPage {
         for carrier in rinex.carrier().sorted() {
             let mut observables = Vec::<Observable>::new();
             for observable in rinex.observable() {
-                if Carrier::from_observable(constellation, observable).is_ok() {
-                    observables.push(observable.clone());
+                if let Ok(signal) = Carrier::from_observable(constellation, observable) {
+                    if signal == carrier {
+                        observables.push(observable.clone());
+                    }
                 }
             }
             let filter =
                 Filter::equals(&observables.iter().map(|ob| ob.to_string()).join(", ")).unwrap();
-            panic!("{:?} freq filter: {:#?}", carrier, filter);
             let focused = rinex.filter(&filter);
             FrequencyPage::new(&focused);
             frequencies.insert(format!("{:?}", carrier), FrequencyPage::new(&focused));
