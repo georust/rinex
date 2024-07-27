@@ -184,7 +184,8 @@ This has no effect on file operations that do not synthesize a report."))
                 .long("brdc-sky")
                 .action(ArgAction::SetTrue)
                 .help("When SP3 and/or BRDC RINEX is present,
-the skyplot (compass) projection is only calculated from the SP3 coordinates (highest precision). Use this option to also calculate it from radio messages (for comparison purposes for example).")
+the skyplot (compass) projection is only calculated from the SP3 coordinates (highest precision). 
+Use this option to also calculate it from radio messages (for comparison purposes for example).")
         )
         .arg(
             Arg::new("report-nostats")
