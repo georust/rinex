@@ -158,9 +158,38 @@ mod test {
         assert_eq!(dut.epoch().count(), 1);
     }
     #[test]
+    fn obs_epoch_v3_vlns0630() {
+        let rinex = Rinex::from_file("../test_resources/CRNX/V3/VLNS0630.22D").unwrap();
+
+        let before = Filter::greater_than("2022-03-03T00:00:00 GPST").unwrap();
+        let first_eq = Filter::greater_equals("2022-03-04T00:00:00 GPST").unwrap();
+        let second = Filter::greater_equals("2022-03-04T00:00:30 GPST").unwrap();
+        let dut = rinex.filter(&before);
+        assert_eq!(dut.epoch().count(), 2);
+        let dut = rinex.filter(&first_eq);
+        assert_eq!(dut.epoch().count(), 2);
+        let dut = rinex.filter(&second);
+        assert_eq!(dut.epoch().count(), 1);
+    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn obs_epoch_v3_esbc00dnk() {
+        let rinex =
+            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+                .unwrap();
+        let last_eq = Filter::equals("2020-06-25T23:59:30 GPST").unwrap();
+        let last_geq = Filter::greater_equals("2020-06-25T23:59:30 GPST").unwrap();
+        let last_gt = Filter::greater_than("2020-06-25T23:59:30 GPST").unwrap();
+        let dut = rinex.filter(&last_eq);
+        assert_eq!(dut.epoch().count(), 1);
+        let dut = rinex.filter(&last_geq);
+        assert_eq!(dut.epoch().count(), 1);
+        let dut = rinex.filter(&last_gt);
+        assert_eq!(dut.epoch().count(), 0);
+    }
+    #[test]
     fn obs_signals_v3_duth0630() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
-
         let total = rinex.carrier().count();
         assert_eq!(total, 4);
 
