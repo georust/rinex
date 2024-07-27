@@ -338,12 +338,14 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             // run time binning algorithm
             while last <= end {
-                let rinex = rinex
-                    .filter(&Filter::from_str(&format!("< {:?}", last)).unwrap())
-                    .filter(&Filter::from_str(&format!(">= {:?}", first)).unwrap());
+                let lower = Filter::lower_than(&last.to_string()).unwrap();
+                let greater = Filter::greater_equals(&first.to_string()).unwrap();
+
+                debug!("batch: {} < {}", first, last);
+                let batch = rinex.filter(&lower).filter(&greater);
 
                 // generate standardized name
-                let filename = output_filename(&rinex, matches, prod.clone());
+                let filename = output_filename(&batch, matches, prod.clone());
 
                 let output = ctx
                     .workspace
@@ -353,7 +355,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                     .to_string_lossy()
                     .to_string();
 
-                rinex.to_file(&output)?;
+                batch.to_file(&output)?;
                 info!("{} RINEX \"{}\" has been generated", product, output);
 
                 first += *duration;
