@@ -1,4 +1,5 @@
 //! Processing toolkit, including filter designer.
+use std::str::FromStr;
 use thiserror::Error;
 
 mod item;
@@ -71,6 +72,42 @@ impl Filter {
     /// Builds new [MaskFilter] from given specs
     pub fn mask(operand: MaskOperand, item: FilterItem) -> Self {
         Self::Mask(MaskFilter { operand, item })
+    }
+    /// Builds new [MaskFilter] with Equals operand
+    /// from following [FilterItem] description
+    pub fn equals(item: &str) -> Result<Self, ItemError> {
+        let item = FilterItem::from_str(item)?;
+        Ok(Self::mask(MaskOperand::Equals, item))
+    }
+    /// Builds new [MaskFilter] with !Equals operand
+    /// from following [FilterItem] description
+    pub fn not_equals(item: &str) -> Result<Self, ItemError> {
+        let item = FilterItem::from_str(item)?;
+        Ok(Self::mask(MaskOperand::NotEquals, item))
+    }
+    /// Builds new [MaskFilter] with GreaterThan operand
+    /// from following [FilterItem] description
+    pub fn greater_than(item: &str) -> Result<Self, ItemError> {
+        let item = FilterItem::from_str(item)?;
+        Ok(Self::mask(MaskOperand::GreaterThan, item))
+    }
+    /// Builds new [MaskFilter] with GreaterEquals operand
+    /// from following [FilterItem] description
+    pub fn greater_equals(item: &str) -> Result<Self, ItemError> {
+        let item = FilterItem::from_str(item)?;
+        Ok(Self::mask(MaskOperand::GreaterEquals, item))
+    }
+    /// Builds new [MaskFilter] with LowerEquals operand
+    /// from following [FilterItem] description
+    pub fn lower_equals(item: &str) -> Result<Self, ItemError> {
+        let item = FilterItem::from_str(item)?;
+        Ok(Self::mask(MaskOperand::LowerEquals, item))
+    }
+    /// Builds new [MaskFilter] with LowerThan operand
+    /// from following [FilterItem] description
+    pub fn lower_than(item: &str) -> Result<Self, ItemError> {
+        let item = FilterItem::from_str(item)?;
+        Ok(Self::mask(MaskOperand::LowerThan, item))
     }
 }
 

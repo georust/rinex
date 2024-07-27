@@ -100,6 +100,10 @@ pub mod prelude {
     #[cfg(feature = "nav")]
     pub use hifitime::ut1::DeltaTaiUt1;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
+    #[cfg(feature = "processing")]
+    pub use qc_traits::processing::{
+        Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
+    };
 }
 
 /// Package dedicated to file production.
@@ -3041,14 +3045,18 @@ impl Rinex {
     /// Returns true if rain was detected during this time frame.
     /// ```
     /// use std::str::FromStr;
-    /// use rinex::{filter, Rinex};
-    /// use rinex::preprocessing::*; // .filter()
+    /// use rinex::prelude::*;
+    /// use rinex::prelude::Preprocessing; // only on "processing" feature
+    ///
+    /// // parse a RINEX
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
-    /// // cropping time frame requires the "processing" feature
-    /// let rinex = rinex
-    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
-    ///                 .filter(filter!(" < 2015-01-01T20:00:00 UTC"));
+    ///
+    /// // only on "processing" feature
+    /// let morning = Filter::lower_than("2015-01-01T12:00:00 UTC")
+    ///     .unwrap();
+    ///
+    /// let rinex = rinex.filter(&morning);
     /// assert_eq!(rinex.rain_detected(), false);
     /// ```
     pub fn rain_detected(&self) -> bool {
@@ -3062,14 +3070,18 @@ impl Rinex {
     /// Returns total accumulated rain in tenth of mm, within this time frame
     /// ```
     /// use std::str::FromStr;
-    /// use rinex::{filter, Rinex};
-    /// use rinex::preprocessing::*; // .filter()
+    /// use rinex::prelude::*;
+    /// use rinex::prelude::Preprocessing; // only on "processing" feature
+    ///
+    /// // parse a RINEX
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
-    /// // cropping time frame requires the "processing" feature
-    /// let rinex = rinex
-    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
-    ///                 .filter(filter!(" < 2015-01-01T19:30:00 UTC"));
+    ///
+    /// // only when built with "processing" feature
+    /// let afternoon = Filter::greater_than("2015-01-01T12:00:00 UTC")
+    ///     .unwrap();
+    ///
+    /// let rinex = rinex.filter(&afternoon);
     /// assert_eq!(rinex.accumulated_rain(), 0.0);
     /// assert_eq!(rinex.rain_detected(), false);
     /// ```
@@ -3088,15 +3100,20 @@ impl Rinex {
     /// Returns true if hail was detected during this time frame
     /// ```
     /// use std::str::FromStr;
-    /// use rinex::{filter, Rinex};
-    /// use rinex::preprocessing::*; // .filter()
-    /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    /// use rinex::prelude::*;
+    /// use rinex::prelude::Preprocessing; // only on "processing" feature
+    ///
+    /// // parse a RINEX
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
-    /// // cropping time frame requires the "processing" feature
-    /// let rinex = rinex
-    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
-    ///                 .filter(filter!(" < 2015-01-01T20:00:00 UTC"));
-    /// assert_eq!(rinex.hail_detected(), false);
+    ///
+    /// // only when built with "processing" feature
+    /// let morning = Filter::lower_than("2015-01-01T12:00:00 UTC")
+    ///     .unwrap();
+    ///
+    /// let rinex = rinex.filter(&morning);
+    /// assert_eq!(rinex.accumulated_rain(), 0.0);
+    /// assert_eq!(rinex.rain_detected(), false);
     /// ```
     pub fn hail_detected(&self) -> bool {
         if let Some(r) = self.record.as_meteo() {

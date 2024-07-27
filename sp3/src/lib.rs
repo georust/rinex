@@ -57,8 +57,8 @@ use std::path::Path;
 type Vector3D = (f64, f64, f64);
 
 pub mod prelude {
-    pub use crate::version::Version;
-    pub use crate::{DataType, OrbitType, SP3};
+    pub use crate::{version::Version, DataType, Error, OrbitType, SP3};
+    // Pub re-export
     pub use gnss::prelude::{Constellation, SV};
     pub use hifitime::{Duration, Epoch, TimeScale};
 }

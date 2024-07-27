@@ -276,15 +276,9 @@ impl ConstellationPage {
                     observables.push(observable.clone());
                 }
             }
-            let filter = Filter::mask(
-                MaskOperand::Equals,
-                FilterItem::ComplexItem(
-                    observables
-                        .iter()
-                        .map(|ob| ob.to_string())
-                        .collect::<Vec<_>>(),
-                ),
-            );
+            let filter =
+                Filter::equals(&observables.iter().map(|ob| ob.to_string()).join(", ")).unwrap();
+            panic!("{:?} freq filter: {:#?}", carrier, filter);
             let focused = rinex.filter(&filter);
             FrequencyPage::new(&focused);
             frequencies.insert(format!("{:?}", carrier), FrequencyPage::new(&focused));
