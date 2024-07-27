@@ -13,7 +13,7 @@ cd georust-rinex
 cargo build --release --all-features
 
 # Now try one of the survey scripts, for example:
-./tutorials/GAL/mojdnk-cpp.sh
+./tutorials/GAL/mojdnk.sh
 ```
 
 RINEX-Cli and other applications will generate logs but we do not store them in the following examples.
@@ -27,8 +27,8 @@ positioning techniques.
 Most scripts are sorted by constellation being used in the navigation/surveying or analysis process, either
 single or a combination of constellations might be used, possibly GEO or SBAS service too.
 
-When we say BRDC, it emphasizes _real time_ surveying based solely on radio messages, 
-as opposed to _post-processed_ surveying which uses higher accuracy products and exhibits better results.
+`-brdc` emphasizes _real time_ surveying using radio messages, as opposed to _post-processed_ 
+surveying, that exhibits higher accuracy.
 
 `-qc-sum` scripts will only generate a summary report (shortened). The summary
 (quicker) report is typically used along other opmodes (like `ppp`) when solely focused on post processing,
