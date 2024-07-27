@@ -10,8 +10,8 @@ mod positioning;
 mod preprocessing;
 use preprocessing::preprocess;
 
-mod qc;
-use qc::Report;
+mod report;
+use report::Report;
 
 use rinex_qc::prelude::{QcContext, QcExtraPage};
 use std::path::Path;

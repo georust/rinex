@@ -6,6 +6,9 @@ use std::{
     io::Write,
 };
 
+mod div;
+use div::find as find_div;
+
 use crate::cli::{Cli, Context};
 
 use rinex_qc::prelude::{QcConfig, QcExtraPage, QcReport, Render};
@@ -82,6 +85,9 @@ impl Report {
                         panic!("report customization failure");
                     }
                 } else {
+                    // add navigation tab
+                    let new_tab = page.tab.render().into_string();
+
                     let pat = format!(
                         "<div id=\"extra-chapters\" class=\"container\" style=\"display:block\">"
                     );
