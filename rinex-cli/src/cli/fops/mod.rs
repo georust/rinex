@@ -40,8 +40,9 @@ the input compression. Use this to bypass."),
         Arg::new("csv")
             .long("csv")
             .action(ArgAction::SetTrue)
-            .help("Extract dataset and generate as CSV instead of RINEX/SP3.
-Use this when targetting third party tools."),
+            .help("Extract dataset and generate as CSV instead of RINEX.
+Use this when targetting third party tools.
+Only applies to Observation / Meteo RINEX files"),
         Arg::new("agency")
             .short('a')
             .long("agency")
