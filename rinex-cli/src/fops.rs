@@ -157,6 +157,18 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 .ok_or(Error::MissingNavigationRinex)?;
             rinex_a.merge(&rinex_b)?
         },
+        RinexType::MeteoData => {
+            let rinex_a = ctx_data.meteo().ok_or(Error::MissingMeteoRinex)?;
+            rinex_a.merge(&rinex_b)?
+        },
+        RinexType::IonosphereMaps => {
+            let rinex_a = ctx_data.ionex().ok_or(Error::MissingIONEX)?;
+            rinex_a.merge(&rinex_b)?
+        },
+        RinexType::ClockData => {
+            let rinex_a = ctx_data.clock().ok_or(Error::MissingClockRinex)?;
+            rinex_a.merge(&rinex_b)?
+        },
         _ => unimplemented!(),
     };
 

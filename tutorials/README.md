@@ -58,6 +58,9 @@ Other file operations like RINEX files management is also demonstrated.
   - Esbjerg and Mojn (DNK): close range observations
 - [Meteo observations exploitation](./METEO)
   - Complete modern Meteo observations (QC)
-- [Time binning: time reframing examples](./TBIN)
+- [Batch Time binning](./TBIN)
   - Esbjerg (24h/DNK) station observations
   - SP3 time binning
+- [Batch splitting](./SPLIT)
+  - Esbjerg (24h/DNK) station observations
+  - SP3 batch splitting

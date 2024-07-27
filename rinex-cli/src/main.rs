@@ -44,6 +44,12 @@ pub enum Error {
     MissingObservationRinex,
     #[error("missing (BRDC) NAV RINEX")]
     MissingNavigationRinex,
+    #[error("missing IONEX")]
+    MissingIONEX,
+    #[error("missing Meteo RINEX")]
+    MissingMeteoRinex,
+    #[error("missing Clock RINEX")]
+    MissingClockRinex,
     #[error("merge ops failure")]
     MergeError(#[from] rinex::merge::Error),
     #[error("split ops failure")]
