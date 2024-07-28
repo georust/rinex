@@ -7,16 +7,13 @@ use std::collections::HashMap;
 use crate::report::shared::SamplingReport;
 use crate::report::Error;
 
-#[cfg(feature = "plot")]
 use crate::plot::{MarkerSymbol, Mode, Plot, Visible};
 
 /// [ClockPage] per [Constellation]
 struct ConstellPage {
     /// satellites
     satellites: Vec<SV>,
-    #[cfg(feature = "plot")]
     offset_plot: Plot,
-    #[cfg(feature = "plot")]
     drift_plot: Plot,
 }
 
@@ -25,7 +22,6 @@ impl ConstellPage {
         let satellites = rinex.sv().collect::<Vec<_>>();
 
         Self {
-            #[cfg(feature = "plot")]
             offset_plot: {
                 let mut plot =
                     Plot::timedomain_plot("clock_offset", "Clock Offset", "Offset [s]", true);
@@ -65,7 +61,6 @@ impl ConstellPage {
                 }
                 plot
             },
-            #[cfg(feature = "plot")]
             drift_plot: {
                 let mut plot =
                     Plot::timedomain_plot("clock_drift", "Clock Drift", "Drift [s/s]", true);

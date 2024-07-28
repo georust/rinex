@@ -3,7 +3,6 @@ use itertools::Itertools;
 use maud::{html, Markup, Render};
 use std::collections::HashMap;
 
-#[cfg(feature = "plot")]
 use crate::plot::Plot;
 
 use rinex::{
@@ -15,7 +14,6 @@ struct SignalPage {
     /// Sampling
     sampling: SamplingReport,
     /// one plot per physics
-    #[cfg(feature = "plot")]
     raw_plots: HashMap<Observable, Plot>,
 }
 

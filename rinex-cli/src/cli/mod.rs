@@ -195,7 +195,6 @@ Use this option to also calculate it from radio messages (for comparison purpose
 This has no effect on applications compiled without plot and statistical options.")
         )
         .next_help_heading("Preprocessing")
-            .about("Preprocessing todo")
             .arg(Arg::new("gps-filter")
                 .short('G')
                 .action(ArgAction::SetTrue)

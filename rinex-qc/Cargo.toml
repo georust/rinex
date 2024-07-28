@@ -21,9 +21,9 @@ default = [] # no features by default
 sp3 = ["dep:sp3"]
 
 # Unlock graphical analysis (plots rendering), otherwise reports are solely text based
-plot = [
-    "dep:plotly", 
-]
+# plot = [
+#     "dep:plotly", 
+# ]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -41,7 +41,7 @@ statrs = { version = "0.16", optional = true }
 
 # plotly = { version = "0.9", optional = true }
 # plotly = { path = "../../plotly-rs/plotly", optional = true }
-plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo", optional = true }
+plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
 
 hifitime = "4.0.0-alpha"
 gnss-rs = { version = "2.2.0", features = ["serde"] }
@@ -49,7 +49,7 @@ gnss-rs = { version = "2.2.0", features = ["serde"] }
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", features = ["processing"] }
 
-sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde"], optional = true }
+sp3 = { path = "../sp3", version = "=1.0.8", features = ["qc", "processing", "serde"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"

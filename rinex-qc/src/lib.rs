@@ -7,7 +7,6 @@ extern crate rinex_qc_traits as qc_traits;
 
 mod cfg;
 
-#[cfg(feature = "plot")]
 pub mod plot;
 
 mod context;
@@ -20,7 +19,6 @@ pub mod prelude {
         report::{QcExtraPage, QcReport},
     };
     // Pub re-export
-    #[cfg(feature = "plot")]
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use maud::{html, Markup, Render};
     pub use qc_traits::processing::{Filter, Preprocessing};
