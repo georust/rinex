@@ -1,6 +1,7 @@
 #!/bin/sh
 # Post processing:  
 #  +3 week surveying of this lab station
+# Compare this to real time (BRDC)
 
 # Comment out one step to remove it from the synthesized report.
 # Change the configuration to modify the navigation setup.

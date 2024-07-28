@@ -1,20 +1,18 @@
 #!/bin/sh
-# Real time surveying (BRDC)
-# Compare this to post processed +3weeks
-DATA_DIR=test_resources
+# Real time survey (BRDC)
+# Compare this to post processed (+3weeks)
 
 # Comment out one step to remove it from the synthesized report.
 # Change the configuration to modify the navigation setup.
 DATA_DIR=test_resources
 
 # Example: 
-#  Gal PRN>09
-#  Skip 1st hour
-#  E1 or E5 PR
-FILTER="Gal;>E09;C1C,C5Q"
+#  GPS PRN>09
+#  L1 or L5 PR
+FILTER="GPS;>G09;C1C,C5Q"
 # Skip 1st hour (example)
 TIMEFRAME=">2020-06-25T01:00:00 UTC"
-CONF=tutorials/config/survey/cpp_kf.json
+CONF=tutorials/config/survey/cpp_kf.json # pseudo-range(L1/L5); filter:kalman
 
 # Analysis + ppp solutions (silent)
 ./target/release/rinex-cli \
