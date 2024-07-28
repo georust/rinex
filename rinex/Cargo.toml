@@ -23,7 +23,7 @@ obs = []
 # Unlocks BRDC calculations, including Keplerian calculations (Ephemeris),
 # all NAV RINEX iteration and exploitation, including Ut1Provider.
 nav = [
-    "dep:nalgebra",
+    "nalgebra",
     "hifitime/ut1",
 ]
 
@@ -105,10 +105,10 @@ flate2 = { version = "1.0.24", optional = true, default-features = false, featur
 geo = { version = "0.28", optional = true }
 wkt = { version = "0.10.0", default-features = false, optional = true }
 
-anise = "0.4.1"
+# anise = "0.4.1"
+nalgebra = { version = "0.32.3", optional = true }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
-nalgebra = { version = "0.32.3", optional = true }
 gnss-rs = { version = "2.2.0", features = ["serde"] }
 
 # RINEX QC dedicated traits
