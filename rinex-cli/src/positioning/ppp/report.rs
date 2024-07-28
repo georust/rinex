@@ -201,7 +201,7 @@ impl Summary {
         rx_ecef: (f64, f64, f64),
     ) -> Self {
         let (x0, y0, z0) = rx_ecef;
-        let (lat0_rad, lon0_rad, alt0_m) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
+        //let (lat0_rad, lon0_rad, alt0_m) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
 
         let mut timescale = TimeScale::default();
         let (mut first_epoch, mut last_epoch) = (Epoch::default(), Epoch::default());
@@ -285,8 +285,8 @@ struct ReportContent {
     dop_plot: Plot,
     /// TDOP
     tdop_plot: Plot,
-    /// NAVI
-    navi_plot: Plot,
+    // /// NAVI
+    // navi_plot: Plot,
     /// tropod
     tropod_plot: Plot,
     /// ionod
@@ -610,7 +610,7 @@ impl ReportContent {
                     .map(|(_, sol)| sol.dt.to_seconds())
                     .collect::<Vec<_>>();
 
-                let mut trace = Plot::timedomain_chart(
+                let trace = Plot::timedomain_chart(
                     "offset",
                     Mode::Markers,
                     MarkerSymbol::Cross,
@@ -687,10 +687,10 @@ impl ReportContent {
                 plot.add_trace(trace);
                 plot
             },
-            navi_plot: {
-                let mut plot = Plot::timedomain_plot("navi_plot", "NAVI Plot", "Error [m]", true);
-                plot
-            },
+            //navi_plot: {
+            //    let plot = Plot::timedomain_plot("navi_plot", "NAVI Plot", "Error [m]", true);
+            //    plot
+            //},
             summary,
         }
     }
@@ -718,14 +718,14 @@ impl Render for ReportContent {
                                 (self.map_proj.render())
                             }
                         }
-                        tr {
-                            th class="is-info" {
-                                "NAVI Plot"
-                            }
-                            td {
-                                (self.navi_plot.render())
-                            }
-                        }
+                        //tr {
+                        //    th class="is-info" {
+                        //        "NAVI Plot"
+                        //    }
+                        //    td {
+                        //        (self.navi_plot.render())
+                        //    }
+                        //}
                         tr {
                             th class="is-info" {
                                 button aria-label="SV Contribution over time" data-balloon-pos="right" {

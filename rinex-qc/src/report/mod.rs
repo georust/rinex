@@ -28,17 +28,6 @@ mod sp3;
 #[cfg(feature = "sp3")]
 use sp3::SP3Report;
 
-pub(crate) fn tooltipped(text: &str, hover: &str) -> Markup {
-    html! {
-        div class="tooltip" {
-            span class="tooltiptext" {
-                (hover)
-            }
-            (text)
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("non supported RINEX format")]
@@ -144,22 +133,6 @@ impl Render for ProductReport {
     }
 }
 
-impl ProductReport {
-    pub fn as_rinex(&self) -> Option<&RINEXReport> {
-        match self {
-            Self::RINEX(report) => Some(report),
-            _ => None,
-        }
-    }
-    #[cfg(feature = "sp3")]
-    pub fn as_sp3(&self) -> Option<&SP3Report> {
-        match self {
-            Self::SP3(report) => Some(report),
-            _ => None,
-        }
-    }
-}
-
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
     /// tab for pagination
@@ -172,9 +145,6 @@ pub struct QcExtraPage {
 
 /// [QcReport] is a generic structure to report complex analysis results
 pub struct QcReport {
-    /// Name of this report.
-    /// Currently, the report is named after the primary input product.
-    name: String,
     /// Report Summary (always present)
     summary: QcSummary,
     // /// Preprocessed NAVI (only when compatible)
@@ -195,7 +165,6 @@ impl QcReport {
         let summary = QcSummary::new(&context, &cfg);
         let summary_only = cfg.report == QcReportType::Summary;
         Self {
-            name: context.name(),
             custom_chapters: Vec::new(),
             // navi: {
             //    if summary.navi.nav_compatible && !summary_only {

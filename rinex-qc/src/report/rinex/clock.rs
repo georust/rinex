@@ -230,7 +230,7 @@ impl Render for ClkReport {
                         }
                         @if let Some(site) = &self.site {
                             tr {
-                                th {
+                                th class="is-info" {
                                     "Clock Site"
                                 }
                                 td {
@@ -240,7 +240,7 @@ impl Render for ClkReport {
                         }
                         @if let Some(domes) = &self.domes {
                             tr {
-                                th {
+                                th class="is-info" {
                                     "DOMES #ID"
                                 }
                                 td {
@@ -248,9 +248,17 @@ impl Render for ClkReport {
                                 }
                             }
                         }
+                        tr {
+                            th class="is-info" {
+                                "Clock Profiles"
+                            }
+                            td {
+                                (self.codes.iter().join(", "))
+                            }
+                        }
                         @if let Some(ref_clk) = &self.ref_clock {
                             tr {
-                                th {
+                                th class="is-info" {
                                     "Reference Clock"
                                 }
                                 td {
@@ -260,7 +268,7 @@ impl Render for ClkReport {
                         }
                         @if let Some(igs_name) = &self.igs_clock_name {
                             tr {
-                                th {
+                                th class="is-info" {
                                     "IGS Clock Name"
                                 }
                                 td {
@@ -270,7 +278,7 @@ impl Render for ClkReport {
                         }
                         @if let Some(timescale) = self.timescale {
                             tr {
-                                th {
+                                th class="is-info" {
                                     button aria-label="Timescale in which Clock states are expressed.
         In PPP context, this should be identical to your Observation RINEX for optimal precision." data-balloon-pos="right" {
                                         "Timescale"

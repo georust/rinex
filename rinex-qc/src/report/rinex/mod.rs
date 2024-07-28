@@ -54,28 +54,4 @@ impl RINEXReport {
             Self::Ionex(report) => report.html_inline_menu_bar(),
         }
     }
-    pub fn as_obs(&self) -> Option<&ObsReport> {
-        match self {
-            Self::Obs(report) => Some(report),
-            _ => None,
-        }
-    }
-    pub fn as_nav(&self) -> Option<&NavReport> {
-        match self {
-            Self::Nav(report) => Some(report),
-            _ => None,
-        }
-    }
-    pub fn as_meteo(&self) -> Option<&MeteoReport> {
-        match self {
-            Self::Meteo(report) => Some(report),
-            _ => None,
-        }
-    }
-    pub fn as_clk(&self) -> Option<&ClkReport> {
-        match self {
-            Self::Clk(report) => Some(report),
-            _ => None,
-        }
-    }
 }

@@ -3,7 +3,7 @@ use crate::Error;
 use clap::ArgMatches;
 
 use std::path::PathBuf;
-use std::str::FromStr;
+//use std::str::FromStr;
 
 use rinex::{
     prelude::{Duration, Epoch, Rinex, RinexType},

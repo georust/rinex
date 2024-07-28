@@ -182,7 +182,7 @@ pub(crate) fn doris_mask_mut(rec: &mut Record, mask: &MaskFilter) {
     match mask.operand {
         MaskOperand::Equals => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e == *epoch),
-            FilterItem::ComplexItem(filter) => {
+            FilterItem::ComplexItem(_filter) => {
                 //rec.retain(|_, stations| {
                 //    stations.retain(|_, obs| {
                 //        obs.retain(|code, _| filter.contains(code));
@@ -195,7 +195,7 @@ pub(crate) fn doris_mask_mut(rec: &mut Record, mask: &MaskFilter) {
         },
         MaskOperand::NotEquals => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e != *epoch),
-            FilterItem::ComplexItem(filter) => {
+            FilterItem::ComplexItem(_filter) => {
                 //rec.retain(|_, stations| {
                 //    stations.retain(|_, obs| {
                 //        obs.retain(|code, _| !filter.contains(code));

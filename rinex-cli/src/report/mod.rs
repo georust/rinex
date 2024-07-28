@@ -3,7 +3,8 @@ use log::{error, info, warn};
 
 use std::{
     fs::{read_to_string, File},
-    io::{Read, Write},
+    io::Write,
+    //io::Read,
 };
 
 use crate::cli::{Cli, Context};

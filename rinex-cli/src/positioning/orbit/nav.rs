@@ -67,13 +67,15 @@ impl<'a> Orbit<'a> {
         let output = match self.buffer.get(&sv) {
             Some(eph) => {
                 if sv.constellation.is_sbas() {
-                    let (toc_i, eph_i) = eph
-                        .iter()
-                        .filter(|(toc_i, _)| *toc_i < t)
-                        .min_by_key(|(toc_i, _)| (*toc_i - t).abs())?;
+                    let (_toc_i, eph_i) = eph.iter().filter(|(toc_i, _)| *toc_i < t).min_by_key(
+                        |(_toc_i, eph_i)| {
+                            let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
+                            t - toe_i
+                        },
+                    )?;
 
-                    let t_gpst = t.to_time_scale(TimeScale::GPST).duration.to_seconds();
-                    let toc_gpst = toc_i.to_time_scale(TimeScale::GPST).duration.to_seconds();
+                    //let t_gpst = t.to_time_scale(TimeScale::GPST).duration.to_seconds();
+                    // let toc_gpst = toc_i.to_time_scale(TimeScale::GPST).duration.to_seconds();
                     //let dt = t_gpst - toc_gpst;
 
                     let (x, y, z) = (
@@ -109,8 +111,7 @@ impl<'a> Orbit<'a> {
                     Some(RTKInterpolationResult::from_position((x, y, z)))
                 } else {
                     let (_, eph_i) = eph.iter().filter(|(toc_i, _)| *toc_i < t).min_by_key(
-                        |(toc_i, eph_i)| {
-                            //(*toc_i - t).abs()
+                        |(_toc_i, eph_i)| {
                             let toe_i = eph_i.toe_gpst(sv_ts).unwrap();
                             t - toe_i
                         },

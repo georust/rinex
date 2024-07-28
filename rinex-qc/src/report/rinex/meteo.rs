@@ -65,7 +65,6 @@ impl Render for WindDirectionReport {
 }
 
 struct SinglePlotReport {
-    observable: String,
     plot: Plot,
 }
 
@@ -168,10 +167,7 @@ impl MeteoPage {
                 data_y,
             );
             plot.add_trace(trace);
-            let report = SinglePlotReport {
-                observable: observable.to_string(),
-                plot,
-            };
+            let report = SinglePlotReport { plot };
             Self {
                 sampling: SamplingReport::from_rinex(rnx),
                 inner: ObservableDependent::SinglePlot(report),

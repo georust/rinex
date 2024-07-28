@@ -62,7 +62,7 @@ pub fn rtk_carrier_cast(carrier: RTKCarrier) -> Carrier {
         RTKCarrier::B2A => Carrier::B2A,
         RTKCarrier::B2iB2b => Carrier::B2I,
         RTKCarrier::B1aB1c => Carrier::B1A,
-        RTKCarrier::L1 | _ => Carrier::L1,
+        RTKCarrier::L1 => Carrier::L1,
     }
 }
 

@@ -75,7 +75,7 @@ pub struct Plot {
 impl Render for Plot {
     fn render(&self) -> Markup {
         html! {
-            div {
+            div id=(&self.plot_id) {
                 (PreEscaped (self.plotly.to_inline_html(None)))
             }
         }

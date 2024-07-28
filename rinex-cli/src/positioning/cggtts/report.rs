@@ -143,7 +143,7 @@ struct ReportContent {
 
 impl ReportContent {
     pub fn new(ctx: &Context, solutions: &Vec<Track>) -> Self {
-        let epochs = solutions.iter().map(|trk| trk.epoch).collect::<Vec<_>>();
+        //let epochs = solutions.iter().map(|trk| trk.epoch).collect::<Vec<_>>();
         let summary = Summary::new(ctx, solutions);
         Self {
             sv_plot: {
@@ -198,7 +198,7 @@ impl ReportContent {
                 plot
             },
             ionod_plot: {
-                let mut plot =
+                let plot =
                     Plot::timedomain_plot("ionod_plot", "Ionospheric Delay", "Error [m]", true);
                 plot
             },
@@ -288,7 +288,7 @@ impl ReportContent {
                 plot
             },
             sky_plot: {
-                let mut plot = Plot::sky_plot("sky_plot", "Sky Plot", true);
+                let plot = Plot::sky_plot("sky_plot", "Sky Plot", true);
                 plot
             },
             summary,

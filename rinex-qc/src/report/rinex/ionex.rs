@@ -3,10 +3,8 @@ use maud::{html, Markup, Render};
 use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
-#[cfg(feature = "plot")]
 use crate::plot::{MapboxStyle, Plot, Visible};
 
-#[cfg(feature = "plot")]
 use plotly::{
     layout::update_menu::{Button, ButtonBuilder},
     DensityMapbox,
@@ -21,7 +19,6 @@ pub struct IonexReport {
     reference: Reference,
     description: Option<String>,
     mapping: Option<MappingFunction>,
-    #[cfg(feature = "plot")]
     world_map: Plot,
 }
 
@@ -38,7 +35,6 @@ impl IonexReport {
             reference: header.reference.clone(),
             description: header.description.clone(),
             sampling_interval: rnx.dominant_sample_rate().ok_or(Error::SamplingAnalysis)?,
-            #[cfg(feature = "plot")]
             world_map: {
                 let mut plot = Plot::world_map(
                     "ionex_tec",
@@ -155,7 +151,7 @@ impl Render for IonexReport {
                     }
                 }
                 tr {
-                    th {
+                    th class="is-info" {
                         "Number of Maps"
                     }
                     td {
@@ -163,7 +159,15 @@ impl Render for IonexReport {
                     }
                 }
                 tr {
-                    th {
+                    th class="is-info" {
+                        "Time Interval"
+                    }
+                    td {
+                        (self.sampling_interval.to_string())
+                    }
+                }
+                tr {
+                    th class="is-info" {
                         "Epoch of first map"
                     }
                     td {
@@ -171,7 +175,7 @@ impl Render for IonexReport {
                     }
                 }
                 tr {
-                    th {
+                    th class="is-info" {
                         "Epoch of Last map"
                     }
                     td {
@@ -179,7 +183,7 @@ impl Render for IonexReport {
                     }
                 }
                 tr {
-                    th {
+                    th class="is-info" {
                         "Reference"
                     }
                     td {
@@ -188,7 +192,7 @@ impl Render for IonexReport {
                 }
                 @if let Some(desc) = &self.description {
                     tr {
-                        th {
+                        th class="is-info" {
                             "Description"
                         }
                         td {
@@ -198,7 +202,7 @@ impl Render for IonexReport {
                 }
                 @if let Some(mapf) = &self.mapping {
                     tr {
-                        th {
+                        th class="is-info" {
                             button aria-label="Mapping function used in TEC map evaluation" data-balloon-pos="right" {
                                 "Mapping function"
                             }
@@ -209,7 +213,7 @@ impl Render for IonexReport {
                     }
                 }
                 tr {
-                    th {
+                    th class="is-info" {
                         "TEC Map"
                     }
                 }

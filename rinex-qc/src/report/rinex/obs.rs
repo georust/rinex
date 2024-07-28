@@ -9,13 +9,11 @@ use rinex::{
     prelude::{Constellation, Duration, Epoch, Observable, Rinex, SV},
 };
 
-use crate::report::shared::{EpochSlider, SamplingReport};
+use crate::report::shared::SamplingReport;
 
-#[cfg(feature = "plot")]
 use crate::plot::{MarkerSymbol, Mode, Plot};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg(feature = "plot")]
 enum Physics {
     SSI,
     Doppler,
@@ -23,7 +21,6 @@ enum Physics {
     PseudoRange,
 }
 
-#[cfg(feature = "plot")]
 impl Physics {
     pub fn from_observable(observable: &Observable) -> Self {
         if observable.is_phase_observable() {
@@ -69,13 +66,10 @@ struct FrequencyPage {
     total_ppp_epochs: usize,
     /// Sampling
     sampling: SamplingReport,
-    #[cfg(feature = "plot")]
     /// One plot per physics
     raw_plots: HashMap<Physics, Plot>,
-    #[cfg(feature = "plot")]
     /// One plot per combination,
     combination_plots: HashMap<Combination, Plot>,
-    #[cfg(feature = "plot")]
     /// Code Multipath
     multipath_plot: Plot,
 }
@@ -105,11 +99,8 @@ impl FrequencyPage {
             total_cpp_epochs,
             total_spp_epochs,
             total_ppp_epochs,
-            #[cfg(feature = "plot")]
             combination_plots: HashMap::new(),
-            #[cfg(feature = "plot")]
             multipath_plot: Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true),
-            #[cfg(feature = "plot")]
             raw_plots: {
                 let mut plots = HashMap::<Physics, Plot>::new();
                 let svnn = rinex.sv().collect::<Vec<_>>();
@@ -240,14 +231,10 @@ impl Render for FrequencyPage {
 
 /// Constellation dependent pagination
 struct ConstellationPage {
-    /// List of SV
-    sv: Vec<SV>,
-    /// First epoch
-    first_epoch: Epoch,
-    /// Last epoch
-    last_epoch: Epoch,
-    /// Timeframe
-    duration: Duration,
+    /// Satellites
+    satellites: Vec<SV>,
+    /// sampling
+    sampling: SamplingReport,
     /// True if Standard Positioning compatible
     spp_compatible: bool,
     /// True if Code Dual Frequency Positioning compatible
@@ -265,9 +252,8 @@ impl ConstellationPage {
         let mut spp_compatible = false; // TODO
         let mut cpp_compatible = false; // TODO
         let mut ppp_compatible = false; // TODO
-        let sv_list = rinex.sv().collect::<Vec<_>>();
-        let first_epoch = rinex.first_epoch().unwrap_or_default();
-        let last_epoch = rinex.last_epoch().unwrap_or_default();
+        let satellites = rinex.sv().collect::<Vec<_>>();
+        let sampling = SamplingReport::from_rinex(rinex);
         let mut frequencies = HashMap::<String, FrequencyPage>::new();
         for carrier in rinex.carrier().sorted() {
             let mut observables = Vec::<Observable>::new();
@@ -288,15 +274,13 @@ impl ConstellationPage {
             }
         }
         Self {
-            sv: sv_list,
+            satellites,
+            sampling,
             frequencies,
             spp_compatible,
             cpp_compatible,
             ppp_compatible,
             sv_epoch: rinex.sv_epoch().collect(),
-            first_epoch,
-            last_epoch,
-            duration: last_epoch - first_epoch,
         }
     }
 }
@@ -368,22 +352,15 @@ impl Render for ConstellationPage {
                                 }
                             }
                             td {
-                                (self.sv.iter().unique().sorted().join(", "))
+                                (self.satellites.iter().unique().sorted().join(", "))
                             }
                         }
-                        @if !self.sv_epoch.is_empty() {
-                            @let slider = EpochSlider::new(
-                                self.first_epoch,
-                                self.last_epoch,
-                                self.duration,
-                            );
-                            tr {
-                                th {
-                                    (slider.render())
-                                }
-                                td id="sv_epoch" {
-                                    (self.sv_epoch.get(&self.first_epoch).unwrap().iter().join(", "))
-                                }
+                        tr {
+                            th class="is-info" {
+                                "Sampling"
+                            }
+                            td {
+                                (self.sampling.render())
                             }
                         }
                         tr {
@@ -417,10 +394,9 @@ impl Render for ConstellationPage {
 pub struct Report {
     antenna: Option<Antenna>,
     receiver: Option<Receiver>,
+    clock_plot: Plot,
     sampling: SamplingReport,
     constellations: HashMap<String, ConstellationPage>,
-    #[cfg(feature = "plot")]
-    clock_plot: Plot,
 }
 
 impl Report {
@@ -459,7 +435,6 @@ impl Report {
             } else {
                 None
             },
-            #[cfg(feature = "plot")]
             clock_plot: {
                 let mut plot = Plot::timedomain_plot("rx_clock", "Clock offset", "Second", true);
                 plot
