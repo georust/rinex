@@ -2356,7 +2356,7 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         let almanac_clone = almanac.clone();
         Box::new(self.ephemeris().filter_map(move |(e, (_, sv, ephemeris))| {
-            if let Some((x, y, z)) = ephemeris.sv_position(sv, *e, &almanac_clone) {
+            if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
                 Some((*e, sv, (x, y, z)))
             } else {
                 // non feasible calculations.
@@ -2554,8 +2554,7 @@ impl Rinex {
         Box::new(
             self.ephemeris()
                 .filter_map(move |(epoch, (_, sv, ephemeris))| {
-                    if let Some((elev, azim)) =
-                        ephemeris.sv_elev_azim(sv, *epoch, ground_position, &almanac_clone)
+                    if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position)
                     {
                         Some((*epoch, sv, (elev, azim)))
                     } else {
