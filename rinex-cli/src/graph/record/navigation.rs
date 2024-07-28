@@ -1,5 +1,4 @@
 use crate::graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext};
-use anise::almanac::Almanac;
 use plotly::common::{Mode, Visible};
 use rinex::navigation::Ephemeris;
 use rinex::prelude::*;
@@ -370,7 +369,6 @@ fn plot_system_time(
 pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
     let mut pos_plot_created = false;
     let mut nav_sv = Vec::<SV>::with_capacity(32);
-    let almanac = Almanac::until_2035().unwrap();
     /*
      * Plot Broadcast Orbit (x, y, z)
      */
@@ -383,7 +381,7 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                 pos_plot_created = true;
             }
             let epochs: Vec<_> = nav
-                .sv_position(&almanac)
+                .sv_position()
                 .filter_map(
                     |(epoch, svnn, (_, _, _))| {
                         if svnn == sv {
@@ -396,7 +394,7 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                 .collect();
 
             let x_km: Vec<_> = nav
-                .sv_position(&almanac)
+                .sv_position()
                 .filter_map(
                     |(_epoch, svnn, (x, _, _))| {
                         if svnn == sv {
@@ -408,7 +406,7 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                 )
                 .collect();
             let y_km: Vec<_> = nav
-                .sv_position(&almanac)
+                .sv_position()
                 .filter_map(
                     |(_epoch, svnn, (_, y, _))| {
                         if svnn == sv {
@@ -420,7 +418,7 @@ pub fn plot_sv_nav_orbits(ctx: &RnxContext, plot_ctx: &mut PlotContext) {
                 )
                 .collect();
             let z_km: Vec<_> = nav
-                .sv_position(&almanac)
+                .sv_position()
                 .filter_map(
                     |(_epoch, svnn, (_, _, z))| {
                         if svnn == sv {

@@ -1376,10 +1376,9 @@ mod test {
             let tmin = first_epoch + (order / 2) * dt;
             let tmax = last_epoch - (order / 2) * dt;
             println!("running Interp({}) testbench..", order);
-            for (index, (epoch, sv, (x, y, z))) in rinex.sv_position(&almanac).enumerate() {
+            for (index, (epoch, sv, (x, y, z))) in rinex.sv_position().enumerate() {
                 let feasible = epoch > tmin && epoch <= tmax;
-                let interpolated =
-                    rinex.sv_position_interpolate(sv, epoch, order as usize, &almanac);
+                let interpolated = rinex.sv_position_interpolate(sv, epoch, order as usize);
                 let achieved = interpolated.is_some();
                 //DEBUG
                 println!(

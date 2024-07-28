@@ -1,7 +1,6 @@
 use crate::cli::Context;
 use std::collections::HashMap;
 
-use anise::almanac::Almanac;
 use gnss_rtk::prelude::{Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, SV};
 
 use rinex::navigation::Ephemeris;
@@ -40,12 +39,7 @@ impl<'a> Orbit<'a> {
             false
         }
     }
-    pub fn next_at(
-        &mut self,
-        t: Epoch,
-        sv: SV,
-        almanac: &Almanac,
-    ) -> Option<RTKInterpolationResult> {
+    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
         let sv_ts = sv.timescale()?;
 
         while !self.feasible(t, sv, sv_ts) {

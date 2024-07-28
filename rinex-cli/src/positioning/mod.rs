@@ -3,7 +3,6 @@ use std::cell::RefCell;
 use std::fs::read_to_string;
 
 mod ppp;
-use anise::almanac::Almanac;
 // precise point positioning
 use ppp::post_process as ppp_post_process;
 use ppp::PostProcessingError as PPPPostProcessingError;
@@ -264,13 +263,11 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     // print config to be used
     info!("Using {:?} method", cfg.method);
 
-    let almanac = Almanac::until_2035().unwrap();
-
     let solver = Solver::new(
         &cfg,
         None,
         /* state vector interpolator */
-        |t, sv, _order| orbit.borrow_mut().next_at(t, sv, &almanac),
+        |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
     )?;
 
     if matches.get_flag("cggtts") {

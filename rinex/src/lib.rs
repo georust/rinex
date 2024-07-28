@@ -2355,16 +2355,29 @@ impl Rinex {
         &self,
         // almanac: &Almanac,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        let almanac_clone = almanac.clone();
         Box::new(self.ephemeris().filter_map(move |(e, (_, sv, ephemeris))| {
-            if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
-                Some((*e, sv, (x, y, z)))
-            } else {
-                // non feasible calculations.
-                // most likely due to missing Keplerian parameters,
-                // at this Epoch
-                None
-            }
+            let (x, y, z) = ephemeris.sv_position(sv, *e)?;
+            Some((*e, sv, (x, y, z)))
+        }))
+    }
+    /// Returns Iterator over SV velocity vector, expressed in km/s ECEF.
+    /// ```
+    /// use rinex::prelude::*;
+    ///
+    /// let mut rinex =
+    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///         .unwrap();
+    ///
+    /// for (epoch, sv, (sv_x, sv_y, sv_z)) in rinex.sv_velocity() {
+    ///     // sv_x : km/s
+    ///     // sv_y : km/s
+    ///     // sv_z : km/s
+    /// }
+    /// ```
+    pub fn sv_velocity(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
+        Box::new(self.ephemeris().filter_map(move |(e, (_, sv, ephemeris))| {
+            let (v_x, v_y, v_z) = ephemeris.sv_position_velocity(sv, *e)?.1;
+            Some((*e, sv, (v_x, v_y, v_z)))
         }))
     }
     /// Interpolates SV position, expressed in meters ECEF at desired Epoch `t`.
@@ -2400,7 +2413,7 @@ impl Rinex {
         };
 
         let sv_position: Vec<_> = self
-            .sv_position(almanac)
+            .sv_position()
             .filter_map(|(e, svnn, (x, y, z))| {
                 if sv == svnn {
                     Some((e, (x, y, z)))
@@ -2485,32 +2498,10 @@ impl Rinex {
         &self,
         // almanac: &Almanac,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        Box::new(self.sv_position(almanac).map(|(e, sv, (x, y, z))| {
+        Box::new(self.sv_position().map(|(e, sv, (x, y, z))| {
             let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
             (e, sv, (lat, lon, alt))
         }))
-    }
-    /// Returns Iterator over SV speed vectors, expressed in km/s ECEF.
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///         .unwrap();
-    ///
-    /// //for (epoch, (sv, sv_x, sv_y, sv_z)) in rinex.sv_speed() {
-    /// //    // sv_x : km/s
-    /// //    // sv_y : km/s
-    /// //    // sv_z : km/s
-    /// //}
-    /// ```
-    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        todo!("sv_speed");
-        //Box::new(
-        //    self.sv_position()
-        //    self.sv_position()
-        //        .skip(1)
-        //)
     }
     /// Returns an Iterator over SV elevation and azimuth angles,
     /// both expressed in degrees.
@@ -2552,8 +2543,6 @@ impl Rinex {
                 }
             },
         };
-        // Cloning is cheap
-        let almanac_clone = almanac.clone();
         Box::new(
             self.ephemeris()
                 .filter_map(move |(epoch, (_, sv, ephemeris))| {
