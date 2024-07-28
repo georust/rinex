@@ -13,9 +13,18 @@ edition = "2021"
 [features]
 default = [] # no features by default
 
+# Unlock processing features
+# - Filter designer: design and apply filter ops to GNSS datasets
+processing = [
+    "dep:gnss-rs",
+    "dep:hifitime",
+]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
-horrorshow = "0.8"
+thiserror = "1"
+hifitime = { version = "4.0.0-alpha", optional = true }
+gnss-rs = { version = "2.2", features = ["serde", "domes", "cospar"], optional = true }

@@ -17,7 +17,7 @@ mod test {
         let sp3 = SP3::from_file(&path.to_string_lossy());
         assert!(
             sp3.is_ok(),
-            "failed to parse data/sp3d.txt: {:?}",
+            "failed to parse test_resources/SP3/sp3d.txt: {:?}",
             sp3.err()
         );
 

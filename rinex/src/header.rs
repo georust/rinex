@@ -3,12 +3,11 @@ use crate::{
     antex, clock,
     clock::ClockProfileType,
     clock::WorkClock,
-    cospar::{Error as CosparError, COSPAR},
-    domes::Domes,
     doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
+    epoch::parse_ionex_utc as parse_ionex_utc_epoch,
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
-    hardware::{Antenna, Rcvr, SvAntenna},
+    hardware::{Antenna, Receiver, SvAntenna},
     ionex,
     leap::{Error as LeapParsingError, Leap},
     linspace::{Error as LinspaceError, Linspace},
@@ -23,23 +22,31 @@ use crate::{
     observable::{Observable, ParsingError as ObsParsingError},
     observation,
     observation::{Crinex, HeaderFields as ObservationHeader},
+    prelude::{Constellation, Duration, Epoch, TimeScale, COSPAR, DOMES, SV},
     reader::BufferedReader,
     types::Type,
     version::Version,
-    Constellation, Duration, TimeScale, SV,
 };
 
 use std::collections::HashMap;
 use std::io::prelude::*;
 use std::str::FromStr;
 
-use hifitime::{Epoch, Unit};
+use hifitime::Unit;
 use thiserror::Error;
 
-use gnss::constellation::ParsingError as ConstellationParsingError;
+use gnss_rs::{
+    constellation::ParsingError as ConstellationParsingError, cospar::Error as CosparParsingError,
+};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
+
+#[cfg(feature = "qc")]
+use maud::{html, Markup, Render};
+
+#[cfg(feature = "processing")]
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 /// DCB compensation description
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -114,7 +121,7 @@ pub struct Header {
     pub gps_utc_delta: Option<u32>,
     /// Optionnal Receiver information
     #[cfg_attr(feature = "serde", serde(default))]
-    pub rcvr: Option<Rcvr>,
+    pub rcvr: Option<Receiver>,
     /// Optionnal Receiver Antenna information
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr_antenna: Option<Antenna>,
@@ -168,7 +175,7 @@ pub enum ParsingError {
     #[error("failed to parse leap from \"{0}\"")]
     LeapParsingError(#[from] LeapParsingError),
     #[error("failed to parse antenna / receiver infos")]
-    AntennaRcvrError(#[from] std::io::Error),
+    AntennaReceiverError(#[from] std::io::Error),
     #[error("failed to parse ANTEX fields")]
     AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
@@ -190,7 +197,7 @@ pub enum ParsingError {
     #[error("doris parsing error")]
     DorisError(#[from] DorisError),
     #[error("failed to parse cospar number")]
-    CosparError(#[from] CosparError),
+    CosparParsing(#[from] CosparParsingError),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -250,7 +257,7 @@ impl Header {
         let mut geodetic_marker = Option::<GeodeticMarker>::None;
         let mut cospar = Option::<COSPAR>::None;
         let mut glo_channels: HashMap<SV, i8> = HashMap::new();
-        let mut rcvr: Option<Rcvr> = None;
+        let mut rcvr: Option<Receiver> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<Leap> = None;
@@ -488,7 +495,7 @@ impl Header {
                 observer = obs.trim().to_string();
                 agency = ag.trim().to_string();
             } else if marker.contains("REC # / TYPE / VERS") {
-                if let Ok(receiver) = Rcvr::from_str(content) {
+                if let Ok(receiver) = Receiver::from_str(content) {
                     rcvr = Some(receiver);
                 }
             } else if marker.contains("SYS / PCVS APPLIED") {
@@ -626,7 +633,8 @@ impl Header {
 
                 for sensor in meteo.sensors.iter_mut() {
                     if sensor.observable == observable {
-                        *sensor = sensor.with_position((x, y, z, h))
+                        *sensor = sensor.with_position(GroundPosition::from_ecef_wgs84((x, y, z)));
+                        *sensor = sensor.with_height(h);
                     }
                 }
             } else if marker.contains("LEAP SECOND") {
@@ -839,7 +847,7 @@ impl Header {
             } else if marker.contains("STATION NAME / NUM") {
                 let (name, domes) = content.split_at(4);
                 clock = clock.site(name.trim());
-                if let Ok(domes) = Domes::from_str(domes.trim()) {
+                if let Ok(domes) = DOMES::from_str(domes.trim()) {
                     clock = clock.domes(domes);
                 }
             } else if marker.contains("STATION CLK REF") {
@@ -1026,6 +1034,14 @@ impl Header {
                 //   if "DESCRIPTION" is to be encountered in other RINEX
                 //   we can safely test RinexType here because its already been determined
                 ionex = ionex.with_description(content.trim())
+            } else if marker.contains("EPOCH OF FIRST MAP") {
+                if let Ok(epoch) = parse_ionex_utc_epoch(content.trim()) {
+                    ionex = ionex.with_epoch_of_first_map(epoch);
+                }
+            } else if marker.contains("EPOCH OF LAST MAP") {
+                if let Ok(epoch) = parse_ionex_utc_epoch(content.trim()) {
+                    ionex = ionex.with_epoch_of_last_map(epoch);
+                }
             } else if marker.contains("OBSERVABLES USED") {
                 // IONEX observables
                 ionex = ionex.with_observables(content.trim())
@@ -1232,7 +1248,7 @@ impl Header {
     }
 
     /// Adds receiver information to self
-    pub fn with_receiver(&self, r: Rcvr) -> Self {
+    pub fn with_receiver(&self, r: Receiver) -> Self {
         let mut s = self.clone();
         s.rcvr = Some(r);
         s
@@ -2197,65 +2213,53 @@ impl Merge for Header {
 }
 
 #[cfg(feature = "qc")]
-use horrorshow::{helper::doctype, RenderBox};
-
-#[cfg(feature = "qc")]
-use rinex_qc_traits::HtmlReport;
-
-#[cfg(feature = "qc")]
-impl HtmlReport for Header {
-    fn to_html(&self) -> String {
-        format!(
-            "{}",
-            html! {
-                : doctype::HTML;
-                html {
-                    head {
-                        meta(content="text/html", charset="utf-8");
-                        meta(name="viewport", content="width=device-width, initial-scale=1");
-                        link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
-                        title {
-                            : "RINEX Header analysis"
-                        }
-                    }
-                    body {
-                        : self.to_inline_html()
-                    }
-                }
-            }
-        )
-    }
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
+impl Render for Header {
+    fn render(&self) -> Markup {
+        html! {
             tr {
-                th {
-                    : "Antenna"
-                }
-                @ if let Some(antenna) = &self.rcvr_antenna {
-                    td {
-                        : antenna.to_inline_html()
-                    }
-                } else {
-                    td {
-                        : "No information"
-                    }
+                th { "Antenna" }
+                @if let Some(antenna) = &self.rcvr_antenna {
+                    td { (antenna.render()) }
+                } @else {
+                    td { "No information" }
                 }
             }
             tr {
-                th {
-                    : "Receiver"
-                }
+                th { "Receiver" }
                 @ if let Some(rcvr) = &self.rcvr {
-                    td {
-                        : rcvr.to_inline_html()
-                    }
+                    td { (rcvr.render()) }
                 } else {
-                    td {
-                        : "No information"
-                    }
+                    td { "No information" }
                 }
             }
         }
+    }
+}
+
+#[cfg(feature = "processing")]
+fn header_mask_eq(hd: &mut Header, item: &FilterItem) {}
+
+#[cfg(feature = "processing")]
+pub(crate) fn header_mask_mut(hd: &mut Header, f: &MaskFilter) {
+    match f.operand {
+        MaskOperand::Equals => header_mask_eq(hd, &f.item),
+        MaskOperand::NotEquals => {},
+        MaskOperand::GreaterThan => {},
+        MaskOperand::GreaterEquals => {},
+        MaskOperand::LowerThan => {},
+        MaskOperand::LowerEquals => {},
+    }
+    if let Some(obs) = &mut hd.obs {
+        obs.mask_mut(f);
+    }
+    if let Some(met) = &mut hd.meteo {
+        met.mask_mut(f);
+    }
+    if let Some(ionex) = &mut hd.ionex {
+        ionex.mask_mut(f);
+    }
+    if let Some(doris) = &mut hd.doris {
+        doris.mask_mut(f);
     }
 }
 

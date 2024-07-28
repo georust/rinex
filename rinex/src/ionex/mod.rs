@@ -1,8 +1,11 @@
 //! IONEX module
-use gnss::prelude::SV;
-use hifitime::Epoch;
 use std::collections::HashMap;
 use strum_macros::EnumString;
+
+use crate::prelude::{Epoch, SV};
+
+#[cfg(feature = "processing")]
+use crate::prelude::TimeScale;
 
 pub mod record;
 pub use record::{Record, TECPlane, TEC};
@@ -17,6 +20,9 @@ pub use system::RefSystem;
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
+#[cfg(feature = "processing")]
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// Mapping function used in when determining this IONEX
@@ -27,6 +33,15 @@ pub enum MappingFunction {
     /// Q-factor
     #[strum(serialize = "QFAC")]
     QFac,
+}
+
+impl std::fmt::Display for MappingFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::CosZ => write!(f, "Cos(z)"),
+            Self::QFac => write!(f, "Q-factor"),
+        }
+    }
 }
 
 /// Possible source of DCBs
@@ -101,6 +116,18 @@ impl Default for HeaderFields {
 }
 
 impl HeaderFields {
+    /// Copies self with given time of first map
+    pub fn with_epoch_of_first_map(&self, t: Epoch) -> Self {
+        let mut s = self.clone();
+        s.epoch_of_first_map = t;
+        s
+    }
+    /// Copies self with given time of last map
+    pub fn with_epoch_of_last_map(&self, t: Epoch) -> Self {
+        let mut s = self.clone();
+        s.epoch_of_last_map = t;
+        s
+    }
     /// Copies and builds Self with given Reference System
     pub fn with_reference_system(&self, reference: RefSystem) -> Self {
         let mut s = self.clone();
@@ -194,6 +221,67 @@ impl HeaderFields {
         let mut s = self.clone();
         s.dcbs.insert(src, value);
         s
+    }
+}
+
+#[cfg(feature = "processing")]
+impl HeaderFields {
+    /// Timescale helper
+    fn timescale(&self) -> TimeScale {
+        self.epoch_of_first_map.time_scale
+    }
+    /// Modifies in place Self, when applying preprocessing filter ops
+    pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
+        match f.operand {
+            MaskOperand::NotEquals => {},
+            MaskOperand::Equals => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    self.epoch_of_first_map = epoch.to_time_scale(ts);
+                    self.epoch_of_last_map = epoch.to_time_scale(ts);
+                },
+                FilterItem::SvItem(svs) => {
+                    self.nb_satellites = svs.len() as u32;
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterThan => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    if self.epoch_of_first_map < *epoch {
+                        self.epoch_of_first_map = epoch.to_time_scale(ts);
+                    }
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterEquals => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    if self.epoch_of_first_map < *epoch {
+                        self.epoch_of_first_map = epoch.to_time_scale(ts);
+                    }
+                },
+                _ => {},
+            },
+            MaskOperand::LowerThan => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    if self.epoch_of_last_map > *epoch {
+                        self.epoch_of_last_map = epoch.to_time_scale(ts);
+                    }
+                },
+                _ => {},
+            },
+            MaskOperand::LowerEquals => match &f.item {
+                FilterItem::EpochItem(epoch) => {
+                    let ts = self.timescale();
+                    if self.epoch_of_last_map > *epoch {
+                        self.epoch_of_last_map = epoch.to_time_scale(ts);
+                    }
+                },
+                _ => {},
+            },
+        }
     }
 }
 

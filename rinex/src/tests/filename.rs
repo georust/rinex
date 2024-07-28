@@ -38,6 +38,7 @@ fn short_filename_conventions() {
 
 // Test our standardized name generator does follow the specs
 #[test]
+#[cfg(feature = "flate2")]
 fn long_filename_conventions() {
     for (testfile, expected, custom_suffix) in [
         (

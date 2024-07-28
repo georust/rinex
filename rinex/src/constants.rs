@@ -42,12 +42,10 @@ impl MaxIterNumber {
     pub const KEPLER: u8 = 30;
 }
 
-pub struct Constants;
+/// Const values used in RINEX crate
+pub(crate) struct Constants;
 
-/// const value
 impl Constants {
-    // ellipsoid
-
     // earth
     pub const fn gm(sv: SV) -> f64 {
         match sv.constellation {
@@ -77,8 +75,4 @@ impl Constants {
             _ => DtrF::GPS,
         }
     }
-
-    // gnss signal
-
-    // physics
 }

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equip="X-UA-Compatible" content="IE-edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/georust/meta/master/logo/logo.png">
+	<script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+	<script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+
+<body>
+	<div id="title">
+		<title>RINEX QC</title>
+	</div>
+	<div id="body">
+		<div class="columns is-fullheight">
+			<div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile">
+				<aside class="menu">
+					<p class="menu-label">RINEX-QC v0.1.14</p>
+					<ul class="menu-list">
+						<li><a id="menu:summary"><span class="icon"><i class="fa fa-home"></i></span>Summary</a></li>
+						<li><a id="menu:obs"><span class="icon"><i
+										class="fa-solid fa-tower-cell"></i></span>Observations</a>
+							<ul class="menu-list" style="display:block">
+								<li><a id="menu:obs:GAL" class="menu:subtab" style="margin-left:29px"><span
+											class="icon"><i class="fa-solid fa-satellite"></i></span>GAL</a></li>
+							</ul>
+						</li>
+						<p class="menu-label"><a href="https://github.com/georust/rinex/wiki"
+								style="margin-left:29px">Documentation</a></p>
+						<p class="menu-label"><a href="https://github.com/georust/rinex/issues"
+								style="margin-left:29px">Bug Report</a></p>
+						<p class="menu-label"><a href="https://github.com/georust/rinex"><span class="icon"><i
+										class="fa-brands fa-github"></i></span>Sources</a></p>
+					</ul>
+				</aside>
+			</div>
+			<div class="hero is-fullheight">
+				<div id="summary" class="container is-main" style="display:block">
+					<div class="section">
+						<div class="table-container">
+							<table class="table is-bordered">
+								<tbody>
+									<tr>
+										<th class="is-info is-bordered">MOJN00DNK_R_20201770000_01D_30S_MO</th>
+									</tr>
+									<tr>
+										<th>Timescale</th>
+										<td>GPST</td>
+									</tr>
+									<tr>
+										<th>Reference position</th>
+										<td>
+											<table>
+												<tr>
+													<th>ECEF (WGS84)</th>
+												</tr>
+												<tr>
+													<th>X</th>
+													<td>3628427.912 m</td>
+													<th>Y</th>
+													<td>562059.094 m</td>
+													<th>Z</th>
+													<td>5197872.215 m</td>
+												</tr>
+												<tr>
+													<th>GEO</th>
+												</tr>
+												<tr>
+													<th>Latitude</th>
+													<td>54.944315°</td>
+													<th>Longitude</th>
+													<td>8.805378°</td>
+													<th>Altitude</th>
+													<td>57.129 m</td>
+												</tr>
+												<tr>
+													<th>DMS</th>
+													<td>54°56'39.5344&quot;N</td>
+													<th>DMS</th>
+													<td>8°48'19.3625&quot;E</td>
+												</tr>
+											</table>
+										</td>
+									</tr>
+									<tr>
+										<th class="is-info">Compliancy</th>
+										<td>
+											<table class="table is-bordered">
+												<tbody>
+													<tr>
+														<td><span class="icon" style="color:red"><i
+																	class="fa-solid fa-circle-xmark"></i></span>NAVI
+														</td>
+														<td><span class="icon" style="color:green"><i
+																	class="fa-solid fa-circle-check"></i></span>CPP</td>
+														<td><span class="icon" style="color:red"><i
+																	class="fa-solid fa-circle-xmark"></i></span>PPP</td>
+														<td><span class="icon" style="color:red"><i
+																	class="fa-solid fa-circle-xmark"></i></span>PPP
+															(Ultra)</td>
+													</tr>
+												</tbody>
+											</table>
+										</td>
+									</tr>
+									<tr>
+										<th class="is-info">Bias</th>
+										<td>
+											<table class="table">
+												<tbody>
+													<tr>
+														<th>Troposphere Bias</th>
+														<td><span class="icon" style="color:red"><i
+																	class="fa-solid fa-circle-xmark"></i></span>Model
+															optimization</td>
+													</tr>
+													<tr>
+														<th>Ionosphere Bias</th>
+														<td><span class="icon" style="color:red"><i
+																	class="fa-solid fa-circle-xmark"></i></span>Model
+															optimization</td>
+														<td><span class="icon" style="color:green"><i
+																	class="fa-solid fa-circle-check"></i></span>Cancelling
+														</td>
+													</tr>
+												</tbody>
+											</table>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+				<div id="obs" class="container is-main" style="display:none">
+					<div class="section">
+						<div class="table-container">
+							<table class="table is-bordered">
+								<tr>
+									<th class="is-info">Receiver</th>
+									<td>
+										<div class="table-container">
+											<table class="table is-bordered">
+												<tbody>
+													<tr>
+														<th>Model</th>
+														<td>SEPT POLARX5</td>
+													</tr>
+													<tr>
+														<th>SN#</th>
+														<td>3022663</td>
+													</tr>
+													<tr>
+														<th>Firmware</th>
+														<td>5.3.0</td>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</td>
+								</tr>
+							</table>
+							<table class="table is-bordered">
+								<tr>
+									<th class="is-info">Antenna</th>
+									<td>
+										<table class="table is-bordered">
+											<tbody>
+												<tr>
+													<th>Model</th>
+													<td>726855</td>
+												</tr>
+												<tr>
+													<th>SN#</th>
+													<td>LEIAR25.R4 LEIT</td>
+												</tr>
+												<tr>
+													<th>Base Coordinates</th>
+													<td>Unknown</td>
+												</tr>
+												<th>Height</th>
+												<td>0.1878 m</td>
+												<th>Eccentricity</th>
+												<td>0m N, 0m E</td>
+											</tbody>
+										</table>
+									</td>
+								</tr>
+							</table>
+							<table class="table is-bordered">
+								<tr>
+									<th class="is-info">Sampling</th>
+									<td>
+										<div class="table-container">
+											<table class="table is-bordered">
+												<tbody>
+													<tr>
+														<th class="is-info">Time Frame</th>
+													</tr>
+													<tr>
+														<th>Start</th>
+														<td>2020-06-25T00:00:30 GPST</td>
+														<th>End</th>
+														<td>2020-06-25T23:59:30 GPST</td>
+													</tr>
+													<tr>
+														<th>Duration</th>
+														<td>23 h 59 min</td>
+													</tr>
+													<tr>
+														<th class="is-info">Sampling</th>
+													</tr>
+													<tr>
+														<th>Rate</th>
+														<td>0.033 Hz</td>
+														<th>Period</th>
+														<td>30 s</td>
+													</tr>
+													<tr>
+														<th class="is-info">Dominant Sampling</th>
+													</tr>
+													<tr>
+														<th>Rate</th>
+														<td>0.033 Hz</td>
+														<th>Period</th>
+														<td>30 s</td>
+													</tr>
+													<tr>
+														<th class="is-warning">Data gaps</th>
+														<td>2 Data gaps</td>
+													</tr>
+													<tr>
+														<th>Shortest</th>
+														<td>2020-06-25T02:13:30 GPST</td>
+														<td>32 min</td>
+													</tr>
+													<tr>
+														<th>Longest</th>
+														<td>2020-06-25T09:06:30 GPST</td>
+														<td>1 h 50 min</td>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</td>
+								</tr>
+							</table>
+							<table class="table is-bordered is-page" id="body:obs:GAL" style="display:none">
+								<tr>
+									<th class="is-info">GAL</th>
+								</tr>
+								<tr>
+									<td>
+										<div class="table-container">
+											<table class="table is-bordered">
+												<tbody>
+													<tr>
+														<th>SPP Compatible</th>
+													</tr>
+													<tr>
+														<th>CPP compatible</th>
+													</tr>
+													<tr>
+														<th>PPP compatible</th>
+													</tr>
+													<tr>
+														<th class="is-info">E1</th>
+													</tr>
+													<tr>
+														<th class="is-info">E5</th>
+													</tr>
+													<tr>
+														<th class="is-info">E5</th>
+													</tr>
+													<tr>
+														<th class="is-info">E5</th>
+													</tr>
+													<tr>
+														<th class="is-info">E6</th>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</td>
+									
+								</tr>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+
+		var sidebar_menu = document.getElementById('menubar');
+		var main_pages = document.getElementsByClassName('is-main');
+		var sub_pages = document.getElementsByClassName('is-page');
+
+		sidebar_menu.onclick = function (evt) {
+			var clicked_id = evt.originalTarget.id;
+			var category = clicked_id.substring(5).split(':')[0];
+			var tab = clicked_id.substring(5).split(':')[1];
+			var is_tab = clicked_id.split(':').length == 3;
+			var menu_subtabs = document.getElementsByClassName('menu:subtab');
+			console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' + is_tab);
+
+			if (is_tab == true) {
+				// show tabs for this category
+				var cat_tabs = 'menu:'+category;
+				for (var i = 0; i < menu_subtabs.length; i++) {
+					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
+						menu_subtabs[i].style = 'display:block';
+					} else {
+						menu_subtabs[i].style = 'display:none';
+					}
+				}
+				// hide any other main page
+				for (var i = 0; i < main_pages.length; i++) {
+					if (main_pages[i].id != category) {
+						main_pages[i].style = 'display:none';
+					}
+				}
+				// show specialized content
+				var targetted_content = 'body:' + category + ':' + tab;
+				for (var i = 0; i < sub_pages.length; i++) {
+					if (sub_pages[i].id == targetted_content) {
+						sub_pages[i].style = 'display:block';
+					} else {
+						sub_pages[i].style = 'display:none';
+					}
+				}
+
+			} else {
+				// show tabs for this category
+				var cat_tabs = 'menu:'+category;
+				for (var i = 0; i < menu_subtabs.length; i++) {
+					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
+						menu_subtabs[i].style = 'display:block';
+					} else {
+						menu_subtabs[i].style = 'display:none';
+					}
+				}
+				// hide any other main page
+				for (var i = 0; i < main_pages.length; i++) {
+					if (main_pages[i].id == category) {
+						main_pages[i].style = 'display:block';
+					} else {
+						main_pages[i].style = 'display:none';
+					}
+				}
+				// click on parent: show first specialized content
+				var done = false;
+				for (var i = 0; i < sub_pages.length; i++) {
+					console.log("done: "+done +" " + sub_pages[i].id);
+					if (done == false) {
+						if (sub_pages[i].id.includes('body:'+category)) {
+							sub_pages[i].style = 'display:block';
+							done = true;
+						} else {
+							sub_pages[i].style = 'display:none';
+						}
+					} else {
+						sub_pages[i].style = 'display:none';
+					}
+				}
+			}
+		}
+	</script>
+</body>
+
+</html>

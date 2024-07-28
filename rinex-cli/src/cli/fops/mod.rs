@@ -1,7 +1,7 @@
+pub mod diff;
 pub mod filegen;
 pub mod merge;
 pub mod split;
-pub mod substract;
 pub mod time_binning;
 
 use lazy_static::lazy_static;
@@ -31,7 +31,18 @@ Otherwise, this ecosystem prefers modern (longer) filenames that contain more in
         Arg::new("gzip")
             .long("gzip")
             .action(ArgAction::SetTrue)
-            .help("Append .gz suffix and perform seamless Gzip compression."),
+            .help("Force .gzip compressed file generation, even if input data is not."),
+        Arg::new("unzip")
+            .long("unzip")
+            .action(ArgAction::SetTrue)
+            .help("Force plain/readable file generation. By default, if input data is gzip compressed, we will preserve
+the input compression. Use this to bypass."),
+        Arg::new("csv")
+            .long("csv")
+            .action(ArgAction::SetTrue)
+            .help("Extract dataset and generate as CSV instead of RINEX.
+Use this when targetting third party tools.
+Only applies to Observation / Meteo RINEX files"),
         Arg::new("agency")
             .short('a')
             .long("agency")

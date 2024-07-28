@@ -3,26 +3,16 @@ use crate::cli::Context;
 use cggtts::prelude::*;
 use cggtts::Coordinates;
 use clap::ArgMatches;
-use std::fs::File;
 use std::io::Write;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("failed to write cggtts file (permission denied)")]
-    IoError(#[from] std::io::Error),
-}
-
-use crate::fops::open_with_web_browser;
 
 /*
  * CGGTTS file generation and solutions post processing
  */
 pub fn post_process(
     ctx: &Context,
-    mut tracks: Vec<Track>,
+    tracks: &Vec<Track>,
     matches: &ArgMatches,
-) -> Result<(), Error> {
+) -> std::io::Result<()> {
     /*
      * CGGTTS formation and customization
      */
@@ -76,21 +66,11 @@ pub fn post_process(
             env!("CARGO_PKG_VERSION")
         ));
 
-    tracks.sort_by(|a, b| a.epoch.cmp(&b.epoch));
-
     for track in tracks {
-        cggtts.tracks.push(track);
+        cggtts.tracks.push(track.clone());
     }
 
-    let filename = ctx.workspace.join(cggtts.filename());
-    let mut fd = File::create(&filename)?;
+    let mut fd = ctx.workspace.create_file(&cggtts.filename());
     write!(fd, "{}", cggtts)?;
-    info!("{} has been generated", filename.to_string_lossy());
-
-    if !ctx.quiet {
-        let path = filename.to_string_lossy().to_string();
-        open_with_web_browser(&path);
-    }
-
     Ok(())
 }

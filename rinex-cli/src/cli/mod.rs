@@ -1,29 +1,23 @@
-use log::info;
 use std::{
-    fs::create_dir_all,
-    io::Write,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
     path::{Path, PathBuf},
     str::FromStr,
 };
 
+use itertools::Itertools;
+
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use rinex::prelude::*;
+use rinex::prelude::GroundPosition;
+use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
 
-use crate::fops::open_with_web_browser;
-
-// identification mode
-mod identify;
-// graph mode
-mod graph;
-// QC mode
-mod qc;
-// positioning mode
-mod positioning;
-
-// file operations
 mod fops;
+mod positioning;
+mod workspace;
 
-use fops::{filegen, merge, split, substract, time_binning};
+pub use workspace::Workspace;
+
+use fops::{diff, filegen, merge, split, time_binning};
 
 pub struct Cli {
     /// Arguments passed by user
@@ -38,18 +32,18 @@ impl Default for Cli {
 
 /// Context defined by User.
 pub struct Context {
-    /// Data context defined by user
-    pub data: RnxContext,
     /// Quiet option
     pub quiet: bool,
+    /// Data context defined by user
+    pub data: QcContext,
+    /// Context name is derived from the primary file loaded in Self,
+    /// and mostly used in output products generation.
+    pub name: String,
     /// Workspace is the place where this session will generate data.
     /// By default it is set to $WORKSPACE/$PRIMARYFILE.
     /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
     /// $PRIMARYFILE is determined from the most major file contained in the dataset.
-    pub workspace: PathBuf,
-    /// Context name is derived from the primary file loaded in Self,
-    /// and mostly used in session products generation.
-    pub name: String,
+    pub workspace: Workspace,
     /// (RX) reference position to be used in further analysis.
     /// It is either (priority order is important)
     ///  1. manually defined by CLI
@@ -62,7 +56,7 @@ impl Context {
      * Utility to determine the most major filename stem,
      * to be used as the session workspace
      */
-    pub fn context_stem(data: &RnxContext) -> String {
+    pub fn context_stem(data: &QcContext) -> String {
         let ctx_major_stem: &str = data
             .primary_path()
             .expect("failed to determine a context name")
@@ -78,34 +72,12 @@ impl Context {
         primary_stem[0].to_string()
     }
     /*
-     * Utility to prepare subdirectories in the session workspace
-     */
-    pub fn create_subdir(&self, suffix: &str) {
-        create_dir_all(self.workspace.join(suffix))
-            .unwrap_or_else(|e| panic!("failed to generate session dir {}: {:?}", suffix, e));
-    }
-    /*
      * Utility to create a file in this session
      */
     fn create_file(&self, path: &Path) -> std::fs::File {
         std::fs::File::create(path).unwrap_or_else(|e| {
             panic!("failed to create {}: {:?}", path.display(), e);
         })
-    }
-    /*
-     * Save HTML content, auto opens it if quiet (-q) is not turned on
-     */
-    pub fn render_html(&self, filename: &str, html: String) {
-        let path = self.workspace.join(filename);
-        let mut fd = self.create_file(&path);
-        write!(fd, "{}", html).unwrap_or_else(|e| {
-            panic!("failed to render HTML content: {:?}", e);
-        });
-        info!("html rendered in \"{}\"", path.display());
-
-        if !self.quiet {
-            open_with_web_browser(path.to_string_lossy().as_ref());
-        }
     }
 }
 
@@ -118,10 +90,12 @@ impl Cli {
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
                     .about("RINEX post processing")
+                    .long_about("RINEX-Cli is the command line interface
+to operate the RINEX/SP3/RTK toolkit, until a GUI is made available.
+Use it to analyze data, perform file operations and resolve navigation solutions.")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
                     .arg(Arg::new("filepath")
-                        .short('f')
                         .long("fp")
                         .value_name("FILE")
                         .action(ArgAction::Append)
@@ -141,14 +115,14 @@ Supported formats are:
 
 Example (1): Load a single file
 rinex-cli \\
-    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 
 Example (2): define a PPP compliant context
 rinex-cli \\
-    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
-    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \\
-    -f test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \\ 
-    -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \\
+    --fp test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \\ 
+    --fp test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz
 "))
                     .arg(Arg::new("directory")
                         .short('d')
@@ -178,7 +152,7 @@ but you can extend that with --depth. Refer to -f for more information."))
                         .short('q')
                         .long("quiet")
                         .action(ArgAction::SetTrue)
-                        .help("Disable all terminal output. Also disables automatic HTML reports opening."))
+                        .help("Disable all terminal output. Disables automatic report opener (Web browser)."))
                     .arg(Arg::new("workspace")
                         .short('w')
                         .long("workspace")
@@ -189,8 +163,38 @@ but you can extend that with --depth. Refer to -f for more information."))
 By default the $RINEX_WORKSPACE variable is prefered if it is defined.
 You can also use this flag to customize it. 
 If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
+        .next_help_heading("Report customization")
+        .arg(
+            Arg::new("report-sum")
+                .long("sum")
+                .action(ArgAction::SetTrue)
+                .help("Restrict report to summary header only (quicker rendition)")
+        )
+        .arg(
+            Arg::new("report-force")
+                .short('f')
+                .long("force")
+                .action(ArgAction::SetTrue)
+                .help("Force report synthesis.
+By default, report synthesis happens once per input set (file combnation and cli options).
+Use this option to force report regeneration.
+This has no effect on file operations that do not synthesize a report."))
+        .arg(
+            Arg::new("report-brdc-sky")
+                .long("brdc-sky")
+                .action(ArgAction::SetTrue)
+                .help("When SP3 and/or BRDC RINEX is present,
+the skyplot (compass) projection is only calculated from the SP3 coordinates (highest precision). 
+Use this option to also calculate it from radio messages (for comparison purposes for example).")
+        )
+        .arg(
+            Arg::new("report-nostats")
+                .long("nostats")
+                .action(ArgAction::SetTrue)
+                .help("Hide statistical annotations that might be present in some plots.
+This has no effect on applications compiled without plot and statistical options.")
+        )
         .next_help_heading("Preprocessing")
-            .about("Preprocessing todo")
             .arg(Arg::new("gps-filter")
                 .short('G')
                 .action(ArgAction::SetTrue)
@@ -207,6 +211,10 @@ If none are defined, we will then try to create a local directory named \"WORKSP
                 .short('C')
                 .action(ArgAction::SetTrue)
                 .help("Filters out all BeiDou vehicles"))
+            .arg(Arg::new("bds-geo-filter")
+                .long("CG")
+                .action(ArgAction::SetTrue)
+                .help("Filter out all BeiDou Geo vehicles"))
             .arg(Arg::new("qzss-filter")
                 .short('J')
                 .action(ArgAction::SetTrue)
@@ -222,12 +230,9 @@ If none are defined, we will then try to create a local directory named \"WORKSP
             .arg(Arg::new("preprocessing")
                 .short('P')
                 .num_args(1..)
+                .value_delimiter(';')
                 .action(ArgAction::Append)
                 .help("Filter designer. Refer to []."))
-            .arg(Arg::new("lli-mask")
-                .long("lli-mask")
-                .help("Applies given LLI AND() mask. 
-Also drops observations that did not come with an LLI flag"))
             .next_help_heading("Receiver Antenna")
                 .arg(Arg::new("rx-ecef")
                     .long("rx-ecef")
@@ -241,13 +246,10 @@ Otherwise it gets automatically picked up."))
                     .help("Define the (RX) antenna position manualy, in decimal degrees."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
                 .subcommand(filegen::subcommand())
-                .subcommand(graph::subcommand())
-                .subcommand(identify::subcommand())
                 .subcommand(merge::subcommand())
                 .subcommand(positioning::subcommand())
-                .subcommand(qc::subcommand())
                 .subcommand(split::subcommand())
-                .subcommand(substract::subcommand())
+                .subcommand(diff::subcommand())
                 .subcommand(time_binning::subcommand())
                 .get_matches()
             },
@@ -287,6 +289,9 @@ Otherwise it gets automatically picked up."))
     }
     pub fn bds_filter(&self) -> bool {
         self.matches.get_flag("bds-filter")
+    }
+    pub fn bds_geo_filter(&self) -> bool {
+        self.matches.get_flag("bds-geo-filter")
     }
     pub fn qzss_filter(&self) -> bool {
         self.matches.get_flag("qzss-filter")
@@ -333,6 +338,53 @@ Otherwise it gets automatically picked up."))
         } else {
             self.manual_geodetic()
                 .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
+        }
+    }
+    /// True if File Operations to generate data is being deployed
+    pub fn has_fops_output_product(&self) -> bool {
+        match self.matches.subcommand() {
+            Some(("filegen", _)) | Some(("merge", _)) | Some(("split", _)) | Some(("tbin", _))
+            | Some(("diff", _)) => true,
+            _ => false,
+        }
+    }
+    /// True if forced report synthesis is requested
+    pub fn force_report_synthesis(&self) -> bool {
+        self.matches.get_flag("report-force")
+    }
+    /*
+     * We hash all vital CLI information.
+     * This helps in determining whether we need to update an existing report
+     * or not.
+     */
+    pub fn hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        let mut string = self
+            .input_directories()
+            .into_iter()
+            .sorted()
+            .chain(self.input_files().into_iter().sorted())
+            .chain(self.preprocessing().into_iter().sorted())
+            .join(",");
+        if let Some(geo) = self.manual_geodetic() {
+            string.push_str(&format!("{:?}", geo));
+        }
+        if let Some(ecef) = self.manual_ecef() {
+            string.push_str(&format!("{:?}", ecef));
+        }
+        string.hash(&mut hasher);
+        hasher.finish()
+    }
+    /// Returns QcConfig from command line
+    pub fn qc_config(&self) -> QcConfig {
+        QcConfig {
+            manual_reference: None,
+            report: if self.matches.get_flag("report-sum") {
+                QcReportType::Summary
+            } else {
+                QcReportType::Full
+            },
+            force_brdc_skyplot: self.matches.get_flag("report-brdc-sky"),
         }
     }
 }

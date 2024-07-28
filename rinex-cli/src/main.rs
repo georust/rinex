@@ -5,18 +5,16 @@
 //mod analysis; // basic analysis
 mod cli; // command line interface
 mod fops;
-mod graph;
-mod identification; // high level identification/macros
 mod positioning;
-mod qc; // QC report generator // plotting operations // file operation helpers // graphical analysis // positioning + CGGTTS opmode
 
 mod preprocessing;
 use preprocessing::preprocess;
 
-use rinex::prelude::RnxContext;
+mod report;
+use report::Report;
 
-use std::fs::create_dir_all;
-use std::path::{Path, PathBuf};
+use rinex_qc::prelude::{QcContext, QcExtraPage};
+use std::path::Path;
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
@@ -25,7 +23,7 @@ extern crate gnss_rtk as rtk;
 use rinex::prelude::Rinex;
 use sp3::prelude::SP3;
 
-use cli::{Cli, Context};
+use cli::{Cli, Context, Workspace};
 
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
@@ -38,18 +36,24 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("i/o error")]
+    StdioError(#[from] std::io::Error),
     #[error("rinex error")]
     RinexError(#[from] rinex::Error),
     #[error("missing OBS RINEX")]
     MissingObservationRinex,
     #[error("missing (BRDC) NAV RINEX")]
     MissingNavigationRinex,
+    #[error("missing IONEX")]
+    MissingIONEX,
+    #[error("missing Meteo RINEX")]
+    MissingMeteoRinex,
+    #[error("missing Clock RINEX")]
+    MissingClockRinex,
     #[error("merge ops failure")]
     MergeError(#[from] rinex::merge::Error),
     #[error("split ops failure")]
     SplitError(#[from] rinex::split::Error),
-    #[error("failed to create QC report: permission denied!")]
-    QcReportCreationError,
     #[error("positioning solver error")]
     PositioningSolverError(#[from] positioning::Error),
 }
@@ -57,8 +61,8 @@ pub enum Error {
 /*
  * Parses and preprepocess all files passed by User
  */
-fn user_data_parsing(cli: &Cli) -> RnxContext {
-    let mut ctx = RnxContext::default();
+fn user_data_parsing(cli: &Cli) -> QcContext {
+    let mut ctx = QcContext::default();
 
     let max_depth = match cli.matches.get_one::<u8>("depth") {
         Some(value) => *value as usize,
@@ -129,12 +133,11 @@ fn user_data_parsing(cli: &Cli) -> RnxContext {
             warn!("non supported file format \"{}\"", path.display());
         }
     }
-
     /*
-     * Preprocess whole context
+     * Preprocessing
      */
     preprocess(&mut ctx, cli);
-    debug!("{:?}", ctx);
+    debug!("{:?}", ctx); // context visualization
     ctx
 }
 
@@ -154,7 +157,7 @@ pub fn main() -> Result<(), Error> {
 
     // User Data parsing
     let mut data_ctx = user_data_parsing(&cli);
-    let ctx_position = data_ctx.ground_position();
+    let ctx_position = data_ctx.reference_position();
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
     // Form context
@@ -162,31 +165,7 @@ pub fn main() -> Result<(), Error> {
         name: ctx_stem.clone(),
         data: data_ctx,
         quiet: cli.matches.get_flag("quiet"),
-        workspace: {
-            /*
-             * Supports both an environment variable and
-             * a command line opts. Otherwise we use ./workspace directly
-             * but its creation must pass.
-             * This is documented in Wiki pages.
-             */
-            let path = match std::env::var("RINEX_WORKSPACE") {
-                Ok(path) => Path::new(&path).join(&ctx_stem).to_path_buf(),
-                _ => match cli.matches.get_one::<PathBuf>("workspace") {
-                    Some(base_dir) => Path::new(base_dir).join(&ctx_stem).to_path_buf(),
-                    None => Path::new("WORKSPACE").join(&ctx_stem).to_path_buf(),
-                },
-            };
-            // make sure the workspace is viable and exists, otherwise panic
-            create_dir_all(&path).unwrap_or_else(|e| {
-                panic!(
-                    "failed to create session workspace \"{}\": {:?}",
-                    path.display(),
-                    e
-                )
-            });
-            info!("session workspace is \"{}\"", path.to_string_lossy());
-            path
-        },
+        workspace: Workspace::new(&ctx_stem, &cli),
         rx_ecef: {
             /*
              * Determine and store RX (ECEF) position
@@ -238,38 +217,64 @@ pub fn main() -> Result<(), Error> {
         },
     };
 
+    // On File Operations (Data synthesis)
+    //  prepare one subfolder to store the output products
+    if cli.has_fops_output_product() {
+        ctx.workspace.create_subdir("OUTPUT");
+    }
+
     /*
      * Exclusive opmodes
      */
+    let mut extra_pages = Vec::<QcExtraPage>::new();
+
     match cli.matches.subcommand() {
-        Some(("filegen", submatches)) => {
+        /*
+         *  File operations abort here and do not windup in analysis opmode.
+         *  Users needs to then deploy analysis mode on previously generated files.
+         */
+        Some(("generate", submatches)) => {
             fops::filegen(&ctx, submatches)?;
-        },
-        Some(("graph", submatches)) => {
-            graph::graph_opmode(&ctx, submatches)?;
-        },
-        Some(("identify", submatches)) => {
-            identification::dataset_identification(&ctx.data, submatches);
+            return Ok(());
         },
         Some(("merge", submatches)) => {
             fops::merge(&ctx, submatches)?;
+            return Ok(());
         },
         Some(("split", submatches)) => {
             fops::split(&ctx, submatches)?;
-        },
-        Some(("quality-check", submatches)) => {
-            qc::qc_report(&ctx, submatches)?;
-        },
-        Some(("positioning", submatches)) => {
-            positioning::precise_positioning(&ctx, submatches)?;
+            return Ok(());
         },
         Some(("tbin", submatches)) => {
             fops::time_binning(&ctx, submatches)?;
+            return Ok(());
         },
-        Some(("sub", submatches)) => {
-            fops::substract(&ctx, submatches)?;
+        Some(("diff", submatches)) => {
+            fops::diff(&ctx, submatches)?;
+            return Ok(());
         },
-        _ => error!("no opmode specified!"),
+        Some(("ppp", submatches)) => {
+            let chapter = positioning::precise_positioning(&ctx, submatches)?;
+            extra_pages.push(chapter);
+        },
+        _ => {},
     }
+
+    // report
+    let cfg = cli.qc_config();
+    let mut report = Report::new(&cli, &ctx, cfg);
+
+    // customization
+    for extra in extra_pages {
+        report.customize(extra);
+    }
+
+    // generation
+    report.generate(&cli, &ctx)?;
+
+    if !ctx.quiet {
+        ctx.workspace.open_with_web_browser();
+    }
+
     Ok(())
 } // main

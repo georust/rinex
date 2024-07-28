@@ -3,10 +3,10 @@ name = "rinex-qc"
 version = "0.1.14"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
-description = "RINEX data analysis"
+description = "RINEX and more broadly, GNSS data processing"
 homepage = "https://github.com/georust/rinex"
 repository = "https://github.com/georust/rinex"
-keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
+keywords = ["rinex", "timing", "gnss", "gps", "glonass", "galileo"]
 categories = ["science", "science::geo", "parsing"]
 edition = "2021"
 rust-version = "1.64"
@@ -14,24 +14,42 @@ rust-version = "1.64"
 [features]
 default = [] # no features by default
 
+# Unlock support of high precision SP3 files.
+# When targetting highest precision analysis and solutions, like in PPP,
+# SP3 files are mandatory. When deactivated, we simply cannot load
+# such files into a context, only RINEX post processing is possible.
+sp3 = ["dep:sp3"]
+
+# Unlock graphical analysis (plots rendering), otherwise reports are solely text based
+# plot = [
+#     "dep:plotly", 
+# ]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
+maud = "0.26"
+thiserror = "1"
 strum = "0.26"
-statrs = "0.16"
-horrorshow = "0.8"
 itertools = "0.13.0"
 strum_macros = "0.26"
-hifitime = "4.0.0-alpha"
-
-sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde"] }
-rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1" }
-rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 
+statrs = { version = "0.16", optional = true }
+
+# plotly = { version = "0.9", optional = true }
+# plotly = { path = "../../plotly-rs/plotly", optional = true }
+plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
+
+hifitime = "4.0.0-alpha"
 gnss-rs = { version = "2.2.0", features = ["serde"] }
+
+rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
+rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", features = ["processing"] }
+
+sp3 = { path = "../sp3", version = "=1.0.8", features = ["qc", "processing", "serde"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"

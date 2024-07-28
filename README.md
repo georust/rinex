@@ -58,7 +58,8 @@ It is growing as some sort of Anubis/Teqc/Glab combination. No GUI currently ava
 It integrates a PVT and CGGTTS solutions solver.  
 The application is auto-generated for a few architectures, you can directly
 [download it from Github.com](https://github.com/georust/rinex/releases)
-
+* [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
+to get started quickly. The examples span pretty much everything our applications allow.
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
@@ -67,6 +68,8 @@ The application is auto-generated for a few architectures, you can directly
 * [`sinex`](sinex/) SNX dedicated core library
 * [`ublox-rnx`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
 This application is currently work in progress
+* [`tools`](tools/) are utility scripts and development tools
+* [`logs`](logs/) is dedicated to store session logs, if you work within this workspace directly.
 
 ## Relevant Ecosystem
 

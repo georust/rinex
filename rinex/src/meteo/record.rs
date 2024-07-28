@@ -1,11 +1,16 @@
 use crate::{
-    epoch, merge, merge::Merge, prelude::*, split, split::Split, types::Type, version, Observable,
+    epoch, merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split, types::Type,
+    version, Observable,
 };
 
-use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
+
+#[cfg(feature = "processing")]
+use qc_traits::processing::{
+    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
+};
 
 /*
  * Meteo RINEX specific record type.
@@ -190,192 +195,104 @@ impl Split for Record {
 }
 
 #[cfg(feature = "processing")]
-use crate::preprocessing::*;
-
-#[cfg(feature = "processing")]
-impl Mask for Record {
-    fn mask(&self, mask: MaskFilter) -> Self {
-        let mut s = self.clone();
-        s.mask_mut(mask);
-        s
-    }
-    fn mask_mut(&mut self, mask: MaskFilter) {
-        match mask.operand {
-            MaskOperand::Equals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
-                TargetItem::ObservableItem(filter) => {
-                    self.retain(|_, data| {
-                        data.retain(|code, _| filter.contains(code));
+pub(crate) fn meteo_mask_mut(rec: &mut Record, mask: &MaskFilter) {
+    match mask.operand {
+        MaskOperand::Equals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e == *epoch),
+            FilterItem::ComplexItem(filter) => {
+                // try to interprate as [Observable]
+                let observables = filter
+                    .iter()
+                    .filter_map(|f| {
+                        if let Ok(ob) = Observable::from_str(f) {
+                            Some(ob)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if observables.len() > 0 {
+                    rec.retain(|_, data| {
+                        data.retain(|code, _| observables.contains(code));
                         !data.is_empty()
                     });
-                },
-                _ => {},
-            },
-            MaskOperand::NotEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
-                TargetItem::ObservableItem(filter) => {
-                    self.retain(|_, data| {
-                        data.retain(|code, _| !filter.contains(code));
-                        !data.is_empty()
-                    });
-                },
-                _ => {},
-            },
-            MaskOperand::GreaterEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
-                _ => {},
-            },
-            MaskOperand::GreaterThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
-                _ => {},
-            },
-            MaskOperand::LowerEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
-                _ => {},
-            },
-            MaskOperand::LowerThan => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
-                _ => {},
-            },
-        }
-    }
-}
-
-/*
- * Decimates only a given record subset
- */
-#[cfg(feature = "processing")]
-fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
-    match target {
-        TargetItem::ObservableItem(obs_list) => {
-            /*
-             * Remove given observations where it should now be missing
-             */
-            for (epoch, observables) in record.iter_mut() {
-                if subset.get(epoch).is_none() {
-                    // should be missing
-                    observables.retain(|observable, _| !obs_list.contains(observable));
                 }
-            }
+            },
+            _ => {},
         },
-        _ => {},
-    }
-}
-
-#[cfg(feature = "processing")]
-impl Decimate for Record {
-    fn decimate_by_ratio_mut(&mut self, r: u32) {
-        let mut i = 0;
-        self.retain(|_, _| {
-            let retained = (i % r) == 0;
-            i += 1;
-            retained
-        });
-    }
-    fn decimate_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_ratio_mut(r);
-        s
-    }
-    fn decimate_by_interval_mut(&mut self, interval: Duration) {
-        let mut last_retained = Option::<Epoch>::None;
-        self.retain(|e, _| {
-            if let Some(last) = last_retained {
-                let dt = *e - last;
-                if dt > interval {
-                    last_retained = Some(*e);
-                    true
-                } else {
-                    false
+        MaskOperand::NotEquals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e != *epoch),
+            FilterItem::ComplexItem(filter) => {
+                // try to interprate as [Observable]
+                let observables = filter
+                    .iter()
+                    .filter_map(|f| {
+                        if let Ok(ob) = Observable::from_str(f) {
+                            Some(ob)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if observables.len() > 0 {
+                    rec.retain(|_, data| {
+                        data.retain(|code, _| !observables.contains(code));
+                        !data.is_empty()
+                    });
                 }
-            } else {
-                last_retained = Some(*e);
-                true // always retain 1st epoch
-            }
-        });
-    }
-    fn decimate_by_interval(&self, interval: Duration) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_interval_mut(interval);
-        s
-    }
-    fn decimate_match_mut(&mut self, rhs: &Self) {
-        self.retain(|e, _| rhs.get(e).is_some());
-    }
-    fn decimate_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decimate_match_mut(rhs);
-        s
-    }
-}
-
-#[cfg(feature = "processing")]
-impl Preprocessing for Record {
-    fn filter(&self, f: Filter) -> Self {
-        let mut s = self.clone();
-        s.filter_mut(f);
-        s
-    }
-    fn filter_mut(&mut self, f: Filter) {
-        match f {
-            Filter::Mask(mask) => self.mask_mut(mask),
-            Filter::Decimation(filter) => match filter.dtype {
-                DecimationType::DecimByRatio(r) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_ratio_mut(r);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // and decimate
-                    let subset = self.mask(mask).decimate_by_ratio(r);
-
-                    // adapt self's subset to new data rates
-                    decimate_data_subset(self, &subset, &item);
-                },
-                DecimationType::DecimByInterval(dt) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_interval_mut(dt);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // and decimate
-                    let subset = self.mask(mask).decimate_by_interval(dt);
-
-                    // adapt self's subset to new data rates
-                    decimate_data_subset(self, &subset, &item);
-                },
             },
-            Filter::Smoothing(_) => todo!("smoothing filter"),
-            Filter::Interp(filter) => self.interpolate_mut(filter.series),
-        }
+            _ => {},
+        },
+        MaskOperand::GreaterEquals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e >= *epoch),
+            _ => {},
+        },
+        MaskOperand::GreaterThan => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e > *epoch),
+            _ => {},
+        },
+        MaskOperand::LowerEquals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e <= *epoch),
+            _ => {},
+        },
+        MaskOperand::LowerThan => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e < *epoch),
+            _ => {},
+        },
     }
 }
 
 #[cfg(feature = "processing")]
-impl Interpolate for Record {
-    fn interpolate(&self, series: TimeSeries) -> Self {
-        let mut s = self.clone();
-        s.interpolate_mut(series);
-        s
+pub(crate) fn meteo_decim_mut(rec: &mut Record, f: &DecimationFilter) {
+    if f.item.is_some() {
+        todo!("targetted decimation not supported yet");
     }
-    fn interpolate_mut(&mut self, _series: TimeSeries) {
-        todo!("meteo:record:interpolate_mut()")
+    match f.filter {
+        DecimationFilterType::Modulo(r) => {
+            let mut i = 0;
+            rec.retain(|_, _| {
+                let retained = (i % r) == 0;
+                i += 1;
+                retained
+            });
+        },
+        DecimationFilterType::Duration(interval) => {
+            let mut last_retained = Option::<Epoch>::None;
+            rec.retain(|e, _| {
+                if let Some(last) = last_retained {
+                    let dt = *e - last;
+                    if dt >= interval {
+                        last_retained = Some(*e);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    last_retained = Some(*e);
+                    true // always retain 1st epoch
+                }
+            });
+        },
     }
 }
 

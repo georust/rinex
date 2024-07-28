@@ -37,6 +37,7 @@ pub enum Error {
 /// GPS、BDS、Galieo
 /// - Helps calculate relativistic effects(todo)
 #[cfg(feature = "nav")]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 #[derive(Debug, Clone, Copy, Default)]
 struct EphemerisHelper {
     // satellite identity
@@ -68,6 +69,7 @@ struct EphemerisHelper {
 }
 
 #[cfg(feature = "nav")]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 impl EphemerisHelper {
     fn meo_orbit_to_ecef_rotation_matrix(&self) -> Rotation<f64, 3> {
         // Positive angles mean counterclockwise rotation
@@ -233,12 +235,7 @@ impl EphemerisHelper {
                     Some(self.ecef_pv())
                 }
             },
-            _ => {
-                log::warn!(
-                    "EphemerisHelper currently only supports orbit solutions for BDS GPS GALIEO"
-                );
-                None
-            },
+            _ => None,
         }
     }
 }
@@ -330,19 +327,16 @@ impl Ephemeris {
             None
         }
     }
-    /*
-     * Adds an orbit entry, mostly used when inserting
-     * Kepler & Perturbations parameters in testing workflows.
-     */
+
+    /// Adds an orbit entry field, encoding a double precision number.
     pub(crate) fn set_orbit_f64(&mut self, field: &str, value: f64) {
         self.orbits
             .insert(field.to_string(), OrbitItem::from(value));
     }
-    /*
-     * Retrieves week counter, if such data exists
-     */
+    /// Try to retrive the week counter. This exists
+    /// for all Constellations expect [Constellation::Glonass].
     pub(crate) fn get_week(&self) -> Option<u32> {
-        self.orbits.get("week").and_then(|field| field.as_u32())
+        self.orbits.get("week").and_then(|value| value.as_u32())
     }
     /*
      * Returns TGD field, if such field is not empty, expressed as a [Duration]
@@ -350,9 +344,7 @@ impl Ephemeris {
     pub fn tgd(&self) -> Option<Duration> {
         Some(Duration::from_seconds(self.get_orbit_f64("tgd")?))
     }
-    /*
-     * Helper to apply a clock correction to provided time (expressed as Epoch)
-     */
+    /// Apply a clock correction to provided Time
     pub fn sv_clock_corr(sv: SV, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
         let (a0, a1, a2) = clock_bias;
         match sv.constellation {
@@ -391,9 +383,7 @@ impl Ephemeris {
     pub(crate) fn a_dot(&self) -> Option<f64> {
         self.get_orbit_f64("a_dot")
     }
-    /*
-     * Parses ephemeris from given line iterator
-     */
+    /// Parse Ephemeris (V2/V3) from line iterator
     pub(crate) fn parse_v2v3(
         version: Version,
         constellation: Constellation,
@@ -435,10 +425,22 @@ impl Ephemeris {
 
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+
         // parse orbits :
         //  only Legacy Frames in V2 and V3 (old) RINEX
-        let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
+        let mut orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
+
+        if sv.constellation.is_sbas() {
+            // SBAS frames specificity:
+            // clock drift rate does not exist and is actually the week counter
+            orbits.insert(
+                "week".to_string(),
+                OrbitItem::U32(clock_drift_rate.round() as u32),
+            );
+            clock_drift_rate = 0.0_f64; // drift rate null: non existing
+        }
+
         Ok((
             epoch,
             sv,
@@ -450,10 +452,7 @@ impl Ephemeris {
             },
         ))
     }
-    /*
-     * Parses ephemeris from given line iterator
-     * RINEX V4 content specific method
-     */
+    /// Parse Ephemeris (V4) from line iterator
     pub(crate) fn parse_v4(
         msg: NavMsgType,
         mut lines: std::str::Lines<'_>,
@@ -473,8 +472,20 @@ impl Ephemeris {
         let (clk_dr, clk_drr) = rem.split_at(19);
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
-        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
+        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+        let mut orbits =
+            parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
+
+        if sv.constellation.is_sbas() {
+            // SBAS frames specificity:
+            // clock drift rate does not exist and is actually the week counter
+            orbits.insert(
+                "week".to_string(),
+                OrbitItem::U32(clock_drift_rate.round() as u32),
+            );
+            clock_drift_rate = 0.0_f64; // drift rate null: non existing
+        }
+
         Ok((
             epoch,
             sv,
@@ -820,8 +831,8 @@ impl Ephemeris {
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
             c => {
                 if c.is_sbas() {
-                    //TODO: verify this please
-                    Some(Duration::from_seconds(360.0))
+                    // tolerate one publication per day
+                    Some(Duration::from_seconds(86.4E3))
                 } else {
                     None
                 }

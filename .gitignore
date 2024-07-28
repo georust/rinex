@@ -12,6 +12,7 @@ Cargo.lock
 *.swp
 *.swo
 *.patch
+*.txt
 **/*.rs.bk
 .DS_Store
 

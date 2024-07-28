@@ -3,15 +3,15 @@ use crate::Error;
 use clap::ArgMatches;
 
 use std::path::PathBuf;
-use std::process::Command;
-use std::str::FromStr;
+//use std::str::FromStr;
 
 use rinex::{
-    prelude::{Duration, Epoch, ProductType, Rinex, RinexType},
-    preprocessing::*,
+    prelude::{Duration, Epoch, Rinex, RinexType},
     prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     Merge, Split,
 };
+
+use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 
 /*
  * Parses share RINEX production attributes.
@@ -102,11 +102,12 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
 
     for product in [
-        ProductType::Observation,
         ProductType::DORIS,
+        ProductType::Observation,
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
+        ProductType::HighPrecisionOrbit,
         ProductType::IONEX,
         ProductType::ANTEX,
     ] {
@@ -114,7 +115,13 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             let prod = custom_prod_attributes(rinex, matches);
             let filename = output_filename(rinex, matches, prod);
 
-            let output_path = ctx.workspace.join(filename).to_string_lossy().to_string();
+            let output_path = ctx
+                .workspace
+                .root
+                .join("OUTPUT")
+                .join(filename)
+                .to_string_lossy()
+                .to_string();
 
             rinex.to_file(&output_path).unwrap_or_else(|_| {
                 panic!("failed to generate {} RINEX \"{}\"", product, output_path)
@@ -150,6 +157,18 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 .ok_or(Error::MissingNavigationRinex)?;
             rinex_a.merge(&rinex_b)?
         },
+        RinexType::MeteoData => {
+            let rinex_a = ctx_data.meteo().ok_or(Error::MissingMeteoRinex)?;
+            rinex_a.merge(&rinex_b)?
+        },
+        RinexType::IonosphereMaps => {
+            let rinex_a = ctx_data.ionex().ok_or(Error::MissingIONEX)?;
+            rinex_a.merge(&rinex_b)?
+        },
+        RinexType::ClockData => {
+            let rinex_a = ctx_data.clock().ok_or(Error::MissingClockRinex)?;
+            rinex_a.merge(&rinex_b)?
+        },
         _ => unimplemented!(),
     };
 
@@ -159,7 +178,12 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         .to_string_lossy()
         .to_string();
 
-    let output_path = ctx.workspace.join(suffix).to_string_lossy().to_string();
+    let output_path = ctx
+        .workspace
+        .root
+        .join(suffix)
+        .to_string_lossy()
+        .to_string();
 
     rinex_c.to_file(&output_path)?;
 
@@ -236,6 +260,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let output = ctx
                 .workspace
+                .root
                 .join(format!("{}-{}.{}", filename, file_suffix, extension))
                 .to_string_lossy()
                 .to_string();
@@ -267,6 +292,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             let output = ctx
                 .workspace
+                .root
                 .join(format!("{}-{}.{}", filename, file_suffix, extension))
                 .to_string_lossy()
                 .to_string();
@@ -279,7 +305,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 }
 
 /*
- * Time reframing: subdivde a RINEX into a batch of equal duration
+ * Time reframing: subdivide a RINEX into a batch of equal duration
  */
 pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
@@ -292,11 +318,13 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     }
 
     for product in [
+        ProductType::IONEX,
+        ProductType::DORIS,
         ProductType::Observation,
         ProductType::MeteoObservation,
         ProductType::BroadcastNavigation,
         ProductType::HighPrecisionClock,
-        ProductType::IONEX,
+        ProductType::HighPrecisionOrbit,
     ] {
         // input data determination
         if let Some(rinex) = ctx_data.rinex(product) {
@@ -322,16 +350,24 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
             // run time binning algorithm
             while last <= end {
-                let rinex = rinex
-                    .filter(Filter::from_str(&format!("< {:?}", last)).unwrap())
-                    .filter(Filter::from_str(&format!(">= {:?}", first)).unwrap());
+                let lower = Filter::lower_than(&last.to_string()).unwrap();
+                let greater = Filter::greater_equals(&first.to_string()).unwrap();
+
+                debug!("batch: {} < {}", first, last);
+                let batch = rinex.filter(&lower).filter(&greater);
 
                 // generate standardized name
-                let filename = output_filename(&rinex, matches, prod.clone());
+                let filename = output_filename(&batch, matches, prod.clone());
 
-                let output = ctx.workspace.join(&filename).to_string_lossy().to_string();
+                let output = ctx
+                    .workspace
+                    .root
+                    .join("OUTPUT")
+                    .join(&filename)
+                    .to_string_lossy()
+                    .to_string();
 
-                rinex.to_file(&output)?;
+                batch.to_file(&output)?;
                 info!("{} RINEX \"{}\" has been generated", product, output);
 
                 first += *duration;
@@ -348,7 +384,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 /*
  * Substract RINEX[A]-RINEX[B]
  */
-pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+pub fn diff(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let path_a = ctx_data
         .files(ProductType::Observation)
@@ -403,6 +439,7 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     let fullpath = ctx
         .workspace
+        .root
         .join(format!("DIFFERENCED.{}", extension))
         .to_string_lossy()
         .to_string();
@@ -411,32 +448,4 @@ pub fn substract(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     info!("OBS RINEX \"{}\" has been generated", fullpath);
     Ok(())
-}
-
-#[cfg(target_os = "linux")]
-pub fn open_with_web_browser(path: &str) {
-    let web_browsers = vec!["firefox", "chromium"];
-    for browser in web_browsers {
-        let child = Command::new(browser).args([path]).spawn();
-        if child.is_ok() {
-            return;
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-pub fn open_with_web_browser(path: &str) {
-    Command::new("open")
-        .args(&[path])
-        .output()
-        .expect("open() failed, can't open HTML content automatically");
-}
-
-#[cfg(target_os = "windows")]
-pub fn open_with_web_browser(path: &str) {
-    Command::new("cmd")
-        .arg("/C")
-        .arg(format!(r#"start {}"#, path))
-        .output()
-        .expect("failed to open generated HTML content");
 }

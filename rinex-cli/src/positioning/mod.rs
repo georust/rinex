@@ -1,24 +1,25 @@
 use crate::cli::Context;
+use clap::ArgMatches;
 use std::cell::RefCell;
 use std::fs::read_to_string;
+// use anise::almanac::Almanac;
 
-mod ppp;
-// precise point positioning
-use ppp::post_process as ppp_post_process;
-use ppp::PostProcessingError as PPPPostProcessingError;
+mod ppp; // precise point positioning
+use ppp::Report as PPPReport;
 
 mod cggtts; // CGGTTS special solver
-use cggtts::post_process as cggtts_post_process;
-use cggtts::PostProcessingError as CGGTTSPostProcessingError;
+use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
-use clap::ArgMatches;
-use gnss::prelude::Constellation; // SV};
-use rinex::carrier::Carrier;
-use rinex::prelude::Rinex;
+use rinex::{
+    carrier::Carrier,
+    prelude::{Constellation, Rinex},
+};
+
+use rinex_qc::prelude::QcExtraPage;
 
 use rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Solver,
+    NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
 use thiserror::Error;
@@ -36,10 +37,33 @@ pub use interp::Buffer as BufferTrait;
 pub enum Error {
     #[error("solver error")]
     SolverError(#[from] RTKError),
-    #[error("ppp post processing error")]
-    PPPPostProcessingError(#[from] PPPPostProcessingError),
-    #[error("cggtts post processing error")]
-    CGGTTSPostProcessingError(#[from] CGGTTSPostProcessingError),
+    #[error("no solutions: check your settings or input")]
+    NoSolutions,
+    #[error("i/o error")]
+    StdioError(#[from] std::io::Error),
+}
+
+/*
+ * Converts `RTK Carrier` into compatible struct
+ */
+pub fn rtk_carrier_cast(carrier: RTKCarrier) -> Carrier {
+    match carrier {
+        RTKCarrier::L2 => Carrier::L2,
+        RTKCarrier::L5 => Carrier::L5,
+        RTKCarrier::L6 => Carrier::L6,
+        RTKCarrier::E1 => Carrier::E1,
+        RTKCarrier::E5 => Carrier::E5,
+        RTKCarrier::E6 => Carrier::E6,
+        RTKCarrier::E5A => Carrier::E5a,
+        RTKCarrier::E5B => Carrier::E5b,
+        RTKCarrier::B1I => Carrier::B1I,
+        RTKCarrier::B2 => Carrier::B2,
+        RTKCarrier::B3 => Carrier::B3,
+        RTKCarrier::B2A => Carrier::B2A,
+        RTKCarrier::B2iB2b => Carrier::B2I,
+        RTKCarrier::B1aB1c => Carrier::B1A,
+        RTKCarrier::L1 => Carrier::L1,
+    }
 }
 
 /*
@@ -63,6 +87,14 @@ pub fn cast_rtk_carrier(carrier: Carrier) -> RTKCarrier {
         Carrier::B1A | Carrier::B1C => RTKCarrier::B1aB1c,
         Carrier::L1 | _ => RTKCarrier::L1,
     }
+}
+
+// helper in reference signal determination
+fn rtk_reference_carrier(carrier: RTKCarrier) -> bool {
+    matches!(
+        carrier,
+        RTKCarrier::L1 | RTKCarrier::E1 | RTKCarrier::B1aB1c | RTKCarrier::B1I
+    )
 }
 
 //use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
@@ -183,7 +215,7 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
         .map(|(_, model)| NgModel { a: model.a })
 }
 
-pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtraPage, Error> {
     /* Load customized config script, or use defaults */
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
@@ -263,9 +295,29 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     // print config to be used
     info!("Using {:?} method", cfg.method);
 
+    // The CGGTTS opmode (TimeOnly) is not designed
+    // to support lack of apriori knowledge
+    let apriori = if matches.get_flag("cggtts") {
+        if let Some((x, y, z)) = ctx.rx_ecef {
+            let apriori_ecef = Vector3::new(x, y, z);
+            Some(Position::from_ecef(apriori_ecef))
+        } else {
+            panic!(
+                "--cggtts opmode cannot work without a priori position knowledge.
+You either need to specify it manually (see --help), or use RINEX files that define
+a static reference position"
+            );
+        }
+    } else {
+        None
+    };
+
+    //let almanac = Almanac::until_2035()
+    //    .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
+
     let solver = Solver::new(
         &cfg,
-        None,
+        apriori,
         /* state vector interpolator */
         |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
     )?;
@@ -273,17 +325,19 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<(), Er
     if matches.get_flag("cggtts") {
         /* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
-        cggtts_post_process(ctx, tracks, matches)?;
+        cggtts_post_process(&ctx, &tracks, matches)?;
+        let report = CggttsReport::new(&ctx, &tracks);
+        Ok(report.formalize())
     } else {
         /* PPP */
         let solutions = ppp::resolve(ctx, solver);
         if solutions.len() > 0 {
-            /* save solutions (graphs, reports..) */
-            ppp_post_process(ctx, solutions, matches)?;
+            let report = PPPReport::new(&cfg, &ctx, &solutions);
+            Ok(report.formalize())
         } else {
             error!("solver did not generate a single solution");
             error!("verify your input data and configuration setup");
+            Err(Error::NoSolutions)
         }
     }
-    Ok(())
 }

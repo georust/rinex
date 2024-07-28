@@ -5,11 +5,12 @@
 
 extern crate gnss_rs as gnss;
 
+#[cfg(feature = "qc")]
+extern crate rinex_qc_traits as qc_traits;
+
 pub mod antex;
 pub mod carrier;
 pub mod clock;
-pub mod cospar;
-pub mod domes;
 pub mod doris;
 pub mod epoch;
 pub mod gnss_time;
@@ -82,26 +83,27 @@ use hifitime::Unit;
 pub mod prelude {
     #[cfg(feature = "antex")]
     pub use crate::antex::AntennaMatcher;
+    #[cfg(feature = "obs")]
+    pub use crate::carrier::Carrier;
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
-    #[cfg(feature = "sp3")]
-    pub use crate::context::{ProductType, RnxContext};
-    pub use crate::cospar::COSPAR;
-    pub use crate::domes::Domes;
     pub use crate::doris::Station;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;
     pub use crate::observation::EpochFlag;
     pub use crate::types::Type as RinexType;
-    pub use crate::Error;
-    pub use crate::Rinex;
+    pub use crate::{Error, Rinex};
+    // pub re-export
     // pub use anise::prelude::Almanac;
-    pub use gnss::prelude::Constellation;
-    pub use gnss::prelude::SV;
+    pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
     #[cfg(feature = "nav")]
     pub use hifitime::ut1::DeltaTaiUt1;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
+    #[cfg(feature = "processing")]
+    pub use qc_traits::processing::{
+        Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
+    };
 }
 
 /// Package dedicated to file production.
@@ -112,22 +114,18 @@ pub mod prod {
 }
 
 #[cfg(feature = "processing")]
-mod algorithm;
+use qc_traits::processing::{Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing};
 
-/// Package to include all preprocessing
-/// methods like filtering, data smoothing and masking.
 #[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
-pub mod preprocessing {
-    pub use crate::algorithm::*;
-}
-
-#[cfg(feature = "qc")]
-#[macro_use]
-extern crate horrorshow;
-
-#[cfg(feature = "sp3")]
-mod context;
+use crate::{
+    clock::record::{clock_decim_mut, clock_mask_mut},
+    doris::record::{doris_decim_mut, doris_mask_mut},
+    header::header_mask_mut,
+    ionex::record::{ionex_decim_mut, ionex_mask_mut},
+    meteo::record::{meteo_decim_mut, meteo_mask_mut},
+    navigation::record::{navigation_decim_mut, navigation_mask_mut},
+    observation::record::{observation_decim_mut, observation_mask_mut},
+};
 
 use carrier::Carrier;
 use prelude::*;
@@ -1305,6 +1303,8 @@ impl Rinex {
     pub fn epoch(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
         if let Some(r) = self.record.as_obs() {
             Box::new(r.iter().map(|((k, _), _)| *k))
+        } else if let Some(r) = self.record.as_doris() {
+            Box::new(r.iter().map(|((k, _), _)| *k))
         } else if let Some(r) = self.record.as_nav() {
             Box::new(r.iter().map(|(k, _)| *k))
         } else if let Some(r) = self.record.as_meteo() {
@@ -1747,26 +1747,17 @@ use crate::observation::{record::code_multipath, LliFlags, SNR};
 impl Rinex {
     /// Returns a Unique Iterator over identified [`Carrier`]s
     pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier> + '_> {
-        Box::new(self.observation().flat_map(|(_, (_, sv))| {
-            sv.iter().flat_map(|(sv, observations)| {
-                observations
-                    .keys()
-                    .filter_map(|observable| {
-                        if let Ok(carrier) = observable.carrier(sv.constellation) {
-                            Some(carrier)
-                        } else {
-                            None
-                        }
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, sv))| {
+                    sv.iter().flat_map(|(sv, observations)| {
+                        observations.keys().filter_map(|observable| {
+                            Some(observable.carrier(sv.constellation).ok()?)
+                        })
                     })
-                    .fold(vec![], |mut list, item| {
-                        if !list.contains(&item) {
-                            list.push(item);
-                        }
-                        list
-                    })
-                    .into_iter()
-            })
-        }))
+                })
+                .unique(),
+        )
     }
     /// Returns a Unique Iterator over signal Codes, like "1C" or "1P"
     /// for precision code.
@@ -1778,6 +1769,70 @@ impl Rinex {
                         observations
                             .keys()
                             .filter_map(|observable| observable.code())
+                    })
+                })
+                .unique(),
+        )
+    }
+    /// Returns Unique Iterator over all feasible Pseudo range and Phase range combination,
+    /// expressed as (lhs: Observable, rhs: Observable).
+    /// Regardless which one is to consider as reference signal.
+    /// Use [pseudo_range_combinations()] or [phase_range_combinations()]
+    /// to reduce to specific physical observations.
+    pub fn signal_combinations(&self) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
+        Box::new(
+            self.pseudo_range_combinations()
+                .chain(self.phase_range_combinations()),
+        )
+    }
+    /// See [signal_combinations()]
+    pub fn pseudo_range_combinations(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, svnn))| {
+                    svnn.iter().flat_map(|(_, obs)| {
+                        obs.iter().flat_map(|(lhs_ob, _)| {
+                            obs.iter().flat_map(move |(rhs_ob, _)| {
+                                if lhs_ob.is_pseudorange_observable() && lhs_ob.same_physics(rhs_ob)
+                                {
+                                    if lhs_ob != rhs_ob {
+                                        Some((lhs_ob, rhs_ob))
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                    })
+                })
+                .unique(),
+        )
+    }
+    /// See [signal_combinations()]
+    pub fn phase_range_combinations(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, svnn))| {
+                    svnn.iter().flat_map(|(_, obs)| {
+                        obs.iter().flat_map(|(lhs_ob, _)| {
+                            obs.iter().flat_map(move |(rhs_ob, _)| {
+                                if lhs_ob.is_phase_observable() && lhs_ob.same_physics(rhs_ob) {
+                                    if lhs_ob != rhs_ob {
+                                        Some((lhs_ob, rhs_ob))
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            })
+                        })
                     })
                 })
                 .unique(),
@@ -2273,9 +2328,6 @@ impl Rinex {
     /// Note that TOE does not exist for SBAS vehicles, therefore should be discarded.
     pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
         /*
-         * minimize self.ephemeris with closest toe to t
-         *  with toe <= t
-         *   and t < toe + max dtoe
          *  TODO
          *   <o ideally some more advanced fields like
          *      health, iode should also be taken into account
@@ -2292,10 +2344,10 @@ impl Rinex {
                         },
                         _ => {
                             if sv.constellation.is_sbas() {
-                                // TOE does not exist
+                                // toe does not exist
                                 Some(t)
                             } else {
-                                /* determine toe */
+                                // determine toe
                                 eph.toe_gpst(ts)
                             }
                         },
@@ -2984,14 +3036,18 @@ impl Rinex {
     /// Returns true if rain was detected during this time frame.
     /// ```
     /// use std::str::FromStr;
-    /// use rinex::{filter, Rinex};
-    /// use rinex::preprocessing::*; // .filter()
+    /// use rinex::prelude::*;
+    /// use rinex::prelude::Preprocessing; // only on "processing" feature
+    ///
+    /// // parse a RINEX
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
-    /// // cropping time frame requires the "processing" feature
-    /// let rinex = rinex
-    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
-    ///                 .filter(filter!(" < 2015-01-01T20:00:00 UTC"));
+    ///
+    /// // only on "processing" feature
+    /// let morning = Filter::lower_than("2015-01-01T12:00:00 UTC")
+    ///     .unwrap();
+    ///
+    /// let rinex = rinex.filter(&morning);
     /// assert_eq!(rinex.rain_detected(), false);
     /// ```
     pub fn rain_detected(&self) -> bool {
@@ -3005,14 +3061,18 @@ impl Rinex {
     /// Returns total accumulated rain in tenth of mm, within this time frame
     /// ```
     /// use std::str::FromStr;
-    /// use rinex::{filter, Rinex};
-    /// use rinex::preprocessing::*; // .filter()
+    /// use rinex::prelude::*;
+    /// use rinex::prelude::Preprocessing; // only on "processing" feature
+    ///
+    /// // parse a RINEX
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
-    /// // cropping time frame requires the "processing" feature
-    /// let rinex = rinex
-    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
-    ///                 .filter(filter!(" < 2015-01-01T19:30:00 UTC"));
+    ///
+    /// // only when built with "processing" feature
+    /// let afternoon = Filter::greater_than("2015-01-01T12:00:00 UTC")
+    ///     .unwrap();
+    ///
+    /// let rinex = rinex.filter(&afternoon);
     /// assert_eq!(rinex.accumulated_rain(), 0.0);
     /// assert_eq!(rinex.rain_detected(), false);
     /// ```
@@ -3031,15 +3091,20 @@ impl Rinex {
     /// Returns true if hail was detected during this time frame
     /// ```
     /// use std::str::FromStr;
-    /// use rinex::{filter, Rinex};
-    /// use rinex::preprocessing::*; // .filter()
-    /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    /// use rinex::prelude::*;
+    /// use rinex::prelude::Preprocessing; // only on "processing" feature
+    ///
+    /// // parse a RINEX
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
-    /// // cropping time frame requires the "processing" feature
-    /// let rinex = rinex
-    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
-    ///                 .filter(filter!(" < 2015-01-01T20:00:00 UTC"));
-    /// assert_eq!(rinex.hail_detected(), false);
+    ///
+    /// // only when built with "processing" feature
+    /// let morning = Filter::lower_than("2015-01-01T12:00:00 UTC")
+    ///     .unwrap();
+    ///
+    /// let rinex = rinex.filter(&morning);
+    /// assert_eq!(rinex.accumulated_rain(), 0.0);
+    /// assert_eq!(rinex.rain_detected(), false);
     /// ```
     pub fn hail_detected(&self) -> bool {
         if let Some(r) = self.record.as_meteo() {
@@ -3108,81 +3173,59 @@ impl Split for Rinex {
 }
 
 #[cfg(feature = "processing")]
-use preprocessing::Smooth;
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+impl Preprocessing for Rinex {}
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docrs, doc(cfg(feature = "processing")))]
-impl Smooth for Rinex {
-    fn moving_average(&self, window: Duration) -> Self {
+impl Masking for Rinex {
+    fn mask(&self, f: &MaskFilter) -> Self {
         let mut s = self.clone();
-        s.moving_average_mut(window);
+        s.mask_mut(f);
         s
     }
-    fn moving_average_mut(&mut self, window: Duration) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.moving_average_mut(window);
+    fn mask_mut(&mut self, f: &MaskFilter) {
+        if let Some(rec) = self.record.as_mut_obs() {
+            observation_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_nav() {
+            navigation_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_clock() {
+            clock_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_meteo() {
+            meteo_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_doris() {
+            doris_mask_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_ionex() {
+            ionex_mask_mut(rec, f)
         }
-    }
-    fn hatch_smoothing(&self) -> Self {
-        let mut s = self.clone();
-        s.hatch_smoothing_mut();
-        s
-    }
-    fn hatch_smoothing_mut(&mut self) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.hatch_smoothing_mut();
-        }
+        header_mask_mut(&mut self.header, f);
     }
 }
-
-#[cfg(feature = "processing")]
-use crate::algorithm::{Filter, Preprocessing};
-
-#[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
-impl Preprocessing for Rinex {
-    fn filter(&self, f: Filter) -> Self {
-        let mut s = self.clone();
-        s.filter_mut(f);
-        s
-    }
-    fn filter_mut(&mut self, f: Filter) {
-        self.record.filter_mut(f);
-    }
-}
-
-#[cfg(feature = "processing")]
-use crate::algorithm::Decimate;
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Decimate for Rinex {
-    fn decimate_by_ratio(&self, r: u32) -> Self {
+    fn decimate(&self, f: &DecimationFilter) -> Self {
         let mut s = self.clone();
-        s.decimate_by_ratio_mut(r);
+        s.decimate_mut(f);
         s
     }
-    fn decimate_by_ratio_mut(&mut self, r: u32) {
-        self.record.decimate_by_ratio_mut(r);
-    }
-    fn decimate_by_interval(&self, dt: Duration) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_interval_mut(dt);
-        s
-    }
-    fn decimate_by_interval_mut(&mut self, dt: Duration) {
-        self.record.decimate_by_interval_mut(dt);
-    }
-    fn decimate_match_mut(&mut self, rhs: &Self) {
-        self.record.decimate_match_mut(&rhs.record);
-    }
-    fn decimate_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decimate_match_mut(rhs);
-        s
+    fn decimate_mut(&mut self, f: &DecimationFilter) {
+        if let Some(rec) = self.record.as_mut_obs() {
+            observation_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_nav() {
+            navigation_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_clock() {
+            clock_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_meteo() {
+            meteo_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_doris() {
+            doris_decim_mut(rec, f)
+        } else if let Some(rec) = self.record.as_mut_ionex() {
+            ionex_decim_mut(rec, f)
+        }
     }
 }
-
 #[cfg(feature = "obs")]
 use observation::Dcb;
 
@@ -3691,14 +3734,8 @@ impl Rinex {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::str::FromStr;
-    #[test]
-    fn test_macros() {
-        let _ = observable!("L1C");
-        let _ = filter!("GPS");
-        let _ = filter!("G08, G09");
-    }
     use crate::{fmt_comment, is_rinex_comment};
+    use std::str::FromStr;
     #[test]
     fn fmt_comments_singleline() {
         for desc in [

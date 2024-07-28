@@ -8,7 +8,12 @@ use crate::{
     header::Header,
     observable::Observable,
     observation::EpochFlag,
-    prelude::{Duration, TimeScale},
+    prelude::TimeScale,
+};
+
+#[cfg(feature = "processing")]
+use qc_traits::processing::{
+    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
 };
 
 #[cfg(feature = "serde")]
@@ -173,220 +178,69 @@ pub(crate) fn parse_epoch(
 }
 
 #[cfg(feature = "processing")]
-use crate::preprocessing::*;
-
-#[cfg(feature = "processing")]
-impl Preprocessing for Record {
-    fn filter(&self, filter: Filter) -> Self {
-        let mut s = self.clone();
-        s.filter_mut(filter);
-        s
-    }
-    fn filter_mut(&mut self, filter: Filter) {
-        match filter {
-            Filter::Mask(mask) => self.mask_mut(mask),
-            Filter::Decimation(filter) => match filter.dtype {
-                DecimationType::DecimByRatio(r) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_ratio_mut(r);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // and decimate
-                    let subset = self.mask(mask).decimate_by_ratio(r);
-
-                    // adapt self's subset to new data rates
-                    decimate_data_subset(self, &subset, &item);
-                },
-                DecimationType::DecimByInterval(dt) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_interval_mut(dt);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // and decimate
-                    let subset = self.mask(mask).decimate_by_interval(dt);
-
-                    // adapt self's subset to new data rates
-                    decimate_data_subset(self, &subset, &item);
-                },
-            },
-            _ => {},
-        }
-    }
-}
-
-/*
- * Decimates only a given record subset
- */
-#[cfg(feature = "processing")]
-fn decimate_data_subset(record: &mut Record, _subset: &Record, target: &TargetItem) {
-    match target {
-        TargetItem::ClockItem => {
-            /*
-             * Remove clock fields from self
-             * where it should now be missing
-             */
-            for (_epoch, _) in record.iter_mut() {
-                //if subset.get(epoch).is_none() {
-                //    // should be missing
-                //    // *clk = None; // now missing
-                //}
-            }
-        },
-        TargetItem::SvItem(_svs) => {
-            /*
-             * Remove SV observations where it should now be missing
-             */
-            for (_epoch, _) in record.iter_mut() {
-                //if subset.get(epoch).is_none() {
-                //    // should be missing
-                //    for sv in svs.iter() {
-                //        vehicles.remove(sv); // now missing
-                //    }
-                //}
-            }
-        },
-        TargetItem::ObservableItem(_obs_list) => {
-            /*
-             * Remove given observations where it should now be missing
-             */
-            for (_epoch, _) in record.iter_mut() {
-                //if subset.get(epoch).is_none() {
-                //    // should be missing
-                //    for (_sv, observables) in vehicles.iter_mut() {
-                //        observables.retain(|observable, _| !obs_list.contains(observable));
-                //    }
-                //}
-            }
-        },
-        TargetItem::ConstellationItem(_constells_list) => {
-            /*
-             * Remove observations for given constellation(s) where it should now be missing
-             */
-            for (_epoch, _) in record.iter_mut() {
-                //if subset.get(epoch).is_none() {
-                //    // should be missing
-                //    vehicles.retain(|sv, _| {
-                //        let mut contained = false;
-                //        for constell in constells_list.iter() {
-                //            if sv.constellation == *constell {
-                //                contained = true;
-                //                break;
-                //            }
-                //        }
-                //        !contained
+pub(crate) fn doris_mask_mut(rec: &mut Record, mask: &MaskFilter) {
+    match mask.operand {
+        MaskOperand::Equals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e == *epoch),
+            FilterItem::ComplexItem(_filter) => {
+                //rec.retain(|_, stations| {
+                //    stations.retain(|_, obs| {
+                //        obs.retain(|code, _| filter.contains(code));
+                //        !obs.is_empty()
                 //    });
-                //}
-            }
+                //    !stations.is_empty()
+                //});
+            },
+            _ => {}, //TODO: some other types could apply, like SNR..
         },
-        TargetItem::SNRItem(_) => unimplemented!("decimate_data_subset::snr"),
+        MaskOperand::NotEquals => match &mask.item {
+            FilterItem::EpochItem(epoch) => rec.retain(|(e, _), _| *e != *epoch),
+            FilterItem::ComplexItem(_filter) => {
+                //rec.retain(|_, stations| {
+                //    stations.retain(|_, obs| {
+                //        obs.retain(|code, _| !filter.contains(code));
+                //        !obs.is_empty()
+                //    });
+                //    !stations.is_empty()
+                //});
+            },
+            _ => {}, //TODO: some other types could apply, like SNR..
+        },
         _ => {},
     }
 }
 
 #[cfg(feature = "processing")]
-impl Decimate for Record {
-    fn decimate_by_ratio_mut(&mut self, r: u32) {
-        let mut i = 0;
-        self.retain(|_, _| {
-            let retained = (i % r) == 0;
-            i += 1;
-            retained
-        });
+pub(crate) fn doris_decim_mut(rec: &mut Record, f: &DecimationFilter) {
+    if f.item.is_some() {
+        todo!("targetted decimation not supported yet");
     }
-    fn decimate_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_ratio_mut(r);
-        s
-    }
-    fn decimate_by_interval_mut(&mut self, interval: Duration) {
-        let mut last_retained = Option::<Epoch>::None;
-        self.retain(|(e, _), _| {
-            if let Some(last) = last_retained {
-                let dt = *e - last;
-                if dt >= interval {
-                    last_retained = Some(*e);
-                    true
+    match f.filter {
+        DecimationFilterType::Modulo(r) => {
+            let mut i = 0;
+            rec.retain(|_, _| {
+                let retained = (i % r) == 0;
+                i += 1;
+                retained
+            });
+        },
+        DecimationFilterType::Duration(interval) => {
+            let mut last_retained = Option::<Epoch>::None;
+            rec.retain(|(e, _), _| {
+                if let Some(last) = last_retained {
+                    let dt = *e - last;
+                    if dt >= interval {
+                        last_retained = Some(*e);
+                        true
+                    } else {
+                        false
+                    }
                 } else {
-                    false
+                    last_retained = Some(*e);
+                    true // always retain 1st epoch
                 }
-            } else {
-                last_retained = Some(*e);
-                true // always retain 1st epoch
-            }
-        });
-    }
-    fn decimate_by_interval(&self, interval: Duration) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_interval_mut(interval);
-        s
-    }
-    fn decimate_match_mut(&mut self, rhs: &Self) {
-        self.retain(|e, _| rhs.get(e).is_some());
-    }
-    fn decimate_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decimate_match_mut(rhs);
-        s
-    }
-}
-
-#[cfg(feature = "processing")]
-impl Mask for Record {
-    fn mask(&self, mask: MaskFilter) -> Self {
-        let mut s = self.clone();
-        s.mask_mut(mask);
-        s
-    }
-    fn mask_mut(&mut self, mask: MaskFilter) {
-        match mask.operand {
-            MaskOperand::Equals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
-                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f == flag),
-                TargetItem::ObservableItem(filter) => {
-                    self.retain(|_, stations| {
-                        stations.retain(|_, obs| {
-                            obs.retain(|code, _| filter.contains(code));
-                            !obs.is_empty()
-                        });
-                        !stations.is_empty()
-                    });
-                },
-                _ => {}, //TODO: some other types could apply, like SNR..
-            },
-            MaskOperand::NotEquals => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
-                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
-                TargetItem::ObservableItem(filter) => {
-                    self.retain(|_, stations| {
-                        stations.retain(|_, obs| {
-                            obs.retain(|code, _| !filter.contains(code));
-                            !obs.is_empty()
-                        });
-                        !stations.is_empty()
-                    });
-                },
-                _ => {}, //TODO: some other types could apply, like SNR..
-            },
-            _ => {},
-        }
+            });
+        },
     }
 }
 
@@ -394,8 +248,11 @@ impl Mask for Record {
 mod test {
     use super::{is_new_epoch, parse_epoch};
     use crate::{
-        domes::Domes, domes::TrackingPoint as DomesTrackingPoint, doris::record::ObservationData,
-        doris::HeaderFields as DorisHeader, doris::Station, Epoch, EpochFlag, Header, Observable,
+        doris::record::ObservationData,
+        doris::HeaderFields as DorisHeader,
+        doris::Station,
+        prelude::{DOMESTrackingPoint, DOMES},
+        Epoch, EpochFlag, Header, Observable,
     };
     use std::str::FromStr;
     #[test]
@@ -461,11 +318,11 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
             k_factor: 0,
             label: "THUB".to_string(),
             site: "THULE".to_string(),
-            domes: Domes {
+            domes: DOMES {
                 site: 1,
                 area: 430,
                 sequential: 5,
-                point: DomesTrackingPoint::Instrument,
+                point: DOMESTrackingPoint::Instrument,
             },
         };
         let values = content
@@ -566,11 +423,11 @@ D02  -2069899.788     -407871.014     4677242.25714   4677392.20614      -119.05
             k_factor: 0,
             label: "SVBC".to_string(),
             site: "NY-ALESUND II".to_string(),
-            domes: Domes {
+            domes: DOMES {
                 site: 38,
                 area: 103,
                 sequential: 4,
-                point: DomesTrackingPoint::Instrument,
+                point: DOMESTrackingPoint::Instrument,
             },
         };
         let values = content

@@ -1,18 +1,24 @@
 use std::collections::HashMap;
-
 use thiserror::Error;
 
 use crate::{
-    domes::Error as DomesParsingError,
     observable::Observable,
     prelude::{Duration, Epoch},
 };
+
+use gnss_rs::domes::Error as DomesParsingError;
 
 pub(crate) mod record;
 pub(crate) mod station;
 
 pub use record::Record;
 pub use station::Station;
+
+#[cfg(feature = "processing")]
+use crate::prelude::TimeScale;
+
+#[cfg(feature = "processing")]
+use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
 /// DORIS Station & record parsing error
 #[derive(Debug, Error)]
@@ -67,4 +73,45 @@ impl HeaderFields {
     // pub(crate) fn scaling(&self, observable: Observable) -> Option<&u16> {
     //     self.scaling.get(&observable)
     // }
+}
+
+#[cfg(feature = "processing")]
+impl HeaderFields {
+    fn timescale(&self) -> TimeScale {
+        match self.time_of_first_obs {
+            Some(ts) => ts.time_scale,
+            None => match self.time_of_last_obs {
+                Some(ts) => ts.time_scale,
+                None => TimeScale::GPST,
+            },
+        }
+    }
+    pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
+        match f.operand {
+            MaskOperand::Equals => match &f.item {
+                FilterItem::EpochItem(_epoch) => {},
+                _ => {},
+            },
+            MaskOperand::NotEquals => match &f.item {
+                FilterItem::EpochItem(_epoch) => {},
+                _ => {},
+            },
+            MaskOperand::GreaterThan => match &f.item {
+                FilterItem::EpochItem(_epoch) => {},
+                _ => {},
+            },
+            MaskOperand::GreaterEquals => match &f.item {
+                FilterItem::EpochItem(_epoch) => {},
+                _ => {},
+            },
+            MaskOperand::LowerThan => match &f.item {
+                FilterItem::EpochItem(_epoch) => {},
+                _ => {},
+            },
+            MaskOperand::LowerEquals => match &f.item {
+                FilterItem::EpochItem(_epoch) => {},
+                _ => {},
+            },
+        }
+    }
 }

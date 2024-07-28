@@ -1,20 +1,16 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    fs::File,
     io::Write,
 };
 
 use crate::{
     cli::Context,
-    fops::open_with_web_browser,
-    graph::{build_3d_chart_epoch_label, build_chart_epoch_axis, PlotContext},
 };
+
 use clap::ArgMatches;
-
+use itertools::Itertools;
+use rtk::prelude::{Carrier, Config, Epoch, Method, PVTSolution, SV};
 use thiserror::Error;
-
-use hifitime::Epoch;
-use rtk::prelude::PVTSolution;
 
 extern crate gpx;
 use gpx::{errors::GpxError, Gpx, GpxVersion, Waypoint};
@@ -125,15 +121,20 @@ fn html_add_apriori_position(
 
 pub fn post_process(
     ctx: &Context,
+    cfg: &Config,
     solutions: BTreeMap<Epoch, PVTSolution>,
     matches: &ArgMatches,
 ) -> Result<(), Error> {
     // create a dedicated plot context
     let mut plot_ctx = PlotContext::new();
 
+    let nb_solutions = solutions.len();
+    let epochs = solutions.keys().copied().collect::<Vec<Epoch>>();
+    let mut ambiguities: HashMap<(SV, Carrier), (Epoch, f64)> = HashMap::new();
+
     // Convert solutions to geodetic DDEG
     let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
-    for solution in solutions.values() {
+    for (t, solution) in &solutions {
         let (lat_rad, lon_rad, _) = ecef2geodetic(
             solution.position.x,
             solution.position.y,
@@ -142,11 +143,12 @@ pub fn post_process(
         );
         lat.push(rad2deg(lat_rad));
         lon.push(rad2deg(lon_rad));
+        for ((sv, carrier), amb) in &solution.ambiguities {
+            ambiguities.insert((*sv, *carrier), (*t, amb.n_1 as f64));
+        }
     }
 
-    let nb_solutions = solutions.len();
     let final_solution_ddeg = (lat[nb_solutions - 1], lon[nb_solutions - 1]);
-    let epochs = solutions.keys().copied().collect::<Vec<Epoch>>();
 
     let lat0_rad = if let Some(apriori_ecef) = ctx.rx_ecef {
         ecef2geodetic(
@@ -331,30 +333,61 @@ pub fn post_process(
     .y_axis("y2");
     plot_ctx.add_trace(trace);
 
+    if cfg.method == Method::PPP {
+        // Ambiguities
+        plot_ctx.add_timedomain_plot("Signal Ambiguities", "Cycles");
+        for (sv, carrier) in ambiguities.keys().sorted().unique() {
+            let epochs = ambiguities
+                .iter()
+                .filter_map(|((sv_i, sig_i), (t, _amb))| {
+                    if sv_i == sv && sig_i == carrier {
+                        Some(*t)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let ambiguities = ambiguities
+                .iter()
+                .filter_map(|((sv_i, sig_i), (_t, amb))| {
+                    if sv_i == sv && sig_i == carrier {
+                        Some(*amb)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let trace = build_chart_epoch_axis(
+                &format!("{}/{}", sv, carrier),
+                Mode::Markers,
+                epochs,
+                ambiguities,
+            );
+            plot_ctx.add_trace(trace);
+        }
+    }
+
+    // Extend report with _Apriori_ when it is known
+    // Serves as survey quality comparison and reference point.
     if let Some(apriori_ecef) = ctx.rx_ecef {
         html_add_apriori_position(&epochs, &solutions, apriori_ecef, &mut plot_ctx);
     }
 
     // render plots
-    let graphs = ctx.workspace.join("Solutions.html");
-    let graphs = graphs.to_string_lossy().to_string();
-    let mut fd = File::create(&graphs).unwrap_or_else(|_| panic!("failed to crate \"{}\"", graphs));
+    let mut fd = ctx.workspace.create_file("Solutions.html");
     write!(fd, "{}", plot_ctx.to_html()).expect("failed to render PVT solutions");
-    info!("\"{}\" solutions generated", graphs);
 
     /*
      * Generate txt, GPX, KML..
      */
-    let txtpath = ctx.workspace.join("solutions.csv");
-    let txtfile = txtpath.to_string_lossy().to_string();
-    let mut fd = File::create(&txtfile)?;
+    let mut fd = ctx.workspace.create_file("Solutions.csv");
 
     let mut gpx_track = gpx::Track::default();
     let mut kml_track = Vec::<Kml>::new();
 
     writeln!(
         fd,
-        "Epoch, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rcvr_clock_bias, tdop"
+        "Epoch, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rx_clock_offset, tdop"
     )?;
 
     for (epoch, solution) in solutions {
@@ -425,13 +458,9 @@ pub fn post_process(
             }));
         }
     }
-    info!("\"{}\" generated", txtfile);
     if matches.get_flag("gpx") {
         let prefix = ctx.name.clone();
-        let gpxpath = ctx.workspace.join(format!("{}.gpx", prefix));
-        let gpxfile = gpxpath.to_string_lossy().to_string();
-
-        let fd = File::create(&gpxfile)?;
+        let fd = ctx.workspace.create_file(&format!("{}.gpx", prefix));
 
         let mut gpx = Gpx::default();
         gpx.version = GpxVersion::Gpx11;
@@ -440,14 +469,10 @@ pub fn post_process(
         gpx.tracks.push(gpx_track);
 
         gpx::write(&gpx, fd)?;
-        info!("{} gpx track generated", gpxfile);
     }
     if matches.get_flag("kml") {
         let prefix = ctx.name.clone();
-        let kmlpath = ctx.workspace.join(format!("{}.kml", prefix));
-        let kmlfile = kmlpath.to_string_lossy().to_string();
-
-        let mut fd = File::create(&kmlfile)?;
+        let mut fd = ctx.workspace.create_file(&format!("{}.kml", prefix));
 
         let kmldoc = KmlDocument {
             version: KmlVersion::V23,
@@ -466,14 +491,6 @@ pub fn post_process(
         };
         let mut writer = KmlWriter::from_writer(&mut fd);
         writer.write(&Kml::KmlDocument(kmldoc))?;
-        info!("{} kml track generated", kmlfile);
     }
-
-    if !ctx.quiet {
-        let graphs = ctx.workspace.join("Solutions.html");
-        let graphs = graphs.to_string_lossy().to_string();
-        open_with_web_browser(&graphs);
-    }
-
     Ok(())
 }

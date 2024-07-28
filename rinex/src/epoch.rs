@@ -242,6 +242,52 @@ pub(crate) fn parse_utc(s: &str) -> Result<Epoch, ParsingError> {
     parse_in_timescale(s, TimeScale::UTC)
 }
 
+pub(crate) fn parse_ionex_utc(s: &str) -> Result<Epoch, ParsingError> {
+    let (mut y, mut m, mut d, mut hh, mut mm, mut ss) = (0_i32, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8);
+    for (index, field) in s.split_ascii_whitespace().enumerate() {
+        match index {
+            0 => {
+                y = field
+                    .trim()
+                    .parse::<i32>()
+                    .map_err(|_| ParsingError::YearField(field.to_string()))?;
+            },
+            1 => {
+                m = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::MonthField(field.to_string()))?;
+            },
+            2 => {
+                d = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::DayField(field.to_string()))?;
+            },
+            3 => {
+                hh = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::HoursField(field.to_string()))?;
+            },
+            4 => {
+                mm = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::MinutesField(field.to_string()))?;
+            },
+            5 => {
+                ss = field
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| ParsingError::SecondsField(field.to_string()))?;
+            },
+            _ => {},
+        }
+    }
+    Ok(Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0))
+}
+
 /*
  * Until Hifitime provides a decomposition method in timescale other than UTC
  * we have this tweak to decompose %Y %M %D %HH %MM %SS and without nanoseconds
@@ -572,6 +618,18 @@ mod test {
         assert_eq!(ss, 00);
         assert_eq!(ns, 0);
         assert_eq!(format(e, Type::MeteoData, 2), "22  1  4  0  0  0");
+    }
+    #[test]
+    fn ionex_parsing() {
+        for (desc, expected) in [(
+            "  2022     1     2     0     0     0                        ",
+            Epoch::from_str("2022-01-02T00:00:00 UTC").unwrap(),
+        )] {
+            let epoch = parse_ionex_utc(desc);
+            assert!(epoch.is_ok(), "failed to parse IONEX/UTC epoch");
+            let epoch = epoch.unwrap();
+            assert_eq!(epoch, expected, "invalid IONEX/UTC epoch");
+        }
     }
     #[test]
     fn epoch_decomposition() {

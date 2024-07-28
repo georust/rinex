@@ -5,10 +5,13 @@ use std::str::FromStr;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "qc")]
+use maud::{html, Markup, Render};
+
 /// GNSS receiver description
 #[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Rcvr {
+pub struct Receiver {
     /// Receiver (hardware) model
     pub model: String,
     /// Receiver (hardware) identification info
@@ -17,13 +20,13 @@ pub struct Rcvr {
     pub firmware: String, // firmware #
 }
 
-impl std::str::FromStr for Rcvr {
+impl std::str::FromStr for Receiver {
     type Err = std::io::Error;
     fn from_str(line: &str) -> Result<Self, Self::Err> {
         let (id, rem) = line.split_at(20);
         let (make, rem) = rem.split_at(20);
         let (version, _) = rem.split_at(20);
-        Ok(Rcvr {
+        Ok(Receiver {
             sn: id.trim().to_string(),
             model: make.trim().to_string(),
             firmware: version.trim().to_string(),
@@ -92,67 +95,62 @@ impl Antenna {
 }
 
 #[cfg(feature = "qc")]
-use horrorshow::RenderBox;
-
-#[cfg(feature = "qc")]
-use rinex_qc_traits::HtmlReport;
-
-#[cfg(feature = "qc")]
-impl HtmlReport for Antenna {
-    fn to_html(&self) -> String {
-        panic!("cannot render hardware::antenna on its own");
-    }
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table is-bordered") {
-                tr {
-                    th {
-                        : "Model"
-                    }
-                    th {
-                        : "SN#"
-                    }
-                    th {
-                        : "Base Coordinates"
-                    }
-                    th {
-                        : "Height"
-                    }
-                    th {
-                        : "Eccentricity"
-                    }
-                }
-                tr {
-                    td {
-                        : self.model.clone()
-                    }
-                    td {
-                        : self.sn.clone()
-                    }
-                    td {
-                        @ if let Some(coords) = self.coords {
-                            : format!("({}m, {}m, {}m) (ECEF)",
-                                coords.0, coords.1, coords.2)
-                        } else {
-                            : "Unknown"
+impl Render for Antenna {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table is-bordered" {
+                tbody {
+                    tr {
+                        th {
+                            "Model"
+                        }
+                        td {
+                            (self.model.clone())
                         }
                     }
-                    td {
-                        @ if let Some(h) = self.height {
-                            : format!("{} m", h)
-                        } else {
-                            : "Unknown"
+                    tr {
+                        th {
+                            "SN#"
+                        }
+                        td {
+                            (self.sn.clone())
                         }
                     }
-                    td {
-                        @ if let Some(north) = self.northern {
-                            @ if let Some(east) = self.eastern {
-                                : format!("{}m N, {}m E", north, east)
-                            } else {
-                                : "Unknown"
+                    tr {
+                        th {
+                            "Base Coordinates"
+                        }
+                        td {
+                            @if let Some(coords) = self.coords {
+                                (format!("({}m, {}m, {}m) (ECEF)",
+                                    coords.0, coords.1, coords.2))
+                            } @else {
+                                "Unknown"
                             }
-                        } else {
-                            : "Unknown"
+                        }
+                    }
+                    th {
+                        "Height"
+                    }
+                    td {
+                        @if let Some(h) = self.height {
+                            (format!("{} m", h))
+                        } @else {
+                            "Unknown"
+                        }
+                    }
+                    th {
+                        "Eccentricity"
+                    }
+                    td {
+                        @if let Some(north) = self.northern {
+                            @if let Some(east) = self.eastern {
+                                (format!("{}m N, {}m E", north, east))
+                            } @else {
+                                "Unknown"
+                            }
+                        } @else {
+                            "Unknown"
                         }
                     }
                 }
@@ -162,33 +160,36 @@ impl HtmlReport for Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl HtmlReport for Rcvr {
-    fn to_html(&self) -> String {
-        panic!("cannot render hardware::receiver on its own");
-    }
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
-                tr {
-                    th {
-                        : "Model"
-                    }
-                    th {
-                        : "SN#"
-                    }
-                    th {
-                        : "Firmware"
-                    }
-                }
-                tr {
-                    td {
-                        : self.model.clone()
-                    }
-                    td {
-                        : self.sn.clone()
-                    }
-                    td {
-                        : self.firmware.clone()
+impl Render for Receiver {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tbody {
+                        tr {
+                            th {
+                                "Model"
+                            }
+                            td {
+                                (self.model.clone())
+                            }
+                        }
+                        tr {
+                            th {
+                                "SN#"
+                            }
+                            td {
+                                (self.sn.clone())
+                            }
+                        }
+                        tr {
+                            th {
+                                "Firmware"
+                            }
+                            td {
+                                (self.firmware.clone())
+                            }
+                        }
                     }
                 }
             }
@@ -236,7 +237,7 @@ mod test {
     #[test]
     fn rcvr_parser() {
         let content = "2090088             LEICA GR50          4.51                ";
-        let rcvr = Rcvr::from_str(content);
+        let rcvr = Receiver::from_str(content);
         assert!(rcvr.is_ok());
         let rcvr = rcvr.unwrap();
         assert_eq!(rcvr.model, "LEICA GR50");

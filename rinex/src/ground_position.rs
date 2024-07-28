@@ -1,7 +1,11 @@
+use dms_coordinates::DMS;
 use map_3d::{deg2rad, ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "qc")]
+use maud::{html, Markup, Render};
 
 #[derive(Default, Copy, Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -62,46 +66,75 @@ impl std::fmt::UpperHex for GroundPosition {
 }
 
 #[cfg(feature = "qc")]
-use rinex_qc_traits::HtmlReport;
-
-#[cfg(feature = "qc")]
-use horrorshow::RenderBox;
-
-#[cfg(feature = "qc")]
-impl HtmlReport for GroundPosition {
-    fn to_html(&self) -> String {
-        todo!()
-    }
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+impl Render for GroundPosition {
+    fn render(&self) -> Markup {
         let ecef = (self.0, self.1, self.2);
         let geo = self.to_geodetic();
-        box_html! {
-            tr {
-                th {
-                    : "ECEF (WGS84)"
+        html! {
+            table {
+                tr {
+                    th {
+                        "ECEF (WGS84)"
+                    }
                 }
-                td {
-                    : format!("X: {:.6} m", ecef.0)
+                tr {
+                    th {
+                        "X"
+                    }
+                    td {
+                        (format!("{:.3} m", ecef.0))
+                    }
+                    th {
+                        "Y"
+                    }
+                    td {
+                        (format!("{:.3} m", ecef.1))
+                    }
+                    th {
+                       "Z"
+                    }
+                    td {
+                        (format!("{:.3} m", ecef.2))
+                    }
                 }
-                td {
-                    : format!("Y: {:.6} m", ecef.1)
+                tr {
+                    th {
+                        "GEO"
+                    }
                 }
-                td {
-                    : format!("Z: {:.6} m", ecef.2)
+                tr {
+                    th {
+                        "Latitude"
+                    }
+                    td {
+                        (format!("{:.6}°", geo.0))
+                    }
+                    th {
+                        "Longitude"
+                    }
+                    td {
+                        (format!("{:.6}°", geo.1))
+                    }
+                    th {
+                        "Altitude"
+                    }
+                    td {
+                        (format!("{:.3} m", geo.2))
+                    }
                 }
-            }
-            tr {
-                th {
-                    : "GEO"
-                }
-                td {
-                    : format!("Lat.: {:.6}°", geo.0)
-                }
-                td {
-                    : format!("Lon.: {:.6}°", geo.1)
-                }
-                td {
-                    : format!("Alt.: {:.6} m", geo.2)
+                tr {
+                    th {
+                        "DMS"
+                    }
+                    td {
+                        (DMS::from_ddeg_latitude(geo.0).to_string())
+                    }
+                    th {
+                        "DMS"
+                    }
+                    td {
+                        (DMS::from_ddeg_longitude(geo.1).to_string())
+                    }
                 }
             }
         }

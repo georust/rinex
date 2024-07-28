@@ -9,15 +9,6 @@ macro_rules! observable {
     };
 }
 
-#[cfg(feature = "processing")]
-#[macro_export]
-/// Returns a filter object, from a given description which must be valid
-macro_rules! filter {
-    ($desc: expr) => {
-        Filter::from_str($desc).unwrap()
-    };
-}
-
 /// Builds a [crate::GroundPosition] in WGS84
 #[macro_export]
 macro_rules! wgs84 {

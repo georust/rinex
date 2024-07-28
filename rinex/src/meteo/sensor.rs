@@ -1,7 +1,11 @@
 //! Meteo sensor
 use crate::observable;
+use crate::prelude::GroundPosition;
 use crate::Observable;
 use thiserror::Error;
+
+#[cfg(feature = "qc")]
+use maud::{html, Markup, Render};
 
 /// Meteo Observation Sensor
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
@@ -17,7 +21,52 @@ pub struct Sensor {
     pub accuracy: Option<f32>,
     /// Posible sensor location (ECEF) and possible
     /// height eccentricity
-    pub position: Option<(f64, f64, f64, f64)>,
+    pub position: Option<GroundPosition>,
+    /// Possible sensor height eccentricity (m)
+    pub height: Option<f64>,
+}
+
+impl Render for Sensor {
+    fn render(&self) -> Markup {
+        html! {
+            table class="table is-bordered" {
+                tr {
+                    th { "Observable" }
+                    td { (self.observable.to_string()) }
+                }
+                @if let Some(model) = &self.model {
+                    tr {
+                        th { "Model" }
+                        td { (model) }
+                    }
+                }
+                @if let Some(sensor) = &self.sensor_type {
+                    tr {
+                        th { "Sensor Type" }
+                        td { (sensor) }
+                    }
+                }
+                @if let Some(accuracy) = self.accuracy {
+                    tr {
+                        th { "Sensor Accuracy" }
+                        td { (format!("{:.3E}", accuracy)) }
+                    }
+                }
+                @if let Some(pos) = self.position {
+                    tr {
+                        th { "Sensor position" }
+                        td { (pos.render()) }
+                    }
+                }
+                @if let Some(h) = self.height {
+                    tr {
+                        th { "Height" }
+                        td { (format!("{:.3} m", h)) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -57,8 +106,9 @@ impl std::str::FromStr for Sensor {
                     None
                 }
             },
-            observable: Observable::from_str(observable.trim())?,
+            height: None,
             position: None,
+            observable: Observable::from_str(observable.trim())?,
         })
     }
 }
@@ -84,10 +134,12 @@ impl std::fmt::Display for Sensor {
         }
         writeln!(f, "{} SENSOR MOD/TYPE/ACC", self.observable)?;
 
-        if let Some((x, y, z, h)) = self.position {
+        if let Some(pos) = self.position {
+            let (x, y, z) = pos.to_ecef_wgs84();
             write!(f, "{:14.4}", x)?;
             write!(f, "{:14.4}", y)?;
             write!(f, "{:14.4}", z)?;
+            let h = self.height.unwrap_or(0.0);
             write!(f, "{:14.4}", h)?;
             writeln!(f, " {} SENSOR POS XYZ/H", self.observable)?
         }
@@ -114,9 +166,14 @@ impl Sensor {
         s.observable = observable;
         s
     }
-    pub fn with_position(&self, pos: (f64, f64, f64, f64)) -> Self {
+    pub fn with_position(&self, pos: GroundPosition) -> Self {
         let mut s = self.clone();
         s.position = Some(pos);
+        s
+    }
+    pub fn with_height(&self, h: f64) -> Self {
+        let mut s = self.clone();
+        s.height = Some(h);
         s
     }
     pub fn with_accuracy(&self, accuracy: f32) -> Self {
@@ -129,9 +186,10 @@ impl Sensor {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::prelude::GroundPosition;
     use std::str::FromStr;
     #[test]
-    fn to_str() {
+    fn test_formatting() {
         let s = Sensor::new(Observable::Temperature);
         assert_eq!(
             s.to_string(),
@@ -154,7 +212,8 @@ mod test {
             "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC\n"
         );
 
-        let s = s.with_position((0.0, 0.0, 0.0, 1234.5678));
+        let mut s = s.with_position(GroundPosition::from_ecef_wgs84((0.0, 0.0, 0.0)));
+        s.height = Some(1234.5678);
         assert_eq!(
             s.to_string(),
             "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC
