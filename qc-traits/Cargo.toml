@@ -27,4 +27,4 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [dependencies]
 thiserror = "1"
 hifitime = { version = "4.0.0-alpha", optional = true }
-gnss-rs = { version = "2.2", features = ["serde", "domes", "cospar"], optional = true }
+gnss-rs = { version = "2.2.1", features = ["serde", "domes", "cospar"], optional = true }
