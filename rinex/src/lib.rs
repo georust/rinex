@@ -50,7 +50,7 @@ extern crate num_derive;
 extern crate lazy_static;
 
 pub mod reader;
-use anise::almanac::Almanac;
+// use anise::almanac::Almanac;
 use reader::BufferedReader;
 
 pub mod writer;
@@ -96,7 +96,7 @@ pub mod prelude {
     pub use crate::types::Type as RinexType;
     pub use crate::Error;
     pub use crate::Rinex;
-    pub use anise::prelude::Almanac;
+    // pub use anise::prelude::Almanac;
     pub use gnss::prelude::Constellation;
     pub use gnss::prelude::SV;
     #[cfg(feature = "nav")]
@@ -2341,9 +2341,10 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// let almanac = Almanac::until_2035().unwrap();
+    /// // let almanac = Almanac::until_2035().unwrap();
     ///
-    /// for (epoch, sv, (x, y, z)) in rinex.sv_position(&almanac) {
+    /// // for (epoch, sv, (x, y, z)) in rinex.sv_position(&almanac) {
+    /// for (epoch, sv, (x, y, z)) in rinex.sv_position() {
     ///     // sv: satellite vehicle
     ///     // x: x(t) [km ECEF]
     ///     // y: y(t) [km ECEF]
@@ -2352,7 +2353,7 @@ impl Rinex {
     /// ```
     pub fn sv_position(
         &self,
-        almanac: &Almanac,
+        // almanac: &Almanac,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         let almanac_clone = almanac.clone();
         Box::new(self.ephemeris().filter_map(move |(e, (_, sv, ephemeris))| {
@@ -2382,7 +2383,7 @@ impl Rinex {
         sv: SV,
         t: Epoch,
         order: usize,
-        almanac: &Almanac,
+        // almanac: &Almanac,
     ) -> Option<(f64, f64, f64)> {
         let odd_order = order % 2 > 0;
         let dt = match self.sample_rate() {
@@ -2470,9 +2471,10 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// let almanac = Almanac::until_2035().unwrap();
+    /// // let almanac = Almanac::until_2035().unwrap();
     ///
-    /// for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo(&almanac) {
+    /// // for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo(&almanac) {
+    /// for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo() {
     ///     // sv: satellite vehicle
     ///     // lat [ddeg]
     ///     // lon [ddeg]
@@ -2481,7 +2483,7 @@ impl Rinex {
     /// ```
     pub fn sv_position_geo(
         &self,
-        almanac: &Almanac,
+        // almanac: &Almanac,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
         Box::new(self.sv_position(almanac).map(|(e, sv, (x, y, z))| {
             let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
@@ -2524,9 +2526,10 @@ impl Rinex {
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let almanac = Almanac::until_2035().unwrap();
+    /// // let almanac = Almanac::until_2035().unwrap();
     ///
-    /// let data = rinex.sv_elevation_azimuth(Some(ref_pos), &almanac);
+    /// // let data = rinex.sv_elevation_azimuth(Some(ref_pos), &almanac);
+    /// let data = rinex.sv_elevation_azimuth(Some(ref_pos));
     /// for (epoch, sv, (elev, azim)) in data {
     ///     // azim: azimuth in °
     ///     // elev: elevation in °
@@ -2535,7 +2538,7 @@ impl Rinex {
     pub fn sv_elevation_azimuth(
         &self,
         ref_position: Option<GroundPosition>,
-        almanac: &Almanac,
+        // almanac: &Almanac,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64))> + '_> {
         let ground_position = match ref_position {
             Some(pos) => pos, // user value superceeds, in case it is passed

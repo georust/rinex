@@ -113,7 +113,7 @@ hifitime = { version = "4.0.0-alpha", features = [
     "std",
 ] }
 
-anise = "0.4.1"
+# anise = "0.4.1"
 horrorshow = { version = "0.8", optional = true }
 nalgebra = { version = "0.32.3", optional = true }
 gnss-rs = { version = "2.2.0", features = ["serde"] }

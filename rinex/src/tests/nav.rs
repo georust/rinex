@@ -1350,7 +1350,7 @@ mod test {
     #[cfg(feature = "flate2")]
     #[ignore]
     fn sv_interp() {
-        use anise::almanac::Almanac;
+        // use anise::almanac::Almanac;
 
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -1365,7 +1365,7 @@ mod test {
             "failed to parse NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz, error: {:?}",
             rinex.err()
         );
-        let almanac = Almanac::until_2035().unwrap();
+        // let almanac = Almanac::until_2035().unwrap();
         let rinex = rinex.unwrap();
         let first_epoch = rinex.first_epoch().expect("failed to determine 1st epoch");
         let last_epoch = rinex.last_epoch().expect("failed to determine last epoch");
