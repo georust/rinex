@@ -6,8 +6,7 @@ use std::{
 use crate::cli::Context;
 
 use clap::ArgMatches;
-use itertools::Itertools;
-use rtk::prelude::{Carrier, Config, Epoch, Method, PVTSolution, SV};
+use rtk::prelude::{Epoch, PVTSolution};
 use thiserror::Error;
 
 #[cfg(feature = "gpx")]
@@ -25,7 +24,7 @@ use kml::{
 extern crate geo_types;
 use geo_types::Point as GeoPoint;
 
-use map_3d::{deg2rad, ecef2geodetic, rad2deg, Ellipsoid};
+use map_3d::{ecef2geodetic, Ellipsoid};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -67,7 +66,7 @@ pub fn post_process(
             solution.position.z,
             Ellipsoid::WGS84,
         );
-        let (lat_ddeg, lon_ddeg) = (rad2deg(lat_rad), rad2deg(lon_rad));
+        let (lat_ddeg, lon_ddeg) = (lat_rad.to_degrees(), lon_rad.to_degrees());
         let (hdop, vdop, tdop) = (
             solution.hdop(lat_rad, lon_rad),
             solution.vdop(lat_rad, lon_rad),
@@ -110,7 +109,7 @@ pub fn post_process(
         if matches.get_flag("kml") {
             kml_track.push(Kml::Placemark(Placemark {
                 name: Some(format!("{:?}", epoch)),
-                description: Some(String::from("\"Receiver Location\"")),
+                description: Some(String::from("Rover")),
                 geometry: {
                     Some(KmlGeometry::Point(KmlPoint {
                         coord: {
@@ -125,7 +124,7 @@ pub fn post_process(
                         attrs: HashMap::new(),
                     }))
                 },
-                attrs: [(String::from("TDOP"), format!("{:.6E}", solution.tdop))]
+                attrs: [(String::from("TDOP"), format!("{:.3E}", solution.tdop))]
                     .into_iter()
                     .collect(),
                 children: vec![],

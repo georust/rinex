@@ -346,7 +346,7 @@ a static reference position"
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
-        ///* CGGTTS special opmode */
+        //* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
         if !tracks.is_empty() {
             cggtts_post_process(&ctx, &tracks, matches)?;
