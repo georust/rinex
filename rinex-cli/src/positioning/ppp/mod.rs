@@ -16,6 +16,8 @@ use rinex::{carrier::Carrier, observation::LliFlags, prelude::SV};
 mod report;
 pub use report::Report;
 
+pub mod post_process;
+
 use rtk::prelude::{
     Candidate, Epoch, InterpolationResult, IonosphereBias, PVTSolution, PhaseRange, PseudoRange,
     Solver, TroposphereBias,

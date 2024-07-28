@@ -19,8 +19,6 @@ rust-version = "1.64"
 
 [dependencies]
 log = "0.4"
-gpx = "0.10"
-kml = "0.8"
 walkdir = "2.4.0"
 geo-types = "0.7.11"
 env_logger = "0.11"
@@ -34,6 +32,9 @@ maud = "0.26"
 clap = { version = "4.4.13", features = ["derive", "color"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
+kml = { version = "0.8", optional = true }
+gpx = { version = "0.10", optional = true }
+
 # plotly = "0.9"
 # plotly = { path = "../../plotly-rs/plotly" }
 plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo" }
@@ -41,15 +42,15 @@ plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo" }
 anise = { version = "0.4.2", features = ["embed_ephem"] }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
-gnss-rs = { version = "2.2.0", features = ["serde"] }
+gnss-rs = { version = "2.2.1", features = ["serde"] }
 
-# gnss-rtk = { version = "0.4.5", features = ["serde"] }
+gnss-rtk = { version = "0.5.0", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
-# cggtts = { version = "4.1.4", features = ["serde", "scheduler"] }
-# cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"] }
-cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"] }
+cggtts = { version = "4.1.5", features = ["serde", "scheduler"], optional = true }
+# cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }
+# cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"], optional = true }
 
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde", "flate2"] }
