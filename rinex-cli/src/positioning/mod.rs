@@ -5,9 +5,15 @@ use std::fs::read_to_string;
 // use anise::almanac::Almanac;
 
 mod ppp; // precise point positioning
-use ppp::Report as PPPReport;
+use ppp::{
+    post_process::{post_process as ppp_post_process, Error as PPPPostError},
+    Report as PPPReport,
+};
 
+#[cfg(feature = "cggtts")]
 mod cggtts; // CGGTTS special solver
+
+#[cfg(feature = "cggtts")]
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
 use rinex::{
@@ -41,6 +47,8 @@ pub enum Error {
     NoSolutions,
     #[error("i/o error")]
     StdioError(#[from] std::io::Error),
+    #[error("post process error")]
+    PPPPost(#[from] PPPPostError),
 }
 
 /*
@@ -227,8 +235,13 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
             /*
              * CGGTTS special case
              */
+            #[cfg(feature = "cggtts")]
             if matches.get_flag("cggtts") {
                 cfg.sol_type = PVTSolutionType::TimeOnly;
+            }
+            #[cfg(not(feature = "cggtts"))]
+            if matches.get_flag("cggtts") {
+                panic!("--cggtts option not available: compile with cggtts option");
             }
 
             info!("Using custom solver configuration: {:#?}", cfg);
@@ -241,8 +254,13 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
             /*
              * CGGTTS special case
              */
+            #[cfg(feature = "cggtts")]
             if matches.get_flag("cggtts") {
                 cfg.sol_type = PVTSolutionType::TimeOnly;
+            }
+            #[cfg(not(feature = "cggtts"))]
+            if matches.get_flag("cggtts") {
+                panic!("--cggtts option not available: compile with cggtts option");
             }
 
             info!("Using {:?} default preset: {:#?}", method, cfg);
@@ -297,6 +315,7 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
+    #[cfg(feature = "cggtts")]
     let apriori = if matches.get_flag("cggtts") {
         if let Some((x, y, z)) = ctx.rx_ecef {
             let apriori_ecef = Vector3::new(x, y, z);
@@ -312,6 +331,9 @@ a static reference position"
         None
     };
 
+    #[cfg(not(feature = "cggtts"))]
+    let apriori = None;
+
     //let almanac = Almanac::until_2035()
     //    .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
 
@@ -322,22 +344,30 @@ a static reference position"
         |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
     )?;
 
+    #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
-        /* CGGTTS special opmode */
+        ///* CGGTTS special opmode */
         let tracks = cggtts::resolve(ctx, solver, matches)?;
-        cggtts_post_process(&ctx, &tracks, matches)?;
-        let report = CggttsReport::new(&ctx, &tracks);
-        Ok(report.formalize())
-    } else {
-        /* PPP */
-        let solutions = ppp::resolve(ctx, solver);
-        if solutions.len() > 0 {
-            let report = PPPReport::new(&cfg, &ctx, &solutions);
-            Ok(report.formalize())
+        if !tracks.is_empty() {
+            cggtts_post_process(&ctx, &tracks, matches)?;
+            let report = CggttsReport::new(&ctx, &tracks);
+            return Ok(report.formalize());
         } else {
             error!("solver did not generate a single solution");
             error!("verify your input data and configuration setup");
-            Err(Error::NoSolutions)
+            return Err(Error::NoSolutions);
         }
+    }
+
+    /* PPP */
+    let solutions = ppp::resolve(ctx, solver);
+    if !solutions.is_empty() {
+        ppp_post_process(&ctx, &solutions, matches)?;
+        let report = PPPReport::new(&cfg, &ctx, &solutions);
+        Ok(report.formalize())
+    } else {
+        error!("solver did not generate a single solution");
+        error!("verify your input data and configuration setup");
+        Err(Error::NoSolutions)
     }
 }

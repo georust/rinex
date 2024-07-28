@@ -3,10 +3,11 @@ Scripts
 
 List of Shell scripts to operate our applications (no GUI available yet) and perform interesting tasks.
 
-## Getting started
+Getting started
+===============
 
-All scripts are intended to be executed at the base of this Git repository,
-and expect the `released` binaries to have been compiled
+All scripts are intended to be executed at the base of this Git repository, see the following example.   
+They also expect the released application to be built with all features (heaviest option):
 
 ```bash
 cd georust-rinex
@@ -18,7 +19,8 @@ cargo build --release --all-features
 
 RINEX-Cli and other applications will generate logs but we do not store them in the following examples.
 
-## Surveying
+Surveying
+=========
 
 Field surveying (currently only static) aims at determining the position of
 reference stations very precisely without a priori knowledge, so they can serve later on as reference stations for differential

@@ -3,18 +3,20 @@ use std::{
     io::Write,
 };
 
-use crate::{
-    cli::Context,
-};
+use crate::cli::Context;
 
 use clap::ArgMatches;
 use itertools::Itertools;
 use rtk::prelude::{Carrier, Config, Epoch, Method, PVTSolution, SV};
 use thiserror::Error;
 
+#[cfg(feature = "gpx")]
 extern crate gpx;
+
+#[cfg(feature = "gpx")]
 use gpx::{errors::GpxError, Gpx, GpxVersion, Waypoint};
 
+#[cfg(feature = "kml")]
 use kml::{
     types::AltitudeMode, types::Coord as KmlCoord, types::Geometry as KmlGeometry,
     types::KmlDocument, types::Placemark, types::Point as KmlPoint, Kml, KmlVersion, KmlWriter,
@@ -23,366 +25,34 @@ use kml::{
 extern crate geo_types;
 use geo_types::Point as GeoPoint;
 
-use plotly::{
-    color::NamedColor,
-    common::{Marker, MarkerSymbol, Mode, Visible},
-    layout::MapboxStyle,
-    ScatterMapbox,
-};
-
 use map_3d::{deg2rad, ecef2geodetic, rad2deg, Ellipsoid};
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("std::io error")]
     IOError(#[from] std::io::Error),
+    #[cfg(feature = "gpx")]
     #[error("failed to generate gpx track")]
     GpxError(#[from] GpxError),
+    #[cfg(feature = "kml")]
     #[error("failed to generate kml track")]
     KmlError(#[from] kml::Error),
 }
 
-// Customize HTML plot in case _apriori_ is known ahead of time
-fn html_add_apriori_position(
-    epochs: &Vec<Epoch>,
-    solutions: &BTreeMap<Epoch, PVTSolution>,
-    apriori_ecef: (f64, f64, f64),
-    plot_ctx: &mut PlotContext,
-) {
-    let (x0, y0, z0) = apriori_ecef;
-    //let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
-
-    // |x-x*|, |y-y*|, |z-z*|  3D comparison
-    let trace = build_3d_chart_epoch_label(
-        "error",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.position.x - x0)
-            .collect::<Vec<f64>>(),
-        solutions
-            .values()
-            .map(|pvt| pvt.position.y - y0)
-            .collect::<Vec<f64>>(),
-        solutions
-            .values()
-            .map(|pvt| pvt.position.z - z0)
-            .collect::<Vec<f64>>(),
-    );
-
-    plot_ctx.add_cartesian3d_plot(
-        "Position errors",
-        "x error [m]",
-        "y error [m]",
-        "z error [m]",
-    );
-    plot_ctx.add_trace(trace);
-
-    // 2D |x-x*|, |y-y*| comparison
-    plot_ctx.add_timedomain_2y_plot("X / Y Errors", "X error [m]", "Y error [m]");
-
-    let trace = build_chart_epoch_axis(
-        "x err",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.position.x - x0)
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    let trace = build_chart_epoch_axis(
-        "y err",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.position.y - y0)
-            .collect::<Vec<f64>>(),
-    )
-    .y_axis("y2");
-    plot_ctx.add_trace(trace);
-
-    // |z-z*| comparison
-    plot_ctx.add_timedomain_plot("Altitude Errors", "Z error [m]");
-    let trace = build_chart_epoch_axis(
-        "z err",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.position.z - z0)
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-}
-
 pub fn post_process(
     ctx: &Context,
-    cfg: &Config,
-    solutions: BTreeMap<Epoch, PVTSolution>,
+    solutions: &BTreeMap<Epoch, PVTSolution>,
     matches: &ArgMatches,
 ) -> Result<(), Error> {
-    // create a dedicated plot context
-    let mut plot_ctx = PlotContext::new();
-
-    let nb_solutions = solutions.len();
-    let epochs = solutions.keys().copied().collect::<Vec<Epoch>>();
-    let mut ambiguities: HashMap<(SV, Carrier), (Epoch, f64)> = HashMap::new();
-
-    // Convert solutions to geodetic DDEG
-    let (mut lat, mut lon) = (Vec::<f64>::new(), Vec::<f64>::new());
-    for (t, solution) in &solutions {
-        let (lat_rad, lon_rad, _) = ecef2geodetic(
-            solution.position.x,
-            solution.position.y,
-            solution.position.z,
-            Ellipsoid::WGS84,
-        );
-        lat.push(rad2deg(lat_rad));
-        lon.push(rad2deg(lon_rad));
-        for ((sv, carrier), amb) in &solution.ambiguities {
-            ambiguities.insert((*sv, *carrier), (*t, amb.n_1 as f64));
-        }
-    }
-
-    let final_solution_ddeg = (lat[nb_solutions - 1], lon[nb_solutions - 1]);
-
-    let lat0_rad = if let Some(apriori_ecef) = ctx.rx_ecef {
-        ecef2geodetic(
-            apriori_ecef.0,
-            apriori_ecef.1,
-            apriori_ecef.2,
-            Ellipsoid::WGS84,
-        )
-        .0
-    } else {
-        deg2rad(final_solution_ddeg.0)
-    };
-
-    let lon0_rad = if let Some(apriori_ecef) = ctx.rx_ecef {
-        ecef2geodetic(
-            apriori_ecef.0,
-            apriori_ecef.1,
-            apriori_ecef.2,
-            Ellipsoid::WGS84,
-        )
-        .1
-    } else {
-        deg2rad(final_solution_ddeg.1)
-    };
-
-    // TODO: would be nice to adapt zoom level
-    plot_ctx.add_world_map(
-        "PVT solutions",
-        true, // show legend
-        MapboxStyle::OpenStreetMap,
-        final_solution_ddeg, //center
-        18,                  // zoom
-    );
-
-    // Mark _apriori_ position, if it exists
-    if let Some(apriori_ecef) = ctx.rx_ecef {
-        let (lat0_rad, lon0_rad, _) = ecef2geodetic(
-            apriori_ecef.0,
-            apriori_ecef.1,
-            apriori_ecef.2,
-            Ellipsoid::WGS84,
-        );
-        let (lat0_ddeg, lon0_ddeg) = (rad2deg(lat0_rad), rad2deg(lon0_rad));
-        let apriori_scatter = ScatterMapbox::new(vec![lat0_ddeg], vec![lon0_ddeg])
-            .marker(
-                Marker::new()
-                    .size(5)
-                    .symbol(MarkerSymbol::Circle)
-                    .color(NamedColor::Red),
-            )
-            .name("Apriori");
-        plot_ctx.add_trace(apriori_scatter);
-    }
-
-    // Process solutions
-    // Scatter Mapbox (map projection)
-    let mut prev_pct = 0;
-    for (index, (_, sol_i)) in solutions.iter().enumerate() {
-        let (lat_rad, lon_rad, _) = ecef2geodetic(
-            sol_i.position.x,
-            sol_i.position.y,
-            sol_i.position.z,
-            Ellipsoid::WGS84,
-        );
-        let (lat_ddeg, lon_ddeg) = (rad2deg(lat_rad), rad2deg(lon_rad));
-
-        let pct = index * 100 / nb_solutions;
-        if pct % 10 == 0 && index > 0 && pct != prev_pct || index == nb_solutions - 1 {
-            let (title, visible, symbol, color) = if index == nb_solutions - 1 {
-                (
-                    "FINAL".to_string(),
-                    Visible::True,
-                    MarkerSymbol::Circle,
-                    NamedColor::Black,
-                )
-            } else {
-                (
-                    format!("Solver: {:02}%", pct),
-                    Visible::LegendOnly,
-                    MarkerSymbol::Circle,
-                    NamedColor::Black,
-                )
-            };
-            let pvt_scatter = ScatterMapbox::new(vec![lat_ddeg], vec![lon_ddeg])
-                .marker(Marker::new().size(5).color(color).symbol(symbol))
-                .visible(visible)
-                .name(&title);
-            plot_ctx.add_trace(pvt_scatter);
-        }
-        prev_pct = pct;
-    }
-
-    // Absolute velocity
-    plot_ctx.add_timedomain_2y_plot("Velocity (X & Y)", "Speed [m/s]", "Speed [m/s]");
-    let trace = build_chart_epoch_axis(
-        "velocity (x)",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.velocity.x)
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    let trace = build_chart_epoch_axis(
-        "velocity (y)",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.velocity.y)
-            .collect::<Vec<f64>>(),
-    )
-    .y_axis("y2");
-    plot_ctx.add_trace(trace);
-
-    plot_ctx.add_timedomain_plot("Velocity (Z)", "Speed [m/s]");
-    let trace = build_chart_epoch_axis(
-        "velocity (z)",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.velocity.z)
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    plot_ctx.add_timedomain_2y_plot("Clock offset", "dt [s]", "TDOP [s]");
-    let trace = build_chart_epoch_axis(
-        "dt",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.dt.to_seconds())
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    let trace = build_chart_epoch_axis(
-        "tdop",
-        Mode::Markers,
-        epochs.clone(),
-        solutions.values().map(|pvt| pvt.tdop).collect::<Vec<f64>>(),
-    )
-    .y_axis("y2");
-    plot_ctx.add_trace(trace);
-
-    // Dilution of Precision
-    plot_ctx.add_timedomain_plot("GDOP", "GDOP [m]");
-    let trace = build_chart_epoch_axis(
-        "gdop",
-        Mode::Markers,
-        epochs.clone(),
-        solutions.values().map(|pvt| pvt.gdop).collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    plot_ctx.add_timedomain_2y_plot("HDOP, VDOP", "HDOP [m]", "VDOP [m]");
-    let trace = build_chart_epoch_axis(
-        "hdop",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.hdop(lat0_rad, lon0_rad))
-            .collect::<Vec<f64>>(),
-    );
-    plot_ctx.add_trace(trace);
-
-    let trace = build_chart_epoch_axis(
-        "vdop",
-        Mode::Markers,
-        epochs.clone(),
-        solutions
-            .values()
-            .map(|pvt| pvt.vdop(lat0_rad, lon0_rad))
-            .collect::<Vec<f64>>(),
-    )
-    .y_axis("y2");
-    plot_ctx.add_trace(trace);
-
-    if cfg.method == Method::PPP {
-        // Ambiguities
-        plot_ctx.add_timedomain_plot("Signal Ambiguities", "Cycles");
-        for (sv, carrier) in ambiguities.keys().sorted().unique() {
-            let epochs = ambiguities
-                .iter()
-                .filter_map(|((sv_i, sig_i), (t, _amb))| {
-                    if sv_i == sv && sig_i == carrier {
-                        Some(*t)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-            let ambiguities = ambiguities
-                .iter()
-                .filter_map(|((sv_i, sig_i), (_t, amb))| {
-                    if sv_i == sv && sig_i == carrier {
-                        Some(*amb)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-            let trace = build_chart_epoch_axis(
-                &format!("{}/{}", sv, carrier),
-                Mode::Markers,
-                epochs,
-                ambiguities,
-            );
-            plot_ctx.add_trace(trace);
-        }
-    }
-
-    // Extend report with _Apriori_ when it is known
-    // Serves as survey quality comparison and reference point.
-    if let Some(apriori_ecef) = ctx.rx_ecef {
-        html_add_apriori_position(&epochs, &solutions, apriori_ecef, &mut plot_ctx);
-    }
-
-    // render plots
-    let mut fd = ctx.workspace.create_file("Solutions.html");
-    write!(fd, "{}", plot_ctx.to_html()).expect("failed to render PVT solutions");
-
     /*
      * Generate txt, GPX, KML..
      */
     let mut fd = ctx.workspace.create_file("Solutions.csv");
 
+    #[cfg(feature = "gpx")]
     let mut gpx_track = gpx::Track::default();
+
+    #[cfg(feature = "kml")]
     let mut kml_track = Vec::<Kml>::new();
 
     writeln!(
@@ -418,6 +88,8 @@ pub fn post_process(
             solution.dt.to_seconds(),
             tdop
         )?;
+
+        #[cfg(feature = "gpx")]
         if matches.get_flag("gpx") {
             let mut segment = gpx::TrackSegment::new();
             let mut wp = Waypoint::new(GeoPoint::new(lon_ddeg, lat_ddeg)); // Yes, longitude *then* latitude
@@ -433,6 +105,8 @@ pub fn post_process(
             segment.points.push(wp);
             gpx_track.segments.push(segment);
         }
+
+        #[cfg(feature = "kml")]
         if matches.get_flag("kml") {
             kml_track.push(Kml::Placemark(Placemark {
                 name: Some(format!("{:?}", epoch)),
@@ -458,6 +132,8 @@ pub fn post_process(
             }));
         }
     }
+
+    #[cfg(feature = "gpx")]
     if matches.get_flag("gpx") {
         let prefix = ctx.name.clone();
         let fd = ctx.workspace.create_file(&format!("{}.gpx", prefix));
@@ -467,9 +143,14 @@ pub fn post_process(
         gpx_track.name = Some(prefix.clone());
         // gpx_track.number = Some(1);
         gpx.tracks.push(gpx_track);
-
         gpx::write(&gpx, fd)?;
     }
+    #[cfg(not(feature = "gpx"))]
+    if matches.get_flag("gpx") {
+        panic!("--gpx option is not available: compile with gpx option");
+    }
+
+    #[cfg(feature = "kml")]
     if matches.get_flag("kml") {
         let prefix = ctx.name.clone();
         let mut fd = ctx.workspace.create_file(&format!("{}.kml", prefix));
@@ -492,5 +173,10 @@ pub fn post_process(
         let mut writer = KmlWriter::from_writer(&mut fd);
         writer.write(&Kml::KmlDocument(kmldoc))?;
     }
+    #[cfg(not(feature = "kml"))]
+    if matches.get_flag("kml") {
+        panic!("--kml option is not available: compile with kml option");
+    }
+
     Ok(())
 }

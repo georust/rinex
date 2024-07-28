@@ -87,6 +87,16 @@ If you need to reference this work, please use the following model:
 
 `GeoRust RINEX Team (2023), RINEX: analysis and processing (Apache-2/MIT), https://georust.org`
 
+RINEX-Cli
+=========
+
+`rinex-cli` is our main application, build it with no extra features to obtain its smallest forms.
+Other options available:
+
+- `kml`: allows formatting PPP solutions as KML tracks
+- `gpx`: allows formatting PPP solutions as GPX tracks
+- `cggtts`: enable CGGTTS solutions solver
+
 Formats & revisions
 ===================
 
