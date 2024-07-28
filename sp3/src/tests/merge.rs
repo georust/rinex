@@ -6,6 +6,7 @@ mod test {
     use crate::Merge;
     use std::path::PathBuf;
     use std::str::FromStr;
+    #[cfg(feature = "qc")]
     #[cfg(feature = "flate2")]
     #[test]
     fn merge_failure() {
@@ -41,6 +42,7 @@ mod test {
             "should not be able to merge files from two different data providers"
         );
     }
+    #[cfg(feature = "qc")]
     #[cfg(feature = "flate2")]
     #[test]
     fn esa0opsrap_esa0opsult_2023() {
