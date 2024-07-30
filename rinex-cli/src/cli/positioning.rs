@@ -2,15 +2,8 @@
 use clap::{value_parser, Arg, ArgAction, Command};
 use rinex::prelude::Duration;
 
-pub fn subcommand() -> Command {
-    let cmd = Command::new("ppp")
-        .arg_required_else_help(false)
-        .about("Post Processed Positioning. Use this mode to deploy the precise position solver.
-The solutions are added to the final report as an extra chapter. See --help")
-        .long_about("Post Processed Positioning (ppp) opmode resolves
-PVT solutions from RINEX data sampled by a single receiver (! This is not RTK!).
-The solutions are presented in the analysis report (post processed results chapter).
-Use --cggtts to convert solutions to CGGTTS special format.")
+fn shared_args(cmd: Command) -> Command {
+    let cmd = cmd
         .arg(Arg::new("cfg")
             .short('c')
             .long("cfg")
@@ -97,4 +90,46 @@ Use [https://github.com/georust/rinex/config] as a starting point.
                 .help("If the local clock is not a UTC replica and has a specific name, you
     can define it here."))
     }
+}
+
+pub fn ppp_subcommand() -> Command {
+    let cmd = Command::new("ppp")
+        .arg_required_else_help(false)
+        .about(
+            "Post Processed Positioning. Use this mode to deploy the precise position solver.
+The solutions are added to the final report as an extra chapter. See --help",
+        )
+        .long_about(
+            "Post Processed Positioning (ppp) opmode resolves
+PVT solutions from RINEX data sampled by a single receiver (! This is not RTK!).
+The solutions are presented in the analysis report (post processed results chapter).
+Use --cggtts to convert solutions to CGGTTS special format.",
+        );
+    shared_args(cmd)
+}
+
+pub fn rtk_subcommand() -> Command {
+    let cmd = Command::new("rtk")
+        .arg_required_else_help(false)
+        .about(
+            "Post Processed RTK. Use this mode to deploy the precise differential positioning.
+The initial context describes the Rover context.
+rtkpost accepts `-f` and `-d` once again, to describe the remote Station context.
+Other positioning flags still apply (like -c).",
+        )
+        .long_about(
+            "RTK-Post opmode resolves
+PVT solutions from dual RINEX data observed by rover and at remote station. 
+The solutions are presented in the analysis report (post processed results chapter).
+Use --cggtts to convert solutions to CGGTTS special format.",
+        )
+        .arg(
+            Arg::new("file")
+                .short('f')
+                .value_name("FILE")
+                .required_unless_present("dir")
+                .action(ArgAction::Append)
+                .help("Pass one RINEX file for remote site"),
+        );
+    shared_args(cmd)
 }
