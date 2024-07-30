@@ -1,5 +1,5 @@
 use crate::cli::Context;
-use gnss_rtk::prelude::{Epoch, InterpolationResult, SV};
+use gnss_rtk::prelude::{Epoch, OrbitalState, OrbitalStateProvider, SV};
 
 mod sp3;
 use sp3::Orbit as SP3Orbit;
@@ -20,10 +20,13 @@ impl<'a> Orbit<'a> {
             Self::NAV(NAVOrbit::from_ctx(ctx))
         }
     }
-    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<InterpolationResult> {
+}
+
+impl OrbitalStateProvider for Orbit<'_> {
+    fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
         match self {
-            Self::SP3(orbit) => orbit.next_at(t, sv),
-            Self::NAV(orbit) => orbit.next_at(t, sv),
+            Self::SP3(orbit) => orbit.next_at(t, sv, order),
+            Self::NAV(orbit) => orbit.next_at(t, sv, order),
         }
     }
 }

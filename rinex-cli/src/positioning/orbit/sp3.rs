@@ -2,8 +2,8 @@ use crate::{cli::Context, positioning::BufferTrait};
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    Almanac, Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, Vector3, EARTH_J2000,
-    SUN_J2000, SV,
+    Almanac, Epoch, OrbitalState, OrbitalStateProvider, TimeScale, Vector3, EARTH_J2000, SUN_J2000,
+    SV,
 };
 
 use rinex::carrier::Carrier;
@@ -153,7 +153,10 @@ impl<'a> Orbit<'a> {
         self.epochs += epochs;
         false
     }
-    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
+}
+
+impl OrbitalStateProvider for Orbit<'_> {
+    fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
         // Maintain buffer up to date, consume data if need be
         while !self.is_feasible(t, sv) {
             if self.consume(1) {
@@ -166,12 +169,12 @@ impl<'a> Orbit<'a> {
         if let Some((x, y, z)) = buf.direct_output(t) {
             // No need to interpolate @ t for SV
             // Preserves data precision
-            return Some(RTKInterpolationResult::from_position((*x, *y, *z)));
+            return Some(OrbitalState::from_position((*x, *y, *z)));
         }
 
         let mut mid_offset = 0;
         let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
-        let mut out = Option::<RTKInterpolationResult>::None;
+        let mut out = Option::<OrbitalState>::None;
 
         for (index, (t_i, _)) in buf.inner.iter().enumerate() {
             if *t_i > t {
@@ -207,7 +210,7 @@ impl<'a> Orbit<'a> {
                 polynomials.1 += y_i * li;
                 polynomials.2 += z_i * li;
             }
-            out = Some(RTKInterpolationResult::from_position(polynomials));
+            out = Some(OrbitalState::from_position(polynomials));
         }
 
         if out.is_some() {

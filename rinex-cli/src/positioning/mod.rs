@@ -24,8 +24,8 @@ use rinex::{
 use rinex_qc::prelude::QcExtraPage;
 
 use rtk::prelude::{
-    BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Position, Solver, Vector3,
+    Arc, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel,
+    Method, NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
 use thiserror::Error;
@@ -307,8 +307,8 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
         }
     }
 
-    let orbit = RefCell::new(Orbit::from_ctx(ctx, cfg.interp_order));
-    debug!("Orbit interpolator created");
+    let orbits = Arc::new(Orbit::from_ctx(ctx, cfg.interp_order));
+    debug!("Orbits created");
 
     // print config to be used
     info!("Using {:?} method", cfg.method);
@@ -337,12 +337,7 @@ a static reference position"
     //let almanac = Almanac::until_2035()
     //    .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
 
-    let solver = Solver::new(
-        &cfg,
-        apriori,
-        /* state vector interpolator */
-        |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
-    )?;
+    let solver = Solver::ppp(&cfg, apriori, orbits)?;
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {

@@ -19,18 +19,15 @@ pub use report::Report;
 pub mod post_process;
 
 use rtk::prelude::{
-    Candidate, Epoch, InterpolationResult, IonosphereBias, PVTSolution, PhaseRange, PseudoRange,
-    Solver, TroposphereBias,
+    Candidate, Epoch, IonosphereBias, OrbitalState, OrbitalStateProvider, PVTSolution, PhaseRange,
+    PseudoRange, Solver, TroposphereBias,
 };
 
-pub fn resolve<I>(
+pub fn resolve(
     ctx: &Context,
-    mut solver: Solver<I>,
+    mut solver: Solver,
     // rx_lat_ddeg: f64,
-) -> BTreeMap<Epoch, PVTSolution>
-where
-    I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
-{
+) -> BTreeMap<Epoch, PVTSolution> {
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
     // infaillible, at this point

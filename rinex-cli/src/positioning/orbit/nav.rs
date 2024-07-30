@@ -1,7 +1,7 @@
 use crate::cli::Context;
 use std::collections::HashMap;
 
-use gnss_rtk::prelude::{Epoch, InterpolationResult as RTKInterpolationResult, TimeScale, SV};
+use gnss_rtk::prelude::{Epoch, OrbitalState, OrbitalStateProvider, TimeScale, SV};
 
 use rinex::navigation::Ephemeris;
 
@@ -42,7 +42,10 @@ impl<'a> Orbit<'a> {
             false
         }
     }
-    pub fn next_at(&mut self, t: Epoch, sv: SV) -> Option<RTKInterpolationResult> {
+}
+
+impl OrbitalStateProvider for Orbit<'_> {
+    fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
         let sv_ts = sv.timescale()?;
 
         while !self.feasible(t, sv, sv_ts) {
@@ -98,7 +101,7 @@ impl<'a> Orbit<'a> {
                     //        + vz_kms * dt,
                     //        //+ az_kms * dt * dt / 2.0,
                     //);
-                    Some(RTKInterpolationResult::from_position((x, y, z)))
+                    Some(OrbitalState::from_position((x, y, z)))
                 } else {
                     let (_, eph_i) = eph.iter().filter(|(toc_i, _)| *toc_i < t).min_by_key(
                         |(_toc_i, eph_i)| {
@@ -109,7 +112,7 @@ impl<'a> Orbit<'a> {
 
                     let (x_km, y_km, z_km) = eph_i.kepler2position(sv, t)?;
                     let (x, y, z) = (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3);
-                    Some(RTKInterpolationResult::from_position((x, y, z)))
+                    Some(OrbitalState::from_position((x, y, z)))
                 }
             },
             None => None,

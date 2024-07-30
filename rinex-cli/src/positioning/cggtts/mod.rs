@@ -16,9 +16,10 @@ use rtk::prelude::{
     Candidate,
     Duration,
     Epoch,
-    InterpolationResult,
     IonosphereBias,
     Method,
+    OrbitalState,
+    OrbitalStateProvider,
     PhaseRange,
     PseudoRange,
     Solver,
@@ -67,15 +68,12 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<I>(
+pub fn resolve(
     ctx: &Context,
-    mut solver: Solver<I>,
+    mut solver: Solver,
     // rx_lat_ddeg: f64,
     matches: &ArgMatches,
-) -> Result<Vec<Track>, PositioningError>
-where
-    I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
-{
+) -> Result<Vec<Track>, PositioningError> {
     // custom tracking duration
     let trk_duration = match matches.get_one::<Duration>("tracking") {
         Some(tracking) => {
