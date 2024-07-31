@@ -1,7 +1,7 @@
 use crate::cli::Context;
 use std::collections::BTreeMap;
 
-use rtk::prelude::{
+use gnss_rtk::prelude::{
     Config as NaviConfig, Duration, Epoch, Filter as NaviFilter, Method as NaviMethod, PVTSolution,
     TimeScale, SV,
 };

@@ -15,6 +15,9 @@ mod cggtts; // CGGTTS special solver
 #[cfg(feature = "cggtts")]
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
+mod rtk;
+use rtk::BaseStation;
+
 use rinex::{
     carrier::Carrier,
     prelude::{Constellation, Rinex},
@@ -22,7 +25,7 @@ use rinex::{
 
 use rinex_qc::prelude::QcExtraPage;
 
-use rtk::prelude::{
+use gnss_rtk::prelude::{
     Almanac, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel,
     Method, NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
@@ -312,6 +315,8 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
     let orbits = Orbit::from_ctx(ctx, cfg.interp_order, almanac);
     debug!("Orbits created");
 
+    let base_station = BaseStation {};
+
     // print config to be used
     info!("Using {:?} method", cfg.method);
 
@@ -339,7 +344,7 @@ a static reference position"
     //let almanac = Almanac::until_2035()
     //    .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
 
-    let solver = Solver::ppp(&cfg, apriori, orbits)?;
+    let solver = Solver::new(&cfg, apriori, orbits, Some(base_station))?;
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {

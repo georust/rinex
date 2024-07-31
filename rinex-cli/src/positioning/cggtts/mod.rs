@@ -12,7 +12,8 @@ use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, prelude::Observable};
 
-use rtk::prelude::{
+use gnss_rtk::prelude::{
+    BaseStation,
     Candidate,
     Duration,
     Epoch,
@@ -66,9 +67,9 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<O: OrbitalStateProvider>(
+pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
-    mut solver: Solver<O>,
+    mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError> {

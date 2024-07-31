@@ -18,14 +18,14 @@ pub use report::Report;
 
 pub mod post_process;
 
-use rtk::prelude::{
-    Candidate, Epoch, IonosphereBias, Observation, OrbitalStateProvider, PVTSolution, Solver,
-    TroposphereBias,
+use gnss_rtk::prelude::{
+    BaseStation, Candidate, Epoch, IonosphereBias, Observation, OrbitalStateProvider, PVTSolution,
+    Solver, TroposphereBias,
 };
 
-pub fn resolve<O: OrbitalStateProvider>(
+pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
-    mut solver: Solver<O>,
+    mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();

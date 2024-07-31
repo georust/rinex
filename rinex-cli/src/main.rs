@@ -18,7 +18,6 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
-extern crate gnss_rtk as rtk;
 
 use rinex::prelude::Rinex;
 use sp3::prelude::SP3;
