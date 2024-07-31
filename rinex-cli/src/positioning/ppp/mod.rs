@@ -84,24 +84,57 @@ pub fn resolve<O: OrbitalStateProvider>(
                     let rtk_carrier = cast_rtk_carrier(carrier);
 
                     if observable.is_pseudorange_observable() {
-                        if let Some(ob) = rtk_obs
+                        if let Some(obs) = rtk_obs
                             .iter_mut()
                             .filter(|ob| ob.carrier == rtk_carrier)
                             .reduce(|k, _| k)
                         {
+                            obs.pseudo = Some(data.obs);
                         } else {
                             rtk_obs.push(Observation {
-                                pseudo: Some(data.obs),
                                 carrier: rtk_carrier,
                                 snr: data.snr.map(|snr| snr.into()),
                                 phase: None,
                                 doppler: None,
                                 ambiguity: None,
+                                pseudo: Some(data.obs),
                             });
                         }
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
+                        if let Some(obs) = rtk_obs
+                            .iter_mut()
+                            .filter(|ob| ob.carrier == rtk_carrier)
+                            .reduce(|k, _| k)
+                        {
+                            obs.phase = Some(data.obs * lambda);
+                        } else {
+                            rtk_obs.push(Observation {
+                                carrier: rtk_carrier,
+                                snr: data.snr.map(|snr| snr.into()),
+                                pseudo: None,
+                                doppler: None,
+                                ambiguity: None,
+                                phase: Some(data.obs * lambda),
+                            });
+                        }
                     } else if observable.is_doppler_observable() {
+                        if let Some(obs) = rtk_obs
+                            .iter_mut()
+                            .filter(|ob| ob.carrier == rtk_carrier)
+                            .reduce(|k, _| k)
+                        {
+                            obs.doppler = Some(data.obs);
+                        } else {
+                            rtk_obs.push(Observation {
+                                carrier: rtk_carrier,
+                                snr: data.snr.map(|snr| snr.into()),
+                                pseudo: None,
+                                phase: None,
+                                ambiguity: None,
+                                doppler: Some(data.obs),
+                            });
+                        }
                     }
                 }
             }

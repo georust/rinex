@@ -167,72 +167,82 @@ pub fn resolve<O: OrbitalStateProvider>(
 
                 let mut rtk_obs = vec![Observation {
                     carrier: rtk_carrier,
-                    snr: { data.snr.map(|snr| snr.into()) },
                     pseudo: Some(data.obs),
                     ambiguity: None,
                     doppler: None,
                     phase: None,
+                    snr: data.snr.map(|snr| snr.into()),
                 }];
 
                 // Subsidary Pseudo Range (if needed)
-                match solver.cfg.method {
-                    Method::CPP | Method::PPP => {
-                        // locate secondary signal
-                        for (second_obs, second_data) in observations {
-                            if !second_obs.is_pseudorange_observable() {
-                                continue;
-                            }
-                            let rhs_carrier =
-                                Carrier::from_observable(sv.constellation, second_obs);
-                            if rhs_carrier.is_err() {
-                                continue;
-                            }
-                            let rhs_carrier = rhs_carrier.unwrap();
-                            let rtk_carrier = cast_rtk_carrier(rhs_carrier);
+                if matches!(solver.cfg.method, Method::CPP | Method::PPP) {
+                    // add any other signal
+                    for (second_obs, second_data) in observations {
+                        if second_obs == observable {
+                            continue;
+                        }
 
-                            if rhs_carrier != carrier {
-                                //codes.push(PseudoRange {
-                                //    carrier: rtk_carrier,
-                                //    value: second_data.obs,
-                                //    snr: { data.snr.map(|snr| snr.into()) },
-                                //});
+                        let rhs_carrier = Carrier::from_observable(sv.constellation, second_obs);
+
+                        if rhs_carrier.is_err() {
+                            continue;
+                        }
+
+                        let rhs_carrier = rhs_carrier.unwrap();
+                        let rhs_rtk_carrier = cast_rtk_carrier(rhs_carrier);
+
+                        if second_obs.is_pseudorange_observable() {
+                            rtk_obs.push(Observation {
+                                carrier: rhs_rtk_carrier,
+                                doppler: None,
+                                phase: None,
+                                ambiguity: None,
+                                pseudo: Some(data.obs),
+                                snr: data.snr.map(|snr| snr.into()),
+                            });
+                        } else if second_obs.is_phase_observable() {
+                            let lambda = rhs_carrier.wavelength();
+                            if let Some(obs) = rtk_obs
+                                .iter_mut()
+                                .filter(|ob| ob.carrier == rhs_rtk_carrier)
+                                .reduce(|k, _| k)
+                            {
+                                obs.phase = Some(data.obs * lambda);
+                            } else {
+                                rtk_obs.push(Observation {
+                                    carrier: rhs_rtk_carrier,
+                                    doppler: None,
+                                    pseudo: None,
+                                    ambiguity: None,
+                                    phase: Some(data.obs * lambda),
+                                    snr: data.snr.map(|snr| snr.into()),
+                                });
                             }
-                            // update ref. observable if this one is to serve as reference
-                            if rtk_reference_carrier(rtk_carrier) {
-                                ref_observable = second_obs.to_string();
+                        } else if second_obs.is_doppler_observable() {
+                            if let Some(obs) = rtk_obs
+                                .iter_mut()
+                                .filter(|ob| ob.carrier == rhs_rtk_carrier)
+                                .reduce(|k, _| k)
+                            {
+                                obs.doppler = Some(data.obs);
+                            } else {
+                                rtk_obs.push(Observation {
+                                    phase: None,
+                                    carrier: rhs_rtk_carrier,
+                                    pseudo: None,
+                                    ambiguity: None,
+                                    doppler: Some(data.obs),
+                                    snr: data.snr.map(|snr| snr.into()),
+                                });
                             }
                         }
-                    },
-                    _ => {}, // not needed
-                };
 
-                // Dual Phase Range (if needed)
-
-                if solver.cfg.method == Method::PPP {
-                    //for code in &codes {
-                    //    let target_carrier = rtk_carrier_cast(code.carrier);
-                    //    for (obs, data) in observations {
-                    //        if !obs.is_phase_observable() {
-                    //            continue;
-                    //        }
-                    //        let carrier = Carrier::from_observable(sv.constellation, obs);
-                    //        if carrier.is_err() {
-                    //            continue;
-                    //        }
-                    //        let carrier = carrier.unwrap();
-
-                    //        if target_carrier != carrier {
-                    //            continue;
-                    //        }
-                    //        //phases.push(PhaseRange {
-                    //        //    ambiguity: None,
-                    //        //    carrier: code.carrier,
-                    //        //    value: data.obs,
-                    //        //    snr: { data.snr.map(|snr| snr.into()) },
-                    //        //});
-                    //    }
-                    //}
-                };
+                        // update ref. observable if this one is to serve as reference
+                        if rtk_reference_carrier(rtk_carrier) {
+                            ref_observable = second_obs.to_string();
+                        }
+                    }
+                }
 
                 let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), rtk_obs);
 
