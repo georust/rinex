@@ -18,10 +18,8 @@ use rtk::prelude::{
     Epoch,
     IonosphereBias,
     Method,
-    OrbitalState,
+    Observation,
     OrbitalStateProvider,
-    PhaseRange,
-    PseudoRange,
     Solver,
     TroposphereBias, //TimeScale
 };
@@ -68,9 +66,9 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve(
+pub fn resolve<O: OrbitalStateProvider>(
     ctx: &Context,
-    mut solver: Solver,
+    mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError> {
@@ -167,10 +165,13 @@ pub fn resolve(
 
                 let mut ref_observable = observable.to_string();
 
-                let mut codes = vec![PseudoRange {
+                let mut rtk_obs = vec![Observation {
                     carrier: rtk_carrier,
                     snr: { data.snr.map(|snr| snr.into()) },
-                    value: data.obs,
+                    pseudo: Some(data.obs),
+                    ambiguity: None,
+                    doppler: None,
+                    phase: None,
                 }];
 
                 // Subsidary Pseudo Range (if needed)
@@ -190,11 +191,11 @@ pub fn resolve(
                             let rtk_carrier = cast_rtk_carrier(rhs_carrier);
 
                             if rhs_carrier != carrier {
-                                codes.push(PseudoRange {
-                                    carrier: rtk_carrier,
-                                    value: second_data.obs,
-                                    snr: { data.snr.map(|snr| snr.into()) },
-                                });
+                                //codes.push(PseudoRange {
+                                //    carrier: rtk_carrier,
+                                //    value: second_data.obs,
+                                //    snr: { data.snr.map(|snr| snr.into()) },
+                                //});
                             }
                             // update ref. observable if this one is to serve as reference
                             if rtk_reference_carrier(rtk_carrier) {
@@ -206,36 +207,34 @@ pub fn resolve(
                 };
 
                 // Dual Phase Range (if needed)
-                //let mut doppler = Option::<Observation>::None;
-                let mut phases = Vec::<PhaseRange>::with_capacity(4);
 
                 if solver.cfg.method == Method::PPP {
-                    for code in &codes {
-                        let target_carrier = rtk_carrier_cast(code.carrier);
-                        for (obs, data) in observations {
-                            if !obs.is_phase_observable() {
-                                continue;
-                            }
-                            let carrier = Carrier::from_observable(sv.constellation, obs);
-                            if carrier.is_err() {
-                                continue;
-                            }
-                            let carrier = carrier.unwrap();
+                    //for code in &codes {
+                    //    let target_carrier = rtk_carrier_cast(code.carrier);
+                    //    for (obs, data) in observations {
+                    //        if !obs.is_phase_observable() {
+                    //            continue;
+                    //        }
+                    //        let carrier = Carrier::from_observable(sv.constellation, obs);
+                    //        if carrier.is_err() {
+                    //            continue;
+                    //        }
+                    //        let carrier = carrier.unwrap();
 
-                            if target_carrier != carrier {
-                                continue;
-                            }
-                            phases.push(PhaseRange {
-                                ambiguity: None,
-                                carrier: code.carrier,
-                                value: data.obs,
-                                snr: { data.snr.map(|snr| snr.into()) },
-                            });
-                        }
-                    }
+                    //        if target_carrier != carrier {
+                    //            continue;
+                    //        }
+                    //        //phases.push(PhaseRange {
+                    //        //    ambiguity: None,
+                    //        //    carrier: code.carrier,
+                    //        //    value: data.obs,
+                    //        //    snr: { data.snr.map(|snr| snr.into()) },
+                    //        //});
+                    //    }
+                    //}
                 };
 
-                let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases);
+                let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), rtk_obs);
 
                 match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {

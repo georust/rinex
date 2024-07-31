@@ -2,7 +2,6 @@ use crate::cli::Context;
 use clap::ArgMatches;
 use std::cell::RefCell;
 use std::fs::read_to_string;
-// use anise::almanac::Almanac;
 
 mod ppp; // precise point positioning
 use ppp::{
@@ -24,7 +23,7 @@ use rinex::{
 use rinex_qc::prelude::QcExtraPage;
 
 use rtk::prelude::{
-    Arc, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel,
+    Almanac, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel,
     Method, NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
@@ -307,7 +306,10 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
         }
     }
 
-    let orbits = Arc::new(Orbit::from_ctx(ctx, cfg.interp_order));
+    let almanac =
+        Almanac::until_2035().unwrap_or_else(|e| panic!("failed to build Almanac: {}", e));
+
+    let orbits = Orbit::from_ctx(ctx, cfg.interp_order, almanac);
     debug!("Orbits created");
 
     // print config to be used

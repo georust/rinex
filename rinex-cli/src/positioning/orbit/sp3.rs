@@ -67,10 +67,7 @@ pub struct Orbit<'a> {
 }
 
 impl<'a> Orbit<'a> {
-    pub fn from_ctx(ctx: &'a Context, order: usize) -> Self {
-        let almanac =
-            Almanac::until_2035().unwrap_or_else(|e| panic!("failed to build Almanac: {}", e));
-
+    pub fn from_ctx(ctx: &'a Context, order: usize, almanac: Almanac) -> Self {
         let sp3 = ctx.data.sp3().unwrap();
         Self {
             order,

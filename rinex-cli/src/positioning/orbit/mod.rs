@@ -1,5 +1,5 @@
 use crate::cli::Context;
-use gnss_rtk::prelude::{Epoch, OrbitalState, OrbitalStateProvider, SV};
+use gnss_rtk::prelude::{Almanac, Epoch, OrbitalState, OrbitalStateProvider, SV};
 
 mod sp3;
 use sp3::Orbit as SP3Orbit;
@@ -13,9 +13,9 @@ pub enum Orbit<'a> {
 }
 
 impl<'a> Orbit<'a> {
-    pub fn from_ctx(ctx: &'a Context, order: usize) -> Self {
+    pub fn from_ctx(ctx: &'a Context, order: usize, almanac: Almanac) -> Self {
         if ctx.data.has_sp3() {
-            Self::SP3(SP3Orbit::from_ctx(ctx, order))
+            Self::SP3(SP3Orbit::from_ctx(ctx, order, almanac))
         } else {
             Self::NAV(NAVOrbit::from_ctx(ctx))
         }
