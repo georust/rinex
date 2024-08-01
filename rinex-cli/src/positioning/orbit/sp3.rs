@@ -153,7 +153,7 @@ impl<'a> Orbit<'a> {
 }
 
 impl OrbitalStateProvider for Orbit<'_> {
-    fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
+    fn next_at(&mut self, t: Epoch, sv: SV, _: usize) -> Option<OrbitalState> {
         // Maintain buffer up to date, consume data if need be
         while !self.is_feasible(t, sv) {
             if self.consume(1) {

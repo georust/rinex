@@ -45,7 +45,7 @@ impl<'a> Orbit<'a> {
 }
 
 impl OrbitalStateProvider for Orbit<'_> {
-    fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
+    fn next_at(&mut self, t: Epoch, sv: SV, _: usize) -> Option<OrbitalState> {
         let sv_ts = sv.timescale()?;
 
         while !self.feasible(t, sv, sv_ts) {

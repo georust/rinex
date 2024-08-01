@@ -1,6 +1,5 @@
 use crate::cli::Context;
 use clap::ArgMatches;
-use std::cell::RefCell;
 use std::fs::read_to_string;
 
 mod ppp; // precise point positioning
@@ -225,8 +224,12 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
         .map(|(_, model)| NgModel { a: model.a })
 }
 
-pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtraPage, Error> {
-    /* Load customized config script, or use defaults */
+pub fn precise_positioning(
+    ctx: &Context,
+    is_rtk: bool,
+    matches: &ArgMatches,
+) -> Result<QcExtraPage, Error> {
+    // Load custom configuration script, or Default
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
             let content = read_to_string(fp)
@@ -309,16 +312,14 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
         }
     }
 
+    // print config to be used
+    info!("Using {:?} method", cfg.method);
+
     let almanac =
         Almanac::until_2035().unwrap_or_else(|e| panic!("failed to build Almanac: {}", e));
 
     let orbits = Orbit::from_ctx(ctx, cfg.interp_order, almanac);
     debug!("Orbits created");
-
-    let base_station = BaseStation {};
-
-    // print config to be used
-    info!("Using {:?} method", cfg.method);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
@@ -344,7 +345,14 @@ a static reference position"
     //let almanac = Almanac::until_2035()
     //    .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
 
-    let solver = Solver::new(&cfg, apriori, orbits, Some(base_station))?;
+    let solver = if is_rtk {
+        let base_station = BaseStation::from_ctx(ctx);
+        Solver::rtk(&cfg, apriori, orbits, base_station)
+            .unwrap_or_else(|e| panic!("failed to deploy RTK solver: {}", e))
+    } else {
+        Solver::ppp(&cfg, apriori, orbits)
+            .unwrap_or_else(|e| panic!("failed to deploy PPP solver: {}", e))
+    };
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
