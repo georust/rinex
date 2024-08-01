@@ -55,13 +55,13 @@ pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
         // }
 
         for (sv, observations) in vehicles {
+            // In Pure RTK, we may operate without an Ephemeris source
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
                 error!("{} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
-
-            // determine TOE
+            // Select Ephemeris
             let (_toe, sv_eph) = sv_eph.unwrap();
             let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
