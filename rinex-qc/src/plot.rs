@@ -264,18 +264,16 @@ impl Plot {
         lon: Vec<T>,
         legend: &str,
         symbol: MarkerSymbol,
-        color: NamedColor,
+        color: Option<NamedColor>,
         opacity: f64,
         visible: bool,
     ) -> Box<ScatterMapbox<T, T>> {
+        let mut marker = Marker::new().size(3).symbol(symbol).opacity(opacity);
+        if let Some(color) = color {
+            marker = marker.color(color);
+        }
         ScatterMapbox::new(lat, lon)
-            .marker(
-                Marker::new()
-                    .size(3)
-                    .symbol(symbol)
-                    .color(color)
-                    .opacity(opacity),
-            )
+            .marker(marker)
             .name(legend)
             .visible({
                 if visible {

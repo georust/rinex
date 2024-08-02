@@ -2,7 +2,7 @@ use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::constants::Constants;
 use crate::{
     constants, epoch,
-    prelude::{Constellation, Duration, Epoch, TimeScale, SV},
+    prelude::{Almanac, Constellation, Duration, Epoch, TimeScale, SV},
     version::Version,
 };
 
@@ -777,6 +777,8 @@ impl Ephemeris {
     /// between a reference position (in meter ECEF WGS84) and a resolved
     /// SV position in the sky, expressed in meter ECEF WGS84.
     pub fn elevation_azimuth(
+        t: Epoch,
+        almanac: &Almanac,
         sv_position: (f64, f64, f64),
         rx_position: (f64, f64, f64),
     ) -> (f64, f64) {
@@ -790,15 +792,17 @@ impl Ephemeris {
         //    sv_position.1 / 1000.0,
         //    sv_position.2 / 1000.0,
         //);
-        //let earth_j2000 = almanac.frame_from_uid(EARTH_J2000)
+        //let earth_j2000 = almanac
+        //    .frame_from_uid(EARTH_J2000)
         //    .unwrap_or_else(|e| panic!("almanac::from_uid: {}", e));
 
-        //let el_az_rg = almanac.azimuth_elevation_range_sez(
-        //    Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, earth_j2000),
-        //    Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, earth_j2000),
-        //).unwrap_or_else(|e| panic!("almanac::azimuth_elevation(): {}", e));
+        //let el_az_rg = almanac
+        //    .azimuth_elevation_range_sez(
+        //        Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, earth_j2000),
+        //        Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, earth_j2000),
+        //    )
+        //    .unwrap_or_else(|e| panic!("almanac::azimuth_elevation(): {}", e));
         //(el_az_rg.elevation_deg, el_az_rg.azimuth_deg)
-
         let (sv_x, sv_y, sv_z) = sv_position;
         // convert ref position to radians(lat, lon)
         let (ref_x, ref_y, ref_z) = rx_position;

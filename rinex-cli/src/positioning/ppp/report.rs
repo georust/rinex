@@ -320,7 +320,7 @@ impl ReportContent {
                     vec![lon0_ddeg],
                     "apriori",
                     MarkerSymbol::Circle,
-                    NamedColor::Red,
+                    Some(NamedColor::Red),
                     1.0,
                     true,
                 );
@@ -346,7 +346,7 @@ impl ReportContent {
                             vec![lon_ddeg],
                             &name,
                             MarkerSymbol::Circle,
-                            NamedColor::Black,
+                            Some(NamedColor::Black),
                             1.0,
                             visible,
                         );

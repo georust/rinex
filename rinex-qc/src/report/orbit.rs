@@ -1,10 +1,6 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{
-        //Almanac,
-        GroundPosition,
-        Rinex,
-    },
+    prelude::{Almanac, GroundPosition, Rinex},
 };
 use sp3::prelude::{Constellation, Epoch, SP3, SV};
 use std::collections::HashMap;
@@ -154,7 +150,7 @@ impl OrbitReport {
     pub fn new(ctx: &QcContext, reference: Option<GroundPosition>, force_brdc_sky: bool) -> Self {
         let (x0, y0, z0) = reference.unwrap_or_default().to_ecef_wgs84();
         let brdc_skyplot = ctx.has_brdc_navigation() && ctx.has_sp3() && force_brdc_sky;
-        // let almanac = Almanac::until_2035().unwrap();
+        let almanac = Almanac::until_2035().unwrap();
 
         let max_sv_visible = if brdc_skyplot { 2 } else { 4 };
 
@@ -167,8 +163,12 @@ impl OrbitReport {
             for (t_sp3, sv_sp3, pos_sp3) in sp3.sv_position() {
                 let (x_sp3_m, y_sp3_m, z_sp3_m) =
                     (pos_sp3.0 * 1000.0, pos_sp3.1 * 1000.0, pos_sp3.2 * 1000.0);
-                let (el, az) =
-                    Ephemeris::elevation_azimuth((x_sp3_m, y_sp3_m, z_sp3_m), (x0, y0, z0));
+                let (el, az) = Ephemeris::elevation_azimuth(
+                    t_sp3,
+                    &almanac,
+                    (x_sp3_m, y_sp3_m, z_sp3_m),
+                    (x0, y0, z0),
+                );
                 if let Some(t) = t.get_mut(&sv_sp3) {
                     t.push(t_sp3);
                 } else {
@@ -283,10 +283,10 @@ impl OrbitReport {
                             lat_ddeg,
                             lon_ddeg,
                             &sv.to_string(),
-                            MarkerSymbol::Diamond,
-                            NamedColor::Red,
+                            MarkerSymbol::Circle,
+                            None,
                             1.0,
-                            sv_index == 1,
+                            sv_index < 5,
                         );
                         map_proj.add_trace(map);
                     }
