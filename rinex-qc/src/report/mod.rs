@@ -205,7 +205,7 @@ impl QcReport {
                     if let Some(sp3) = context.sp3() {
                         items.insert(
                             ProductType::HighPrecisionOrbit,
-                            ProductReport::SP3(SP3Report::new(sp3, ref_position)),
+                            ProductReport::SP3(SP3Report::new(sp3)),
                         );
                     }
                 }
@@ -333,7 +333,7 @@ impl Render for QcReport {
                                         }
                                     }
                                     div id="extra-chapters" class="container" style="display:block" {
-                                        @for (index, chapter) in self.custom_chapters.iter().enumerate() {
+                                        @for chapter in self.custom_chapters.iter() {
                                             div id=(chapter.html_id) class="container is-main" style="display:none" {
                                                 (chapter.content.render())
                                             }
