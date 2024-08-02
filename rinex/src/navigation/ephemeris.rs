@@ -2,7 +2,7 @@ use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::constants::Constants;
 use crate::{constants, epoch, prelude::*, version::Version};
 
-use log::warn;
+use log::{error, warn};
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
@@ -10,7 +10,13 @@ use thiserror::Error;
 use gnss::prelude::SV;
 
 #[cfg(feature = "nav")]
+use std::f64::consts::PI;
+
+#[cfg(feature = "nav")]
 use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
+
+#[cfg(feature = "nav")]
+use map_3d::{ecef2geodetic, Ellipsoid};
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -590,7 +596,7 @@ impl Ephemeris {
         if let Some(t_k) = self.tk(sv, t) {
             helper.t_k = t_k
         } else {
-            log::trace!("{} ephemeris missing or invalid at {}", sv, t);
+            error!("{} ephemeris missing or invalid at {}", sv, t);
             return None;
         }
 
@@ -620,7 +626,7 @@ impl Ephemeris {
             e_k_lst = e_k;
         }
         if i >= constants::MaxIterNumber::KEPLER {
-            log::warn!("{} kepler iteration overflow", sv);
+            warn!("{} kepler iteration overflow", sv);
         }
         let (sin_e_k, cos_e_k) = e_k.sin_cos();
         let v_k = ((1.0 - kepler.e.powi(2)).sqrt() * sin_e_k).atan2(cos_e_k - kepler.e);
@@ -771,8 +777,7 @@ impl Ephemeris {
         let (sv_x, sv_y, sv_z) = sv_position;
         // convert ref position to radians(lat, lon)
         let (ref_x, ref_y, ref_z) = reference_position;
-        let (ref_lat, ref_lon, _) =
-            map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
+        let (ref_lat, ref_lon, _) = ecef2geodetic(ref_x, ref_y, ref_z, Ellipsoid::WGS84);
 
         // ||sv - ref_pos|| pseudo range
         let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
@@ -799,8 +804,8 @@ impl Ephemeris {
             (ecef_to_ven.1 .0 * a_i.0 + ecef_to_ven.1 .1 * a_i.1 + ecef_to_ven.1 .2 * a_i.2),
             (ecef_to_ven.2 .0 * a_i.0 + ecef_to_ven.2 .1 * a_i.1 + ecef_to_ven.2 .2 * a_i.2),
         );
-        let el = map_3d::rad2deg(std::f64::consts::PI / 2.0 - ven.0.acos());
-        let mut az = map_3d::rad2deg(ven.1.atan2(ven.2));
+        let el = (PI / 2.0 - ven.0.acos()).to_degrees();
+        let mut az = (ven.1.atan2(ven.2)).to_degrees();
         if az < 0.0 {
             az += 360.0;
         }

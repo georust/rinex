@@ -7,8 +7,10 @@ use std::collections::HashMap;
 
 use qc_traits::processing::{Filter, Preprocessing};
 
+use map_3d::{ecef2geodetic, Ellipsoid};
+
 use crate::{
-    plot::{MapboxStyle, MarkerSymbol, Mode},
+    plot::{MapboxStyle, MarkerSymbol, Mode, NamedColor},
     prelude::{html, Markup, Plot, QcContext, Render},
 };
 
@@ -134,16 +136,16 @@ impl Render for BrdcSp3Report {
 }
 
 pub struct OrbitReport {
-    map_proj: Plot,
     sky_plot: Plot,
-    globe_proj: Plot,
+    // map_proj: Plot,
+    // globe_proj: Plot,
     brdc_sp3_err: HashMap<Constellation, BrdcSp3Report>,
 }
 
 impl OrbitReport {
     pub fn new(ctx: &QcContext, reference: Option<GroundPosition>, force_brdc_sky: bool) -> Self {
         let (x0, y0, z0) = reference.unwrap_or_default().to_ecef_wgs84();
-        let brdc_skyplot = ctx.has_brdc_navigation() && (!ctx.has_sp3() || force_brdc_sky);
+        let brdc_skyplot = ctx.has_brdc_navigation() && ctx.has_sp3() && force_brdc_sky;
 
         let max_sv_visible = if brdc_skyplot { 2 } else { 4 };
         Self {
@@ -151,6 +153,8 @@ impl OrbitReport {
                 let mut plot = Plot::sky_plot("skyplot", "Sky plot", true);
                 if let Some(sp3) = ctx.sp3() {
                     for (sv_index, sv) in sp3.sv().enumerate() {
+                        let visible = sv_index < max_sv_visible;
+                        let visible = true;
                         let t = sp3
                             .sv_position()
                             .filter_map(|(t, svnn, _)| if svnn == sv { Some(t) } else { None })
@@ -159,7 +163,8 @@ impl OrbitReport {
                             .sv_position()
                             .filter_map(|(t, svnn, sv_pos)| {
                                 if svnn == sv {
-                                    let el = Ephemeris::elevation_azimuth(sv_pos, (x0, y0, z0)).0;
+                                    let el =
+                                        Ephemeris::elevation_azimuth(sv_pos, (x0, y0, z0)).0.abs();
                                     Some(el)
                                 } else {
                                     None
@@ -177,38 +182,71 @@ impl OrbitReport {
                                 }
                             })
                             .collect::<Vec<_>>();
-                        let trace = Plot::sky_trace(t, rho, theta, sv_index < max_sv_visible)
-                            .name(format!("{:X}", sv));
+                        let trace =
+                            Plot::sky_trace(t, rho, theta, visible).name(format!("{:X}", sv));
                         plot.add_trace(trace);
                     }
                 }
-                if brdc_skyplot {
-                    let nav = ctx.brdc_navigation().unwrap();
-                }
                 plot
             },
-            map_proj: {
-                let mut map_proj = Plot::world_map(
-                    "map_proj",
-                    "Map Projection",
-                    MapboxStyle::OpenStreetMap,
-                    (32.0, -40.0),
-                    1,
-                    true,
-                );
-                map_proj
-            },
-            globe_proj: {
-                let mut map_proj = Plot::world_map(
-                    "map_proj",
-                    "Map Projection",
-                    MapboxStyle::OpenStreetMap,
-                    (32.0, -40.0),
-                    1,
-                    true,
-                );
-                map_proj
-            },
+            //map_proj: {
+            //    let mut map_proj = Plot::world_map(
+            //        "map_proj",
+            //        "Map Projection",
+            //        MapboxStyle::OpenStreetMap,
+            //        (32.0, -40.0),
+            //        1,
+            //        true,
+            //    );
+            //    if let Some(sp3) = ctx.sp3() {
+            //        for (sv_index, sv) in sp3.sv().enumerate() {
+            //            let t = sp3.sv_position().filter_map(|(t, svnn, _)| {
+            //                if svnn == sv {
+            //                    Some(t)
+            //                } else {
+            //                    None
+            //                }
+            //            }).collect::<Vec<_>>();
+            //            let lat_ddeg = sp3.sv_position().filter_map(|(t, svnn, pos)| {
+            //                if svnn == sv {
+            //                    let lat_rad = ecef2geodetic(pos.0, pos.1, pos.2, Ellipsoid::WGS84).0;
+            //                    Some(lat_rad.to_degrees())
+            //                } else {
+            //                    None
+            //                }
+            //            }).collect::<Vec<_>>();
+            //            let lon_ddeg = sp3.sv_position().filter_map(|(t, svnn, pos)| {
+            //                if svnn == sv {
+            //                    let long_rad = ecef2geodetic(pos.0, pos.1, pos.2, Ellipsoid::WGS84).1;
+            //                    Some(long_rad.to_degrees())
+            //                } else {
+            //                    None
+            //                }
+            //            }).collect::<Vec<_>>();
+            //            let map = Plot::mapbox(
+            //                lat_ddeg,
+            //                lon_ddeg,
+            //                &sv.to_string(),
+            //                MarkerSymbol::Diamond,
+            //                NamedColor::Red,
+            //                1.0,
+            //                sv_index == 1);
+            //            map_proj.add_trace(map);
+            //        }
+            //    }
+            //    map_proj
+            //},
+            //globe_proj: {
+            //    let mut map_proj = Plot::world_map(
+            //        "map_proj",
+            //        "Map Projection",
+            //        MapboxStyle::OpenStreetMap,
+            //        (32.0, -40.0),
+            //        1,
+            //        true,
+            //    );
+            //    map_proj
+            //},
             brdc_sp3_err: {
                 let mut reports = HashMap::<Constellation, BrdcSp3Report>::new();
                 if let Some(sp3) = ctx.sp3() {
@@ -251,22 +289,22 @@ impl Render for OrbitReport {
         html! {
             div class="table-container" {
                 table class="table is-bordered" {
-                    tr {
-                        th class="is-info" {
-                            "Map projection"
-                        }
-                        td {
-                            (self.map_proj.render())
-                        }
-                    }
-                    tr {
-                        th class="is-info" {
-                            "Globe projection"
-                        }
-                        td {
-                            (self.globe_proj.render())
-                        }
-                    }
+                    //tr {
+                    //    th class="is-info" {
+                    //        "Map projection"
+                    //    }
+                    //    td {
+                    //        (self.map_proj.render())
+                    //    }
+                    //}
+                    //tr {
+                    //    th class="is-info" {
+                    //        "Globe projection"
+                    //    }
+                    //    td {
+                    //        (self.globe_proj.render())
+                    //    }
+                    //}
                     tr {
                         th class="is-info" {
                             "Sky plot"

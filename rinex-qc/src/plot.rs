@@ -190,12 +190,12 @@ impl Plot {
     /// Trace for a skyplot
     pub fn sky_trace<T: Default + Clone + Serialize>(
         t: Vec<Epoch>,
-        rho: Vec<T>,
-        theta: Vec<T>,
+        elev: Vec<T>,
+        azim: Vec<T>,
         visible: bool,
     ) -> Box<ScatterPolar<T, T>> {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
-        ScatterPolar::new(theta, rho)
+        ScatterPolar::new(azim, elev)
             .web_gl_mode(true)
             .hover_text_array(txt)
             .hover_info(HoverInfo::All)

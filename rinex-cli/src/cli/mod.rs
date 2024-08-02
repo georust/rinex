@@ -378,7 +378,11 @@ Otherwise it gets automatically picked up."))
     /// Returns QcConfig from command line
     pub fn qc_config(&self) -> QcConfig {
         QcConfig {
-            manual_reference: None,
+            manual_reference: if let Some(manual) = self.manual_position() {
+                Some(GroundPosition::from_ecef_wgs84(manual))
+            } else {
+                None
+            },
             report: if self.matches.get_flag("report-sum") {
                 QcReportType::Summary
             } else {

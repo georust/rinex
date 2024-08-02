@@ -56,6 +56,8 @@ Other file operations like RINEX files management is also demonstrated.
 - [Galileo with SBAS augmentation](./GAL_SBAS)
 - [JMF: sampled by J.M. Friedt @ femto-st.fr (lab agency)](./JMF)
   - 2024-092 Mobile phone observations (Paris/urban)
+- [SP3](./SP3)
+  - Examples with SP3 data only or SP3 specific applications
 - [RINEX(A) - RINEX(B): differential analysis](./DIFF)
   - Esbjerg and Mojn (DNK): close range observations
 - [Meteo observations exploitation](./METEO)
