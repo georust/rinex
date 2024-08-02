@@ -284,11 +284,11 @@ pub fn main() -> Result<(), Error> {
             return Ok(());
         },
         Some(("ppp", submatches)) => {
-            let chapter = positioning::precise_positioning(&ctx, false, submatches)?;
+            let chapter = positioning::precise_positioning(&cli, &ctx, false, submatches)?;
             extra_pages.push(chapter);
         },
         Some(("rtk", submatches)) => {
-            let chapter = positioning::precise_positioning(&ctx, true, submatches)?;
+            let chapter = positioning::precise_positioning(&cli, &ctx, true, submatches)?;
             extra_pages.push(chapter);
         },
         _ => {},

@@ -15,8 +15,12 @@ TIMEFRAME=">2020-06-25T01:00:00 UTC"
 CONF=tutorials/config/survey/cpp_kf.json # pseudo-range(L1/L5); filter:kalman
 
 # Analysis + ppp solutions (silent)
+#   -f: force new report synthesis
+#   -q: silent (open on last call)
+#   -o: custom name
 ./target/release/rinex-cli \
-    -P $FILTER "$TIMEFRAME" -q \
+    -P $FILTER "$TIMEFRAME" \
+    -f -q -o "BRDC-GPS-L1L5" \
     --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
     ppp -c $CONF
@@ -27,6 +31,7 @@ CONF=tutorials/config/survey/cpp_kf.json # pseudo-range(L1/L5); filter:kalman
 # The report is automatically opened.
 ./target/release/rinex-cli \
     -P $FILTER "$TIMEFRAME" \
+    -o "BRDC-GPS-L1L5" \
     --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
     ppp --cggtts -c $CONF

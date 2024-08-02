@@ -1,4 +1,4 @@
-use crate::cli::Context;
+use crate::cli::{Cli, Context};
 use clap::ArgMatches;
 use std::fs::read_to_string;
 
@@ -225,6 +225,7 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 }
 
 pub fn precise_positioning(
+    cli: &Cli,
     ctx: &Context,
     is_rtk: bool,
     matches: &ArgMatches,

@@ -33,13 +33,17 @@ pub trait Preprocessing: Masking + Decimate {
     }
 }
 
-// pub use filters::{
-//     Decimate, DecimationFilter, DecimationType, Filter, InterpFilter, InterpMethod, Interpolate,
-//     Mask, MaskFilter, MaskOperand, Preprocessing, Smooth, SmoothingFilter, SmoothingType,
-// };
+/// Repair
+#[derive(Debug, Copy, Clone)]
+pub enum Repair {
+    /// Repairs all zero values.
+    Zero,
+}
 
-//pub use averaging::Averager;
-//pub use derivative::Derivative;
+pub trait RepairTrait {
+    fn repair(&self, r: Repair) -> Self;
+    fn repair_mut(&mut self, r: Repair);
+}
 
 #[derive(Error, Debug)]
 pub enum Error {

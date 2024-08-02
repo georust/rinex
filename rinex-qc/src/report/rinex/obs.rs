@@ -352,7 +352,7 @@ impl Render for ConstellationPage {
                                 }
                             }
                             td {
-                                (self.satellites.iter().unique().sorted().join(", "))
+                                (self.satellites.iter().sorted().join(", "))
                             }
                         }
                         tr {

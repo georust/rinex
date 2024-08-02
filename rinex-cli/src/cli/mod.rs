@@ -184,6 +184,12 @@ By default, report synthesis happens once per input set (file combnation and cli
 Use this option to force report regeneration.
 This has no effect on file operations that do not synthesize a report."))
         .arg(
+            Arg::new("report-name")
+                .short('o')
+                .action(ArgAction::Set)
+                .help("Custom report name, otherwise, report is named index.html")
+        )
+        .arg(
             Arg::new("report-brdc-sky")
                 .long("brdc-sky")
                 .action(ArgAction::SetTrue)
@@ -237,6 +243,19 @@ This has no effect on applications compiled without plot and statistical options
                 .value_delimiter(';')
                 .action(ArgAction::Append)
                 .help("Filter designer. Refer to []."))
+            .next_help_heading("RINEX Repair")
+                .arg(Arg::new("zero-repair")
+                    .short('z')
+                    .action(ArgAction::SetTrue)
+                    .help("Remove all zero (=null) values. See --help")
+                    .long_help("
+Removes all zero (null) values from data records.
+Specifically in NAV and OBS RINEX. Null NAV records are forbidden.
+Null OBS RINEX are also most likely invalid.
+To determine whether some null Observations exist (most likely invalid), simply
+generate a first report and study the provided observations.
+The `ppp` solver will most likely encounter Physical Non Sense Errors.
+Null NAV RINEX content is also invalid by definition."))
             .next_help_heading("Receiver Antenna")
                 .arg(Arg::new("rx-ecef")
                     .long("rx-ecef")
@@ -342,6 +361,9 @@ Otherwise it gets automatically picked up."))
     pub fn irnss_filter(&self) -> bool {
         self.matches.get_flag("irnss-filter")
     }
+    pub fn zero_repair(&self) -> bool {
+        self.matches.get_flag("zero-repair")
+    }
     /*
      * faillible 3D coordinates parsing
      * it's better to panic if the descriptor is badly format
@@ -406,6 +428,9 @@ Otherwise it gets automatically picked up."))
             .chain(self.rover_files().into_iter().sorted())
             .chain(self.preprocessing().into_iter().sorted())
             .join(",");
+        if let Some(custom) = self.custom_report_name() {
+            string.push_str(custom);
+        }
         if let Some(geo) = self.manual_geodetic() {
             string.push_str(&format!("{:?}", geo));
         }
@@ -426,5 +451,9 @@ Otherwise it gets automatically picked up."))
             },
             force_brdc_skyplot: self.matches.get_flag("report-brdc-sky"),
         }
+    }
+    /// Report to be generated for this session
+    pub fn custom_report_name(&self) -> Option<&String> {
+        self.matches.get_one::<String>("report-name")
     }
 }

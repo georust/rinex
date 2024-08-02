@@ -22,7 +22,11 @@ pub enum Report {
 impl Report {
     /// Create a new report
     pub fn new(cli: &Cli, ctx: &Context, cfg: QcConfig) -> Self {
-        let report_path = ctx.workspace.root.join("index.html");
+        let report_path = if let Some(custom_name) = cli.custom_report_name() {
+            ctx.workspace.root.join(&format!("{}.html", custom_name))
+        } else {
+            ctx.workspace.root.join("index.html")
+        };
         let hash_path = ctx.workspace.root.join(".hash");
         if !cli.force_report_synthesis() && report_path.exists() && hash_path.exists() {
             // determine whether we can preserve previous report or not
@@ -124,7 +128,11 @@ impl Report {
     /// Generate (dump) report
     pub fn generate(&self, cli: &Cli, ctx: &Context) -> std::io::Result<()> {
         let html = self.render();
-        let path = ctx.workspace.root.join("index.html");
+        let path = if let Some(name) = cli.custom_report_name() {
+            ctx.workspace.root.join(&format!("{}.html", name))
+        } else {
+            ctx.workspace.root.join("index.html")
+        };
 
         let mut fd = File::create(&path)?;
         write!(fd, "{}", html)?;

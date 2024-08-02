@@ -12,8 +12,8 @@ fn shared_args(cmd: Command) -> Command {
             .action(ArgAction::Append)
             .help("Position Solver configuration file (JSON). See --help.")
             .long_help("
-Read the [https://github.com/georust/rinex/wiki/Positioning] tutorial.
-Use [https://github.com/georust/rinex/config] as a starting point.
+Read [https://github.com/georust/rinex/wiki/Positioning] 
+and refer to the tutorials/ folder shipped with the RINEX repo.
 [https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/struct.Config.html] is the structure to represent in JSON.
 "));
 
@@ -52,7 +52,7 @@ Use [https://github.com/georust/rinex/config] as a starting point.
     let cmd =
         cmd.next_help_heading("CGGTTS (special resolution for clock comparison / time transfer)");
 
-    if cfg!(not(feature = "cggtts")) {
+    let cmd = if cfg!(not(feature = "cggtts")) {
         cmd.arg(
             Arg::new("cggtts")
                 .long("cggtts")
@@ -68,7 +68,6 @@ Use [https://github.com/georust/rinex/config] as a starting point.
                 .long_help("Refer to the [https://github.com/georust/rinex/wiki/CGGTTS] tutorial."))
             .arg(Arg::new("tracking")
                 .long("trk")
-                .short('t')
                 .value_parser(value_parser!(Duration))
                 .action(ArgAction::Set)
                 .help("CGGTTS custom tracking duration.
@@ -89,7 +88,9 @@ Use [https://github.com/georust/rinex/config] as a starting point.
                 .conflicts_with("utck")
                 .help("If the local clock is not a UTC replica and has a specific name, you
     can define it here."))
-    }
+    };
+
+    cmd
 }
 
 pub fn ppp_subcommand() -> Command {

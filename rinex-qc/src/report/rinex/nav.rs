@@ -26,7 +26,7 @@ impl Render for ConstellationPage {
                             "Satellites"
                         }
                         td {
-                            (self.satellites.iter().join(", "))
+                            (self.satellites.iter().sorted().join(", "))
                         }
                     }
                 }
