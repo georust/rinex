@@ -2235,13 +2235,6 @@ use crate::navigation::{
     BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NavMsgType, NgModel, StoMessage,
 };
 
-//#[cfg(feature = "nav")]
-//use hifitime::Unit;
-//.sv_speed()
-
-#[cfg(feature = "nav")]
-use map_3d::ecef2geodetic;
-
 /*
  * NAV RINEX specific methods: only available on crate feature.
  * Either specific Iterators, or meaningful data we can extract.
@@ -2322,6 +2315,19 @@ impl Rinex {
             })
         }))
     }
+    /// Returns SV Orbital state vector (if we can) at specified [Epoch] `t`.
+    /// Self must be NAV RINEX. Position is expressed as ECEF coordinates [m].
+    pub fn sv_position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
+        let (_, eph) = self.sv_ephemeris(sv, t)?;
+        eph.sv_position(sv, t)
+    }
+    /// Returns SV instantaneous orbital velocity (if we can) at specific [Epoch] `t`.
+    /// Self must be NAV RINEX. Velocity vector is expressed as ECEF coordinates [km/s].
+    pub fn sv_velocity(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
+        let (_, eph) = self.sv_ephemeris(sv, t)?;
+        let (_, vel) = eph.sv_position_velocity(sv, t)?;
+        Some(vel)
+    }
     /// Ephemeris selection method. Use this method to select Ephemeris
     /// to be used to navigate using `sv` at instant `t`.
     /// Returns (toe and ephemeris frame).
@@ -2382,230 +2388,6 @@ impl Rinex {
         Box::new(
             self.ephemeris()
                 .map(|(e, (_, sv, data))| (*e, sv, data.sv_clock())),
-        )
-    }
-    /// Returns an Iterator over SV position vectors,
-    /// expressed in km ECEF for all Epochs.
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///         .unwrap();
-    ///
-    /// // let almanac = Almanac::until_2035().unwrap();
-    ///
-    /// // for (epoch, sv, (x, y, z)) in rinex.sv_position(&almanac) {
-    /// for (epoch, sv, (x, y, z)) in rinex.sv_position() {
-    ///     // sv: satellite vehicle
-    ///     // x: x(t) [km ECEF]
-    ///     // y: y(t) [km ECEF]
-    ///     // z: z(t) [km ECEF]
-    /// }
-    /// ```
-    pub fn sv_position(
-        &self,
-        // almanac: &Almanac,
-    ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        Box::new(self.ephemeris().filter_map(move |(e, (_, sv, ephemeris))| {
-            let (x, y, z) = ephemeris.sv_position(sv, *e)?;
-            Some((*e, sv, (x, y, z)))
-        }))
-    }
-    /// Returns Iterator over SV velocity vector, expressed in km/s ECEF.
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///         .unwrap();
-    ///
-    /// for (epoch, sv, (sv_x, sv_y, sv_z)) in rinex.sv_velocity() {
-    ///     // sv_x : km/s
-    ///     // sv_y : km/s
-    ///     // sv_z : km/s
-    /// }
-    /// ```
-    pub fn sv_velocity(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        Box::new(self.ephemeris().filter_map(move |(e, (_, sv, ephemeris))| {
-            let (v_x, v_y, v_z) = ephemeris.sv_position_velocity(sv, *e)?.1;
-            Some((*e, sv, (v_x, v_y, v_z)))
-        }))
-    }
-    /// Interpolates SV position, expressed in meters ECEF at desired Epoch `t`.
-    /// An interpolation order between 4 and 8 is recommended, depending on the
-    /// precision you are targetting. Higher orders do not make sense considering the
-    /// noise on broadcasted (real time) positions.
-    /// In ideal scenarios, Broadcast Ephemeris are complete and evenly spaced in time:
-    ///   - the first Epoch we an interpolate is ](N +1)/2 * τ; ...]
-    ///   - the last Epoch we an interpolate is  [..;  T - (N +1)/2 * τ]
-    /// where N is the interpolation order, τ the broadcast interval and T
-    /// the last broadcast message received.
-    /// This method is designed to minimize interpolation errors at the expense
-    /// of interpolatable Epochs. See [Bibliography::Japhet2021].
-    pub fn sv_position_interpolate(
-        &self,
-        sv: SV,
-        t: Epoch,
-        order: usize,
-        // almanac: &Almanac,
-    ) -> Option<(f64, f64, f64)> {
-        let odd_order = order % 2 > 0;
-        let dt = match self.sample_rate() {
-            Some(dt) => dt,
-            None => match self.dominant_sample_rate() {
-                Some(dt) => dt,
-                None => {
-                    /*
-                     * Can't determine anything: not enough information
-                     */
-                    return None;
-                },
-            },
-        };
-
-        let sv_position: Vec<_> = self
-            .sv_position()
-            .filter_map(|(e, svnn, (x, y, z))| {
-                if sv == svnn {
-                    Some((e, (x, y, z)))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        /*
-         * Determine cloesest Epoch in time
-         */
-        let center = match sv_position.iter().find(|(e, _)| (*e - t).abs() < dt) {
-            Some(center) => center,
-            None => {
-                /*
-                 * Failed to determine central Epoch for this SV
-                 * empty data set: should not happen
-                 */
-                return None;
-            },
-        };
-        // println!("CENTRAL EPOCH: {:?}", center); // DEBUG
-        let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
-            Some(center) => center,
-            None => {
-                /* will never happen at this point */
-                return None;
-            },
-        };
-
-        let (min_before, min_after): (usize, usize) = match odd_order {
-            true => ((order + 1) / 2, (order + 1) / 2),
-            false => (order / 2, order / 2 + 1),
-        };
-
-        if center_pos < min_before || sv_position.len() - center_pos < min_after {
-            /* can't design time window */
-            return None;
-        }
-
-        let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
-        let offset = center_pos - min_before;
-
-        for i in 0..order + 1 {
-            let mut li = 1.0_f64;
-            let (e_i, (x_i, y_i, z_i)) = sv_position[offset + i];
-            for j in 0..order + 1 {
-                let (e_j, _) = sv_position[offset + j];
-                if j != i {
-                    li *= (t - e_j).to_seconds();
-                    li /= (e_i - e_j).to_seconds();
-                }
-            }
-            polynomials.0 += x_i * li;
-            polynomials.1 += y_i * li;
-            polynomials.2 += z_i * li;
-        }
-
-        Some(polynomials)
-    }
-    /// Returns an Iterator over SV position vectors,
-    /// expressed as geodetic coordinates, with latitude and longitude
-    /// in decimal degrees.
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///         .unwrap();
-    ///
-    /// // let almanac = Almanac::until_2035().unwrap();
-    ///
-    /// // for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo(&almanac) {
-    /// for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo() {
-    ///     // sv: satellite vehicle
-    ///     // lat [ddeg]
-    ///     // lon [ddeg]
-    ///     // alt: [m ECEF]
-    /// }
-    /// ```
-    pub fn sv_position_geo(
-        &self,
-        // almanac: &Almanac,
-    ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        Box::new(self.sv_position().map(|(e, sv, (x, y, z))| {
-            let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
-            (e, sv, (lat, lon, alt))
-        }))
-    }
-    /// Returns an Iterator over SV elevation and azimuth angles,
-    /// both expressed in degrees.
-    /// A reference ground position must be known:
-    ///   - either it is defined in [Header]
-    ///   - otherwise it can be superceeded by user defined position
-    ///   - if none of these conditions are matched, method will panic
-    /// ```
-    /// use rinex::wgs84;
-    /// use rinex::prelude::*;
-    /// let ref_pos = wgs84!(3582105.291, 532589.7313, 5232754.8054);
-    ///
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///     .unwrap();
-    ///
-    /// // let almanac = Almanac::until_2035().unwrap();
-    ///
-    /// // let data = rinex.sv_elevation_azimuth(Some(ref_pos), &almanac);
-    /// let data = rinex.sv_elevation_azimuth(Some(ref_pos));
-    /// for (epoch, sv, (elev, azim)) in data {
-    ///     // azim: azimuth in °
-    ///     // elev: elevation in °
-    /// }
-    /// ```
-    pub fn sv_elevation_azimuth(
-        &self,
-        ref_position: Option<GroundPosition>,
-        // almanac: &Almanac,
-    ) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64))> + '_> {
-        let ground_position = match ref_position {
-            Some(pos) => pos, // user value superceeds, in case it is passed
-            _ => {
-                // header must contain this information
-                // otherwise, calculation is not feasible
-                if let Some(pos) = self.header.ground_position {
-                    pos
-                } else {
-                    panic!("sv_elevation_azimuth(): needs a reference position");
-                }
-            },
-        };
-        Box::new(
-            self.ephemeris()
-                .filter_map(move |(epoch, (_, sv, ephemeris))| {
-                    if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position)
-                    {
-                        Some((*epoch, sv, (elev, azim)))
-                    } else {
-                        None // calculations may not be feasible,
-                             // mainly when mandatory ephemeris broadcasts are missing
-                    }
-                }),
         )
     }
     /*

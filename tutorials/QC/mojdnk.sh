@@ -4,15 +4,19 @@
 DATA_DIR=test_resources
 
 # Example: 
-#  Gal PRN>09
-#  Skip 1st hour
-#  E1 or E5 PR
-FILTER="Gal;>E09;C1C,C5Q"
+#  Gal      PRN>09
+#  GPS      PRN>=10
+#  BeiDou   PRN>15
+# Signals   B2I, E1, L1
+FILTER="Gal;>E09;C2I,C1C"
 # Skip 1st hour (example)
 TIMEFRAME=">2020-06-25T01:00:00 UTC"
 
-# ppp context analysis, without any other ops
+# ppp-like context analysis
+#  -f: force report synthesis
+#  -P: filter example
 ./target/release/rinex-cli \
+    -f \
     -P $FILTER "$TIMEFRAME" \
     --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
