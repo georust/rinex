@@ -56,7 +56,7 @@ impl Render for SP3Page {
                             "Satellites"
                         }
                         td {
-                            (self.satellites.iter().map(|sv| sv.to_string()).join(","))
+                            (self.satellites.iter().sorted().join(", "))
                         }
                     }
                     tr {
