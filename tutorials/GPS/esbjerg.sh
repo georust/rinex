@@ -16,8 +16,10 @@ TIMEFRAME=">2020-06-25T01:00:00 GPST"
 CONF=tutorials/config/survey/cpp_kf.json
 
 # Analysis + ppp solutions (silent)
+#  -f: force new synthesis
+#  -q: open on last run only
 ./target/release/rinex-cli \
-    -P $FILTER -q \
+    -P $FILTER -f -q \
     --fp $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     --fp $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \

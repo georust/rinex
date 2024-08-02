@@ -447,31 +447,31 @@ impl Report {
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),
                     );
-                    if constellation == Constellation::BeiDou {
-                        // MEO mask
-                        let meo1 = Filter::greater_than("C05").unwrap();
-                        let meo2 = Filter::lower_than("C58").unwrap();
-                        let meo = rinex.filter(&meo1).filter(&meo2);
+                    //if constellation == Constellation::BeiDou {
+                    //    // MEO mask
+                    //    let meo1 = Filter::greater_than("C05").unwrap();
+                    //    let meo2 = Filter::lower_than("C58").unwrap();
+                    //    let meo = rinex.filter(&meo1).filter(&meo2);
 
-                        constellations.insert(
-                            "BeiDou (MEO)".to_string(),
-                            ConstellationPage::new(constellation, &meo),
-                        );
+                    //    constellations.insert(
+                    //        "BeiDou (MEO)".to_string(),
+                    //        ConstellationPage::new(constellation, &meo),
+                    //    );
 
-                        // GEO mask
-                        let geo = rinex.filter(&!meo1).filter(&!meo2);
+                    //    // GEO mask
+                    //    let geo = rinex.filter(&!meo1).filter(&!meo2);
 
-                        constellations.insert(
-                            "BeiDou (GEO)".to_string(),
-                            ConstellationPage::new(constellation, &geo),
-                        );
-                    } else {
-                        let focused = rinex.filter(&filter);
-                        constellations.insert(
-                            constellation.to_string(),
-                            ConstellationPage::new(constellation, &focused),
-                        );
-                    }
+                    //    constellations.insert(
+                    //        "BeiDou (GEO)".to_string(),
+                    //        ConstellationPage::new(constellation, &geo),
+                    //    );
+                    //} else {
+                    let focused = rinex.filter(&filter);
+                    constellations.insert(
+                        constellation.to_string(),
+                        ConstellationPage::new(constellation, &focused),
+                    );
+                    //}
                 }
                 constellations
             },

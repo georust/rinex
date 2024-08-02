@@ -13,9 +13,12 @@ FILTER=BeiDou
 # Custom surveying config
 CONF=tutorials/config/survey/cpp_lsq.json
 
-# Analysis + ppp solutions (silent)
+# Analysis + ppp solutions
+# -q: silent: open on very last run only
+# -f: force new synthesis
+# -P: filter example
 ./target/release/rinex-cli \
-    -P $FILTER \
+    -P $FILTER -f -q \
     --fp $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     --fp $DATA_DIR/SP3/Sta21114.sp3.gz \
