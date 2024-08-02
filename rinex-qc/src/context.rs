@@ -8,9 +8,16 @@ use std::path::{Path, PathBuf};
 use rinex::{
     carrier::Carrier,
     merge::{Error as RinexMergeError, Merge as RinexMerge},
-    prelude::{Epoch, GroundPosition, Observable, Rinex, TimeScale, SV},
+    prelude::{Almanac, Epoch, GroundPosition, Observable, Rinex, TimeScale, SV},
     types::Type as RinexType,
     Error as RinexError,
+};
+
+use anise::{
+    almanac::planetary::PlanetaryDataError,
+    constants::frames::IAU_EARTH_FRAME,
+    errors::AlmanacError,
+    prelude::{Frame, Orbit},
 };
 
 #[cfg(feature = "sp3")]
@@ -24,6 +31,10 @@ use qc_traits::{
 /// Context Error
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("almanac error")]
+    Alamanac(#[from] AlmanacError),
+    #[error("planetary data error")]
+    PlanetaryData(#[from] PlanetaryDataError),
     #[error("failed to extend gnss context")]
     ContextExtensionError(#[from] MergeError),
     #[error("non supported file format")]
@@ -136,15 +147,39 @@ impl BlobData {
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,
 /// precise timing or atmosphere analysis.
-#[derive(Default)]
 pub struct QcContext {
     /// Files merged into self
     files: HashMap<ProductType, Vec<PathBuf>>,
     /// Context blob created by merging each members of each category
     blob: HashMap<ProductType, BlobData>,
+    /// Latest Almanac
+    pub almanac: Almanac,
+    /// Earth IAU/ECEF frame
+    pub earth_iau_ecef: Frame,
 }
 
 impl QcContext {
+    /// Initilize QcContext
+    pub fn new() -> Result<Self, Error> {
+        let almanac = Almanac::until_2035()?;
+        let earth_iau_ecef = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+        Ok(Self {
+            almanac,
+            earth_iau_ecef,
+            blob: HashMap::new(),
+            files: HashMap::new(),
+        })
+    }
+    /// Initialize QcContext to work with given [Almanac]
+    pub fn new_almanac(almanac: Almanac) -> Result<Self, Error> {
+        let earth_iau_ecef = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+        Ok(Self {
+            almanac,
+            earth_iau_ecef,
+            blob: HashMap::new(),
+            files: HashMap::new(),
+        })
+    }
     /// Returns main [TimeScale] for Self
     pub fn timescale(&self) -> Option<TimeScale> {
         #[cfg(feature = "sp3")]

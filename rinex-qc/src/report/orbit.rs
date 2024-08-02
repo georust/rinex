@@ -1,6 +1,6 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{Almanac, GroundPosition, Rinex},
+    prelude::{GroundPosition, Orbit, Rinex},
 };
 use sp3::prelude::{Constellation, Epoch, SP3, SV};
 use std::collections::HashMap;
@@ -150,7 +150,6 @@ impl OrbitReport {
     pub fn new(ctx: &QcContext, reference: Option<GroundPosition>, force_brdc_sky: bool) -> Self {
         let (x0, y0, z0) = reference.unwrap_or_default().to_ecef_wgs84();
         let brdc_skyplot = ctx.has_brdc_navigation() && ctx.has_sp3() && force_brdc_sky;
-        let almanac = Almanac::until_2035().unwrap();
 
         let max_sv_visible = if brdc_skyplot { 2 } else { 4 };
 
@@ -165,7 +164,7 @@ impl OrbitReport {
                     (pos_sp3.0 * 1000.0, pos_sp3.1 * 1000.0, pos_sp3.2 * 1000.0);
                 let (el, az) = Ephemeris::elevation_azimuth(
                     t_sp3,
-                    &almanac,
+                    &ctx.almanac,
                     (x_sp3_m, y_sp3_m, z_sp3_m),
                     (x0, y0, z0),
                 );
@@ -245,43 +244,42 @@ impl OrbitReport {
                             .sv_position()
                             .filter_map(|(t, svnn, _)| if svnn == sv { Some(t) } else { None })
                             .collect::<Vec<_>>();
-                        let lat_ddeg = sp3
+                        let orbits = sp3
                             .sv_position()
-                            .filter_map(|(t, svnn, pos)| {
+                            .filter_map(|(t, svnn, pos_km)| {
                                 if svnn == sv {
-                                    let lat_rad = ecef2geodetic(
-                                        pos.0 * 1000.0,
-                                        pos.1 * 1000.0,
-                                        pos.2 * 1000.0,
-                                        Ellipsoid::WGS84,
-                                    )
-                                    .0;
-                                    Some(lat_rad.to_degrees())
+                                    Some(Orbit::from_position(
+                                        pos_km.0,
+                                        pos_km.1,
+                                        pos_km.2,
+                                        t,
+                                        ctx.earth_iau_ecef,
+                                    ))
                                 } else {
                                     None
                                 }
                             })
                             .collect::<Vec<_>>();
-                        let lon_ddeg = sp3
-                            .sv_position()
-                            .filter_map(|(t, svnn, pos)| {
-                                if svnn == sv {
-                                    let long_rad = ecef2geodetic(
-                                        pos.0 * 1000.0,
-                                        pos.1 * 1000.0,
-                                        pos.2 * 1000.0,
-                                        Ellipsoid::WGS84,
-                                    )
-                                    .1;
-                                    Some(long_rad.to_degrees())
+
+                        let lat_ddeg = orbits
+                            .iter()
+                            .filter_map(|orb| {
+                                if let Ok(lat) = orb.latitude_deg() {
+                                    Some(lat)
                                 } else {
                                     None
                                 }
                             })
                             .collect::<Vec<_>>();
+
+                        let long_ddeg = orbits
+                            .iter()
+                            .map(|orb| orb.longitude_deg())
+                            .collect::<Vec<_>>();
+
                         let map = Plot::mapbox(
                             lat_ddeg,
-                            lon_ddeg,
+                            long_ddeg,
                             &sv.to_string(),
                             MarkerSymbol::Circle,
                             None,

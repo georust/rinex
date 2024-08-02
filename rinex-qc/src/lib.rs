@@ -22,7 +22,7 @@ pub mod prelude {
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use maud::{html, Markup, Render};
     pub use qc_traits::processing::{Filter, Preprocessing};
-    pub use rinex::prelude::{Error as RinexError, Rinex};
+    pub use rinex::prelude::{Almanac, Error as RinexError, Rinex};
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
     pub use std::path::Path;

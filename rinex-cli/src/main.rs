@@ -62,7 +62,7 @@ pub enum Error {
  * Parses and preprepocess all files passed by User
  */
 fn user_data_parsing(cli: &Cli) -> QcContext {
-    let mut ctx = QcContext::default();
+    let mut ctx = QcContext::new().unwrap_or_else(|e| panic!("failed to build context: {}", e));
 
     let max_depth = match cli.matches.get_one::<u8>("depth") {
         Some(value) => *value as usize,
