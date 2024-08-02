@@ -376,6 +376,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &epochs,
                         prn,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -418,6 +419,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     north,
+                    true,
                 );
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
@@ -426,10 +428,17 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     east,
+                    true,
                 );
                 plot.add_trace(trace);
-                let trace =
-                    Plot::timedomain_chart("upt", Mode::Markers, MarkerSymbol::Cross, &epochs, up);
+                let trace = Plot::timedomain_chart(
+                    "upt",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    up,
+                    true,
+                );
                 plot.add_trace(trace);
                 plot
             },
@@ -448,14 +457,32 @@ impl ReportContent {
                     .iter()
                     .map(|(_, sol)| sol.velocity.z)
                     .collect::<Vec<_>>();
-                let trace =
-                    Plot::timedomain_chart("vel_x", Mode::Markers, MarkerSymbol::Cross, &epochs, x);
+                let trace = Plot::timedomain_chart(
+                    "vel_x",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    x,
+                    true,
+                );
                 plot.add_trace(trace);
-                let trace =
-                    Plot::timedomain_chart("vel_y", Mode::Markers, MarkerSymbol::Cross, &epochs, y);
+                let trace = Plot::timedomain_chart(
+                    "vel_y",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    y,
+                    true,
+                );
                 plot.add_trace(trace);
-                let trace =
-                    Plot::timedomain_chart("vel_z", Mode::Markers, MarkerSymbol::Cross, &epochs, z);
+                let trace = Plot::timedomain_chart(
+                    "vel_z",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    z,
+                    true,
+                );
                 plot.add_trace(trace);
                 plot
             },
@@ -491,6 +518,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -527,6 +555,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -550,6 +579,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     tdop,
+                    true,
                 );
                 plot.add_trace(trace);
                 plot
@@ -569,6 +599,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     gdop,
+                    true,
                 );
                 plot.add_trace(trace);
 
@@ -583,6 +614,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     vdop,
+                    true,
                 );
                 plot.add_trace(trace);
 
@@ -597,6 +629,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     hdop,
+                    true,
                 );
                 plot.add_trace(trace);
                 plot
@@ -616,6 +649,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     dt,
+                    true,
                 );
                 plot.add_trace(trace);
                 plot
@@ -631,6 +665,7 @@ impl ReportContent {
                         .values()
                         .map(|sol| sol.position.x - x0_ecef)
                         .collect(),
+                    true,
                 );
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
@@ -642,6 +677,7 @@ impl ReportContent {
                         .values()
                         .map(|sol| sol.position.y - y0_ecef)
                         .collect(),
+                    true,
                 );
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
@@ -653,6 +689,7 @@ impl ReportContent {
                         .values()
                         .map(|sol| sol.position.z - z0_ecef)
                         .collect(),
+                    true,
                 );
                 plot.add_trace(trace);
                 plot

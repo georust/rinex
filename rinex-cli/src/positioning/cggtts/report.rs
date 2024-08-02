@@ -163,6 +163,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -192,6 +193,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -226,6 +228,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -254,6 +257,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -282,6 +286,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }

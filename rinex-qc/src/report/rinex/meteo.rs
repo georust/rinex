@@ -165,6 +165,7 @@ impl MeteoPage {
                 MarkerSymbol::TriangleUp,
                 &data_x,
                 data_y,
+                true,
             );
             plot.add_trace(trace);
             let report = SinglePlotReport { plot };

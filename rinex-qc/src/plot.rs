@@ -341,6 +341,7 @@ impl Plot {
         symbol: MarkerSymbol,
         t: &Vec<Epoch>,
         y: Vec<Y>,
+        visible: bool,
     ) -> Box<Scatter<f64, Y>> {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
         Scatter::new(t.iter().map(|t| t.to_mjd_utc_days()).collect(), y)
@@ -350,5 +351,12 @@ impl Plot {
             .hover_text_array(txt)
             .hover_info(HoverInfo::All)
             .marker(Marker::new().symbol(symbol))
+            .visible({
+                if visible {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            })
     }
 }

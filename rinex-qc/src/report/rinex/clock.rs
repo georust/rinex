@@ -49,6 +49,7 @@ impl ConstellPage {
                         MarkerSymbol::Cross,
                         &plot_x,
                         plot_y,
+                        true,
                     )
                     .visible({
                         if sv_index == 0 {
@@ -94,6 +95,7 @@ impl ConstellPage {
                         MarkerSymbol::Cross,
                         &plot_x,
                         plot_y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
