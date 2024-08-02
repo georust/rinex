@@ -3,8 +3,6 @@ use maud::{html, Markup, Render};
 use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
 use std::collections::HashMap;
 
-use rinex::prelude::GroundPosition;
-
 use sp3::prelude::{Constellation, SP3, SV};
 
 use crate::report::shared::SamplingReport;
@@ -107,7 +105,7 @@ impl SP3Report {
             //}
         }
     }
-    pub fn new(sp3: &SP3, reference: Option<GroundPosition>) -> Self {
+    pub fn new(sp3: &SP3) -> Self {
         Self {
             agency: sp3.agency.clone(),
             version: sp3.version.to_string(),

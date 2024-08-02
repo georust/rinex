@@ -146,6 +146,7 @@ impl FrequencyPage {
                             MarkerSymbol::Cross,
                             &obs_x_ok,
                             obs_y_ok,
+                            true,
                         );
                         plot.add_trace(trace);
                     }

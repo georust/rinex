@@ -1,13 +1,17 @@
 use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::constants::Constants;
-use crate::{constants, epoch, prelude::*, version::Version};
+use crate::{
+    constants, epoch,
+    prelude::{Constellation, Duration, Epoch, TimeScale, SV},
+    version::Version,
+};
+
+use anise::{constants::frames::EARTH_J2000, prelude::Orbit};
 
 use log::{error, warn};
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
-
-use gnss::prelude::SV;
 
 #[cfg(feature = "nav")]
 use std::f64::consts::PI;
@@ -46,7 +50,7 @@ pub enum Error {
 #[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 #[derive(Debug, Clone, Copy, Default)]
 struct EphemerisHelper {
-    // satellite identity
+    /// Satellite
     pub sv: SV,
     /// The difference between the calculated time and the ephemeris reference time
     pub t_k: f64,
@@ -72,6 +76,8 @@ struct EphemerisHelper {
     pub dtr: f64,
     /// First Derivative of Relativistic Effect Correction
     pub fd_dtr: f64,
+    /// Orbit
+    orbit: Option<Orbit>,
 }
 
 #[cfg(feature = "nav")]
@@ -673,20 +679,20 @@ impl Ephemeris {
         helper.dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
         helper.fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
 
-        //let orbital_state = Orbit::try_keplerian(
-        //    kepler.a * 1e-3,
-        //    kepler.e,
-        //    helper.i_k.to_degrees(),
-        //    helper.omega_k.to_degrees(),
-        //    kepler.omega.to_degrees(),
-        //    v_k.to_degrees(),
-        //    t,
-        //    EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
-        //)
-        //.ok()?;
+        let orbital_state = Orbit::try_keplerian(
+            kepler.a * 1e-3,
+            kepler.e,
+            helper.i_k.to_degrees(),
+            helper.omega_k.to_degrees(),
+            kepler.omega.to_degrees(),
+            v_k.to_degrees(),
+            t,
+            EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
+        )
+        .ok()?;
 
         // Finally, set the orbit state
-        // helper.orbit = Some(orbital_state);
+        helper.orbit = Some(orbital_state);
 
         Some(helper)
     }
@@ -772,11 +778,30 @@ impl Ephemeris {
     /// SV position in the sky, expressed in meter ECEF WGS84.
     pub fn elevation_azimuth(
         sv_position: (f64, f64, f64),
-        reference_position: (f64, f64, f64),
+        rx_position: (f64, f64, f64),
     ) -> (f64, f64) {
+        //let (rx_x_km, rx_y_km, rx_z_km) = (
+        //    rx_position.0 / 1000.0,
+        //    rx_position.1 / 1000.0,
+        //    rx_position.2 / 1000.0,
+        //);
+        //let (tx_x_km, tx_y_km, tx_z_km) = (
+        //    sv_position.0 / 1000.0,
+        //    sv_position.1 / 1000.0,
+        //    sv_position.2 / 1000.0,
+        //);
+        //let earth_j2000 = almanac.frame_from_uid(EARTH_J2000)
+        //    .unwrap_or_else(|e| panic!("almanac::from_uid: {}", e));
+
+        //let el_az_rg = almanac.azimuth_elevation_range_sez(
+        //    Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, earth_j2000),
+        //    Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, earth_j2000),
+        //).unwrap_or_else(|e| panic!("almanac::azimuth_elevation(): {}", e));
+        //(el_az_rg.elevation_deg, el_az_rg.azimuth_deg)
+
         let (sv_x, sv_y, sv_z) = sv_position;
         // convert ref position to radians(lat, lon)
-        let (ref_x, ref_y, ref_z) = reference_position;
+        let (ref_x, ref_y, ref_z) = rx_position;
         let (ref_lat, ref_lon, _) = ecef2geodetic(ref_x, ref_y, ref_z, Ellipsoid::WGS84);
 
         // ||sv - ref_pos|| pseudo range
@@ -810,21 +835,6 @@ impl Ephemeris {
             az += 360.0;
         }
         (el, az)
-    }
-    /*
-     * Resolves a position and computes elev, azim angles both in degrees
-     */
-    pub(crate) fn sv_elev_azim(
-        &self,
-        sv: SV,
-        epoch: Epoch,
-        reference: GroundPosition,
-    ) -> Option<(f64, f64)> {
-        let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
-        Some(Self::elevation_azimuth(
-            (sv_x * 1.0E3, sv_y * 1.0E3, sv_z * 1.0E3),
-            reference.to_ecef_wgs84(),
-        ))
     }
     /// Returns Ephemeris validity duration for this Constellation
     pub fn max_dtoe(c: Constellation) -> Option<Duration> {

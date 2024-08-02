@@ -96,8 +96,9 @@ pub mod prelude {
     pub use crate::{Error, Rinex};
     // pub re-export
     // pub use anise::prelude::Almanac;
-    pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
     #[cfg(feature = "nav")]
+    pub use anise::prelude::{Almanac, Orbit};
+    pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
     pub use hifitime::ut1::DeltaTaiUt1;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
     #[cfg(feature = "processing")]
