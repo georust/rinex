@@ -189,6 +189,7 @@ impl Plot {
     }
     /// Trace for a skyplot
     pub fn sky_trace<T: Default + Clone + Serialize>(
+        name: &str,
         t: Vec<Epoch>,
         elev: Vec<T>,
         azim: Vec<T>,
@@ -207,6 +208,7 @@ impl Plot {
                 }
             })
             .connect_gaps(false)
+            .name(name)
         //TODO alpha gradient per time
     }
     /// Builds new Polar plot
