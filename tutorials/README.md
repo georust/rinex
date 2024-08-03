@@ -60,8 +60,11 @@ Other file operations like RINEX files management is also demonstrated.
   - Examples with SP3 data only or SP3 specific applications
 - [RINEX(A) - RINEX(B): differential analysis](./DIFF)
   - Esbjerg and Mojn (DNK): close range observations
-- [Meteo observations exploitation](./METEO)
+- [Meteo RINEX applications](./METEO)
   - Complete modern Meteo observations (QC)
+- [Clock RINEX applications](./METEO)
+  - Precise Clock products
+  - PPP Navi with Clock or SP3 only (example)
 - [Batch Time binning](./TBIN)
   - Esbjerg (24h/DNK) station observations
   - SP3 time binning

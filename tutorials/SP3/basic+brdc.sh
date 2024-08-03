@@ -6,7 +6,7 @@ DATA_DIR=test_resources
 # Example: 
 #  Gal      PRN>09
 #  GPS      PRN>=10
-FILTER="GPS,Gal"
+FILTER="GPS"
 # With SP3 only, no position preset is defined.
 # We need to manually specifiy one. Attitudes will be projected
 # with respect to that preset. This is usually the GNSS antenna location.

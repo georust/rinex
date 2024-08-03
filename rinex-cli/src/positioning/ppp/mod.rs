@@ -7,9 +7,11 @@ use crate::{
         kb_model,
         ng_model, //tropo_components,
         ClockStateProvider,
+        EphemerisSource,
     },
 };
-use std::collections::BTreeMap;
+
+use std::{cell::RefCell, collections::BTreeMap};
 
 use rinex::{carrier::Carrier, observation::LliFlags};
 
@@ -23,8 +25,9 @@ use gnss_rtk::prelude::{
     Solver, TroposphereBias,
 };
 
-pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
+pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
+    mut eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
     mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
@@ -54,8 +57,6 @@ pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
         // }
 
         for (sv, observations) in vehicles {
-            // TODO/NB: we need to be able to operate without Ephemeris source
-            //          to support pure rtk
             let clock_corr = match clock.next_clock_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
@@ -63,6 +64,16 @@ pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
                     continue;
                 },
             };
+
+            let tgd = if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
+                eph.tgd()
+            } else {
+                None
+            };
+
+            if let Some(tgd) = tgd {
+                debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
+            }
 
             let mut rtk_obs = Vec::<Observation>::new();
 

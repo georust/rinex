@@ -2342,50 +2342,17 @@ impl Rinex {
     /// Returns (toe and ephemeris frame).
     /// Note that TOE does not exist for SBAS vehicles, therefore should be discarded.
     pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
-        if sv.constellation.is_sbas() {
-            // returns first encountered
-            // TODO: verify this
-            self.ephemeris()
-                .filter_map(
-                    |(t, (_, svnn, eph))| {
-                        if svnn == sv {
-                            Some((*t, eph))
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .reduce(|k, _| k)
-        } else {
-            // TODO: need to account for other fields like orbit health
-            self.ephemeris()
-                .filter_map(|(_toc, (msg, svnn, eph))| {
-                    if svnn == sv {
-                        let ts = svnn.timescale()?;
-                        let toe: Option<Epoch> = match msg {
-                            NavMsgType::CNAV => {
-                                /* in CNAV : specs says toc is toe actually */
-                                // TODO Some(toc.in_time_scale(ts))
-                                None
-                            },
-                            _ => {
-                                // determine toe
-                                eph.toe(ts)
-                            },
-                        };
-                        let toe = toe?;
-                        let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
-                        //if (t - toe) < max_dtoe {
-                        Some((toe, eph))
-                        //} else {
-                        //    None
-                        //}
-                    } else {
-                        None
-                    }
-                })
-                .min_by_key(|(toe_i, _)| (t - *toe_i))
-        }
+        self.ephemeris()
+            .filter_map(|(t_i, (_, sv_i, eph_i))| {
+                let ts = sv_i.constellation.timescale()?;
+                let toe = eph_i.toe(ts)?;
+                if eph_i.is_valid(sv, t) {
+                    Some((toe, eph_i))
+                } else {
+                    None
+                }
+            })
+            .min_by_key(|(toe_i, _)| (t - *toe_i))
     }
     /// Returns an Iterator over SV (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)

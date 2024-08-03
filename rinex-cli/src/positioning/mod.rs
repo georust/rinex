@@ -1,7 +1,10 @@
 use crate::cli::{Cli, Context};
 use clap::ArgMatches;
-use std::fs::read_to_string;
 use std::cell::RefCell;
+use std::fs::read_to_string;
+
+mod buffer;
+pub use buffer::Buffer;
 
 mod eph;
 use eph::EphemerisSource;
@@ -321,7 +324,7 @@ pub fn precise_positioning(
     // create data providers
     let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
     let clocks = Clock::new(&eph);
-    let orbits = Orbit::new(&eph);
+    let orbits = Orbit::new(&ctx, &eph);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
@@ -356,7 +359,7 @@ a static reference position"
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
         //* CGGTTS special opmode */
-        let tracks = cggtts::resolve(ctx, clocks, solver, matches)?;
+        let tracks = cggtts::resolve(ctx, &eph, clocks, solver, matches)?;
         if !tracks.is_empty() {
             cggtts_post_process(&ctx, &tracks, matches)?;
             let report = CggttsReport::new(&ctx, &tracks);
@@ -369,7 +372,7 @@ a static reference position"
     }
 
     /* PPP */
-    let solutions = ppp::resolve(ctx, clocks, solver);
+    let solutions = ppp::resolve(ctx, &eph, clocks, solver);
     if !solutions.is_empty() {
         ppp_post_process(&ctx, &solutions, matches)?;
         let report = PPPReport::new(&cfg, &ctx, &solutions);

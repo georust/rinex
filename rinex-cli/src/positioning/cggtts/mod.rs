@@ -1,6 +1,7 @@
 //! CGGTTS special resolution opmoode.
 use clap::ArgMatches;
-use std::collections::HashMap;
+
+use std::{cell::RefCell, collections::HashMap};
 
 mod post_process;
 pub use post_process::post_process;
@@ -31,6 +32,7 @@ use crate::{
         ng_model, //tropo_components,
         rtk_reference_carrier,
         ClockStateProvider,
+        EphemerisSource,
         Error as PositioningError,
     },
 };
@@ -58,8 +60,9 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
+pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
+    mut eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
     mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
@@ -107,16 +110,23 @@ pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
         // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         for (sv, observations) in vehicles {
-            // TODO/NB: we need to be able to operate without Ephemeris source
-            //          to support pure rtk
-            // determine TOE
             let clock_corr = match clock.next_clock_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
-                    error!("{} ({}) - failed to determine clock correction", *t, *sv);
+                    error!("{} ({}) - no clock correction available", *t, *sv);
                     continue;
                 },
             };
+
+            let tgd = if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
+                eph.tgd()
+            } else {
+                None
+            };
+
+            if let Some(tgd) = tgd {
+                debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
+            }
 
             let iono_bias = IonosphereBias {
                 kb_model: kb_model(nav_data, *t),
@@ -227,7 +237,7 @@ pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
                     }
                 }
 
-                let candidate = Candidate::new(*sv, *t, clock_corr, Default::default(), rtk_obs);
+                let candidate = Candidate::new(*sv, *t, clock_corr, tgd, rtk_obs);
 
                 match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {

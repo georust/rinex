@@ -4,43 +4,87 @@ use rinex::prelude::{Epoch, Rinex, SV};
 use std::collections::HashMap;
 
 pub struct EphemerisSource<'a> {
-    latest: HashMap<SV, (Epoch, Ephemeris)>,
+    eos: bool,
+    toc: Epoch,
+    sv: SV,
+    buffer: HashMap<SV, Vec<(Epoch, Ephemeris)>>,
     iter: Box<dyn Iterator<Item = (SV, &'a Epoch, &'a Ephemeris)> + 'a>,
-}
-
-impl<'a> EphemerisSource<'a> {
-    fn update(&mut self, next: (SV, &Epoch, &Ephemeris)) {
-        let (sv, toc, eph) = next;
-        self.latest.insert(sv, (*toc, eph.clone()));
-    }
 }
 
 impl<'a> EphemerisSource<'a> {
     pub fn from_ctx(ctx: &'a Context) -> Self {
         if let Some(brdc) = ctx.data.brdc_navigation() {
             info!("Ephemeris data source created.");
-            Self {
-                latest: HashMap::with_capacity(32),
+            let mut s = Self {
+                eos: false,
+                toc: Epoch::default(),
+                sv: SV::default(),
+                buffer: HashMap::with_capacity(32),
                 iter: Box::new(brdc.ephemeris().map(|(toc, (_, sv, eph))| (sv, toc, eph))),
-            }
+            };
+            s.consume(8); // fill in with some data
+            s
         } else {
-            info!("Operating without ephemeris source.");
+            warn!("Operating without ephemeris source.");
             Self {
-                latest: Default::default(),
+                eos: true,
+                toc: Epoch::default(),
+                sv: SV::default(),
+                buffer: Default::default(),
                 iter: Box::new([].into_iter()),
             }
         }
     }
-    pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Ephemeris)> {
-        if let Some((toc, latest)) = self.latest.get(&sv) {
-            debug!("{}({}) - proposed latest toc={}", t, sv, toc);
-            Some((*toc, latest.clone()))
-        } else {
-            if let Some(next) = self.iter.next() {
-                self.update(next);
+    fn consume_one(&mut self) {
+        if let Some((sv, toc, eph)) = self.iter.next() {
+            if let Some(buffer) = self.buffer.get_mut(&sv) {
+                buffer.push((*toc, eph.clone()));
+            } else {
+                self.buffer.insert(sv, vec![(*toc, eph.clone())]);
             }
-            None
+            self.sv = sv;
+            self.toc = *toc;
+        } else {
+            if !self.eos {
+                info!("{}({}): consumed all epochs", self.toc, self.sv);
+            }
+            self.eos = true;
         }
     }
-
+    fn consume(&mut self, n: usize) {
+        for _ in 0..n {
+            self.consume_one();
+        }
+    }
+    fn try_select(&self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
+        let buffer = self.buffer.get(&sv)?;
+        let sv_ts = sv.constellation.timescale()?;
+        let (toc_i, toe_i, eph_i) = buffer
+            .iter()
+            .filter_map(|(toc_i, eph_i)| {
+                if eph_i.is_valid(sv, t) {
+                    let toe_i = eph_i.toe(sv_ts)?;
+                    Some((toc_i, toe_i, eph_i))
+                } else {
+                    None
+                }
+            })
+            .min_by_key(|(toc_i, _, _)| (t - **toc_i).abs())?;
+        Some((*toc_i, toe_i, eph_i.clone()))
+    }
+    pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
+        let mut attempt = 0;
+        loop {
+            if let Some((toc_i, toe_i, eph_i)) = self.try_select(t, sv) {
+                debug!("{}({}) - latest toc={}", t, sv, toc_i);
+                return Some((toc_i, toe_i, eph_i.clone()));
+            } else {
+                self.consume_one();
+                attempt += 1;
+            }
+            if attempt == 10 {
+                return None;
+            }
+        }
+    }
 }

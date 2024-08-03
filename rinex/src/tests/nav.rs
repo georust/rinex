@@ -1347,7 +1347,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "nav")]
-    fn toe_ephemeris_glo() {
+    fn toe_glo() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -1372,7 +1372,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "nav")]
-    fn toe_ephemeris_gal_bds() {
+    fn toe_gal_bds() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -1392,19 +1392,19 @@ mod test {
             assert!(ts.is_some(), "timescale should be determined");
             let ts = ts.unwrap();
 
-            if let Some(toe) = ephemeris.toe_gpst(ts) {
+            if let Some(toe) = ephemeris.toe(ts) {
                 if *toc == e0 {
                     let expected = toe_helper(0.782E3, 0.432E6, TimeScale::BDT);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 } else if *toc == e1 {
                     let expected = toe_helper(0.782E3, 0.450E6, TimeScale::BDT);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 } else if *toc == e2 {
                     let expected = toe_helper(0.2138E4, 0.4686E6, TimeScale::GST);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 } else if *toc == e3 {
                     let expected = toe_helper(0.2138E4, 0.4884E6, TimeScale::GST);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 }
                 // /*
                 //  * Rinex.sv_ephemeris(@ toe) should propose that very same ephemeris
@@ -1495,7 +1495,7 @@ mod test {
 
         for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
             let sv_ts = sv.timescale().unwrap();
-            let toe_gpst = ephemeris.toe_gpst(sv_ts).unwrap();
+            let toe_gpst = ephemeris.toe(sv_ts).unwrap().to_time_scale(TimeScale::GPST);
             match toc.to_string().as_str() {
                 "2021-01-01T02:00:00 GPST" => {
                     assert_eq!(sv.prn, 1, "found invalid vehicle");

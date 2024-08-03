@@ -16,6 +16,10 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 
+use crate::epoch::{
+    parse_in_timescale as parse_epoch_in_timescale, ParsingError as EpochParsingError,
+};
+
 #[cfg(feature = "nav")]
 use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
 
@@ -31,7 +35,7 @@ pub enum Error {
     #[error("failed to parse data")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
-    EpochParsingError(#[from] epoch::ParsingError),
+    EpochParsing(#[from] EpochParsingError),
     #[error("sv parsing error")]
     SvParsing(#[from] gnss::sv::ParsingError),
     #[error("failed to identify timescale for sv \"{0}\"")]
@@ -101,16 +105,17 @@ impl EphemerisHelper {
         (fd_x, fd_y)
     }
 
-    /// Calculate ecef position of MEO/IGSO sv
-    /// work for GPS,Galieo,BeiDou(MEO/IGSO)
+    /// Calculate ecef position [km].
+    /// Applies to GPS, Galileo, BeiDou (MEO).
     fn ecef_position(&self) -> Vector3<f64> {
-        let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
-        let ecef_xyz = self.meo_orbit_to_ecef_rotation_matrix() * orbit_xyz;
-        ecef_xyz
+        //let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
+        //let ecef_xyz = self.meo_orbit_to_ecef_rotation_matrix() * orbit_xyz;
+        //ecef_xyz
+        self.orbit.radius_km
     }
 
-    /// Calculate ecef velocity of MEO/IGSO sv
-    /// work for GPS,Galieo,BeiDou(MEO/IGSO)
+    /// Calculate ecef velocity [m/s].
+    /// Applies to GPS, Galileo, BeiDou (MEO).
     fn ecef_velocity(&self) -> Vector3<f64> {
         let (x, y) = self.orbit_position;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
@@ -227,7 +232,7 @@ impl EphemerisHelper {
                 }
             },
             _ => {
-                warn!("EphemerisHelper currently only supports orbit solutions for BDS GPS GALIEO");
+                warn!("{} is not supported", self.sv.constellation);
                 None
             },
         }
@@ -242,7 +247,10 @@ impl EphemerisHelper {
                 Constellation::GPS | Constellation::Galileo | Constellation::BeiDou => {
                     Some(self.ecef_pv())
                 },
-                _ => None,
+                _ => {
+                    warn!("{} is not supported", self.sv.constellation);
+                    None
+                },
             }
         }
     }
@@ -283,15 +291,6 @@ pub struct Kepler {
     pub omega: f64,
     /// time of issue of ephemeris
     pub toe: f64,
-}
-
-#[cfg(feature = "nav")]
-#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
-impl Kepler {
-    /// Eearth mass * Gravitationnal field constant [m^3/s^2]
-    pub const EARTH_GM_CONSTANT: f64 = 3.986004418E14_f64;
-    /// Earth rotation rate in WGS84 frame [rad]
-    pub const EARTH_OMEGA_E_WGS84: f64 = 7.2921151467E-5;
 }
 
 /// Orbit Perturbations
@@ -352,47 +351,25 @@ impl Ephemeris {
     pub fn tgd(&self) -> Option<Duration> {
         Some(Duration::from_seconds(self.get_orbit_f64("tgd")?))
     }
-    /// Apply a clock correction to provided Time
-    pub fn sv_clock_corr(sv: SV, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
-        let (a0, a1, a2) = clock_bias;
-        match sv.constellation {
-            Constellation::Glonass => {
-                todo!("sv_clock_corr not supported for glonass @ the moment");
-            },
-            _ => {
-                let mut dt = (t - toe).to_seconds();
-                // TODO: does this apply to others like GST ?
-                const WEEK_SECONDS: f64 = 604800.0;
-                if dt > WEEK_SECONDS / 2.0 {
-                    dt -= WEEK_SECONDS;
-                } else if dt < -WEEK_SECONDS / 2.0 {
-                    dt += WEEK_SECONDS;
-                }
-                Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
-            },
-        }
-    }
     /// Return ToE expressed as [Epoch]
     pub fn toe(&self, sv_ts: TimeScale) -> Option<Epoch> {
+        // TODO: in CNAV V4 TOC is said to be TOE... ...
+        let mut week = self.get_week()?;
+        let sec = self.get_orbit_f64("toe")?;
+        let week_dur = Duration::from_days((week * 7) as f64);
+        let sec_dur = Duration::from_seconds(sec);
         match sv_ts {
             TimeScale::GPST | TimeScale::QZSST | TimeScale::GST => {
-                let mut week = self.get_week()?;
                 if sv_ts == TimeScale::GST {
                     week -= 1024;
                 }
-                let sec = self.get_orbit_f64("toe")?;
-                let week_dur = Duration::from_days((week * 7) as f64);
-                let sec_dur = Duration::from_seconds(sec);
-                Some(Epoch::from_gpst_duration(week_dur + sec_dur))
+                Some(Epoch::from_duration(week_dur + sec_dur, sv_ts))
             },
-            TimeScale::BDT => {
-                let week = self.get_week()?;
-                let week_dur = Duration::from_days((week * 7) as f64);
-                let sec = self.get_orbit_f64("toe")?;
-                let sec_dur = Duration::from_seconds(sec);
-                Some(Epoch::from_bdt_duration(week_dur + sec_dur))
+            TimeScale::BDT => Some(Epoch::from_bdt_duration(week_dur + sec_dur)),
+            _ => {
+                error!("{} is not supported", sv_ts);
+                None
             },
-            _ => None, // not supported yet
         }
     }
     /*
@@ -422,24 +399,25 @@ impl Ephemeris {
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
 
-        //println!("SVNN \"{}\"", svnn); // DEBUG
+        //log::debug!("SVNN \"{}\"", svnn);
         let sv = match SV::from_str(svnn.trim()) {
             Ok(sv) => sv,
             Err(_) => {
-                // parsing failed probably due to omitted constellation (old rev.)
+                // parsing failed probably due to omitted constellation (old rev...)
                 let desc = format!("{:x}{:02}", constellation, svnn.trim());
                 SV::from_str(&desc)?
             },
         };
-        //println!("\"{}\"={}", svnn, sv); // DEBUG
+        //log::debug!("\"{}\"={}", svnn, sv);
 
         let ts = sv
             .constellation
             .timescale()
             .ok_or(Error::TimescaleIdentification(sv))?;
-        //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
 
-        let epoch = epoch::parse_in_timescale(date.trim(), ts)?;
+        //log::debug!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts);
+
+        let epoch = parse_epoch_in_timescale(date.trim(), ts)?;
 
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
@@ -581,19 +559,12 @@ impl Ephemeris {
         s.set_orbit_f64("omegaDot", perturbations.omega_dot);
         s
     }
-
-    /// Get the difference between toe and observation epoch,
-    /// as total seconds elapsed in GPS timescale
-    fn t_k(&self, sv: SV, t: Epoch) -> Option<f64> {
+    /// Total seconds elapsed between `t` and ToE, expressed in GPS timescale.
+    fn t_k_gpst_s(&self, sv: SV, t: Epoch) -> Option<f64> {
         let sv_ts = sv.timescale()?;
-        let max_dtoe = Self::max_dtoe(sv.constellation)?;
-        let toe = self.toe(sv_ts)?;
-        if t > toe {
-            let dt = t - toe;
-            Some(dt.to_seconds())
-        } else {
-            None // bad op
-        }
+        let toe_gpst = self.toe(sv_ts)?.to_time_scale(TimeScale::GPST);
+        let dt = t.to_time_scale(TimeScale::GPST) - toe_gpst;
+        Some(dt.to_seconds())
     }
 
     /// Form ephemerisHelper
@@ -602,7 +573,12 @@ impl Ephemeris {
         let gm_m3_s2 = Constants::gm(sv);
         let omega = Constants::omega(sv);
         let dtr_f = Constants::dtr_f(sv);
-        let t_k = self.t_k(sv, t)?;
+        let t_k = self.t_k_gpst_s(sv, t)?;
+
+        if t_k < 0.0 {
+            error!("t_k < 0.0: bad op");
+            return None;
+        }
 
         let mut kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
@@ -629,7 +605,7 @@ impl Ephemeris {
             e_k_lst = e_k;
         }
         if i >= constants::MaxIterNumber::KEPLER {
-            warn!("{} kepler iteration overflow", sv);
+            error!("{} kepler iteration overflow", sv);
         }
 
         // true anomaly
@@ -699,7 +675,7 @@ impl Ephemeris {
             omega_k.to_degrees(),
             omega.to_degrees(),
             v_k.to_degrees(),
-            t,
+            t.to_time_scale(TimeScale::GPST),
             EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
         )
         .ok()?;
@@ -728,7 +704,7 @@ impl Ephemeris {
     pub fn kepler2position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let helper = self.ephemeris_helper(sv, t)?;
         let pos = helper.ecef_position();
-        Some((pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0))
+        Some((pos.x, pos.y, pos.z))
     }
     /// Kepler ECEF [km] position and velocity [km/s] solver at desired instant "t" for given "sv"
     /// based off Self. Self must be correctly selected in navigation
@@ -778,6 +754,25 @@ impl Ephemeris {
             )
             .unwrap_or_else(|e| panic!("almanac::azimuth_elevation(): {}", e));
         (el_az_rg.elevation_deg, el_az_rg.azimuth_deg)
+    }
+    /// Returns True if Self is Valid at specified `t`
+    pub fn is_valid(&self, sv: SV, t: Epoch) -> bool {
+        if let Some(max_dt) = Self::max_dtoe(sv.constellation) {
+            if let Some(sv_ts) = sv.constellation.timescale() {
+                if let Some(toe) = self.toe(sv_ts) {
+                    t > toe && (t - toe) <= max_dt
+                } else {
+                    error!("{}({}): failed to determine ToE", t, sv);
+                    false
+                }
+            } else {
+                error!("{} constellation is not supported", sv.constellation);
+                false
+            }
+        } else {
+            error!("{} constellation is not supported", sv.constellation);
+            false
+        }
     }
     /// Returns Ephemeris validity duration for this Constellation
     pub fn max_dtoe(c: Constellation) -> Option<Duration> {
