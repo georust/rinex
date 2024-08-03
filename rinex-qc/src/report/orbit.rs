@@ -7,10 +7,8 @@ use std::collections::HashMap;
 
 use qc_traits::processing::{Filter, Preprocessing};
 
-use map_3d::{ecef2geodetic, Ellipsoid};
-
 use crate::{
-    plot::{MapboxStyle, MarkerSymbol, Mode, NamedColor},
+    plot::{MapboxStyle, MarkerSymbol, Mode},
     prelude::{html, Markup, Plot, QcContext, Render},
 };
 
@@ -240,10 +238,6 @@ impl OrbitReport {
                 );
                 if let Some(sp3) = ctx.sp3() {
                     for (sv_index, sv) in sp3.sv().enumerate() {
-                        let t = sp3
-                            .sv_position()
-                            .filter_map(|(t, svnn, _)| if svnn == sv { Some(t) } else { None })
-                            .collect::<Vec<_>>();
                         let orbits = sp3
                             .sv_position()
                             .filter_map(|(t, svnn, pos_km)| {

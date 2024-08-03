@@ -14,10 +14,8 @@ use rinex::{
 };
 
 use anise::{
-    almanac::planetary::PlanetaryDataError,
-    constants::frames::IAU_EARTH_FRAME,
-    errors::AlmanacError,
-    prelude::{Frame, Orbit},
+    almanac::planetary::PlanetaryDataError, constants::frames::IAU_EARTH_FRAME,
+    errors::AlmanacError, prelude::Frame,
 };
 
 #[cfg(feature = "sp3")]

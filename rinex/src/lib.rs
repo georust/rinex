@@ -2320,57 +2320,71 @@ impl Rinex {
     /// Self must be NAV RINEX. Position is expressed as ECEF coordinates [km].
     pub fn sv_position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let (_, eph) = self.sv_ephemeris(sv, t)?;
-        eph.sv_position(sv, t)
+        eph.kepler2position(sv, t)
     }
-    /// Returns SV instantaneous orbital velocity (if we can) at specific [Epoch] `t`.
-    /// Self must be NAV RINEX. Velocity vector is expressed as ECEF coordinates [km/s].
-    pub fn sv_velocity(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
+    /// Returns SV Orbital state vector and
+    /// instantaneous velocity (if we can) at specific [Epoch] `t`.
+    /// Self must be NAV RINEX. All coordinates expressed in ECEF [km] frame.
+    pub fn sv_position_velocity(
+        &self,
+        sv: SV,
+        t: Epoch,
+    ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
         let (_, eph) = self.sv_ephemeris(sv, t)?;
-        let (_, vel) = eph.sv_position_velocity(sv, t)?;
-        Some(vel)
+        eph.kepler2position_velocity(sv, t)
     }
     /// Ephemeris selection method. Use this method to select Ephemeris
     /// to be used to navigate using `sv` at instant `t`.
     /// Returns (toe and ephemeris frame).
     /// Note that TOE does not exist for SBAS vehicles, therefore should be discarded.
     pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
-        /*
-         *  TODO
-         *   <o ideally some more advanced fields like
-         *      health, iode should also be taken into account
-         */
-        self.ephemeris()
-            .filter_map(|(_toc, (msg, svnn, eph))| {
-                if svnn == sv {
-                    let ts = svnn.timescale()?;
-                    let toe: Option<Epoch> = match msg {
-                        NavMsgType::CNAV => {
-                            /* in CNAV : specs says toc is toe actually */
-                            // TODO Some(toc.in_time_scale(ts))
+        if sv.constellation.is_sbas() {
+            // returns first encountered
+            self.ephemeris()
+                .filter_map(
+                    |(t, (_, svnn, eph))| {
+                        if svnn == sv {
+                            Some((*t, eph))
+                        } else {
                             None
-                        },
-                        _ => {
-                            if sv.constellation.is_sbas() {
-                                // toe does not exist
-                                Some(t)
-                            } else {
+                        }
+                    },
+                )
+                .reduce(|k, _| k)
+        } else {
+            /*
+             *  TODO
+             *   <o ideally some more advanced fields like
+             *      health, iode should also be taken into account
+             */
+            self.ephemeris()
+                .filter_map(|(_toc, (msg, svnn, eph))| {
+                    if svnn == sv {
+                        let ts = svnn.timescale()?;
+                        let toe: Option<Epoch> = match msg {
+                            NavMsgType::CNAV => {
+                                /* in CNAV : specs says toc is toe actually */
+                                // TODO Some(toc.in_time_scale(ts))
+                                None
+                            },
+                            _ => {
                                 // determine toe
                                 eph.toe_gpst(ts)
-                            }
-                        },
-                    };
-                    let toe = toe?;
-                    let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
-                    if (t - toe) < max_dtoe {
-                        Some((toe, eph))
+                            },
+                        };
+                        let toe = toe?;
+                        let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
+                        if (t - toe) < max_dtoe {
+                            Some((toe, eph))
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
-                } else {
-                    None
-                }
-            })
-            .min_by_key(|(toe_i, _)| (t - *toe_i))
+                })
+                .min_by_key(|(toe_i, _)| (t - *toe_i))
+        }
     }
     /// Returns an Iterator over SV (embedded) clock offset (s), drift (s.s⁻¹) and
     /// drift rate (s.s⁻²)

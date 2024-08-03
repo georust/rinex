@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use rinex::{
     carrier::Carrier,
     hardware::{Antenna, Receiver},
-    prelude::{Constellation, Duration, Epoch, Observable, Rinex, SV},
+    prelude::{Constellation, Epoch, Observable, Rinex, SV},
 };
 
 use crate::report::shared::SamplingReport;

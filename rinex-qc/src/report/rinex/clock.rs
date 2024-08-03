@@ -70,7 +70,7 @@ impl ConstellPage {
                     let plot_x = rinex
                         .precise_sv_clock()
                         .filter_map(|(t, svnn, _, prof)| {
-                            let drift = prof.drift?;
+                            let _ = prof.drift?;
                             if *sv == svnn {
                                 Some(t)
                             } else {

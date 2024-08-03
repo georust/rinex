@@ -139,7 +139,7 @@ impl EphemerisHelper {
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
     fn ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
-        (self.orbit.radius_km, self.orbit.velocity_km_s)
+        (self.ecef_position(), self.ecef_velocity())
     }
 
     /// Calculate ecef position of GEO sv
@@ -382,7 +382,6 @@ impl Ephemeris {
         let sec = self.get_orbit_f64("toe")?;
         let week_dur = Duration::from_days((week * 7) as f64);
         let sec_dur = Duration::from_seconds(sec);
-        let t = Epoch::from_duration(week_dur + sec_dur, sv_ts);
         Some(Epoch::from_duration(week_dur + sec_dur, sv_ts).to_time_scale(TimeScale::GPST))
     }
     /*
@@ -701,8 +700,6 @@ impl Ephemeris {
     /// Kepler ECEF [km] position solver at desired instant "t" for given "sv"
     /// based off Self. Self must be correctly selected in navigation
     /// record.
-    /// "t" should not be expressed in UTC time scale as Hifitime doesn't consider
-    /// the leap seconds.
     /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
     pub fn kepler2position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let helper = self.ephemeris_helper(sv, t)?;
@@ -726,54 +723,6 @@ impl Ephemeris {
             (pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0),
             (vel.x, vel.y, vel.z),
         ))
-    }
-    /// Returns SV position in km ECEF, based off Self Ephemeris data,
-    /// and for given Satellite Vehicle at given Epoch.
-    /// Either by solving Kepler equations, or directly if such data is available.
-    pub fn sv_position(&self, sv: SV, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        let (x_km, y_km, z_km) = (
-            self.get_orbit_f64("satPosX"),
-            self.get_orbit_f64("satPosY"),
-            self.get_orbit_f64("satPosZ"),
-        );
-        match (x_km, y_km, z_km) {
-            (Some(x_km), Some(y_km), Some(z_km)) => {
-                /*
-                 * GLONASS + SBAS: position vector already available,
-                 *                 distances expressed in km ECEF
-                 */
-                Some((x_km, y_km, z_km))
-            },
-            _ => self.kepler2position(sv, epoch),
-        }
-    }
-    /// Returns SV position in km ECEF and velocity is m/s ECEF,
-    /// based off Self Ephemeris data,
-    /// and for given Satellite Vehicle at given Epoch.
-    /// Either by solving Kepler equations, or directly if such data is available.
-    pub fn sv_position_velocity(
-        &self,
-        sv: SV,
-        epoch: Epoch,
-    ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
-        let (x_km, y_km, z_km, vx, vy, vz) = (
-            self.get_orbit_f64("satPosX"),
-            self.get_orbit_f64("satPosY"),
-            self.get_orbit_f64("satPosZ"),
-            self.get_orbit_f64("velX"),
-            self.get_orbit_f64("velY"),
-            self.get_orbit_f64("velZ"),
-        );
-        match (x_km, y_km, z_km, vx, vy, vz) {
-            (Some(x_km), Some(y_km), Some(z_km), Some(vx), Some(vy), Some(vz)) => {
-                /*
-                 * GLONASS + SBAS: position vector already available,
-                 *                 distances expressed in km ECEF
-                 */
-                Some(((x_km, y_km, z_km), (vx, vy, vz)))
-            },
-            _ => self.kepler2position_velocity(sv, epoch),
-        }
     }
     /// Helper method to calculate elevation and azimuth angles, both in degrees,
     /// between a reference position (in meter ECEF WGS84) and a resolved

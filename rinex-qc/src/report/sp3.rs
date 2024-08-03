@@ -122,7 +122,7 @@ impl SP3Report {
                         FilterItem::ConstellationItem(vec![constellation]),
                     );
                     let focused = sp3.filter(&filter);
-                    let epochs = focused.epoch().collect::<Vec<_>>();
+                    //let epochs = focused.epoch().collect::<Vec<_>>();
                     let satellites = focused.sv().collect::<Vec<_>>();
                     pages.insert(
                         constellation,

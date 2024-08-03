@@ -114,7 +114,6 @@ impl MeteoPage {
                                 rho = *rhs_value;
                             }
                         }
-                        let theta = value; //value * 2.0 * PI / value;
                         let trace = CompassArrow::new(
                             Mode::LinesMarkers,
                             rho,
