@@ -11,26 +11,23 @@ use crate::{
 };
 use std::collections::BTreeMap;
 
-use rinex::{carrier::Carrier, observation::LliFlags, prelude::SV};
+use rinex::{carrier::Carrier, observation::LliFlags};
 
 mod report;
 pub use report::Report;
 
 pub mod post_process;
 
-use rtk::prelude::{
-    Candidate, Epoch, InterpolationResult, IonosphereBias, PVTSolution, PhaseRange, PseudoRange,
+use gnss_rtk::prelude::{
+    BaseStation, Candidate, Epoch, IonosphereBias, Observation, OrbitalStateProvider, PVTSolution,
     Solver, TroposphereBias,
 };
 
-pub fn resolve<I>(
+pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
-    mut solver: Solver<I>,
+    mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
-) -> BTreeMap<Epoch, PVTSolution>
-where
-    I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
-{
+) -> BTreeMap<Epoch, PVTSolution> {
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
     // infaillible, at this point
@@ -58,13 +55,13 @@ where
         // }
 
         for (sv, observations) in vehicles {
+            // In Pure RTK, we may operate without an Ephemeris source
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
             if sv_eph.is_none() {
                 error!("{} ({}) : undetermined ephemeris", t, sv);
                 continue; // can't proceed further
             }
-
-            // determine TOE
+            // Select Ephemeris
             let (_toe, sv_eph) = sv_eph.unwrap();
             let clock_corr = match time.next_at(*t, *sv) {
                 Some(dt) => dt,
@@ -74,9 +71,7 @@ where
                 },
             };
 
-            let mut codes = Vec::<PseudoRange>::new();
-            let mut phases = Vec::<PhaseRange>::new();
-            // let mut dopplers = Vec::<Observation>::new();
+            let mut rtk_obs = Vec::<Observation>::new();
 
             for (observable, data) in observations {
                 if let Some(lli) = data.lli {
@@ -89,36 +84,61 @@ where
                     let rtk_carrier = cast_rtk_carrier(carrier);
 
                     if observable.is_pseudorange_observable() {
-                        codes.push(PseudoRange {
-                            value: data.obs,
-                            carrier: rtk_carrier,
-                            snr: { data.snr.map(|snr| snr.into()) },
-                        });
+                        if let Some(obs) = rtk_obs
+                            .iter_mut()
+                            .filter(|ob| ob.carrier == rtk_carrier)
+                            .reduce(|k, _| k)
+                        {
+                            obs.pseudo = Some(data.obs);
+                        } else {
+                            rtk_obs.push(Observation {
+                                carrier: rtk_carrier,
+                                snr: data.snr.map(|snr| snr.into()),
+                                phase: None,
+                                doppler: None,
+                                ambiguity: None,
+                                pseudo: Some(data.obs),
+                            });
+                        }
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
-                        phases.push(PhaseRange {
-                            ambiguity: None,
-                            carrier: rtk_carrier,
-                            value: data.obs * lambda,
-                            snr: { data.snr.map(|snr| snr.into()) },
-                        });
+                        if let Some(obs) = rtk_obs
+                            .iter_mut()
+                            .filter(|ob| ob.carrier == rtk_carrier)
+                            .reduce(|k, _| k)
+                        {
+                            obs.phase = Some(data.obs * lambda);
+                        } else {
+                            rtk_obs.push(Observation {
+                                carrier: rtk_carrier,
+                                snr: data.snr.map(|snr| snr.into()),
+                                pseudo: None,
+                                doppler: None,
+                                ambiguity: None,
+                                phase: Some(data.obs * lambda),
+                            });
+                        }
                     } else if observable.is_doppler_observable() {
-                        //dopplers.push(Observation {
-                        //    value: data.obs,
-                        //    carrier: rtk_carrier,
-                        //    snr: { data.snr.map(|snr| snr.into()) },
-                        //});
+                        if let Some(obs) = rtk_obs
+                            .iter_mut()
+                            .filter(|ob| ob.carrier == rtk_carrier)
+                            .reduce(|k, _| k)
+                        {
+                            obs.doppler = Some(data.obs);
+                        } else {
+                            rtk_obs.push(Observation {
+                                carrier: rtk_carrier,
+                                snr: data.snr.map(|snr| snr.into()),
+                                pseudo: None,
+                                phase: None,
+                                ambiguity: None,
+                                doppler: Some(data.obs),
+                            });
+                        }
                     }
                 }
             }
-            let candidate = Candidate::new(
-                *sv,
-                *t,
-                clock_corr,
-                sv_eph.tgd(),
-                codes.clone(),
-                phases.clone(),
-            );
+            let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), rtk_obs.clone());
             candidates.push(candidate);
         }
 

@@ -10,9 +10,12 @@ SP3=test_resources/SP3/GFZ0OPSRAP_20240920000_01D_05M_CLK.CLK.gz
 CLK=test_resources/CLK/V3/GFZ0OPSRAP_20240920000_01D_05M_ORB.SP3.gz
 NAV=test_resources/NAV/V3/HERT00GBR_R_20240920000_01D_GN.rnx.gz
 
-# run + ppp solutions (silent)
+# ppp solutions 
+#  -f: force new synthesis
+#  -q: silent (open on last cggtts run)
 ./target/release/rinex-cli \
-    -P GPS -q \
+    -P GPS \
+    -f -q \
     --fp $OBS \
     --fp $NAV \
     --fp $SP3 \
@@ -33,6 +36,7 @@ TRACKING="1 min"
 PRODUCER="JMF"
 CLOCK="ANDROID"
 
+# cggtts solutions
 ./target/release/rinex-cli \
     -P GPS \
     --fp $OBS \
@@ -40,4 +44,4 @@ CLOCK="ANDROID"
     --fp $SP3 \
     --fp $CLK \
     ppp --cggtts -c $CONF \
-    --lab $PRODUCER --clk $CLOCK -t "$TRACKING"
+    --lab $PRODUCER --clk $CLOCK --trk "$TRACKING"

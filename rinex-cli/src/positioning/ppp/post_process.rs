@@ -6,7 +6,7 @@ use std::{
 use crate::cli::Context;
 
 use clap::ArgMatches;
-use rtk::prelude::{Epoch, PVTSolution};
+use gnss_rtk::prelude::{Epoch, PVTSolution};
 use thiserror::Error;
 
 #[cfg(feature = "gpx")]

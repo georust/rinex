@@ -34,8 +34,12 @@ impl Default for Cli {
 pub struct Context {
     /// Quiet option
     pub quiet: bool,
-    /// Data context defined by user
+    /// Data context defined by user.
+    /// In differential opmode, this is the ROVER.
     pub data: QcContext,
+    /// Secondary dataset defined by user
+    /// serves as BASE in differential opmodes.
+    pub station_data: Option<QcContext>,
     /// Context name is derived from the primary file loaded in Self,
     /// and mostly used in output products generation.
     pub name: String,
@@ -180,6 +184,12 @@ By default, report synthesis happens once per input set (file combnation and cli
 Use this option to force report regeneration.
 This has no effect on file operations that do not synthesize a report."))
         .arg(
+            Arg::new("report-name")
+                .short('o')
+                .action(ArgAction::Set)
+                .help("Custom report name, otherwise, report is named index.html")
+        )
+        .arg(
             Arg::new("report-brdc-sky")
                 .long("brdc-sky")
                 .action(ArgAction::SetTrue)
@@ -233,6 +243,19 @@ This has no effect on applications compiled without plot and statistical options
                 .value_delimiter(';')
                 .action(ArgAction::Append)
                 .help("Filter designer. Refer to []."))
+            .next_help_heading("RINEX Repair")
+                .arg(Arg::new("zero-repair")
+                    .short('z')
+                    .action(ArgAction::SetTrue)
+                    .help("Remove all zero (=null) values. See --help")
+                    .long_help("
+Removes all zero (null) values from data records.
+Specifically in NAV and OBS RINEX. Null NAV records are forbidden.
+Null OBS RINEX are also most likely invalid.
+To determine whether some null Observations exist (most likely invalid), simply
+generate a first report and study the provided observations.
+The `ppp` solver will most likely encounter Physical Non Sense Errors.
+Null NAV RINEX content is also invalid by definition."))
             .next_help_heading("Receiver Antenna")
                 .arg(Arg::new("rx-ecef")
                     .long("rx-ecef")
@@ -247,7 +270,8 @@ Otherwise it gets automatically picked up."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
                 .subcommand(filegen::subcommand())
                 .subcommand(merge::subcommand())
-                .subcommand(positioning::subcommand())
+                .subcommand(positioning::ppp_subcommand())
+                .subcommand(positioning::rtk_subcommand())
                 .subcommand(split::subcommand())
                 .subcommand(diff::subcommand())
                 .subcommand(time_binning::subcommand())
@@ -255,22 +279,57 @@ Otherwise it gets automatically picked up."))
             },
         }
     }
-    /// Returns list of input directories
-    pub fn input_directories(&self) -> Vec<&String> {
-        if let Some(fp) = self.matches.get_many::<String>("directory") {
-            fp.collect()
+    /// Recursive browser depth
+    pub fn recursive_depth(&self) -> usize {
+        if let Some(depth) = self.matches.get_one::<u8>("depth") {
+            *depth as usize
+        } else {
+            5
+        }
+    }
+    /// Returns individual input ROVER -d
+    pub fn rover_directories(&self) -> Vec<&String> {
+        if let Some(dirs) = self.matches.get_many::<String>("directory") {
+            dirs.collect()
         } else {
             Vec::new()
         }
     }
-    /// Returns individual input filepaths
-    pub fn input_files(&self) -> Vec<&String> {
+    /// Returns individual input ROVER -fp
+    pub fn rover_files(&self) -> Vec<&String> {
         if let Some(fp) = self.matches.get_many::<String>("filepath") {
             fp.collect()
         } else {
             Vec::new()
         }
     }
+    /// Returns individual input BASE STATION -d
+    pub fn base_station_directories(&self) -> Vec<&String> {
+        match self.matches.subcommand() {
+            Some(("rtk", submatches)) => {
+                if let Some(dir) = submatches.get_many::<String>("dir") {
+                    dir.collect()
+                } else {
+                    Vec::new()
+                }
+            },
+            _ => Vec::new(),
+        }
+    }
+    /// Returns individual input BASE STATION -fp
+    pub fn base_station_files(&self) -> Vec<&String> {
+        match self.matches.subcommand() {
+            Some(("rtk", submatches)) => {
+                if let Some(fp) = submatches.get_many::<String>("fp") {
+                    fp.collect()
+                } else {
+                    Vec::new()
+                }
+            },
+            _ => Vec::new(),
+        }
+    }
+    /// Returns preproc ops
     pub fn preprocessing(&self) -> Vec<&String> {
         if let Some(filters) = self.matches.get_many::<String>("preprocessing") {
             filters.collect()
@@ -301,6 +360,9 @@ Otherwise it gets automatically picked up."))
     }
     pub fn irnss_filter(&self) -> bool {
         self.matches.get_flag("irnss-filter")
+    }
+    pub fn zero_repair(&self) -> bool {
+        self.matches.get_flag("zero-repair")
     }
     /*
      * faillible 3D coordinates parsing
@@ -360,12 +422,15 @@ Otherwise it gets automatically picked up."))
     pub fn hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         let mut string = self
-            .input_directories()
+            .rover_directories()
             .into_iter()
             .sorted()
-            .chain(self.input_files().into_iter().sorted())
+            .chain(self.rover_files().into_iter().sorted())
             .chain(self.preprocessing().into_iter().sorted())
             .join(",");
+        if let Some(custom) = self.custom_report_name() {
+            string.push_str(custom);
+        }
         if let Some(geo) = self.manual_geodetic() {
             string.push_str(&format!("{:?}", geo));
         }
@@ -390,5 +455,9 @@ Otherwise it gets automatically picked up."))
             },
             force_brdc_skyplot: self.matches.get_flag("report-brdc-sky"),
         }
+    }
+    /// Report to be generated for this session
+    pub fn custom_report_name(&self) -> Option<&String> {
+        self.matches.get_one::<String>("report-name")
     }
 }

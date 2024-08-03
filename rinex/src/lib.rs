@@ -115,7 +115,9 @@ pub mod prod {
 }
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing};
+use qc_traits::processing::{
+    Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing, Repair, RepairTrait,
+};
 
 #[cfg(feature = "processing")]
 use crate::{
@@ -125,7 +127,9 @@ use crate::{
     ionex::record::{ionex_decim_mut, ionex_mask_mut},
     meteo::record::{meteo_decim_mut, meteo_mask_mut},
     navigation::record::{navigation_decim_mut, navigation_mask_mut},
-    observation::record::{observation_decim_mut, observation_mask_mut},
+    observation::record::{
+        observation_decim_mut, observation_mask_mut, repair_mut as observation_repair_mut,
+    },
 };
 
 use carrier::Carrier;
@@ -2972,6 +2976,21 @@ impl Preprocessing for Rinex {}
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+impl RepairTrait for Rinex {
+    fn repair(&self, r: Repair) -> Self {
+        let mut s = self.clone();
+        s.repair_mut(r);
+        s
+    }
+    fn repair_mut(&mut self, r: Repair) {
+        if let Some(rec) = self.record.as_mut_obs() {
+            observation_repair_mut(rec, r);
+        }
+    }
+}
+
+#[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
 impl Masking for Rinex {
     fn mask(&self, f: &MaskFilter) -> Self {
         let mut s = self.clone();
@@ -2980,17 +2999,17 @@ impl Masking for Rinex {
     }
     fn mask_mut(&mut self, f: &MaskFilter) {
         if let Some(rec) = self.record.as_mut_obs() {
-            observation_mask_mut(rec, f)
+            observation_mask_mut(rec, f);
         } else if let Some(rec) = self.record.as_mut_nav() {
-            navigation_mask_mut(rec, f)
+            navigation_mask_mut(rec, f);
         } else if let Some(rec) = self.record.as_mut_clock() {
-            clock_mask_mut(rec, f)
+            clock_mask_mut(rec, f);
         } else if let Some(rec) = self.record.as_mut_meteo() {
-            meteo_mask_mut(rec, f)
+            meteo_mask_mut(rec, f);
         } else if let Some(rec) = self.record.as_mut_doris() {
-            doris_mask_mut(rec, f)
+            doris_mask_mut(rec, f);
         } else if let Some(rec) = self.record.as_mut_ionex() {
-            ionex_mask_mut(rec, f)
+            ionex_mask_mut(rec, f);
         }
         header_mask_mut(&mut self.header, f);
     }

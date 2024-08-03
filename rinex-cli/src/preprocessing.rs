@@ -2,7 +2,7 @@ use log::error;
 use std::str::FromStr;
 
 use crate::Cli;
-use rinex_qc::prelude::{Filter, QcContext};
+use rinex_qc::prelude::{Filter, QcContext, Repair, RepairTrait};
 
 pub fn preprocess(ctx: &mut QcContext, cli: &Cli) {
     // GNSS filters
@@ -59,5 +59,10 @@ pub fn preprocess(ctx: &mut QcContext, cli: &Cli) {
         } else {
             error!("invalid filter description \"{}\"", filt_str);
         }
+    }
+
+    if cli.zero_repair() {
+        info!("repairing zero values..");
+        ctx.repair_mut(Repair::Zero);
     }
 }

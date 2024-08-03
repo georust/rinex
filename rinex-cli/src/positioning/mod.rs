@@ -1,8 +1,6 @@
-use crate::cli::Context;
+use crate::cli::{Cli, Context};
 use clap::ArgMatches;
-use std::cell::RefCell;
 use std::fs::read_to_string;
-// use anise::almanac::Almanac;
 
 mod ppp; // precise point positioning
 use ppp::{
@@ -16,6 +14,9 @@ mod cggtts; // CGGTTS special solver
 #[cfg(feature = "cggtts")]
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
+mod rtk;
+use rtk::BaseStation;
+
 use rinex::{
     carrier::Carrier,
     prelude::{Constellation, Rinex},
@@ -23,9 +24,9 @@ use rinex::{
 
 use rinex_qc::prelude::QcExtraPage;
 
-use rtk::prelude::{
-    BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Position, Solver, Vector3,
+use gnss_rtk::prelude::{
+    Almanac, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel,
+    Method, NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
 use thiserror::Error;
@@ -214,8 +215,13 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
         .map(|(_, model)| NgModel { a: model.a })
 }
 
-pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtraPage, Error> {
-    /* Load customized config script, or use defaults */
+pub fn precise_positioning(
+    cli: &Cli,
+    ctx: &Context,
+    is_rtk: bool,
+    matches: &ArgMatches,
+) -> Result<QcExtraPage, Error> {
+    // Load custom configuration script, or Default
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
             let content = read_to_string(fp)
@@ -325,15 +331,14 @@ a static reference position"
     #[cfg(not(feature = "cggtts"))]
     let apriori = None;
 
-    //let almanac = Almanac::until_2035()
-    //    .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
-
-    let solver = Solver::new(
-        &cfg,
-        apriori,
-        /* state vector interpolator */
-        |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
-    )?;
+    let solver = if is_rtk {
+        let base_station = BaseStation::from_ctx(ctx);
+        Solver::rtk(&cfg, apriori, orbits, base_station)
+            .unwrap_or_else(|e| panic!("failed to deploy RTK solver: {}", e))
+    } else {
+        Solver::ppp(&cfg, apriori, orbits)
+            .unwrap_or_else(|e| panic!("failed to deploy PPP solver: {}", e))
+    };
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {

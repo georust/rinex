@@ -18,7 +18,6 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
-extern crate gnss_rtk as rtk;
 
 use rinex::prelude::Rinex;
 use sp3::prelude::SP3;
@@ -61,18 +60,17 @@ pub enum Error {
 /*
  * Parses and preprepocess all files passed by User
  */
-fn user_data_parsing(cli: &Cli) -> QcContext {
-    let mut ctx = QcContext::new().unwrap_or_else(|e| panic!("failed to build context: {}", e));
+fn user_data_parsing(
+    cli: &Cli,
+    single_files: Vec<&String>,
+    directories: Vec<&String>,
+    max_depth: usize,
+    is_rover: bool,
+) -> QcContext {
+    let mut ctx = QcContext::default();
 
-    let max_depth = match cli.matches.get_one::<u8>("depth") {
-        Some(value) => *value as usize,
-        None => 5usize,
-    };
-
-    /*
-     * Load directories recursively (`-d`)
-     */
-    for dir in cli.input_directories() {
+    // recursive dir loader
+    for dir in directories.iter() {
         let walkdir = WalkDir::new(dir).max_depth(max_depth);
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
             if !entry.path().is_dir() {
@@ -105,11 +103,8 @@ fn user_data_parsing(cli: &Cli) -> QcContext {
             }
         }
     }
-
-    /*
-     * Load each individual file (`-f`)
-     */
-    for fp in cli.input_files() {
+    // load individual files
+    for fp in single_files.iter() {
         let path = Path::new(fp);
         if let Ok(rinex) = Rinex::from_path(path) {
             let loading = ctx.load_rinex(path, rinex);
@@ -137,7 +132,20 @@ fn user_data_parsing(cli: &Cli) -> QcContext {
      * Preprocessing
      */
     preprocess(&mut ctx, cli);
-    debug!("{:?}", ctx); // context visualization
+
+    match cli.matches.subcommand() {
+        Some(("rtk", _)) => {
+            if is_rover {
+                debug!("ROVER Dataset: {:?}", ctx);
+            } else {
+                error!("BASE STATION Dataset: {:?}", ctx);
+            }
+        },
+        _ => {
+            debug!("{:?}", ctx);
+        },
+    }
+
     ctx
 }
 
@@ -154,9 +162,16 @@ pub fn main() -> Result<(), Error> {
      *   Parse all data, determine other useful information
      */
     let cli = Cli::new();
+    let max_recursive_depth = cli.recursive_depth();
 
-    // User Data parsing
-    let mut data_ctx = user_data_parsing(&cli);
+    // User (ROVER) Data parsing
+    let mut data_ctx = user_data_parsing(
+        &cli,
+        cli.rover_files(),
+        cli.rover_directories(),
+        max_recursive_depth,
+        true,
+    );
     let ctx_position = data_ctx.reference_position();
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
@@ -164,6 +179,21 @@ pub fn main() -> Result<(), Error> {
     let ctx = Context {
         name: ctx_stem.clone(),
         data: data_ctx,
+        station_data: {
+            match cli.matches.subcommand() {
+                Some(("rtk", _)) => {
+                    // User (BASE STATION) Data parsing
+                    Some(user_data_parsing(
+                        &cli,
+                        cli.base_station_files(),
+                        cli.base_station_directories(),
+                        max_recursive_depth,
+                        false,
+                    ))
+                },
+                _ => None,
+            }
+        },
         quiet: cli.matches.get_flag("quiet"),
         workspace: Workspace::new(&ctx_stem, &cli),
         rx_ecef: {
@@ -254,7 +284,11 @@ pub fn main() -> Result<(), Error> {
             return Ok(());
         },
         Some(("ppp", submatches)) => {
-            let chapter = positioning::precise_positioning(&ctx, submatches)?;
+            let chapter = positioning::precise_positioning(&cli, &ctx, false, submatches)?;
+            extra_pages.push(chapter);
+        },
+        Some(("rtk", submatches)) => {
+            let chapter = positioning::precise_positioning(&cli, &ctx, true, submatches)?;
             extra_pages.push(chapter);
         },
         _ => {},

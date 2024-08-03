@@ -22,7 +22,7 @@ use anise::{
 use sp3::prelude::SP3;
 
 use qc_traits::{
-    processing::{Filter, Preprocessing},
+    processing::{Filter, Preprocessing, Repair, RepairTrait},
     Merge, MergeError,
 };
 
@@ -610,6 +610,12 @@ impl QcContext {
         #[cfg(feature = "sp3")]
         if let Some(data) = self.sp3_mut() {
             data.filter_mut(filter);
+        }
+    }
+    /// Fix given [Repair] condition
+    pub fn repair_mut(&mut self, r: Repair) {
+        if let Some(rinex) = self.observation_mut() {
+            rinex.repair_mut(r);
         }
     }
 }
