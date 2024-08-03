@@ -6,7 +6,7 @@ use crate::{
         cast_rtk_carrier,
         kb_model,
         ng_model, //tropo_components,
-        Time,
+        ClockStateProvider,
     },
 };
 use std::collections::BTreeMap;
@@ -23,8 +23,9 @@ use gnss_rtk::prelude::{
     Solver, TroposphereBias,
 };
 
-pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
+pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
+    mut clock: CK,
     mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
@@ -34,8 +35,6 @@ pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
     let obs_data = ctx.data.observation().unwrap();
     let nav_data = ctx.data.brdc_navigation().unwrap();
     // let meteo_data = ctx.data.meteo(); //TODO
-
-    let mut time = Time::from_ctx(ctx);
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -55,18 +54,20 @@ pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
         // }
 
         for (sv, observations) in vehicles {
-            // In Pure RTK, we may operate without an Ephemeris source
-            let sv_eph = nav_data.sv_ephemeris(*sv, *t);
-            if sv_eph.is_none() {
-                error!("{} ({}) : undetermined ephemeris", t, sv);
-                continue; // can't proceed further
-            }
-            // Select Ephemeris
-            let (_toe, sv_eph) = sv_eph.unwrap();
-            let clock_corr = match time.next_at(*t, *sv) {
+            // TODO/NB: we need to be able to operate without Ephemeris source
+            //          to support pure rtk
+
+            // // select ephemeris
+            // let sv_eph = nav_data.sv_ephemeris(*sv, *t);
+            // if sv_eph.is_none() {
+            //     error!("{} ({}) : undetermined ephemeris", t, sv);
+            //     continue; // can't proceed further
+            // }
+
+            let clock_corr = match clock.next_clock_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
-                    error!("{} ({}) - failed to determine clock correction", *t, *sv);
+                    error!("{} ({}) - no clock correction available", *t, *sv);
                     continue;
                 },
             };
@@ -138,7 +139,8 @@ pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
                     }
                 }
             }
-            let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), rtk_obs.clone());
+            let candidate =
+                Candidate::new(*sv, *t, clock_corr, Default::default(), rtk_obs.clone());
             candidates.push(candidate);
         }
 

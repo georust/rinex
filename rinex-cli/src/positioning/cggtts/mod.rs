@@ -13,16 +13,8 @@ use gnss::prelude::{Constellation, SV};
 use rinex::{carrier::Carrier, prelude::Observable};
 
 use gnss_rtk::prelude::{
-    BaseStation,
-    Candidate,
-    Duration,
-    Epoch,
-    IonosphereBias,
-    Method,
-    Observation,
-    OrbitalStateProvider,
-    Solver,
-    TroposphereBias, //TimeScale
+    BaseStation, Candidate, Duration, Epoch, IonosphereBias, Method, Observation,
+    OrbitalStateProvider, Solver, TroposphereBias,
 };
 
 use cggtts::{
@@ -38,8 +30,8 @@ use crate::{
         kb_model,
         ng_model, //tropo_components,
         rtk_reference_carrier,
+        ClockStateProvider,
         Error as PositioningError,
-        Time,
     },
 };
 
@@ -66,8 +58,9 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
+pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
+    mut clock: CK,
     mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
     matches: &ArgMatches,
@@ -94,9 +87,6 @@ pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    // let mut initialized = false; // solver state
-    let mut time = Time::from_ctx(ctx);
-
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
     let sched = Scheduler::new(trk_duration);
@@ -117,6 +107,8 @@ pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
         // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         for (sv, observations) in vehicles {
+            // TODO/NB: we need to be able to operate without Ephemeris source
+            //          to support pure rtk
             let sv_eph = nav_data.sv_ephemeris(*sv, *t);
 
             if sv_eph.is_none() {
@@ -127,7 +119,7 @@ pub fn resolve<O: OrbitalStateProvider, B: BaseStation>(
 
             // determine TOE
             let (_toe, sv_eph) = sv_eph.unwrap();
-            let clock_corr = match time.next_at(*t, *sv) {
+            let clock_corr = match clock.next_clock_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
                     error!("{} ({}) - failed to determine clock correction", *t, *sv);

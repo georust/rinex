@@ -67,7 +67,8 @@ fn user_data_parsing(
     max_depth: usize,
     is_rover: bool,
 ) -> QcContext {
-    let mut ctx = QcContext::default();
+    let mut ctx =
+        QcContext::new().unwrap_or_else(|e| panic!("failed to initialize new context {}", e));
 
     // recursive dir loader
     for dir in directories.iter() {

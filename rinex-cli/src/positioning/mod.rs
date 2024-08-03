@@ -2,6 +2,10 @@ use crate::cli::{Cli, Context};
 use clap::ArgMatches;
 use std::fs::read_to_string;
 
+mod eph;
+pub use eph::EphemerisSelector;
+use eph::EphemerisSource;
+
 mod ppp; // precise point positioning
 use ppp::{
     post_process::{post_process as ppp_post_process, Error as PPPPostError},
@@ -17,6 +21,13 @@ use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 mod rtk;
 use rtk::BaseStation;
 
+mod orbit;
+use orbit::Orbit;
+
+mod clock;
+use clock::Clock;
+pub use clock::ClockStateProvider;
+
 use rinex::{
     carrier::Carrier,
     prelude::{Constellation, Rinex},
@@ -25,8 +36,8 @@ use rinex::{
 use rinex_qc::prelude::QcExtraPage;
 
 use gnss_rtk::prelude::{
-    Almanac, BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel,
-    Method, NgModel, PVTSolutionType, Position, Solver, Vector3,
+    BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
+    NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
 use thiserror::Error;
@@ -304,11 +315,13 @@ pub fn precise_positioning(
         }
     }
 
-    let iter = RefCell::new(Iter::from_ctx(ctx, cfg.interp_order));
-    debug!("Data source created");
-
     // print config to be used
     info!("Using {:?} method", cfg.method);
+
+    // create data providers
+    let eph = EphemerisSource::from_ctx(ctx);
+    let clocks = Clock::new(eph);
+    let orbits = Orbit::from_ctx(ctx, cfg.interp_order);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
@@ -343,7 +356,7 @@ a static reference position"
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
         //* CGGTTS special opmode */
-        let tracks = cggtts::resolve(ctx, solver, matches)?;
+        let tracks = cggtts::resolve(ctx, clocks, solver, matches)?;
         if !tracks.is_empty() {
             cggtts_post_process(&ctx, &tracks, matches)?;
             let report = CggttsReport::new(&ctx, &tracks);
@@ -356,7 +369,7 @@ a static reference position"
     }
 
     /* PPP */
-    let solutions = ppp::resolve(ctx, solver);
+    let solutions = ppp::resolve(ctx, clocks, solver);
     if !solutions.is_empty() {
         ppp_post_process(&ctx, &solutions, matches)?;
         let report = PPPReport::new(&cfg, &ctx, &solutions);
