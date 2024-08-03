@@ -15,24 +15,6 @@ impl<'a> EphemerisSource<'a> {
     }
 }
 
-pub trait EphemerisSelector {
-    fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Ephemeris)>;
-}
-
-impl EphemerisSelector for EphemerisSource<'_> {
-    fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Ephemeris)> {
-        if let Some((toc, latest)) = self.latest.get(&sv) {
-            debug!("{}({}) - proposed latest toc={}", t, sv, toc);
-            Some((*toc, latest.clone()))
-        } else {
-            if let Some(next) = self.iter.next() {
-                self.update(next);
-            }
-            None
-        }
-    }
-}
-
 impl<'a> EphemerisSource<'a> {
     pub fn from_ctx(ctx: &'a Context) -> Self {
         if let Some(brdc) = ctx.data.brdc_navigation() {
@@ -49,4 +31,16 @@ impl<'a> EphemerisSource<'a> {
             }
         }
     }
+    pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Ephemeris)> {
+        if let Some((toc, latest)) = self.latest.get(&sv) {
+            debug!("{}({}) - proposed latest toc={}", t, sv, toc);
+            Some((*toc, latest.clone()))
+        } else {
+            if let Some(next) = self.iter.next() {
+                self.update(next);
+            }
+            None
+        }
+    }
+
 }

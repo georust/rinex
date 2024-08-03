@@ -56,14 +56,6 @@ pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
         for (sv, observations) in vehicles {
             // TODO/NB: we need to be able to operate without Ephemeris source
             //          to support pure rtk
-
-            // // select ephemeris
-            // let sv_eph = nav_data.sv_ephemeris(*sv, *t);
-            // if sv_eph.is_none() {
-            //     error!("{} ({}) : undetermined ephemeris", t, sv);
-            //     continue; // can't proceed further
-            // }
-
             let clock_corr = match clock.next_clock_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {

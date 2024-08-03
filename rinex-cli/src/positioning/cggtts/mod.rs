@@ -109,16 +109,7 @@ pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
         for (sv, observations) in vehicles {
             // TODO/NB: we need to be able to operate without Ephemeris source
             //          to support pure rtk
-            let sv_eph = nav_data.sv_ephemeris(*sv, *t);
-
-            if sv_eph.is_none() {
-                warn!("{:?} ({}) : undetermined ephemeris", t, sv);
-                // reset_sv_tracker(*sv, &mut trackers);
-                continue; // can't proceed further
-            }
-
             // determine TOE
-            let (_toe, sv_eph) = sv_eph.unwrap();
             let clock_corr = match clock.next_clock_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
@@ -236,7 +227,7 @@ pub fn resolve<CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
                     }
                 }
 
-                let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), rtk_obs);
+                let candidate = Candidate::new(*sv, *t, clock_corr, Default::default(), rtk_obs);
 
                 match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {

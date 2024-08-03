@@ -1,9 +1,9 @@
 use crate::cli::{Cli, Context};
 use clap::ArgMatches;
 use std::fs::read_to_string;
+use std::cell::RefCell;
 
 mod eph;
-pub use eph::EphemerisSelector;
 use eph::EphemerisSource;
 
 mod ppp; // precise point positioning
@@ -319,9 +319,9 @@ pub fn precise_positioning(
     info!("Using {:?} method", cfg.method);
 
     // create data providers
-    let eph = EphemerisSource::from_ctx(ctx);
-    let clocks = Clock::new(eph);
-    let orbits = Orbit::from_ctx(ctx, cfg.interp_order);
+    let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
+    let clocks = Clock::new(&eph);
+    let orbits = Orbit::new(&eph);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge

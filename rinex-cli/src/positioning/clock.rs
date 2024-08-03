@@ -1,6 +1,5 @@
-use crate::{cli::Context, positioning::EphemerisSelector};
-
-use std::collections::HashMap;
+use crate::positioning::EphemerisSource;
+use std::cell::RefCell;
 
 use gnss_rtk::prelude::{Duration, Epoch, TimeScale, SV};
 
@@ -8,14 +7,14 @@ pub trait ClockStateProvider {
     fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<Duration>;
 }
 
-pub struct Clock<E: EphemerisSelector> {
-    eph: E,
+pub struct Clock<'a, 'b> {
+    eph: &'a RefCell<EphemerisSource<'b>>,
 }
 
-impl<E: EphemerisSelector> ClockStateProvider for Clock<E> {
+impl ClockStateProvider for Clock<'_, '_> {
     fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<Duration> {
         // test if exist in buffer
-        let (toc, eph) = self.eph.select(t, sv)?;
+        let (toc, eph) = self.eph.borrow_mut().select(t, sv)?;
         let ts = sv.constellation.timescale()?;
         let toe = eph.toe(ts)?;
         let t_gpst = t.to_time_scale(TimeScale::GPST);
@@ -32,8 +31,8 @@ impl<E: EphemerisSelector> ClockStateProvider for Clock<E> {
     }
 }
 
-impl<E: EphemerisSelector> Clock<E> {
-    pub fn new(eph: E) -> Self {
+impl<'a, 'b> Clock<'a, 'b> {
+    pub fn new(eph: &'a RefCell<EphemerisSource<'b>>) -> Self {
         info!("Clock source created");
         Self { eph }
         //if let Some(clk) = ctx.data.clock() {
