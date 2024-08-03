@@ -601,10 +601,9 @@ impl Ephemeris {
             kepler.a += a_dot * t_k;
         }
 
-        // m_k (mean anomaly), e_k, v_k calculation
-        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt();
-        let n = n0 + perturbations.dn;
-        let m_k = kepler.m_0 + n * t_k;
+        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt(); // average angular velocity
+        let n = n0 + perturbations.dn; // corrected mean angular velocity
+        let m_k = kepler.m_0 + n * t_k; // average anomaly
 
         // Iterative calculation of e_k
         let mut e_k_lst: f64 = 0.0;
@@ -621,28 +620,46 @@ impl Ephemeris {
         if i >= constants::MaxIterNumber::KEPLER {
             warn!("{} kepler iteration overflow", sv);
         }
+
+        // true anomaly
         let (sin_e_k, cos_e_k) = e_k.sin_cos();
         let v_k = ((1.0 - kepler.e.powi(2)).sqrt() * sin_e_k).atan2(cos_e_k - kepler.e);
 
-        // u_k, r_k, i_k
-        let phi_k = v_k + kepler.omega;
-        let (sin2_phi_k, cos2_phi_k) = (2.0 * phi_k).sin_cos();
+        let phi_k = v_k + kepler.omega; // latitude argument
+        let (x2_sin_phi_k, x2_cos_phi_k) = (2.0 * phi_k).sin_cos();
 
-        let det_u_k = perturbations.cus * sin2_phi_k + perturbations.cuc * cos2_phi_k;
-        let u_k = phi_k + det_u_k;
+        // latitude argument correction
+        let du_k = perturbations.cus * x2_sin_phi_k + perturbations.cuc * x2_cos_phi_k;
+        let u_k = phi_k + du_k;
 
-        let det_r_k = perturbations.crs * sin2_phi_k + perturbations.crc * cos2_phi_k;
-        let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + det_r_k;
+        // orbital radisu correction
+        let dr_k = perturbations.crs * x2_sin_phi_k + perturbations.crc * x2_cos_phi_k;
+        let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + dr_k;
 
-        let det_i_k = perturbations.cis * sin2_phi_k + perturbations.cic * cos2_phi_k;
+        // inclination angle correction
+        let di_k = perturbations.cis * x2_sin_phi_k + perturbations.cic * x2_cos_phi_k;
 
-        // calculate  First Derivative of e_k,phi_k,u_k,r_k,i_k,omega_k
+        // first derivatives
         let fd_e_k = n / (1.0 - kepler.e * e_k.cos());
         let fd_phi_k = ((1.0 + kepler.e) / (1.0 - kepler.e)).sqrt()
             * ((v_k / 2.0).cos() / (e_k / 2.0).cos()).powi(2)
             * fd_e_k;
 
-        // (RAAN)
+        let fd_u_k =
+            (perturbations.cus * x2_cos_phi_k - perturbations.cuc * x2_sin_phi_k) * fd_phi_k * 2.0
+                + fd_phi_k;
+
+        let fd_r_k = kepler.a * kepler.e * e_k.sin() * fd_e_k
+            + 2.0
+                * (perturbations.crs * x2_cos_phi_k - perturbations.crc * x2_sin_phi_k)
+                * fd_phi_k;
+
+        let fd_i_k = perturbations.i_dot
+            + 2.0
+                * (perturbations.cis * x2_cos_phi_k - perturbations.cic * x2_sin_phi_k)
+                * fd_phi_k;
+
+        // ascending node longitude correction (RAAN ?)
         let omega_k = if sv.is_beidou_geo() {
             // IGSO(BeiDou)
             kepler.omega_0 + perturbations.omega_dot * t_k - omega * kepler.toe
@@ -651,7 +668,8 @@ impl Ephemeris {
             kepler.omega_0 + (perturbations.omega_dot - omega) * t_k - omega * kepler.toe
         };
 
-        let i_k = kepler.i_0 + perturbations.i_dot * t_k + det_i_k;
+        // corrected inclination angle
+        let i_k = kepler.i_0 + di_k + perturbations.i_dot * t_k;
 
         // Finally, determine Orbital state
         let orbit = Orbit::try_keplerian(
@@ -670,29 +688,16 @@ impl Ephemeris {
             sv,
             t_k,
             orbit,
-            omega_k, // RAAN
+            omega_k,
             // Relativistic Effect correction
             dtr: dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin(),
             fd_dtr: dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k,
             u_k,
             i_k,
-            fd_u_k: {
-                (perturbations.cus * cos2_phi_k - perturbations.cuc * sin2_phi_k) * fd_phi_k * 2.0
-                    + fd_phi_k
-            },
+            fd_u_k,
             r_k,
-            fd_r_k: {
-                kepler.a * kepler.e * e_k.sin() * fd_e_k
-                    + 2.0
-                        * (perturbations.crs * cos2_phi_k - perturbations.crc * sin2_phi_k)
-                        * fd_phi_k
-            },
-            fd_i_k: {
-                perturbations.i_dot
-                    + 2.0
-                        * (perturbations.cis * cos2_phi_k - perturbations.cic * sin2_phi_k)
-                        * fd_phi_k
-            },
+            fd_r_k,
+            fd_i_k,
             fd_omega_k: perturbations.omega_dot - omega,
             orbit_position: (r_k * u_k.cos(), r_k * u_k.sin()),
         })
