@@ -372,17 +372,28 @@ impl Ephemeris {
             },
         }
     }
-    /// Return epoch of toe expressed as Epoch in GPS timescale
-    /// for a specific [SV] that belongs to [TimeScale].
-    pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
-        let mut week = self.get_week()?;
-        if sv_ts == TimeScale::GST {
-            week -= 1024;
+    /// Return ToE expressed as [Epoch]
+    pub fn toe(&self, sv_ts: TimeScale) -> Option<Epoch> {
+        match sv_ts {
+            TimeScale::GPST | TimeScale::QZSST | TimeScale::GST => {
+                let mut week = self.get_week()?;
+                if sv_ts == TimeScale::GST {
+                    week -= 1024;
+                }
+                let sec = self.get_orbit_f64("toe")?;
+                let week_dur = Duration::from_days((week * 7) as f64);
+                let sec_dur = Duration::from_seconds(sec);
+                Some(Epoch::from_gpst_duration(week_dur + sec_dur))
+            },
+            TimeScale::BDT => {
+                let week = self.get_week()?;
+                let week_dur = Duration::from_days((week * 7) as f64);
+                let sec = self.get_orbit_f64("toe")?;
+                let sec_dur = Duration::from_seconds(sec);
+                Some(Epoch::from_bdt_duration(week_dur + sec_dur))
+            },
+            _ => None, // not supported yet
         }
-        let sec = self.get_orbit_f64("toe")?;
-        let week_dur = Duration::from_days((week * 7) as f64);
-        let sec_dur = Duration::from_seconds(sec);
-        Some(Epoch::from_duration(week_dur + sec_dur, sv_ts).to_time_scale(TimeScale::GPST))
     }
     /*
      * get Adot field in CNAV ephemeris
@@ -573,15 +584,15 @@ impl Ephemeris {
 
     /// Get the difference between toe and observation epoch,
     /// as total seconds elapsed in GPS timescale
-    fn tk(&self, sv: SV, t: Epoch) -> Option<f64> {
-        let toe = self.toe_gpst(sv.timescale()?)?;
-        let t_dur = t.to_gpst_duration();
-        let t_k = (t_dur - toe.duration).to_seconds();
-        let dur = Self::max_dtoe(sv.constellation)?;
-        if t_k.abs() <= dur.to_seconds() {
-            Some(t_k)
+    fn t_k(&self, sv: SV, t: Epoch) -> Option<f64> {
+        let sv_ts = sv.timescale()?;
+        let max_dtoe = Self::max_dtoe(sv.constellation)?;
+        let toe = self.toe(sv_ts)?;
+        if t > toe {
+            let dt = t - toe;
+            Some(dt.to_seconds())
         } else {
-            None
+            None // bad op
         }
     }
 
@@ -591,7 +602,7 @@ impl Ephemeris {
         let gm_m3_s2 = Constants::gm(sv);
         let omega = Constants::omega(sv);
         let dtr_f = Constants::dtr_f(sv);
-        let t_k = self.tk(sv, t)?;
+        let t_k = self.t_k(sv, t)?;
 
         let mut kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
@@ -640,6 +651,8 @@ impl Ephemeris {
         let di_k = perturbations.cis * x2_sin_phi_k + perturbations.cic * x2_cos_phi_k;
 
         // first derivatives
+        let fd_omega_k = perturbations.omega_dot - omega;
+
         let fd_e_k = n / (1.0 - kepler.e * e_k.cos());
         let fd_phi_k = ((1.0 + kepler.e) / (1.0 - kepler.e)).sqrt()
             * ((v_k / 2.0).cos() / (e_k / 2.0).cos()).powi(2)
@@ -659,6 +672,10 @@ impl Ephemeris {
                 * (perturbations.cis * x2_cos_phi_k - perturbations.cic * x2_sin_phi_k)
                 * fd_phi_k;
 
+        // relativistic effect correction
+        let dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
+        let fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
+
         // ascending node longitude correction (RAAN ?)
         let omega_k = if sv.is_beidou_geo() {
             // IGSO(BeiDou)
@@ -670,6 +687,9 @@ impl Ephemeris {
 
         // corrected inclination angle
         let i_k = kepler.i_0 + di_k + perturbations.i_dot * t_k;
+
+        // position in orbital plane
+        let orbit_position = (r_k * u_k.cos(), r_k * u_k.sin());
 
         // Finally, determine Orbital state
         let orbit = Orbit::try_keplerian(
@@ -689,17 +709,16 @@ impl Ephemeris {
             t_k,
             orbit,
             omega_k,
-            // Relativistic Effect correction
-            dtr: dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin(),
-            fd_dtr: dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k,
+            dtr,
+            fd_dtr,
             u_k,
             i_k,
             fd_u_k,
             r_k,
             fd_r_k,
             fd_i_k,
-            fd_omega_k: perturbations.omega_dot - omega,
-            orbit_position: (r_k * u_k.cos(), r_k * u_k.sin()),
+            fd_omega_k,
+            orbit_position,
         })
     }
     /// Kepler ECEF [km] position solver at desired instant "t" for given "sv"

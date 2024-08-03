@@ -30,15 +30,6 @@ use rtk::prelude::{
 
 use thiserror::Error;
 
-mod orbit;
-pub use orbit::Orbit;
-
-mod time;
-pub use time::Time;
-
-mod interp;
-pub use interp::Buffer as BufferTrait;
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("solver error")]
@@ -307,8 +298,8 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
         }
     }
 
-    let orbit = RefCell::new(Orbit::from_ctx(ctx, cfg.interp_order));
-    debug!("Orbit interpolator created");
+    let iter = RefCell::new(Iter::from_ctx(ctx, cfg.interp_order));
+    debug!("Data source created");
 
     // print config to be used
     info!("Using {:?} method", cfg.method);

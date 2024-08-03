@@ -2340,6 +2340,7 @@ impl Rinex {
     pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
         if sv.constellation.is_sbas() {
             // returns first encountered
+            // TODO: verify this
             self.ephemeris()
                 .filter_map(
                     |(t, (_, svnn, eph))| {
@@ -2352,11 +2353,7 @@ impl Rinex {
                 )
                 .reduce(|k, _| k)
         } else {
-            /*
-             *  TODO
-             *   <o ideally some more advanced fields like
-             *      health, iode should also be taken into account
-             */
+            // TODO: need to account for other fields like orbit health
             self.ephemeris()
                 .filter_map(|(_toc, (msg, svnn, eph))| {
                     if svnn == sv {
@@ -2369,16 +2366,16 @@ impl Rinex {
                             },
                             _ => {
                                 // determine toe
-                                eph.toe_gpst(ts)
+                                eph.toe(ts)
                             },
                         };
                         let toe = toe?;
                         let max_dtoe = Ephemeris::max_dtoe(svnn.constellation)?;
-                        if (t - toe) < max_dtoe {
-                            Some((toe, eph))
-                        } else {
-                            None
-                        }
+                        //if (t - toe) < max_dtoe {
+                        Some((toe, eph))
+                        //} else {
+                        //    None
+                        //}
                     } else {
                         None
                     }
