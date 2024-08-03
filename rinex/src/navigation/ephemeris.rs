@@ -108,13 +108,12 @@ impl EphemerisHelper {
     /// Calculate ecef position [km].
     /// Applies to GPS, Galileo, BeiDou (MEO).
     fn ecef_position(&self) -> Vector3<f64> {
-        //let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
-        //let ecef_xyz = self.meo_orbit_to_ecef_rotation_matrix() * orbit_xyz;
-        //ecef_xyz
-        self.orbit.radius_km
+        let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
+        let ecef_xyz = self.meo_orbit_to_ecef_rotation_matrix() * orbit_xyz;
+        ecef_xyz / 1000.0
     }
 
-    /// Calculate ecef velocity [m/s].
+    /// Calculate ecef velocity [km/s].
     /// Applies to GPS, Galileo, BeiDou (MEO).
     fn ecef_velocity(&self) -> Vector3<f64> {
         let (x, y) = self.orbit_position;
@@ -137,7 +136,7 @@ impl EphemerisHelper {
 
         let rhs = Vector4::new(fd_x, fd_y, self.fd_omega_k, self.fd_i_k);
         let vel = fd_r * rhs;
-        vel
+        vel / 1000.0
     }
 
     /// Calculate ECEF position [km] and velocity [km/s] of MEO/IGSO sv
@@ -147,13 +146,13 @@ impl EphemerisHelper {
         (self.ecef_position(), self.ecef_velocity())
     }
 
-    /// Calculate ecef position of GEO sv
+    /// Calculate ecef [km] position of GEO sv
     fn beidou_geo_ecef_position(&self) -> Vector3<f64> {
         let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
         let rotation1 = self.meo_orbit_to_ecef_rotation_matrix();
         let rotation2 = self.geo_orbit_to_ecef_rotation_matrix();
         let ecef_xyz = rotation2 * rotation1 * orbit_xyz;
-        ecef_xyz
+        ecef_xyz / 1000.0
     }
 
     /// Calculate ecef velocity of GEO sv
