@@ -43,18 +43,10 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            // TODO: handle these invalid Epochs
-            warn!("{}: (unhandled) rx event: {}", t, flag);
+            // TODO: handle
+            warn!("{}: aborting epoch on {} event", t, flag);
             continue;
         }
-
-        // /*
-        //  * store possibly provided clk state estimator,
-        //  * so we can compare ours to this one later
-        //  */
-        // if let Some(clk) = clk {
-        //     provided_clk.insert(*t, *clk);
-        // }
 
         for (sv, observations) in vehicles {
             let clock_corr = match clock.next_clock_at(*t, *sv) {
