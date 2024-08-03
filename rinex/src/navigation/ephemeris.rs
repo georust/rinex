@@ -362,7 +362,7 @@ impl Ephemeris {
                 if sv_ts == TimeScale::GST {
                     week -= 1024;
                 }
-                Some(Epoch::from_duration(week_dur + sec_dur, sv_ts))
+                Some(Epoch::from_duration(week_dur + sec_dur, TimeScale::GPST))
             },
             TimeScale::BDT => Some(Epoch::from_bdt_duration(week_dur + sec_dur)),
             _ => {
