@@ -15,7 +15,7 @@ impl ClockStateProvider for Clock<'_, '_> {
     fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<Duration> {
         // test if exists in buffer
         let (toc, toe, eph) = self.eph.borrow_mut().select(t, sv)?;
-        let ts = sv.constellation.timescale()?;
+        let sv_ts = sv.constellation.timescale()?;
         let t_gpst = t.to_time_scale(TimeScale::GPST);
         let toc_gpst = toc.to_time_scale(TimeScale::GPST);
         let toe_gpst = toe.to_time_scale(TimeScale::GPST);
