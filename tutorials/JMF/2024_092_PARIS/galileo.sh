@@ -19,7 +19,7 @@ NAV=test_resources/NAV/V3/BRUX00BEL_R_20240920000_01D_EN.rnx.gz
 #  -f: force new report
 #  -q: quiet (open on cggtts last run)
 ./target/release/rinex-cli \
-    -f -q \
+    -f -q -o "Gal-E1E5" \
     -P Galileo \
     --fp $OBS \
     --fp $NAV \
