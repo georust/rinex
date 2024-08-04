@@ -14,7 +14,10 @@ use rinex::prelude::Carrier;
 use anise::errors::AlmanacError;
 
 pub struct Orbit<'a, 'b> {
+    sv: SV,
+    t: Epoch,
     eos: bool,
+    has_precise: bool,
     eph: &'a RefCell<EphemerisSource<'b>>,
     coords_buff: HashMap<SV, Buffer<(f64, f64, f64)>>,
     coords_iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
@@ -31,9 +34,12 @@ fn sun_unit_vector(almanac: &Almanac, t: Epoch) -> Result<Vector3<f64>, AlmanacE
 
 impl<'a, 'b> Orbit<'a, 'b> {
     pub fn new(ctx: &'a Context, eph: &'a RefCell<EphemerisSource<'b>>) -> Self {
-        Self {
+        let mut s = Self {
             eph,
             eos: false,
+            sv: SV::default(),
+            t: Epoch::default(),
+            has_precise: ctx.data.sp3().is_some(),
             coords_buff: HashMap::with_capacity(16),
             coords_iter: {
                 if let Some(sp3) = ctx.data.sp3() {
@@ -66,8 +72,7 @@ impl<'a, 'b> Orbit<'a, 'b> {
                             Some((t, sv, (r_sat[0], r_sat[1], r_sat[2])))
                         }))
                     } else {
-                        warn!("Cannot determine exact APC state without ANTEX data.");
-                        warn!("Expect tiny errors in final results");
+                        warn!("Cannot determine exact APC state coordinates without ANTEX data. Expect tiny errors.");
                         Box::new(sp3.sv_position())
                     }
                 } else {
@@ -75,88 +80,117 @@ impl<'a, 'b> Orbit<'a, 'b> {
                     Box::new([].into_iter())
                 }
             },
+        };
+        if s.has_precise {
+            s.consume_many(128); // fill in with some data
+        }
+        s
+    }
+    fn consume_one(&mut self) {
+        if let Some((t, sv, (x_km, y_km, z_km))) = self.coords_iter.next() {
+            if let Some(buf) = self.coords_buff.get_mut(&sv) {
+                buf.push(t, (x_km, y_km, z_km));
+                self.t = t;
+                self.sv = sv;
+            } else {
+                let mut buf = Buffer::<(f64, f64, f64)>::new(31);
+                buf.push(t, (x_km, y_km, z_km));
+                self.coords_buff.insert(sv, buf);
+            }
+        } else {
+            if !self.eos {
+                info!("{}({}): consumed all precise coordinates", self.t, self.sv);
+            }
+            self.eos = true;
+        }
+    }
+    fn consume_many(&mut self, n: usize) {
+        for _ in 0..n {
+            self.consume_one();
         }
     }
 }
 
 impl OrbitalStateProvider for Orbit<'_, '_> {
     fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
-        let mut precise = Option::<OrbitalState>::None;
-        let mut keplerian = Option::<OrbitalState>::None;
+        let precise = if self.has_precise {
+            // interpolation attempt
+            if let Some(buffer) = self.coords_buff.get_mut(&sv) {
+                if let Some((x_km, y_km, z_km)) = buffer.contains(&t) {
+                    Some(OrbitalState::from_position((
+                        x_km * 1000.0,
+                        y_km * 1000.0,
+                        z_km * 1000.0,
+                    )))
+                } else {
+                    if buffer.feasible(t, order) {
+                        Some(OrbitalState::from_position(buffer.interpolate(
+                            t,
+                            order,
+                            |buf| {
+                                let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
+                                for i in 0..=order {
+                                    let mut li = 1.0_f64;
+                                    let (t_i, (x_i, y_i, z_i)) = buf[i];
+                                    for j in 0..=order {
+                                        let (t_j, _) = buf[j];
 
-        // test if it exists in buffer
-        if let Some((toc, toe, eph)) = self.eph.borrow_mut().select(t, sv) {
+                                        assert_eq!(
+                                            t.time_scale, t_i.time_scale,
+                                            "invalid input timescale: check your input!"
+                                        );
+                                        assert_eq!(
+                                            t_i.time_scale, t_j.time_scale,
+                                            "inconsistant timescales: aborting on internal error!"
+                                        );
+                                        if j != i {
+                                            li *= (t - t_j).to_seconds();
+                                            li /= (t_i - t_j).to_seconds();
+                                        }
+                                    }
+                                    polynomials.0 += x_i * li;
+                                    polynomials.1 += y_i * li;
+                                    polynomials.2 += z_i * li;
+                                }
+                                let (x_km, y_km, z_km) =
+                                    (polynomials.0, polynomials.1, polynomials.2);
+                                debug!(
+                                    "{}({}) precise state (km ECEF): x={},y={},z={}",
+                                    t, sv, x_km, y_km, z_km
+                                );
+                                (x_km * 1000.0, y_km * 1000.0, z_km * 1000.0)
+                            },
+                        )))
+                    } else {
+                        // not feasible
+                        self.consume_many(3);
+                        None
+                    }
+                }
+            } else {
+                // create new buff and push one symbol
+                let mut buffer = Buffer::new(order);
+                self.coords_buff.insert(sv, buffer);
+                self.consume_many(order + 2);
+                None
+            }
+        } else {
+            None
+        }; //precise
+
+        let keplerian = if let Some((toc, toe, eph)) = self.eph.borrow_mut().select(t, sv) {
             let (x_km, y_km, z_km) = eph.kepler2position(sv, toc, t)?;
             debug!(
                 "{}({}) keplerian state (km ECEF): x={},y={},z={}",
                 t, sv, x_km, y_km, z_km
             );
-            keplerian = Some(OrbitalState::from_position((
+            Some(OrbitalState::from_position((
                 x_km * 1000.0,
                 y_km * 1000.0,
                 z_km * 1000.0,
-            )));
-        }
-
-        // interpolation attempt
-        if let Some(buffer) = self.coords_buff.get_mut(&sv) {
-            if buffer.feasible(t) {
-                precise = Some(OrbitalState::from_position(buffer.interpolate(t, |buf| {
-                    let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
-                    for i in 0..=order {
-                        let mut li = 1.0_f64;
-                        let (t_i, (x_i, y_i, z_i)) = buf[i];
-                        for j in 0..=order {
-                            let (t_j, _) = buf[j];
-
-                            if t.time_scale != t_i.time_scale {
-                                panic!("invalid input timescale");
-                            }
-                            if t_i.time_scale != t_j.time_scale {
-                                panic!("epochs not expressed in same timescale");
-                            }
-                            if j != i {
-                                li *= (t - t_j).to_seconds();
-                                li /= (t_i - t_j).to_seconds();
-                            }
-                        }
-                        polynomials.0 += x_i * li;
-                        polynomials.1 += y_i * li;
-                        polynomials.2 += z_i * li;
-                    }
-                    let (x_km, y_km, z_km) = (
-                        polynomials.0 * 1000.0,
-                        polynomials.1 * 1000.0,
-                        polynomials.2 * 1000.0,
-                    );
-                    debug!(
-                        "{}({}) precise state (km ECEF): x={},y={},z={}",
-                        t, sv, x_km, y_km, z_km
-                    );
-                    (x_km, y_km, z_km)
-                })));
-            } else {
-                // not feasible
-                // 1. clear past symbols
-                buffer.discard(t, order);
-                // 2. push new symbols
-                if let Some((t, sv, coords_km)) = self.coords_iter.next() {
-                    if let Some(buffer) = self.coords_buff.get_mut(&sv) {
-                        buffer.push(t, coords_km);
-                    } else {
-                        let mut buffer = Buffer::new(order);
-                        buffer.push(t, coords_km);
-                        self.coords_buff.insert(sv, buffer);
-                    }
-                } else {
-                    self.eos = true;
-                    debug!("{}({}) consumed all precise states", t, sv);
-                }
-            }
+            )))
         } else {
-            // create new buff and push one symbol
-            let mut buffer = Buffer::new(order);
-            self.coords_buff.insert(sv, buffer);
+            None
         };
 
         if let Some(precise) = precise {

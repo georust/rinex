@@ -22,7 +22,7 @@ impl<'a> EphemerisSource<'a> {
                 buffer: HashMap::with_capacity(32),
                 iter: Box::new(brdc.ephemeris().map(|(toc, (_, sv, eph))| (sv, toc, eph))),
             };
-            s.consume(8); // fill in with some data
+            s.consume_many(32); // fill in with some data
             s
         } else {
             warn!("Operating without ephemeris source.");
@@ -51,7 +51,7 @@ impl<'a> EphemerisSource<'a> {
             self.eos = true;
         }
     }
-    fn consume(&mut self, n: usize) {
+    fn consume_many(&mut self, n: usize) {
         for _ in 0..n {
             self.consume_one();
         }
@@ -76,7 +76,6 @@ impl<'a> EphemerisSource<'a> {
         let mut attempt = 0;
         loop {
             if let Some((toc_i, toe_i, eph_i)) = self.try_select(t, sv) {
-                debug!("{}({}) - latest toc={}", t, sv, toc_i);
                 return Some((toc_i, toe_i, eph_i.clone()));
             } else {
                 self.consume_one();

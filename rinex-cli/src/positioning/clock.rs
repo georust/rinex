@@ -13,7 +13,6 @@ pub struct Clock<'a, 'b> {
 
 impl ClockStateProvider for Clock<'_, '_> {
     fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<Duration> {
-        // test if exists in buffer
         let (toc, _, eph) = self.eph.borrow_mut().select(t, sv)?;
         let dt = eph.clock_correction(toc, t, sv, 8)?;
         debug!("{}({}) estimated clock correction: {}", t, sv, dt);

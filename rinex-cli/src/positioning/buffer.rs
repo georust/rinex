@@ -1,29 +1,32 @@
 use gnss_rtk::prelude::Epoch;
 
 pub struct Buffer<T> {
-    order: usize,
     pub inner: Vec<(Epoch, T)>,
 }
 
 impl<T> Buffer<T> {
-    pub fn new(order: usize) -> Self {
-        if order % 2 == 0 {
-            panic!("only odd interpolation orders currently supported!");
-        }
+    pub fn new(malloc: usize) -> Self {
         Self {
-            order,
-            inner: Vec::with_capacity(order),
+            inner: Vec::with_capacity(malloc),
         }
+    }
+    pub fn contains(&self, x: &Epoch) -> Option<&T> {
+        self.inner
+            .iter()
+            .filter(|(x_i, y_i)| x_i == x)
+            .reduce(|k, _| k)
+            .map(|(_, y)| y)
     }
     pub fn push(&mut self, x: Epoch, y: T) {
         self.inner.push((x, y));
     }
-    pub fn feasible(&self, t: Epoch) -> bool {
-        if self.inner.len() < self.order + 2 {
+    pub fn feasible(&self, t: Epoch, order: usize) -> bool {
+        if self.inner.len() < order + 2 {
             return false;
         }
-        if let Some(nearest) = self.central_t(t) {
-            false
+        let n = (order + 1) / 2;
+        if let Some(index) = self.central_index(t) {
+            index >= n && index <= self.inner.len() - n
         } else {
             false
         }
@@ -44,9 +47,9 @@ impl<T> Buffer<T> {
         self.inner.iter().position(|(t_i, _)| t_i == t_c)
     }
     /// Will panic if .feasible() is not respected
-    pub fn interpolate<F: Fn(&[(Epoch, T)]) -> T>(&self, t: Epoch, interp: F) -> T {
+    pub fn interpolate<F: Fn(&[(Epoch, T)]) -> T>(&self, t: Epoch, order: usize, interp: F) -> T {
         let center = self.central_index(t).unwrap();
-        let buf = &self.inner[center - (self.order + 1) / 2..center + (self.order + 1) / 2];
+        let buf = &self.inner[center - (order + 1) / 2..center + (order + 1) / 2];
         interp(buf)
     }
 }
