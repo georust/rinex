@@ -163,7 +163,7 @@ impl OrbitReport {
                 if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
                     t_sp3,
                     &ctx.almanac,
-                    ctx.earth_iau_ecef,
+                    ctx.earth_cef,
                     (x_sp3_m, y_sp3_m, z_sp3_m),
                     (x0, y0, z0),
                 ) {
@@ -249,7 +249,7 @@ impl OrbitReport {
                                         pos_km.1,
                                         pos_km.2,
                                         t,
-                                        ctx.earth_iau_ecef,
+                                        ctx.earth_cef,
                                     ))
                                 } else {
                                     None

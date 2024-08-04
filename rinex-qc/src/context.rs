@@ -14,8 +14,8 @@ use rinex::{
 };
 
 use anise::{
-    almanac::planetary::PlanetaryDataError, constants::frames::IAU_EARTH_FRAME,
-    errors::AlmanacError, prelude::Frame,
+    almanac::planetary::PlanetaryDataError, constants::frames::EARTH_ITRF93, errors::AlmanacError,
+    prelude::Frame,
 };
 
 #[cfg(feature = "sp3")]
@@ -153,27 +153,27 @@ pub struct QcContext {
     /// Latest Almanac
     pub almanac: Almanac,
     /// Earth IAU/ECEF frame
-    pub earth_iau_ecef: Frame,
+    pub earth_cef: Frame,
 }
 
 impl QcContext {
-    /// Initilize QcContext
+    /// Initilize QcContext with latest [Almanac] and [EARTH_ITRF93].
     pub fn new() -> Result<Self, Error> {
         let almanac = Almanac::until_2035()?;
-        let earth_iau_ecef = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+        let earth_cef = almanac.frame_from_uid(EARTH_ITRF93)?;
         Ok(Self {
             almanac,
-            earth_iau_ecef,
+            earth_cef,
             blob: HashMap::new(),
             files: HashMap::new(),
         })
     }
-    /// Build new [QcContext] with given [Almanac].
-    pub fn new_almanac(almanac: Almanac) -> Result<Self, Error> {
-        let earth_iau_ecef = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+    /// Build new [QcContext] with given [Almanac] and selected [Frame] which
+    /// should be Fixed Body.
+    pub fn new_almanac(almanac: Almanac, frame: Frame) -> Result<Self, Error> {
         Ok(Self {
             almanac,
-            earth_iau_ecef,
+            earth_cef: frame,
             blob: HashMap::new(),
             files: HashMap::new(),
         })
