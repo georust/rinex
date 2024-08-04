@@ -1,7 +1,6 @@
 #!/bin/sh
 # Real time surveying (BRDC)
 # Compare this to post processed +3weeks
-DATA_DIR=test_resources
 
 # Comment out one step to remove it from the synthesized report.
 # Change the configuration to modify the navigation setup.
@@ -11,7 +10,7 @@ DATA_DIR=test_resources
 #  Gal PRN>09
 #  Skip 1st hour
 #  E1 or E5 PR
-FILTER="Gal;>E09;C1C,C5Q"
+FILTER="Gal;C1C,C5Q"
 # Skip 1st hour (example)
 TIMEFRAME=">2020-06-25T01:00:00 UTC"
 CONF=tutorials/config/survey/cpp_kf.json

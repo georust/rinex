@@ -160,26 +160,28 @@ impl OrbitReport {
             for (t_sp3, sv_sp3, pos_sp3) in sp3.sv_position() {
                 let (x_sp3_m, y_sp3_m, z_sp3_m) =
                     (pos_sp3.0 * 1000.0, pos_sp3.1 * 1000.0, pos_sp3.2 * 1000.0);
-                let (el, az) = Ephemeris::elevation_azimuth(
+                if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
                     t_sp3,
                     &ctx.almanac,
+                    ctx.earth_iau_ecef,
                     (x_sp3_m, y_sp3_m, z_sp3_m),
                     (x0, y0, z0),
-                );
-                if let Some(t) = t.get_mut(&sv_sp3) {
-                    t.push(t_sp3);
-                } else {
-                    t.insert(sv_sp3, vec![t_sp3]);
-                }
-                if let Some(e) = elev.get_mut(&sv_sp3) {
-                    e.push(el);
-                } else {
-                    elev.insert(sv_sp3, vec![el]);
-                }
-                if let Some(a) = azim.get_mut(&sv_sp3) {
-                    a.push(az);
-                } else {
-                    azim.insert(sv_sp3, vec![az]);
+                ) {
+                    if let Some(t) = t.get_mut(&sv_sp3) {
+                        t.push(t_sp3);
+                    } else {
+                        t.insert(sv_sp3, vec![t_sp3]);
+                    }
+                    if let Some(e) = elev.get_mut(&sv_sp3) {
+                        e.push(el_az_range.elevation_deg);
+                    } else {
+                        elev.insert(sv_sp3, vec![el_az_range.elevation_deg]);
+                    }
+                    if let Some(a) = azim.get_mut(&sv_sp3) {
+                        a.push(el_az_range.azimuth_deg);
+                    } else {
+                        azim.insert(sv_sp3, vec![el_az_range.azimuth_deg]);
+                    }
                 }
             }
         }

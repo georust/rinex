@@ -97,7 +97,11 @@ pub mod prelude {
     // pub re-export
     // pub use anise::prelude::Almanac;
     #[cfg(feature = "nav")]
-    pub use anise::prelude::{Almanac, Orbit};
+    pub use anise::{
+        astro::AzElRange,
+        errors::AlmanacResult,
+        prelude::{Almanac, Frame, Orbit},
+    };
     pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
     pub use hifitime::ut1::DeltaTaiUt1;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};

@@ -168,7 +168,7 @@ impl QcContext {
             files: HashMap::new(),
         })
     }
-    /// Initialize QcContext to work with given [Almanac]
+    /// Build new [QcContext] with given [Almanac].
     pub fn new_almanac(almanac: Almanac) -> Result<Self, Error> {
         let earth_iau_ecef = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
         Ok(Self {
