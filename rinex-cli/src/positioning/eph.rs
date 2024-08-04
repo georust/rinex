@@ -1,6 +1,6 @@
 use crate::cli::Context;
 use rinex::navigation::Ephemeris;
-use rinex::prelude::{Epoch, Rinex, SV};
+use rinex::prelude::{Epoch, SV};
 use std::collections::HashMap;
 
 pub struct EphemerisSource<'a> {
