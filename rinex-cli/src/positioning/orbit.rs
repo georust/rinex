@@ -3,8 +3,7 @@ use crate::{
     positioning::{Buffer, EphemerisSource},
 };
 
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap};
 
 use gnss_rtk::prelude::{
     Almanac, Epoch, OrbitalState, OrbitalStateProvider, Vector3, EARTH_J2000, SUN_J2000, SV,
@@ -14,13 +13,11 @@ use rinex::prelude::Carrier;
 use anise::errors::AlmanacError;
 
 pub struct Orbit<'a, 'b> {
-    sv: SV,
-    t: Epoch,
     eos: bool,
     has_precise: bool,
     eph: &'a RefCell<EphemerisSource<'b>>,
-    coords_buff: HashMap<SV, Buffer<(f64, f64, f64)>>,
-    coords_iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
+    buff: HashMap<SV, Buffer<(f64, f64, f64)>>,
+    iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
 }
 
 fn sun_unit_vector(almanac: &Almanac, t: Epoch) -> Result<Vector3<f64>, AlmanacError> {
@@ -34,14 +31,13 @@ fn sun_unit_vector(almanac: &Almanac, t: Epoch) -> Result<Vector3<f64>, AlmanacE
 
 impl<'a, 'b> Orbit<'a, 'b> {
     pub fn new(ctx: &'a Context, eph: &'a RefCell<EphemerisSource<'b>>) -> Self {
+        let has_precise = ctx.data.sp3().is_some();
         let mut s = Self {
             eph,
-            eos: false,
-            sv: SV::default(),
-            t: Epoch::default(),
-            has_precise: ctx.data.sp3().is_some(),
-            coords_buff: HashMap::with_capacity(16),
-            coords_iter: {
+            has_precise,
+            eos: if has_precise { false } else { true },
+            buff: HashMap::with_capacity(16),
+            iter: {
                 if let Some(sp3) = ctx.data.sp3() {
                     info!("Operating with precise Orbits.");
                     if let Some(atx) = ctx.data.antex() {
@@ -87,19 +83,17 @@ impl<'a, 'b> Orbit<'a, 'b> {
         s
     }
     fn consume_one(&mut self) {
-        if let Some((t, sv, (x_km, y_km, z_km))) = self.coords_iter.next() {
-            if let Some(buf) = self.coords_buff.get_mut(&sv) {
+        if let Some((t, sv, (x_km, y_km, z_km))) = self.iter.next() {
+            if let Some(buf) = self.buff.get_mut(&sv) {
                 buf.push(t, (x_km, y_km, z_km));
-                self.t = t;
-                self.sv = sv;
             } else {
                 let mut buf = Buffer::<(f64, f64, f64)>::new(31);
                 buf.push(t, (x_km, y_km, z_km));
-                self.coords_buff.insert(sv, buf);
+                self.buff.insert(sv, buf);
             }
         } else {
             if !self.eos {
-                info!("{}({}): consumed all precise coordinates", self.t, self.sv);
+                info!("Consumed all precise coordinates.");
             }
             self.eos = true;
         }
@@ -115,7 +109,7 @@ impl OrbitalStateProvider for Orbit<'_, '_> {
     fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
         let precise = if self.has_precise {
             // interpolation attempt
-            if let Some(buffer) = self.coords_buff.get_mut(&sv) {
+            if let Some(buffer) = self.buff.get_mut(&sv) {
                 if let Some((x_km, y_km, z_km)) = buffer.contains(&t) {
                     Some(OrbitalState::from_position((
                         x_km * 1000.0,
@@ -168,9 +162,9 @@ impl OrbitalStateProvider for Orbit<'_, '_> {
                     }
                 }
             } else {
-                // create new buff and push one symbol
+                // create new buff, push some symbols
                 let mut buffer = Buffer::new(order);
-                self.coords_buff.insert(sv, buffer);
+                self.buff.insert(sv, buffer);
                 self.consume_many(order + 2);
                 None
             }

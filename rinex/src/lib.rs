@@ -3075,62 +3075,6 @@ impl Rinex {
             })
         }))
     }
-    /// Interpolates Clock state at desired "t" expressed in the timescale you want.
-    /// Clock RINEX usually have a high sample rate, this has two consequences
-    ///  - it kind of allows clock states to be interpolated, as long as the
-    ///  sample rate is <= 30s (be careful with the end results)
-    ///   - they usually match the signal observation sampling.
-    ///  If you Clock RINEX matches your OBS RINEX, you don't need interpolation at all.
-    pub fn precise_sv_clock_interpolate(
-        &self,
-        t: Epoch,
-        sv: SV,
-    ) -> Option<(ClockProfileType, ClockProfile)> {
-        let before = self
-            .precise_sv_clock()
-            .filter_map(|(clk_t, clk_sv, clk, prof)| {
-                if clk_t <= t && clk_sv == sv {
-                    Some((clk_t, clk, prof))
-                } else {
-                    None
-                }
-            })
-            .last()?;
-        let after = self
-            .precise_sv_clock()
-            .filter_map(|(clk_t, clk_sv, clk, prof)| {
-                if clk_t > t && clk_sv == sv {
-                    Some((clk_t, clk, prof))
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)?;
-        let (before_t, clk_type, before_prof) = before;
-        let (after_t, _, after_prof) = after;
-        let dt = (after_t - before_t).to_seconds();
-        let mut bias = (after_t - t).to_seconds() / dt * before_prof.bias;
-        bias += (t - before_t).to_seconds() / dt * after_prof.bias;
-        let drift: Option<f64> = match (before_prof.drift, after_prof.drift) {
-            (Some(before_drift), Some(after_drift)) => {
-                let mut drift = (after_t - t).to_seconds() / dt * before_drift;
-                drift += (t - before_t).to_seconds() / dt * after_drift;
-                Some(drift)
-            },
-            _ => None,
-        };
-        Some((
-            clk_type,
-            ClockProfile {
-                bias,
-                drift,
-                bias_dev: None,
-                drift_dev: None,
-                drift_change: None,
-                drift_change_dev: None,
-            },
-        ))
-    }
     /// Returns Iterator over Clock RINEX content for Ground Station clocks only (not onboard clocks)
     pub fn precise_station_clock(
         &self,

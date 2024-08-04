@@ -10,7 +10,7 @@ DATA_DIR=test_resources
 # Example:
 #   GPS <28 : any other is dropped
 #  L1/L5 PR only: not using L2, not PPP compatible
-FILTER="GPS;<G28;C1C,C5Q"
+FILTER="GPS;C1C,C5Q"
 CONF=tutorials/config/survey/cpp_kf.json
 
 # Analysis + ppp solutions
@@ -26,6 +26,7 @@ CONF=tutorials/config/survey/cpp_kf.json
     --fp $DATA_DIR/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \
     ppp -c $CONF
 
+exit 0
 # cggtts solutions (+open).
 # Since we're using strict identical options,
 # the report is preserved and new solutions are appended.

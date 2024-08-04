@@ -323,7 +323,7 @@ pub fn precise_positioning(
 
     // create data providers
     let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
-    let clocks = Clock::new(&eph);
+    let clocks = Clock::new(&ctx, &eph);
     let orbits = Orbit::new(&ctx, &eph);
 
     // The CGGTTS opmode (TimeOnly) is not designed
