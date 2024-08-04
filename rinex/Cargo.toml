@@ -106,7 +106,7 @@ flate2 = { version = "1.0.24", optional = true, default-features = false, featur
 geo = { version = "0.28", optional = true }
 wkt = { version = "0.10.0", default-features = false, optional = true }
 
-anise = { version = "0.4.1", optional = true }
+anise = { version = "0.4.2", optional = true }
 nalgebra = { version = "0.32.3", optional = true }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
