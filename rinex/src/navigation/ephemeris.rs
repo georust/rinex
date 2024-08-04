@@ -708,7 +708,7 @@ impl Ephemeris {
             omega_k.to_degrees(),
             omega.to_degrees(),
             v_k.to_degrees(),
-            t.to_time_scale(TimeScale::GPST),
+            t_gpst,
             EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
         )
         .ok()?;
