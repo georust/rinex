@@ -2328,6 +2328,7 @@ impl Rinex {
     /// Self must be NAV RINEX. Position is expressed as ECEF coordinates [km].
     pub fn sv_position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let (toc, _, eph) = self.sv_ephemeris(sv, t)?;
+        let t = t.to_time_scale(toc.time_scale);
         eph.kepler2position(sv, toc, t)
     }
     /// Returns SV Orbital state vector and

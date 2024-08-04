@@ -26,25 +26,30 @@ impl BrdcSp3Report {
         let mut error_z = HashMap::<SV, Vec<f64>>::new();
         for (t_sp3, sv_sp3, pos_sp3) in sp3.sv_position() {
             if let Some((brdc_x, brdc_y, brdc_z)) = brdc.sv_position(sv_sp3, t_sp3) {
+                let (err_x_m, err_y_m, err_z_m) = (
+                    (brdc_x - pos_sp3.0) * 1000.0,
+                    (brdc_y - pos_sp3.1) * 1000.0,
+                    (brdc_z - pos_sp3.2) * 1000.0,
+                );
                 if let Some(t) = t.get_mut(&sv_sp3) {
                     t.push(t_sp3);
                 } else {
                     t.insert(sv_sp3, vec![t_sp3]);
                 }
                 if let Some(x) = error_x.get_mut(&sv_sp3) {
-                    x.push(brdc_x - pos_sp3.0);
+                    x.push(err_x_m);
                 } else {
-                    error_x.insert(sv_sp3, vec![brdc_x - pos_sp3.0]);
+                    error_x.insert(sv_sp3, vec![err_x_m]);
                 }
                 if let Some(y) = error_y.get_mut(&sv_sp3) {
-                    y.push(brdc_y - pos_sp3.1);
+                    y.push(err_y_m);
                 } else {
-                    error_y.insert(sv_sp3, vec![brdc_y - pos_sp3.1]);
+                    error_y.insert(sv_sp3, vec![err_y_m]);
                 }
                 if let Some(z) = error_z.get_mut(&sv_sp3) {
-                    z.push(brdc_z - pos_sp3.2);
+                    z.push(err_z_m);
                 } else {
-                    error_z.insert(sv_sp3, vec![brdc_z - pos_sp3.2]);
+                    error_z.insert(sv_sp3, vec![err_z_m]);
                 }
             }
         }
@@ -147,40 +152,73 @@ pub struct OrbitReport {
 impl OrbitReport {
     pub fn new(ctx: &QcContext, reference: Option<GroundPosition>, force_brdc_sky: bool) -> Self {
         let (x0, y0, z0) = reference.unwrap_or_default().to_ecef_wgs84();
+        let (x0_km, y0_km, z0_km) = (x0 / 1000.0, y0 / 1000.0, z0 / 1000.0);
+        // TODO: brdc needs a timeserie..
         let brdc_skyplot = ctx.has_brdc_navigation() && ctx.has_sp3() && force_brdc_sky;
 
         let max_sv_visible = if brdc_skyplot { 2 } else { 4 };
 
-        let mut t = HashMap::<SV, Vec<Epoch>>::new();
-        let mut elev = HashMap::<SV, Vec<f64>>::new();
-        let mut azim = HashMap::<SV, Vec<f64>>::new();
+        let mut t_sp3 = HashMap::<SV, Vec<Epoch>>::new();
+        let mut elev_sp3 = HashMap::<SV, Vec<f64>>::new();
+        let mut azim_sp3 = HashMap::<SV, Vec<f64>>::new();
+
+        let mut t_brdc = HashMap::<SV, Vec<Epoch>>::new();
+        let mut elev_brdc = HashMap::<SV, Vec<f64>>::new();
+        let mut azim_brdc = HashMap::<SV, Vec<f64>>::new();
 
         // calc evelation°
         if let Some(sp3) = ctx.sp3() {
-            for (t_sp3, sv_sp3, pos_sp3) in sp3.sv_position() {
-                let (x_sp3_m, y_sp3_m, z_sp3_m) =
-                    (pos_sp3.0 * 1000.0, pos_sp3.1 * 1000.0, pos_sp3.2 * 1000.0);
+            for (t, sv_sp3, pos_sp3) in sp3.sv_position() {
+                let (x_sp3_km, y_sp3_km, z_sp3_km) = (pos_sp3.0, pos_sp3.1, pos_sp3.2);
                 if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
-                    t_sp3,
+                    t,
                     &ctx.almanac,
                     ctx.earth_cef,
-                    (x_sp3_m, y_sp3_m, z_sp3_m),
-                    (x0, y0, z0),
+                    (x_sp3_km, y_sp3_km, z_sp3_km),
+                    (x0_km, y0_km, z0_km),
                 ) {
-                    if let Some(t) = t.get_mut(&sv_sp3) {
-                        t.push(t_sp3);
+                    if let Some(t_sp3) = t_sp3.get_mut(&sv_sp3) {
+                        t_sp3.push(t);
                     } else {
-                        t.insert(sv_sp3, vec![t_sp3]);
+                        t_sp3.insert(sv_sp3, vec![t]);
                     }
-                    if let Some(e) = elev.get_mut(&sv_sp3) {
+                    if let Some(e) = elev_sp3.get_mut(&sv_sp3) {
                         e.push(el_az_range.elevation_deg);
                     } else {
-                        elev.insert(sv_sp3, vec![el_az_range.elevation_deg]);
+                        elev_sp3.insert(sv_sp3, vec![el_az_range.elevation_deg]);
                     }
-                    if let Some(a) = azim.get_mut(&sv_sp3) {
+                    if let Some(a) = azim_sp3.get_mut(&sv_sp3) {
                         a.push(el_az_range.azimuth_deg);
                     } else {
-                        azim.insert(sv_sp3, vec![el_az_range.azimuth_deg]);
+                        azim_sp3.insert(sv_sp3, vec![el_az_range.azimuth_deg]);
+                    }
+                }
+                if brdc_skyplot {
+                    let brdc = ctx.brdc_navigation().unwrap();
+                    if let Some((x_km, y_km, z_km)) = brdc.sv_position(sv_sp3, t) {
+                        if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
+                            t,
+                            &ctx.almanac,
+                            ctx.earth_cef,
+                            (x_km, y_km, z_km),
+                            (x0_km, y0_km, z0_km),
+                        ) {
+                            if let Some(t_brdc) = t_brdc.get_mut(&sv_sp3) {
+                                t_brdc.push(t);
+                            } else {
+                                t_brdc.insert(sv_sp3, vec![t]);
+                            }
+                            if let Some(e) = elev_brdc.get_mut(&sv_sp3) {
+                                e.push(el_az_range.elevation_deg);
+                            } else {
+                                elev_brdc.insert(sv_sp3, vec![el_az_range.elevation_deg]);
+                            }
+                            if let Some(a) = azim_brdc.get_mut(&sv_sp3) {
+                                a.push(el_az_range.azimuth_deg);
+                            } else {
+                                azim_brdc.insert(sv_sp3, vec![el_az_range.azimuth_deg]);
+                            }
+                        }
                     }
                 }
             }
@@ -189,43 +227,60 @@ impl OrbitReport {
         Self {
             sky_plot: {
                 let mut plot = Plot::sky_plot("skyplot", "Sky plot", true);
-                if let Some(sp3) = ctx.sp3() {
-                    for (sv_index, sv) in sp3.sv().enumerate() {
-                        let visible = sv_index < max_sv_visible;
-                        if let Some(t) = t.get(&sv) {
-                            let elev = elev.get(&sv).unwrap();
-                            let azim = azim.get(&sv).unwrap();
-                            let trace = Plot::sky_trace(
-                                &sv.to_string(),
-                                t.to_vec(),
-                                elev.to_vec(),
-                                azim.to_vec(),
-                                visible,
-                            );
-                            plot.add_trace(trace);
-                        }
-                    }
+                for (sv_index, (sv, epochs)) in t_sp3.iter().enumerate() {
+                    let visible = sv_index < max_sv_visible;
+                    let elev_sp3 = elev_sp3.get(&sv).unwrap();
+                    let azim_sp3 = azim_sp3.get(&sv).unwrap();
+                    let trace = Plot::sky_trace(
+                        &sv.to_string(),
+                        epochs,
+                        elev_sp3.to_vec(),
+                        azim_sp3.to_vec(),
+                        visible,
+                    );
+                    plot.add_trace(trace);
+                }
+                for (sv_index, (sv, epochs)) in t_brdc.iter().enumerate() {
+                    let visible = sv_index < max_sv_visible;
+                    let elev_brdc = elev_brdc.get(&sv).unwrap();
+                    let azim_brdc = azim_brdc.get(&sv).unwrap();
+                    let trace = Plot::sky_trace(
+                        &format!("{}_brdc", sv),
+                        epochs,
+                        elev_brdc.to_vec(),
+                        azim_brdc.to_vec(),
+                        visible,
+                    );
+                    plot.add_trace(trace);
                 }
                 plot
             },
             elev_plot: {
                 let mut elev_plot =
                     Plot::timedomain_plot("elev_plot", "Elevation", "Elevation [deg°]", true);
-                if let Some(sp3) = ctx.sp3() {
-                    for (sv_index, sv) in sp3.sv().enumerate() {
-                        if let Some(t) = t.get(&sv) {
-                            let elev = elev.get(&sv).unwrap();
-                            let trace = Plot::timedomain_chart(
-                                &sv.to_string(),
-                                Mode::Markers,
-                                MarkerSymbol::Diamond,
-                                &t,
-                                elev.to_vec(),
-                                sv_index < max_sv_visible,
-                            );
-                            elev_plot.add_trace(trace);
-                        }
-                    }
+                for (sv_index, (sv, epochs)) in t_sp3.iter().enumerate() {
+                    let elev = elev_sp3.get(&sv).unwrap();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Diamond,
+                        epochs,
+                        elev.to_vec(),
+                        sv_index < max_sv_visible,
+                    );
+                    elev_plot.add_trace(trace);
+                }
+                for (sv_index, (sv, epochs)) in t_brdc.iter().enumerate() {
+                    let elev = elev_brdc.get(&sv).unwrap();
+                    let trace = Plot::timedomain_chart(
+                        &format!("{}_brdc", sv),
+                        Mode::Markers,
+                        MarkerSymbol::Diamond,
+                        epochs,
+                        elev.to_vec(),
+                        sv_index < max_sv_visible,
+                    );
+                    elev_plot.add_trace(trace);
                 }
                 elev_plot
             },

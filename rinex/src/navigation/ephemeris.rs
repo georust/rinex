@@ -782,27 +782,19 @@ impl Ephemeris {
         ))
     }
     /// [AzElRange] calculation attempt, for following SV as observed at RX,
-    /// both coordinates expressed as [km] in ECEF frame.
+    /// both coordinates expressed as [km] in fixed body [Frame] centered on Earth.
     pub fn elevation_azimuth_range(
         t: Epoch,
         almanac: &Almanac,
         fixed_body_frame: Frame,
-        sv_position: (f64, f64, f64),
-        rx_position: (f64, f64, f64),
+        sv_position_km: (f64, f64, f64),
+        rx_position_km: (f64, f64, f64),
     ) -> AlmanacResult<AzElRange> {
-        let (rx_x_km, rx_y_km, rx_z_km) = (
-            rx_position.0 / 1000.0,
-            rx_position.1 / 1000.0,
-            rx_position.2 / 1000.0,
-        );
-        let (tx_x_km, tx_y_km, tx_z_km) = (
-            sv_position.0 / 1000.0,
-            sv_position.1 / 1000.0,
-            sv_position.2 / 1000.0,
-        );
+        let (rx_x_km, rx_y_km, rx_z_km) = rx_position_km;
+        let (tx_x_km, tx_y_km, tx_z_km) = sv_position_km;
         almanac.azimuth_elevation_range_sez(
-            Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, fixed_body_frame),
             Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, fixed_body_frame),
+            Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, fixed_body_frame),
         )
     }
     /// Returns True if Self is Valid at specified `t`

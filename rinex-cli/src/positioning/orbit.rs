@@ -68,9 +68,7 @@ impl<'a, 'b> Orbit<'a, 'b> {
                     } else {
                         warn!("Cannot determine exact APC state without ANTEX data.");
                         warn!("Expect tiny errors in final results");
-                        Box::new(sp3.sv_position().map(|(t, sv, (x_km, y_km, z_km))| {
-                            (t, sv, (x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3))
-                        }))
+                        Box::new(sp3.sv_position())
                     }
                 } else {
                     warn!("Operating without precise Orbits.");
@@ -142,12 +140,12 @@ impl OrbitalStateProvider for Orbit<'_, '_> {
                 // 1. clear past symbols
                 buffer.discard(t, order);
                 // 2. push new symbols
-                if let Some((t, sv, coords)) = self.coords_iter.next() {
+                if let Some((t, sv, coords_km)) = self.coords_iter.next() {
                     if let Some(buffer) = self.coords_buff.get_mut(&sv) {
-                        buffer.push(t, coords);
+                        buffer.push(t, coords_km);
                     } else {
                         let mut buffer = Buffer::new(order);
-                        buffer.push(t, coords);
+                        buffer.push(t, coords_km);
                         self.coords_buff.insert(sv, buffer);
                     }
                 } else {

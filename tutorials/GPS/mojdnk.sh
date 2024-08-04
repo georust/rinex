@@ -19,9 +19,11 @@ CONF=tutorials/config/survey/cpp_kf.json # pseudo-range(L1/L5); filter:kalman
 #   -f: force new report synthesis
 #   -q: silent (open on last call)
 #   -o: custom name
+#   --brdc-sky: project BRDC states as well
 ./target/release/rinex-cli \
     -P $FILTER "$TIMEFRAME" \
     -f -q -o "GPS-L1L5" \
+    --brdc-sky \
     --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
     --fp $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \

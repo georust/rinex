@@ -16,9 +16,11 @@ CONF=tutorials/config/survey/cpp_kf.json
 #   -f: force new report synthesis
 #   -q: silent (open on last call)
 #   -o: custom name
+#   --brdc-sky: project BRDC states as well
 ./target/release/rinex-cli \
     -P $FILTER \
     -f -o "BRDC-GPS-L1L5" \
+    --brdc-sky \
     --fp $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     ppp -c $CONF

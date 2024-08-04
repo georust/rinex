@@ -1,6 +1,8 @@
 #!/bin/sh
 # Loading a single SP3 will generate Orbital projections
-# If you stack one BRDC file, you can then run orbital state comparison
+# If you stack one BRDC file, you can then run orbital state comparison.
+# SP3 when present, is prefered for all projections. We can force
+# projections of BRDC states with --brdc-sky.
 DATA_DIR=test_resources
 
 # Example: 
@@ -18,5 +20,6 @@ RX_ECEF="3582105.2910,532589.7313,5232754.8054"
     -f -o "GRG0MGXFIN+brdc" \
     -P $FILTER \
     --rx-ecef $RX_ECEF \
+    --brdc-sky \
     --fp $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz
