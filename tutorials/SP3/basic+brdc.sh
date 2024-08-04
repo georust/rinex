@@ -15,7 +15,7 @@ RX_ECEF="3582105.2910,532589.7313,5232754.8054"
 #  -f: force report synthesis
 #  -P: filter example
 ./target/release/rinex-cli \
-    -f \
+    -f -o "GRG0MGXFIN+brdc" \
     -P $FILTER \
     --rx-ecef $RX_ECEF \
     --fp $DATA_DIR/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz \

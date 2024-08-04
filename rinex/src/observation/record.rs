@@ -998,9 +998,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn < item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn >= item.prn;
                             }
                         }
                         retain
@@ -1034,9 +1032,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn <= item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn > item.prn;
                             }
                         }
                         retain
@@ -1070,9 +1066,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn > item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn <= item.prn;
                             }
                         }
                         retain
@@ -1106,9 +1100,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn >= item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn < item.prn;
                             }
                         }
                         retain

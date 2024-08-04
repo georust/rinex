@@ -88,7 +88,7 @@ impl OrbitalStateProvider for Orbit<'_, '_> {
 
         // test if it exists in buffer
         if let Some((toc, toe, eph)) = self.eph.borrow_mut().select(t, sv) {
-            let (x_km, y_km, z_km) = eph.kepler2position(sv, t)?;
+            let (x_km, y_km, z_km) = eph.kepler2position(sv, toc, t)?;
             debug!(
                 "{}({}) keplerian state (km ECEF): x={},y={},z={}",
                 t, sv, x_km, y_km, z_km

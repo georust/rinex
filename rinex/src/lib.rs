@@ -2327,8 +2327,8 @@ impl Rinex {
     /// Returns SV Orbital state vector (if we can) at specified [Epoch] `t`.
     /// Self must be NAV RINEX. Position is expressed as ECEF coordinates [km].
     pub fn sv_position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
-        let (_, eph) = self.sv_ephemeris(sv, t)?;
-        eph.kepler2position(sv, t)
+        let (toc, _, eph) = self.sv_ephemeris(sv, t)?;
+        eph.kepler2position(sv, toc, t)
     }
     /// Returns SV Orbital state vector and
     /// instantaneous velocity (if we can) at specific [Epoch] `t`.
@@ -2338,28 +2338,27 @@ impl Rinex {
         sv: SV,
         t: Epoch,
     ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
-        let (_, eph) = self.sv_ephemeris(sv, t)?;
-        eph.kepler2position_velocity(sv, t)
+        let (toc, _, eph) = self.sv_ephemeris(sv, t)?;
+        eph.kepler2position_velocity(sv, toc, t)
     }
     /// Ephemeris selection method. Use this method to select Ephemeris
-    /// to be used to navigate using `sv` at instant `t`.
-    /// Returns (toe and ephemeris frame).
-    /// Note that TOE does not exist for SBAS vehicles, therefore should be discarded.
-    pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, &Ephemeris)> {
+    /// for [SV] at [Epoch], to be used in navigation.
+    /// Returns (ToC, ToE and ephemeris frame).
+    /// Note that ToE = ToC for GEO/SBAS vehicles, because this field does not exist.
+    pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, Epoch, &Ephemeris)> {
         self.ephemeris()
             .filter_map(|(t_i, (_, sv_i, eph_i))| {
                 let ts = sv_i.constellation.timescale()?;
                 let toe = eph_i.toe(ts)?;
                 if eph_i.is_valid(sv, t) {
-                    Some((toe, eph_i))
+                    Some((*t_i, toe, eph_i))
                 } else {
                     None
                 }
             })
-            .min_by_key(|(toe_i, _)| (t - *toe_i))
+            .min_by_key(|(_, toe_i, _)| (t - *toe_i))
     }
-    /// Returns an Iterator over SV (embedded) clock offset (s), drift (s.s⁻¹) and
-    /// drift rate (s.s⁻²)
+    /// [SV] embedded clock offset (s), drift (s.s⁻¹) and drift rate (s.s⁻²) Iterator.
     /// ```
     /// use rinex::prelude::*;
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
