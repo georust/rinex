@@ -273,6 +273,8 @@ struct ReportContent {
     map_proj: Plot,
     /// clk_plot
     clk_plot: Plot,
+    /// drift_plot
+    drift_plot: Plot,
     /// neu_plot
     neu_plot: Plot,
     /// coords_err
@@ -654,6 +656,26 @@ impl ReportContent {
                 plot.add_trace(trace);
                 plot
             },
+            drift_plot: {
+                let mut plot =
+                    Plot::timedomain_plot("clk_drift", "Clock Drift", "Drift [s/s]", true);
+
+                let ddt = solutions
+                    .iter()
+                    .map(|(_, sol)| sol.d_dt)
+                    .collect::<Vec<_>>();
+
+                let trace = Plot::timedomain_chart(
+                    "drift",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    ddt,
+                    true,
+                );
+                plot.add_trace(trace);
+                plot
+            },
             coords_err_plot: {
                 let mut plot = Plot::timedomain_plot("xy_plot", "X/Y/Z Error", "Error [m]", true);
                 let trace = Plot::timedomain_chart(
@@ -781,6 +803,16 @@ impl Render for ReportContent {
                             }
                             td {
                                 (self.clk_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                button aria-label="Receiver Clock drift from Timescale" data-balloon-pos="right" {
+                                    "Clock drift"
+                                }
+                            }
+                            td {
+                                (self.drift_plot.render())
                             }
                         }
                         tr {

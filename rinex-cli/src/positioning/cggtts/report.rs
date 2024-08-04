@@ -137,7 +137,9 @@ struct ReportContent {
     sky_plot: Plot,
     ionod_plot: Plot,
     refsv_plot: Plot,
+    srsv_plot: Plot,
     refsys_plot: Plot,
+    srsys_plot: Plot,
     tropod_plot: Plot,
 }
 
@@ -263,8 +265,37 @@ impl ReportContent {
                 }
                 plot
             },
+            srsys_plot: {
+                let mut plot = Plot::timedomain_plot("srsys_plot", "SRSYS", "SRSYS [s/s]", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                Some(trk.data.srsys)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                        true,
+                    );
+                    plot.add_trace(trace);
+                }
+                plot
+            },
             refsv_plot: {
-                let mut plot = Plot::timedomain_plot("refsv_plot", "REFSV", "SRSV [s]", true);
+                let mut plot = Plot::timedomain_plot("refsv_plot", "REFSV", "REFSV [s]", true);
                 for sv in summary.satellites.iter() {
                     let x = solutions
                         .iter()
@@ -275,6 +306,35 @@ impl ReportContent {
                         .filter_map(|trk| {
                             if trk.sv == *sv {
                                 Some(trk.data.refsv)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &sv.to_string(),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                        true,
+                    );
+                    plot.add_trace(trace);
+                }
+                plot
+            },
+            srsv_plot: {
+                let mut plot = Plot::timedomain_plot("srsv_plot", "SRSV", "SRSV [s/s]", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                Some(trk.data.srsv)
                             } else {
                                 None
                             }
@@ -349,10 +409,26 @@ impl Render for ReportContent {
                         }
                         tr {
                             th class="is-info" {
+                                "SRSYS"
+                            }
+                            td {
+                                (self.srsys_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
                                 "REFSV"
                             }
                             td {
                                 (self.refsv_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "SRSV"
+                            }
+                            td {
+                                (self.srsv_plot.render())
                             }
                         }
                         tr {
