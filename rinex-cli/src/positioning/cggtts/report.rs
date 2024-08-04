@@ -203,12 +203,12 @@ impl ReportContent {
             },
             ionod_plot: {
                 let plot =
-                    Plot::timedomain_plot("ionod_plot", "Ionospheric Delay", "Error [m]", true);
+                    Plot::timedomain_plot("ionod_plot", "Ionospheric Delay", "Delay [s]", true);
                 plot
             },
             tropod_plot: {
                 let mut plot =
-                    Plot::timedomain_plot("tropod_plot", "Tropospheric Delay", "Error [m]", true);
+                    Plot::timedomain_plot("tropod_plot", "Tropospheric Delay", "Delay [s]", true);
                 for sv in summary.satellites.iter() {
                     let x = solutions
                         .iter()

@@ -247,7 +247,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                         let elevation = pvt_data.elevation;
 
                         let refsys = pvt_solution.dt.to_seconds();
-                        let refsv = refsys + clock_corr.to_seconds();
+                        let refsv = refsys + clock_corr.duration.to_seconds();
 
                         /*
                          * TROPO : always present

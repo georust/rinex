@@ -5,27 +5,28 @@ use crate::{
 
 use std::{cell::RefCell, collections::HashMap};
 
-use gnss_rtk::prelude::{Duration, Epoch, TimeScale, SV};
+use gnss_rtk::prelude::{Duration, Epoch, SV, ClockCorrection};
 
 pub trait ClockStateProvider {
-    fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<Duration>;
+    fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<ClockCorrection>;
 }
 
 pub struct Clock<'a, 'b> {
-    eph: &'a RefCell<EphemerisSource<'b>>,
     eos: bool,
     has_precise: bool,
     buff: HashMap<SV, Buffer<f64>>,
+    eph: &'a RefCell<EphemerisSource<'b>>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
 }
 
 impl ClockStateProvider for Clock<'_, '_> {
-    fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<Duration> {
+    fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<ClockCorrection> {
         if self.has_precise {
             // interpolation attempt
             if let Some(buffer) = self.buff.get_mut(&sv) {
                 if let Some(dt) = buffer.contains(&t) {
-                    return Some(Duration::from_seconds(*dt));
+                    let dt = Duration::from_seconds(*dt);
+                    return Some(ClockCorrection::without_relativistic_correction(dt));
                 } else {
                     if buffer.feasible(t, 2) {
                         let dt = buffer.interpolate(t, 2, |buf| {
@@ -38,7 +39,7 @@ impl ClockStateProvider for Clock<'_, '_> {
                         });
                         let dt = Duration::from_seconds(dt);
                         debug!("{}({}) precise correction {}", t, sv, dt);
-                        return Some(dt);
+                        return Some(ClockCorrection::without_relativistic_correction(dt));
                     } else {
                         self.consume_many(3);
                     }
@@ -53,7 +54,7 @@ impl ClockStateProvider for Clock<'_, '_> {
         let (toc, _, eph) = self.eph.borrow_mut().select(t, sv)?;
         let dt = eph.clock_correction(toc, t, sv, 8)?;
         debug!("{}({}) estimated clock correction: {}", t, sv, dt);
-        Some(dt)
+        Some(ClockCorrection::without_relativistic_correction(dt))
     }
 }
 
