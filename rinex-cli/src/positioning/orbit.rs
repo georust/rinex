@@ -39,8 +39,8 @@ impl<'a, 'b> Orbit<'a, 'b> {
             buff: HashMap::with_capacity(16),
             iter: {
                 if let Some(sp3) = ctx.data.sp3() {
-                    info!("Operating with precise Orbits.");
                     if let Some(atx) = ctx.data.antex() {
+                        info!("Orbit source created: operating with Ultra Precise Orbits.");
                         Box::new(sp3.sv_position().filter_map(|(t, sv, (x_km, y_km, z_km))| {
                             // TODO: needs rework and support all frequencies
                             let delta = atx.sv_antenna_apc_offset(t, sv, Carrier::L1)?;
@@ -68,11 +68,12 @@ impl<'a, 'b> Orbit<'a, 'b> {
                             Some((t, sv, (r_sat[0], r_sat[1], r_sat[2])))
                         }))
                     } else {
-                        warn!("Cannot determine exact APC state coordinates without ANTEX data. Expect tiny errors.");
+                        info!("Orbit source created: operating with Precise Orbits.");
+                        warn!("Cannot determine exact precise coordinates without ANTEX data: expect tiny errors (<1m).");
                         Box::new(sp3.sv_position())
                     }
                 } else {
-                    warn!("Operating without precise Orbits.");
+                    warn!("Orbit source created: operating without precise Orbits.");
                     Box::new([].into_iter())
                 }
             },
