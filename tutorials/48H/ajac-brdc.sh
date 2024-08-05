@@ -14,9 +14,19 @@ CONF=tutorials/config/survey/cpp_kf.json
 # -q: silent reporting
 ./target/release/rinex-cli \
     -P "Gal;C1C,C5Q" \
-    -f -z -q -o "Gal48h-L1L5" \
+    -f -q -o "Gal48h-L1L5" \
     --fp $DATA_DIR/CRNX/V3/AJAC00FRA_R_20242090000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/CRNX/V3/AJAC00FRA_R_20242100000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/GRAS00FRA_R_20242090000_01D_EN.rnx.gz \
     --fp $DATA_DIR/NAV/V3/GRAS00FRA_R_20242100000_01D_EN.rnx.gz \
     ppp -c $CONF
+
+# add cggtts solutions
+./target/release/rinex-cli \
+    -P "Gal;C1C,C5Q" \
+    -o "Gal48h-L1L5" \
+    --fp $DATA_DIR/CRNX/V3/AJAC00FRA_R_20242090000_01D_30S_MO.crx.gz \
+    --fp $DATA_DIR/CRNX/V3/AJAC00FRA_R_20242100000_01D_30S_MO.crx.gz \
+    --fp $DATA_DIR/NAV/V3/GRAS00FRA_R_20242090000_01D_EN.rnx.gz \
+    --fp $DATA_DIR/NAV/V3/GRAS00FRA_R_20242100000_01D_EN.rnx.gz \
+    ppp --cggtts -c $CONF
