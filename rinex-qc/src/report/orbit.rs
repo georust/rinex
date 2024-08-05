@@ -3,7 +3,7 @@ use rinex::{
     prelude::{GroundPosition, Orbit, Rinex},
 };
 use sp3::prelude::{Constellation, Epoch, SP3, SV};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use qc_traits::processing::{Filter, Preprocessing};
 
@@ -13,105 +13,90 @@ use crate::{
 };
 
 struct BrdcSp3Report {
-    err_x: Plot,
-    err_y: Plot,
-    err_z: Plot,
+    x_err_plot: Plot,
+    y_err_plot: Plot,
+    z_err_plot: Plot,
 }
 
 impl BrdcSp3Report {
     fn new(sp3: &SP3, brdc: &Rinex) -> Self {
-        let mut t = HashMap::<SV, Vec<Epoch>>::new();
-        let mut error_x = HashMap::<SV, Vec<f64>>::new();
-        let mut error_y = HashMap::<SV, Vec<f64>>::new();
-        let mut error_z = HashMap::<SV, Vec<f64>>::new();
-        for (t_sp3, sv_sp3, pos_sp3) in sp3.sv_position() {
+        let mut errors = BTreeMap::<SV, Vec<(Epoch, f64, f64, f64)>>::new();
+        for (t_sp3, sv_sp3, (sp3_x, sp3_y, sp3_z)) in sp3.sv_position() {
             if let Some((brdc_x, brdc_y, brdc_z)) = brdc.sv_position(sv_sp3, t_sp3) {
                 let (err_x_m, err_y_m, err_z_m) = (
-                    (brdc_x - pos_sp3.0) * 1000.0,
-                    (brdc_y - pos_sp3.1) * 1000.0,
-                    (brdc_z - pos_sp3.2) * 1000.0,
+                    (brdc_x - sp3_x) * 1000.0,
+                    (brdc_y - sp3_y) * 1000.0,
+                    (brdc_z - sp3_z) * 1000.0,
                 );
-                if let Some(t) = t.get_mut(&sv_sp3) {
-                    t.push(t_sp3);
+                if let Some(errors) = errors.get_mut(&sv_sp3) {
+                    errors.push((t_sp3, err_x_m, err_y_m, err_z_m));
                 } else {
-                    t.insert(sv_sp3, vec![t_sp3]);
-                }
-                if let Some(x) = error_x.get_mut(&sv_sp3) {
-                    x.push(err_x_m);
-                } else {
-                    error_x.insert(sv_sp3, vec![err_x_m]);
-                }
-                if let Some(y) = error_y.get_mut(&sv_sp3) {
-                    y.push(err_y_m);
-                } else {
-                    error_y.insert(sv_sp3, vec![err_y_m]);
-                }
-                if let Some(z) = error_z.get_mut(&sv_sp3) {
-                    z.push(err_z_m);
-                } else {
-                    error_z.insert(sv_sp3, vec![err_z_m]);
+                    errors.insert(sv_sp3, vec![(t_sp3, err_x_m, err_y_m, err_z_m)]);
                 }
             }
         }
         Self {
-            err_x: {
+            x_err_plot: {
                 let mut plot = Plot::timedomain_plot(
-                    "sp3_brdc_err_x",
-                    "X(ecef) coordinates error",
+                    "sp3_brdc_x_err",
+                    "(BRDC - SP3) Position Errors",
                     "Error [m]",
                     true,
                 );
-                for (sv, t) in t.iter() {
-                    let error_x = error_x.get(&sv).unwrap();
+                for (sv_index, (sv, errors)) in errors.iter().enumerate() {
+                    let error_t = errors.iter().map(|(t, _, _, _)| *t).collect::<Vec<_>>();
+                    let error_x = errors.iter().map(|(_, x, _, _)| *x).collect::<Vec<_>>();
                     let trace = Plot::timedomain_chart(
                         &sv.to_string(),
                         Mode::Markers,
                         MarkerSymbol::Diamond,
-                        &t,
-                        error_x.to_vec(),
-                        true,
+                        &error_t,
+                        error_x,
+                        sv_index < 4,
                     );
                     plot.add_trace(trace);
                 }
                 plot
             },
-            err_y: {
+            y_err_plot: {
                 let mut plot = Plot::timedomain_plot(
-                    "sp3_brdc_err_y",
-                    "Y(ecef) coordinates error",
+                    "sp3_brdc_y_err",
+                    "(BRDC - SP3) Position Errors",
                     "Error [m]",
                     true,
                 );
-                for (sv, t) in t.iter() {
-                    let error_y = error_y.get(&sv).unwrap();
+                for (sv_index, (sv, errors)) in errors.iter().enumerate() {
+                    let error_t = errors.iter().map(|(t, _, _, _)| *t).collect::<Vec<_>>();
+                    let error_y = errors.iter().map(|(_, _, y, _)| *y).collect::<Vec<_>>();
                     let trace = Plot::timedomain_chart(
                         &sv.to_string(),
                         Mode::Markers,
                         MarkerSymbol::Diamond,
-                        &t,
-                        error_y.to_vec(),
-                        true,
+                        &error_t,
+                        error_y,
+                        sv_index < 4,
                     );
                     plot.add_trace(trace);
                 }
                 plot
             },
-            err_z: {
+            z_err_plot: {
                 let mut plot = Plot::timedomain_plot(
-                    "sp3_brdc_err_z",
-                    "Z(ecef) coordinates error",
+                    "sp3_brdc_z_err",
+                    "(BRDC - SP3) Position Errors",
                     "Error [m]",
                     true,
                 );
-                for (sv, t) in t.iter() {
-                    let error_z = error_z.get(&sv).unwrap();
+                for (sv_index, (sv, errors)) in errors.iter().enumerate() {
+                    let error_t = errors.iter().map(|(t, _, _, _)| *t).collect::<Vec<_>>();
+                    let error_z = errors.iter().map(|(_, _, _, z)| *z).collect::<Vec<_>>();
                     let trace = Plot::timedomain_chart(
                         &sv.to_string(),
                         Mode::Markers,
                         MarkerSymbol::Diamond,
-                        &t,
-                        error_z.to_vec(),
-                        true,
+                        &error_t,
+                        error_z,
+                        sv_index < 4,
                     );
                     plot.add_trace(trace);
                 }
@@ -127,13 +112,28 @@ impl Render for BrdcSp3Report {
             div class="table-container" {
                 table class="table is-bordered" {
                     tr {
-                        (self.err_x.render())
+                        th class="is-info" {
+                            "X errors"
+                        }
+                        td {
+                            (self.x_err_plot.render())
+                        }
                     }
                     tr {
-                        (self.err_y.render())
+                        th class="is-info" {
+                            "X errors"
+                        }
+                        td {
+                            (self.y_err_plot.render())
+                        }
                     }
                     tr {
-                        (self.err_z.render())
+                        th class="is-info" {
+                            "Z errors"
+                        }
+                        td {
+                            (self.z_err_plot.render())
+                        }
                     }
                 }
             }
@@ -158,15 +158,14 @@ impl OrbitReport {
 
         let max_sv_visible = if brdc_skyplot { 2 } else { 4 };
 
-        let mut t_sp3 = HashMap::<SV, Vec<Epoch>>::new();
-        let mut elev_sp3 = HashMap::<SV, Vec<f64>>::new();
-        let mut azim_sp3 = HashMap::<SV, Vec<f64>>::new();
+        let mut t_sp3 = BTreeMap::<SV, Vec<Epoch>>::new();
+        let mut elev_sp3 = BTreeMap::<SV, Vec<f64>>::new();
+        let mut azim_sp3 = BTreeMap::<SV, Vec<f64>>::new();
 
-        let mut t_brdc = HashMap::<SV, Vec<Epoch>>::new();
-        let mut elev_brdc = HashMap::<SV, Vec<f64>>::new();
-        let mut azim_brdc = HashMap::<SV, Vec<f64>>::new();
+        let mut t_brdc = BTreeMap::<SV, Vec<Epoch>>::new();
+        let mut elev_brdc = BTreeMap::<SV, Vec<f64>>::new();
+        let mut azim_brdc = BTreeMap::<SV, Vec<f64>>::new();
 
-        // calc evelation°
         if let Some(sp3) = ctx.sp3() {
             for (t, sv_sp3, pos_sp3) in sp3.sv_position() {
                 let (x_sp3_km, y_sp3_km, z_sp3_km) = (pos_sp3.0, pos_sp3.1, pos_sp3.2);
@@ -177,46 +176,52 @@ impl OrbitReport {
                     (x_sp3_km, y_sp3_km, z_sp3_km),
                     (x0_km, y0_km, z0_km),
                 ) {
+                    let (el_deg, az_deg) = (el_az_range.elevation_deg, el_az_range.azimuth_deg);
+                    if el_deg < 0.0 {
+                        continue;
+                    }
                     if let Some(t_sp3) = t_sp3.get_mut(&sv_sp3) {
                         t_sp3.push(t);
                     } else {
                         t_sp3.insert(sv_sp3, vec![t]);
                     }
                     if let Some(e) = elev_sp3.get_mut(&sv_sp3) {
-                        e.push(el_az_range.elevation_deg);
+                        e.push(el_deg);
                     } else {
-                        elev_sp3.insert(sv_sp3, vec![el_az_range.elevation_deg]);
+                        elev_sp3.insert(sv_sp3, vec![el_deg]);
                     }
                     if let Some(a) = azim_sp3.get_mut(&sv_sp3) {
-                        a.push(el_az_range.azimuth_deg);
+                        a.push(az_deg);
                     } else {
-                        azim_sp3.insert(sv_sp3, vec![el_az_range.azimuth_deg]);
+                        azim_sp3.insert(sv_sp3, vec![az_deg]);
                     }
-                }
-                if brdc_skyplot {
-                    let brdc = ctx.brdc_navigation().unwrap();
-                    if let Some((x_km, y_km, z_km)) = brdc.sv_position(sv_sp3, t) {
-                        if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
-                            t,
-                            &ctx.almanac,
-                            ctx.earth_cef,
-                            (x_km, y_km, z_km),
-                            (x0_km, y0_km, z0_km),
-                        ) {
-                            if let Some(t_brdc) = t_brdc.get_mut(&sv_sp3) {
-                                t_brdc.push(t);
-                            } else {
-                                t_brdc.insert(sv_sp3, vec![t]);
-                            }
-                            if let Some(e) = elev_brdc.get_mut(&sv_sp3) {
-                                e.push(el_az_range.elevation_deg);
-                            } else {
-                                elev_brdc.insert(sv_sp3, vec![el_az_range.elevation_deg]);
-                            }
-                            if let Some(a) = azim_brdc.get_mut(&sv_sp3) {
-                                a.push(el_az_range.azimuth_deg);
-                            } else {
-                                azim_brdc.insert(sv_sp3, vec![el_az_range.azimuth_deg]);
+                    if brdc_skyplot {
+                        let brdc = ctx.brdc_navigation().unwrap();
+                        if let Some((x_km, y_km, z_km)) = brdc.sv_position(sv_sp3, t) {
+                            if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
+                                t,
+                                &ctx.almanac,
+                                ctx.earth_cef,
+                                (x_km, y_km, z_km),
+                                (x0_km, y0_km, z0_km),
+                            ) {
+                                let (el_deg, az_deg) =
+                                    (el_az_range.elevation_deg, el_az_range.azimuth_deg);
+                                if let Some(t_brdc) = t_brdc.get_mut(&sv_sp3) {
+                                    t_brdc.push(t);
+                                } else {
+                                    t_brdc.insert(sv_sp3, vec![t]);
+                                }
+                                if let Some(e) = elev_brdc.get_mut(&sv_sp3) {
+                                    e.push(el_deg);
+                                } else {
+                                    elev_brdc.insert(sv_sp3, vec![el_deg]);
+                                }
+                                if let Some(a) = azim_brdc.get_mut(&sv_sp3) {
+                                    a.push(az_deg);
+                                } else {
+                                    azim_brdc.insert(sv_sp3, vec![az_deg]);
+                                }
                             }
                         }
                     }
@@ -239,19 +244,18 @@ impl OrbitReport {
                         visible,
                     );
                     plot.add_trace(trace);
-                }
-                for (sv_index, (sv, epochs)) in t_brdc.iter().enumerate() {
-                    let visible = sv_index < max_sv_visible;
-                    let elev_brdc = elev_brdc.get(&sv).unwrap();
-                    let azim_brdc = azim_brdc.get(&sv).unwrap();
-                    let trace = Plot::sky_trace(
-                        &format!("{}_brdc", sv),
-                        epochs,
-                        elev_brdc.to_vec(),
-                        azim_brdc.to_vec(),
-                        visible,
-                    );
-                    plot.add_trace(trace);
+                    if let Some(elev_brdc) = elev_brdc.get(&sv) {
+                        let t_brdc = t_brdc.get(&sv).unwrap();
+                        let azim_brdc = azim_brdc.get(&sv).unwrap();
+                        let trace = Plot::sky_trace(
+                            &format!("{}_brdc", sv),
+                            t_brdc,
+                            elev_brdc.to_vec(),
+                            azim_brdc.to_vec(),
+                            sv_index < max_sv_visible,
+                        );
+                        plot.add_trace(trace);
+                    }
                 }
                 plot
             },
@@ -269,18 +273,18 @@ impl OrbitReport {
                         sv_index < max_sv_visible,
                     );
                     elev_plot.add_trace(trace);
-                }
-                for (sv_index, (sv, epochs)) in t_brdc.iter().enumerate() {
-                    let elev = elev_brdc.get(&sv).unwrap();
-                    let trace = Plot::timedomain_chart(
-                        &format!("{}_brdc", sv),
-                        Mode::Markers,
-                        MarkerSymbol::Diamond,
-                        epochs,
-                        elev.to_vec(),
-                        sv_index < max_sv_visible,
-                    );
-                    elev_plot.add_trace(trace);
+                    if let Some(elev_brdc) = elev_brdc.get(&sv) {
+                        let t_brdc = t_brdc.get(&sv).unwrap();
+                        let trace = Plot::timedomain_chart(
+                            &format!("{}_brdc", sv),
+                            Mode::Markers,
+                            MarkerSymbol::Diamond,
+                            t_brdc,
+                            elev_brdc.to_vec(),
+                            sv_index < max_sv_visible,
+                        );
+                        elev_plot.add_trace(trace);
+                    }
                 }
                 elev_plot
             },
@@ -332,10 +336,11 @@ impl OrbitReport {
                             lat_ddeg,
                             long_ddeg,
                             &sv.to_string(),
+                            5,
                             MarkerSymbol::Circle,
                             None,
                             1.0,
-                            sv_index < 5,
+                            true,
                         );
                         map_proj.add_trace(map);
                     }

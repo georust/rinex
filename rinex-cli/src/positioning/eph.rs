@@ -62,15 +62,15 @@ impl<'a> EphemerisSource<'a> {
         let (toc_i, toe_i, eph_i) = buffer
             .iter()
             .filter_map(|(toc_i, eph_i)| {
-                if eph_i.is_valid(sv, t) {
+                if eph_i.is_valid(sv, t) && t >= *toc_i {
                     let toe_i = eph_i.toe(sv_ts)?;
-                    Some((toc_i, toe_i, eph_i))
+                    Some((*toc_i, toe_i, eph_i))
                 } else {
                     None
                 }
             })
-            .min_by_key(|(toc_i, _, _)| (t - **toc_i).abs())?;
-        Some((*toc_i, toe_i, eph_i.clone()))
+            .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())?;
+        Some((toc_i, toe_i, eph_i.clone()))
     }
     pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
         let mut attempt = 0;

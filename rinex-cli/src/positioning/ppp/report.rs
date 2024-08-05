@@ -13,10 +13,7 @@ use rinex_qc::{
 
 use itertools::Itertools;
 
-use map_3d::{
-    ecef2geodetic,
-    Ellipsoid,
-};
+use map_3d::{ecef2geodetic, Ellipsoid};
 
 struct ReportTab {}
 
@@ -273,9 +270,9 @@ struct ReportContent {
     clk_plot: Plot,
     /// drift_plot
     drift_plot: Plot,
-    /// ddeg_plot 
+    /// ddeg_plot
     ddeg_plot: Plot,
-    /// altitude_plot 
+    /// altitude_plot
     altitude_plot: Plot,
     /// coords_err
     coords_err_plot: Plot,
@@ -387,12 +384,8 @@ impl ReportContent {
                 plot
             },
             ddeg_plot: {
-                let mut plot = Plot::timedomain_plot(
-                    "ddeg_plot",
-                    "Coordinates",
-                    "Coordinates [ddeg]",
-                    true,
-                );
+                let mut plot =
+                    Plot::timedomain_plot("ddeg_plot", "Coordinates", "Coordinates [ddeg]", true);
                 let ddeg = solutions
                     .iter()
                     .map(|(_, sol)| {

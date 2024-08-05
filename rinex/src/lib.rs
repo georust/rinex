@@ -95,7 +95,6 @@ pub mod prelude {
     pub use crate::types::Type as RinexType;
     pub use crate::{Error, Rinex};
     // pub re-export
-    // pub use anise::prelude::Almanac;
     #[cfg(feature = "nav")]
     pub use anise::{
         astro::AzElRange,
@@ -103,6 +102,7 @@ pub mod prelude {
         prelude::{Almanac, Frame, Orbit},
     };
     pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
+    #[cfg(feature = "nav")]
     pub use hifitime::ut1::DeltaTaiUt1;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
     #[cfg(feature = "processing")]
@@ -2328,7 +2328,6 @@ impl Rinex {
     /// Self must be NAV RINEX. Position is expressed as ECEF coordinates [km].
     pub fn sv_position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
         let (toc, _, eph) = self.sv_ephemeris(sv, t)?;
-        let t = t.to_time_scale(toc.time_scale);
         eph.kepler2position(sv, toc, t)
     }
     /// Returns SV Orbital state vector and
@@ -2347,17 +2346,21 @@ impl Rinex {
     /// Returns (ToC, ToE and ephemeris frame).
     /// Note that ToE = ToC for GEO/SBAS vehicles, because this field does not exist.
     pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, Epoch, &Ephemeris)> {
+        let sv_ts = sv.constellation.timescale()?;
         self.ephemeris()
             .filter_map(|(t_i, (_, sv_i, eph_i))| {
-                let ts = sv_i.constellation.timescale()?;
-                let toe = eph_i.toe(ts)?;
-                if eph_i.is_valid(sv, t) {
-                    Some((*t_i, toe, eph_i))
+                if sv_i == sv {
+                    if eph_i.is_valid(sv, t) && t >= *t_i {
+                        let toe = eph_i.toe(sv_ts)?;
+                        Some((*t_i, toe, eph_i))
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             })
-            .min_by_key(|(_, toe_i, _)| (t - *toe_i))
+            .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())
     }
     /// [SV] embedded clock offset (s), drift (s.s⁻¹) and drift rate (s.s⁻²) Iterator.
     /// ```
