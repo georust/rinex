@@ -58,6 +58,8 @@ Other file operations like RINEX files management is also demonstrated.
   - 2024-092 Mobile phone observations (Paris/urban)
 - [SP3](./SP3)
   - Examples with SP3 data only or SP3 specific applications
+- [48H](./48H)
+  - 48h surveying (2 day course with double RINEX)
 - [RINEX(A) - RINEX(B): differential analysis](./DIFF)
   - Esbjerg and Mojn (DNK): close range observations
 - [Meteo RINEX applications](./METEO)
