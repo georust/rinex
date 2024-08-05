@@ -106,8 +106,9 @@ and what may restrict performances:
 ```rust
 use rinex_qc::prelude::*;
 
-let mut ctx = QcContext::default();
-let cfg = QcConfig::default(); // basic setup
+// basic setup
+let mut ctx = QcContext::default().unwrap();
+let cfg = QcConfig::default();
 ```
 
 ## Custom chapters
