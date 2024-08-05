@@ -2,10 +2,8 @@
 
 use crate::prelude::{Constellation, SV};
 
-#[allow(dead_code)]
 pub(crate) struct GM;
-/// from rtklib
-#[allow(dead_code)]
+
 impl GM {
     pub const GPS: f64 = 3.9860050E14;
     pub const BDS: f64 = 3.986004418E14;
@@ -13,9 +11,8 @@ impl GM {
     pub const GAL: f64 = 3.986004418E14;
 }
 
-#[allow(dead_code)]
 pub(crate) struct Omega;
-#[allow(dead_code)]
+
 impl Omega {
     pub const GPS: f64 = 7.2921151467E-5;
     pub const BDS: f64 = 7.292115E-5;
@@ -49,7 +46,6 @@ impl Constants {
     // earth
     pub const fn gm(sv: SV) -> f64 {
         match sv.constellation {
-            Constellation::GPS => GM::GPS,
             Constellation::BeiDou => GM::BDS,
             Constellation::Galileo => GM::GAL,
             Constellation::Glonass => GM::GLO,
@@ -59,7 +55,6 @@ impl Constants {
     /// Earth rotation rate
     pub const fn omega(sv: SV) -> f64 {
         match sv.constellation {
-            Constellation::GPS => Omega::GPS,
             Constellation::BeiDou => Omega::BDS,
             Constellation::Galileo => Omega::GAL,
             Constellation::Glonass => Omega::GLO,

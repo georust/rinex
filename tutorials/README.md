@@ -56,10 +56,17 @@ Other file operations like RINEX files management is also demonstrated.
 - [Galileo with SBAS augmentation](./GAL_SBAS)
 - [JMF: sampled by J.M. Friedt @ femto-st.fr (lab agency)](./JMF)
   - 2024-092 Mobile phone observations (Paris/urban)
+- [SP3](./SP3)
+  - Examples with SP3 data only or SP3 specific applications
+- [48H](./48H)
+  - 48h surveying (2 day course with double RINEX)
 - [RINEX(A) - RINEX(B): differential analysis](./DIFF)
   - Esbjerg and Mojn (DNK): close range observations
-- [Meteo observations exploitation](./METEO)
+- [Meteo RINEX applications](./METEO)
   - Complete modern Meteo observations (QC)
+- [Clock RINEX applications](./METEO)
+  - Precise Clock products
+  - PPP Navi with Clock or SP3 only (example)
 - [Batch Time binning](./TBIN)
   - Esbjerg (24h/DNK) station observations
   - SP3 time binning

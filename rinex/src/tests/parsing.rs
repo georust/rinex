@@ -54,7 +54,10 @@ mod test {
                             assert!(rinex.navigation().count() > 0); // all files have content
                                                                      // Ephemeris verifications
                             #[cfg(feature = "nav")]
-                            for (e, (_, sv_i, eph_i)) in rinex.ephemeris() {
+                            for (toc_i, (msg, sv_i, eph_i)) in rinex.ephemeris() {
+                                // test toc(i)
+                                let timescale = sv_i.constellation.timescale().unwrap();
+
                                 // TODO: verify V4 cases
                                 if revision != "V4" {
                                     // Verify week counter

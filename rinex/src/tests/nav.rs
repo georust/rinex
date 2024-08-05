@@ -1347,106 +1347,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "nav")]
-    #[cfg(feature = "flate2")]
-    #[ignore]
-    fn sv_interp() {
-        // use anise::almanac::Almanac;
-
-        let path = PathBuf::new()
-            .join(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("NAV")
-            .join("V3")
-            .join("MOJN00DNK_R_20201770000_01D_MN.rnx.gz");
-        let rinex = Rinex::from_file(&path.to_string_lossy());
-        assert!(
-            rinex.is_ok(),
-            "failed to parse NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz, error: {:?}",
-            rinex.err()
-        );
-        // let almanac = Almanac::until_2035().unwrap();
-        let rinex = rinex.unwrap();
-        let first_epoch = rinex.first_epoch().expect("failed to determine 1st epoch");
-        let last_epoch = rinex.last_epoch().expect("failed to determine last epoch");
-        let dt = rinex.dominant_sample_rate().unwrap();
-        let total_epochs = rinex.epoch().count();
-
-        for (order, max_error) in [(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
-            let tmin = first_epoch + (order / 2) * dt;
-            let tmax = last_epoch - (order / 2) * dt;
-            println!("running Interp({}) testbench..", order);
-            for (index, (epoch, sv, (x, y, z))) in rinex.sv_position().enumerate() {
-                let feasible = epoch > tmin && epoch <= tmax;
-                let interpolated = rinex.sv_position_interpolate(sv, epoch, order as usize);
-                let achieved = interpolated.is_some();
-                //DEBUG
-                println!(
-                    "tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}",
-                    tmin, tmax, epoch, feasible, achieved
-                );
-                if feasible {
-                    assert!(
-                        achieved == feasible,
-                        "interpolation should have been feasible @ epoch {}",
-                        epoch,
-                    );
-                } else {
-                    assert!(
-                        achieved == feasible,
-                        "interpolation should not have been feasible @ epoch {}",
-                        epoch,
-                    );
-                }
-                if !feasible {
-                    continue;
-                }
-                //TODO FIX THIS PLEASE
-                if interpolated.is_none() {
-                    continue;
-                }
-                /*
-                 * test interpolation errors
-                 */
-                let (x_interp, y_interp, z_interp) = interpolated.unwrap();
-                let err = (
-                    (x_interp - x).abs() * 1.0E3, // error in km
-                    (y_interp - y).abs() * 1.0E3,
-                    (z_interp - z).abs() * 1.0E3,
-                );
-                assert!(
-                    err.0 < max_error,
-                    "x error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.0,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-                assert!(
-                    err.1 < max_error,
-                    "y error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.1,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-                assert!(
-                    err.2 < max_error,
-                    "z error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.2,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-            }
-        }
-    }
-    #[test]
-    #[cfg(feature = "nav")]
-    fn toe_ephemeris_glo() {
+    fn toe_glo() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -1471,7 +1372,7 @@ mod test {
     }
     #[test]
     #[cfg(feature = "nav")]
-    fn toe_ephemeris_gal_bds() {
+    fn toe_gal_bds() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
@@ -1491,19 +1392,19 @@ mod test {
             assert!(ts.is_some(), "timescale should be determined");
             let ts = ts.unwrap();
 
-            if let Some(toe) = ephemeris.toe_gpst(ts) {
+            if let Some(toe) = ephemeris.toe(ts) {
                 if *toc == e0 {
                     let expected = toe_helper(0.782E3, 0.432E6, TimeScale::BDT);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 } else if *toc == e1 {
                     let expected = toe_helper(0.782E3, 0.450E6, TimeScale::BDT);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 } else if *toc == e2 {
                     let expected = toe_helper(0.2138E4, 0.4686E6, TimeScale::GST);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 } else if *toc == e3 {
                     let expected = toe_helper(0.2138E4, 0.4884E6, TimeScale::GST);
-                    assert_eq!(toe, expected.to_time_scale(TimeScale::GPST),);
+                    assert_eq!(toe, expected);
                 }
                 // /*
                 //  * Rinex.sv_ephemeris(@ toe) should propose that very same ephemeris
@@ -1594,7 +1495,7 @@ mod test {
 
         for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
             let sv_ts = sv.timescale().unwrap();
-            let toe_gpst = ephemeris.toe_gpst(sv_ts).unwrap();
+            let toe_gpst = ephemeris.toe(sv_ts).unwrap().to_time_scale(TimeScale::GPST);
             match toc.to_string().as_str() {
                 "2021-01-01T02:00:00 GPST" => {
                     assert_eq!(sv.prn, 1, "found invalid vehicle");

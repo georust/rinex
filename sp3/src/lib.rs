@@ -250,16 +250,13 @@ pub struct SP3 {
     /// Type of constellations encountered in this file.
     /// For example "GPS" means only GPS vehicles are present.
     pub constellation: Constellation,
-    /// File original time system,
-    /// either UTC or time source from which we converted to UTC.
+    /// [TimeScale] that applies to all following [Epoch]
     pub time_scale: TimeScale,
     /// Initial week counter in [TimeScale]
     pub week_counter: (u32, f64),
     /// Initial MJD, in time_system
     pub mjd_start: (u32, f64),
-    /// [`Epoch`]s where at least one position
-    /// or one clock data is provided. Epochs are expressed UTC time,
-    /// either directly if provided as such, or internally converted.
+    /// [`Epoch`]s where at least one position or clock offset is provided
     pub epoch: Vec<Epoch>,
     /// Returns sampling interval, ie., time between successive [`Epoch`]s.
     pub epoch_interval: Duration,
@@ -541,7 +538,7 @@ impl SP3 {
         self.sv.iter().copied()
     }
     /// Returns an Iterator over SV position estimates, in km with 1mm precision
-    /// and expressed in [self.coord_system].
+    /// and expressed in [self.coord_system] (always fixed body frame).
     pub fn sv_position(&self) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
         self.data.iter().map(|(k, v)| (k.epoch, k.sv, v.position))
     }

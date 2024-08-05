@@ -13,7 +13,7 @@ use crate::observation::SNR;
 
 #[cfg(feature = "processing")]
 use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
+    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Repair,
 };
 
 #[derive(Error, Debug)]
@@ -856,6 +856,30 @@ impl Split for Record {
 }
 
 #[cfg(feature = "processing")]
+pub(crate) fn repair_zero_mut(rec: &mut Record) {
+    rec.retain(|_, (_, svnn)| {
+        svnn.retain(|_, obs| {
+            obs.retain(|ob, value| {
+                if ob.is_pseudorange_observable() || ob.is_phase_observable() {
+                    value.obs > 0.0
+                } else {
+                    true
+                }
+            });
+            !obs.is_empty()
+        });
+        !svnn.is_empty()
+    });
+}
+
+#[cfg(feature = "processing")]
+pub(crate) fn repair_mut(rec: &mut Record, repair: Repair) {
+    match repair {
+        Repair::Zero => repair_zero_mut(rec),
+    }
+}
+
+#[cfg(feature = "processing")]
 pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
     match mask.operand {
         MaskOperand::Equals => match &mask.item {
@@ -974,9 +998,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn < item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn >= item.prn;
                             }
                         }
                         retain
@@ -1010,9 +1032,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn <= item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn > item.prn;
                             }
                         }
                         retain
@@ -1046,9 +1066,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn > item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn <= item.prn;
                             }
                         }
                         retain
@@ -1082,9 +1100,7 @@ pub(crate) fn observation_mask_mut(rec: &mut Record, mask: &MaskFilter) {
                         let mut retain = true;
                         for item in items {
                             if item.constellation == sv.constellation {
-                                if sv.prn >= item.prn {
-                                    retain = false;
-                                }
+                                retain = sv.prn < item.prn;
                             }
                         }
                         retain

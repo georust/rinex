@@ -1,11 +1,28 @@
 Static surveying
 ================
 
-All these scripts are compatible with the `ppp` opmode and loaded via `-c`.
-Refer to the wiki pages and tutorial scripts for example.
-
-Static geodetic surveying aims at solving the coordinates of a future Reference Station,
-without apriori knowledge and with high precision as possible.
+Configuration scripts, load any of these with `ppp -c`.  
 
 These scripts use high interpolation orders, which is compatible with long periods of signal observations.  
 Reduce those when working with shorter observation periods. 
+
+Any omitted field is in default state.   
+Since default state is to compensate for any physical phenomena, we compensate for all of them in the provided setup.  
+
+Here is an example to disable `relativistic_path_range` compensation:
+
+```json
+{
+    "method": "CPP",
+    "timescale": "GPST",
+    "interp_order": 17,
+    "min_sv_elevation": 10.0,
+    "solver": {
+        "filter": "Kalman",
+        "gdop_threshold": 10.0
+    },
+    "modeling": {
+        "relativistic_path_range": false
+    } 
+}
+```

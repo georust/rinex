@@ -31,10 +31,12 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
 maud = "0.26"
+map_3d = "0.1.5"
 thiserror = "1"
 strum = "0.26"
 itertools = "0.13.0"
 strum_macros = "0.26"
+anise = "0.4.2"
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 
 statrs = { version = "0.16", optional = true }

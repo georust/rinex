@@ -19,6 +19,9 @@ use super::{
     writer::BufferedWriter,
     *,
 };
+
+use crate::navigation::record::parse_epoch as parse_nav_epoch;
+
 use hifitime::Duration;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -438,11 +441,9 @@ pub fn parse_record(
                 match &header.rinex_type {
                     Type::NavigationData => {
                         let constellation = &header.constellation.unwrap();
-                        if let Ok((e, fr)) = navigation::record::parse_epoch(
-                            header.version,
-                            *constellation,
-                            &epoch_content,
-                        ) {
+                        if let Ok((e, fr)) =
+                            parse_nav_epoch(header.version, *constellation, &epoch_content)
+                        {
                             nav_rec
                                 .entry(e)
                                 .and_modify(|frames| frames.push(fr.clone()))
@@ -544,9 +545,7 @@ pub fn parse_record(
     match &header.rinex_type {
         Type::NavigationData => {
             let constellation = &header.constellation.unwrap();
-            if let Ok((e, fr)) =
-                navigation::record::parse_epoch(header.version, *constellation, &epoch_content)
-            {
+            if let Ok((e, fr)) = parse_nav_epoch(header.version, *constellation, &epoch_content) {
                 nav_rec
                     .entry(e)
                     .and_modify(|current| current.push(fr.clone()))

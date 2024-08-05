@@ -15,8 +15,11 @@ SP3=test_resources/SP3/GFZ0OPSRAP_20240920000_01D_05M_ORB.SP3.gz
 CLK=test_resources/CLK/V3/GFZ0OPSRAP_20240920000_01D_05M_CLK.CLK.gz
 NAV=test_resources/NAV/V3/BRUX00BEL_R_20240920000_01D_EN.rnx.gz
 
-# run + ppp solutions (silent)
+# ppp solutions
+#  -f: force new report
+#  -q: quiet (open on cggtts last run)
 ./target/release/rinex-cli \
+    -f -q -o "Gal-E1E5" \
     -P Galileo \
     --fp $OBS \
     --fp $NAV \
@@ -38,6 +41,7 @@ TRACKING="1 min"
 PRODUCER="JMF"
 CLOCK="ANDROID"
 
+# cggtts solutions (+open)
 ./target/release/rinex-cli \
     -P Galileo \
     --fp $OBS \
@@ -45,4 +49,4 @@ CLOCK="ANDROID"
     --fp $SP3 \
     --fp $CLK \
     ppp --cggtts -c $CONF \
-    --lab $PRODUCER --clk $CLOCK -t "$TRACKING"
+    --lab $PRODUCER --clk $CLOCK --trk "$TRACKING"

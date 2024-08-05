@@ -1,8 +1,13 @@
-use crate::cli::Context;
+use crate::cli::{Cli, Context};
 use clap::ArgMatches;
 use std::cell::RefCell;
 use std::fs::read_to_string;
-// use anise::almanac::Almanac;
+
+mod buffer;
+pub use buffer::Buffer;
+
+mod eph;
+use eph::EphemerisSource;
 
 mod ppp; // precise point positioning
 use ppp::{
@@ -16,6 +21,16 @@ mod cggtts; // CGGTTS special solver
 #[cfg(feature = "cggtts")]
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
+mod rtk;
+use rtk::BaseStation;
+
+mod orbit;
+use orbit::Orbit;
+
+mod clock;
+use clock::Clock;
+pub use clock::ClockStateProvider;
+
 use rinex::{
     carrier::Carrier,
     prelude::{Constellation, Rinex},
@@ -23,21 +38,12 @@ use rinex::{
 
 use rinex_qc::prelude::QcExtraPage;
 
-use rtk::prelude::{
+use gnss_rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
     NgModel, PVTSolutionType, Position, Solver, Vector3,
 };
 
 use thiserror::Error;
-
-mod orbit;
-pub use orbit::Orbit;
-
-mod time;
-pub use time::Time;
-
-mod interp;
-pub use interp::Buffer as BufferTrait;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -223,8 +229,13 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
         .map(|(_, model)| NgModel { a: model.a })
 }
 
-pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtraPage, Error> {
-    /* Load customized config script, or use defaults */
+pub fn precise_positioning(
+    cli: &Cli,
+    ctx: &Context,
+    is_rtk: bool,
+    matches: &ArgMatches,
+) -> Result<QcExtraPage, Error> {
+    // Load custom configuration script, or Default
     let cfg = match matches.get_one::<String>("cfg") {
         Some(fp) => {
             let content = read_to_string(fp)
@@ -307,11 +318,13 @@ pub fn precise_positioning(ctx: &Context, matches: &ArgMatches) -> Result<QcExtr
         }
     }
 
-    let orbit = RefCell::new(Orbit::from_ctx(ctx, cfg.interp_order));
-    debug!("Orbit interpolator created");
-
     // print config to be used
     info!("Using {:?} method", cfg.method);
+
+    // create data providers
+    let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
+    let clocks = Clock::new(&ctx, &eph);
+    let orbits = Orbit::new(&ctx, &eph);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
@@ -334,20 +347,19 @@ a static reference position"
     #[cfg(not(feature = "cggtts"))]
     let apriori = None;
 
-    //let almanac = Almanac::until_2035()
-    //    .unwrap_or_else(|e| panic!("failed to retrieve latest Almanac: {}", e));
-
-    let solver = Solver::new(
-        &cfg,
-        apriori,
-        /* state vector interpolator */
-        |t, sv, _order| orbit.borrow_mut().next_at(t, sv),
-    )?;
+    let solver = if is_rtk {
+        let base_station = BaseStation::from_ctx(ctx);
+        Solver::rtk(&cfg, apriori, orbits, base_station)
+            .unwrap_or_else(|e| panic!("failed to deploy RTK solver: {}", e))
+    } else {
+        Solver::ppp(&cfg, apriori, orbits)
+            .unwrap_or_else(|e| panic!("failed to deploy PPP solver: {}", e))
+    };
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
         //* CGGTTS special opmode */
-        let tracks = cggtts::resolve(ctx, solver, matches)?;
+        let tracks = cggtts::resolve(ctx, &eph, clocks, solver, matches)?;
         if !tracks.is_empty() {
             cggtts_post_process(&ctx, &tracks, matches)?;
             let report = CggttsReport::new(&ctx, &tracks);
@@ -360,7 +372,7 @@ a static reference position"
     }
 
     /* PPP */
-    let solutions = ppp::resolve(ctx, solver);
+    let solutions = ppp::resolve(ctx, &eph, clocks, solver);
     if !solutions.is_empty() {
         ppp_post_process(&ctx, &solutions, matches)?;
         let report = PPPReport::new(&cfg, &ctx, &solutions);

@@ -189,13 +189,14 @@ impl Plot {
     }
     /// Trace for a skyplot
     pub fn sky_trace<T: Default + Clone + Serialize>(
-        t: Vec<Epoch>,
-        rho: Vec<T>,
-        theta: Vec<T>,
+        name: &str,
+        t: &Vec<Epoch>,
+        elev: Vec<T>,
+        azim: Vec<T>,
         visible: bool,
     ) -> Box<ScatterPolar<T, T>> {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
-        ScatterPolar::new(theta, rho)
+        ScatterPolar::new(azim, elev)
             .web_gl_mode(true)
             .hover_text_array(txt)
             .hover_info(HoverInfo::All)
@@ -207,6 +208,7 @@ impl Plot {
                 }
             })
             .connect_gaps(false)
+            .name(name)
         //TODO alpha gradient per time
     }
     /// Builds new Polar plot
@@ -261,19 +263,18 @@ impl Plot {
         lat: Vec<T>,
         lon: Vec<T>,
         legend: &str,
+        size: usize,
         symbol: MarkerSymbol,
-        color: NamedColor,
+        color: Option<NamedColor>,
         opacity: f64,
         visible: bool,
     ) -> Box<ScatterMapbox<T, T>> {
+        let mut marker = Marker::new().size(size).symbol(symbol).opacity(opacity);
+        if let Some(color) = color {
+            marker = marker.color(color);
+        }
         ScatterMapbox::new(lat, lon)
-            .marker(
-                Marker::new()
-                    .size(3)
-                    .symbol(symbol)
-                    .color(color)
-                    .opacity(opacity),
-            )
+            .marker(marker)
             .name(legend)
             .visible({
                 if visible {
@@ -339,6 +340,7 @@ impl Plot {
         symbol: MarkerSymbol,
         t: &Vec<Epoch>,
         y: Vec<Y>,
+        visible: bool,
     ) -> Box<Scatter<f64, Y>> {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
         Scatter::new(t.iter().map(|t| t.to_mjd_utc_days()).collect(), y)
@@ -348,5 +350,12 @@ impl Plot {
             .hover_text_array(txt)
             .hover_info(HoverInfo::All)
             .marker(Marker::new().symbol(symbol))
+            .visible({
+                if visible {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            })
     }
 }

@@ -114,7 +114,6 @@ impl MeteoPage {
                                 rho = *rhs_value;
                             }
                         }
-                        let theta = value; //value * 2.0 * PI / value;
                         let trace = CompassArrow::new(
                             Mode::LinesMarkers,
                             rho,
@@ -165,6 +164,7 @@ impl MeteoPage {
                 MarkerSymbol::TriangleUp,
                 &data_x,
                 data_y,
+                true,
             );
             plot.add_trace(trace);
             let report = SinglePlotReport { plot };

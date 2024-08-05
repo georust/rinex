@@ -1,6 +1,7 @@
 //! CGGTTS special resolution opmoode.
 use clap::ArgMatches;
-use std::collections::HashMap;
+
+use std::{cell::RefCell, collections::HashMap};
 
 mod post_process;
 pub use post_process::post_process;
@@ -12,17 +13,9 @@ use gnss::prelude::{Constellation, SV};
 
 use rinex::{carrier::Carrier, prelude::Observable};
 
-use rtk::prelude::{
-    Candidate,
-    Duration,
-    Epoch,
-    InterpolationResult,
-    IonosphereBias,
-    Method,
-    PhaseRange,
-    PseudoRange,
-    Solver,
-    TroposphereBias, //TimeScale
+use gnss_rtk::prelude::{
+    BaseStation, Candidate, Duration, Epoch, IonosphereBias, Method, Observation,
+    OrbitalStateProvider, Solver, TroposphereBias,
 };
 
 use cggtts::{
@@ -37,10 +30,10 @@ use crate::{
         cast_rtk_carrier,
         kb_model,
         ng_model, //tropo_components,
-        rtk_carrier_cast,
         rtk_reference_carrier,
+        ClockStateProvider,
+        EphemerisSource,
         Error as PositioningError,
-        Time,
     },
 };
 
@@ -67,15 +60,14 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<I>(
+pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
     ctx: &Context,
-    mut solver: Solver<I>,
+    mut eph: &'a RefCell<EphemerisSource<'b>>,
+    mut clock: CK,
+    mut solver: Solver<O, B>,
     // rx_lat_ddeg: f64,
     matches: &ArgMatches,
-) -> Result<Vec<Track>, PositioningError>
-where
-    I: Fn(Epoch, SV, usize) -> Option<InterpolationResult>,
-{
+) -> Result<Vec<Track>, PositioningError> {
     // custom tracking duration
     let trk_duration = match matches.get_one::<Duration>("tracking") {
         Some(tracking) => {
@@ -98,9 +90,6 @@ where
         .dominant_sample_rate()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    // let mut initialized = false; // solver state
-    let mut time = Time::from_ctx(ctx);
-
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
     let sched = Scheduler::new(trk_duration);
@@ -121,23 +110,23 @@ where
         // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
         for (sv, observations) in vehicles {
-            let sv_eph = nav_data.sv_ephemeris(*sv, *t);
-
-            if sv_eph.is_none() {
-                warn!("{:?} ({}) : undetermined ephemeris", t, sv);
-                // reset_sv_tracker(*sv, &mut trackers);
-                continue; // can't proceed further
-            }
-
-            // determine TOE
-            let (_toe, sv_eph) = sv_eph.unwrap();
-            let clock_corr = match time.next_at(*t, *sv) {
+            let clock_corr = match clock.next_clock_at(*t, *sv) {
                 Some(dt) => dt,
                 None => {
-                    error!("{} ({}) - failed to determine clock correction", *t, *sv);
+                    error!("{} ({}) - no clock correction available", *t, *sv);
                     continue;
                 },
             };
+
+            let tgd = if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
+                eph.tgd()
+            } else {
+                None
+            };
+
+            if let Some(tgd) = tgd {
+                debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
+            }
 
             let iono_bias = IonosphereBias {
                 kb_model: kb_model(nav_data, *t),
@@ -169,75 +158,86 @@ where
 
                 let mut ref_observable = observable.to_string();
 
-                let mut codes = vec![PseudoRange {
+                let mut rtk_obs = vec![Observation {
                     carrier: rtk_carrier,
-                    snr: { data.snr.map(|snr| snr.into()) },
-                    value: data.obs,
+                    pseudo: Some(data.obs),
+                    ambiguity: None,
+                    doppler: None,
+                    phase: None,
+                    snr: data.snr.map(|snr| snr.into()),
                 }];
 
                 // Subsidary Pseudo Range (if needed)
-                match solver.cfg.method {
-                    Method::CPP | Method::PPP => {
-                        // locate secondary signal
-                        for (second_obs, second_data) in observations {
-                            if !second_obs.is_pseudorange_observable() {
-                                continue;
-                            }
-                            let rhs_carrier =
-                                Carrier::from_observable(sv.constellation, second_obs);
-                            if rhs_carrier.is_err() {
-                                continue;
-                            }
-                            let rhs_carrier = rhs_carrier.unwrap();
-                            let rtk_carrier = cast_rtk_carrier(rhs_carrier);
+                if matches!(solver.cfg.method, Method::CPP | Method::PPP) {
+                    // add any other signal
+                    for (second_obs, second_data) in observations {
+                        if second_obs == observable {
+                            continue;
+                        }
 
-                            if rhs_carrier != carrier {
-                                codes.push(PseudoRange {
-                                    carrier: rtk_carrier,
-                                    value: second_data.obs,
-                                    snr: { data.snr.map(|snr| snr.into()) },
+                        let rhs_carrier = Carrier::from_observable(sv.constellation, second_obs);
+
+                        if rhs_carrier.is_err() {
+                            continue;
+                        }
+
+                        let rhs_carrier = rhs_carrier.unwrap();
+                        let rhs_rtk_carrier = cast_rtk_carrier(rhs_carrier);
+
+                        if second_obs.is_pseudorange_observable() {
+                            rtk_obs.push(Observation {
+                                carrier: rhs_rtk_carrier,
+                                doppler: None,
+                                phase: None,
+                                ambiguity: None,
+                                pseudo: Some(data.obs),
+                                snr: data.snr.map(|snr| snr.into()),
+                            });
+                        } else if second_obs.is_phase_observable() {
+                            let lambda = rhs_carrier.wavelength();
+                            if let Some(obs) = rtk_obs
+                                .iter_mut()
+                                .filter(|ob| ob.carrier == rhs_rtk_carrier)
+                                .reduce(|k, _| k)
+                            {
+                                obs.phase = Some(data.obs * lambda);
+                            } else {
+                                rtk_obs.push(Observation {
+                                    carrier: rhs_rtk_carrier,
+                                    doppler: None,
+                                    pseudo: None,
+                                    ambiguity: None,
+                                    phase: Some(data.obs * lambda),
+                                    snr: data.snr.map(|snr| snr.into()),
                                 });
                             }
-                            // update ref. observable if this one is to serve as reference
-                            if rtk_reference_carrier(rtk_carrier) {
-                                ref_observable = second_obs.to_string();
+                        } else if second_obs.is_doppler_observable() {
+                            if let Some(obs) = rtk_obs
+                                .iter_mut()
+                                .filter(|ob| ob.carrier == rhs_rtk_carrier)
+                                .reduce(|k, _| k)
+                            {
+                                obs.doppler = Some(data.obs);
+                            } else {
+                                rtk_obs.push(Observation {
+                                    phase: None,
+                                    carrier: rhs_rtk_carrier,
+                                    pseudo: None,
+                                    ambiguity: None,
+                                    doppler: Some(data.obs),
+                                    snr: data.snr.map(|snr| snr.into()),
+                                });
                             }
                         }
-                    },
-                    _ => {}, // not needed
-                };
 
-                // Dual Phase Range (if needed)
-                //let mut doppler = Option::<Observation>::None;
-                let mut phases = Vec::<PhaseRange>::with_capacity(4);
-
-                if solver.cfg.method == Method::PPP {
-                    for code in &codes {
-                        let target_carrier = rtk_carrier_cast(code.carrier);
-                        for (obs, data) in observations {
-                            if !obs.is_phase_observable() {
-                                continue;
-                            }
-                            let carrier = Carrier::from_observable(sv.constellation, obs);
-                            if carrier.is_err() {
-                                continue;
-                            }
-                            let carrier = carrier.unwrap();
-
-                            if target_carrier != carrier {
-                                continue;
-                            }
-                            phases.push(PhaseRange {
-                                ambiguity: None,
-                                carrier: code.carrier,
-                                value: data.obs,
-                                snr: { data.snr.map(|snr| snr.into()) },
-                            });
+                        // update ref. observable if this one is to serve as reference
+                        if rtk_reference_carrier(rtk_carrier) {
+                            ref_observable = second_obs.to_string();
                         }
                     }
-                };
+                }
 
-                let candidate = Candidate::new(*sv, *t, clock_corr, sv_eph.tgd(), codes, phases);
+                let candidate = Candidate::new(*sv, *t, clock_corr, tgd, rtk_obs);
 
                 match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
                     Ok((t, pvt_solution)) => {
@@ -247,7 +247,7 @@ where
                         let elevation = pvt_data.elevation;
 
                         let refsys = pvt_solution.dt.to_seconds();
-                        let refsv = refsys + clock_corr.to_seconds();
+                        let refsv = refsys + clock_corr.duration.to_seconds();
 
                         /*
                          * TROPO : always present

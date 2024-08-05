@@ -1,16 +1,29 @@
 use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::constants::Constants;
-use crate::{constants, epoch, prelude::*, version::Version};
+use crate::{
+    constants, epoch,
+    prelude::{Almanac, Constellation, Duration, Epoch, TimeScale, SV},
+    version::Version,
+};
 
-use log::warn;
+use anise::{
+    astro::AzElRange,
+    constants::frames::EARTH_J2000,
+    errors::AlmanacResult,
+    prelude::{Frame, Orbit},
+};
+
+use log::{error, warn};
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 
-use gnss::prelude::SV;
+use crate::epoch::{
+    parse_in_timescale as parse_epoch_in_timescale, ParsingError as EpochParsingError,
+};
 
 #[cfg(feature = "nav")]
-use nalgebra::{self as na, Rotation, Rotation3, Vector3, Vector4};
+use nalgebra::{self as na, Matrix3, Rotation, Rotation3, Vector3, Vector4};
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -24,7 +37,7 @@ pub enum Error {
     #[error("failed to parse data")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
-    EpochParsingError(#[from] epoch::ParsingError),
+    EpochParsing(#[from] EpochParsingError),
     #[error("sv parsing error")]
     SvParsing(#[from] gnss::sv::ParsingError),
     #[error("failed to identify timescale for sv \"{0}\"")]
@@ -38,9 +51,9 @@ pub enum Error {
 /// - Helps calculate relativistic effects(todo)
 #[cfg(feature = "nav")]
 #[cfg_attr(docrs, doc(cfg(feature = "nav")))]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 struct EphemerisHelper {
-    // satellite identity
+    /// Satellite
     pub sv: SV,
     /// The difference between the calculated time and the ephemeris reference time
     pub t_k: f64,
@@ -60,12 +73,16 @@ struct EphemerisHelper {
     pub fd_i_k: f64,
     /// First Derivative of Ascending node right ascension
     pub fd_omega_k: f64,
-    /// orbit position
-    pub orbit_position: (f64, f64),
     /// Relativistic Effect Correction
     pub dtr: f64,
     /// First Derivative of Relativistic Effect Correction
     pub fd_dtr: f64,
+    /// r_sv in meters ECEF
+    pub r_sv: (f64, f64, f64),
+    /// ECEF to Celestial rotation matrix
+    pub cie_rot: Rotation3<f64>,
+    /// Orbit
+    pub orbit: Orbit,
 }
 
 #[cfg(feature = "nav")]
@@ -92,18 +109,19 @@ impl EphemerisHelper {
         (fd_x, fd_y)
     }
 
-    /// Calculate ecef position of MEO/IGSO sv
-    /// work for GPS,Galieo,BeiDou(MEO/IGSO)
+    /// Calculate ecef position [km].
+    /// Applies to GPS, Galileo, BeiDou (MEO).
     fn ecef_position(&self) -> Vector3<f64> {
-        let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
+        let (x, y, z) = self.r_sv;
+        let orbit_xyz = Vector3::new(x, y, z);
         let ecef_xyz = self.meo_orbit_to_ecef_rotation_matrix() * orbit_xyz;
-        ecef_xyz
+        ecef_xyz / 1000.0
     }
 
-    /// Calculate ecef velocity of MEO/IGSO sv
-    /// work for GPS,Galieo,BeiDou(MEO/IGSO)
+    /// Calculate ecef velocity [km/s].
+    /// Applies to GPS, Galileo, BeiDou (MEO).
     fn ecef_velocity(&self) -> Vector3<f64> {
-        let (x, y) = self.orbit_position;
+        let (x, y, _) = self.r_sv;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
         // First Derivative of orbit position
@@ -123,28 +141,28 @@ impl EphemerisHelper {
 
         let rhs = Vector4::new(fd_x, fd_y, self.fd_omega_k, self.fd_i_k);
         let vel = fd_r * rhs;
-        vel
+        vel / 1000.0
     }
 
-    /// Calculate ecef position and velocity of MEO/IGSO sv
+    /// Calculate ECEF position [km] and velocity [km/s] of MEO/IGSO sv
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
     fn ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
         (self.ecef_position(), self.ecef_velocity())
     }
 
-    /// Calculate ecef position of GEO sv
+    /// Calculate ecef [km] position of GEO sv
     fn beidou_geo_ecef_position(&self) -> Vector3<f64> {
-        let orbit_xyz = Vector3::new(self.orbit_position.0, self.orbit_position.1, 0.0);
+        let orbit_xyz = Vector3::new(self.r_sv.0, self.r_sv.1, 0.0);
         let rotation1 = self.meo_orbit_to_ecef_rotation_matrix();
         let rotation2 = self.geo_orbit_to_ecef_rotation_matrix();
         let ecef_xyz = rotation2 * rotation1 * orbit_xyz;
-        ecef_xyz
+        ecef_xyz / 1000.0
     }
 
     /// Calculate ecef velocity of GEO sv
     fn beidou_geo_ecef_velocity(&self) -> Vector3<f64> {
-        let (x, y) = self.orbit_position;
+        let (x, y, _) = self.r_sv;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
         let (fd_x, fd_y) = self.orbit_velocity();
@@ -177,7 +195,7 @@ impl EphemerisHelper {
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
     fn beidou_geo_ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
-        let (x, y) = self.orbit_position;
+        let (x, y, _) = self.r_sv;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
         let (fd_x, fd_y) = self.orbit_velocity();
@@ -218,7 +236,7 @@ impl EphemerisHelper {
                 }
             },
             _ => {
-                warn!("EphemerisHelper currently only supports orbit solutions for BDS GPS GALIEO");
+                warn!("{} is not supported", self.sv.constellation);
                 None
             },
         }
@@ -226,16 +244,18 @@ impl EphemerisHelper {
 
     /// get ecef position and velocity
     pub fn position_velocity(&self) -> Option<(Vector3<f64>, Vector3<f64>)> {
-        match self.sv.constellation {
-            Constellation::GPS | Constellation::Galileo => Some(self.ecef_pv()),
-            Constellation::BeiDou => {
-                if self.sv.is_beidou_geo() {
-                    Some(self.beidou_geo_ecef_pv())
-                } else {
+        if self.sv.is_beidou_geo() {
+            Some(self.beidou_geo_ecef_pv())
+        } else {
+            match self.sv.constellation {
+                Constellation::GPS | Constellation::Galileo | Constellation::BeiDou => {
                     Some(self.ecef_pv())
-                }
-            },
-            _ => None,
+                },
+                _ => {
+                    warn!("{} is not supported", self.sv.constellation);
+                    None
+                },
+            }
         }
     }
 }
@@ -275,15 +295,6 @@ pub struct Kepler {
     pub omega: f64,
     /// time of issue of ephemeris
     pub toe: f64,
-}
-
-#[cfg(feature = "nav")]
-#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
-impl Kepler {
-    /// Eearth mass * Gravitationnal field constant [m^3/s^2]
-    pub const EARTH_GM_CONSTANT: f64 = 3.986004418E14_f64;
-    /// Earth rotation rate in WGS84 frame [rad]
-    pub const EARTH_OMEGA_E_WGS84: f64 = 7.2921151467E-5;
 }
 
 /// Orbit Perturbations
@@ -344,38 +355,26 @@ impl Ephemeris {
     pub fn tgd(&self) -> Option<Duration> {
         Some(Duration::from_seconds(self.get_orbit_f64("tgd")?))
     }
-    /// Apply a clock correction to provided Time
-    pub fn sv_clock_corr(sv: SV, clock_bias: (f64, f64, f64), t: Epoch, toe: Epoch) -> Duration {
-        let (a0, a1, a2) = clock_bias;
-        match sv.constellation {
-            Constellation::Glonass => {
-                todo!("sv_clock_corr not supported for glonass @ the moment");
-            },
-            _ => {
-                let mut dt = (t - toe).to_seconds();
-                // TODO: does this apply to others like GST ?
-                const WEEK_SECONDS: f64 = 604800.0;
-                if dt > WEEK_SECONDS / 2.0 {
-                    dt -= WEEK_SECONDS;
-                } else if dt < -WEEK_SECONDS / 2.0 {
-                    dt += WEEK_SECONDS;
-                }
-                Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2))
-            },
-        }
-    }
-    /// Return epoch of toe expressed as Epoch in GPS timescale
-    /// for a specific [SV] that belongs to [TimeScale].
-    pub fn toe_gpst(&self, sv_ts: TimeScale) -> Option<Epoch> {
+    /// Return ToE expressed as [Epoch]
+    pub fn toe(&self, sv_ts: TimeScale) -> Option<Epoch> {
+        // TODO: in CNAV V4 TOC is said to be TOE... ...
         let mut week = self.get_week()?;
-        if sv_ts == TimeScale::GST {
-            week -= 1024;
-        }
         let sec = self.get_orbit_f64("toe")?;
         let week_dur = Duration::from_days((week * 7) as f64);
         let sec_dur = Duration::from_seconds(sec);
-        let t = Epoch::from_duration(week_dur + sec_dur, sv_ts);
-        Some(Epoch::from_duration(week_dur + sec_dur, sv_ts).to_time_scale(TimeScale::GPST))
+        match sv_ts {
+            TimeScale::GPST | TimeScale::QZSST | TimeScale::GST => {
+                if sv_ts == TimeScale::GST {
+                    week -= 1024;
+                }
+                Some(Epoch::from_duration(week_dur + sec_dur, TimeScale::GPST))
+            },
+            TimeScale::BDT => Some(Epoch::from_bdt_duration(week_dur + sec_dur)),
+            _ => {
+                error!("{} is not supported", sv_ts);
+                None
+            },
+        }
     }
     /*
      * get Adot field in CNAV ephemeris
@@ -404,24 +403,25 @@ impl Ephemeris {
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
 
-        //println!("SVNN \"{}\"", svnn); // DEBUG
+        //log::debug!("SVNN \"{}\"", svnn);
         let sv = match SV::from_str(svnn.trim()) {
             Ok(sv) => sv,
             Err(_) => {
-                // parsing failed probably due to omitted constellation (old rev.)
+                // parsing failed probably due to omitted constellation (old rev...)
                 let desc = format!("{:x}{:02}", constellation, svnn.trim());
                 SV::from_str(&desc)?
             },
         };
-        //println!("\"{}\"={}", svnn, sv); // DEBUG
+        //log::debug!("\"{}\"={}", svnn, sv);
 
         let ts = sv
             .constellation
             .timescale()
             .ok_or(Error::TimescaleIdentification(sv))?;
-        //println!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts); //DEBUG
 
-        let epoch = epoch::parse_in_timescale(date.trim(), ts)?;
+        //log::debug!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts);
+
+        let epoch = parse_epoch_in_timescale(date.trim(), ts)?;
 
         let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
@@ -563,34 +563,24 @@ impl Ephemeris {
         s.set_orbit_f64("omegaDot", perturbations.omega_dot);
         s
     }
-
-    /// Get the difference between toe and observation epoch,
-    /// as total seconds elapsed in GPS timescale
-    fn tk(&self, sv: SV, t: Epoch) -> Option<f64> {
-        let toe = self.toe_gpst(sv.timescale()?)?;
-        let t_dur = t.to_gpst_duration();
-        let t_k = (t_dur - toe.duration).to_seconds();
-        let dur = Self::max_dtoe(sv.constellation)?;
-        if t_k.abs() <= dur.to_seconds() {
-            Some(t_k)
-        } else {
-            None
-        }
+    /// Total seconds elapsed between `t` and ToE, expressed in GPS timescale.
+    fn t_k_gpst_s(&self, sv: SV, t: Epoch) -> Option<f64> {
+        let sv_ts = sv.timescale()?;
+        let toe_gpst = self.toe(sv_ts)?.to_time_scale(TimeScale::GPST);
+        let dt = t.to_time_scale(TimeScale::GPST) - toe_gpst;
+        Some(dt.to_seconds())
     }
 
     /// Form ephemerisHelper
-    fn ephemeris_helper(&self, sv: SV, t: Epoch) -> Option<EphemerisHelper> {
+    fn ephemeris_helper(&self, sv: SV, t_sv: Epoch, t: Epoch) -> Option<EphemerisHelper> {
         // const
         let gm_m3_s2 = Constants::gm(sv);
         let omega = Constants::omega(sv);
         let dtr_f = Constants::dtr_f(sv);
-        let mut helper = EphemerisHelper::default();
-        helper.sv = sv;
-        // set t_k
-        if let Some(t_k) = self.tk(sv, t) {
-            helper.t_k = t_k
-        } else {
-            log::trace!("{} ephemeris missing or invalid at {}", sv, t);
+        let t_k = self.t_k_gpst_s(sv, t)?;
+
+        if t_k < 0.0 {
+            error!("t_k < 0.0: bad op");
             return None;
         }
 
@@ -599,13 +589,12 @@ impl Ephemeris {
 
         // considering the filed a_dot
         if let Some(a_dot) = self.a_dot() {
-            kepler.a += a_dot * helper.t_k;
+            kepler.a += a_dot * t_k;
         }
 
-        // m_k (mean anomaly), e_k, v_k calculation
-        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt();
-        let n = n0 + perturbations.dn;
-        let m_k = kepler.m_0 + n * helper.t_k;
+        let n0 = (gm_m3_s2 / kepler.a.powi(3)).sqrt(); // average angular velocity
+        let n = n0 + perturbations.dn; // corrected mean angular velocity
+        let m_k = kepler.m_0 + n * t_k; // average anomaly
 
         // Iterative calculation of e_k
         let mut e_k_lst: f64 = 0.0;
@@ -620,206 +609,212 @@ impl Ephemeris {
             e_k_lst = e_k;
         }
         if i >= constants::MaxIterNumber::KEPLER {
-            log::warn!("{} kepler iteration overflow", sv);
+            error!("{} kepler iteration overflow", sv);
         }
+
+        // true anomaly
         let (sin_e_k, cos_e_k) = e_k.sin_cos();
         let v_k = ((1.0 - kepler.e.powi(2)).sqrt() * sin_e_k).atan2(cos_e_k - kepler.e);
 
-        // u_k, r_k, i_k
-        let phi_k = v_k + kepler.omega;
-        let (sin2_phi_k, cos2_phi_k) = (2.0 * phi_k).sin_cos();
-        let det_u_k = perturbations.cus * sin2_phi_k + perturbations.cuc * cos2_phi_k;
-        let det_r_k = perturbations.crs * sin2_phi_k + perturbations.crc * cos2_phi_k;
-        let det_i_k = perturbations.cis * sin2_phi_k + perturbations.cic * cos2_phi_k;
-        helper.u_k = phi_k + det_u_k;
-        helper.r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + det_r_k;
-        helper.i_k = kepler.i_0 + perturbations.i_dot * helper.t_k + det_i_k;
+        let phi_k = v_k + kepler.omega; // latitude argument
+        let (x2_sin_phi_k, x2_cos_phi_k) = (2.0 * phi_k).sin_cos();
 
-        // omega_k (RAAN)
-        // MEO (GPS, Galieo, BeiDou)
-        // IGSO(BeiDou)
-        if sv.is_beidou_geo() {
-            helper.omega_k =
-                kepler.omega_0 + perturbations.omega_dot * helper.t_k - omega * kepler.toe;
-        } else {
-            helper.omega_k = kepler.omega_0 + (perturbations.omega_dot - omega) * helper.t_k
-                - omega * kepler.toe;
-        }
+        // latitude argument correction
+        let du_k = perturbations.cus * x2_sin_phi_k + perturbations.cuc * x2_cos_phi_k;
+        let u_k = phi_k + du_k;
 
-        // calculate  First Derivative of e_k,phi_k,u_k,r_k,i_k,omega_k
+        // orbital radisu correction
+        let dr_k = perturbations.crs * x2_sin_phi_k + perturbations.crc * x2_cos_phi_k;
+        let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + dr_k;
+
+        // inclination angle correction
+        let di_k = perturbations.cis * x2_sin_phi_k + perturbations.cic * x2_cos_phi_k;
+
+        // first derivatives
+        let fd_omega_k = perturbations.omega_dot - omega;
+
         let fd_e_k = n / (1.0 - kepler.e * e_k.cos());
         let fd_phi_k = ((1.0 + kepler.e) / (1.0 - kepler.e)).sqrt()
             * ((v_k / 2.0).cos() / (e_k / 2.0).cos()).powi(2)
             * fd_e_k;
-        helper.fd_u_k =
-            (perturbations.cus * cos2_phi_k - perturbations.cuc * sin2_phi_k) * fd_phi_k * 2.0
+
+        let fd_u_k =
+            (perturbations.cus * x2_cos_phi_k - perturbations.cuc * x2_sin_phi_k) * fd_phi_k * 2.0
                 + fd_phi_k;
-        helper.fd_r_k = kepler.a * kepler.e * e_k.sin() * fd_e_k
-            + 2.0 * (perturbations.crs * cos2_phi_k - perturbations.crc * sin2_phi_k) * fd_phi_k;
-        helper.fd_i_k = perturbations.i_dot
-            + 2.0 * (perturbations.cis * cos2_phi_k - perturbations.cic * sin2_phi_k) * fd_phi_k;
-        helper.fd_omega_k = perturbations.omega_dot - omega;
 
-        // orbit position
-        helper.orbit_position = (helper.r_k * helper.u_k.cos(), helper.r_k * helper.u_k.sin());
+        let fd_r_k = kepler.a * kepler.e * e_k.sin() * fd_e_k
+            + 2.0
+                * (perturbations.crs * x2_cos_phi_k - perturbations.crc * x2_sin_phi_k)
+                * fd_phi_k;
 
-        // Relativistic Effect Correction
-        helper.dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
-        helper.fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
+        let fd_i_k = perturbations.i_dot
+            + 2.0
+                * (perturbations.cis * x2_cos_phi_k - perturbations.cic * x2_sin_phi_k)
+                * fd_phi_k;
 
-        //let orbital_state = Orbit::try_keplerian(
-        //    kepler.a * 1e-3,
-        //    kepler.e,
-        //    helper.i_k.to_degrees(),
-        //    helper.omega_k.to_degrees(),
-        //    kepler.omega.to_degrees(),
-        //    v_k.to_degrees(),
-        //    t,
-        //    EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
-        //)
-        //.ok()?;
+        // relativistic effect correction
+        let dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.sin();
+        let fd_dtr = dtr_f * kepler.e * kepler.a.sqrt() * e_k.cos() * fd_e_k;
 
-        // Finally, set the orbit state
-        // helper.orbit = Some(orbital_state);
+        // ascending node longitude correction (RAAN ?)
+        let omega_k = if sv.is_beidou_geo() {
+            // BeiDou [IGSO]
+            kepler.omega_0 + perturbations.omega_dot * t_k - omega * kepler.toe
+        } else {
+            // GPS, Galileo, BeiDou [MEO]
+            kepler.omega_0 + (perturbations.omega_dot - omega) * t_k - omega * kepler.toe
+        };
 
-        Some(helper)
+        // corrected inclination angle
+        let i_k = kepler.i_0 + di_k + perturbations.i_dot * t_k;
+
+        // position in orbital plane
+        let (x, y) = (r_k * u_k.cos(), r_k * u_k.sin());
+
+        // rotated position
+        let (sin_omega_k, cos_omega_k) = omega_k.sin_cos();
+        let (sin_i_k, cos_i_k) = i_k.sin_cos();
+
+        // earth rotation
+        let t_sv_gpst = t_sv.to_time_scale(TimeScale::GPST);
+        let t_gpst = t.to_time_scale(TimeScale::GPST);
+        let earth_rot = omega * (t_sv_gpst - t_gpst).to_seconds();
+        let (sin_earth_rot, cos_earth_rot) = earth_rot.sin_cos();
+
+        //let r_sv = (
+        //    x * cos_omega_k - y * sin_omega_k * sin_i_k,
+        //    x * sin_omega_k + y * cos_omega_k * cos_i_k,
+        //    y * sin_i_k,
+        //);
+        let r_sv = (x, y, 0.0);
+
+        let cie_rot = Rotation3::from_matrix(&Matrix3::new(
+            cos_earth_rot,
+            -sin_earth_rot,
+            0.0,
+            sin_earth_rot,
+            cos_earth_rot,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+        ));
+
+        // Finally, determine Orbital state
+        let orbit = Orbit::try_keplerian(
+            kepler.a * 1e-3,
+            kepler.e,
+            i_k.to_degrees(),
+            omega_k.to_degrees(),
+            omega.to_degrees(),
+            v_k.to_degrees(),
+            t_gpst,
+            EARTH_J2000.with_mu_km3_s2(gm_m3_s2 * 1e-9),
+        )
+        .ok()?;
+
+        Some(EphemerisHelper {
+            sv,
+            t_k,
+            orbit,
+            omega_k,
+            dtr,
+            fd_dtr,
+            u_k,
+            i_k,
+            fd_u_k,
+            r_k,
+            fd_r_k,
+            fd_i_k,
+            fd_omega_k,
+            r_sv,
+            cie_rot,
+        })
     }
-    /// Kepler ECEF [km] position solver at desired instant "t" for given "sv"
-    /// based off Self. Self must be correctly selected in navigation
-    /// record.
-    /// "t" should not be expressed in UTC time scale as Hifitime doesn't consider
-    /// the leap seconds.
+    /// Calculates Clock correction for [SV] at [Epoch] based on [Self]
+    /// and ToC [Epoch] of publication of [Self] from the free running clock.
+    pub fn clock_correction(
+        &self,
+        toc: Epoch,
+        t: Epoch,
+        sv: SV,
+        max_iter: usize,
+    ) -> Option<Duration> {
+        let sv_ts = sv.constellation.timescale()?;
+        let t_sv = t.to_time_scale(sv_ts);
+        let toc_sv = toc.to_time_scale(sv_ts);
+        if t_sv < toc_sv {
+            error!("t < t_oc: bad op!");
+            None
+        } else {
+            let (a0, a1, a2) = (self.clock_bias, self.clock_drift, self.clock_drift_rate);
+            let mut dt = (t_sv - toc_sv).to_seconds();
+            for _ in 0..max_iter {
+                dt -= a0 + a1 * dt + a2 * dt.powi(2);
+            }
+            Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
+        }
+    }
+    /// Kepler ECEF [km] position solver at [Epoch] t.
+    /// t_sv [Epoch] is the satellite free running clock.
+    /// Self must be correctly selected from navigation record.
     /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
-    pub fn kepler2position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
-        let helper = self.ephemeris_helper(sv, t)?;
+    pub fn kepler2position(&self, sv: SV, t_sv: Epoch, t: Epoch) -> Option<(f64, f64, f64)> {
+        let helper = self.ephemeris_helper(sv, t_sv, t)?;
         let pos = helper.ecef_position();
-        Some((pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0))
+        Some((pos.x, pos.y, pos.z))
     }
     /// Kepler ECEF [km] position and velocity [km/s] solver at desired instant "t" for given "sv"
     /// based off Self. Self must be correctly selected in navigation
     /// record.
-    /// "t" should not be expressed in UTC time scale as the hifitime doesn't consider
-    /// the leap seconds
     /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
     pub fn kepler2position_velocity(
         &self,
         sv: SV,
+        t_sv: Epoch,
         t: Epoch,
     ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
-        let helper = self.ephemeris_helper(sv, t)?;
+        let helper = self.ephemeris_helper(sv, t_sv, t)?;
         let (pos, vel) = helper.position_velocity()?;
         Some((
             (pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0),
             (vel.x, vel.y, vel.z),
         ))
     }
-    /// Returns SV position in km ECEF, based off Self Ephemeris data,
-    /// and for given Satellite Vehicle at given Epoch.
-    /// Either by solving Kepler equations, or directly if such data is available.
-    pub fn sv_position(&self, sv: SV, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        let (x_km, y_km, z_km) = (
-            self.get_orbit_f64("satPosX"),
-            self.get_orbit_f64("satPosY"),
-            self.get_orbit_f64("satPosZ"),
-        );
-        match (x_km, y_km, z_km) {
-            (Some(x_km), Some(y_km), Some(z_km)) => {
-                /*
-                 * GLONASS + SBAS: position vector already available,
-                 *                 distances expressed in km ECEF
-                 */
-                Some((x_km, y_km, z_km))
-            },
-            _ => self.kepler2position(sv, epoch),
-        }
+    /// [AzElRange] calculation attempt, for following SV as observed at RX,
+    /// both coordinates expressed as [km] in fixed body [Frame] centered on Earth.
+    pub fn elevation_azimuth_range(
+        t: Epoch,
+        almanac: &Almanac,
+        fixed_body_frame: Frame,
+        sv_position_km: (f64, f64, f64),
+        rx_position_km: (f64, f64, f64),
+    ) -> AlmanacResult<AzElRange> {
+        let (rx_x_km, rx_y_km, rx_z_km) = rx_position_km;
+        let (tx_x_km, tx_y_km, tx_z_km) = sv_position_km;
+        almanac.azimuth_elevation_range_sez(
+            Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, fixed_body_frame),
+            Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, fixed_body_frame),
+        )
     }
-    /// Returns SV position in km ECEF and velocity is m/s ECEF,
-    /// based off Self Ephemeris data,
-    /// and for given Satellite Vehicle at given Epoch.
-    /// Either by solving Kepler equations, or directly if such data is available.
-    pub fn sv_position_velocity(
-        &self,
-        sv: SV,
-        epoch: Epoch,
-    ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
-        let (x_km, y_km, z_km, vx, vy, vz) = (
-            self.get_orbit_f64("satPosX"),
-            self.get_orbit_f64("satPosY"),
-            self.get_orbit_f64("satPosZ"),
-            self.get_orbit_f64("velX"),
-            self.get_orbit_f64("velY"),
-            self.get_orbit_f64("velZ"),
-        );
-        match (x_km, y_km, z_km, vx, vy, vz) {
-            (Some(x_km), Some(y_km), Some(z_km), Some(vx), Some(vy), Some(vz)) => {
-                /*
-                 * GLONASS + SBAS: position vector already available,
-                 *                 distances expressed in km ECEF
-                 */
-                Some(((x_km, y_km, z_km), (vx, vy, vz)))
-            },
-            _ => self.kepler2position_velocity(sv, epoch),
+    /// Returns True if Self is Valid at specified `t`
+    pub fn is_valid(&self, sv: SV, t: Epoch) -> bool {
+        if let Some(max_dt) = Self::max_dtoe(sv.constellation) {
+            if let Some(sv_ts) = sv.constellation.timescale() {
+                if let Some(toe) = self.toe(sv_ts) {
+                    t > toe && (t - toe) < max_dt
+                } else {
+                    error!("{}({}): failed to determine ToE", t, sv);
+                    false
+                }
+            } else {
+                error!("{} constellation is not supported", sv.constellation);
+                false
+            }
+        } else {
+            error!("{} constellation is not supported", sv.constellation);
+            false
         }
-    }
-    /// Helper method to calculate elevation and azimuth angles, both in degrees,
-    /// between a reference position (in meter ECEF WGS84) and a resolved
-    /// SV position in the sky, expressed in meter ECEF WGS84.
-    pub fn elevation_azimuth(
-        sv_position: (f64, f64, f64),
-        reference_position: (f64, f64, f64),
-    ) -> (f64, f64) {
-        let (sv_x, sv_y, sv_z) = sv_position;
-        // convert ref position to radians(lat, lon)
-        let (ref_x, ref_y, ref_z) = reference_position;
-        let (ref_lat, ref_lon, _) =
-            map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
-
-        // ||sv - ref_pos|| pseudo range
-        let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
-        let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
-        let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm);
-
-        // ECEF to VEN 3X3 transform matrix
-        let ecef_to_ven = (
-            (
-                ref_lat.cos() * ref_lon.cos(),
-                ref_lat.cos() * ref_lon.sin(),
-                ref_lat.sin(),
-            ),
-            (-ref_lon.sin(), ref_lon.cos(), 0.0_f64),
-            (
-                -ref_lat.sin() * ref_lon.cos(),
-                -ref_lat.sin() * ref_lon.sin(),
-                ref_lat.cos(),
-            ),
-        );
-        // ECEF to VEN transform
-        let ven = (
-            (ecef_to_ven.0 .0 * a_i.0 + ecef_to_ven.0 .1 * a_i.1 + ecef_to_ven.0 .2 * a_i.2),
-            (ecef_to_ven.1 .0 * a_i.0 + ecef_to_ven.1 .1 * a_i.1 + ecef_to_ven.1 .2 * a_i.2),
-            (ecef_to_ven.2 .0 * a_i.0 + ecef_to_ven.2 .1 * a_i.1 + ecef_to_ven.2 .2 * a_i.2),
-        );
-        let el = map_3d::rad2deg(std::f64::consts::PI / 2.0 - ven.0.acos());
-        let mut az = map_3d::rad2deg(ven.1.atan2(ven.2));
-        if az < 0.0 {
-            az += 360.0;
-        }
-        (el, az)
-    }
-    /*
-     * Resolves a position and computes elev, azim angles both in degrees
-     */
-    pub(crate) fn sv_elev_azim(
-        &self,
-        sv: SV,
-        epoch: Epoch,
-        reference: GroundPosition,
-    ) -> Option<(f64, f64)> {
-        let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
-        Some(Self::elevation_azimuth(
-            (sv_x * 1.0E3, sv_y * 1.0E3, sv_z * 1.0E3),
-            reference.to_ecef_wgs84(),
-        ))
     }
     /// Returns Ephemeris validity duration for this Constellation
     pub fn max_dtoe(c: Constellation) -> Option<Duration> {

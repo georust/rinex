@@ -1,7 +1,7 @@
 use crate::cli::Context;
 use std::collections::BTreeMap;
 
-use rtk::prelude::{
+use gnss_rtk::prelude::{
     Config as NaviConfig, Duration, Epoch, Filter as NaviFilter, Method as NaviMethod, PVTSolution,
     TimeScale, SV,
 };
@@ -13,12 +13,7 @@ use rinex_qc::{
 
 use itertools::Itertools;
 
-use map_3d::{
-    //ecef2enu,
-    ecef2geodetic,
-    geodetic2enu,
-    Ellipsoid,
-};
+use map_3d::{ecef2geodetic, Ellipsoid};
 
 struct ReportTab {}
 
@@ -273,8 +268,12 @@ struct ReportContent {
     map_proj: Plot,
     /// clk_plot
     clk_plot: Plot,
-    /// neu_plot
-    neu_plot: Plot,
+    /// drift_plot
+    drift_plot: Plot,
+    /// ddeg_plot
+    ddeg_plot: Plot,
+    /// altitude_plot
+    altitude_plot: Plot,
     /// coords_err
     coords_err_plot: Plot,
     /// 3d_plot
@@ -319,8 +318,9 @@ impl ReportContent {
                     vec![lat0_ddeg],
                     vec![lon0_ddeg],
                     "apriori",
+                    3,
                     MarkerSymbol::Circle,
-                    NamedColor::Red,
+                    Some(NamedColor::Red),
                     1.0,
                     true,
                 );
@@ -345,8 +345,9 @@ impl ReportContent {
                             vec![lat_ddeg],
                             vec![lon_ddeg],
                             &name,
+                            3,
                             MarkerSymbol::Circle,
-                            NamedColor::Black,
+                            Some(NamedColor::Black),
                             1.0,
                             visible,
                         );
@@ -376,60 +377,72 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &epochs,
                         prn,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
                 plot
             },
-            neu_plot: {
-                let mut plot = Plot::timedomain_plot(
-                    "neu_plot",
-                    "North / East / Up Coordinates",
-                    "Coordinates [m]",
-                    true,
-                );
-                let neu = solutions
+            ddeg_plot: {
+                let mut plot =
+                    Plot::timedomain_plot("ddeg_plot", "Coordinates", "Coordinates [ddeg]", true);
+                let ddeg = solutions
                     .iter()
                     .map(|(_, sol)| {
-                        let (lat_rad, lon_rad, alt_m) = ecef2geodetic(
+                        let (lat_rad, lon_rad, _) = ecef2geodetic(
                             sol.position.x,
                             sol.position.y,
                             sol.position.z,
                             Ellipsoid::WGS84,
                         );
-                        let enu = geodetic2enu(
-                            lat_rad,
-                            lon_rad,
-                            alt_m,
-                            lat0_rad,
-                            lon0_rad,
-                            alt0_m,
-                            Ellipsoid::WGS84,
-                        );
-                        (enu.1.to_degrees(), enu.0.to_degrees(), enu.2)
+                        (lat_rad.to_degrees(), lon_rad.to_degrees())
                     })
                     .collect::<Vec<_>>();
-                let north = neu.iter().map(|neu| neu.0).collect::<Vec<_>>();
-                let east = neu.iter().map(|neu| neu.1).collect::<Vec<_>>();
-                let up = neu.iter().map(|neu| neu.2).collect::<Vec<_>>();
+                let lati = ddeg.iter().map(|ddeg| ddeg.0).collect::<Vec<_>>();
+                let long = ddeg.iter().map(|ddeg| ddeg.1).collect::<Vec<_>>();
                 let trace = Plot::timedomain_chart(
-                    "north",
+                    "latitude",
                     Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
-                    north,
+                    lati,
+                    true,
                 );
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
-                    "east",
+                    "longitude",
                     Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
-                    east,
+                    long,
+                    true,
                 );
                 plot.add_trace(trace);
-                let trace =
-                    Plot::timedomain_chart("upt", Mode::Markers, MarkerSymbol::Cross, &epochs, up);
+                plot
+            },
+            altitude_plot: {
+                let mut plot =
+                    Plot::timedomain_plot("altitude_plot", "Altitude", "Altitude [m]", true);
+                let alt_m = solutions
+                    .iter()
+                    .map(|(_, sol)| {
+                        let (_, _, alt_m) = ecef2geodetic(
+                            sol.position.x,
+                            sol.position.y,
+                            sol.position.z,
+                            Ellipsoid::WGS84,
+                        );
+                        alt_m
+                    })
+                    .collect::<Vec<_>>();
+                let trace = Plot::timedomain_chart(
+                    "altitude",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    alt_m,
+                    true,
+                );
                 plot.add_trace(trace);
                 plot
             },
@@ -448,14 +461,32 @@ impl ReportContent {
                     .iter()
                     .map(|(_, sol)| sol.velocity.z)
                     .collect::<Vec<_>>();
-                let trace =
-                    Plot::timedomain_chart("vel_x", Mode::Markers, MarkerSymbol::Cross, &epochs, x);
+                let trace = Plot::timedomain_chart(
+                    "vel_x",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    x,
+                    true,
+                );
                 plot.add_trace(trace);
-                let trace =
-                    Plot::timedomain_chart("vel_y", Mode::Markers, MarkerSymbol::Cross, &epochs, y);
+                let trace = Plot::timedomain_chart(
+                    "vel_y",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    y,
+                    true,
+                );
                 plot.add_trace(trace);
-                let trace =
-                    Plot::timedomain_chart("vel_z", Mode::Markers, MarkerSymbol::Cross, &epochs, z);
+                let trace = Plot::timedomain_chart(
+                    "vel_z",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    z,
+                    true,
+                );
                 plot.add_trace(trace);
                 plot
             },
@@ -491,6 +522,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -527,6 +559,7 @@ impl ReportContent {
                         MarkerSymbol::Cross,
                         &x,
                         y,
+                        true,
                     );
                     plot.add_trace(trace);
                 }
@@ -550,6 +583,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     tdop,
+                    true,
                 );
                 plot.add_trace(trace);
                 plot
@@ -569,6 +603,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     gdop,
+                    true,
                 );
                 plot.add_trace(trace);
 
@@ -583,6 +618,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     vdop,
+                    true,
                 );
                 plot.add_trace(trace);
 
@@ -597,6 +633,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     hdop,
+                    true,
                 );
                 plot.add_trace(trace);
                 plot
@@ -616,6 +653,27 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     dt,
+                    true,
+                );
+                plot.add_trace(trace);
+                plot
+            },
+            drift_plot: {
+                let mut plot =
+                    Plot::timedomain_plot("clk_drift", "Clock Drift", "Drift [s/s]", true);
+
+                let ddt = solutions
+                    .iter()
+                    .map(|(_, sol)| sol.d_dt)
+                    .collect::<Vec<_>>();
+
+                let trace = Plot::timedomain_chart(
+                    "drift",
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    &epochs,
+                    ddt,
+                    true,
                 );
                 plot.add_trace(trace);
                 plot
@@ -631,6 +689,7 @@ impl ReportContent {
                         .values()
                         .map(|sol| sol.position.x - x0_ecef)
                         .collect(),
+                    true,
                 );
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
@@ -642,6 +701,7 @@ impl ReportContent {
                         .values()
                         .map(|sol| sol.position.y - y0_ecef)
                         .collect(),
+                    true,
                 );
                 plot.add_trace(trace);
                 let trace = Plot::timedomain_chart(
@@ -653,6 +713,7 @@ impl ReportContent {
                         .values()
                         .map(|sol| sol.position.z - z0_ecef)
                         .collect(),
+                    true,
                 );
                 plot.add_trace(trace);
                 plot
@@ -748,12 +809,28 @@ impl Render for ReportContent {
                         }
                         tr {
                             th class="is-info" {
-                                button aria-label="Absolute North / East and Altitude coordinates" data-balloon-pos="right" {
-                                    "N/E/U coordinates"
+                                button aria-label="Receiver Clock drift from Timescale" data-balloon-pos="right" {
+                                    "Clock drift"
                                 }
                             }
                             td {
-                                (self.neu_plot.render())
+                                (self.drift_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Coordinates"
+                            }
+                            td {
+                                (self.ddeg_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Altitude"
+                            }
+                            td {
+                                (self.altitude_plot.render())
                             }
                         }
                         tr {

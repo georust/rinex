@@ -161,7 +161,11 @@ pub struct QcReport {
 impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
-        let ref_position = context.reference_position();
+        let ref_position = if let Some(position) = cfg.manual_reference {
+            Some(position)
+        } else {
+            context.reference_position()
+        };
         let summary = QcSummary::new(&context, &cfg);
         let summary_only = cfg.report == QcReportType::Summary;
         Self {
@@ -201,7 +205,7 @@ impl QcReport {
                     if let Some(sp3) = context.sp3() {
                         items.insert(
                             ProductType::HighPrecisionOrbit,
-                            ProductReport::SP3(SP3Report::new(sp3, ref_position)),
+                            ProductReport::SP3(SP3Report::new(sp3)),
                         );
                     }
                 }
@@ -329,7 +333,7 @@ impl Render for QcReport {
                                         }
                                     }
                                     div id="extra-chapters" class="container" style="display:block" {
-                                        @for (index, chapter) in self.custom_chapters.iter().enumerate() {
+                                        @for chapter in self.custom_chapters.iter() {
                                             div id=(chapter.html_id) class="container is-main" style="display:none" {
                                                 (chapter.content.render())
                                             }
