@@ -37,7 +37,10 @@ When built with `flate2` support, gzip compressed files can be naturally loaded:
 use rinex_qc::prelude::*;
 
 // Build a setup
-let mut ctx = QcContext::default();
+// This will deploy with latest Almanac set for high performances
+let mut ctx = QcContext::new()
+    .unwrap();
+
 let cfg = QcConfig::default(); // basic
 
 let path = Path::new(
@@ -63,7 +66,9 @@ Once again, gzip compressed files are naturally supported when built with `flate
 use rinex_qc::prelude::*;
 
 // Build a setup
-let mut ctx = QcContext::default();
+let mut ctx = QcContext::new()
+    .unwrap();
+
 let cfg = QcConfig::default(); // basic
 
 let path = Path::new("../test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz");
@@ -87,7 +92,8 @@ force the consideration (along SP3) by using a custom `QcConfig`:
 use rinex_qc::prelude::*;
 
 // Build a setup
-let mut ctx = QcContext::default();
+let mut ctx = QcContext::new()
+    .unwrap();
 let cfg = QcConfig::default(); // basic
 ```
 
@@ -111,7 +117,7 @@ Format your custom chapters as `QcExtraPage` so you can create your own report!
 ```rust
 use rinex_qc::prelude::*;
 
-let mut ctx = QcContext::default();
+let mut ctx = QcContext::new().unwrap();
 let cfg = QcConfig::default(); // basic setup
 ```
 
