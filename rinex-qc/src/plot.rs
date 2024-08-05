@@ -263,12 +263,13 @@ impl Plot {
         lat: Vec<T>,
         lon: Vec<T>,
         legend: &str,
+        size: usize,
         symbol: MarkerSymbol,
         color: Option<NamedColor>,
         opacity: f64,
         visible: bool,
     ) -> Box<ScatterMapbox<T, T>> {
-        let mut marker = Marker::new().size(3).symbol(symbol).opacity(opacity);
+        let mut marker = Marker::new().size(size).symbol(symbol).opacity(opacity);
         if let Some(color) = color {
             marker = marker.color(color);
         }
