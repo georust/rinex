@@ -21,3 +21,13 @@ CONF=tutorials/config/survey/cpp_kf.json
     --fp $DATA_DIR/NAV/V3/NYA100NOR_S_20241270000_01D_EN.rnx.gz \
     --fp $DATA_DIR/NAV/V3/NYA100NOR_S_20241280000_01D_EN.rnx.gz \
     ppp -c $CONF
+
+# add CGGTTs solutions +open
+./target/release/rinex-cli \
+    -P "Gal;C1X,C5X" \
+    -f -z -q -o "Gal48h-L1L5" \
+    --fp $DATA_DIR/CRNX/V3/NYA100NOR_S_20241270000_01D_30S_MO.crx.gz \
+    --fp $DATA_DIR/CRNX/V3/NYA100NOR_S_20241280000_01D_30S_MO.crx.gz \
+    --fp $DATA_DIR/NAV/V3/NYA100NOR_S_20241270000_01D_EN.rnx.gz \
+    --fp $DATA_DIR/NAV/V3/NYA100NOR_S_20241280000_01D_EN.rnx.gz \
+    ppp --cggtts -c $CONF
