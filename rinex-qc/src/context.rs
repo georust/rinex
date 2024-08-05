@@ -6,9 +6,8 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use rinex::{
-    carrier::Carrier,
     merge::{Error as RinexMergeError, Merge as RinexMerge},
-    prelude::{Almanac, Epoch, GroundPosition, Observable, Rinex, TimeScale, SV},
+    prelude::{Almanac, GroundPosition, Rinex, TimeScale},
     types::Type as RinexType,
     Error as RinexError,
 };
@@ -472,94 +471,30 @@ impl QcContext {
     /// True if Self is compatible with CPP positioning,
     /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
     pub fn cpp_compatible(&self) -> bool {
+        // TODO: improve: only PR
         if let Some(obs) = self.observation() {
-            let mut prev_t = Option::<Epoch>::None;
-            let mut prev_obs = HashMap::<SV, Vec<Observable>>::new();
-            for ((t, _), sv, pr, _) in obs.pseudo_range() {
-                if let Some(prev_t) = prev_t {
-                    if prev_t != t {
-                        prev_obs.clear();
-                    }
-                }
-                if let Some(prev_obs) = prev_obs.get(&sv) {
-                    if let Ok(first) = Carrier::from_observable(sv.constellation, pr) {
-                        for ob in prev_obs {
-                            if let Ok(second) = Carrier::from_observable(sv.constellation, ob) {
-                                if second != first {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    prev_obs.insert(sv, vec![pr.clone()]);
-                }
-                prev_t = Some(t);
-            }
+            obs.carrier().count() > 1
+        } else {
+            false
         }
-        false
     }
-    /// True if self is compatible with PPP positioning
-    #[cfg(not(feature = "sp3"))]
-    pub fn ppp_compatible(&self) -> bool {
-        false
-    }
-    /// True if Self is compatible with CPP positioning,
+    /// [Self] cannot be True if self is compatible with PPP positioning,
     /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>
-    #[cfg(feature = "sp3")]
     pub fn ppp_compatible(&self) -> bool {
-        let has_dual_phase = if let Some(obs) = self.observation() {
-            let mut compatible = false;
-            let mut prev_t = Option::<Epoch>::None;
-            let mut prev_obs = HashMap::<SV, Vec<Observable>>::new();
-            for ((t, _), sv, pr, _) in obs.carrier_phase() {
-                if compatible {
-                    break;
-                }
-                if let Some(prev_t) = prev_t {
-                    if prev_t != t {
-                        prev_obs.clear();
-                    }
-                }
-                if let Some(prev_obs) = prev_obs.get(&sv) {
-                    if let Ok(first) = Carrier::from_observable(sv.constellation, pr) {
-                        for ob in prev_obs {
-                            if let Ok(second) = Carrier::from_observable(sv.constellation, ob) {
-                                if second != first {
-                                    compatible |= true;
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    prev_obs.insert(sv, vec![pr.clone()]);
-                }
-                prev_t = Some(t);
-            }
-            compatible
-        } else {
-            false
-        };
-        self.clock().is_some() && self.sp3_has_clock() && self.cpp_compatible() && has_dual_phase
+        // TODO: check PH as well
+        self.cpp_compatible()
     }
-    /// SP3 is require to 100% PPP compatibility
     #[cfg(not(feature = "sp3"))]
+    /// SP3 is required for 100% PPP compatibility
     pub fn ppp_ultra_compatible(&self) -> bool {
         false
     }
     #[cfg(feature = "sp3")]
     pub fn ppp_ultra_compatible(&self) -> bool {
-        let same_timescale = if let Some(first_clk) = self.clock().and_then(|rnx| rnx.first_epoch())
-        {
-            if let Some(first_obs) = self.observation().and_then(|rnx| rnx.first_epoch()) {
-                first_clk.time_scale == first_obs.time_scale
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        self.ppp_compatible() && same_timescale
+        // TODO: improve
+        //      verify clock().ts and obs().ts do match
+        //      and have common time frame
+        self.clock().is_some() && self.sp3_has_clock() && self.ppp_compatible()
     }
     /// Returns true if provided Input products allow Ionosphere bias
     /// model optimization
