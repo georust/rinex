@@ -107,7 +107,7 @@ and what may restrict performances:
 use rinex_qc::prelude::*;
 
 // basic setup
-let mut ctx = QcContext::default().unwrap();
+let mut ctx = QcContext::new().unwrap();
 let cfg = QcConfig::default();
 ```
 
