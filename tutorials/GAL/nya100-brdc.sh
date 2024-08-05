@@ -1,13 +1,12 @@
 #!/bin/sh
 # Real time surveying (BRDC) using observations from NYA100 (arctic).
 # Some channels have zero (null) values - which is illegal, we work it around.
+# NYA100 & NYA200 are located on the same site.
+#  Therefore, they share identical conditions, for example we can share NAV/V3 datasets.
 DATA_DIR=test_resources
 
 # Force new report (-f)
 # Silent reporting (-q): open on last run only
-# Zero repair (-z): their X (=I+Q) channels have zero values
-#      which is illegal!! and causes the solver to diverge (eventually panic).
-#      simply remove them :)
 # PPP solutions (ppp) with single Signal=C1X
 ./target/release/rinex-cli \
     -P "Gal;C1X" \
@@ -18,8 +17,7 @@ DATA_DIR=test_resources
 
 # Append PPP solutions (ppp) with single signal=C5X
 # Zero repair (-z): their X (=I+Q) channels have zero values
-#      which is illegal!! and causes the solver to diverge (eventually panic).
-#      simply remove them :)
+#      which is illegal and causes panics.
 ./target/release/rinex-cli \
     -P "Gal;C5X" \
     -f -q -z -o "Gal-L5i+q" \
@@ -29,8 +27,7 @@ DATA_DIR=test_resources
 
 # Dual channel Navigation (C1C+C5X) compare to past runs
 # Zero repair (-z): their X (=I+Q) channels have zero values
-#      which is illegal!! and causes the solver to diverge (eventually panic).
-#      simply remove them :)
+#      which is illegal and causes panics.
 ./target/release/rinex-cli \
     -P "Gal;C1X,C5X" \
     -f -q -z -o "Gal-L1i+qL5i+q" \
@@ -41,8 +38,7 @@ DATA_DIR=test_resources
 # Generate CGGTTS solutions for past run as well.
 # Open report.
 # Zero repair (-z): their X (=I+Q) channels have zero values
-#      which is illegal!! and causes the solver to diverge (eventually panic).
-#      simply remove them :)
+#      which is illegal and causes panics.
 ./target/release/rinex-cli \
     -P "Gal;C1X,C5X" \
     -z -o "Gal-L1i+qL5i+q" \

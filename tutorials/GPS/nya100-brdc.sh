@@ -1,6 +1,8 @@
 #!/bin/sh
 # Real time surveying (BRDC) using observations from NYA100 (arctic).
 # Some channels have zero (null) values - which is illegal, we work it around.
+# NYA100 & NYA200 are located on the same site.
+#  Therefore, they share identical conditions, for example we can share NAV/V3 datasets.
 DATA_DIR=test_resources
 
 # Force new report (-f)
