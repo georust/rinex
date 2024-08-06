@@ -14,8 +14,8 @@ use gnss::prelude::{Constellation, SV};
 use rinex::{carrier::Carrier, prelude::Observable};
 
 use gnss_rtk::prelude::{
-    BaseStation, Candidate, Duration, Epoch, IonosphereBias, Method, Observation,
-    OrbitalStateProvider, Solver, TroposphereBias,
+    BaseStation, Candidate, Duration, Epoch, IonoComponents, IonosphereBias, Method, Observation,
+    OrbitalStateProvider, Solver, TropoComponents, SPEED_OF_LIGHT_M_S,
 };
 
 use cggtts::{
@@ -128,17 +128,18 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                 debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
             }
 
-            let iono_bias = IonosphereBias {
-                kb_model: kb_model(nav_data, *t),
-                bd_model: bd_model(nav_data, *t),
-                ng_model: ng_model(nav_data, *t),
-                stec_meas: None, //TODO
+            let iono_components = if let Some(model) = kb_model(nav_data, *t) {
+                IonoComponents::KbModel(model)
+            } else if let Some(model) = bd_model(nav_data, *t) {
+                IonoComponents::BdModel(model)
+            } else if let Some(model) = ng_model(nav_data, *t) {
+                IonoComponents::NgModel(model)
+            } else {
+                // TODO STEC/IONEX
+                IonoComponents::Unknown
             };
 
-            let tropo_bias = TroposphereBias {
-                total: None,   //TODO
-                zwd_zdd: None, // TODO
-            };
+            let tropo_components = TropoComponents::Unknown; //TODO METEO
 
             // tries to form a candidate for each signal
             for (observable, data) in observations {
@@ -237,9 +238,17 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                     }
                 }
 
-                let candidate = Candidate::new(*sv, *t, clock_corr, tgd, rtk_obs);
+                let candidate = Candidate::new(
+                    *sv,
+                    *t,
+                    clock_corr,
+                    tgd,
+                    rtk_obs,
+                    iono_components,
+                    tropo_components,
+                );
 
-                match solver.resolve(*t, &vec![candidate], &iono_bias, &tropo_bias) {
+                match solver.resolve(*t, &vec![candidate]) {
                     Ok((t, pvt_solution)) => {
                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
 
@@ -253,13 +262,16 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                          * TROPO : always present
                          *         convert to time delay (CGGTTS)
                          */
-                        let mdtr = match pvt_data.tropo_bias.value() {
-                            Some(tropo) => tropo / 299792458.0,
-                            None => 0.0_f64,
-                        };
+                        let mdtr = pvt_data.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
 
-                        let mdio = pvt_data.iono_bias.modeled;
-                        let msio = pvt_data.iono_bias.measured;
+                        let mdio = match pvt_data.iono_bias {
+                            Some(IonosphereBias::Modeled(bias)) => Some(bias),
+                            _ => None,
+                        };
+                        let msio = match pvt_data.iono_bias {
+                            Some(IonosphereBias::Measured(bias)) => Some(bias),
+                            _ => None,
+                        };
                         debug!(
                             "{:?} : new {}:{} solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
                             t, sv, observable, elevation, azimuth, refsv, refsys

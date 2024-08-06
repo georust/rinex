@@ -21,8 +21,8 @@ pub use report::Report;
 pub mod post_process;
 
 use gnss_rtk::prelude::{
-    BaseStation, Candidate, Epoch, IonosphereBias, Observation, OrbitalStateProvider, PVTSolution,
-    Solver, TroposphereBias,
+    BaseStation, Candidate, Epoch, IonoComponents, Observation, OrbitalStateProvider, PVTSolution,
+    Solver, TropoComponents,
 };
 
 pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
@@ -134,27 +134,29 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                     }
                 }
             }
-            let candidate =
-                Candidate::new(*sv, *t, clock_corr, Default::default(), rtk_obs.clone());
+            let iono_components = if let Some(model) = kb_model(nav_data, *t) {
+                IonoComponents::KbModel(model)
+            } else if let Some(model) = ng_model(nav_data, *t) {
+                IonoComponents::NgModel(model)
+            } else if let Some(model) = bd_model(nav_data, *t) {
+                IonoComponents::BdModel(model)
+            } else {
+                //TODO STEC/IONEX
+                IonoComponents::Unknown
+            };
+            let candidate = Candidate::new(
+                *sv,
+                *t,
+                clock_corr,
+                Default::default(),
+                rtk_obs.clone(),
+                iono_components,
+                TropoComponents::Unknown, // TODO: meteo
+            );
             candidates.push(candidate);
         }
 
-        // grab possible tropo components
-        // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
-
-        let iono_bias = IonosphereBias {
-            kb_model: kb_model(nav_data, *t),
-            bd_model: bd_model(nav_data, *t),
-            ng_model: ng_model(nav_data, *t),
-            stec_meas: None, //TODO
-        };
-
-        let tropo_bias = TroposphereBias {
-            total: None,   //TODO
-            zwd_zdd: None, //TODO
-        };
-
-        match solver.resolve(*t, &candidates, &iono_bias, &tropo_bias) {
+        match solver.resolve(*t, &candidates) {
             Ok((t, pvt)) => {
                 debug!("{} : {:?}", t, pvt);
                 solutions.insert(t, pvt);
