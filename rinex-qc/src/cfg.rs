@@ -15,8 +15,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 /// [QcReportType]
-#[derive(Default, Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum QcReportType {
     /// In [Summary] mode, only the summary section
     /// of the report is to be generated. It is the lightest
@@ -49,8 +48,7 @@ impl Display for QcReportType {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct QcConfig {
     #[serde(default)]
     pub report: QcReportType,

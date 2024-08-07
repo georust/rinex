@@ -29,7 +29,6 @@ use crate::epoch::{
 #[cfg(feature = "nav")]
 use nalgebra::{self as na, Matrix3, Rotation, Rotation3, Vector3, Vector4};
 
-
 /// Parsing errors
 #[derive(Debug, Error)]
 pub enum Error {
@@ -808,15 +807,15 @@ impl Ephemeris {
                 self.get_orbit_f64("velY")?,
                 self.get_orbit_f64("velZ")?,
             );
-            Some(((pos_x_km, pos_y_km, pos_z_km), (vel_x_km, vel_y_km, vel_z_km)))
+            Some((
+                (pos_x_km, pos_y_km, pos_z_km),
+                (vel_x_km, vel_y_km, vel_z_km),
+            ))
         } else {
             let helper = self.ephemeris_helper(sv, t_sv, t)?;
             let (pos, vel) = helper.position_velocity()?;
-            Some((
-                (pos.x, pos.y, pos.z),
-                (vel.x, vel.y, vel.z),
-            ))
-        } 
+            Some(((pos.x, pos.y, pos.z), (vel.x, vel.y, vel.z)))
+        }
     }
     /// [AzElRange] calculation attempt, for following SV as observed at RX,
     /// both coordinates expressed as [km] in fixed body [Frame] centered on Earth.

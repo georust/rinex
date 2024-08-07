@@ -1,6 +1,6 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{GroundPosition, Orbit, Rinex, SV, Constellation, Epoch},
+    prelude::{Constellation, Epoch, GroundPosition, Orbit, Rinex, SV},
 };
 use std::collections::{BTreeMap, HashMap};
 
