@@ -56,21 +56,33 @@ impl<'a> EphemerisSource<'a> {
             self.consume_one();
         }
     }
-    fn try_select(&self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
+    fn try_select(&self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, &Ephemeris)> {
         let buffer = self.buffer.get(&sv)?;
         let sv_ts = sv.constellation.timescale()?;
-        let (toc_i, toe_i, eph_i) = buffer
-            .iter()
-            .filter_map(|(toc_i, eph_i)| {
-                if eph_i.is_valid(sv, t) && t >= *toc_i {
-                    let toe_i = eph_i.toe(sv_ts)?;
-                    Some((*toc_i, toe_i, eph_i))
-                } else {
-                    None
-                }
-            })
-            .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())?;
-        Some((toc_i, toe_i, eph_i.clone()))
+        if sv.constellation.is_sbas() {
+            buffer
+                .iter()
+                .filter_map(|(toc_i, eph_i)| {
+                    if t >= *toc_i {
+                        Some((*toc_i, *toc_i, eph_i))
+                    } else {
+                        None
+                    }
+                })
+                .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())
+        } else {
+            buffer
+                .iter()
+                .filter_map(|(toc_i, eph_i)| {
+                    if eph_i.is_valid(sv, t) && t >= *toc_i {
+                        let toe_i = eph_i.toe(sv_ts)?;
+                        Some((*toc_i, toe_i, eph_i))
+                    } else {
+                        None
+                    }
+                })
+                .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())
+        }
     }
     pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
         let mut attempt = 0;
