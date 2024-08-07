@@ -123,6 +123,10 @@ jobs:
       with:
         toolchain: stable
         override: true
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
     - uses: actions-rs/cargo@v1
       name: Test (all features)
       with:
@@ -139,6 +143,10 @@ jobs:
       with:
         toolchain: nightly
         override: true
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
     - name: Documentation
       run: |
         ./tools/builddoc.sh
