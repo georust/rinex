@@ -13,4 +13,6 @@ members = [
     "ublox-rnx", 
 ]
 
-exclude = ["./test_resources"]
+exclude = [
+    "./test_resources",
+]

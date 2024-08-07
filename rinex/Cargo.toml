@@ -58,6 +58,7 @@ qc = [
 # Unlock Processing package.
 # Unlocks the preprocessing toolkit, Filtering methods and preprocessing algorithms.
 processing = [
+    "qc",
     "rinex-qc-traits/processing",
 ]
 

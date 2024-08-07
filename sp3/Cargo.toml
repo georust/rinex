@@ -22,6 +22,7 @@ qc = [
 
 # Unlock processing features
 processing = [
+    "qc",
     "rinex-qc-traits/processing",
 ]
 

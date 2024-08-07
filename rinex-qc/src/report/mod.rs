@@ -211,6 +211,19 @@ impl QcReport {
                 }
                 items
             },
+            #[cfg(not(feature = "sp3"))]
+            orbit: {
+                if context.has_brdc_navigation() && !summary_only {
+                    Some(OrbitReport::new(
+                        context,
+                        ref_position,
+                        cfg.force_brdc_skyplot,
+                    ))
+                } else {
+                    None
+                }
+            },
+            #[cfg(feature = "sp3")]
             orbit: {
                 if (context.has_sp3() || context.has_brdc_navigation()) && !summary_only {
                     Some(OrbitReport::new(
@@ -230,6 +243,58 @@ impl QcReport {
         self.custom_chapters.push(chapter);
     }
     /// Generates a menu bar to nagivate [Self]
+    #[cfg(not(feature = "sp3"))]
+    fn menu_bar(&self) -> Markup {
+        html! {
+            aside class="menu" {
+                p class="menu-label" {
+                    (format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION")))
+                }
+                ul class="menu-list" {
+                    li {
+                        a id="menu:summary" {
+                            span class="icon" {
+                                i class="fa fa-home" {}
+                            }
+                            "Summary"
+                        }
+                    }
+                    @for product in self.products.keys().sorted() {
+                        @if let Some(report) = self.products.get(&product) {
+                            li {
+                                (report.html_inline_menu_bar())
+                            }
+                        }
+                    }
+                    @for chapter in self.custom_chapters.iter() {
+                        li {
+                            (chapter.tab.render())
+                        }
+                    }
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
+                            "Documentation"
+                        }
+                    }
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
+                            "Bug Report"
+                        }
+                    }
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex" {
+                            span class="icon" {
+                                i class="fa-brands fa-github" {}
+                            }
+                            "Sources"
+                        }
+                    }
+                } // menu-list
+            }//menu
+        }
+    }
+    /// Generates a menu bar to nagivate [Self]
+    #[cfg(feature = "sp3")]
     fn menu_bar(&self) -> Markup {
         html! {
             aside class="menu" {
@@ -327,6 +392,7 @@ impl Render for QcReport {
                                             }
                                         }
                                     }
+                                    // TODO: it should be feasible to run without SP3 support
                                     @if let Some(orbit) = &self.orbit {
                                         div id="orbit" class="container is-main" style="display:none" {
                                             (orbit.render())

@@ -36,8 +36,8 @@ thiserror = "1"
 strum = "0.26"
 itertools = "0.13.0"
 strum_macros = "0.26"
-anise = "0.4.2"
-serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
+anise = { version = "0.4.2", features = ["embed_ephem"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 statrs = { version = "0.16", optional = true }
 
