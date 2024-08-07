@@ -1066,10 +1066,7 @@ mod test {
             ephemeris.get_orbit_f64("bgdE5aE1"),
             Some(-1.303851604462e-08)
         );
-        assert_eq!(
-            ephemeris.get_orbit_f64("bgdE5bE1"),
-            Some(0.000000000000e+00)
-        );
+        assert!(ephemeris.get_orbit_f64("bgdE5bE1").is_none());
 
         assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(3.555400000000e+05));
     }
@@ -1127,7 +1124,7 @@ mod test {
             ephemeris.get_orbit_f64("svAccuracy"),
             Some(0.200000000000e+01)
         );
-        assert_eq!(ephemeris.get_orbit_f64("satH1"), Some(0.0));
+        assert!(ephemeris.get_orbit_f64("satH1").is_none());
         assert_eq!(
             ephemeris.get_orbit_f64("tgd1b1b3"),
             Some(-0.599999994133e-09)
@@ -1137,8 +1134,8 @@ mod test {
             Some(-0.900000000000e-08)
         );
 
+        assert!(ephemeris.get_orbit_f64("aodc").is_none());
         assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.432000000000e+06));
-        assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
     }
     #[test]
     fn glonass_orbit_v2() {
