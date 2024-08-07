@@ -106,7 +106,6 @@ jobs:
         override: true
 
     - name: ${{ matrix.name }} 
-      with:
       run: |
         cd ${{ matrix.folder }} && cargo clean && cargo build ${{ matrix.opts }}
    
