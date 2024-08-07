@@ -2,7 +2,6 @@ use maud::{html, Markup, Render};
 use rinex::prelude::*;
 use thiserror::Error;
 
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// Configuration Error
@@ -16,8 +15,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 /// [QcReportType]
-#[derive(Default, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum QcReportType {
     /// In [Summary] mode, only the summary section
     /// of the report is to be generated. It is the lightest
@@ -50,14 +48,13 @@ impl Display for QcReportType {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(Deserialize))]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct QcConfig {
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[serde(default)]
     pub report: QcReportType,
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[serde(default)]
     pub manual_reference: Option<GroundPosition>,
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[serde(default)]
     /// When both SP3 and BRDC NAV are present,
     /// SP3 is prefered for skyplot project: set true here to
     /// also compute for BRDC NAV.

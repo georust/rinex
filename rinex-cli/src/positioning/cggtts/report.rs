@@ -202,8 +202,64 @@ impl ReportContent {
                 plot
             },
             ionod_plot: {
-                let plot =
+                let mut plot =
                     Plot::timedomain_plot("ionod_plot", "Ionospheric Delay", "Delay [s]", true);
+                for sv in summary.satellites.iter() {
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| if trk.sv == *sv { Some(trk.epoch) } else { None })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                Some(trk.data.mdio)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &format!("{}(mdio)", sv),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                        true,
+                    );
+                    plot.add_trace(trace);
+
+                    let x = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv && trk.iono.is_some() {
+                                Some(trk.epoch)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let y = solutions
+                        .iter()
+                        .filter_map(|trk| {
+                            if trk.sv == *sv {
+                                let iono = trk.iono?;
+                                Some(iono.msio)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let trace = Plot::timedomain_chart(
+                        &format!("{}(mdio)", sv),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &x,
+                        y,
+                        true,
+                    );
+                    plot.add_trace(trace);
+                }
                 plot
             },
             tropod_plot: {

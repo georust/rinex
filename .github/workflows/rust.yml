@@ -13,8 +13,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build
+  linter:
+    name: Linter 
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -23,52 +23,136 @@ jobs:
       with:
         toolchain: stable
         override: true
-    
-    - name: UBX2RNX dependencies 
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev
-
-    - uses: actions-rs/cargo@v1
-      name: Cargo update
-      with:
-        command: update
-    
     - uses: actions-rs/cargo@v1
       name: Linter 
       with:
         command: fmt
         args: --all -- --check
-    
-    - uses: actions-rs/cargo@v1
-      name: Build (all features)
+
+  build:
+    name: Build 
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: Workspace default
+            folder: "."
+            opts: -r
+          - name: Workspace All-features
+            folder: "."
+            opts: --all-features
+          - name: RINEX Default
+            folder: rinex
+            opts: -r
+          - name: RINEX Observations
+            folder: rinex
+            opts: --features "obs"
+          - name: RINEX Navigation
+            folder: rinex
+            opts: --features "nav"
+          - name: RINEX QC
+            folder: rinex
+            opts: --features "qc"
+          - name: RINEX Meteo
+            folder: rinex
+            opts: --features "meteo"
+          - name: RINEX Clock
+            folder: rinex
+            opts: --features "clock"
+          - name: ANTEX
+            folder: rinex
+            opts: --features "antex"
+          - name: DORIS RINEX
+            folder: rinex
+            opts: --features "doris"
+          - name: RINEX Processing
+            folder: rinex
+            opts: --features "processing"
+          - name: RINEX Full
+            folder: rinex
+            opts: --features "full"
+          - name: RINEX All-features
+            folder: rinex
+            opts: --all-features
+          - name: SP3 default
+            folder: sp3
+            opts: -r
+          - name: SP3 QC
+            folder: sp3
+            opts: --features "qc"
+          - name: SP3 Processing
+            folder: sp3
+            opts: --features "processing"
+          - name: SP3 All-features
+            folder: sp3
+            opts: --all-features
+          - name: RINEX-QC Default
+            folder: rinex-qc
+            opts: -r
+          - name: RINEX-QC SP3
+            folder: rinex-qc
+            opts: --features "sp3"
+          - name: RINEX-QC All-features
+            folder: rinex-qc
+            opts: --all-features
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      name: Install Rust
       with:
-        command: build
-        args: --all-features --release
-    
-    - uses: actions-rs/cargo@v1
-      name: Test
+        toolchain: stable
+        override: true
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
+
+    - name: ${{ matrix.name }} 
+      run: |
+        cd ${{ matrix.folder }} && cargo clean && cargo update && cargo build ${{ matrix.opts }}
+   
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      name: Install Rust
       with:
-        command: test
-        args: --verbose
-    
+        toolchain: stable
+        override: true
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
     - uses: actions-rs/cargo@v1
       name: Test (all features)
       with:
         command: test
-        args: --verbose --all-features
+        args: --all-features
     
+  documentation:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       name: Install nightly
       with:
         toolchain: nightly
         override: true
-
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
     - name: Documentation
       run: |
         ./tools/builddoc.sh
   
   windows-build:
+    name: Windows
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
@@ -79,23 +163,19 @@ jobs:
         override: true
         
     - uses: actions-rs/cargo@v1
-      name: Cargo update
-      with:
-        command: update
-    
-    - uses: actions-rs/cargo@v1
       name: Build (default) 
       with:
         command: build
-        args: --release --verbose
+        args: --release
 
     - uses: actions-rs/cargo@v1
       name: Build (all features)
       with: 
         command: build 
-        args: --all-features --release --verbose
+        args: --all-features --release
   
   macos-build:
+    name: MacOS
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
@@ -106,18 +186,13 @@ jobs:
         override: true
     
     - uses: actions-rs/cargo@v1
-      name: Cargo update
-      with:
-        command: update
-    
-    - uses: actions-rs/cargo@v1
       name: Build (default) 
       with:
         command: build
-        args: --release --verbose
+        args: --release
 
     - uses: actions-rs/cargo@v1
       name: Build (all features)
       with: 
         command: build 
-        args: --all-features --release --verbose
+        args: --all-features --release

@@ -2,10 +2,14 @@ use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::constants::Constants;
 use crate::{
     constants, epoch,
-    prelude::{Almanac, Constellation, Duration, Epoch, TimeScale, SV},
+    prelude::{Constellation, Duration, Epoch, TimeScale, SV},
     version::Version,
 };
 
+#[cfg(feature = "nav")]
+use crate::prelude::Almanac;
+
+#[cfg(feature = "nav")]
 use anise::{
     astro::AzElRange,
     constants::frames::EARTH_J2000,
@@ -293,7 +297,9 @@ pub struct Kepler {
     pub m_0: f64,
     /// argument of perigee (semicircles)
     pub omega: f64,
-    /// time of issue of ephemeris
+    /// Time of issue of ephemeris.
+    /// NB GEO and GLO ephemerides do not have the notion of ToE, we set 0 here.
+    /// Any calculations that imply ToE for those is incorrect anyways.
     pub toe: f64,
 }
 
@@ -332,8 +338,13 @@ impl Ephemeris {
     }
     /// Retrieves orbit data field expressed as f64 value, if such field exists.
     pub fn get_orbit_f64(&self, field: &str) -> Option<f64> {
-        if let Some(v) = self.orbits.get(field) {
-            v.as_f64()
+        if let Some(value) = self.orbits.get(field) {
+            let value = value.as_f64()?;
+            if value != 0.0 {
+                Some(value)
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -501,7 +512,8 @@ impl Ephemeris {
 
 #[cfg(feature = "nav")]
 impl Ephemeris {
-    /// Retrieves Orbit Keplerian parameters
+    /// Retrieves Orbit Keplerian parameters.
+    /// This only applies to MEO Ephemerides, not GEO and Glonass.
     pub fn kepler(&self) -> Option<Kepler> {
         Some(Kepler {
             a: self.get_orbit_f64("sqrta")?.powf(2.0),
@@ -563,22 +575,23 @@ impl Ephemeris {
         s.set_orbit_f64("omegaDot", perturbations.omega_dot);
         s
     }
-    /// Total seconds elapsed between `t` and ToE, expressed in GPS timescale.
-    fn t_k_gpst_s(&self, sv: SV, t: Epoch) -> Option<f64> {
-        let sv_ts = sv.timescale()?;
-        let toe_gpst = self.toe(sv_ts)?.to_time_scale(TimeScale::GPST);
-        let dt = t.to_time_scale(TimeScale::GPST) - toe_gpst;
+    /// Total seconds elapsed between `t` and ToE, expressed in appropriate timescale.
+    /// NB: this does not apply to GEO Ephemerides but only MEO.
+    fn t_k(&self, sv: SV, t: Epoch) -> Option<f64> {
+        let mut sv_ts = sv.timescale()?;
+        let toe = self.toe(sv_ts)?;
+        let dt = t.to_time_scale(sv_ts) - toe;
         Some(dt.to_seconds())
     }
-
-    /// Form ephemerisHelper
+    /// Form ephemerisHelper.
+    /// This does not apply to SBAS and Glonass.
     fn ephemeris_helper(&self, sv: SV, t_sv: Epoch, t: Epoch) -> Option<EphemerisHelper> {
         // const
         let gm_m3_s2 = Constants::gm(sv);
         let omega = Constants::omega(sv);
         let dtr_f = Constants::dtr_f(sv);
-        let t_k = self.t_k_gpst_s(sv, t)?;
 
+        let t_k = self.t_k(sv, t)?;
         if t_k < 0.0 {
             error!("t_k < 0.0: bad op");
             return None;
@@ -760,9 +773,18 @@ impl Ephemeris {
     /// Self must be correctly selected from navigation record.
     /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
     pub fn kepler2position(&self, sv: SV, t_sv: Epoch, t: Epoch) -> Option<(f64, f64, f64)> {
-        let helper = self.ephemeris_helper(sv, t_sv, t)?;
-        let pos = helper.ecef_position();
-        Some((pos.x, pos.y, pos.z))
+        if sv.constellation.is_sbas() || sv.constellation == Constellation::Glonass {
+            let (pos_x_km, pos_y_km, pos_z_km) = (
+                self.get_orbit_f64("satPosX")?,
+                self.get_orbit_f64("satPosY")?,
+                self.get_orbit_f64("satPosZ")?,
+            );
+            Some((pos_x_km, pos_y_km, pos_z_km))
+        } else {
+            let helper = self.ephemeris_helper(sv, t_sv, t)?;
+            let pos = helper.ecef_position();
+            Some((pos.x, pos.y, pos.z))
+        }
     }
     /// Kepler ECEF [km] position and velocity [km/s] solver at desired instant "t" for given "sv"
     /// based off Self. Self must be correctly selected in navigation
@@ -774,12 +796,26 @@ impl Ephemeris {
         t_sv: Epoch,
         t: Epoch,
     ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
-        let helper = self.ephemeris_helper(sv, t_sv, t)?;
-        let (pos, vel) = helper.position_velocity()?;
-        Some((
-            (pos.x / 1000.0, pos.y / 1000.0, pos.z / 1000.0),
-            (vel.x, vel.y, vel.z),
-        ))
+        if sv.constellation.is_sbas() || sv.constellation == Constellation::Glonass {
+            let (pos_x_km, pos_y_km, pos_z_km) = (
+                self.get_orbit_f64("satPosX")?,
+                self.get_orbit_f64("satPosY")?,
+                self.get_orbit_f64("satPosZ")?,
+            );
+            let (vel_x_km, vel_y_km, vel_z_km) = (
+                self.get_orbit_f64("velX")?,
+                self.get_orbit_f64("velY")?,
+                self.get_orbit_f64("velZ")?,
+            );
+            Some((
+                (pos_x_km, pos_y_km, pos_z_km),
+                (vel_x_km, vel_y_km, vel_z_km),
+            ))
+        } else {
+            let helper = self.ephemeris_helper(sv, t_sv, t)?;
+            let (pos, vel) = helper.position_velocity()?;
+            Some(((pos.x, pos.y, pos.z), (vel.x, vel.y, vel.z)))
+        }
     }
     /// [AzElRange] calculation attempt, for following SV as observed at RX,
     /// both coordinates expressed as [km] in fixed body [Frame] centered on Earth.
@@ -797,7 +833,9 @@ impl Ephemeris {
             Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, fixed_body_frame),
         )
     }
-    /// Returns True if Self is Valid at specified `t`
+    /// Returns True if Self is Valid at specified `t`.
+    /// NB: this only applies to MEO Ephemerides, not GEO Ephemerides,
+    /// which should always be considered "valid".
     pub fn is_valid(&self, sv: SV, t: Epoch) -> bool {
         if let Some(max_dt) = Self::max_dtoe(sv.constellation) {
             if let Some(sv_ts) = sv.constellation.timescale() {
@@ -816,7 +854,7 @@ impl Ephemeris {
             false
         }
     }
-    /// Returns Ephemeris validity duration for this Constellation
+    /// Ephemeris validity period for this [Constellation]
     pub fn max_dtoe(c: Constellation) -> Option<Duration> {
         match c {
             Constellation::GPS | Constellation::QZSS => Some(Duration::from_seconds(7200.0)),
@@ -826,8 +864,13 @@ impl Ephemeris {
             Constellation::Glonass => Some(Duration::from_seconds(1800.0)),
             c => {
                 if c.is_sbas() {
-                    // tolerate one publication per day
-                    Some(Duration::from_seconds(86.4E3))
+                    // Tolerate one publication per day.
+                    // Typical RINEX apps will load one set per 24 hr.
+                    // GEO Orbits are very special, with a single entry per day.
+                    // Therefore, in typical RINEX apps, we will have one entry for every day.
+                    // GEO Ephemerides cannot be handled like other Ephemerides anyway, they require
+                    // a complete different logic and calculations
+                    Some(Duration::from_days(1.0))
                 } else {
                     None
                 }
@@ -1023,10 +1066,7 @@ mod test {
             ephemeris.get_orbit_f64("bgdE5aE1"),
             Some(-1.303851604462e-08)
         );
-        assert_eq!(
-            ephemeris.get_orbit_f64("bgdE5bE1"),
-            Some(0.000000000000e+00)
-        );
+        assert!(ephemeris.get_orbit_f64("bgdE5bE1").is_none());
 
         assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(3.555400000000e+05));
     }
@@ -1084,7 +1124,7 @@ mod test {
             ephemeris.get_orbit_f64("svAccuracy"),
             Some(0.200000000000e+01)
         );
-        assert_eq!(ephemeris.get_orbit_f64("satH1"), Some(0.0));
+        assert!(ephemeris.get_orbit_f64("satH1").is_none());
         assert_eq!(
             ephemeris.get_orbit_f64("tgd1b1b3"),
             Some(-0.599999994133e-09)
@@ -1094,8 +1134,8 @@ mod test {
             Some(-0.900000000000e-08)
         );
 
+        assert!(ephemeris.get_orbit_f64("aodc").is_none());
         assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.432000000000e+06));
-        assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
     }
     #[test]
     fn glonass_orbit_v2() {

@@ -1,8 +1,7 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{GroundPosition, Orbit, Rinex},
+    prelude::{Constellation, Epoch, GroundPosition, Orbit, Rinex, SV},
 };
-use sp3::prelude::{Constellation, Epoch, SP3, SV};
 use std::collections::{BTreeMap, HashMap};
 
 use qc_traits::processing::{Filter, Preprocessing};
@@ -12,12 +11,17 @@ use crate::{
     prelude::{html, Markup, Plot, QcContext, Render},
 };
 
+#[cfg(feature = "sp3")]
+use sp3::prelude::SP3;
+
+#[cfg(feature = "sp3")]
 struct BrdcSp3Report {
     x_err_plot: Plot,
     y_err_plot: Plot,
     z_err_plot: Plot,
 }
 
+#[cfg(feature = "sp3")]
 impl BrdcSp3Report {
     fn new(sp3: &SP3, brdc: &Rinex) -> Self {
         let mut errors = BTreeMap::<SV, Vec<(Epoch, f64, f64, f64)>>::new();
@@ -106,6 +110,7 @@ impl BrdcSp3Report {
     }
 }
 
+#[cfg(feature = "sp3")]
 impl Render for BrdcSp3Report {
     fn render(&self) -> Markup {
         html! {
@@ -146,6 +151,7 @@ pub struct OrbitReport {
     elev_plot: Plot,
     map_proj: Plot,
     // globe_proj: Plot,
+    #[cfg(feature = "sp3")]
     brdc_sp3_err: HashMap<Constellation, BrdcSp3Report>,
 }
 
@@ -153,8 +159,12 @@ impl OrbitReport {
     pub fn new(ctx: &QcContext, reference: Option<GroundPosition>, force_brdc_sky: bool) -> Self {
         let (x0, y0, z0) = reference.unwrap_or_default().to_ecef_wgs84();
         let (x0_km, y0_km, z0_km) = (x0 / 1000.0, y0 / 1000.0, z0 / 1000.0);
+
         // TODO: brdc needs a timeserie..
+        #[cfg(feature = "sp3")]
         let brdc_skyplot = ctx.has_brdc_navigation() && ctx.has_sp3() && force_brdc_sky;
+        #[cfg(not(feature = "sp3"))]
+        let brdc_skyplot = ctx.has_brdc_navigation();
 
         let max_sv_visible = if brdc_skyplot { 2 } else { 4 };
 
@@ -166,6 +176,7 @@ impl OrbitReport {
         let mut elev_brdc = BTreeMap::<SV, Vec<f64>>::new();
         let mut azim_brdc = BTreeMap::<SV, Vec<f64>>::new();
 
+        #[cfg(feature = "sp3")]
         if let Some(sp3) = ctx.sp3() {
             for (t, sv_sp3, pos_sp3) in sp3.sv_position() {
                 let (x_sp3_km, y_sp3_km, z_sp3_km) = (pos_sp3.0, pos_sp3.1, pos_sp3.2);
@@ -297,6 +308,7 @@ impl OrbitReport {
                     1,
                     true,
                 );
+                #[cfg(feature = "sp3")]
                 if let Some(sp3) = ctx.sp3() {
                     for (sv_index, sv) in sp3.sv().enumerate() {
                         let orbits = sp3
@@ -358,6 +370,7 @@ impl OrbitReport {
             //    );
             //    map_proj
             //},
+            #[cfg(feature = "sp3")]
             brdc_sp3_err: {
                 let mut reports = HashMap::<Constellation, BrdcSp3Report>::new();
                 if let Some(sp3) = ctx.sp3() {
@@ -395,6 +408,7 @@ impl OrbitReport {
     }
 }
 
+#[cfg(feature = "sp3")]
 impl Render for OrbitReport {
     fn render(&self) -> Markup {
         html! {
@@ -442,6 +456,50 @@ impl Render for OrbitReport {
                                     (page.render())
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "sp3"))]
+impl Render for OrbitReport {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tr {
+                        th class="is-info" {
+                            "Map projection"
+                        }
+                        td {
+                            (self.map_proj.render())
+                        }
+                    }
+                    //tr {
+                    //    th class="is-info" {
+                    //        "Globe projection"
+                    //    }
+                    //    td {
+                    //        (self.globe_proj.render())
+                    //    }
+                    //}
+                    tr {
+                        th class="is-info" {
+                            "Sky plot"
+                        }
+                        td {
+                            (self.sky_plot.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Elevation"
+                        }
+                        td {
+                            (self.elev_plot.render())
                         }
                     }
                 }

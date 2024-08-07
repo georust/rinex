@@ -26,6 +26,7 @@ pub struct Sensor {
     pub height: Option<f64>,
 }
 
+#[cfg(feature = "qc")]
 impl Render for Sensor {
     fn render(&self) -> Markup {
         html! {

@@ -415,7 +415,7 @@ impl ReportContent {
                     MarkerSymbol::Cross,
                     &epochs,
                     long,
-                    true,
+                    false,
                 );
                 plot.add_trace(trace);
                 plot
@@ -510,7 +510,8 @@ impl ReportContent {
                             if let Some(value) =
                                 sol.sv.iter().filter(|(s, _)| *s == sv).reduce(|k, _| k)
                             {
-                                value.1.tropo_bias.value()
+                                let bias = value.1.tropo_bias?;
+                                Some(bias)
                             } else {
                                 None
                             }
@@ -547,7 +548,8 @@ impl ReportContent {
                             if let Some(value) =
                                 sol.sv.iter().filter(|(s, _)| *s == sv).reduce(|k, _| k)
                             {
-                                value.1.iono_bias.value()
+                                let bias = value.1.iono_bias?;
+                                Some(bias)
                             } else {
                                 None
                             }
@@ -899,22 +901,22 @@ impl Render for ReportContent {
                         }
                         tr {
                             th class="is-info" {
-                                button aria-label="Error due to Ionospheric delay" data-balloon-pos="right" {
-                                    "Ionosphere"
-                                }
-                            }
-                            td {
-                                (self.ionod_plot.render())
-                            }
-                        }
-                        tr {
-                            th class="is-info" {
                                 button aria-label="Error due to Tropospheric delay" data-balloon-pos="right" {
                                     "Troposphere"
                                 }
                             }
                             td {
                                 (self.tropod_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                button aria-label="Error due to Ionospheric delay" data-balloon-pos="right" {
+                                    "Ionosphere"
+                                }
+                            }
+                            td {
+                                (self.ionod_plot.render())
                             }
                         }
                     }
