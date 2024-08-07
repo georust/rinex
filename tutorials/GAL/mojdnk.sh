@@ -14,6 +14,7 @@ DATA_DIR=test_resources
 FILTER="Gal;>E09;C1C,C5Q"
 # Skip 1st hour (example)
 TIMEFRAME=">2020-06-25T01:00:00 UTC"
+CONF=tutorials/config/survey/spp_lsq.json
 CONF=tutorials/config/survey/cpp_kf.json
 
 # Analysis + ppp solutions

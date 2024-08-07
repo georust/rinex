@@ -10,8 +10,8 @@ DATA_DIR=test_resources
 # Example:
 #   GPS <28 : any other is dropped
 #  L1/L5 PR only: not using L2, not PPP compatible
-FILTER="GEO"
-CONF=tutorials/config/survey/cpp_kf.json
+FILTER="GEO,GAL"
+CONF=tutorials/config/survey/spp_lsq.json
 
 # Analysis + ppp solutions (silent)
 #  -f: force new synthesis
