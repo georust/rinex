@@ -33,7 +33,7 @@ jobs:
     name: Build 
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - name: Workspace default
@@ -104,6 +104,10 @@ jobs:
       with:
         toolchain: stable
         override: true
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev
 
     - name: ${{ matrix.name }} 
       run: |
@@ -113,6 +117,12 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      name: Install Rust
+      with:
+        toolchain: stable
+        override: true
     - uses: actions-rs/cargo@v1
       name: Test (all features)
       with:
@@ -123,6 +133,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       name: Install nightly
       with:
