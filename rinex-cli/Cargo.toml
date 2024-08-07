@@ -44,9 +44,9 @@ hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
 gnss-rs = { version = "2.2.1", features = ["serde"] }
 
-gnss-rtk = { version = "0.6.0", features = ["serde"] }
+# gnss-rtk = { version = "0.6.0", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
 cggtts = { version = "4.1.5", features = ["serde", "scheduler"], optional = true }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }
@@ -54,4 +54,4 @@ cggtts = { version = "4.1.5", features = ["serde", "scheduler"], optional = true
 
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 sp3 = { path = "../sp3", version = "=1.0.8", features = ["serde", "flate2"] }
-rinex-qc = { path = "../rinex-qc", version = "=0.1.14", features = ["serde", "sp3"] } 
+rinex-qc = { path = "../rinex-qc", version = "=0.1.14", features = ["sp3"] } 
