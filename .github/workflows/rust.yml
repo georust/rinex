@@ -107,7 +107,7 @@ jobs:
 
     - name: ${{ matrix.name }} 
       run: |
-        cd ${{ matrix.folder }} && cargo clean && cargo build ${{ matrix.opts }}
+        cd ${{ matrix.folder }} && cargo clean && cargo update && cargo build ${{ matrix.opts }}
    
   test:
     name: Tests
