@@ -6,6 +6,7 @@ test_resources/
 
 Cargo.lock
 
+*.csv
 *.png
 *.jpg
 *.html
