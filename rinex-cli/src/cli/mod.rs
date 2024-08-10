@@ -88,8 +88,7 @@ impl Context {
 impl Cli {
     /// Build new command line interface
     pub fn new() -> Self {
-        Self {
-            matches: {
+        let cmd =
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
@@ -268,15 +267,17 @@ Otherwise it gets automatically picked up."))
                     .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
                     .help("Define the (RX) antenna position manualy, in decimal degrees."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
-                .subcommand(filegen::subcommand())
-                .subcommand(merge::subcommand())
-                .subcommand(positioning::ppp_subcommand())
-                .subcommand(positioning::rtk_subcommand())
-                .subcommand(split::subcommand())
-                .subcommand(diff::subcommand())
-                .subcommand(time_binning::subcommand())
-                .get_matches()
-            },
+                .subcommand(filegen::subcommand());
+
+        let cmd = cmd
+            .subcommand(merge::subcommand())
+            .subcommand(positioning::ppp_subcommand())
+            .subcommand(positioning::rtk_subcommand())
+            .subcommand(split::subcommand())
+            .subcommand(diff::subcommand())
+            .subcommand(time_binning::subcommand());
+        Self {
+            matches: cmd.get_matches(),
         }
     }
     /// Recursive browser depth

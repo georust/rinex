@@ -8,7 +8,7 @@ pub fn subcommand() -> Command {
         .long_flag("filegen")
         .arg_required_else_help(false)
         .about(
-            "Parse, preprocess and generate data while preserving input format. See --filegen --help."
+            "Parse, preprocess and generate new RINEX and/or SP3 data. Input forms are preserved. See --filegen --help."
         )
         .long_about("
 Use this mode to generate all file formats we support after preprocessing them.
