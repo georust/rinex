@@ -1,17 +1,17 @@
 mod diff;
+mod filegen;
 mod merge;
 mod split;
 mod tbin;
-mod filegen;
 
 #[cfg(feature = "csv")]
 pub mod csv;
 
 pub use diff::diff;
+pub use filegen::filegen;
 pub use merge::merge;
 pub use split::split;
 pub use tbin::time_binning;
-pub use filegen::filegen;
 
 use clap::ArgMatches;
 
@@ -86,7 +86,12 @@ fn custom_prod_attributes(rinex: &Rinex, matches: &ArgMatches) -> ProductionAttr
  * TODO: some customization might impact the Header section
  *       that we should slightly rework, to be 100% correct
  */
-fn output_filename(rinex: &Rinex, matches: &ArgMatches, submatches: &ArgMatches, prod: ProductionAttributes) -> String {
+fn output_filename(
+    rinex: &Rinex,
+    matches: &ArgMatches,
+    submatches: &ArgMatches,
+    prod: ProductionAttributes,
+) -> String {
     // Parse possible custom opts
     let short = submatches.get_flag("short");
     let gzip = if submatches.get_flag("gzip") {

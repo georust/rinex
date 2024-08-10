@@ -1,12 +1,19 @@
-use rinex::prelude::Rinex;
-use std::path::Path;
 use crate::Error;
 use csv::Writer;
+use rinex::prelude::Rinex;
+use std::path::Path;
 
 pub fn write_obs_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error> {
     let mut w = Writer::from_path(path)?;
     w.write_record(&[
-        "Epoch ", "Flag ", "Clock Offset [s] ", "SV ", "RINEX Code ", "Value ", "LLI ", "SNR ",
+        "Epoch ",
+        "Flag ",
+        "Clock Offset [s] ",
+        "SV ",
+        "RINEX Code ",
+        "Value ",
+        "LLI ",
+        "SNR ",
     ])?;
     for ((epoch, flag), (clk, svnn)) in rnx.observation() {
         let t = epoch.to_string();
@@ -31,18 +38,7 @@ pub fn write_obs_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error
                 } else {
                     "None".to_string()
                 };
-                w.write_record(
-                    &[
-                        &t,
-                        &flag,
-                        &clk,
-                        &sv,
-                        &code,
-                        &value,
-                        &lli,
-                        &snr,
-                    ]
-                )?;
+                w.write_record(&[&t, &flag, &clk, &sv, &code, &value, &lli, &snr])?;
             }
         }
     }

@@ -1,16 +1,20 @@
 use crate::cli::Context;
-use rinex::prod::DetailedProductionAttributes;
 use crate::fops::custom_prod_attributes;
 use crate::fops::output_filename;
 use crate::Error;
 use clap::ArgMatches;
 use rinex::prelude::Duration;
+use rinex::prod::DetailedProductionAttributes;
 use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 
 /*
  * Time reframing: subdivide a RINEX into a batch of equal duration
  */
-pub fn time_binning(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
+pub fn time_binning(
+    ctx: &Context,
+    matches: &ArgMatches,
+    submatches: &ArgMatches,
+) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let duration = matches
         .get_one::<Duration>("interval")
