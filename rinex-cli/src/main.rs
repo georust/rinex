@@ -26,6 +26,9 @@ use cli::{Cli, Context, Workspace};
 
 use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
 
+#[cfg(feature = "csv")]
+use csv::Error as CsvError;
+
 use env_logger::{Builder, Target};
 
 #[macro_use]
@@ -55,6 +58,9 @@ pub enum Error {
     SplitError(#[from] rinex::split::Error),
     #[error("positioning solver error")]
     PositioningSolverError(#[from] positioning::Error),
+    #[cfg(feature = "csv")]
+    #[error("csv export error")]
+    CsvError(#[from] CsvError),
 }
 
 /*

@@ -8,8 +8,8 @@ FILTER="GPS;C1C,C5Q,D1C,D5Q;>=2020-06-05T12:00:00 GPST;<2020-06-25T13:00:00 GPST
 
 # -q: since we're generating data, we're not interested in opening the workspace
 # --csv: export to CSV
-./target/rinex-cli \
-    -q -o "GPS-L1L5"
+./target/release/rinex-cli \
+    -q -o "GPS-L1L5" \
     -P "$FILTER" \
     --fp $RINEX \
     filegen --csv

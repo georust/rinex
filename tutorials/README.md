@@ -82,3 +82,6 @@ Other file operations like RINEX files management is also demonstrated.
 - [Batch splitting](./SPLIT)
   - Esbjerg (24h/DNK) station observations
   - SP3 batch splitting
+- [CSV](./CSV)
+  - RINEX or SP3 to CSV extraction examples, typically
+  used to forward to other software toolkits.

@@ -4,6 +4,9 @@ mod split;
 mod tbin;
 mod filegen;
 
+#[cfg(feature = "csv")]
+pub mod csv;
+
 pub use diff::diff;
 pub use merge::merge;
 pub use split::split;
@@ -85,14 +88,14 @@ fn custom_prod_attributes(rinex: &Rinex, matches: &ArgMatches) -> ProductionAttr
  */
 fn output_filename(rinex: &Rinex, matches: &ArgMatches, submatches: &ArgMatches, prod: ProductionAttributes) -> String {
     // Parse possible custom opts
-    let short = matches.get_flag("short");
-    let gzip = if matches.get_flag("gzip") {
+    let short = submatches.get_flag("short");
+    let gzip = if submatches.get_flag("gzip") {
         Some(".gz")
     } else {
         None
     };
 
-    let csv = matches.get_flag("csv");
+    let csv = submatches.get_flag("csv");
 
     // When manual definition is set, we use the User input
     // otherwise, we use smart determination

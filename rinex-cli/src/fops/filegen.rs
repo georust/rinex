@@ -1,17 +1,52 @@
 use crate::fops::{output_filename, custom_prod_attributes};
 use rinex_qc::prelude::{ProductType};
-use rinex::prod::DetailedProductionAttributes;
 use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
+
+#[cfg(feature = "csv")]
+use crate::fops::csv::write_obs_rinex as write_obs_rinex_csv;
 
 /*
  * Dumps current context (usually preprocessed)
  * into either RINEX/SP3 format (maintaining consistent format) or CSV
  */
-pub fn filegen(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
-    let ctx_data = &ctx.data;
+pub fn filegen(
+    ctx: &Context, 
+    matches: &ArgMatches, 
+    submatches: &ArgMatches) -> Result<(), Error> { 
 
+    #[cfg(feature = "csv")]
+    if submatches.get_flag("csv") {
+        write_csv(ctx, matches, submatches)?;
+        return Ok(())
+    }
+    #[cfg(not(feature = "csv"))]
+    if submatches.get_flag("csv") {
+        panic!("Not available. Activate `csv` feature first.")
+    }
+
+    write(ctx, matches, submatches)?;
+    Ok(())
+}
+
+fn write_csv(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
+    let ctx_data = &ctx.data;
+    if let Some(rinex) = ctx_data.rinex(ProductType::Observation) {
+        let prod = custom_prod_attributes(rinex, submatches);
+        let output = output_filename(rinex, matches, submatches, prod);
+        write_obs_rinex_csv(rinex, &output)?;
+        info!("{} (OBS_RINEX) has been dumped", output);
+    }
+    Ok(())
+}
+
+fn write(
+    ctx: &Context,
+    matches: &ArgMatches, 
+    submatches: &ArgMatches,
+) -> Result<(), Error> {
+    let ctx_data = &ctx.data;
     for product in [
         ProductType::DORIS,
         ProductType::Observation,
@@ -23,7 +58,7 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> 
         ProductType::ANTEX,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
-            let prod = custom_prod_attributes(rinex, matches);
+            let prod = custom_prod_attributes(rinex, submatches);
             let filename = output_filename(rinex, matches, submatches, prod);
 
             let output_path = ctx

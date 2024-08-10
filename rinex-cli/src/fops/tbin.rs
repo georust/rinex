@@ -42,7 +42,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches
             let mut last = first + *duration;
 
             // production attributes: initialize Batch counter
-            let mut prod = custom_prod_attributes(rinex, matches);
+            let mut prod = custom_prod_attributes(rinex, submatches);
             if let Some(ref mut details) = prod.details {
                 details.batch = 0_u8;
             } else {
