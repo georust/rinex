@@ -166,6 +166,14 @@ but you can extend that with --depth. Refer to -f for more information."))
 By default the $RINEX_WORKSPACE variable is prefered if it is defined.
 You can also use this flag to customize it. 
 If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
+        .next_help_heading("Output customization")
+        .arg(
+            Arg::new("output-name")
+                .short('o')
+                .action(ArgAction::Set)
+                .help("Customize output file or report name.
+In analysis opmode, report is named index.html by default, this will redefine that.
+In file operations (filegen, etc..) we can manually define output filenames with this option."))
         .next_help_heading("Report customization")
         .arg(
             Arg::new("report-sum")
@@ -182,12 +190,6 @@ If none are defined, we will then try to create a local directory named \"WORKSP
 By default, report synthesis happens once per input set (file combnation and cli options).
 Use this option to force report regeneration.
 This has no effect on file operations that do not synthesize a report."))
-        .arg(
-            Arg::new("report-name")
-                .short('o')
-                .action(ArgAction::Set)
-                .help("Custom report name, otherwise, report is named index.html")
-        )
         .arg(
             Arg::new("report-brdc-sky")
                 .long("brdc-sky")
@@ -405,11 +407,10 @@ Otherwise it gets automatically picked up."))
     }
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
-        match self.matches.subcommand() {
+        matches!(self.matches.subcommand(),
             Some(("filegen", _)) | Some(("merge", _)) | Some(("split", _)) | Some(("tbin", _))
-            | Some(("diff", _)) => true,
-            _ => false,
-        }
+            | Some(("diff", _))
+        )
     }
     /// True if forced report synthesis is requested
     pub fn force_report_synthesis(&self) -> bool {
@@ -429,7 +430,7 @@ Otherwise it gets automatically picked up."))
             .chain(self.rover_files().into_iter().sorted())
             .chain(self.preprocessing().into_iter().sorted())
             .join(",");
-        if let Some(custom) = self.custom_report_name() {
+        if let Some(custom) = self.custom_output_name() {
             string.push_str(custom);
         }
         if let Some(geo) = self.manual_geodetic() {
@@ -457,8 +458,8 @@ Otherwise it gets automatically picked up."))
             force_brdc_skyplot: self.matches.get_flag("report-brdc-sky"),
         }
     }
-    /// Report to be generated for this session
-    pub fn custom_report_name(&self) -> Option<&String> {
-        self.matches.get_one::<String>("report-name")
+    /// Customized / manually defined output to be generated
+    pub fn custom_output_name(&self) -> Option<&String> {
+        self.matches.get_one::<String>("output-name")
     }
 }

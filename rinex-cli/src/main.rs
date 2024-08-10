@@ -264,8 +264,8 @@ pub fn main() -> Result<(), Error> {
          *  File operations abort here and do not windup in analysis opmode.
          *  Users needs to then deploy analysis mode on previously generated files.
          */
-        Some(("generate", submatches)) => {
-            fops::filegen(&ctx, submatches)?;
+        Some(("filegen", submatches)) => {
+            fops::filegen(&ctx, &cli.matches, submatches)?;
             return Ok(());
         },
         Some(("merge", submatches)) => {
@@ -277,7 +277,7 @@ pub fn main() -> Result<(), Error> {
             return Ok(());
         },
         Some(("tbin", submatches)) => {
-            fops::time_binning(&ctx, submatches)?;
+            fops::time_binning(&ctx, &cli.matches, submatches)?;
             return Ok(());
         },
         Some(("diff", submatches)) => {

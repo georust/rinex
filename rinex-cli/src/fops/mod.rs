@@ -2,26 +2,20 @@ mod diff;
 mod merge;
 mod split;
 mod tbin;
+mod filegen;
 
 pub use diff::diff;
 pub use merge::merge;
 pub use split::split;
 pub use tbin::time_binning;
+pub use filegen::filegen;
 
-use crate::cli::Context;
-use crate::Error;
 use clap::ArgMatches;
 
-use std::path::PathBuf;
-//use std::str::FromStr;
-
 use rinex::{
-    prelude::{Duration, Epoch, Rinex, RinexType},
+    prelude::Rinex,
     prod::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
-    Merge, Split,
 };
-
-use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 
 /*
  * Parses share RINEX production attributes.
@@ -89,7 +83,7 @@ fn custom_prod_attributes(rinex: &Rinex, matches: &ArgMatches) -> ProductionAttr
  * TODO: some customization might impact the Header section
  *       that we should slightly rework, to be 100% correct
  */
-fn output_filename(rinex: &Rinex, matches: &ArgMatches, prod: ProductionAttributes) -> String {
+fn output_filename(rinex: &Rinex, matches: &ArgMatches, submatches: &ArgMatches, prod: ProductionAttributes) -> String {
     // Parse possible custom opts
     let short = matches.get_flag("short");
     let gzip = if matches.get_flag("gzip") {
@@ -98,47 +92,26 @@ fn output_filename(rinex: &Rinex, matches: &ArgMatches, prod: ProductionAttribut
         None
     };
 
-    debug!("{:?}", prod);
+    let csv = matches.get_flag("csv");
 
-    // Use smart determination
-    rinex.standard_filename(short, gzip, Some(prod))
-}
-
-/*
- * Dumps current context (usually preprocessed)
- * into RINEX format maintaining consistent format
- */
-pub fn filegen(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
-    let ctx_data = &ctx.data;
-
-    for product in [
-        ProductType::DORIS,
-        ProductType::Observation,
-        ProductType::MeteoObservation,
-        ProductType::BroadcastNavigation,
-        ProductType::HighPrecisionClock,
-        ProductType::HighPrecisionOrbit,
-        ProductType::IONEX,
-        ProductType::ANTEX,
-    ] {
-        if let Some(rinex) = ctx_data.rinex(product) {
-            let prod = custom_prod_attributes(rinex, matches);
-            let filename = output_filename(rinex, matches, prod);
-
-            let output_path = ctx
-                .workspace
-                .root
-                .join("OUTPUT")
-                .join(filename)
-                .to_string_lossy()
-                .to_string();
-
-            rinex.to_file(&output_path).unwrap_or_else(|_| {
-                panic!("failed to generate {} RINEX \"{}\"", product, output_path)
-            });
-
-            info!("{} RINEX \"{}\" has been generated", product, output_path);
+    // When manual definition is set, we use the User input
+    // otherwise, we use smart determination
+    if let Some(custom) = matches.get_one::<String>("output-name") {
+        if gzip.is_some() {
+            if csv {
+                format!("{}.csv.gz", custom)
+            } else {
+                format!("{}.gz", custom)
+            }
+        } else {
+            if csv {
+                format!("{}.csv", custom)
+            } else {
+                custom.to_string()
+            }
         }
+    } else {
+        debug!("{:?}", prod);
+        rinex.standard_filename(short, gzip, Some(prod))
     }
-    Ok(())
 }

@@ -1,10 +1,8 @@
 use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::{Duration, Epoch, Rinex, RinexType};
-use rinex::prod::DetailedProductionAttributes;
-use rinex::Split;
-use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
+use rinex::prelude::{Rinex, RinexType};
+use rinex_qc::prelude::ProductType;
 use std::path::PathBuf;
 
 /*

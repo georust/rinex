@@ -1,9 +1,8 @@
 use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::{Epoch, Rinex, RinexType};
+use rinex::prelude::{Rinex, RinexType};
 use rinex::Merge;
-use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 use std::path::PathBuf;
 
 /*

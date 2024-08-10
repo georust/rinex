@@ -1,17 +1,16 @@
 use crate::cli::Context;
+use rinex::prod::DetailedProductionAttributes;
 use crate::fops::custom_prod_attributes;
 use crate::fops::output_filename;
 use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::{Duration, Epoch};
-use rinex::prod::DetailedProductionAttributes;
-use rinex::Split;
+use rinex::prelude::Duration;
 use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 
 /*
  * Time reframing: subdivide a RINEX into a batch of equal duration
  */
-pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
+pub fn time_binning(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let duration = matches
         .get_one::<Duration>("interval")
@@ -61,7 +60,7 @@ pub fn time_binning(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 let batch = rinex.filter(&lower).filter(&greater);
 
                 // generate standardized name
-                let filename = output_filename(&batch, matches, prod.clone());
+                let filename = output_filename(&batch, matches, submatches, prod.clone());
 
                 let output = ctx
                     .workspace
