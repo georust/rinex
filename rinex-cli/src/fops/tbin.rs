@@ -24,18 +24,21 @@ pub fn time_binning(
         panic!("invalid (null) duration");
     }
 
-    for product in [
-        ProductType::IONEX,
-        ProductType::DORIS,
-        ProductType::Observation,
-        ProductType::MeteoObservation,
-        ProductType::BroadcastNavigation,
-        ProductType::HighPrecisionClock,
-        ProductType::HighPrecisionOrbit,
+    for (product, dir) in [
+        (ProductType::IONEX, "IONEX"),
+        (ProductType::DORIS, "DORIS"),
+        (ProductType::Observation, "OBSERVATIONS"),
+        (ProductType::MeteoObservation, "METEO"),
+        (ProductType::BroadcastNavigation, "BRDC"),
+        (ProductType::HighPrecisionClock, "CLOCK"),
+        (ProductType::HighPrecisionOrbit, "SP3"),
     ] {
         // input data determination
         if let Some(rinex) = ctx_data.rinex(product) {
-            // time framing determination
+            // create work dir
+            ctx.workspace.create_subdir(dir);
+
+            // time frame determination
             let (mut first, end) = (
                 rinex
                     .first_epoch()

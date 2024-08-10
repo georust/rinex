@@ -44,3 +44,24 @@ pub fn write_obs_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error
     }
     Ok(())
 }
+
+pub fn write_nav_rinex<P: AsRef<Path>>(obs: &Rinex, brdc: &Rinex, path: P) -> Result<(), Error> {
+    let mut w = Writer::from_path(path)?;
+    w.write_record(&["Epoch", "SV", "x_ecef_km", "y_ecef_km", "z_ecef_km"])?;
+    for ((t, _), (_, svnn)) in obs.observation() {
+        let t_str = t.to_string();
+        for (sv, _) in svnn.iter() {
+            let sv_str = sv.to_string();
+            if let Some((x_ecef_km, y_ecef_km, z_ecef_km)) = brdc.sv_position(*sv, *t) {
+                w.write_record(&[
+                    &t_str,
+                    &sv_str,
+                    &format!("{:.3E} ", x_ecef_km),
+                    &format!("{:.3E} ", y_ecef_km),
+                    &format!("{:.3E} ", z_ecef_km),
+                ])?;
+            }
+        }
+    }
+    Ok(())
+}
