@@ -173,7 +173,7 @@ impl OrbitalStateProvider for Orbit<'_, '_> {
             None
         }; //precise
 
-        let keplerian = if let Some((toc, toe, eph)) = self.eph.borrow_mut().select(t, sv) {
+        let keplerian = if let Some((toc, _, eph)) = self.eph.borrow_mut().select(t, sv) {
             let (x_km, y_km, z_km) = eph.kepler2position(sv, toc, t)?;
             debug!(
                 "{}({}) keplerian state (km ECEF): x={},y={},z={}",

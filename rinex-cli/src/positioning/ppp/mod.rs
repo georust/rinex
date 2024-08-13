@@ -34,26 +34,51 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
     // infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
 
+    // Optional remote reference site
+    let remote_site = ctx.reference_site.as_ref();
+
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
 
         if !flag.is_ok() {
-            // TODO: handle
+            // TODO: flag.is_nok
             warn!("{}: aborting epoch on {} event", t, flag);
             continue;
         }
 
         for (sv, rinex_obs) in vehicles {
             let mut observations = Vec::<Observation>::new();
+            let mut remote_observations = Vec::<Observation>::new();
             for (observable, data) in rinex_obs {
                 if let Some(lli) = data.lli {
                     if lli != LliFlags::OK_OR_UNKNOWN {
-                        // TODO: manage those events
-                        warn!("lli not_ok: {}({}): {:?}", t, sv, lli);
+                        // TODO: manage those events ?
+                        warn!("{}({}) - {:?}", t, sv, lli);
                     }
                 }
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
                     let rtk_carrier = cast_rtk_carrier(carrier);
+
+                    //// Try to gather matching remote observations
+                    //if let Some(remote_site) = remote_site {
+                    //    if let Some(remote_obs) = remote_site.data.observation() {
+                    //        for ((remote_t, _), (_, remote_svnn)) in remote_obs.observation() {
+                    //            if *remote_t == *t {
+                    //                for (remote_sv, remote_obsnn) in remote_svnn {
+                    //                    if *remote_sv == *sv {
+                    //                        for (remote_obs, remote_value) in remote_obsnn {
+                    //                            if remote_obs.is_pseudorange_observable() {
+
+                    //                                let obs = Observation::pseudo_range(rtk_carrier, remote_value.obs, None);
+                    //                                candidate.add_remote_observation(obs);
+                    //                            }
+                    //                        }
+                    //                    }
+                    //                }
+                    //            }
+                    //        }
+                    //    }
+                    //}
 
                     if observable.is_pseudorange_observable() {
                         if let Some(obs) = observations
@@ -61,16 +86,13 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                             .filter(|ob| ob.carrier == rtk_carrier)
                             .reduce(|k, _| k)
                         {
-                            obs.pseudo = Some(data.obs);
+                            obs.set_pseudo_range(data.obs);
                         } else {
-                            observations.push(Observation {
-                                carrier: rtk_carrier,
-                                snr: data.snr.map(|snr| snr.into()),
-                                phase: None,
-                                doppler: None,
-                                ambiguity: None,
-                                pseudo: Some(data.obs),
-                            });
+                            observations.push(Observation::pseudo_range(
+                                rtk_carrier,
+                                data.obs,
+                                data.snr.map(|snr| snr.into()),
+                            ));
                         }
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
@@ -79,16 +101,13 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                             .filter(|ob| ob.carrier == rtk_carrier)
                             .reduce(|k, _| k)
                         {
-                            obs.phase = Some(data.obs * lambda);
+                            obs.set_ambiguous_phase_range(data.obs * lambda);
                         } else {
-                            observations.push(Observation {
-                                carrier: rtk_carrier,
-                                snr: data.snr.map(|snr| snr.into()),
-                                pseudo: None,
-                                doppler: None,
-                                ambiguity: None,
-                                phase: Some(data.obs * lambda),
-                            });
+                            observations.push(Observation::ambiguous_phase_range(
+                                rtk_carrier,
+                                data.obs * lambda,
+                                data.snr.map(|snr| snr.into()),
+                            ));
                         }
                     } else if observable.is_doppler_observable() {
                         if let Some(obs) = observations
@@ -96,22 +115,20 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                             .filter(|ob| ob.carrier == rtk_carrier)
                             .reduce(|k, _| k)
                         {
-                            obs.doppler = Some(data.obs);
+                            obs.set_doppler(data.obs);
                         } else {
-                            observations.push(Observation {
-                                carrier: rtk_carrier,
-                                snr: data.snr.map(|snr| snr.into()),
-                                pseudo: None,
-                                phase: None,
-                                ambiguity: None,
-                                doppler: Some(data.obs),
-                            });
+                            observations.push(Observation::doppler(
+                                rtk_carrier,
+                                data.obs,
+                                data.snr.map(|snr| snr.into()),
+                            ));
                         }
                     }
                 }
             }
             // create [Candidate]
             let mut candidate = Candidate::new(*sv, *t, observations.clone());
+
             // customization
             match clock.next_clock_at(*t, *sv) {
                 Some(dt) => {
