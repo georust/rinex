@@ -73,7 +73,7 @@ impl<'a, 'b> Orbit<'a, 'b> {
                         Box::new(sp3.sv_position())
                     }
                 } else {
-                    warn!("Orbit source created: operating without precise Orbits.");
+                    warn!("Orbit source created: operating without Precise Orbits.");
                     Box::new([].into_iter())
                 }
             },

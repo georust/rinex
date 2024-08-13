@@ -2,12 +2,7 @@
 use crate::{
     cli::Context,
     positioning::{
-        bd_model,
-        cast_rtk_carrier,
-        kb_model,
-        ng_model, //tropo_components,
-        ClockStateProvider,
-        EphemerisSource,
+        bd_model, cast_rtk_carrier, kb_model, ng_model, ClockStateProvider, EphemerisSource,
     },
 };
 
@@ -21,23 +16,23 @@ pub use report::Report;
 pub mod post_process;
 
 use gnss_rtk::prelude::{
-    BaseStation, Candidate, Epoch, IonoComponents, Observation, OrbitalStateProvider, PVTSolution,
-    Solver, TropoComponents,
+    Candidate, Epoch, IonoComponents, Observation, OrbitalStateProvider, PVTSolution, Solver,
+    TropoComponents,
 };
 
-pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
+pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
     ctx: &Context,
     mut eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
-    mut solver: Solver<O, B>,
+    mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
+    let rtk_compatible = ctx.rtk_compatible();
+
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
     // infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
-    let nav_data = ctx.data.brdc_navigation().unwrap();
-    // let meteo_data = ctx.data.meteo(); //TODO
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
@@ -48,28 +43,9 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
             continue;
         }
 
-        for (sv, observations) in vehicles {
-            let clock_corr = match clock.next_clock_at(*t, *sv) {
-                Some(dt) => dt,
-                None => {
-                    error!("{} ({}) - no clock correction available", *t, *sv);
-                    continue;
-                },
-            };
-
-            let tgd = if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
-                eph.tgd()
-            } else {
-                None
-            };
-
-            if let Some(tgd) = tgd {
-                debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
-            }
-
-            let mut rtk_obs = Vec::<Observation>::new();
-
-            for (observable, data) in observations {
+        for (sv, rinex_obs) in vehicles {
+            let mut observations = Vec::<Observation>::new();
+            for (observable, data) in rinex_obs {
                 if let Some(lli) = data.lli {
                     if lli != LliFlags::OK_OR_UNKNOWN {
                         // TODO: manage those events
@@ -80,14 +56,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                     let rtk_carrier = cast_rtk_carrier(carrier);
 
                     if observable.is_pseudorange_observable() {
-                        if let Some(obs) = rtk_obs
+                        if let Some(obs) = observations
                             .iter_mut()
                             .filter(|ob| ob.carrier == rtk_carrier)
                             .reduce(|k, _| k)
                         {
                             obs.pseudo = Some(data.obs);
                         } else {
-                            rtk_obs.push(Observation {
+                            observations.push(Observation {
                                 carrier: rtk_carrier,
                                 snr: data.snr.map(|snr| snr.into()),
                                 phase: None,
@@ -98,14 +74,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                         }
                     } else if observable.is_phase_observable() {
                         let lambda = carrier.wavelength();
-                        if let Some(obs) = rtk_obs
+                        if let Some(obs) = observations
                             .iter_mut()
                             .filter(|ob| ob.carrier == rtk_carrier)
                             .reduce(|k, _| k)
                         {
                             obs.phase = Some(data.obs * lambda);
                         } else {
-                            rtk_obs.push(Observation {
+                            observations.push(Observation {
                                 carrier: rtk_carrier,
                                 snr: data.snr.map(|snr| snr.into()),
                                 pseudo: None,
@@ -115,14 +91,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                             });
                         }
                     } else if observable.is_doppler_observable() {
-                        if let Some(obs) = rtk_obs
+                        if let Some(obs) = observations
                             .iter_mut()
                             .filter(|ob| ob.carrier == rtk_carrier)
                             .reduce(|k, _| k)
                         {
                             obs.doppler = Some(data.obs);
                         } else {
-                            rtk_obs.push(Observation {
+                            observations.push(Observation {
                                 carrier: rtk_carrier,
                                 snr: data.snr.map(|snr| snr.into()),
                                 pseudo: None,
@@ -134,25 +110,46 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                     }
                 }
             }
-            let iono_components = if let Some(model) = kb_model(nav_data, *t) {
-                IonoComponents::KbModel(model)
-            } else if let Some(model) = ng_model(nav_data, *t) {
-                IonoComponents::NgModel(model)
-            } else if let Some(model) = bd_model(nav_data, *t) {
-                IonoComponents::BdModel(model)
-            } else {
-                //TODO STEC/IONEX
-                IonoComponents::Unknown
-            };
-            let candidate = Candidate::new(
-                *sv,
-                *t,
-                clock_corr,
-                Default::default(),
-                rtk_obs.clone(),
-                iono_components,
-                TropoComponents::Unknown, // TODO: meteo
-            );
+            let nav_data = ctx.data.brdc_navigation().unwrap();
+            let mut candidate = Candidate::new(*sv, *t, observations.clone());
+            // customization
+            match clock.next_clock_at(*t, *sv) {
+                Some(dt) => {
+                    candidate.set_clock_correction(dt);
+                },
+                None => {
+                    error!("{} ({}) - no clock correction available", *t, *sv);
+                },
+            }
+            if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
+                if let Some(tgd) = eph.tgd() {
+                    debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
+                    candidate.set_group_delay(tgd);
+                }
+            }
+            // Tropo
+            // TODO (Meteo)
+            let tropo = TropoComponents::Unknown;
+            candidate.set_tropo_components(tropo);
+
+            // Iono
+            match ctx.data.brdc_navigation() {
+                Some(brdc) => {
+                    if let Some(model) = kb_model(brdc, *t) {
+                        candidate.set_iono_components(IonoComponents::KbModel(model));
+                    } else if let Some(model) = ng_model(brdc, *t) {
+                        candidate.set_iono_components(IonoComponents::NgModel(model));
+                    } else if let Some(model) = bd_model(brdc, *t) {
+                        candidate.set_iono_components(IonoComponents::BdModel(model));
+                    } else {
+                        //TODO STEC/IONEX
+                        candidate.set_iono_components(IonoComponents::Unknown);
+                    }
+                },
+                None => {
+                    candidate.set_iono_components(IonoComponents::Unknown);
+                },
+            }
             candidates.push(candidate);
         }
 

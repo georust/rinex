@@ -14,7 +14,7 @@ use gnss::prelude::{Constellation, SV};
 use rinex::{carrier::Carrier, prelude::Observable};
 
 use gnss_rtk::prelude::{
-    BaseStation, Candidate, Duration, Epoch, IonoComponents, IonosphereBias, Method, Observation,
+    Candidate, Duration, Epoch, IonoComponents, IonosphereBias, Method, Observation,
     OrbitalStateProvider, Solver, TropoComponents, SPEED_OF_LIGHT_M_S,
 };
 
@@ -60,11 +60,11 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseStation>(
+pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
     ctx: &Context,
     mut eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
-    mut solver: Solver<O, B>,
+    mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError> {
@@ -109,40 +109,9 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
         // Nearest TROPO: TODO
         // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
 
-        for (sv, observations) in vehicles {
-            let clock_corr = match clock.next_clock_at(*t, *sv) {
-                Some(dt) => dt,
-                None => {
-                    error!("{} ({}) - no clock correction available", *t, *sv);
-                    continue;
-                },
-            };
-
-            let tgd = if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
-                eph.tgd()
-            } else {
-                None
-            };
-
-            if let Some(tgd) = tgd {
-                debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
-            }
-
-            let iono_components = if let Some(model) = kb_model(nav_data, *t) {
-                IonoComponents::KbModel(model)
-            } else if let Some(model) = bd_model(nav_data, *t) {
-                IonoComponents::BdModel(model)
-            } else if let Some(model) = ng_model(nav_data, *t) {
-                IonoComponents::NgModel(model)
-            } else {
-                // TODO STEC/IONEX
-                IonoComponents::Unknown
-            };
-
-            let tropo_components = TropoComponents::Unknown; //TODO METEO
-
+        for (sv, rinex_obs) in vehicles {
             // tries to form a candidate for each signal
-            for (observable, data) in observations {
+            for (observable, data) in rinex_obs {
                 let carrier = Carrier::from_observable(sv.constellation, observable);
                 if carrier.is_err() {
                     continue; //can't proceed further
@@ -159,7 +128,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
 
                 let mut ref_observable = observable.to_string();
 
-                let mut rtk_obs = vec![Observation {
+                let mut observations = vec![Observation {
                     carrier: rtk_carrier,
                     pseudo: Some(data.obs),
                     ambiguity: None,
@@ -171,7 +140,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                 // Subsidary Pseudo Range (if needed)
                 if matches!(solver.cfg.method, Method::CPP | Method::PPP) {
                     // add any other signal
-                    for (second_obs, second_data) in observations {
+                    for (second_obs, second_data) in rinex_obs {
                         if second_obs == observable {
                             continue;
                         }
@@ -186,7 +155,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                         let rhs_rtk_carrier = cast_rtk_carrier(rhs_carrier);
 
                         if second_obs.is_pseudorange_observable() {
-                            rtk_obs.push(Observation {
+                            observations.push(Observation {
                                 carrier: rhs_rtk_carrier,
                                 doppler: None,
                                 phase: None,
@@ -196,14 +165,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                             });
                         } else if second_obs.is_phase_observable() {
                             let lambda = rhs_carrier.wavelength();
-                            if let Some(obs) = rtk_obs
+                            if let Some(obs) = observations
                                 .iter_mut()
                                 .filter(|ob| ob.carrier == rhs_rtk_carrier)
                                 .reduce(|k, _| k)
                             {
                                 obs.phase = Some(data.obs * lambda);
                             } else {
-                                rtk_obs.push(Observation {
+                                observations.push(Observation {
                                     carrier: rhs_rtk_carrier,
                                     doppler: None,
                                     pseudo: None,
@@ -213,14 +182,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                                 });
                             }
                         } else if second_obs.is_doppler_observable() {
-                            if let Some(obs) = rtk_obs
+                            if let Some(obs) = observations
                                 .iter_mut()
                                 .filter(|ob| ob.carrier == rhs_rtk_carrier)
                                 .reduce(|k, _| k)
                             {
                                 obs.doppler = Some(data.obs);
                             } else {
-                                rtk_obs.push(Observation {
+                                observations.push(Observation {
                                     phase: None,
                                     carrier: rhs_rtk_carrier,
                                     pseudo: None,
@@ -238,15 +207,44 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                     }
                 }
 
-                let candidate = Candidate::new(
-                    *sv,
-                    *t,
-                    clock_corr,
-                    tgd,
-                    rtk_obs,
-                    iono_components,
-                    tropo_components,
-                );
+                let mut candidate = Candidate::new(*sv, *t, observations);
+
+                // customizations
+                match clock.next_clock_at(*t, *sv) {
+                    Some(corr) => {
+                        candidate.set_clock_correction(corr);
+                    },
+                    None => {
+                        error!("{} ({}) - no clock correction available", *t, *sv);
+                    },
+                }
+
+                if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
+                    if let Some(tgd) = eph.tgd() {
+                        debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
+                        candidate.set_group_delay(tgd);
+                    }
+                }
+
+                // TODO: Meteo
+                let tropo = TropoComponents::Unknown;
+                candidate.set_tropo_components(tropo);
+
+                let iono = if let Some(model) = kb_model(nav_data, *t) {
+                    IonoComponents::KbModel(model)
+                } else if let Some(model) = bd_model(nav_data, *t) {
+                    IonoComponents::BdModel(model)
+                } else if let Some(model) = ng_model(nav_data, *t) {
+                    IonoComponents::NgModel(model)
+                } else {
+                    // TODO STEC/IONEX
+                    IonoComponents::Unknown
+                };
+
+                candidate.set_iono_components(iono);
+
+                // TODO: RTK
+                //candidate.set_remote_observations(remote);
 
                 match solver.resolve(*t, &vec![candidate]) {
                     Ok((t, pvt_solution)) => {
@@ -256,7 +254,8 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider, B: BaseS
                         let elevation = pvt_data.elevation;
 
                         let refsys = pvt_solution.dt.to_seconds();
-                        let refsv = refsys + clock_corr.duration.to_seconds();
+                        let correction = pvt_data.clock_correction.unwrap_or_default();
+                        let refsv = refsys + correction.to_seconds();
 
                         /*
                          * TROPO : always present

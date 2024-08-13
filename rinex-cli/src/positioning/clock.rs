@@ -73,7 +73,7 @@ impl<'a, 'b> Clock<'a, 'b> {
                         .map(|(t, sv, _, prof)| (t, sv, prof.bias)),
                 )
             } else {
-                warn!("Clock source created: Operating without Precise Clock.");
+                warn!("Clock source created: operating without Precise Clock.");
                 Box::new([].into_iter())
             },
         };

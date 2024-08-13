@@ -21,8 +21,8 @@ mod cggtts; // CGGTTS special solver
 #[cfg(feature = "cggtts")]
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
-mod rtk;
-use rtk::BaseStation;
+// mod rtk;
+// use rtk::BaseStation;
 
 mod orbit;
 use orbit::Orbit;
@@ -283,10 +283,12 @@ pub fn precise_positioning(
         ctx.data.observation().is_some(),
         "Positioning requires Observation RINEX"
     );
-    assert!(
-        ctx.data.brdc_navigation().is_some(),
-        "Positioning requires Navigation RINEX"
-    );
+    if !is_rtk {
+        assert!(
+            ctx.data.brdc_navigation().is_some(),
+            "Positioning requires Navigation RINEX"
+        );
+    }
 
     if let Some(obs_rinex) = ctx.data.observation() {
         if let Some(obs_header) = &obs_rinex.header.obs {
@@ -347,14 +349,8 @@ a static reference position"
     #[cfg(not(feature = "cggtts"))]
     let apriori = None;
 
-    let solver = if is_rtk {
-        let base_station = BaseStation::from_ctx(ctx);
-        Solver::rtk(&cfg, apriori, orbits, base_station)
-            .unwrap_or_else(|e| panic!("failed to deploy RTK solver: {}", e))
-    } else {
-        Solver::ppp(&cfg, apriori, orbits)
-            .unwrap_or_else(|e| panic!("failed to deploy PPP solver: {}", e))
-    };
+    let solver = Solver::new(&cfg, apriori, orbits)
+        .unwrap_or_else(|e| panic!("failed to deploy RTK/PPP solver: {}", e));
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {

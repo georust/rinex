@@ -83,6 +83,14 @@ impl Context {
             panic!("failed to create {}: {:?}", path.display(), e);
         })
     }
+    // Returns True if this context is compatible with RTK positioning
+    pub fn rtk_compatible(&self) -> bool {
+        if let Some(station) = &self.station_data {
+            self.data.observation().is_some() && station.observation().is_some()
+        } else {
+            false
+        }
+    }
 }
 
 impl Cli {
