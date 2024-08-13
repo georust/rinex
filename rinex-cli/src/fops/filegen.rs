@@ -30,6 +30,7 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> 
     Ok(())
 }
 
+#[cfg(feature = "csv")]
 fn write_csv(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     if let Some(rinex) = ctx_data.rinex(ProductType::Observation) {
