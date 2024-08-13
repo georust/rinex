@@ -1,12 +1,9 @@
-use crate::{
-    cli::Context,
-    positioning::cast_rtk_carrier,
-};
+use crate::{cli::Context, positioning::cast_rtk_carrier};
 
 use gnss_rtk::prelude::{Epoch, Observation as RTKObservation, SV};
 use rinex::{
     observation::ObservationData,
-    prelude::{EpochFlag, Observable, Carrier},
+    prelude::{Carrier, EpochFlag, Observable},
 };
 use std::collections::{BTreeMap, HashMap};
 
@@ -59,11 +56,7 @@ impl<'a> RemoteRTKReference<'a> {
     pub fn observe(&mut self, t: Epoch, sv: SV, carrier: Carrier) -> Option<RTKObservation> {
         let rtk_carrier = cast_rtk_carrier(carrier);
         let mut ret = Option::<RTKObservation>::None;
-        let key = BufKey {
-            t,
-            sv,
-            carrier,
-        };
+        let key = BufKey { t, sv, carrier };
         if let Some(value) = self.buffer.get(&key) {
             // TODO (SNR)
             ret = Some(RTKObservation::pseudo_range(rtk_carrier, *value, None));
@@ -73,7 +66,9 @@ impl<'a> RemoteRTKReference<'a> {
                 if remote_flag.is_ok() {
                     for (remote_sv, remote_obsnn) in remote_svnn.iter() {
                         for (remote_observable, remote_obs) in remote_obsnn.iter() {
-                            if let Ok(remote_carrier) = Carrier::from_observable(remote_sv.constellation, remote_observable) {
+                            if let Ok(remote_carrier) =
+                                Carrier::from_observable(remote_sv.constellation, remote_observable)
+                            {
                                 let key = BufKey {
                                     t: *remote_t,
                                     sv: *remote_sv,
@@ -83,7 +78,11 @@ impl<'a> RemoteRTKReference<'a> {
                                 if *remote_t == t && *remote_sv == sv && remote_carrier == carrier {
                                     // TODO (SNR)
                                     panic!("OK!");
-                                    return Some(RTKObservation::pseudo_range(remote_rtk_carrier, remote_obs.obs, None));
+                                    return Some(RTKObservation::pseudo_range(
+                                        remote_rtk_carrier,
+                                        remote_obs.obs,
+                                        None,
+                                    ));
                                 } else {
                                     self.buffer.insert(key, remote_obs.obs);
                                 }
