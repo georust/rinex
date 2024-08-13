@@ -3,6 +3,7 @@ use crate::{
     cli::Context,
     positioning::{
         bd_model, cast_rtk_carrier, kb_model, ng_model, ClockStateProvider, EphemerisSource,
+        RemoteRTKReference,
     },
 };
 
@@ -24,6 +25,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
     ctx: &Context,
     mut eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
+    base_station: &'a mut RemoteRTKReference,
     mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
@@ -59,26 +61,10 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                 if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
                     let rtk_carrier = cast_rtk_carrier(carrier);
 
-                    //// Try to gather matching remote observations
-                    //if let Some(remote_site) = remote_site {
-                    //    if let Some(remote_obs) = remote_site.data.observation() {
-                    //        for ((remote_t, _), (_, remote_svnn)) in remote_obs.observation() {
-                    //            if *remote_t == *t {
-                    //                for (remote_sv, remote_obsnn) in remote_svnn {
-                    //                    if *remote_sv == *sv {
-                    //                        for (remote_obs, remote_value) in remote_obsnn {
-                    //                            if remote_obs.is_pseudorange_observable() {
-
-                    //                                let obs = Observation::pseudo_range(rtk_carrier, remote_value.obs, None);
-                    //                                candidate.add_remote_observation(obs);
-                    //                            }
-                    //                        }
-                    //                    }
-                    //                }
-                    //            }
-                    //        }
-                    //    }
-                    //}
+                    // try to gather remote observation
+                    if let Some(remote) = base_station.observe(*t, *sv, carrier) {
+                        remote_observations.push(remote);
+                    }
 
                     if observable.is_pseudorange_observable() {
                         if let Some(obs) = observations
@@ -129,7 +115,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
             // create [Candidate]
             let mut candidate = Candidate::new(*sv, *t, observations.clone());
 
-            // customization
+            // customization: clock corr
             match clock.next_clock_at(*t, *sv) {
                 Some(dt) => {
                     candidate.set_clock_correction(dt);
@@ -138,18 +124,19 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                     error!("{} ({}) - no clock correction available", *t, *sv);
                 },
             }
+            // customization: TGD
             if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
                 if let Some(tgd) = eph.tgd() {
                     debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
                     candidate.set_group_delay(tgd);
                 }
             }
-            // Tropo
+            // customization: Tropo
             // TODO (Meteo)
             let tropo = TropoComponents::Unknown;
             candidate.set_tropo_components(tropo);
 
-            // Iono
+            // customization: Iono
             match ctx.data.brdc_navigation() {
                 Some(brdc) => {
                     if let Some(model) = kb_model(brdc, *t) {
@@ -166,6 +153,10 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                 None => {
                     candidate.set_iono_components(IonoComponents::Unknown);
                 },
+            }
+            // Customization: Remote
+            if !remote_observations.is_empty() {
+                candidate.set_remote_observations(remote_observations);
             }
             candidates.push(candidate);
         }

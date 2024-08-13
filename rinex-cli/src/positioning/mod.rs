@@ -22,7 +22,7 @@ mod cggtts; // CGGTTS special solver
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
 mod rtk;
-// use rtk::BaseStation;
+pub use rtk::RemoteRTKReference;
 
 mod orbit;
 use orbit::Orbit;
@@ -327,6 +327,7 @@ pub fn precise_positioning(
     let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
     let clocks = Clock::new(&ctx, &eph);
     let orbits = Orbit::new(&ctx, &eph);
+    let mut rtk_reference = RemoteRTKReference::from_ctx(&ctx);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
@@ -368,7 +369,7 @@ a static reference position"
     }
 
     /* PPP */
-    let solutions = ppp::resolve(ctx, &eph, clocks, solver);
+    let solutions = ppp::resolve(ctx, &eph, clocks, &mut rtk_reference, solver);
     if !solutions.is_empty() {
         ppp_post_process(&ctx, &solutions, matches)?;
         let report = PPPReport::new(&cfg, &ctx, &solutions);
