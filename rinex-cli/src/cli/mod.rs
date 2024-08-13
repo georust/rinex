@@ -30,6 +30,11 @@ impl Default for Cli {
     }
 }
 
+pub struct RemoteReferenceSite {
+    pub data: QcContext,
+    pub rx_ecef: Option<(f64, f64, f64)>,
+}
+
 /// Context defined by User.
 pub struct Context {
     /// Quiet option
@@ -37,9 +42,9 @@ pub struct Context {
     /// Data context defined by user.
     /// In differential opmode, this is the ROVER.
     pub data: QcContext,
-    /// Secondary dataset defined by user
-    /// serves as BASE in differential opmodes.
-    pub station_data: Option<QcContext>,
+    /// Remote reference site (secondary dataset) defined by User.
+    /// Serves as reference point in differential techniques.
+    pub reference_site: Option<RemoteReferenceSite>,
     /// Context name is derived from the primary file loaded in Self,
     /// and mostly used in output products generation.
     pub name: String,
@@ -85,8 +90,11 @@ impl Context {
     }
     // Returns True if this context is compatible with RTK positioning
     pub fn rtk_compatible(&self) -> bool {
-        if let Some(station) = &self.station_data {
-            self.data.observation().is_some() && station.observation().is_some()
+        if let Some(remote) = &self.reference_site {
+            self.data.observation().is_some()
+                && self.rx_ecef.is_some()
+                && remote.data.observation().is_some()
+                && remote.rx_ecef.is_some()
         } else {
             false
         }

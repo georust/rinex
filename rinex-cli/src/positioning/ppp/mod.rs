@@ -110,7 +110,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                     }
                 }
             }
-            let nav_data = ctx.data.brdc_navigation().unwrap();
+            // create [Candidate]
             let mut candidate = Candidate::new(*sv, *t, observations.clone());
             // customization
             match clock.next_clock_at(*t, *sv) {
