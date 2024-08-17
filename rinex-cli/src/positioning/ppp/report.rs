@@ -221,7 +221,7 @@ impl Summary {
             if index == 0 {
                 first_epoch = *t;
             }
-            let state = sol.state.to_cartesian_pos_vel() / 1.0E3;
+            let state = sol.state.to_cartesian_pos_vel() * 1.0E3;
             let (x, y, z, vel_x, vel_y, vel_z) =
                 (state[0], state[1], state[2], state[3], state[4], state[5]);
             let (err_x, err_y, err_z) = (x - x0, y - y0, z - z0);

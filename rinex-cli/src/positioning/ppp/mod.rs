@@ -162,7 +162,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
 
         match solver.resolve(*t, &candidates) {
             Ok((t, pvt)) => {
-                debug!("{} : {:?}", t, pvt);
                 solutions.insert(t, pvt);
             },
             Err(e) => warn!("{} : pvt solver error \"{}\"", t, e),
