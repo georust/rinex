@@ -46,7 +46,7 @@ impl ClockStateProvider for Clock<'_, '_> {
                 }
             } else {
                 // create new buffer, push some symbols
-                let mut buffer = Buffer::new(2);
+                let buffer = Buffer::new(2);
                 self.buff.insert(sv, buffer);
                 self.consume_many(3);
             }

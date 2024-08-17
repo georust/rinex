@@ -14,8 +14,8 @@ use gnss::prelude::{Constellation, SV};
 use rinex::{carrier::Carrier, prelude::Observable};
 
 use gnss_rtk::prelude::{
-    Candidate, Duration, Epoch, IonoComponents, IonosphereBias, Method, Observation,
-    OrbitalStateProvider, Solver, TropoComponents, SPEED_OF_LIGHT_M_S,
+    Candidate, Duration, Epoch, IonoComponents, IonosphereBias, Method, Observation, OrbitSource,
+    Solver, TropoComponents, SPEED_OF_LIGHT_M_S,
 };
 
 use cggtts::{
@@ -60,9 +60,9 @@ use crate::{
 /*
  * Resolves CGGTTS tracks from input context
  */
-pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
+pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     ctx: &Context,
-    mut eph: &'a RefCell<EphemerisSource<'b>>,
+    eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
     mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
@@ -160,7 +160,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                                 doppler: None,
                                 phase: None,
                                 ambiguity: None,
-                                pseudo: Some(data.obs),
+                                pseudo: Some(second_data.obs),
                                 snr: data.snr.map(|snr| snr.into()),
                             });
                         } else if second_obs.is_phase_observable() {
@@ -170,14 +170,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                                 .filter(|ob| ob.carrier == rhs_rtk_carrier)
                                 .reduce(|k, _| k)
                             {
-                                obs.phase = Some(data.obs * lambda);
+                                obs.phase = Some(second_data.obs * lambda);
                             } else {
                                 observations.push(Observation {
                                     carrier: rhs_rtk_carrier,
                                     doppler: None,
                                     pseudo: None,
                                     ambiguity: None,
-                                    phase: Some(data.obs * lambda),
+                                    phase: Some(second_data.obs * lambda),
                                     snr: data.snr.map(|snr| snr.into()),
                                 });
                             }
@@ -187,14 +187,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
                                 .filter(|ob| ob.carrier == rhs_rtk_carrier)
                                 .reduce(|k, _| k)
                             {
-                                obs.doppler = Some(data.obs);
+                                obs.doppler = Some(second_data.obs);
                             } else {
                                 observations.push(Observation {
                                     phase: None,
                                     carrier: rhs_rtk_carrier,
                                     pseudo: None,
                                     ambiguity: None,
-                                    doppler: Some(data.obs),
+                                    doppler: Some(second_data.obs),
                                     snr: data.snr.map(|snr| snr.into()),
                                 });
                             }

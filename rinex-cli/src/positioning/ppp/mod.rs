@@ -17,27 +17,26 @@ pub use report::Report;
 pub mod post_process;
 
 use gnss_rtk::prelude::{
-    Candidate, Epoch, IonoComponents, Observation, OrbitalStateProvider, PVTSolution, Solver,
+    Candidate, Epoch, IonoComponents, Observation, OrbitSource, PVTSolution, Solver,
     TropoComponents,
 };
 
-pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitalStateProvider>(
+pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     ctx: &Context,
-    mut eph: &'a RefCell<EphemerisSource<'b>>,
+    eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
     base_station: &'a mut RemoteRTKReference,
     mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
-    let rtk_compatible = ctx.rtk_compatible();
-
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
     // infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
 
     // Optional remote reference site
-    let remote_site = ctx.reference_site.as_ref();
+    // let rtk_compatible = ctx.rtk_compatible();
+    // let remote_site = ctx.reference_site.as_ref();
 
     for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);

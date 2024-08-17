@@ -25,7 +25,7 @@ mod rtk;
 pub use rtk::RemoteRTKReference;
 
 mod orbit;
-use orbit::Orbit;
+use orbit::Orbits;
 
 mod clock;
 use clock::Clock;
@@ -40,7 +40,7 @@ use rinex_qc::prelude::QcExtraPage;
 
 use gnss_rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Position, Solver, Vector3,
+    NgModel, Orbit, PVTSolutionType, Solver, Vector3, EARTH_J2000,
 };
 
 use thiserror::Error;
@@ -326,7 +326,7 @@ pub fn precise_positioning(
     // create data providers
     let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
     let clocks = Clock::new(&ctx, &eph);
-    let orbits = Orbit::new(&ctx, &eph);
+    let orbits = Orbits::new(&ctx, &eph);
     let mut rtk_reference = RemoteRTKReference::from_ctx(&ctx);
 
     // The CGGTTS opmode (TimeOnly) is not designed
@@ -334,8 +334,13 @@ pub fn precise_positioning(
     #[cfg(feature = "cggtts")]
     let apriori = if matches.get_flag("cggtts") {
         if let Some((x, y, z)) = ctx.rx_ecef {
-            let apriori_ecef = Vector3::new(x, y, z);
-            Some(Position::from_ecef(apriori_ecef))
+            Some(Orbit::from_position(
+                x / 1.0E3,
+                y / 1.0E3,
+                z / 1.0E3,
+                Epoch::default(),
+                EARTH_J2000,
+            ))
         } else {
             panic!(
                 "--cggtts opmode cannot work without a priori position knowledge.
@@ -350,7 +355,7 @@ a static reference position"
     #[cfg(not(feature = "cggtts"))]
     let apriori = None;
 
-    let solver = Solver::new(&cfg, apriori, orbits)
+    let solver = Solver::new(&cfg, None, orbits)
         .unwrap_or_else(|e| panic!("failed to deploy RTK/PPP solver: {}", e));
 
     #[cfg(feature = "cggtts")]

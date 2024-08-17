@@ -67,7 +67,8 @@ fn write_csv(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Re
             );
         }
     }
-    if let Some(sp3) = ctx_data.sp3() {
+    if let Some(_) = ctx_data.sp3() {
+        // TODO
         // write_sp3_csv(rinex, &output)?;
         // info!("{} dumped in {}", ProductType::HighPrecisionOrbit, output);
     }

@@ -60,7 +60,7 @@ pub fn write_nav_rinex(obs: &Rinex, brdc: &Rinex, path: &Path) -> Result<(), Err
         let t_str = t.to_string();
         for (sv, _) in svnn.iter() {
             let sv_str = sv.to_string();
-            if let Some((toc, toe, eph)) = brdc.sv_ephemeris(*sv, *t) {
+            if let Some((toc, _toe, eph)) = brdc.sv_ephemeris(*sv, *t) {
                 if let Some((x_ecef_km, y_ecef_km, z_ecef_km)) = eph.kepler2position(*sv, toc, *t) {
                     orbit_w.write_record(&[
                         &t_str,

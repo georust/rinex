@@ -221,16 +221,15 @@ impl Summary {
             if index == 0 {
                 first_epoch = *t;
             }
-            let (err_x, err_y, err_z) = (
-                sol.position.x - x0,
-                sol.position.y - y0,
-                sol.position.z - z0,
-            );
+            let state = sol.state.to_cartesian_pos_vel() / 1.0E3;
+            let (x, y, z, vel_x, vel_y, vel_z) =
+                (state[0], state[1], state[2], state[3], state[4], state[5]);
+            let (err_x, err_y, err_z) = (x - x0, y - y0, z - z0);
             final_err_m = (err_x, err_y, err_z);
             final_geo = ecef2geodetic(
-                sol.position.x,
-                sol.position.y,
-                sol.position.z,
+                sol.state.to_cartesian_pos_vel()[0],
+                sol.state.to_cartesian_pos_vel()[1],
+                sol.state.to_cartesian_pos_vel()[2],
                 Ellipsoid::WGS84,
             );
 
@@ -335,9 +334,9 @@ impl ReportContent {
                             (format!("Solver: {:02}%", pct), false)
                         };
                         let (lat_rad, lon_rad, _) = ecef2geodetic(
-                            sol_i.position.x,
-                            sol_i.position.y,
-                            sol_i.position.z,
+                            sol_i.state.to_cartesian_pos_vel()[0],
+                            sol_i.state.to_cartesian_pos_vel()[1],
+                            sol_i.state.to_cartesian_pos_vel()[2],
                             Ellipsoid::WGS84,
                         );
                         let (lat_ddeg, lon_ddeg) = (lat_rad.to_degrees(), lon_rad.to_degrees());
@@ -390,9 +389,9 @@ impl ReportContent {
                     .iter()
                     .map(|(_, sol)| {
                         let (lat_rad, lon_rad, _) = ecef2geodetic(
-                            sol.position.x,
-                            sol.position.y,
-                            sol.position.z,
+                            sol.state.to_cartesian_pos_vel()[0],
+                            sol.state.to_cartesian_pos_vel()[1],
+                            sol.state.to_cartesian_pos_vel()[2],
                             Ellipsoid::WGS84,
                         );
                         (lat_rad.to_degrees(), lon_rad.to_degrees())
@@ -427,9 +426,9 @@ impl ReportContent {
                     .iter()
                     .map(|(_, sol)| {
                         let (_, _, alt_m) = ecef2geodetic(
-                            sol.position.x,
-                            sol.position.y,
-                            sol.position.z,
+                            sol.state.to_cartesian_pos_vel()[0],
+                            sol.state.to_cartesian_pos_vel()[1],
+                            sol.state.to_cartesian_pos_vel()[2],
                             Ellipsoid::WGS84,
                         );
                         alt_m
@@ -451,15 +450,15 @@ impl ReportContent {
                     Plot::timedomain_plot("vel_plot", "Velocity", "Velocity [m/s]", true);
                 let x = solutions
                     .iter()
-                    .map(|(_, sol)| sol.velocity.x)
+                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[3])
                     .collect::<Vec<_>>();
                 let y = solutions
                     .iter()
-                    .map(|(_, sol)| sol.velocity.y)
+                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[4])
                     .collect::<Vec<_>>();
                 let z = solutions
                     .iter()
-                    .map(|(_, sol)| sol.velocity.z)
+                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[5])
                     .collect::<Vec<_>>();
                 let trace = Plot::timedomain_chart(
                     "vel_x",
@@ -689,7 +688,7 @@ impl ReportContent {
                     &epochs,
                     solutions
                         .values()
-                        .map(|sol| sol.position.x - x0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[0] - x0_ecef)
                         .collect(),
                     true,
                 );
@@ -701,7 +700,7 @@ impl ReportContent {
                     &epochs,
                     solutions
                         .values()
-                        .map(|sol| sol.position.y - y0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[1] - y0_ecef)
                         .collect(),
                     true,
                 );
@@ -713,7 +712,7 @@ impl ReportContent {
                     &epochs,
                     solutions
                         .values()
-                        .map(|sol| sol.position.z - z0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[2] - z0_ecef)
                         .collect(),
                     true,
                 );
@@ -736,15 +735,15 @@ impl ReportContent {
                     &epochs,
                     solutions
                         .values()
-                        .map(|sol| sol.position.x - x0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[0] * 1.0E3 - x0_ecef)
                         .collect(),
                     solutions
                         .values()
-                        .map(|sol| sol.position.y - y0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[1] * 1.0E3 - y0_ecef)
                         .collect(),
                     solutions
                         .values()
-                        .map(|sol| sol.position.z - z0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[2] * 1.0E3 - z0_ecef)
                         .collect(),
                 );
                 plot.add_trace(trace);

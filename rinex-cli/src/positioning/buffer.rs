@@ -13,7 +13,7 @@ impl<T> Buffer<T> {
     pub fn contains(&self, x: &Epoch) -> Option<&T> {
         self.inner
             .iter()
-            .filter(|(x_i, y_i)| x_i == x)
+            .filter(|(x_i, _)| x_i == x)
             .reduce(|k, _| k)
             .map(|(_, y)| y)
     }

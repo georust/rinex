@@ -77,7 +77,6 @@ impl<'a> RemoteRTKReference<'a> {
                                 let remote_rtk_carrier = cast_rtk_carrier(remote_carrier);
                                 if *remote_t == t && *remote_sv == sv && remote_carrier == carrier {
                                     // TODO (SNR)
-                                    panic!("OK!");
                                     return Some(RTKObservation::pseudo_range(
                                         remote_rtk_carrier,
                                         remote_obs.obs,

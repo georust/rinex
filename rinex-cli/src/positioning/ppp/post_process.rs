@@ -60,12 +60,11 @@ pub fn post_process(
     )?;
 
     for (epoch, solution) in solutions {
-        let (lat_rad, lon_rad, alt) = ecef2geodetic(
-            solution.position.x,
-            solution.position.y,
-            solution.position.z,
-            Ellipsoid::WGS84,
-        );
+        let state = solution.state.to_cartesian_pos_vel();
+        let (x_km, y_km, z_km, vel_x_kms, vel_y_kms, vel_z_kms) =
+            (state[0], state[1], state[2], state[3], state[4], state[5]);
+        let (lat_rad, lon_rad, alt) =
+            ecef2geodetic(x_km * 1.0E3, y_km * 1.0E3, z_km * 1.0E3, Ellipsoid::WGS84);
         let (lat_ddeg, lon_ddeg) = (lat_rad.to_degrees(), lon_rad.to_degrees());
         let (hdop, vdop, tdop) = (
             solution.hdop(lat_rad, lon_rad),
@@ -74,14 +73,14 @@ pub fn post_process(
         );
         writeln!(
             fd,
-            "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
+            "{:?}, {:.6E}km, {:.6E}km, {:.6E}km, {:.6E}km, {:.6E}km, {:.6E}km, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
             epoch,
-            solution.position.x,
-            solution.position.y,
-            solution.position.z,
-            solution.velocity.x,
-            solution.velocity.y,
-            solution.velocity.z,
+            x_km,
+            y_km,
+            z_km,
+            vel_x_kms,
+            vel_y_kms,
+            vel_z_kms,
             hdop,
             vdop,
             solution.dt.to_seconds(),

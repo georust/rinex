@@ -63,7 +63,7 @@ pub enum ProductType {
     /// Precise Ionosphere state wrapped in IONEX special RINEX files.
     IONEX,
     #[cfg(feature = "sp3")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     /// High precision clock data wrapped in SP3 files.
     HighPrecisionOrbit,
 }
@@ -123,7 +123,7 @@ impl BlobData {
     }
     /// Returns reference to inner SP3 data.
     #[cfg(feature = "sp3")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub fn as_sp3(&self) -> Option<&SP3> {
         match self {
             Self::Sp3(s) => Some(s),
@@ -132,7 +132,7 @@ impl BlobData {
     }
     /// Returns mutable reference to inner SP3 data.
     #[cfg(feature = "sp3")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub fn as_mut_sp3(&mut self) -> Option<&mut SP3> {
         match self {
             Self::Sp3(s) => Some(s),
@@ -307,7 +307,7 @@ impl QcContext {
     }
     /// Returns reference to inner SP3 data
     #[cfg(feature = "sp3")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub fn sp3(&self) -> Option<&SP3> {
         self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
     }
@@ -363,7 +363,7 @@ impl QcContext {
     }
     /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
     #[cfg(feature = "sp3")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
         self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
     }
@@ -384,7 +384,7 @@ impl QcContext {
         self.brdc_navigation().is_some()
     }
     #[cfg(feature = "sp3")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     /// Returns true if [ProductType::HighPrecisionOrbit] are present in Self
     pub fn has_sp3(&self) -> bool {
         self.sp3().is_some()
@@ -398,7 +398,7 @@ impl QcContext {
         self.meteo().is_some()
     }
     #[cfg(feature = "sp3")]
-    #[cfg_attr(docrs, doc(cfg(feature = "sp3")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     /// Returns true if High Precision Orbits also contains temporal information.
     pub fn sp3_has_clock(&self) -> bool {
         if let Some(sp3) = self.sp3() {
