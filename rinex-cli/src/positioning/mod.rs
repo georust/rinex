@@ -230,7 +230,7 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 }
 
 pub fn precise_positioning(
-    cli: &Cli,
+    _cli: &Cli,
     ctx: &Context,
     is_rtk: bool,
     matches: &ArgMatches,
@@ -355,8 +355,13 @@ a static reference position"
     #[cfg(not(feature = "cggtts"))]
     let apriori = None;
 
-    let solver = Solver::new(&cfg, None, orbits)
-        .unwrap_or_else(|e| panic!("failed to deploy RTK/PPP solver: {}", e));
+    let solver = Solver::new_almanac_frame(
+        &cfg,
+        None,
+        orbits,
+        ctx.data.almanac.clone(),
+        ctx.data.earth_cef,
+    );
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {

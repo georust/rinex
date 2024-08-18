@@ -360,11 +360,10 @@ impl Ephemeris {
     pub(crate) fn get_week(&self) -> Option<u32> {
         self.orbits.get("week").and_then(|value| value.as_u32())
     }
-    /*
-     * Returns TGD field, if such field is not empty, expressed as a [Duration]
-     */
+    /// Returns TGD (if value exists) as [Duration]
     pub fn tgd(&self) -> Option<Duration> {
-        Some(Duration::from_seconds(self.get_orbit_f64("tgd")?))
+        let tgd_s = self.get_orbit_f64("tgd")?;
+        Some(Duration::from_seconds(tgd_s))
     }
     /// Return ToE expressed as [Epoch]
     pub fn toe(&self, sv_ts: TimeScale) -> Option<Epoch> {

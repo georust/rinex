@@ -13,7 +13,9 @@ use rinex::{
 };
 
 use anise::{
-    almanac::planetary::PlanetaryDataError, constants::frames::EARTH_ITRF93, errors::AlmanacError,
+    almanac::{metaload::MetaFile, planetary::PlanetaryDataError},
+    constants::frames::{EARTH_ITRF93, IAU_EARTH_FRAME},
+    errors::AlmanacError,
     prelude::Frame,
 };
 
@@ -151,15 +153,86 @@ pub struct QcContext {
     blob: HashMap<ProductType, BlobData>,
     /// Latest Almanac
     pub almanac: Almanac,
-    /// Earth IAU/ECEF frame
+    /// ECEF frame
     pub earth_cef: Frame,
 }
 
 impl QcContext {
-    /// Initilize QcContext with latest [Almanac] and [EARTH_ITRF93].
-    pub fn new() -> Result<Self, Error> {
+    fn nyx_anise_de440s_bsp() -> MetaFile {
+        MetaFile {
+            crc32: Some(1921414410),
+            uri: String::from("http://public-data.nyxspace.com/anise/de440s.bsp"),
+        }
+    }
+    fn nyx_anise_pck11_pca() -> MetaFile {
+        MetaFile {
+            crc32: Some(0x8213b6e9),
+            uri: String::from("http://public-data.nyxspace.com/anise/v0.4/pck11.pca"),
+        }
+    }
+    fn jpl_latest_high_prec_bpc() -> MetaFile {
+        MetaFile {
+            crc32: None,
+            uri:
+                "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_latest_high_prec.bpc"
+                    .to_string(),
+        }
+    }
+    /// Infaillible method to either download, retrieve or create
+    /// a basic [Almanac] and reference [Frame] to work with.
+    /// We always prefer the highest precision scenario.
+    /// On first deployment, it will require internet access.
+    /// We can only rely on lower precision kernels if we cannot access the cloud.
+    fn build_almanac() -> Result<(Almanac, Frame), Error> {
         let almanac = Almanac::until_2035()?;
-        let earth_cef = almanac.frame_from_uid(EARTH_ITRF93)?;
+        match almanac.load_from_metafile(Self::nyx_anise_de440s_bsp()) {
+            Ok(almanac) => {
+                info!("ANISE DE440S BSP has been loaded");
+                match almanac.load_from_metafile(Self::nyx_anise_pck11_pca()) {
+                    Ok(almanac) => {
+                        info!("ANISE PCK11 PCA has been loaded");
+                        match almanac.load_from_metafile(Self::jpl_latest_high_prec_bpc()) {
+                            Ok(almanac) => {
+                                info!("JPL high precision (daily) kernels loaded.");
+                                if let Ok(itrf93) = almanac.frame_from_uid(EARTH_ITRF93) {
+                                    info!("Deployed with highest precision context available.");
+                                    Ok((almanac, itrf93))
+                                } else {
+                                    let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+                                    warn!("Failed to build ITRF93: relying on IAU model");
+                                    Ok((almanac, iau_earth))
+                                }
+                            },
+                            Err(e) => {
+                                let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+                                error!("Failed to download JPL High precision kernels: {}", e);
+                                warn!("Relying on IAU frame model.");
+                                Ok((almanac, iau_earth))
+                            },
+                        }
+                    },
+                    Err(e) => {
+                        let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+                        error!("Failed to download PCK11 PCA: {}", e);
+                        warn!("Relying on IAU frame model.");
+                        Ok((almanac, iau_earth))
+                    },
+                }
+            },
+            Err(e) => {
+                error!("Failed to load DE440S BSP: {}", e);
+                let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+                warn!("Relying on IAU frame model.");
+                Ok((almanac, iau_earth))
+            },
+        }
+    }
+    /// Create a new QcContext for which we will try to
+    /// retrieve the latest and highest precision [Almanac]
+    /// and reference [Frame] to work with. If you prefer
+    /// to manualy specify those, prefer the other constructor.
+    pub fn new() -> Result<Self, Error> {
+        let (almanac, earth_cef) = Self::build_almanac()?;
         Ok(Self {
             almanac,
             earth_cef,
@@ -167,8 +240,8 @@ impl QcContext {
             files: HashMap::new(),
         })
     }
-    /// Build new [QcContext] with given [Almanac] and selected [Frame] which
-    /// should be Fixed Body.
+    /// Build new [QcContext] with given [Almanac] and desired [Frame],
+    /// which must be one of the available ECEF.
     pub fn new_almanac(almanac: Almanac, frame: Frame) -> Result<Self, Error> {
         Ok(Self {
             almanac,

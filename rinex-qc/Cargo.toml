@@ -30,6 +30,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
+log = "0.4"
 maud = "0.26"
 map_3d = "0.1.5"
 thiserror = "1"

@@ -222,16 +222,10 @@ impl Summary {
                 first_epoch = *t;
             }
             let state = sol.state.to_cartesian_pos_vel() * 1.0E3;
-            let (x, y, z, vel_x, vel_y, vel_z) =
-                (state[0], state[1], state[2], state[3], state[4], state[5]);
+            let (x, y, z) = (state[0], state[1], state[2]);
             let (err_x, err_y, err_z) = (x - x0, y - y0, z - z0);
             final_err_m = (err_x, err_y, err_z);
-            final_geo = ecef2geodetic(
-                sol.state.to_cartesian_pos_vel()[0],
-                sol.state.to_cartesian_pos_vel()[1],
-                sol.state.to_cartesian_pos_vel()[2],
-                Ellipsoid::WGS84,
-            );
+            final_geo = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
 
             last_epoch = *t;
             timescale = sol.timescale;
@@ -297,8 +291,7 @@ impl ReportContent {
         let epochs = solutions.keys().cloned().collect::<Vec<_>>();
 
         let (x0_ecef, y0_ecef, z0_ecef) = ctx.rx_ecef.unwrap_or_default();
-        let (lat0_rad, lon0_rad, alt0_m) =
-            ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
+        let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
         let (lat0_ddeg, lon0_ddeg) = (lat0_rad.to_degrees(), lon0_rad.to_degrees());
 
         let summary = Summary::new(cfg, ctx, solutions, (x0_ecef, y0_ecef, z0_ecef));
@@ -333,12 +326,9 @@ impl ReportContent {
                         } else {
                             (format!("Solver: {:02}%", pct), false)
                         };
-                        let (lat_rad, lon_rad, _) = ecef2geodetic(
-                            sol_i.state.to_cartesian_pos_vel()[0],
-                            sol_i.state.to_cartesian_pos_vel()[1],
-                            sol_i.state.to_cartesian_pos_vel()[2],
-                            Ellipsoid::WGS84,
-                        );
+                        let state = sol_i.state.to_cartesian_pos_vel() * 1.0E3;
+                        let (x, y, z) = (state[0], state[1], state[2]);
+                        let (lat_rad, lon_rad, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
                         let (lat_ddeg, lon_ddeg) = (lat_rad.to_degrees(), lon_rad.to_degrees());
                         let scatter = Plot::mapbox(
                             vec![lat_ddeg],
@@ -388,12 +378,9 @@ impl ReportContent {
                 let ddeg = solutions
                     .iter()
                     .map(|(_, sol)| {
-                        let (lat_rad, lon_rad, _) = ecef2geodetic(
-                            sol.state.to_cartesian_pos_vel()[0],
-                            sol.state.to_cartesian_pos_vel()[1],
-                            sol.state.to_cartesian_pos_vel()[2],
-                            Ellipsoid::WGS84,
-                        );
+                        let state = sol.state.to_cartesian_pos_vel() * 1.0E3;
+                        let (x, y, z) = (state[0], state[1], state[2]);
+                        let (lat_rad, lon_rad, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
                         (lat_rad.to_degrees(), lon_rad.to_degrees())
                     })
                     .collect::<Vec<_>>();
@@ -425,12 +412,9 @@ impl ReportContent {
                 let alt_m = solutions
                     .iter()
                     .map(|(_, sol)| {
-                        let (_, _, alt_m) = ecef2geodetic(
-                            sol.state.to_cartesian_pos_vel()[0],
-                            sol.state.to_cartesian_pos_vel()[1],
-                            sol.state.to_cartesian_pos_vel()[2],
-                            Ellipsoid::WGS84,
-                        );
+                        let state = sol.state.to_cartesian_pos_vel() * 1.0E3;
+                        let (x, y, z) = (state[0], state[1], state[2]);
+                        let (_, _, alt_m) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
                         alt_m
                     })
                     .collect::<Vec<_>>();
@@ -448,24 +432,24 @@ impl ReportContent {
             vel_plot: {
                 let mut plot =
                     Plot::timedomain_plot("vel_plot", "Velocity", "Velocity [m/s]", true);
-                let x = solutions
+                let vel_x = solutions
                     .iter()
-                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[3])
+                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[3] * 1.0E3)
                     .collect::<Vec<_>>();
-                let y = solutions
+                let vel_y = solutions
                     .iter()
-                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[4])
+                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[4] * 1.0E3)
                     .collect::<Vec<_>>();
-                let z = solutions
+                let vel_z = solutions
                     .iter()
-                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[5])
+                    .map(|(_, sol)| sol.state.to_cartesian_pos_vel()[5] * 1.0E3)
                     .collect::<Vec<_>>();
                 let trace = Plot::timedomain_chart(
                     "vel_x",
                     Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
-                    x,
+                    vel_x,
                     true,
                 );
                 plot.add_trace(trace);
@@ -474,7 +458,7 @@ impl ReportContent {
                     Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
-                    y,
+                    vel_y,
                     true,
                 );
                 plot.add_trace(trace);
@@ -483,7 +467,7 @@ impl ReportContent {
                     Mode::Markers,
                     MarkerSymbol::Cross,
                     &epochs,
-                    z,
+                    vel_z,
                     true,
                 );
                 plot.add_trace(trace);
