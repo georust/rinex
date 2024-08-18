@@ -18,7 +18,8 @@ CONF=tutorials/config/survey/cpp_lsq.json
 # -f: force new synthesis
 # -P: filter example
 ./target/release/rinex-cli \
-    -P $FILTER -f -q \
+    -f -q -o "BDS-B2i-B3" \
+    -P $FILTER \
     --fp $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     --fp $DATA_DIR/SP3/Sta21114.sp3.gz \
@@ -28,6 +29,7 @@ CONF=tutorials/config/survey/cpp_lsq.json
 # Since we're using strict identical options,
 # the report is preserved and new solutions are appended.
 ./target/release/rinex-cli \
+    -f -q -o "BDS-B2i-B3" \
     -P $FILTER \
     --fp $DATA_DIR/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \

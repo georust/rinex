@@ -4,7 +4,7 @@ use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-#[cfg(docrs)]
+#[cfg(docsrs)]
 use crate::Bibliography;
 
 #[cfg(feature = "processing")]

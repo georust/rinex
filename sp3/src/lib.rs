@@ -1,5 +1,5 @@
 //! SP3 precise orbit file parser.
-#![cfg_attr(docrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate gnss_rs as gnss;
 
 use itertools::Itertools;
@@ -31,7 +31,7 @@ mod reader;
 mod velocity;
 mod version;
 
-#[cfg(doc_cfg)]
+#[cfg(docsrs)]
 mod bibliography;
 
 use header::{

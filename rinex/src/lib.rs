@@ -1,6 +1,6 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
 #![doc = include_str!("../README.md")]
-#![cfg_attr(docrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::type_complexity)]
 
 extern crate gnss_rs as gnss;
@@ -145,7 +145,7 @@ pub use split::Split;
 #[macro_use]
 extern crate serde;
 
-#[cfg(docrs)]
+#[cfg(docsrs)]
 pub use bibliography::Bibliography;
 
 /*
@@ -1751,7 +1751,7 @@ use crate::observation::{record::code_multipath, LliFlags, SNR};
  * Either specific Iterators, or meaningful data we can extract.
  */
 #[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
 impl Rinex {
     /// Returns a Unique Iterator over identified [`Carrier`]s
     pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier> + '_> {
@@ -2248,7 +2248,7 @@ use crate::navigation::{
  * Either specific Iterators, or meaningful data we can extract.
  */
 #[cfg(feature = "nav")]
-#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
 impl Rinex {
     /// Returns a Unique Iterator over [`NavMsgType`]s that were identified
     /// ```
@@ -2629,7 +2629,7 @@ impl Rinex {
  * Either specific Iterators, or meaningful data we can extract.
  */
 #[cfg(feature = "meteo")]
-#[cfg_attr(docrs, doc(cfg(feature = "meteo")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "meteo")))]
 impl Rinex {
     /// Returns temperature data iterator, values expressed in Celcius degrees
     /// ```
@@ -2952,11 +2952,11 @@ impl Split for Rinex {
 }
 
 #[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Preprocessing for Rinex {}
 
 #[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl RepairTrait for Rinex {
     fn repair(&self, r: Repair) -> Self {
         let mut s = self.clone();
@@ -2971,7 +2971,7 @@ impl RepairTrait for Rinex {
 }
 
 #[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Masking for Rinex {
     fn mask(&self, f: &MaskFilter) -> Self {
         let mut s = self.clone();
@@ -2997,7 +2997,7 @@ impl Masking for Rinex {
 }
 
 #[cfg(feature = "processing")]
-#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Decimate for Rinex {
     fn decimate(&self, f: &DecimationFilter) -> Self {
         let mut s = self.clone();
@@ -3024,7 +3024,7 @@ impl Decimate for Rinex {
 use observation::Dcb;
 
 #[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
 impl Dcb for Rinex {
     fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
@@ -3039,7 +3039,7 @@ impl Dcb for Rinex {
 use observation::{Combination, Combine};
 
 #[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
 impl Combine for Rinex {
     fn combine(
         &self,
@@ -3060,7 +3060,7 @@ use crate::clock::{ClockKey, ClockProfile, ClockProfileType};
  * Clock RINEX specific feature
  */
 #[cfg(feature = "clock")]
-#[cfg_attr(docrs, doc(cfg(feature = "clock")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "clock")))]
 impl Rinex {
     /// Returns Iterator over Clock RINEX content.
     pub fn precise_clock(
@@ -3108,7 +3108,7 @@ impl Rinex {
  * IONEX specific feature
  */
 #[cfg(feature = "ionex")]
-#[cfg_attr(docrs, doc(cfg(feature = "ionex")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
 impl Rinex {
     /// Iterates over IONEX maps, per Epoch and altitude.
     /// ```
@@ -3234,7 +3234,7 @@ impl Rinex {
  * ANTEX specific feature
  */
 #[cfg(feature = "antex")]
-#[cfg_attr(docrs, doc(cfg(feature = "antex")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "antex")))]
 impl Rinex {
     /// Iterates over antenna specifications that are still valid
     pub fn antex_valid_calibrations(
@@ -3315,7 +3315,7 @@ impl Rinex {
  * DORIS special features
  */
 #[cfg(feature = "doris")]
-#[cfg_attr(docrs, doc(cfg(feature = "doris")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "doris")))]
 impl Rinex {
     /// Returns Stations Iterator
     pub fn stations(&self) -> Box<dyn Iterator<Item = &Station> + '_> {
