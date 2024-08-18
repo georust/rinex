@@ -3,10 +3,6 @@
 # Compare this to post processed +3weeks
 DATA_DIR=test_resources
 
-# Comment out one step to remove it from the synthesized report.
-# Change the configuration to modify the navigation setup.
-DATA_DIR=test_resources
-
 # Example: 
 #  Gal PRN>09
 #  Skip 1st hour

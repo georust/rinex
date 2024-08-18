@@ -9,7 +9,7 @@ DATA_DIR=test_resources
 # Example: 
 #  GPS PRN>09
 #  L1 or L5 PR
-FILTER="GPS;>G09;C1C,C5Q"
+FILTER="GPS;C1C,C5Q"
 CONF=tutorials/config/survey/cpp_kf.json # pseudo-range(L1/L5); filter:kalman
 
 # Analysis + ppp solutions (silent)
@@ -22,7 +22,6 @@ CONF=tutorials/config/survey/cpp_kf.json # pseudo-range(L1/L5); filter:kalman
     --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
     ppp -c $CONF
-exit 0
 
 # cggtts solutions (+open).
 # Since we're using strict identical options,

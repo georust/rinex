@@ -339,7 +339,7 @@ pub fn precise_positioning(
                 y / 1.0E3,
                 z / 1.0E3,
                 Epoch::default(),
-                EARTH_J2000,
+                ctx.data.earth_cef,
             ))
         } else {
             panic!(
@@ -357,7 +357,7 @@ a static reference position"
 
     let solver = Solver::new_almanac_frame(
         &cfg,
-        None,
+        apriori,
         orbits,
         ctx.data.almanac.clone(),
         ctx.data.earth_cef,
