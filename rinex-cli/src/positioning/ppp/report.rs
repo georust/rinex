@@ -672,7 +672,7 @@ impl ReportContent {
                     &epochs,
                     solutions
                         .values()
-                        .map(|sol| sol.state.to_cartesian_pos_vel()[0] - x0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[0] * 1.0E3 - x0_ecef)
                         .collect(),
                     true,
                 );
@@ -684,7 +684,7 @@ impl ReportContent {
                     &epochs,
                     solutions
                         .values()
-                        .map(|sol| sol.state.to_cartesian_pos_vel()[1] - y0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[1] * 1.0E3 - y0_ecef)
                         .collect(),
                     true,
                 );
@@ -696,7 +696,7 @@ impl ReportContent {
                     &epochs,
                     solutions
                         .values()
-                        .map(|sol| sol.state.to_cartesian_pos_vel()[2] - z0_ecef)
+                        .map(|sol| sol.state.to_cartesian_pos_vel()[2] * 1.0E3 - z0_ecef)
                         .collect(),
                     true,
                 );

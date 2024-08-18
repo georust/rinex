@@ -10,7 +10,7 @@ pub use flag::EpochFlag;
 mod snr;
 pub use snr::SNR;
 
-#[cfg(docrs)]
+#[cfg(docsrs)]
 use crate::Bibliography;
 
 pub use record::{LliFlags, ObservationData, Record};
@@ -308,7 +308,7 @@ impl HeaderFields {
 use std::collections::BTreeMap;
 
 #[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
 #[derive(Debug, Copy, Clone)]
 pub enum Combination {
     GeometryFree,
@@ -323,7 +323,7 @@ pub enum Combination {
 /// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1]
 /// for more information.
 #[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
 pub trait Combine {
     fn combine(
         &self,
@@ -334,7 +334,7 @@ pub trait Combine {
 /// GNSS code bias estimation trait.
 /// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1].
 #[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
 pub trait Dcb {
     /// Returns Differential Code Bias estimates, sorted per (unique)
     /// signals combinations and for each individual SV.
