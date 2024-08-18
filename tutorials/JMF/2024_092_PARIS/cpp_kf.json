@@ -2,7 +2,7 @@
     "method": "CPP",
     "timescale": "GPST",
     "interp_order": 17,
-    "min_sv_elevation": 10.0,
+    "min_sv_elev": 10.0,
     "solver": {
         "filter": "Kalman",
         "gdop_threshold": 200.0

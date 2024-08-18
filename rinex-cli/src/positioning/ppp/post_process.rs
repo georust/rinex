@@ -24,8 +24,6 @@ use kml::{
 extern crate geo_types;
 use geo_types::Point as GeoPoint;
 
-use map_3d::{ecef2geodetic, Ellipsoid};
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("std::io error")]
@@ -56,32 +54,44 @@ pub fn post_process(
 
     writeln!(
         fd,
-        "Epoch, x_ecef, y_ecef, z_ecef, speed_x, speed_y, speed_z, hdop, vdop, rx_clock_offset, tdop"
+        "Epoch, x_ecef [m], y_ecef [m], z_ecef [m], vel_x [m/s], vel_y [m/s], vel_z [m/s], altitude [m], hdop, vdop, rx_clock_offset, tdop"
     )?;
 
     for (epoch, solution) in solutions {
-        let (lat_rad, lon_rad, alt) = ecef2geodetic(
-            solution.position.x,
-            solution.position.y,
-            solution.position.z,
-            Ellipsoid::WGS84,
+        let cartesian = solution.state.to_cartesian_pos_vel() * 1.0E3;
+        let (x_m, y_m, z_m, vel_x_ms, vel_y_ms, vel_z_ms) = (
+            cartesian[0],
+            cartesian[1],
+            cartesian[2],
+            cartesian[3],
+            cartesian[4],
+            cartesian[5],
         );
-        let (lat_ddeg, lon_ddeg) = (lat_rad.to_degrees(), lon_rad.to_degrees());
+        let (lat_deg, long_deg, alt_km) = solution.state.latlongalt().unwrap_or_else(|e| {
+            panic!(
+                "resolved invalid lat/long/altitude ({}) - check your input",
+                e
+            )
+        });
+        let alt_m = alt_km * 1.0E3;
+
+        let (lat_rad, long_rad) = (lat_deg.to_radians(), long_deg.to_radians());
         let (hdop, vdop, tdop) = (
-            solution.hdop(lat_rad, lon_rad),
-            solution.vdop(lat_rad, lon_rad),
+            solution.hdop(lat_rad, long_rad),
+            solution.vdop(lat_rad, long_rad),
             solution.tdop,
         );
         writeln!(
             fd,
-            "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
+            "{:?}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}, {:.6E}",
             epoch,
-            solution.position.x,
-            solution.position.y,
-            solution.position.z,
-            solution.velocity.x,
-            solution.velocity.y,
-            solution.velocity.z,
+            x_m,
+            y_m,
+            z_m,
+            vel_x_ms,
+            vel_y_ms,
+            vel_z_ms,
+            alt_m,
             hdop,
             vdop,
             solution.dt.to_seconds(),
@@ -91,8 +101,8 @@ pub fn post_process(
         #[cfg(feature = "gpx")]
         if matches.get_flag("gpx") {
             let mut segment = gpx::TrackSegment::new();
-            let mut wp = Waypoint::new(GeoPoint::new(lon_ddeg, lat_ddeg)); // Yes, longitude *then* latitude
-            wp.elevation = Some(alt);
+            let mut wp = Waypoint::new(GeoPoint::new(long_deg, lat_deg)); // longitude *then* latitude..
+            wp.elevation = Some(alt_m);
             wp.speed = None; // TODO
             wp.time = None; // TODO Gpx::Time
             wp.name = Some(format!("{:?}", epoch));
@@ -114,9 +124,9 @@ pub fn post_process(
                     Some(KmlGeometry::Point(KmlPoint {
                         coord: {
                             KmlCoord {
-                                x: lat_ddeg,
-                                y: lon_ddeg,
-                                z: Some(alt),
+                                x: lat_deg,
+                                y: long_deg,
+                                z: Some(alt_m),
                             }
                         },
                         extrude: false,

@@ -1,6 +1,9 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
 #![doc = include_str!("../README.md")]
-#![cfg_attr(docrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
+#[macro_use]
+extern crate log;
 
 extern crate gnss_rs as gnss;
 extern crate rinex_qc_traits as qc_traits;

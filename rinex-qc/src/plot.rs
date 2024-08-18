@@ -290,7 +290,7 @@ impl Plot {
         lon: Vec<T>,
         legend: &str,
     ) -> Box<ScatterGeo<T, T>> {
-        ScatterGeo::new(lat, lon)
+        ScatterGeo::new(lat, lon).name(legend)
     }
     /// Builds new Density Mapbox trace
     pub fn density_mapbox<T: Clone + Default + Serialize>(

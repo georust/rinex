@@ -30,6 +30,11 @@ impl Default for Cli {
     }
 }
 
+pub struct RemoteReferenceSite {
+    pub data: QcContext,
+    pub rx_ecef: Option<(f64, f64, f64)>,
+}
+
 /// Context defined by User.
 pub struct Context {
     /// Quiet option
@@ -37,9 +42,9 @@ pub struct Context {
     /// Data context defined by user.
     /// In differential opmode, this is the ROVER.
     pub data: QcContext,
-    /// Secondary dataset defined by user
-    /// serves as BASE in differential opmodes.
-    pub station_data: Option<QcContext>,
+    /// Remote reference site (secondary dataset) defined by User.
+    /// Serves as reference point in differential techniques.
+    pub reference_site: Option<RemoteReferenceSite>,
     /// Context name is derived from the primary file loaded in Self,
     /// and mostly used in output products generation.
     pub name: String,
@@ -83,13 +88,23 @@ impl Context {
             panic!("failed to create {}: {:?}", path.display(), e);
         })
     }
+    // Returns True if this context is compatible with RTK positioning
+    pub fn rtk_compatible(&self) -> bool {
+        if let Some(remote) = &self.reference_site {
+            self.data.observation().is_some()
+                && self.rx_ecef.is_some()
+                && remote.data.observation().is_some()
+                && remote.rx_ecef.is_some()
+        } else {
+            false
+        }
+    }
 }
 
 impl Cli {
     /// Build new command line interface
     pub fn new() -> Self {
-        Self {
-            matches: {
+        let cmd =
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
@@ -167,6 +182,14 @@ but you can extend that with --depth. Refer to -f for more information."))
 By default the $RINEX_WORKSPACE variable is prefered if it is defined.
 You can also use this flag to customize it. 
 If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
+        .next_help_heading("Output customization")
+        .arg(
+            Arg::new("output-name")
+                .short('o')
+                .action(ArgAction::Set)
+                .help("Customize output file or report name.
+In analysis opmode, report is named index.html by default, this will redefine that.
+In file operations (filegen, etc..) we can manually define output filenames with this option."))
         .next_help_heading("Report customization")
         .arg(
             Arg::new("report-sum")
@@ -183,12 +206,6 @@ If none are defined, we will then try to create a local directory named \"WORKSP
 By default, report synthesis happens once per input set (file combnation and cli options).
 Use this option to force report regeneration.
 This has no effect on file operations that do not synthesize a report."))
-        .arg(
-            Arg::new("report-name")
-                .short('o')
-                .action(ArgAction::Set)
-                .help("Custom report name, otherwise, report is named index.html")
-        )
         .arg(
             Arg::new("report-brdc-sky")
                 .long("brdc-sky")
@@ -268,15 +285,17 @@ Otherwise it gets automatically picked up."))
                     .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
                     .help("Define the (RX) antenna position manualy, in decimal degrees."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
-                .subcommand(filegen::subcommand())
-                .subcommand(merge::subcommand())
-                .subcommand(positioning::ppp_subcommand())
-                .subcommand(positioning::rtk_subcommand())
-                .subcommand(split::subcommand())
-                .subcommand(diff::subcommand())
-                .subcommand(time_binning::subcommand())
-                .get_matches()
-            },
+                .subcommand(filegen::subcommand());
+
+        let cmd = cmd
+            .subcommand(merge::subcommand())
+            .subcommand(positioning::ppp_subcommand())
+            .subcommand(positioning::rtk_subcommand())
+            .subcommand(split::subcommand())
+            .subcommand(diff::subcommand())
+            .subcommand(time_binning::subcommand());
+        Self {
+            matches: cmd.get_matches(),
         }
     }
     /// Recursive browser depth
@@ -404,11 +423,14 @@ Otherwise it gets automatically picked up."))
     }
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
-        match self.matches.subcommand() {
-            Some(("filegen", _)) | Some(("merge", _)) | Some(("split", _)) | Some(("tbin", _))
-            | Some(("diff", _)) => true,
-            _ => false,
-        }
+        matches!(
+            self.matches.subcommand(),
+            Some(("filegen", _))
+                | Some(("merge", _))
+                | Some(("split", _))
+                | Some(("tbin", _))
+                | Some(("diff", _))
+        )
     }
     /// True if forced report synthesis is requested
     pub fn force_report_synthesis(&self) -> bool {
@@ -428,7 +450,7 @@ Otherwise it gets automatically picked up."))
             .chain(self.rover_files().into_iter().sorted())
             .chain(self.preprocessing().into_iter().sorted())
             .join(",");
-        if let Some(custom) = self.custom_report_name() {
+        if let Some(custom) = self.custom_output_name() {
             string.push_str(custom);
         }
         if let Some(geo) = self.manual_geodetic() {
@@ -456,8 +478,8 @@ Otherwise it gets automatically picked up."))
             force_brdc_skyplot: self.matches.get_flag("report-brdc-sky"),
         }
     }
-    /// Report to be generated for this session
-    pub fn custom_report_name(&self) -> Option<&String> {
-        self.matches.get_one::<String>("report-name")
+    /// Customized / manually defined output to be generated
+    pub fn custom_output_name(&self) -> Option<&String> {
+        self.matches.get_one::<String>("output-name")
     }
 }

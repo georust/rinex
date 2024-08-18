@@ -22,10 +22,10 @@ mod cggtts; // CGGTTS special solver
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
 mod rtk;
-use rtk::BaseStation;
+pub use rtk::RemoteRTKReference;
 
 mod orbit;
-use orbit::Orbit;
+use orbit::Orbits;
 
 mod clock;
 use clock::Clock;
@@ -40,7 +40,7 @@ use rinex_qc::prelude::QcExtraPage;
 
 use gnss_rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, PVTSolutionType, Position, Solver, Vector3,
+    NgModel, Orbit, PVTSolutionType, Solver, EARTH_J2000,
 };
 
 use thiserror::Error;
@@ -230,7 +230,7 @@ pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
 }
 
 pub fn precise_positioning(
-    cli: &Cli,
+    _cli: &Cli,
     ctx: &Context,
     is_rtk: bool,
     matches: &ArgMatches,
@@ -283,10 +283,12 @@ pub fn precise_positioning(
         ctx.data.observation().is_some(),
         "Positioning requires Observation RINEX"
     );
-    assert!(
-        ctx.data.brdc_navigation().is_some(),
-        "Positioning requires Navigation RINEX"
-    );
+    if !is_rtk {
+        assert!(
+            ctx.data.brdc_navigation().is_some(),
+            "Positioning requires Navigation RINEX"
+        );
+    }
 
     if let Some(obs_rinex) = ctx.data.observation() {
         if let Some(obs_header) = &obs_rinex.header.obs {
@@ -324,15 +326,21 @@ pub fn precise_positioning(
     // create data providers
     let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
     let clocks = Clock::new(&ctx, &eph);
-    let orbits = Orbit::new(&ctx, &eph);
+    let orbits = Orbits::new(&ctx, &eph);
+    let mut rtk_reference = RemoteRTKReference::from_ctx(&ctx);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
     #[cfg(feature = "cggtts")]
     let apriori = if matches.get_flag("cggtts") {
         if let Some((x, y, z)) = ctx.rx_ecef {
-            let apriori_ecef = Vector3::new(x, y, z);
-            Some(Position::from_ecef(apriori_ecef))
+            Some(Orbit::from_position(
+                x / 1.0E3,
+                y / 1.0E3,
+                z / 1.0E3,
+                Epoch::default(),
+                ctx.data.earth_cef,
+            ))
         } else {
             panic!(
                 "--cggtts opmode cannot work without a priori position knowledge.
@@ -347,14 +355,13 @@ a static reference position"
     #[cfg(not(feature = "cggtts"))]
     let apriori = None;
 
-    let solver = if is_rtk {
-        let base_station = BaseStation::from_ctx(ctx);
-        Solver::rtk(&cfg, apriori, orbits, base_station)
-            .unwrap_or_else(|e| panic!("failed to deploy RTK solver: {}", e))
-    } else {
-        Solver::ppp(&cfg, apriori, orbits)
-            .unwrap_or_else(|e| panic!("failed to deploy PPP solver: {}", e))
-    };
+    let solver = Solver::new_almanac_frame(
+        &cfg,
+        apriori,
+        orbits,
+        ctx.data.almanac.clone(),
+        ctx.data.earth_cef,
+    );
 
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
@@ -372,7 +379,7 @@ a static reference position"
     }
 
     /* PPP */
-    let solutions = ppp::resolve(ctx, &eph, clocks, solver);
+    let solutions = ppp::resolve(ctx, &eph, clocks, &mut rtk_reference, solver);
     if !solutions.is_empty() {
         ppp_post_process(&ctx, &solutions, matches)?;
         let report = PPPReport::new(&cfg, &ctx, &solutions);

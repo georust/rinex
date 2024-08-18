@@ -22,7 +22,7 @@ pub enum Report {
 impl Report {
     /// Create a new report
     pub fn new(cli: &Cli, ctx: &Context, cfg: QcConfig) -> Self {
-        let report_path = if let Some(custom_name) = cli.custom_report_name() {
+        let report_path = if let Some(custom_name) = cli.custom_output_name() {
             ctx.workspace.root.join(&format!("{}.html", custom_name))
         } else {
             ctx.workspace.root.join("index.html")
@@ -128,7 +128,7 @@ impl Report {
     /// Generate (dump) report
     pub fn generate(&self, cli: &Cli, ctx: &Context) -> std::io::Result<()> {
         let html = self.render();
-        let path = if let Some(name) = cli.custom_report_name() {
+        let path = if let Some(name) = cli.custom_output_name() {
             ctx.workspace.root.join(&format!("{}.html", name))
         } else {
             ctx.workspace.root.join("index.html")

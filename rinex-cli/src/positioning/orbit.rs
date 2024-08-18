@@ -6,13 +6,13 @@ use crate::{
 use std::{cell::RefCell, collections::HashMap};
 
 use gnss_rtk::prelude::{
-    Almanac, Epoch, OrbitalState, OrbitalStateProvider, Vector3, EARTH_J2000, SUN_J2000, SV,
+    Almanac, Epoch, Frame, Orbit, OrbitSource, Vector3, EARTH_J2000, SUN_J2000, SV,
 };
 use rinex::prelude::Carrier;
 
 use anise::errors::AlmanacError;
 
-pub struct Orbit<'a, 'b> {
+pub struct Orbits<'a, 'b> {
     eos: bool,
     has_precise: bool,
     eph: &'a RefCell<EphemerisSource<'b>>,
@@ -29,7 +29,7 @@ fn sun_unit_vector(almanac: &Almanac, t: Epoch) -> Result<Vector3<f64>, AlmanacE
     ))
 }
 
-impl<'a, 'b> Orbit<'a, 'b> {
+impl<'a, 'b> Orbits<'a, 'b> {
     pub fn new(ctx: &'a Context, eph: &'a RefCell<EphemerisSource<'b>>) -> Self {
         let has_precise = ctx.data.sp3().is_some();
         let mut s = Self {
@@ -73,7 +73,7 @@ impl<'a, 'b> Orbit<'a, 'b> {
                         Box::new(sp3.sv_position())
                     }
                 } else {
-                    warn!("Orbit source created: operating without precise Orbits.");
+                    warn!("Orbit source created: operating without Precise Orbits.");
                     Box::new([].into_iter())
                 }
             },
@@ -106,56 +106,51 @@ impl<'a, 'b> Orbit<'a, 'b> {
     }
 }
 
-impl OrbitalStateProvider for Orbit<'_, '_> {
-    fn next_at(&mut self, t: Epoch, sv: SV, order: usize) -> Option<OrbitalState> {
+impl OrbitSource for Orbits<'_, '_> {
+    fn next_at(&mut self, t: Epoch, sv: SV, fr: Frame, order: usize) -> Option<Orbit> {
         let precise = if self.has_precise {
             // interpolation attempt
             if let Some(buffer) = self.buff.get_mut(&sv) {
                 if let Some((x_km, y_km, z_km)) = buffer.contains(&t) {
-                    Some(OrbitalState::from_position((
-                        x_km * 1000.0,
-                        y_km * 1000.0,
-                        z_km * 1000.0,
-                    )))
+                    Some(Orbit::from_position(
+                        *x_km, *y_km, *z_km, t, fr, //TODO: convert if need be
+                    ))
                 } else {
                     if buffer.feasible(t, order) {
-                        Some(OrbitalState::from_position(buffer.interpolate(
-                            t,
-                            order,
-                            |buf| {
-                                let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
-                                for i in 0..=order {
-                                    let mut li = 1.0_f64;
-                                    let (t_i, (x_i, y_i, z_i)) = buf[i];
-                                    for j in 0..=order {
-                                        let (t_j, _) = buf[j];
+                        let (x_km, y_km, z_km) = buffer.interpolate(t, order, |buf| {
+                            let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
+                            for i in 0..=order {
+                                let mut li = 1.0_f64;
+                                let (t_i, (x_i, y_i, z_i)) = buf[i];
+                                for j in 0..=order {
+                                    let (t_j, _) = buf[j];
 
-                                        assert_eq!(
-                                            t.time_scale, t_i.time_scale,
-                                            "invalid input timescale: check your input!"
-                                        );
-                                        assert_eq!(
-                                            t_i.time_scale, t_j.time_scale,
-                                            "inconsistant timescales: aborting on internal error!"
-                                        );
-                                        if j != i {
-                                            li *= (t - t_j).to_seconds();
-                                            li /= (t_i - t_j).to_seconds();
-                                        }
+                                    assert_eq!(
+                                        t.time_scale, t_i.time_scale,
+                                        "invalid input timescale: check your input!"
+                                    );
+                                    assert_eq!(
+                                        t_i.time_scale, t_j.time_scale,
+                                        "inconsistant timescales: aborting on internal error!"
+                                    );
+                                    if j != i {
+                                        li *= (t - t_j).to_seconds();
+                                        li /= (t_i - t_j).to_seconds();
                                     }
-                                    polynomials.0 += x_i * li;
-                                    polynomials.1 += y_i * li;
-                                    polynomials.2 += z_i * li;
                                 }
-                                let (x_km, y_km, z_km) =
-                                    (polynomials.0, polynomials.1, polynomials.2);
-                                debug!(
-                                    "{}({}) precise state (km ECEF): x={},y={},z={}",
-                                    t, sv, x_km, y_km, z_km
-                                );
-                                (x_km * 1000.0, y_km * 1000.0, z_km * 1000.0)
-                            },
-                        )))
+                                polynomials.0 += x_i * li;
+                                polynomials.1 += y_i * li;
+                                polynomials.2 += z_i * li;
+                            }
+                            let (x_km, y_km, z_km) = (polynomials.0, polynomials.1, polynomials.2);
+                            debug!(
+                                "{}({}) precise state (km ECEF): x={},y={},z={}",
+                                t, sv, x_km, y_km, z_km
+                            );
+                            (x_km, y_km, z_km)
+                        });
+                        // TODO: convert fr if need be
+                        Some(Orbit::from_position(x_km, y_km, z_km, t, fr))
                     } else {
                         // not feasible
                         self.consume_many(3);
@@ -164,7 +159,7 @@ impl OrbitalStateProvider for Orbit<'_, '_> {
                 }
             } else {
                 // create new buff, push some symbols
-                let mut buffer = Buffer::new(order);
+                let buffer = Buffer::new(order);
                 self.buff.insert(sv, buffer);
                 self.consume_many(order + 2);
                 None
@@ -173,17 +168,15 @@ impl OrbitalStateProvider for Orbit<'_, '_> {
             None
         }; //precise
 
-        let keplerian = if let Some((toc, toe, eph)) = self.eph.borrow_mut().select(t, sv) {
+        let keplerian = if let Some((toc, _, eph)) = self.eph.borrow_mut().select(t, sv) {
             let (x_km, y_km, z_km) = eph.kepler2position(sv, toc, t)?;
             debug!(
-                "{}({}) keplerian state (km ECEF): x={},y={},z={}",
+                "{}({}) keplerian state (ECEF): x={}km,y={}km,z={}km",
                 t, sv, x_km, y_km, z_km
             );
-            Some(OrbitalState::from_position((
-                x_km * 1000.0,
-                y_km * 1000.0,
-                z_km * 1000.0,
-            )))
+            Some(Orbit::from_position(
+                x_km, y_km, z_km, t, fr, // TODO: convert if need be
+            ))
         } else {
             None
         };

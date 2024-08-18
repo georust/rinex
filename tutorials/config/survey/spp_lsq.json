@@ -2,7 +2,7 @@
     "method": "SPP",
     "timescale": "GPST",
     "interp_order": 11,
-    "min_sv_elevation": 10.0,
+    "min_sv_elev": 10.0,
     "solver": {
         "filter": "LSQ",
         "gdop_threshold": 10.0

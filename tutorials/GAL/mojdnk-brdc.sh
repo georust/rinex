@@ -3,17 +3,11 @@
 # Compare this to post processed +3weeks
 DATA_DIR=test_resources
 
-# Comment out one step to remove it from the synthesized report.
-# Change the configuration to modify the navigation setup.
-DATA_DIR=test_resources
-
 # Example: 
 #  Gal PRN>09
 #  Skip 1st hour
 #  E1 or E5 PR
-FILTER="Gal;>E09;C1C,C5Q"
-# Skip 1st hour (example)
-TIMEFRAME=">2020-06-25T01:00:00 UTC"
+FILTER="Gal;C1C,C5Q"
 CONF=tutorials/config/survey/cpp_kf.json
 
 # Analysis + ppp solutions
@@ -21,7 +15,7 @@ CONF=tutorials/config/survey/cpp_kf.json
 #   -q: silent (open on last call)
 #   -o: custom name
 ./target/release/rinex-cli \
-    -P $FILTER "$TIMEFRAME" \
+    -P $FILTER \
     -f -q -o "BRDC-GalE1E5" \
     --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \
@@ -32,7 +26,7 @@ CONF=tutorials/config/survey/cpp_kf.json
 # the report is preserved and new solutions are appended.
 # The report is automatically opened.
 ./target/release/rinex-cli \
-    -P $FILTER "$TIMEFRAME" \
+    -P $FILTER \
     -o "BRDC-GalE1E5" \
     --fp $DATA_DIR/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --fp $DATA_DIR/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz \

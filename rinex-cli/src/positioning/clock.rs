@@ -46,7 +46,7 @@ impl ClockStateProvider for Clock<'_, '_> {
                 }
             } else {
                 // create new buffer, push some symbols
-                let mut buffer = Buffer::new(2);
+                let buffer = Buffer::new(2);
                 self.buff.insert(sv, buffer);
                 self.consume_many(3);
             }
@@ -73,7 +73,7 @@ impl<'a, 'b> Clock<'a, 'b> {
                         .map(|(t, sv, _, prof)| (t, sv, prof.bias)),
                 )
             } else {
-                warn!("Clock source created: Operating without Precise Clock.");
+                warn!("Clock source created: operating without Precise Clock.");
                 Box::new([].into_iter())
             },
         };

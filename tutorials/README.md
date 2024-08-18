@@ -10,14 +10,23 @@ All scripts are intended to be executed at the base of this Git repository, see 
 They also expect the released application to be built with all features (heaviest option):
 
 ```bash
-cd georust-rinex
+# download the toolbox and dataset
+git clone https://github.com/georust/rinex
+cd rinex
+# build it with release, for efficient experience
 cargo build --release --all-features
 
-# Now try one of the survey scripts, for example:
+# try one of the examples
 ./tutorials/GAL/mojdnk.sh
 ```
 
-RINEX-Cli and other applications will generate logs but we do not store them in the following examples.
+RINEX-Cli and other applications will generate logs but we do not store them in the following examples.  
+Activate the application logs by activating the `RUST_LOG` environment variable.  
+For example, this will make you see any trace
+
+```bash
+export RUST_LOG=trace
+```
 
 Surveying
 =========
@@ -73,3 +82,6 @@ Other file operations like RINEX files management is also demonstrated.
 - [Batch splitting](./SPLIT)
   - Esbjerg (24h/DNK) station observations
   - SP3 batch splitting
+- [CSV](./CSV)
+  - RINEX or SP3 to CSV extraction examples, typically
+  used to forward to other software toolkits.
