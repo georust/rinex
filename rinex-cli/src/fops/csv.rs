@@ -61,13 +61,15 @@ pub fn write_nav_rinex(obs: &Rinex, brdc: &Rinex, path: &Path) -> Result<(), Err
         for (sv, _) in svnn.iter() {
             let sv_str = sv.to_string();
             if let Some((toc, _toe, eph)) = brdc.sv_ephemeris(*sv, *t) {
-                if let Some((x_ecef_km, y_ecef_km, z_ecef_km)) = eph.kepler2position(*sv, toc, *t) {
+                if let Some(sv_orbit) = eph.kepler2position(*sv, toc, *t) {
+                    let sv_state = sv_orbit.to_cartesian_pos_vel();
+                    let (x_km, y_km, z_km) = (sv_state[0], sv_state[1], sv_state[2]);
                     orbit_w.write_record(&[
                         &t_str,
                         &sv_str,
-                        &format!("{:.3E}", x_ecef_km),
-                        &format!("{:.3E}", y_ecef_km),
-                        &format!("{:.3E}", z_ecef_km),
+                        &format!("{:.3E}", x_km),
+                        &format!("{:.3E}", y_km),
+                        &format!("{:.3E}", z_km),
                     ])?;
                     if let Some(correction) = eph.clock_correction(toc, *t, *sv, 8) {
                         clk_w.write_record(&[

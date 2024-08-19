@@ -2323,22 +2323,27 @@ impl Rinex {
             })
         }))
     }
-    /// Returns SV Orbital state vector (if we can) at specified [Epoch] `t`.
-    /// Self must be NAV RINEX. Position is expressed as ECEF coordinates [km].
-    pub fn sv_position(&self, sv: SV, t: Epoch) -> Option<(f64, f64, f64)> {
+    /// Returns [SV] [Orbit]al state vector (if we can) at specified [Epoch] `t`.
+    /// Self must be NAV RINEX.
+    pub fn sv_orbit(&self, sv: SV, t: Epoch) -> Option<Orbit> {
         let (toc, _, eph) = self.sv_ephemeris(sv, t)?;
         eph.kepler2position(sv, toc, t)
     }
-    /// Returns SV Orbital state vector and
-    /// instantaneous velocity (if we can) at specific [Epoch] `t`.
-    /// Self must be NAV RINEX. All coordinates expressed in ECEF [km] frame.
-    pub fn sv_position_velocity(
+    /// Returns [SV] attitude vector (if we can) at specified [Epoch] `t`
+    /// with respect to specified reference point expressed as an [Orbit].
+    /// [Self] must be NAV RINEX.
+    pub fn sv_azimuth_elevation_range(
         &self,
         sv: SV,
         t: Epoch,
-    ) -> Option<((f64, f64, f64), (f64, f64, f64))> {
-        let (toc, _, eph) = self.sv_ephemeris(sv, t)?;
-        eph.kepler2position_velocity(sv, toc, t)
+        rx_orbit: Orbit,
+        almanac: &Almanac,
+    ) -> Option<AzElRange> {
+        let sv_orbit = self.sv_orbit(sv, t)?;
+        let azelrange = almanac
+            .azimuth_elevation_range_sez(sv_orbit, rx_orbit)
+            .ok()?;
+        Some(azelrange)
     }
     /// Ephemeris selection method. Use this method to select Ephemeris
     /// for [SV] at [Epoch], to be used in navigation.

@@ -12,8 +12,9 @@ use crate::prelude::Almanac;
 #[cfg(feature = "nav")]
 use anise::{
     astro::AzElRange,
-    constants::frames::EARTH_J2000,
+    constants::frames::{EARTH_J2000, IAU_EARTH_FRAME},
     errors::AlmanacResult,
+    math::{Vector3, Vector6},
     prelude::{Frame, Orbit},
 };
 
@@ -27,7 +28,7 @@ use crate::epoch::{
 };
 
 #[cfg(feature = "nav")]
-use nalgebra::{self as na, Matrix3, Rotation, Rotation3, Vector3, Vector4};
+use nalgebra::{self as na, Matrix3, Rotation, Rotation3, Vector4};
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -114,7 +115,7 @@ impl EphemerisHelper {
     }
 
     /// Calculate ecef position [km].
-    fn ecef_position(&self) -> Vector3<f64> {
+    fn ecef_position(&self) -> Vector3 {
         if self.sv.is_beidou_geo() {
             self.beidou_geo_ecef_position()
         } else {
@@ -126,7 +127,7 @@ impl EphemerisHelper {
     }
 
     /// Calculate ecef velocity [km/s].
-    fn ecef_velocity(&self) -> Vector3<f64> {
+    fn ecef_velocity(&self) -> Vector3 {
         if self.sv.is_beidou_geo() {
             self.beidou_geo_ecef_velocity()
         } else {
@@ -157,12 +158,12 @@ impl EphemerisHelper {
     /// Calculate ECEF position [km] and velocity [km/s] of MEO/IGSO sv
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
-    fn ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
+    fn ecef_pv(&self) -> (Vector3, Vector3) {
         (self.ecef_position(), self.ecef_velocity())
     }
 
     /// Calculate ecef [km] position of GEO sv
-    fn beidou_geo_ecef_position(&self) -> Vector3<f64> {
+    fn beidou_geo_ecef_position(&self) -> Vector3 {
         let orbit_xyz = Vector3::new(self.r_sv.0, self.r_sv.1, 0.0);
         let rotation1 = self.meo_orbit_to_ecef_rotation_matrix();
         let rotation2 = self.geo_orbit_to_ecef_rotation_matrix();
@@ -171,7 +172,7 @@ impl EphemerisHelper {
     }
 
     /// Calculate ecef velocity of GEO sv
-    fn beidou_geo_ecef_velocity(&self) -> Vector3<f64> {
+    fn beidou_geo_ecef_velocity(&self) -> Vector3 {
         let (x, y, _) = self.r_sv;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
@@ -204,7 +205,7 @@ impl EphemerisHelper {
     /// Calculate ecef position and velocity of BeiDou GEO sv
     /// # Return
     /// ( Position(x,y,z),Velecity(x,y,z) )
-    fn beidou_geo_ecef_pv(&self) -> (Vector3<f64>, Vector3<f64>) {
+    fn beidou_geo_ecef_pv(&self) -> (Vector3, Vector3) {
         let (x, y, _) = self.r_sv;
         let (sin_omega_k, cos_omega_k) = self.omega_k.sin_cos();
         let (sin_i_k, cos_i_k) = self.i_k.sin_cos();
@@ -235,7 +236,7 @@ impl EphemerisHelper {
     }
 
     /// get ecef position
-    pub fn position(&self) -> Option<Vector3<f64>> {
+    pub fn position(&self) -> Option<Vector3> {
         match self.sv.constellation {
             Constellation::GPS | Constellation::Galileo => Some(self.ecef_position()),
             Constellation::BeiDou => {
@@ -253,7 +254,7 @@ impl EphemerisHelper {
     }
 
     /// get ecef position and velocity
-    pub fn position_velocity(&self) -> Option<(Vector3<f64>, Vector3<f64>)> {
+    pub fn position_velocity(&self) -> Option<(Vector3, Vector3)> {
         if self.sv.is_beidou_geo() {
             Some(self.beidou_geo_ecef_pv())
         } else {
@@ -770,22 +771,28 @@ impl Ephemeris {
             Some(Duration::from_seconds(a0 + a1 * dt + a2 * dt.powi(2)))
         }
     }
-    /// Kepler ECEF [km] position solver at [Epoch] t.
+    /// Returns [SV] [Orbit]al state at t [Epoch].
     /// t_sv [Epoch] is the satellite free running clock.
     /// Self must be correctly selected from navigation record.
     /// See [Bibliography::AsceAppendix3], [Bibliography::JLe19] and [Bibliography::BeiDouICD]
-    pub fn kepler2position(&self, sv: SV, t_sv: Epoch, t: Epoch) -> Option<(f64, f64, f64)> {
+    pub fn kepler2position(&self, sv: SV, t_sv: Epoch, t: Epoch) -> Option<Orbit> {
         if sv.constellation.is_sbas() || sv.constellation == Constellation::Glonass {
-            let (pos_x_km, pos_y_km, pos_z_km) = (
+            let (x_km, y_km, z_km) = (
                 self.get_orbit_f64("satPosX")?,
                 self.get_orbit_f64("satPosY")?,
                 self.get_orbit_f64("satPosZ")?,
             );
-            Some((pos_x_km, pos_y_km, pos_z_km))
+            // TODO: velocity + integration
+            Some(Orbit::from_position(x_km, y_km, z_km, t, IAU_EARTH_FRAME))
         } else {
             let helper = self.ephemeris_helper(sv, t_sv, t)?;
             let pos = helper.ecef_position();
-            Some((pos.x, pos.y, pos.z))
+            let vel = helper.ecef_velocity();
+            Some(Orbit::from_cartesian_pos_vel(
+                Vector6::new(pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]),
+                t,
+                IAU_EARTH_FRAME,
+            ))
         }
     }
     /// Kepler ECEF [km] position and velocity [km/s] solver at desired instant "t" for given "sv"
