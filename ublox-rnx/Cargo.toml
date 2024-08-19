@@ -1,6 +1,6 @@
 [package]
 name = "ublox-rnx"
-version = "0.1.7"
+version = "0.2.0-alpha"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Efficient RINEX production from a Ublox GNSS receiver"
@@ -22,4 +22,4 @@ serialport = "4.2.0"
 ublox = "0.4.4"
 gnss-rs = { version = "2.2.1", features = ["serde"] }
 clap = { version = "4.4.10", features = ["derive", "color"] }
-rinex = { path = "../rinex", version = "=0.16.1", features = ["serde", "nav", "obs", "clock"] }
+rinex = { path = "../rinex", version = "=0.17.0-alpha", features = ["serde", "nav", "obs", "clock"] }
