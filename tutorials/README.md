@@ -85,3 +85,5 @@ Other file operations like RINEX files management is also demonstrated.
 - [CSV](./CSV)
   - RINEX or SP3 to CSV extraction examples, typically
   used to forward to other software toolkits.
+- [FILEGEN](./FILEGEN)
+  - RINEX and other format synthesis, after running custom operations (input format preservation)
