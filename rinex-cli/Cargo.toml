@@ -43,7 +43,7 @@ plotly = "0.9"
 anise = { version = "0.4.2", features = ["embed_ephem"] }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
-gnss-rs = { version = "2.2.1", features = ["serde"] }
+gnss-rs = { version = "2.2.3", features = ["serde"] }
 
 gnss-rtk = { version = "0.7.1", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
