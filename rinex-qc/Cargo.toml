@@ -47,7 +47,7 @@ statrs = { version = "0.16", optional = true }
 plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
 
 hifitime = "4.0.0-alpha"
-gnss-rs = { version = "2.2.1", features = ["serde"] }
+gnss-rs = { version = "2.2.3", features = ["serde"] }
 
 rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", features = ["processing"] }
