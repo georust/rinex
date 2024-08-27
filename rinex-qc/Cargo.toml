@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc"
-version = "0.1.14"
+version = "0.2.0-alpha"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX and more broadly, GNSS data processing"
@@ -49,10 +49,10 @@ plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"}
 hifitime = "4.0.0-alpha"
 gnss-rs = { version = "2.2.3", features = ["serde"] }
 
-rinex = { path = "../rinex", version = "=0.16.1", features = ["full"] }
-rinex-qc-traits = { path = "../qc-traits", version = "=0.1.1", features = ["processing"] }
+rinex = { path = "../rinex", version = "=0.17.0-alpha", features = ["full"] }
+rinex-qc-traits = { path = "../qc-traits", version = "=0.2.0", features = ["processing"] }
 
-sp3 = { path = "../sp3", version = "=1.0.8", features = ["qc", "processing", "serde"], optional = true }
+sp3 = { path = "../sp3", version = "=1.1.0-alpha", features = ["qc", "processing", "serde"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"
