@@ -6,9 +6,14 @@ use plotly::{
         update_menu::UpdateMenu, Axis, Center, DragMode, Mapbox, Margin, RangeSelector,
         RangeSlider, SelectorButton, SelectorStep,
     },
-    DensityMapbox, Layout, Plot as Plotly, Scatter, Scatter3D, //ScatterGeo, 
+    DensityMapbox,
+    Layout,
+    Plot as Plotly,
+    Scatter,
+    Scatter3D, //ScatterGeo,
     ScatterMapbox,
-    ScatterPolar, Trace,
+    ScatterPolar,
+    Trace,
 };
 
 use serde::Serialize;
