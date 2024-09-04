@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc"
-version = "0.2.0-alpha"
+version = "0.2.0-alpha-1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX and more broadly, GNSS data processing"
@@ -37,7 +37,7 @@ thiserror = "1"
 strum = "0.26"
 itertools = "0.13.0"
 strum_macros = "0.26"
-anise = { version = "0.4.2", features = ["embed_ephem"] }
+anise = { version = "=0.4.2", features = ["embed_ephem"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 statrs = { version = "0.16", optional = true }

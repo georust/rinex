@@ -1,6 +1,6 @@
 [package]
 name = "rinex-cli"
-version = "0.12.0-alpha"
+version = "0.12.0-alpha-1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Command line tool parse and analyze RINEX data"
@@ -40,12 +40,12 @@ plotly = "0.9"
 # plotly = { path = "../../plotly-rs/plotly" }
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo" }
 
-anise = { version = "0.4.2", features = ["embed_ephem"] }
+anise = { version = "=0.4.2", features = ["embed_ephem"] }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
 gnss-rs = { version = "2.2.3", features = ["serde"] }
 
-gnss-rtk = { version = "0.7.2", features = ["serde"] }
+gnss-rtk = { version = "=0.7.4", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
 # gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
