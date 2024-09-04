@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc"
-version = "0.2.0-alpha"
+version = "0.2.0-alpha-1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX and more broadly, GNSS data processing"
@@ -37,7 +37,7 @@ thiserror = "1"
 strum = "0.26"
 itertools = "0.13.0"
 strum_macros = "0.26"
-anise = { version = "0.4.2", features = ["embed_ephem"] }
+anise = { version = "=0.4.2", features = ["embed_ephem"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 statrs = { version = "0.16", optional = true }
@@ -49,10 +49,10 @@ plotly = "0.9"
 hifitime = "4.0.0-alpha"
 gnss-rs = { version = "2.2.3", features = ["serde"] }
 
-rinex = { path = "../rinex", version = "=0.17.0-alpha", features = ["full"] }
+rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.2.0", features = ["processing"] }
 
-sp3 = { path = "../sp3", version = "=1.1.0-alpha", features = ["qc", "processing", "serde"], optional = true }
+sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["qc", "processing", "serde"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"

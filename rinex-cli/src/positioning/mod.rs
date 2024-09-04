@@ -260,7 +260,7 @@ pub fn precise_positioning(
         },
         None => {
             let method = Method::default();
-            let mut cfg = Config::static_preset(method);
+            let mut cfg = Config::static_ppp_preset(method);
 
             /*
              * CGGTTS special case

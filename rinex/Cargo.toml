@@ -1,6 +1,6 @@
 [package]
 name = "rinex"
-version = "0.17.0-alpha"
+version = "0.17.0-alpha-1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze RINEX data"
@@ -107,8 +107,8 @@ flate2 = { version = "1.0.24", optional = true, default-features = false, featur
 geo = { version = "0.28", optional = true }
 wkt = { version = "0.10.0", default-features = false, optional = true }
 
-anise = { version = "0.4.2", optional = true }
-nalgebra = { version = "0.32.3", optional = true }
+anise = { version = "=0.4.2", optional = true }
+nalgebra = { version = "=0.32.3", optional = true }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
 gnss-rs = { version = "2.2.3", features = ["serde", "domes", "cospar"] }

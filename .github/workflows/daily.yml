@@ -1,36 +1,15 @@
-name: Pull Request
+name: Daily Workflow
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - "*"
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *" # midnight, every day
 
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
 
 jobs:
-  linter:
-    name: Linter 
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      name: Install Rust
-      with:
-        toolchain: stable
-        override: true
-    - uses: actions-rs/cargo@v1
-      name: Linter 
-      with:
-        command: fmt
-        args: --all -- --check
-
   build:
     name: Build 
     runs-on: ubuntu-latest
@@ -152,80 +131,3 @@ jobs:
     - name: Documentation
       run: |
         ./tools/builddoc.sh
-  
-  windows-build:
-    name: Windows
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      name: Install Rust
-      with:
-        toolchain: stable
-        override: true
-        
-    - uses: actions-rs/cargo@v1
-      name: Build (default) 
-      with:
-        command: build
-        args: --release
-
-    - uses: actions-rs/cargo@v1
-      name: Build (all features)
-      with: 
-        command: build 
-        args: --all-features --release
-  
-  macos-build:
-    name: MacOS
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      name: Install Rust
-      with:
-        toolchain: stable
-        override: true
-    
-    - uses: actions-rs/cargo@v1
-      name: Build (default) 
-      with:
-        command: build
-        args: --release
-
-    - uses: actions-rs/cargo@v1
-      name: Build (all features)
-      with: 
-        command: build 
-        args: --all-features --release
-  
-  release:
-    name: Release Libraries
-    runs-on: ubuntu-latest
-    needs: [linter, build, documentation, windows-build, macos-build]
-    if: github.ref_type == 'tag'
-    strategy:
-      matrix:
-        include:
-          - crate: rinex-qc-traits
-          - crate: rinex
-          - crate: sp3
-          - crate: sinex
-          - crate: rinex-qc
-          - crate: ublox-rnx
-          - crate: rnx2crx
-          - crate: crx2rnx
-          - crate: rinex-cli
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: Publish
-        env:
-          TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: |
-          cargo login $TOKEN
-          cargo publish -p ${{ matrix.crate }} --allow-dirty
