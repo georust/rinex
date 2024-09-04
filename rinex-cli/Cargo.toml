@@ -53,6 +53,6 @@ cggtts = { version = "4.1.6", features = ["serde", "scheduler"], optional = true
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }
 # cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"], optional = true }
 
-rinex = { path = "../rinex", version = "=0.17.0-alpha", features = ["full"] }
-sp3 = { path = "../sp3", version = "=1.1.0-alpha", features = ["serde", "flate2"] }
-rinex-qc = { path = "../rinex-qc", version = "=0.2.0-alpha", features = ["sp3"] } 
+rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
+sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["serde", "flate2"] }
+rinex-qc = { path = "../rinex-qc", version = "=0.2.0-alpha-1", features = ["sp3"] } 
