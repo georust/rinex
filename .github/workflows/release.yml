@@ -9,14 +9,43 @@ permissions:
   contents: write
 
 jobs:
+  release:
+    name: Release Libraries
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    if: github.ref_type == 'tag'
+    strategy:
+      matrix:
+        include:
+          - crate: rinex-qc-traits
+          - crate: rinex
+          - crate: sp3
+          - crate: sinex
+          - crate: rinex-qc
+          - crate: ublox-rnx
+          - crate: rnx2crx
+          - crate: crx2rnx
+          - crate: rinex-cli
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Publish
+        env:
+          TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          cargo login $TOKEN
+          cargo publish -p ${{ matrix.crate }} --allow-dirty
+  
   build:
     name: build
     runs-on: ${{ matrix.os }}
-    # continue even though build failed for one or more targets
     continue-on-error: true
     env:
       CARGO: cargo
-      # Emit backtraces on panics.
       RUST_BACKTRACE: 1
     strategy:
       fail-fast: false
