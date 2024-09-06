@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  publish_crates:
     name: Release Libraries
     runs-on: ubuntu-latest
     continue-on-error: true
