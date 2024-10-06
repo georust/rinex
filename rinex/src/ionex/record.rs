@@ -10,31 +10,21 @@ use qc_traits::processing::{
     DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
 };
 
-pub(crate) fn is_new_tec_plane(line: &str) -> bool {
-    line.contains("START OF TEC MAP")
-}
-
-pub(crate) fn is_new_rms_plane(line: &str) -> bool {
-    line.contains("START OF RMS MAP")
-}
-
-/*
- * Don't know what Height maps are actually
- */
-// pub(crate) fn is_new_height_map(line: &str) -> bool {
-//     line.contains("START OF HEIGHT MAP")
-// }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TEC {
+    /// Latitude in Radians
+    pub latitude_rad: f64,
+    /// Longitude in Radians
+    pub longitude_rad: f64,
+    /// Altitude in Meters
+    pub altitude_m: f64,
     /// TEC value
     pub tec: f64,
-    /// RMS(tec)
+    /// RMS(TEC)
     pub rms: Option<f64>,
 }
-
-pub type TECPlane = HashMap<(i32, i32), TEC>;
 
 /// IONEX contains 2D (fixed altitude) or 3D Ionosphere Maps.
 /// See [Rinex::ionex] and related feature for more information.

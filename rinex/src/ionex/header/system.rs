@@ -2,7 +2,7 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
 
-use gnss::prelude::Constellation;
+use crate::prelude::Constellation;
 
 /// Reference System parsing error
 #[derive(Error, Debug)]
@@ -13,12 +13,10 @@ pub enum Error {
     ConstellationParsing(#[from] gnss::constellation::ParsingError),
 }
 
-/// RefSystem "Reference System" describes either reference GNSS
-/// constellation, from which TEC maps were evaluated,
-/// or theoretical model used
+/// ReferenceSystem describes how the TEC maps were evaluated
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum RefSystem {
+pub enum ReferenceSystem {
     /// Reference Constellation.
     /// When `Mixed` this generally means GPS + Glonass.
     /// When GNSS constellation was used, TEC maps
@@ -27,7 +25,7 @@ pub enum RefSystem {
     GnssConstellation(Constellation),
     /// Other observation systems
     ObservationSystem(ObsSystem),
-    /// Theoretical Model.
+    /// Theoretical/Reference Model.
     /// When a theoretical model is used, refer to
     /// the Description provided in [crate::ionex::HeaderFields]
     /// for further explanations
@@ -95,7 +93,7 @@ impl std::fmt::Display for RefSystem {
     }
 }
 
-impl FromStr for RefSystem {
+impl FromStr for ReferenceSystem {
     type Err = Error;
     fn from_str(system: &str) -> Result<Self, Self::Err> {
         if let Ok(gnss) = Constellation::from_str(system) {
@@ -116,11 +114,11 @@ impl FromStr for RefSystem {
 mod test {
     use super::*;
     #[test]
-    fn test_refsystem() {
-        let default = RefSystem::default();
+    fn test_ionex_reference() {
+        let default = ReferenceSystem::default();
         assert_eq!(
             default,
-            RefSystem::GnssConstellation(Constellation::default())
+            ReferenceSystem::GnssConstellation(Constellation::default())
         );
     }
 }
