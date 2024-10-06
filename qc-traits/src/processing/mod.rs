@@ -20,7 +20,7 @@ pub use histogram::{Histogram, HistogramEntry};
 
 // Sampling
 mod sampling;
-pub use sampling::{Sampling, DataGap};
+pub use sampling::{DataGap, Sampling};
 
 /// Preprocessing Trait is usually implemented by GNSS data
 /// to preprocess prior further analysis.

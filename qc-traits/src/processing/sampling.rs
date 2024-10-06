@@ -1,5 +1,5 @@
 //! Sampling related features
-use hifitime::{Epoch, Duration};
+use hifitime::{Duration, Epoch};
 
 use crate::processing::{Histogram, HistogramEntry};
 
@@ -28,11 +28,9 @@ pub trait Sampling {
     fn sampling_rate_histogram(&self) -> Histogram<f64> {
         self.sampling_period_histogram()
             .iter()
-            .map(|h| {
-                HistogramEntry {
-                    value: 1.0 / h.value.to_seconds(),
-                    population: h.population,
-                }
+            .map(|h| HistogramEntry {
+                value: 1.0 / h.value.to_seconds(),
+                population: h.population,
             })
             .collect()
     }
@@ -48,12 +46,11 @@ pub trait Sampling {
             let longest = gaps.iter().max_by(|a, b| b.duration.cmp(&a.duration));
             longest.unwrap().duration
         }
-    } 
+    }
     /// Returns [Duration] of shortest [DataGap].
     /// Returns Null if no [DataGap]s were found.
     fn shortest_gap(&self) -> Duration {
-        let gaps = self.data_gaps()
-            .collect::<Vec<_>>();
+        let gaps = self.data_gaps().collect::<Vec<_>>();
 
         if gaps.len() == 0 {
             Duration::ZERO
