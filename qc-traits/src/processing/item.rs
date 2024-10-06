@@ -121,7 +121,7 @@ fn parse_float_payload(content: &str) -> Result<f64, ParseFloatError> {
 impl FilterItem {
     pub(crate) fn from_elevation(content: &str) -> Result<Self, ItemError> {
         if let Ok(float) = parse_float_payload(content) {
-            if float >= 0.0 && float <= 90.0 {
+            if (0.0..=90.0).contains(&float) {
                 return Ok(Self::AzimuthItem(float));
             }
         }
@@ -129,7 +129,7 @@ impl FilterItem {
     }
     pub(crate) fn from_azimuth(content: &str) -> Result<Self, ItemError> {
         if let Ok(float) = parse_float_payload(content) {
-            if float >= 0.0 && float <= 360.0 {
+            if (0.0..=360.0).contains(&float) {
                 return Ok(Self::AzimuthItem(float));
             }
         }

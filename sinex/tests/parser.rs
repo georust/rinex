@@ -24,10 +24,7 @@ mod test {
                         let sinex = sinex.unwrap();
                         println!("{:#?}", sinex.header);
                         // RECORD
-                        match data {
-                            "BIA" => { // Bias solutions record
-                            },
-                            _ => {},
+                        if data == "BIA" { // Bias solutions record
                         }
                     }
                 }

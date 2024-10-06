@@ -451,15 +451,13 @@ impl SP3 {
                     let key = SP3Key { epoch, sv };
                     if let Some(e) = data.get_mut(&key) {
                         e.position = (x_km, y_km, z_km);
+                    } else if let Some(clk) = clk {
+                        data.insert(
+                            key,
+                            SP3Entry::from_position((x_km, y_km, z_km)).with_clock_offset(clk),
+                        );
                     } else {
-                        if let Some(clk) = clk {
-                            data.insert(
-                                key,
-                                SP3Entry::from_position((x_km, y_km, z_km)).with_clock_offset(clk),
-                            );
-                        } else {
-                            data.insert(key, SP3Entry::from_position((x_km, y_km, z_km)));
-                        }
+                        data.insert(key, SP3Entry::from_position((x_km, y_km, z_km)));
                     }
                 }
             }
@@ -482,15 +480,13 @@ impl SP3 {
                         if let Some(clk) = clk {
                             *e = e.with_clock_rate(clk);
                         }
+                    } else if let Some(clk) = clk {
+                        data.insert(
+                            key,
+                            SP3Entry::from_position((0.0, 0.0, 0.0)).with_clock_rate(clk),
+                        );
                     } else {
-                        if let Some(clk) = clk {
-                            data.insert(
-                                key,
-                                SP3Entry::from_position((0.0, 0.0, 0.0)).with_clock_rate(clk),
-                            );
-                        } else {
-                            data.insert(key, SP3Entry::from_position((0.0, 0.0, 0.0)));
-                        }
+                        data.insert(key, SP3Entry::from_position((0.0, 0.0, 0.0)));
                     }
                 }
             }
@@ -781,7 +777,7 @@ impl Preprocessing for SP3 {}
 impl Masking for SP3 {
     fn mask(&self, f: &MaskFilter) -> Self {
         let mut s = self.clone();
-        s.mask_mut(&f);
+        s.mask_mut(f);
         s
     }
     fn mask_mut(&mut self, f: &MaskFilter) {
@@ -905,7 +901,7 @@ impl Masking for SP3 {
 impl Decimate for SP3 {
     fn decimate(&self, f: &DecimationFilter) -> Self {
         let mut s = self.clone();
-        s.decimate_mut(&f);
+        s.decimate_mut(f);
         s
     }
     fn decimate_mut(&mut self, f: &DecimationFilter) {
