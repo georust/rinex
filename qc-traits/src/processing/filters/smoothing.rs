@@ -7,8 +7,6 @@ use thiserror::Error;
 pub enum SmoothingType {
     /// Moving average filter
     MovingAverage(Duration),
-    /// Hatch filter: Pseudo range specific smoothing method
-    Hatch,
 }
 
 /// Smoothing Filter to smooth data subsets

@@ -10,6 +10,10 @@ pub use item::{FilterItem, ItemError};
 mod mask;
 pub use mask::{Error as MaskError, MaskFilter, MaskOperand, Masking};
 
+// Smoothing: data preprocessing
+// mod smoothing;
+// pub use smoothing::{Smoothing, SmoothingFilter};
+
 // Decimation: Time domain preprocessing
 mod decim;
 pub use decim::{Decimate, DecimationFilter, DecimationFilterType, Error as DecimationError};
@@ -90,6 +94,8 @@ pub enum Error {
 pub enum Filter {
     /// Mask filter, to focus on specific data subsets
     Mask(MaskFilter),
+    // /// Smoothing Filter
+    // Smooting(SmoothingFilter),
     /// Decimation filter, filters to reduce sample rate
     Decimation(DecimationFilter),
     // /// Interpolation filter is work in progress and cannot be used at the moment
