@@ -3,8 +3,8 @@ pub mod antenna;
 pub mod frequency;
 pub mod pcv;
 
-mod parser; // parse_* methods
-mod formater; // fmt_* methods
+mod formater;
+mod parser; // parse_* methods // fmt_* methods
 
 pub use antenna::{
     Antenna, AntennaMatcher, AntennaSpecific, Calibration, CalibrationMethod, Cospar, RxAntenna,
@@ -22,14 +22,13 @@ pub(crate) fn is_new_entry(content: &str) -> bool {
     content.contains("START OF ANTENNA")
 }
 
-//! ANTEX record indexing
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// ANTEX [RINEX] payload
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Entry {
+pub struct AntexEntry {
     /// [Antenna]
     pub antenna: Antenna,
     /// [Carrier] signal

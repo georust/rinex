@@ -6,13 +6,12 @@ use std::{
 use itertools::Itertools;
 
 use crate::{
-    epoch::{
-        parse_in_timescale as parse_epoch_in_timescale,
-        ParsingError as EpochParsingError,
-    },
+    epoch::{parse_in_timescale as parse_epoch_in_timescale, ParsingError as EpochParsingError},
     merge::{Error as MergeError, Merge},
-    observation::{Observation, SignalObservation, flag::Error as FlagError, EpochFlag, SNR, LliFlags},
-    prelude::{Epoch, Header, SV, Duration, Constellation, TimeScale},
+    observation::{
+        flag::Error as FlagError, EpochFlag, LliFlags, Observation, SignalObservation, SNR,
+    },
+    prelude::{Constellation, Duration, Epoch, Header, TimeScale, SV},
     split::{Error as SplitError, Split},
     types::Type,
     Carrier, Observable,
@@ -33,7 +32,6 @@ pub(crate) fn parse_epoch(
     content: &str,
     ts: TimeScale,
 ) -> Result<Vec<Observation>, Error> {
-
     let mut lines = content.lines();
     let mut line = match lines.next() {
         Some(l) => l,
@@ -405,16 +403,13 @@ fn parse_v3(
                             let snr_str = &content[observable_width - 1..observable_width];
                             if let Ok(s) = SNR::from_str(snr_str) {
                                 snr = Some(s);
-                            }observable
+                            }
+                            observable
                         }
                         //println!("LLI {:?}", lli); //DEBUG
                         //println!("SSI {:?}", snr);
                         // build content
-                        let key = ObsKey {
-                            sv,
-                            epoch,
-                            flag,
-                        };
+                        let key = ObsKey { sv, epoch, flag };
                         let value = Observation::new_signal(value, snr, lli);
                         ret.push((key, value));
                     }
@@ -1207,11 +1202,11 @@ pub(crate) fn code_multipath(rec: &Record) -> HashMap<ObsKey, Observation> {
 mod test {
     use super::*;
     use crate::{
-        header::Header,
-        version::Version,
-        observation::Observation,
         epoch::parse_utc as parse_utc_epoch,
+        header::Header,
+        observation::Observation,
         prelude::{TimeScale, SV},
+        version::Version,
     };
 
     fn parse_and_format_helper(ver: Version, epoch_str: &str, expected_flag: EpochFlag) {

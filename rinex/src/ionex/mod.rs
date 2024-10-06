@@ -9,11 +9,7 @@ use crate::prelude::TimeScale;
 
 mod header;
 
-pub use header::{
-    ReferenceSystem,
-    MappingFunction,
-    HeaderFields,
-};
+pub use header::{HeaderFields, MappingFunction, ReferenceSystem};
 
 pub mod grid;
 use crate::linspace::Linspace;
@@ -48,6 +44,8 @@ pub(crate) fn is_new_rms_plane(line: &str) -> bool {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TEC {
+    /// Epoch
+    pub epoch: Epoch,
     /// Latitude in Radians
     pub latitude_rad: f64,
     /// Longitude in Radians
@@ -56,7 +54,7 @@ pub struct TEC {
     pub altitude_m: f64,
     /// TEC value
     pub tec: f64,
-    /// RMS(TEC)
+    /// RMS
     pub rms: Option<f64>,
 }
 

@@ -1,7 +1,7 @@
 use crate::{
     observation::Record,
-    split::{Split, Error},
-    prelude::{Epoch, Duration},
+    prelude::{Duration, Epoch},
+    split::{Error, Split},
 };
 
 impl Split for Record {

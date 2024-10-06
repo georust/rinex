@@ -1,7 +1,4 @@
-use crate::prelude::{
-    DOMES,
-    Version,
-};
+use crate::prelude::{Version, DOMES};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

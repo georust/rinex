@@ -1,8 +1,6 @@
 //! [Merge] implementation
 
-use crate::{
-    prelude::{Epoch, Merge},
-};
+use crate::prelude::{Epoch, Merge};
 
 use hifitime::EpochError;
 
@@ -111,7 +109,6 @@ pub(crate) fn merge_time_of_last_obs(lhs: &mut Option<Epoch>, rhs: &Option<Epoch
         *lhs = Some(std::cmp::max(tl, *rhs));
     }
 }
-
 
 impl Merge for RINEX {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies

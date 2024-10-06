@@ -1,4 +1,4 @@
-use std::collection::BTreeMap;
+use std::collections::BTreeMap;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Combination {
@@ -14,7 +14,7 @@ pub enum Combination {
     MelbourneWubbena,
 }
 
-pub trait Combine<K, V> 
+pub trait Combine<K, V> {
     /// Form desired [Combination] from [Self]
-    fn combine(&self, combination: Combination) -> BTreeMap<K, V> ;
+    fn combine(&self, combination: Combination) -> BTreeMap<K, V>;
 }

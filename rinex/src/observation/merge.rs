@@ -1,6 +1,6 @@
 use crate::{
+    merge::{Error, Merge},
     observation::Record,
-    merge::{Merge, Error},
 };
 
 /// [Record] Merge ops

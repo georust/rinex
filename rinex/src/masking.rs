@@ -3,10 +3,7 @@
 /**
  * Data [Masking] is uterly important when it comes to processing
 **/
-use crate::{
-    prelude::RINEX,
-    Masking, MaskFilter,
-};
+use crate::{prelude::RINEX, MaskFilter, Masking};
 
 impl Masking for RINEX {
     fn mask(&self, f: &MaskFilter) -> Self {

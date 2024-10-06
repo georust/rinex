@@ -1,7 +1,8 @@
 //! Clock RINEX module
+use crate::prelude::Epoch;
 
 mod clock;
-pub use clock::{ClockProfile, ClockProfileType, Clock, ClockType};
+pub use clock::{Clock, ClockProfile, ClockProfileType, ClockType};
 
 use crate::version::Version;
 use hifitime::TimeScale;
@@ -12,7 +13,7 @@ use crate::prelude::DOMES;
 /// Clock [RINEX] Record content
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Entry {
+pub struct ClockEntry {
     /// Epoch
     pub epoch: Epoch,
     /// Type of Clock

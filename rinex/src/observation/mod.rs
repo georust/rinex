@@ -1,39 +1,36 @@
 //! Observation RINEX module
 use thiserror::Error;
 
-use std::{
-    collections::HashMap,
-    str::FromStr,
-};
+use std::{collections::HashMap, str::FromStr};
 
 use crate::{
+    epoch::parse_utc as parse_utc_epoch,
+    observable::Observable,
     prelude::{Epoch, SV},
     version::Version,
-    observable::Observable,
-    epoch::parse_utc as parse_utc_epoch,
 };
 
-mod snr;
 mod crinex;
 mod lli;
 mod observation;
+mod snr;
 
-mod parser; // parse_* helpers
-mod formater; // fmt_* helpers
+mod formater;
+mod parser; // parse_* helpers // fmt_* helpers
 
 mod merge; // [Record] merge ops
-mod split; // [Record] split ops
-mod processing; // [Processing] specific ops
+mod processing;
+mod split; // [Record] split ops // [Processing] specific ops
 
 pub mod flag;
 pub mod header;
 
-pub use snr::SNR;
-pub use lli::LliFlags;
-pub use flag::EpochFlag;
 pub use crinex::Crinex;
+pub use flag::EpochFlag;
 pub use header::HeaderFields;
+pub use lli::LliFlags;
 pub use observation::{Observation, ObservationEvent, SignalObservation};
+pub use snr::SNR;
 
 #[cfg(docsrs)]
 use crate::Bibliography;
@@ -47,14 +44,10 @@ use itertools::Itertools;
 #[cfg(feature = "obs")]
 use std::collections::BTreeMap;
 
-use crate::{
-    observation::flag::Error as FlagError,
-    epoch::ParsingError as EpochParsingError,
-};
+use crate::{epoch::ParsingError as EpochParsingError, observation::flag::Error as FlagError};
 
 use gnss_rs::{
-    constellation::ParsingError as ConstellationParsingError,
-    sv::ParsingError as SVParsingError,
+    constellation::ParsingError as ConstellationParsingError, sv::ParsingError as SVParsingError,
 };
 
 /// Observation related [Error]s

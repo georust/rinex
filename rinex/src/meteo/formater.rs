@@ -4,22 +4,20 @@
  * Epoch formatter
  * is used when we're dumping a Meteo RINEX record entry
  */
-pub(crate) fn fmt_epoch(
-    header: &Header,
-    observations: &[RecordEntry],
-) -> Result<String, Error> {
-    
+pub(crate) fn fmt_epoch(header: &Header, observations: &[RecordEntry]) -> Result<String, Error> {
     let mut lines = String::with_capacity(128);
     lines.push_str(&format!(
         " {}",
         epoch::format(*epoch, Type::MeteoData, header.version.major)
     ));
-    
+
     // retrieve system codes
-    let observables = &header.meteo.as_ref()
+    let observables = &header
+        .meteo
+        .as_ref()
         .ok_or(Error::MissingObservableSpecs)?
         .codes;
-    
+
     let mut index = 0;
     for obscode in observables {
         index += 1;
@@ -32,7 +30,7 @@ pub(crate) fn fmt_epoch(
             lines.push('\n');
         }
     }
-    
+
     lines.push('\n');
     Ok(lines)
 }

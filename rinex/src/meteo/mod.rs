@@ -79,8 +79,6 @@ impl HeaderFields {
     }
 }
 
-
-
 /**
  * macro used in parsing logic
  */

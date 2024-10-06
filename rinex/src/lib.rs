@@ -13,12 +13,12 @@ pub mod carrier;
 pub mod clock;
 pub mod doris;
 pub mod epoch;
+pub mod geodetic;
 pub mod gnss_time;
 pub mod hardware;
 pub mod hatanaka;
 pub mod header;
 pub mod ionex;
-pub mod geodetic;
 pub mod merge;
 pub mod meteo;
 pub mod navigation;
@@ -61,10 +61,10 @@ extern crate num_derive;
 #[macro_use]
 extern crate lazy_static;
 
-pub mod reader;
+mod reader;
 use reader::BufferedReader;
 
-pub mod writer;
+mod writer;
 use writer::BufferedWriter;
 
 use std::{
@@ -85,15 +85,9 @@ use crate::{
     ionex::TECPlane,
     navigation::NavFrame,
     observable::Observable,
-    observation::{CRINEX, Observation},
+    observation::{Observation, CRINEX},
+    production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU},
     version::Version,
-    production::{
-        DataSource,
-        DetailedProductionAttributes,
-        ProductionAttributes,
-        PPU,
-        FFU,
-    },
 };
 
 use hifitime::Unit;
@@ -112,8 +106,8 @@ pub mod prelude {
     pub use crate::observable::Observable;
     pub use crate::observation::EpochFlag;
     pub use crate::types::Type as RinexType;
-    pub use crate::{Error, RINEX};
     pub use crate::version::Version;
+    pub use crate::{Error, RINEX};
     // pub re-export
     #[cfg(feature = "nav")]
     pub use anise::{
@@ -127,8 +121,8 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
     #[cfg(feature = "processing")]
     pub use qc_traits::processing::{
-        Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
-        DataGap, Histogram, HistogramEntry, Sampling,
+        DataGap, Decimate, DecimationFilter, Filter, Histogram, HistogramEntry, MaskFilter,
+        Masking, Preprocessing, Sampling,
     };
 }
 
@@ -146,7 +140,6 @@ use qc_traits::processing::{
 
 #[cfg(feature = "processing")]
 use crate::{
-    record::{Record, RecordEntry},
     clock::record::{clock_decim_mut, clock_mask_mut},
     doris::record::{doris_decim_mut, doris_mask_mut},
     header::header_mask_mut,
@@ -156,6 +149,7 @@ use crate::{
     observation::{
         observation_decim_mut, observation_mask_mut, repair_mut as observation_repair_mut,
     },
+    record::{Record, RecordEntry},
 };
 
 use carrier::Carrier;
@@ -417,7 +411,7 @@ impl RINEX {
     ///    only what you provide gets replaced, the rest is auto determined.
     /// ## Output
     ///    - string: Uppercase filenames only (as per standard definitions)
-    /// 
+    ///
     /// ```
     /// use rinex::prelude::*;
     /// // Parse a File that follows standard naming conventions
@@ -694,7 +688,7 @@ impl RINEX {
     /// to determine [ProductionAttribues]. This is particularly useful in
     /// file production contexts, mostly when working from sources that did not
     /// follow standard naming conventions.
-    /// 
+    ///
     /// ```
     /// use rinex::prelude::*;
     ///
@@ -815,7 +809,7 @@ impl RINEX {
     pub fn from_file(fullpath: &str) -> Result<RINEX, Error> {
         Self::from_path(Path::new(fullpath))
     }
-    /// Parse [RINEX] from [Path]. 
+    /// Parse [RINEX] from [Path].
     /// See [Self::from_file] for more information.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<RINEX, Error> {
         //let fullpath = path.to_string_lossy().to_string();
@@ -903,7 +897,7 @@ impl RINEX {
     /// That means RHS (B) is considered reference.
     /// This is typically used in GNSS receiver analysis & studies,
     /// especially in Phase tracking and local clock studies.
-    /// NB: 
+    /// NB:
     ///     - This will panic if [RINEX] is not ObservationRinex: this is
     ///     the only format it currently supports.
     ///     - This will panic if both files are not ObservationRinex.
@@ -936,7 +930,7 @@ impl RINEX {
 
     /// Returns true if Differential Code Biases (DCBs)
     /// are compensated for in this [RINEX] for said [Constellation].
-    /// 
+    ///
     /// DCB is induced by frequency difference between the [SV] encoder
     /// and the RX PLL local clock. When this is true, it means
     /// all [Observable::PseudoRange] and intrinsic DCB compensation,
@@ -944,7 +938,7 @@ impl RINEX {
     /// When this is false and you intended high precision processing, you will have
     /// to compensate it yourself.
     /// Although you may request this to any [RINEX], this only truly applies to [ObservationData]
-    /// 
+    ///
     /// ```
     /// let rinex = RINEX::from_file("../test_resources")
     ///     .unwrap();
@@ -965,7 +959,7 @@ impl RINEX {
     /// ```
     /// let rinex = RINEX::from_file("../test_resources")
     ///     .unwrap();
-    /// 
+    ///
     /// assert_eq!(rinex.pcv_compensated(), false)
     /// ```
     pub fn pcv_compensated(&self, constellation: Constellation) -> bool {
@@ -977,7 +971,7 @@ impl RINEX {
             > 0
     }
 
-    /// Returns true if this [RINEX] results from merging of two (or more) RINEX files. 
+    /// Returns true if this [RINEX] results from merging of two (or more) RINEX files.
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comment.
     /// This is always true if [Self] was merged by this library.
     /// ```
@@ -987,10 +981,10 @@ impl RINEX {
     /// // example: merge & verify
     /// let b = RINEX::from_file("../test_resources/")
     ///     .unwrap();
-    /// 
+    ///
     /// let new = rinex.merge(&b)
     ///     .unwrap();
-    /// 
+    ///
     /// assert!(new.is_merged_rinex());
     /// ```
     pub fn is_merged_rinex(&self) -> bool {
@@ -2630,7 +2624,6 @@ impl Rinex {
     }
 }
 
-
 impl Split for Rinex {
     /// Splits `Self` at desired epoch
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
@@ -2658,12 +2651,8 @@ impl Split for Rinex {
 #[cfg(feature = "processing")]
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Preprocessing for Rinex {
-    fn split_at_epoch(&self, t: Epoch) -> (Self, Self) {
-
-    }
-    fn split_dt(&self, dt: Duration) -> Vec<Self> {
-
-    }
+    fn split_at_epoch(&self, t: Epoch) -> (Self, Self) {}
+    fn split_dt(&self, dt: Duration) -> Vec<Self> {}
 }
 
 #[cfg(feature = "processing")]
@@ -3138,7 +3127,10 @@ mod test {
     fn test_is_rinex_comment() {
         for (desc, is_valid) in [
             ("NOT A VALID COMMENT   COMMENT", false),
-            ("Converto v3.5.6     IGN                 20211222 000702 UTC COMMENT", true),
+            (
+                "Converto v3.5.6     IGN                 20211222 000702 UTC COMMENT",
+                true,
+            ),
         ] {
             assert_eq!(is_rinex_comment(desc), is_valid);
         }

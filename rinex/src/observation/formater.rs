@@ -13,8 +13,10 @@ use crate::{
         ParsingError as EpochParsingError,
     },
     merge::{Error as MergeError, Merge},
-    observation::{Observation, SignalObservation, flag::Error as FlagError, EpochFlag, SNR, LliFlags},
-    prelude::{Epoch, Header, SV, Duration, Constellation},
+    observation::{
+        flag::Error as FlagError, EpochFlag, LliFlags, Observation, SignalObservation, SNR,
+    },
+    prelude::{Constellation, Duration, Epoch, Header, SV},
     split::{Error as SplitError, Split},
     types::Type,
     Carrier, Observable,
@@ -24,7 +26,6 @@ use crate::{
 use qc_traits::processing::{
     DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Repair,
 };
-
 
 /// Epoch (record entry) formatter
 /// ## Inputs
@@ -65,13 +66,14 @@ fn fmt_epoch_v3(
     clock_offset: &Option<f64>,
     signals: &[(SV, SignalObservation)],
 ) -> Result<String, Error> {
-
     let mut lines = String::with_capacity(128);
 
     let total_sv = signals.iter().map(|(sv_j, _)| sv_j).unique().count();
 
     // retrieve system codes
-    let observables = &header.obs.as_ref()
+    let observables = &header
+        .obs
+        .as_ref()
         .ok_or(Error::MissingObservableSpecs)?
         .codes;
 
@@ -101,18 +103,18 @@ fn fmt_epoch_v3(
         };
 
         if observables.is_none() {
-            continue ; // handles missing specs
+            continue; // handles missing specs
         }
 
         let observables = observables.unwrap();
 
         // for each spec, try to obtain one measurement
         for observable in observables {
-            if let Some((_, signal)) = signals.iter().filter(|(sv_j, sig_j)| {
-                sv_j == sv && &sig_j.observable == observable
-            })
-            .reduce(|k, _| k) {
-
+            if let Some((_, signal)) = signals
+                .iter()
+                .filter(|(sv_j, sig_j)| sv_j == sv && &sig_j.observable == observable)
+                .reduce(|k, _| k)
+            {
                 // append measurement
                 lines.push_str(&format!("{:14.3}", signal.value));
 
@@ -158,15 +160,15 @@ fn fmt_epoch_v2(
     clock_offset: &Option<f64>,
     signals: &[(SV, SignalObservation)],
 ) -> Result<String, Error> {
-
     let mut lines = String::with_capacity(128);
 
     // retrieve system codes
-    let observables = &header.obs
+    let observables = &header
+        .obs
         .as_ref()
         .ok_or(Error::MissingObservableSpecs)?
         .codes;
-    
+
     // format marker
     lines.push_str(&format!(
         " {}  {} {:2}",
@@ -190,7 +192,6 @@ fn fmt_epoch_v2(
         }
         lines.push_str(&format!("{:x}", sv));
         index += 1;
-        /// ## Inputs
     }
     let obs_per_line = 5;
     // for each vehicle per epoch
@@ -1054,11 +1055,11 @@ pub(crate) fn code_multipath(rec: &Record) -> HashMap<ObsKey, Observation> {
 mod test {
     use super::*;
     use crate::{
-        header::Header,
-        version::Version,
-        observation::Observation,
         epoch::parse_utc as parse_utc_epoch,
+        header::Header,
+        observation::Observation,
         prelude::{TimeScale, SV},
+        version::Version,
     };
 
     fn parse_and_format_helper(ver: Version, epoch_str: &str, expected_flag: EpochFlag) {

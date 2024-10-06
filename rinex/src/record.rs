@@ -3,22 +3,23 @@ use std::io::prelude::*;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::{
-    antex::{Key as AntexKey, Entry as AntexEntry},
+    antex::{Entry as AntexEntry, Key as AntexKey},
     clock::ClockEntry,
-    observation::Observation,
-    navigation::NavigationEntry,
-    meteo::MeteoObservation,
     doris::Entry as DorisEntry,
-    ionex::TEC,
     hatanaka::{Compressor, Decompressor},
     header,
     header::Header,
-    ionex, is_rinex_comment, merge,
+    ionex,
+    ionex::TEC,
+    is_rinex_comment, merge,
     merge::Merge,
+    meteo::MeteoObservation,
+    navigation::NavigationEntry,
     observation::record::fmt_epoch as fmt_observation_epoch,
+    observation::Observation,
     reader::BufferedReader,
     split,
     split::Split,
@@ -83,7 +84,7 @@ impl RecordEntry {
             Self::Observation(e) => Some(e),
             _ => None,
         }
-    }    
+    }
     /// [NavigationEntry] unwrapping attempt
     pub fn navigation(&self) -> Option<&NavigationEntry> {
         match self {
@@ -139,7 +140,7 @@ impl RecordEntry {
             Self::Observation(e) => Some(e),
             _ => None,
         }
-    }    
+    }
     /// Mutable [NavigationEntry] unwrapping attempt
     pub fn mut_navigation(&self) -> Option<&mut NavigationEntry> {
         match self {
@@ -161,7 +162,7 @@ impl RecordEntry {
             _ => None,
         }
     }
-    
+
     /// Streams into given file writer
     pub fn to_file(&self, header: &Header, writer: &mut BufferedWriter) -> Result<(), Error> {
         match &header.rinex_type {

@@ -1,8 +1,8 @@
 //! Observation RINEX content
 use crate::{
-    prelude::SV,
     observable::Observable,
     observation::{LliFlags, SNR},
+    prelude::SV,
 };
 
 #[cfg(feature = "serde")]
@@ -33,7 +33,13 @@ impl Observation {
         Self::Event(ev)
     }
     /// Builds new [SignalObservation] from value. Unit is [Observable] dependent
-    pub fn new_signal(sv: SV, observable: Observable, value: f64, snr: Option<SNR>, lli: Option<LliFlags>) -> Self {
+    pub fn new_signal(
+        sv: SV,
+        observable: Observable,
+        value: f64,
+        snr: Option<SNR>,
+        lli: Option<LliFlags>,
+    ) -> Self {
         Self::Signal(SignalObservation::new(sv, observable, value, snr, lli))
     }
     /// Builds new ClockOffset [Observation] from value in [s]
@@ -60,8 +66,20 @@ pub struct SignalObservation {
 
 impl SignalObservation {
     /// Builds new [SignalObservation]
-    pub fn new(sv: SV, observable: Observable, value: f64, snr: Option<SNR>, lli: Option<LliFlags>) -> SignalObservation {
-        SignalObservation { sv, observable, value, lli, snr }
+    pub fn new(
+        sv: SV,
+        observable: Observable,
+        value: f64,
+        snr: Option<SNR>,
+        lli: Option<LliFlags>,
+    ) -> SignalObservation {
+        SignalObservation {
+            sv,
+            observable,
+            value,
+            lli,
+            snr,
+        }
     }
     /// [SignalObservation] is defined as "OK" if
     ///   * [SNR] is declared as .strong() (checkout def)
@@ -73,7 +91,7 @@ impl SignalObservation {
         let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
         let snr_ok = self.snr.unwrap_or_default().strong();
         lli_ok && snr_ok
-    }    
+    }
     /// [SignalObservation] is strictly defined as "OK" if both
     /// [SNR] and [LliFlags] were passed and marked as .strong() and [OK_OR_UNKNOWN].
     /// If any of those is missing, this will not return OK.

@@ -1,5 +1,5 @@
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 mod system;
 pub use system::ReferenceSystem;
@@ -76,8 +76,6 @@ impl Default for HeaderFields {
     }
 }
 
-
-
 /// Possible source of DCBs
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -87,8 +85,6 @@ pub enum BiasSource {
     /// Referenced for an observation station on Earth
     Station(String),
 }
-
-
 
 impl HeaderFields {
     /// Copies self with given time of first map

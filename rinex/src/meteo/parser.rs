@@ -3,11 +3,7 @@
 /**
  * Meteo record entry parsing method
  **/
-pub(crate) fn parse_epoch(
-    header: &Header,
-    content: &str,
-) -> Result<Vec<RecordEntry>, Error> {
-
+pub(crate) fn parse_epoch(header: &Header, content: &str) -> Result<Vec<RecordEntry>, Error> {
     let mut lines = content.lines();
     let mut line = lines.next().unwrap();
 

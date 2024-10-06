@@ -2,6 +2,8 @@
 use std::str::FromStr;
 use thiserror::Error;
 
+use hifitime::{Duration, Epoch};
+
 // item: Masking and Filtering helper
 mod item;
 pub use item::{FilterItem, ItemError};
@@ -17,10 +19,6 @@ pub use mask::{Error as MaskError, MaskFilter, MaskOperand, Masking};
 // Decimation: Time domain preprocessing
 mod decim;
 pub use decim::{Decimate, DecimationFilter, DecimationFilterType, Error as DecimationError};
-
-// Split: Time domain preprocessing
-mod split;
-pub use split::{Split};
 
 // Repair: Data repairment
 mod repair;
@@ -40,7 +38,7 @@ pub use signal::{Combination, Combine};
 
 /// Preprocessing Trait is usually implemented by GNSS data
 /// to preprocess prior further analysis.
-pub trait Preprocessing: Masking + Decimate + Combine {
+pub trait Preprocessing: Masking + Decimate {
     /// Apply [Filter] algorithm on immutable dataset.
     fn filter(&self, filter: &Filter) -> Self
     where
@@ -58,12 +56,12 @@ pub trait Preprocessing: Masking + Decimate + Combine {
             Filter::Decimation(f) => self.decimate_mut(f),
         }
     }
-    
+
     /// Split in time at specified [Epoch]
     fn split_at_epoch(&self, epoch: Epoch) -> (Self, Self)
     where
         Self: Sized;
-    
+
     /// Form Time series of equal [Duration]
     fn split_dt(&self, dt: Duration) -> Vec<Self>
     where
@@ -71,7 +69,7 @@ pub trait Preprocessing: Masking + Decimate + Combine {
 }
 
 /// Processing Trait, unlocks analysis and study methods.
-pub trait Processing: Sampling + Repair + Signal {}
+pub trait Processing<K, V>: Sampling + Repair + Combine<K, V> {}
 
 #[derive(Error, Debug)]
 pub enum Error {

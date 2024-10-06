@@ -1,9 +1,5 @@
 //! Compressed OBS RINEX
-use crate::{
-    version::Version,
-    prelude::Epoch,
-    epoch::now,
-};
+use crate::{epoch::now, prelude::Epoch, version::Version};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

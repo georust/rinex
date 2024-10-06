@@ -1,9 +1,6 @@
 //! [Decimate] implementation
 
-use crate::prelude::{
-    RINEX,
-    Decimate, DecimationFilter,
-};
+use crate::prelude::{Decimate, DecimationFilter, RINEX};
 
 impl Decimate for RINEX {
     fn decimate(&self, f: &DecimationFilter) -> Self {
