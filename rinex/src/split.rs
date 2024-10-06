@@ -1,15 +1,11 @@
 //! RINEX File splitting operation
-use crate::{Duration, Epoch};
-use thiserror::Error;
+use crate::{
+    prelude::{Duration, Epoch, RINEX},
+};
 
-#[derive(Error, Debug, Clone)]
-pub enum Error {
-    #[error("this record type is not indexed by epoch")]
-    NoEpochIteration,
-    #[error("this record does not contained specified epoch")]
-    NonExistingEpoch,
+impl Split for RINEX {
+
 }
-
 pub trait Split {
     /// Splits Self at desired epoch,
     /// retaining |e(k) < epoch| ("before"), as left component,

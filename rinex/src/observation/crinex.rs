@@ -23,9 +23,9 @@ pub struct Crinex {
 impl Default for Crinex {
     fn default() -> Self {
         Self {
+            date: now(),
             version: Version { major: 3, minor: 0 },
             prog: format!("rust-rinex-{}", env!("CARGO_PKG_VERSION")),
-            date: now(),
         }
     }
 }

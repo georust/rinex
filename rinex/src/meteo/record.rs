@@ -12,36 +12,6 @@ use qc_traits::processing::{
     DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
 };
 
-/*
- * Meteo RINEX specific record type.
- */
-pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
-
-/*
- * Returns true if given line matches a new Meteo Record Epoch.
- * We use this when browsing a RINEX file, to determine whether
- * we should initiate the parsing of a meteo record entry.
- */
-pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
-    if v.major < 3 {
-        let min_len = " 15  1  1  0  0  0";
-        if line.len() < min_len.len() {
-            // minimum epoch descriptor
-            return false;
-        }
-        let datestr = &line[1..min_len.len()];
-        epoch::parse_utc(datestr).is_ok() // valid epoch descriptor
-    } else {
-        let min_len = " 2021  1  7  0  0  0";
-        if line.len() < min_len.len() {
-            // minimum epoch descriptor
-            return false;
-        }
-        let datestr = &line[1..min_len.len()];
-        epoch::parse_utc(datestr).is_ok() // valid epoch descriptor
-    }
-}
-
 #[derive(Error, Debug)]
 /// Meteo Data `Record` parsing specific errors
 pub enum Error {
@@ -51,94 +21,6 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
-/*
- * Meteo record entry parsing method
- */
-pub(crate) fn parse_epoch(
-    header: &Header,
-    content: &str,
-) -> Result<(Epoch, HashMap<Observable, f64>), Error> {
-    let mut lines = content.lines();
-    let mut line = lines.next().unwrap();
-
-    let mut map: HashMap<Observable, f64> = HashMap::with_capacity(3);
-
-    let mut offset: usize = 18; // YY
-    if header.version.major > 2 {
-        offset += 2; // YYYY
-    }
-
-    let epoch = epoch::parse_utc(&line[0..offset])?;
-
-    let codes = &header.meteo.as_ref().unwrap().codes;
-    let nb_codes = codes.len();
-    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8);
-    let mut code_index: usize = 0;
-
-    for i in 0..nb_lines {
-        for _ in 0..8 {
-            let code = &codes[code_index];
-            let obs: Option<f64> = match f64::from_str(line[offset..offset + 7].trim()) {
-                Ok(f) => Some(f),
-                Err(_) => None,
-            };
-
-            if let Some(obs) = obs {
-                map.insert(code.clone(), obs);
-            }
-            code_index += 1;
-            if code_index >= nb_codes {
-                break;
-            }
-
-            offset += 7;
-            if offset >= line.len() {
-                break;
-            }
-        } // 1:8
-
-        if i < nb_lines - 1 {
-            if let Some(l) = lines.next() {
-                line = l;
-            } else {
-                break;
-            }
-        }
-    } // nb lines
-    Ok((epoch, map))
-}
-
-/*
- * Epoch formatter
- * is used when we're dumping a Meteo RINEX record entry
- */
-pub(crate) fn fmt_epoch(
-    epoch: &Epoch,
-    data: &HashMap<Observable, f64>,
-    header: &Header,
-) -> Result<String, Error> {
-    let mut lines = String::with_capacity(128);
-    lines.push_str(&format!(
-        " {}",
-        epoch::format(*epoch, Type::MeteoData, header.version.major)
-    ));
-    let observables = &header.meteo.as_ref().unwrap().codes;
-    let mut index = 0;
-    for obscode in observables {
-        index += 1;
-        if let Some(data) = data.get(obscode) {
-            lines.push_str(&format!("{:7.1}", data));
-        } else {
-            lines.push_str("       ");
-        }
-        if (index % 8) == 0 {
-            lines.push('\n');
-        }
-    }
-    lines.push('\n');
-    Ok(lines)
 }
 
 impl Merge for Record {
@@ -293,43 +175,5 @@ pub(crate) fn meteo_decim_mut(rec: &mut Record, f: &DecimationFilter) {
                 }
             });
         },
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_new_epoch() {
-        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 22  1  4  9 55  0  997.9   -6.4   54.2    2.9  342.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 22  1  4 10  0  0  997.9   -6.3   55.4    3.4  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
-        let content = " 2021  1  7  0  0  0  993.3   23.0   90.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 4, minor: 0 }
-        ));
     }
 }
