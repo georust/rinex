@@ -6,6 +6,53 @@ use crate::prelude::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+mod profile;
+pub use profile::{ClockProfile, ClockProfileType};
+
+/// Type of Clock
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum ClockType {
+    /// [SV] onboard Clock
+    SV(SV),
+    /// Ground station Clock
+    Station(String),
+}
+
+impl Default for ClockType {
+    fn default() -> Self {
+        Self::Station("Unknown".to_string())
+    }
+}
+
+impl std::fmt::Display for ClockType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(sv) = self.as_sv() {
+            f.write_str(&sv.to_string())?
+        } else if let Some(station) = self.as_station() {
+            f.write_str(&station)?
+        }
+        Ok(())
+    }
+}
+
+impl ClockType {
+    /// [SV] onboard clock unwrapping attempt
+    pub fn as_sv(&self) -> Option<SV> {
+        match self {
+            Self::SV(s) => Some(*s),
+            _ => None,
+        }
+    }
+    /// Station clock unwrapping attempt
+    pub fn as_station(&self) -> Option<String> {
+        match self {
+            Self::Station(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+}
+
 /// [Clock] definition
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

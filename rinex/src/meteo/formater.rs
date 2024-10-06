@@ -32,6 +32,7 @@ pub(crate) fn fmt_epoch(
             lines.push('\n');
         }
     }
+    
     lines.push('\n');
     Ok(lines)
 }

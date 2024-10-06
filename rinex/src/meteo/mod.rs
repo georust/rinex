@@ -11,7 +11,7 @@ mod formater; // fmt_ helpers
 mod parser; // parse_ helpers
 
 /// Meteo [RINEX] entry
-pub struct RecordEntry {
+pub struct MeteoEntry {
     /// Observation [Epoch]
     pub epoch: Epoch,
     /// [Observable]

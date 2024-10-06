@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use crate::marker::MarkerType;
+    use crate::geodetic::MarkerType;
     use crate::observable;
     use crate::observation::SNR;
     use crate::tests::toolkit::obsrinex_check_observables;

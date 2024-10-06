@@ -1,11 +1,7 @@
-//! RINEX Clock files parser & analysis
-pub mod record;
+//! Clock RINEX module
 
 mod clock;
-pub use clock::{ClockProfile, Clock, ClockType};
-
-pub use clock_profile::ClockProfile;
-pub use clock_type::ClockType;
+pub use clock::{ClockProfile, ClockProfileType, Clock, ClockType};
 
 use crate::version::Version;
 use hifitime::TimeScale;
@@ -16,19 +12,19 @@ use crate::prelude::DOMES;
 /// Clock [RINEX] Record content
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ClockEntry {
+pub struct Entry {
     /// Epoch
     pub epoch: Epoch,
     /// Type of Clock
     pub clock_type: ClockType,
-    /// Type of attached measurement
+    /// Type of measurement
     pub profile_type: ClockProfileType,
+    /// Measurement
+    pub profile: ClockProfile,
 }
 
-
-
-pub(crate) fn is_new_epoch(line: &str) -> bool {
-    // first 2 bytes match a ClockProfileType code
+pub(crate) fn is_new_entry(line: &str) -> bool {
+    // first 2 bytes match a [ClockProfileType] code
     if line.len() < 3 {
         false
     } else {

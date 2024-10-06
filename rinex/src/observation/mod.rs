@@ -99,7 +99,7 @@ pub trait Dcb {
 }
 
 /// Macro used in new text epoch determination (while parsing)
-pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
+pub(crate) fn is_new_entry(line: &str, v: Version) -> bool {
     if v.major < 3 {
         if line.len() < 30 {
             false
@@ -136,32 +136,32 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
 mod test {
     use super::*;
     #[test]
-    fn obs_record_is_new_epoch() {
-        assert!(is_new_epoch(
+    fn test_is_new_entry() {
+        assert!(is_new_entry(
             "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
             Version { major: 2, minor: 0 }
         ));
-        assert!(!is_new_epoch(
+        assert!(!is_new_entry(
             "21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
             Version { major: 2, minor: 0 }
         ));
-        assert!(is_new_epoch(
+        assert!(is_new_entry(
             "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
             Version { major: 2, minor: 0 }
         ));
-        assert!(!is_new_epoch(
+        assert!(!is_new_entry(
             "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
             Version { major: 3, minor: 0 }
         ));
-        assert!(is_new_epoch(
+        assert!(is_new_entry(
             "> 2022 01 09 00 00 30.0000000  0 40",
             Version { major: 3, minor: 0 }
         ));
-        assert!(!is_new_epoch(
+        assert!(!is_new_entry(
             "> 2022 01 09 00 00 30.0000000  0 40",
             Version { major: 2, minor: 0 }
         ));
-        assert!(!is_new_epoch(
+        assert!(!is_new_entry(
             "G01  22331467.880   117352685.28208        48.950    22331469.28",
             Version { major: 3, minor: 0 }
         ));

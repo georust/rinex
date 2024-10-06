@@ -24,3 +24,8 @@ macro_rules! geodetic {
         GroundPosition::from_geodetic(($lat, $lon, $alt))
     };
 }
+
+/// Returns true if following content is compatible with RINEX comments
+pub(crate) fn is_rinex_comment(content: &str) -> bool {
+    content.len() > 60 && content.trim_end().ends_with("COMMENT")
+}

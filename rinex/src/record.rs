@@ -6,11 +6,11 @@ use thiserror::Error;
 use serde::{Serialize, Deserialize};
 
 use super::{
-    antex::Entry as AntexEntry,
-    clock::Entry as ClockEntry,
-    observation::Entry as ObservationEntry,
-    navigation::Entry as NavigationEntry,
-    meteo::Entry as MeteoEntry,
+    antex::{Key as AntexKey, Entry as AntexEntry},
+    clock::{Key as ClockKey, Entry as ClockEntry},
+    observation::ObservationEntry,
+    navigation::NavigationEntry,
+    meteo::MeteoEntry,
     doris::Entry as DorisEntry,
     ionex::Entry as IonexEntry,
     hatanaka::{Compressor, Decompressor},
@@ -24,14 +24,11 @@ use super::{
     split::Split,
     types::Type,
     writer::BufferedWriter,
-    *,
 };
-
-use crate::navigation::record::parse_epoch as parse_nav_epoch;
 
 use hifitime::Duration;
 
-/// [Record] describes RINEX content
+/// [Record] describes RINEX content.
 pub type Record = Vec<RecordEntry>;
 
 /// [Record] actual content
@@ -287,7 +284,7 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
 }
 
 /// Builds a `Record`, `RINEX` file body content,
-/// which is constellation and `RINEX` file type dependent
+/// which is constellation and `RINEX` filorbite type dependent
 pub fn parse_record(
     reader: &mut BufferedReader,
     header: &mut header::Header,

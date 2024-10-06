@@ -12,14 +12,6 @@ use crate::{carrier, linspace::Linspace, merge, merge::Merge, Carrier, Epoch};
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-/// Returns true if this line matches
-/// the beginning of a `epoch` for ATX file (special files),
-/// this is not really an epoch but rather a group of dataset
-/// for this given antenna, there is no sampling data attached to it.
-pub(crate) fn is_new_epoch(content: &str) -> bool {
-    content.contains("START OF ANTENNA")
-}
-
 /// Phase pattern description.
 /// We currently do not support azimuth dependent phase patterns.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -423,24 +415,5 @@ impl Merge for Record {
             }
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_new_epoch() {
-        let content = "                                                           START OF ANTENNA";
-        assert!(is_new_epoch(content));
-        let content =
-            "TROSAR25.R4      LEIT727259                                 TYPE / SERIAL NO";
-        assert!(!is_new_epoch(content));
-        let content =
-            "    26                                                      # OF FREQUENCIES";
-        assert!(!is_new_epoch(content));
-        let content =
-            "   G01                                                      START OF FREQUENCY";
-        assert!(!is_new_epoch(content));
     }
 }
