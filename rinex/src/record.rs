@@ -7,12 +7,12 @@ use serde::{Serialize, Deserialize};
 
 use super::{
     antex::{Key as AntexKey, Entry as AntexEntry},
-    clock::{Key as ClockKey, Entry as ClockEntry},
-    observation::ObservationEntry,
+    clock::ClockEntry,
+    observation::Observation,
     navigation::NavigationEntry,
-    meteo::MeteoEntry,
+    meteo::MeteoObservation,
     doris::Entry as DorisEntry,
-    ionex::Entry as IonexEntry,
+    ionex::TEC,
     hatanaka::{Compressor, Decompressor},
     header,
     header::Header,
@@ -39,18 +39,19 @@ pub enum RecordEntry {
     ANTEX(AntexEntry),
     /// [ClockEntry] describes [SV] or Ground clock states
     Clock(ClockEntry),
-    /// [IonexEntry] describes Ionosphere state at specific point in space & time
-    IONEX(IonexEntry),
-    /// [MeteoEntry] gives accurate local meteorological information
-    Meteo(MeteoEntry),
+    /// [TEC] describes Total Electron Density at specific point in space & time
+    /// in the Ionosphere.
+    IONEX(TEC),
+    /// [MeteoObservation] gives accurate local meteorological measurement
+    Meteo(MeteoObservation),
     /// [NavigationEntry] from [SV] radio message decoding
     Navigation(NavigationEntry),
-    /// [ObservationEntry] for [SV] signal sampling and related events
-    Observation(ObservationEntry),
-    /// [DorisEntry] for [SV] special DORIS siganl sampling and related events
-    DORIS(DorisEntry),
-    /// [Comment] any text description (indication) without proper interpretation.
-    /// May be wrapped in several lines
+    /// [Observation] for [SV] signal sampling and related events
+    Observation(Observation),
+    /// [DorisObservation] for special [SV] signal sampling and related events
+    DORIS(DorisObservation),
+    /// Any text description (indication) without proper interpretation.
+    /// May comprise several lines.
     Comment(String),
 }
 
@@ -101,6 +102,13 @@ impl RecordEntry {
     pub fn ionex(&self) -> Option<&IonexEntry> {
         match self {
             Self::IONEX(e) => Some(e),
+            _ => None,
+        }
+    }
+    /// Comment unwrapping attempt
+    pub fn comment(&self) -> Option<&String> {
+        match self {
+            Self::Comment(c) => Some(c),
             _ => None,
         }
     }

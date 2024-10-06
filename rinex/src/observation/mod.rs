@@ -33,7 +33,7 @@ pub use lli::LliFlags;
 pub use flag::EpochFlag;
 pub use crinex::Crinex;
 pub use header::HeaderFields;
-pub use observation::{ObservationEntry, ObservationEvent, SignalObservation};
+pub use observation::{Observation, ObservationEvent, SignalObservation};
 
 #[cfg(docsrs)]
 use crate::Bibliography;

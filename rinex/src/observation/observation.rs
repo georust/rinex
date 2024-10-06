@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// Observation RINEX content
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum ObservationEntry {
+pub enum Observation {
     /// Local clock state sometimes described,
     /// mostly dependent on receiver context and capabilities.
     ClockOffset(f64),
@@ -27,7 +27,7 @@ impl Default for ObservationEntry {
     }
 }
 
-impl ObservationEntry {
+impl Observation {
     /// Builds new [ObservationEvent]
     pub fn new_event(ev: ObservationEvent) -> Self {
         Self::Event(ev)
