@@ -9,9 +9,12 @@ use super::{
     antex, clock,
     clock::{ClockKey, ClockProfile},
     hatanaka::{Compressor, Decompressor},
-    header, ionex, is_rinex_comment, merge,
+    header,
+    header::Header,
+    ionex, is_rinex_comment, merge,
     merge::Merge,
     meteo, navigation, observation,
+    observation::record::fmt_epoch as fmt_observation_epoch,
     reader::BufferedReader,
     split,
     split::Split,
@@ -148,11 +151,7 @@ impl Record {
         }
     }
     /// Streams into given file writer
-    pub fn to_file(
-        &self,
-        header: &header::Header,
-        writer: &mut BufferedWriter,
-    ) -> Result<(), Error> {
+    pub fn to_file(&self, header: &Header, writer: &mut BufferedWriter) -> Result<(), Error> {
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo().unwrap();
@@ -167,8 +166,7 @@ impl Record {
                 let obs_fields = &header.obs.as_ref().unwrap();
                 let mut compressor = Compressor::default();
                 for (key, data) in record.iter() {
-                    let epoch =
-                        observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);
+                    let epoch = fmt_observation_epoch(*epoch, *flag, clock_offset, data, header);
                     if obs_fields.crinex.is_some() {
                         let major = header.version.major;
                         let constell = &header.constellation.as_ref().unwrap();
@@ -455,8 +453,8 @@ pub fn parse_record(
                         if let Ok((key, data)) =
                             observation::record::parse_epoch(header, &epoch_content, obs_ts)
                         {
-                            obs_rec.insert(key, data);
                             comment_ts = key.epoch; // for comments classification & management
+                            obs_rec.insert(key, data);
                         }
                     },
                     Type::DORIS => {
@@ -557,8 +555,8 @@ pub fn parse_record(
             if let Ok((key, data)) =
                 observation::record::parse_epoch(header, &epoch_content, obs_ts)
             {
-                obs_rec.insert(key, data);
                 comment_ts = key.epoch; // for comments classification + management
+                obs_rec.insert(key, data);
             }
         },
         Type::DORIS => {

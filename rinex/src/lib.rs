@@ -921,7 +921,7 @@ impl Rinex {
         for (key, observation) in lhs_rec.iter() {
             if let Some(rhs_observation) = rhs_rec.get(&key) {
                 record.insert(
-                    *key,
+                    key.clone(),
                     Observation {
                         value: observation.value - rhs_observation.value,
                         lli: None, // TODO

@@ -6,12 +6,12 @@ use thiserror::Error;
 use crate::{
     epoch::{
         format as format_epoch, parse_in_timescale as parse_epoch_in_timescale,
-        parse_utc as parse_utc_epoch, Epoch, ParsingError as EpochParsingError,
+        parse_utc as parse_utc_epoch, ParsingError as EpochParsingError,
     },
+    prelude::Epoch,
     merge::{Error as MergeError, Merge},
     observation::{flag::Error as FlagError, EpochFlag, HeaderFields, SNR},
     prelude::Duration,
-    prelude::*,
     split::{Error as SplitError, Split},
     types::Type,
     version::Version,
@@ -44,12 +44,12 @@ pub enum Error {
 }
 
 #[cfg(feature = "serde")]
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 bitflags! {
     #[derive(Debug, Copy, Clone)]
     #[derive(PartialEq, PartialOrd)]
-    #[cfg_attr(feature = "serde", derive(Serialize))]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     pub struct LliFlags: u8 {
         /// Current epoch is marked Ok or Unknown status
         const OK_OR_UNKNOWN = 0x00;
@@ -64,68 +64,10 @@ bitflags! {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct Observation {
-    /// Actual observation
-    pub value: f64,
-    /// Lock loss indicator
-    pub lli: Option<LliFlags>,
-    /// Signal strength indicator
-    pub snr: Option<SNR>,
-}
-
-impl Observation {
-    /// Builds new Observation structure
-    pub fn new(obs: f64, lli: Option<LliFlags>, snr: Option<SNR>) -> Observation {
-        Observation { obs, lli, snr }
-    }
-    /// Returns `true` if self is determined as `ok`.    
-    /// Self is declared `ok` if LLI and SSI flags missing.
-    /// If LLI exists:    
-    ///    + LLI must match the LliFlags::OkOrUnknown flag (strictly)    
-    /// if SSI exists:    
-    ///    + SNR must match the .is_ok() criteria, refer to API
-    pub fn is_ok(self) -> bool {
-        let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
-        let snr_ok = self.snr.unwrap_or_default().strong();
-        lli_ok && snr_ok
-    }
-
-    /// Returns true if self is considered Ok with respect to given
-    /// SNR condition (>=)
-    pub fn is_ok_snr(&self, min_snr: SNR) -> bool {
-        if self
-            .lli
-            .unwrap_or(LliFlags::OK_OR_UNKNOWN)
-            .intersects(LliFlags::OK_OR_UNKNOWN)
-        {
-            if let Some(snr) = self.snr {
-                snr >= min_snr
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
-
-    /// Returns Real Distance, by converting observed pseudo range,
-    /// and compensating for distant and local clock offsets.
-    /// See [p17-p18 of the RINEX specifications]. It makes only
-    /// sense to apply this method on Pseudo Range observations.
-    /// - rcvr_offset: receiver clock offset for this epoch, given in file
-    /// - sv_offset: sv clock offset
-    /// - bias: other (optionnal..) additive biases
-    pub fn pr_real_distance(&self, rcvr_offset: f64, sv_offset: f64, biases: f64) -> f64 {
-        self.obs + 299_792_458.0_f64 * (rcvr_offset - sv_offset) + biases
-    }
-}
-
 /// Observation Record Index,
 /// sorted by [Epoch], [SV], [Carrier] signal
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ObsKey {
     pub sv: SV,
     pub epoch: Epoch,
@@ -287,7 +229,7 @@ fn parse_normal(
             }
             parse_v2(header, &systems, observables, lines)
         },
-        _ => parse_v3(observables, lines),
+        _ => parse_v3(epoch, flag, observables, lines),
     }
 }
 
@@ -513,6 +455,8 @@ fn parse_v2(
  * Format is much simpler, one vehicle is described in a single line
  */
 fn parse_v3(
+    epoch: Epoch,
+    flag: EpochFlag,
     observables: &HashMap<Constellation, Vec<Observable>>,
     lines: std::str::Lines<'_>,
 ) -> Vec<(ObsKey, Observation)> {
@@ -613,10 +557,9 @@ fn parse_v3(
 
 /// Formats one epoch according to standard definitions
 pub(crate) fn fmt_epoch(
-    epoch: Epoch,
-    flag: EpochFlag,
+    key: &ObsKey,
     clock_offset: &Option<f64>,
-    data: &BTreeMap<SV, HashMap<Observable, Observation>>,
+    observation: &Observation,
     header: &Header,
 ) -> String {
     if header.version.major < 3 {
@@ -796,7 +739,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k.epoch < epoch {
-                    Some((*k, v.clone()))
+                    Some((k.clone(), v.clone()))
                 } else {
                     None
                 }
@@ -806,7 +749,7 @@ impl Split for Record {
             .iter()
             .flat_map(|(k, v)| {
                 if k.epoch >= epoch {
-                    Some((*k, v.clone()))
+                    Some((k.clone(), v.clone()))
                 } else {
                     None
                 }
