@@ -18,13 +18,12 @@ pub mod hardware;
 pub mod hatanaka;
 pub mod header;
 pub mod ionex;
-pub mod marker;
+pub mod geodetic;
 pub mod merge;
 pub mod meteo;
 pub mod navigation;
 pub mod observation;
 pub mod record;
-pub mod split;
 pub mod types;
 pub mod version;
 
@@ -162,20 +161,12 @@ use crate::{
 use carrier::Carrier;
 use prelude::*;
 
-pub use merge::Merge;
-pub use split::Split;
-
 #[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
 
 #[cfg(docsrs)]
 pub use bibliography::Bibliography;
-
-/// Returns true if following content is compatible with RINEX comments
-pub(crate) fn is_rinex_comment(content: &str) -> bool {
-    content.len() > 60 && content.trim_end().ends_with("COMMENT")
-}
 
 /*
  * macro to format one header line or a comment
@@ -2666,7 +2657,14 @@ impl Split for Rinex {
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
-impl Preprocessing for Rinex {}
+impl Preprocessing for Rinex {
+    fn split_at_epoch(&self, t: Epoch) -> (Self, Self) {
+
+    }
+    fn split_dt(&self, dt: Duration) -> Vec<Self> {
+
+    }
+}
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
@@ -2724,7 +2722,7 @@ use crate::clock::{ClockKey, ClockProfile, ClockProfileType};
  */
 #[cfg(feature = "clock")]
 #[cfg_attr(docsrs, doc(cfg(feature = "clock")))]
-impl Rinex {
+impl RINEX {
     /// Returns Iterator over Clock RINEX content.
     pub fn precise_clock(
         &self,
@@ -2772,7 +2770,7 @@ impl Rinex {
  */
 #[cfg(feature = "ionex")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
-impl Rinex {
+impl RINEX {
     /// Iterates over IONEX maps, per Epoch and altitude.
     /// ```
     /// use rinex::prelude::*;

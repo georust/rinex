@@ -14,6 +14,14 @@ pub use mask::{Error as MaskError, MaskFilter, MaskOperand, Masking};
 mod decim;
 pub use decim::{Decimate, DecimationFilter, DecimationFilterType, Error as DecimationError};
 
+// Split: Time domain preprocessing
+mod split;
+pub use split::{Split};
+
+// Repair: Data repairment
+mod repair;
+pub use repair::{Repair, Repairment};
+
 // Histogram helper
 mod histogram;
 pub use histogram::{Histogram, HistogramEntry};
@@ -22,9 +30,13 @@ pub use histogram::{Histogram, HistogramEntry};
 mod sampling;
 pub use sampling::{DataGap, Sampling};
 
+// Signal processing
+mod signal;
+pub use signal::{Combination, Combine};
+
 /// Preprocessing Trait is usually implemented by GNSS data
 /// to preprocess prior further analysis.
-pub trait Preprocessing: Masking + Decimate {
+pub trait Preprocessing: Masking + Decimate + Combine {
     /// Apply [Filter] algorithm on immutable dataset.
     fn filter(&self, filter: &Filter) -> Self
     where
@@ -42,27 +54,20 @@ pub trait Preprocessing: Masking + Decimate {
             Filter::Decimation(f) => self.decimate_mut(f),
         }
     }
+    
+    /// Split in time at specified [Epoch]
+    fn split_at_epoch(&self, epoch: Epoch) -> (Self, Self)
+    where
+        Self: Sized;
+    
+    /// Form Time series of equal [Duration]
+    fn split_dt(&self, dt: Duration) -> Vec<Self>
+    where
+        Self: Sized;
 }
 
 /// Processing Trait, unlocks analysis and study methods.
-pub trait Processing: Sampling {}
-
-/// Repair
-#[derive(Debug, Copy, Clone)]
-pub enum Repair {
-    /// Repairs all zero values by simply removing them from record.
-    Zero,
-    /// Apply static offset so Phase data records so they start with null origin (y(t=0)=0).
-    NullPhaseOrigin,
-    /// Convert Phase data symbols to cycles of signals propagation (not meters).
-    /// Only applies to phase data points
-    CarrierPhaseCycles,
-}
-
-pub trait RepairTrait {
-    fn repair(&self, r: Repair) -> Self;
-    fn repair_mut(&mut self, r: Repair);
-}
+pub trait Processing: Sampling + Repair + Signal {}
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -78,9 +83,9 @@ pub enum Error {
     DecimationFilterParsing(#[from] DecimationError),
 }
 
-/// Preprocessing filters, to preprocess RINEX data prior further analysis.
-/// Filters can apply either on entire RINEX or subsets.
-/// Refer to [TargetItem] definition to understand which data subsets exist.  
+/// Preprocessing filters.
+/// Filters can apply either on entire datasets or subsets.
+/// [FilterItem] is used for efficient data scoping.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Filter {
     /// Mask filter, to focus on specific data subsets

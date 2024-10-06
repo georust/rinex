@@ -824,22 +824,6 @@ fn mw_combination(
 }
 
 #[cfg(feature = "obs")]
-impl Combine for Record {
-    fn combine(
-        &self,
-        c: Combination,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        match c {
-            Combination::GeometryFree
-            | Combination::IonosphereFree
-            | Combination::NarrowLane
-            | Combination::WideLane => dual_freq_combination(self, c),
-            Combination::MelbourneWubbena => mw_combination(self),
-        }
-    }
-}
-
-#[cfg(feature = "obs")]
 use crate::{
     carrier,
     observation::Dcb, //Mp},

@@ -80,31 +80,6 @@ pub enum Error {
     MissingObservableSpecs,
 }
 
-
-#[cfg(feature = "obs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-#[derive(Debug, Copy, Clone)]
-pub enum Combination {
-    GeometryFree,
-    IonosphereFree,
-    WideLane,
-    NarrowLane,
-    MelbourneWubbena,
-}
-
-/// GNSS signal combination trait.    
-/// This only applies to OBS RINEX records.  
-/// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1]
-/// for more information.
-#[cfg(feature = "obs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-pub trait Combine {
-    fn combine(
-        &self,
-        combination: Combination,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-}
-
 /// GNSS code bias estimation trait.
 /// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1].
 #[cfg(feature = "obs")]
@@ -158,7 +133,6 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         }
     }
 }
-
 mod test {
     use super::*;
     #[test]

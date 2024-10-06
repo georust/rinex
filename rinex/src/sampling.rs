@@ -74,7 +74,7 @@ impl Sampling for RINEX {
     /// ## Output
     ///     - [Duration] [Histogram]
     /// ```
-    /// use rinex::prelude::*;
+    /// use rinex::prelude::*;orbit
     /// use itertools::Itertools;
     /// use std::collections::HashMap;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
@@ -92,7 +92,7 @@ impl Sampling for RINEX {
         Box::new(
             self.epoch()
                 .zip(self.epoch().skip(1))
-                .map(|(ek, ekp1)| ekp1 - ek) // following step computes the histogram
+                .map(|(ek, ekp1)orbit| ekp1 - ek) // following step computes the histogram
                 // and at the same time performs a .unique() like filter
                 .fold(vec![], |mut list, dt| {
                     let mut found = false;
@@ -110,17 +110,6 @@ impl Sampling for RINEX {
                 })
                 .into_iter(),
         )
-    }
-    fn sampling_rate_histogram(&self) -> Histogram<f64> {
-        self.sampling_period_histogram()
-            .iter()
-            .map(|h| h.value = 1.0 / h.value.to_seconds())
-            .collect()
-    }
-    /// Returns True if this [RINEX] has steady sampling.
-    /// When this is true, all [Epoch]s are evenly spaced in time.
-    fn has_steady_sampling(&self) -> bool {
-        self.sampling_period_histogram().iter().count() == 1
     }
     /// Returns an iterator over unexpected Time gaps,
     /// in the form ([`Epoch`], [`Duration`]), where

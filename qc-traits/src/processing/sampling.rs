@@ -9,6 +9,10 @@ pub trait Sampling {
     fn first_epoch(&self) -> Option<Epoch>;
     /// Returns last [Epoch]: describes the last data point in Time.
     fn last_epoch(&self) -> Option<Epoch>;
+    /// Returns true if steady sampling occured (ie., not [DataGap]s were found)
+    fn steady_sampling(&self) -> bool {
+        self.data_gaps().count() == 0
+    }
     /// Returns (theoretical) sampling period, expressed as [Duration].
     /// We distinguish theoretical sampling period from actual sampling period.
     /// The actual sampling period may not be completely steady due to context issues.
