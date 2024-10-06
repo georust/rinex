@@ -3,17 +3,21 @@ use std::io::prelude::*;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use super::{
-    antex, clock,
-    clock::{ClockKey, ClockProfile},
+    antex::Entry as AntexEntry,
+    clock::Entry as ClockEntry,
+    observation::Entry as ObservationEntry,
+    navigation::Entry as NavigationEntry,
+    meteo::Entry as MeteoEntry,
+    doris::Entry as DorisEntry,
+    ionex::Entry as IonexEntry,
     hatanaka::{Compressor, Decompressor},
     header,
     header::Header,
     ionex, is_rinex_comment, merge,
     merge::Merge,
-    meteo, navigation, observation,
     observation::record::fmt_epoch as fmt_observation_epoch,
     reader::BufferedReader,
     split,
@@ -27,129 +31,132 @@ use crate::navigation::record::parse_epoch as parse_nav_epoch;
 
 use hifitime::Duration;
 
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum Record {
-    /// ATX record, see [antex::record::Record]
-    AntexRecord(antex::Record),
-    /// Clock record, see [clock::record::Record]
-    ClockRecord(clock::Record),
-    /// IONEX (Ionosphere maps) record, see [ionex::record::Record]
-    IonexRecord(ionex::Record),
-    /// Meteo record, see [meteo::record::Record]
-    MeteoRecord(meteo::Record),
-    /// Navigation record, see [navigation::record::Record]
-    NavRecord(navigation::Record),
-    /// Observation record, see [observation::record::Record]
-    ObsRecord(observation::Record),
-    /// DORIS RINEX, special DORIS measurements wraped as observations
-    DorisRecord(doris::Record),
+/// [Record] describes RINEX content
+pub type Record = Vec<RecordEntry>;
+
+/// [Record] actual content
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum RecordEntry {
+    /// [AntexEntry] gives accurate antenna specs.
+    ANTEX(AntexEntry),
+    /// [ClockEntry] describes [SV] or Ground clock states
+    Clock(ClockEntry),
+    /// [IonexEntry] describes Ionosphere state at specific point in space & time
+    IONEX(IonexEntry),
+    /// [MeteoEntry] gives accurate local meteorological information
+    Meteo(MeteoEntry),
+    /// [NavigationEntry] from [SV] radio message decoding
+    Navigation(NavigationEntry),
+    /// [ObservationEntry] for [SV] signal sampling and related events
+    Observation(ObservationEntry),
+    /// [DorisEntry] for [SV] special DORIS siganl sampling and related events
+    DORIS(DorisEntry),
+    /// [Comment] any text description (indication) without proper interpretation.
+    /// May be wrapped in several lines
+    Comment(String),
 }
 
-/// Record comments are high level informations, sorted by epoch
-/// (timestamp) of appearance. We deduce the "associated" timestamp from the
-/// previosuly parsed epoch, when parsing the record.
-pub type Comments = BTreeMap<Epoch, Vec<String>>;
-
-impl Record {
-    /// Unwraps self as ANTEX record
-    pub fn as_antex(&self) -> Option<&antex::Record> {
+impl RecordEntry {
+    /// [AntexEntry] unwrapping attempt
+    pub fn antex(&self) -> Option<&AntexEntry> {
         match self {
-            Record::AntexRecord(r) => Some(r),
+            Self::ANTEX(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as mutable reference to ANTEX record
-    pub fn as_mut_antex(&mut self) -> Option<&mut antex::Record> {
+    /// [ClockEntry] unwrapping attempt
+    pub fn clock(&self) -> Option<&ClockEntry> {
         match self {
-            Record::AntexRecord(r) => Some(r),
+            Self::Clock(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as CLK record
-    pub fn as_clock(&self) -> Option<&clock::Record> {
+    /// [DorisEntry] unwrapping attempt
+    pub fn doris(&self) -> Option<&DorisEntry> {
         match self {
-            Record::ClockRecord(r) => Some(r),
+            Self::Doris(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as mutable CLK record
-    pub fn as_mut_clock(&mut self) -> Option<&mut clock::Record> {
+    /// [ObservationEntry] unwrapping attempt
+    pub fn observation(&self) -> Option<&ObservationEntry> {
         match self {
-            Record::ClockRecord(r) => Some(r),
+            Self::Observation(e) => Some(e),
+            _ => None,
+        }
+    }    
+    /// [NavigationEntry] unwrapping attempt
+    pub fn navigation(&self) -> Option<&NavigationEntry> {
+        match self {
+            Self::Navigation(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as IONEX record
-    pub fn as_ionex(&self) -> Option<&ionex::Record> {
+    /// [MeteoEntry] unwrapping attempt
+    pub fn meteo(&self) -> Option<&MeteoEntry> {
         match self {
-            Record::IonexRecord(r) => Some(r),
+            Self::Navigation(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as mutable IONEX record
-    pub fn as_mut_ionex(&mut self) -> Option<&mut ionex::Record> {
+    /// [IonexEntry] unwrapping attempt
+    pub fn ionex(&self) -> Option<&IonexEntry> {
         match self {
-            Record::IonexRecord(r) => Some(r),
+            Self::IONEX(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as MET record
-    pub fn as_meteo(&self) -> Option<&meteo::Record> {
+    /// Mutable [AntexEntry] unwrapping attempt
+    pub fn mut_antex(&mut self) -> Option<&mut AntexEntry> {
         match self {
-            Record::MeteoRecord(r) => Some(r),
+            Self::ANTEX(e) => Some(e),
             _ => None,
         }
     }
-    /// Returns mutable reference to Meteo record
-    pub fn as_mut_meteo(&mut self) -> Option<&mut meteo::Record> {
+    /// Mutable [ClockEntry] unwrapping attempt
+    pub fn mut_clock(&self) -> Option<&mut ClockEntry> {
         match self {
-            Record::MeteoRecord(r) => Some(r),
+            Self::Clock(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as NAV record
-    pub fn as_nav(&self) -> Option<&navigation::Record> {
+    /// Mutable [DorisEntry] unwrapping attempt
+    pub fn mut_doris(&self) -> Option<&mut DorisEntry> {
         match self {
-            Record::NavRecord(r) => Some(r),
+            Self::Doris(e) => Some(e),
             _ => None,
         }
     }
-    /// Returns mutable reference to Navigation record
-    pub fn as_mut_nav(&mut self) -> Option<&mut navigation::Record> {
+    /// Mutable [ObservationEntry] unwrapping attempt
+    pub fn mut_observation(&self) -> Option<&mut ObservationEntry> {
         match self {
-            Record::NavRecord(r) => Some(r),
+            Self::Observation(e) => Some(e),
+            _ => None,
+        }
+    }    
+    /// Mutable [NavigationEntry] unwrapping attempt
+    pub fn mut_navigation(&self) -> Option<&mut NavigationEntry> {
+        match self {
+            Self::Navigation(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as OBS record
-    pub fn as_obs(&self) -> Option<&observation::Record> {
+    /// Mutable [MeteoEntry] unwrapping attempt
+    pub fn mut_meteo(&self) -> Option<&mut MeteoEntry> {
         match self {
-            Record::ObsRecord(r) => Some(r),
+            Self::Navigation(e) => Some(e),
             _ => None,
         }
     }
-    /// Returns mutable reference to Observation record
-    pub fn as_mut_obs(&mut self) -> Option<&mut observation::Record> {
+    /// Mutable [IonexEntry] unwrapping attempt
+    pub fn mut_ionex(&self) -> Option<&mut IonexEntry> {
         match self {
-            Record::ObsRecord(r) => Some(r),
+            Self::IONEX(e) => Some(e),
             _ => None,
         }
     }
-    /// Unwraps self as DORIS record
-    pub fn as_doris(&self) -> Option<&doris::Record> {
-        match self {
-            Record::DorisRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as mutable reference to DORIS record
-    pub fn as_mut_doris(&mut self) -> Option<&mut doris::Record> {
-        match self {
-            Record::DorisRecord(r) => Some(r),
-            _ => None,
-        }
-    }
+    
     /// Streams into given file writer
     pub fn to_file(&self, header: &Header, writer: &mut BufferedWriter) -> Result<(), Error> {
         match &header.rinex_type {
@@ -241,12 +248,6 @@ impl Record {
             _ => panic!("record type not supported yet"),
         }
         Ok(())
-    }
-}
-
-impl Default for Record {
-    fn default() -> Record {
-        Record::NavRecord(navigation::Record::new())
     }
 }
 

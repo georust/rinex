@@ -93,6 +93,7 @@ pub mod prelude {
     pub use crate::observation::EpochFlag;
     pub use crate::types::Type as RinexType;
     pub use crate::{Error, Rinex};
+    pub use crate::version::Version;
     // pub re-export
     #[cfg(feature = "nav")]
     pub use anise::{
@@ -124,13 +125,14 @@ use qc_traits::processing::{
 
 #[cfg(feature = "processing")]
 use crate::{
+    record::{Record, RecordEntry, Comments},
     clock::record::{clock_decim_mut, clock_mask_mut},
     doris::record::{doris_decim_mut, doris_mask_mut},
     header::header_mask_mut,
     ionex::record::{ionex_decim_mut, ionex_mask_mut},
     meteo::record::{meteo_decim_mut, meteo_mask_mut},
     navigation::record::{navigation_decim_mut, navigation_mask_mut},
-    observation::record::{
+    observation::{
         observation_decim_mut, observation_mask_mut, repair_mut as observation_repair_mut,
     },
 };
@@ -177,9 +179,7 @@ pub(crate) fn fmt_rinex(content: &str, marker: &str) -> String {
     }
 }
 
-/*
- * macro to generate comments with standardized formatting
- */
+// Macro to generate comments with standardized formatting
 pub(crate) fn fmt_comment(content: &str) -> String {
     fmt_rinex(content, "COMMENT")
 }
@@ -247,15 +247,12 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 /// }
 /// ```
 pub struct Rinex {
-    /// `header` field contains general information
+    /// File [Header]
     pub header: Header,
-    /// `comments` : list of extra readable information,   
-    /// found in `record` section exclusively.    
-    /// Comments extracted from `header` sections are exposed in `header.comments`
-    pub comments: record::Comments,
-    /// `record` contains `RINEX` file body
-    /// and is type and constellation dependent
-    pub record: record::Record,
+    /// File [Record] (actual content)
+    pub record: Record,
+    /// File [Comments]
+    pub comments: Comments,
     /*
      * File Production attributes, attached to Self
      * parsed from files that follow stadard naming conventions
