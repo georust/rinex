@@ -169,14 +169,14 @@ impl OrbitSource for Orbits<'_, '_> {
         }; //precise
 
         let keplerian = if let Some((toc, _, eph)) = self.eph.borrow_mut().select(t, sv) {
-            let (x_km, y_km, z_km) = eph.kepler2position(sv, toc, t)?;
+            let orbit = eph.kepler2position(sv, toc, t)?;
+            let state = orbit.to_cartesian_pos_vel();
+            let (x_km, y_km, z_km) = (state[0], state[1], state[2]);
             debug!(
                 "{}({}) keplerian state (ECEF): x={}km,y={}km,z={}km",
                 t, sv, x_km, y_km, z_km
             );
-            Some(Orbit::from_position(
-                x_km, y_km, z_km, t, fr, // TODO: convert if need be
-            ))
+            Some(orbit)
         } else {
             None
         };

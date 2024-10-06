@@ -26,7 +26,9 @@ impl BrdcSp3Report {
     fn new(sp3: &SP3, brdc: &Rinex) -> Self {
         let mut errors = BTreeMap::<SV, Vec<(Epoch, f64, f64, f64)>>::new();
         for (t_sp3, sv_sp3, (sp3_x, sp3_y, sp3_z)) in sp3.sv_position() {
-            if let Some((brdc_x, brdc_y, brdc_z)) = brdc.sv_position(sv_sp3, t_sp3) {
+            if let Some(brdc_orb) = brdc.sv_orbit(sv_sp3, t_sp3) {
+                let brdc_state = brdc_orb.to_cartesian_pos_vel();
+                let (brdc_x, brdc_y, brdc_z) = (brdc_state[0], brdc_state[1], brdc_state[2]);
                 let (err_x_m, err_y_m, err_z_m) = (
                     (brdc_x - sp3_x) * 1000.0,
                     (brdc_y - sp3_y) * 1000.0,
@@ -126,7 +128,7 @@ impl Render for BrdcSp3Report {
                     }
                     tr {
                         th class="is-info" {
-                            "X errors"
+                            "Y errors"
                         }
                         td {
                             (self.y_err_plot.render())
@@ -179,6 +181,8 @@ impl OrbitReport {
         #[cfg(feature = "sp3")]
         if let Some(sp3) = ctx.sp3() {
             for (t, sv_sp3, pos_sp3) in sp3.sv_position() {
+                let rx_orbit = Orbit::from_position(x0_km, y0_km, z0_km, t, ctx.earth_cef);
+
                 let (x_sp3_km, y_sp3_km, z_sp3_km) = (pos_sp3.0, pos_sp3.1, pos_sp3.2);
                 if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
                     t,
@@ -208,31 +212,25 @@ impl OrbitReport {
                     }
                     if brdc_skyplot {
                         let brdc = ctx.brdc_navigation().unwrap();
-                        if let Some((x_km, y_km, z_km)) = brdc.sv_position(sv_sp3, t) {
-                            if let Ok(el_az_range) = Ephemeris::elevation_azimuth_range(
-                                t,
-                                &ctx.almanac,
-                                ctx.earth_cef,
-                                (x_km, y_km, z_km),
-                                (x0_km, y0_km, z0_km),
-                            ) {
-                                let (el_deg, az_deg) =
-                                    (el_az_range.elevation_deg, el_az_range.azimuth_deg);
-                                if let Some(t_brdc) = t_brdc.get_mut(&sv_sp3) {
-                                    t_brdc.push(t);
-                                } else {
-                                    t_brdc.insert(sv_sp3, vec![t]);
-                                }
-                                if let Some(e) = elev_brdc.get_mut(&sv_sp3) {
-                                    e.push(el_deg);
-                                } else {
-                                    elev_brdc.insert(sv_sp3, vec![el_deg]);
-                                }
-                                if let Some(a) = azim_brdc.get_mut(&sv_sp3) {
-                                    a.push(az_deg);
-                                } else {
-                                    azim_brdc.insert(sv_sp3, vec![az_deg]);
-                                }
+                        if let Some(el_az_range) =
+                            brdc.sv_azimuth_elevation_range(sv_sp3, t, rx_orbit, &ctx.almanac)
+                        {
+                            let (el_deg, az_deg) =
+                                (el_az_range.elevation_deg, el_az_range.azimuth_deg);
+                            if let Some(t_brdc) = t_brdc.get_mut(&sv_sp3) {
+                                t_brdc.push(t);
+                            } else {
+                                t_brdc.insert(sv_sp3, vec![t]);
+                            }
+                            if let Some(e) = elev_brdc.get_mut(&sv_sp3) {
+                                e.push(el_deg);
+                            } else {
+                                elev_brdc.insert(sv_sp3, vec![el_deg]);
+                            }
+                            if let Some(a) = azim_brdc.get_mut(&sv_sp3) {
+                                a.push(az_deg);
+                            } else {
+                                azim_brdc.insert(sv_sp3, vec![az_deg]);
                             }
                         }
                     }

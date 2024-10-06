@@ -6,8 +6,14 @@ use plotly::{
         update_menu::UpdateMenu, Axis, Center, DragMode, Mapbox, Margin, RangeSelector,
         RangeSlider, SelectorButton, SelectorStep,
     },
-    DensityMapbox, Layout, Plot as Plotly, Scatter, Scatter3D, ScatterGeo, ScatterMapbox,
-    ScatterPolar, Trace,
+    DensityMapbox,
+    Layout,
+    Plot as Plotly,
+    Scatter,
+    Scatter3D, //ScatterGeo,
+    ScatterMapbox,
+    ScatterPolar,
+    Trace,
 };
 
 use serde::Serialize;
@@ -284,14 +290,14 @@ impl Plot {
                 }
             })
     }
-    /// Builds ScatterGeo
-    pub fn scattergeo<T: Clone + Default + Serialize>(
-        lat: Vec<T>,
-        lon: Vec<T>,
-        legend: &str,
-    ) -> Box<ScatterGeo<T, T>> {
-        ScatterGeo::new(lat, lon).name(legend)
-    }
+    // /// Builds ScatterGeo
+    // pub fn scattergeo<T: Clone + Default + Serialize>(
+    //     lat: Vec<T>,
+    //     lon: Vec<T>,
+    //     legend: &str,
+    // ) -> Box<ScatterGeo<T, T>> {
+    //     ScatterGeo::new(lat, lon).name(legend)
+    // }
     /// Builds new Density Mapbox trace
     pub fn density_mapbox<T: Clone + Default + Serialize>(
         lat: Vec<T>,
