@@ -25,27 +25,6 @@ use qc_traits::processing::{
     DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Repair,
 };
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("failed to parse epoch flag")]
-    EpochFlag(#[from] FlagError),
-    #[error("failed to parse epoch")]
-    EpochError(#[from] EpochParsingError),
-    #[error("constellation parsing error")]
-    ConstellationParsing(#[from] gnss::constellation::ParsingError),
-    #[error("sv parsing error")]
-    SvParsing(#[from] gnss::sv::ParsingError),
-    #[error("failed to parse integer number")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float number")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse vehicles properly (nb_sat mismatch)")]
-    EpochParsingError,
-    #[error("line is empty")]
-    MissingData,
-    #[error("missing observable definitions")]
-    MissingObservableSpecs,
-}
 
 /// Epoch (record entry) formatter
 /// ## Inputs

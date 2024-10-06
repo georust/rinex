@@ -1,15 +1,26 @@
-//! Processing toolkit, including filter designer.
+//! Processing Traits and definitions, including filter designer.
 use std::str::FromStr;
 use thiserror::Error;
 
+// item: Masking and Filtering helper
 mod item;
 pub use item::{FilterItem, ItemError};
 
+// Masking: data preprocessing
 mod mask;
 pub use mask::{Error as MaskError, MaskFilter, MaskOperand, Masking};
 
+// Decimation: Time domain preprocessing
 mod decim;
 pub use decim::{Decimate, DecimationFilter, DecimationFilterType, Error as DecimationError};
+
+// Histogram helper
+mod histogram;
+pub use histogram::{Histogram, HistogramEntry};
+
+// Sampling
+mod sampling;
+pub use sampling::{Sampling, DataGap};
 
 /// Preprocessing Trait is usually implemented by GNSS data
 /// to preprocess prior further analysis.
@@ -32,6 +43,9 @@ pub trait Preprocessing: Masking + Decimate {
         }
     }
 }
+
+/// Processing Trait, unlocks analysis and study methods.
+pub trait Processing: Sampling {}
 
 /// Repair
 #[derive(Debug, Copy, Clone)]

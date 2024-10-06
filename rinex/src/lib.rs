@@ -56,27 +56,36 @@ use reader::BufferedReader;
 pub mod writer;
 use writer::BufferedWriter;
 
-use std::collections::{BTreeMap, HashMap};
-use std::io::Write; //, Read};
-use std::path::Path;
-use std::str::FromStr;
+use std::{
+    collections::{BTreeMap, HashMap},
+    io::Write,
+    //io::Read,
+    path::Path,
+    str::FromStr,
+};
 
 use itertools::Itertools;
 use thiserror::Error;
 
-use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
-use doris::record::ObservationData as DorisObservationData;
-use epoch::epoch_decompose;
-use ionex::TECPlane;
-use navigation::NavFrame;
-use observable::Observable;
-use observation::{Crinex, Observation};
-use version::Version;
-
-use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
+use crate::{
+    antex::{Antenna, AntennaSpecific, FrequencyDependentData},
+    doris::record::ObservationData as DorisObservationData,
+    epoch::epoch_decompose,
+    ionex::TECPlane,
+    navigation::NavFrame,
+    observable::Observable,
+    observation::{CRINEX, Observation},
+    version::Version,
+    production::{
+        DataSource,
+        DetailedProductionAttributes,
+        ProductionAttributes,
+        PPU,
+        FFU,
+    },
+};
 
 use hifitime::Unit;
-//use hifitime::{efmt::Format as EpochFormat, efmt::Formatter as EpochFormatter, Duration, Unit};
 
 /// Package to include all basic structures
 pub mod prelude {
@@ -92,7 +101,7 @@ pub mod prelude {
     pub use crate::observable::Observable;
     pub use crate::observation::EpochFlag;
     pub use crate::types::Type as RinexType;
-    pub use crate::{Error, Rinex};
+    pub use crate::{Error, RINEX};
     pub use crate::version::Version;
     // pub re-export
     #[cfg(feature = "nav")]
@@ -121,11 +130,12 @@ pub mod prod {
 #[cfg(feature = "processing")]
 use qc_traits::processing::{
     Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing, Repair, RepairTrait,
+    DataGap, Histogram, HistogramEntry,
 };
 
 #[cfg(feature = "processing")]
 use crate::{
-    record::{Record, RecordEntry, Comments},
+    record::{Record, RecordEntry},
     clock::record::{clock_decim_mut, clock_mask_mut},
     doris::record::{doris_decim_mut, doris_mask_mut},
     header::header_mask_mut,
@@ -150,9 +160,7 @@ extern crate serde;
 #[cfg(docsrs)]
 pub use bibliography::Bibliography;
 
-/*
- * returns true if given line is a comment
- */
+/// Returns true if following content is compatible with RINEX comments
 pub(crate) fn is_rinex_comment(content: &str) -> bool {
     content.len() > 60 && content.trim_end().ends_with("COMMENT")
 }
@@ -185,7 +193,7 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-/// `Rinex` describes a `RINEX` file, it comprises a [Header] section,
+/// [RINEX] describes a `RINEX` file, it comprises a [Header] section,
 /// and a [record::Record] file body.   
 /// This parser can also store comments encountered while parsing the file body,
 /// stored as [record::Comments], without much application other than presenting
@@ -246,13 +254,11 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 ///     println!("{:?}: \"{:?}\"", epoch, comment);
 /// }
 /// ```
-pub struct Rinex {
+pub struct RINEX {
     /// File [Header]
     pub header: Header,
     /// File [Record] (actual content)
     pub record: Record,
-    /// File [Comments]
-    pub comments: Comments,
     /*
      * File Production attributes, attached to Self
      * parsed from files that follow stadard naming conventions
@@ -271,63 +277,62 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 }
 
-impl Rinex {
-    /// Builds a new `RINEX` struct from given header & body sections.
-    pub fn new(header: Header, record: record::Record) -> Rinex {
-        Rinex {
+impl RINEX {
+    /// Builds a new [RINEX] with attached [Header] and [Record] content
+    pub fn new(header: Header, record: Record) -> Self {
+        Self {
             header,
             record,
-            comments: record::Comments::new(),
             prod_attr: None,
         }
     }
-    /// Returns a copy of self with given header attributes.
+    /// Copies and replace [Header] forming a new [RINEX]
     pub fn with_header(&self, header: Header) -> Self {
         Self {
             header,
             record: self.record.clone(),
-            comments: self.comments.clone(),
             prod_attr: self.prod_attr.clone(),
         }
     }
-    /// Replaces header section.
+    /// Replaces [Header]] section in place.
     pub fn replace_header(&mut self, header: Header) {
         self.header = header.clone();
     }
-    /// Returns a copy of self with given internal record.
-    pub fn with_record(&self, record: record::Record) -> Self {
-        Rinex {
-            header: self.header.clone(),
-            comments: self.comments.clone(),
+    /// Copies and replace [Record] content
+    pub fn with_record(&self, record: Record) -> Self {
+        Self {
             record,
+            header: self.header.clone(),
             prod_attr: self.prod_attr.clone(),
         }
     }
-    /// Replaces internal record.
-    pub fn replace_record(&mut self, record: record::Record) {
+    /// Replaces [Record] in place.
+    pub fn replace_record(&mut self, record: Record) {
         self.record = record.clone();
     }
-    /// Converts self to CRINEX (compressed RINEX) format.
-    /// If current revision is < 3 then file gets converted to CRINEX1
-    /// format, otherwise, modern Observations are converted to CRINEX3.
-    /// This has no effect if self is not an Observation RINEX.
-    ///
+    /// Converts [RINEX] to CRINEX (compressed [RINEX]) format.
+    /// Following CRINEX specs:
+    ///    * RINEX V<3 are converted to CRINEX1
+    ///    * RINEX V>2 are converted to CRINEX3
+    ///    * CRINEX2 does not exist (was never released)
+    /// This has no effect (no modification) if [Self] is not an Observation [RINEX]
     /// ```
     /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    /// let rinex = RINEX::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///     .unwrap();
     ///
     /// // convert to CRINEX
     /// let crinex = rinex.rnx2crnx();
     /// assert!(crinex.to_file("test.crx").is_ok());
     /// ```
-    pub fn rnx2crnx(&self) -> Self {
+    pub fn to_crinex(&self) -> Self {
         let mut s = self.clone();
-        s.rnx2crnx_mut();
+        s.to_crinex_mut();
         s
     }
-    /// [`Self::rnx2crnx`] mutable implementation
-    pub fn rnx2crnx_mut(&mut self) {
+    /// Mutable [RINEX] to Compressed [RINEX] implementation.
+    /// Refer to [Self::to_crinex].
+    pub fn to_crinex_mut(&mut self) {
         if self.is_observation_rinex() {
             let mut crinex = Crinex::default();
             crinex.version.major = match self.header.version.major {
@@ -337,18 +342,14 @@ impl Rinex {
             self.header = self.header.with_crinex(crinex);
         }
     }
-
-    /// Converts self to CRINEX1 compressed format,
-    /// whatever the RINEX revision might be.  
-    /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx1(&self) -> Self {
-        let mut s = self.clone();
-        s.rnx2crnx1_mut();
+    /// [Self::to_crinex] with forced CRINEX V1 revision.
+    pub fn to_crinex_v1(&self) -> Self {
+        let mut s: RINEX = self.clone();
+        s.to_crinex_v1_mut();
         s
     }
-
-    /// [`Self::rnx2crnx1`] mutable implementation.
-    pub fn rnx2crnx1_mut(&mut self) {
+    /// Mutable [Self::to_crinex_v1] implementation.
+    pub fn to_crinex_v1_mut(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header.with_crinex(Crinex {
                 version: Version { major: 1, minor: 0 },
@@ -357,18 +358,14 @@ impl Rinex {
             });
         }
     }
-
-    /// Converts self to CRINEX3 compressed format,
-    /// whatever the RINEX revision might be.
-    /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx3(&self) -> Self {
+    /// [Self::to_crinex] with forced CRINEX V3 revision.
+    pub fn to_crinex_v3(&self) -> Self {
         let mut s = self.clone();
-        s.rnx2crnx1_mut();
+        s.to_crinex_v3_mut();
         s
     }
-
-    /// [`Self::rnx2crnx3`] mutable implementation.
-    pub fn rnx2crnx3_mut(&mut self) {
+    /// Mutable [Self::to_crinex_v3] implementation.
+    pub fn to_crinex_v3_mut(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header.with_crinex(Crinex {
                 date: epoch::now(),
@@ -377,17 +374,15 @@ impl Rinex {
             });
         }
     }
-
-    /// Converts a CRINEX (compressed RINEX) into readable RINEX.
-    /// This has no effect if self is not an Observation RINEX.
-    pub fn crnx2rnx(&self) -> Self {
+    /// Decompresses Compressed [RINEX] to readable [RINEX].
+    /// This has no effect if [Self] is not a CRINEX.
+    pub fn to_rinex(&self) -> Self {
         let mut s = self.clone();
-        s.crnx2rnx_mut();
+        s.to_rinex_mut();
         s
     }
-
-    /// [Rinex::crnx2rnx] mutable implementation
-    pub fn crnx2rnx_mut(&mut self) {
+    /// Mutable [Self::to_rinex] implementation
+    pub fn to_rinex_mut(&mut self) {
         if self.is_observation_rinex() {
             let params = self.header.obs.as_ref().unwrap();
             self.header = self
@@ -402,21 +397,29 @@ impl Rinex {
                 });
         }
     }
-    /// Returns a filename that would describe Self according to standard naming conventions.
-    /// For this information to be 100% complete, Self must come from a file
-    /// that follows these conventions itself.
-    /// Otherwise you must provide [ProductionAttributes] yourself with "custom".
-    /// In any case, this method is infaillible. You will just lack more or
-    /// less information, depending on current context.
-    /// If you're working with Observation, Navigation or Meteo data,
-    /// and prefered shorter filenames (V2 like format): force short to "true".
-    /// Otherwse, we will prefer modern V3 like formats.
-    /// Use "suffix" to append a custom suffix like ".gz" for example.
-    /// NB this will only output uppercase filenames (as per standard specs).
+    /// Returns a filename that would describe [Self] according to standard naming conventions.
+    /// For this to truly succeed, [Self] must come from a file that followed
+    /// standard naming conventions itself. Otherwise, we have no means to fulfill
+    /// some of the data fields, like the country code. This is only
+    /// true when working with lengthy (short=false) filenames.
+    /// We're always able to determine a filename when working with `short` filenames
+    /// (ie., old formats).
+    /// ## Inputs
+    ///    - short: prefer V2 (old) formats. We always prefer V3 because
+    ///    they're more accurate, but also more demanding.
+    ///    - suffix: Define a filename suffix at the same time,
+    ///    for example ".gz" when targetting a compressed file.
+    ///    - custom: provide [ProductionAttributes] yourself and take
+    ///    advantage to redefine some of the fields. This is a smart function,
+    ///    only what you provide gets replaced, the rest is auto determined.
+    /// ## Output
+    ///    - string: Uppercase filenames only (as per standard definitions)
+    /// 
     /// ```
     /// use rinex::prelude::*;
     /// // Parse a File that follows standard naming conventions
     /// // and verify we generate something correct
+    /// let rinex = RINEX::from_file("../test_resources/OBS/V3")
     /// ```
     pub fn standard_filename(
         &self,
@@ -611,8 +614,8 @@ impl Rinex {
                             }
                         },
                     };
-                    // FFU sampling rate
-                    let ffu = match self.dominant_sample_rate() {
+                    // FFU sampling period
+                    let ffu = match self.dominant_sampling_period() {
                         Some(duration) => FFU::from(duration).to_string(),
                         None => {
                             if let Some(ref custom) = custom {
@@ -684,11 +687,11 @@ impl Rinex {
         }
         filename
     }
-
-    /// Guesses File [ProductionAttributes] from the actual Record content.
-    /// This is particularly useful when working with datasets we are confident about,
-    /// yet that do not follow standard naming conventions.
-    /// Here is an example of such use case:
+    /// Smart [ProductionAttributes] guesser. Studies internal content
+    /// to determine [ProductionAttribues]. This is particularly useful in
+    /// file production contexts, mostly when working from sources that did not
+    /// follow standard naming conventions.
+    /// 
     /// ```
     /// use rinex::prelude::*;
     ///
@@ -806,16 +809,16 @@ impl Rinex {
     /// Header section must respect labelization standards,
     /// some are mandatory.   
     /// Parses record (file body) for supported `RINEX` types.
-    pub fn from_file(fullpath: &str) -> Result<Rinex, Error> {
+    pub fn from_file(fullpath: &str) -> Result<RINEX, Error> {
         Self::from_path(Path::new(fullpath))
     }
-
-    /// See [Self::from_file]
-    pub fn from_path(path: &Path) -> Result<Rinex, Error> {
-        let fullpath = path.to_string_lossy().to_string();
+    /// Parse [RINEX] from [Path]. 
+    /// See [Self::from_file] for more information.
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<RINEX, Error> {
+        //let fullpath = path.to_string_lossy().to_string();
 
         // create buffered reader
-        let mut reader = BufferedReader::new(&fullpath)?;
+        let mut reader = BufferedReader::new(&path)?;
 
         // Parse header fields
         let mut header = Header::new(&mut reader)?;
@@ -846,65 +849,63 @@ impl Rinex {
         })
     }
 
-    /// Returns true if this is an ATX RINEX
+    /// Returns true if this [RINEX] is an ANTEX (Special Antenna) RINEX.
     pub fn is_antex(&self) -> bool {
         self.header.rinex_type == types::Type::AntennaData
     }
-
-    /// Returns true if this is a CLOCK RINEX
+    /// Returns true if this [RINEX] is a (special) Clock RINEX
     pub fn is_clock_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::ClockData
     }
-
-    /// Returns true if Self is a IONEX
+    /// Returns true if this [RINEX] is a (special Ionosphere) IONEX
     pub fn is_ionex(&self) -> bool {
         self.header.rinex_type == types::Type::IonosphereMaps
     }
-
-    /// Returns true if Self is a 3D IONEX.  
-    /// In this case, you can have TEC values at different altitudes, for a given Epoch.
-    pub fn is_ionex_3d(&self) -> bool {
+    /// Returns true if this [RINEX] is a 3D IONEX.
+    /// 3D IONEX give TEC values in 3D volume and time.
+    pub fn is_3d_ionex(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
             ionex.map_dimension == 3
         } else {
             false
         }
     }
-
-    /// Returns true if Self is a 2D IONEX.
-    /// In this case, all TEC values are presented at the same altitude points.
-    pub fn is_ionex_2d(&self) -> bool {
+    /// Returns true if this [RINEX] is a 2D IONEX.
+    /// 2D IONEX (most common) give TEC values in isosurfaces and time.
+    /// Altitude is presumed fixed and specified in [Header].
+    pub fn is_2d_ionex(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
             ionex.map_dimension == 2
         } else {
             false
         }
     }
-
-    /// Returns true if this is a METEO RINEX
+    /// Returns true if this [RINEX] is a Meteo [RINEX], intended
+    /// for accurate local meteorological phenomena and accurate Troposphere
+    /// modeling.
     pub fn is_meteo_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::MeteoData
     }
-
-    /// Retruns true if this is a NAV RINEX
+    /// Retruns true if this [RINEX] is a Navigation [RINEX] resulting
+    /// from radio message decoding.
     pub fn is_navigation_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::NavigationData
     }
-
-    /// Retruns true if this is an OBS RINEX
+    /// Retruns true if this [RINEX] describes SV signal sampling
     pub fn is_observation_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::ObservationData
     }
 
-    /// Generates a new RINEX = Self(=RINEX(A)) - RHS(=RINEX(B)).
-    /// Therefore RHS is considered reference.
-    /// This operation is typically used to compare two GNSS receivers
-    /// by substracting two Observation RINEX generated on both ends,
-    /// especially when considering the signal phase.
-    /// Both RINEX formats must match otherwise this will panic.
-    /// This is currently only applies to Observation RINEX files and will panic otherwise.
+    /// Generates a new [RINEX] defined as = Self(=A) - RHS(=B).
+    /// That means RHS (B) is considered reference.
+    /// This is typically used in GNSS receiver analysis & studies,
+    /// especially in Phase tracking and local clock studies.
+    /// NB: 
+    ///     - This will panic if [RINEX] is not ObservationRinex: this is
+    ///     the only format it currently supports.
+    ///     - This will panic if both files are not ObservationRinex.
     pub fn substract(&self, rhs: &Self) -> Self {
-        let mut record = observation::Record::default();
+        let mut record = Record::default();
         let lhs_rec = self
             .record
             .as_obs()
@@ -927,18 +928,26 @@ impl Rinex {
                 );
             }
         }
-        Rinex::new(self.header.clone(), record::Record::ObsRecord(record))
+        RINEX::new(self.header.clone(), record::Record::ObsRecord(record))
     }
 
     /// Returns true if Differential Code Biases (DCBs)
-    /// are compensated for, in this file, for this GNSS constellation.
-    /// DCBs are biases due to tiny frequency differences,
-    /// in both the SV embedded code generator, and receiver PLL.
-    /// If this is true, that means all code signals received in from
-    /// all SV within that constellation, have intrinsinc DCB compensation.
-    /// In very high precision and specific applications, you then do not have
-    /// to deal with their compensation yourself.
-    pub fn dcb_compensation(&self, constellation: Constellation) -> bool {
+    /// are compensated for in this [RINEX] for said [Constellation].
+    /// 
+    /// DCB is induced by frequency difference between the [SV] encoder
+    /// and the RX PLL local clock. When this is true, it means
+    /// all [Observable::PseudoRange] and intrinsic DCB compensation,
+    /// which is mandatory to high precision [Observable::PseudoRange] consideration.
+    /// When this is false and you intended high precision processing, you will have
+    /// to compensate it yourself.
+    /// Although you may request this to any [RINEX], this only truly applies to [ObservationData]
+    /// 
+    /// ```
+    /// let rinex = RINEX::from_file("../test_resources")
+    ///     .unwrap();
+    /// assert_eq!(rinex.dcb_compensated(), false)
+    /// ```
+    pub fn dcb_compensated(&self, constellation: Constellation) -> bool {
         self.header
             .dcb_compensations
             .iter()
@@ -946,9 +955,17 @@ impl Rinex {
             .count()
             > 0
     }
-    /// Returns true if Antenna Phase Center variations are compensated
-    /// for in this file. Useful for high precision application.
-    pub fn pcv_compensation(&self, constellation: Constellation) -> bool {
+    /// Returns true if Antenna Phase Center Variations (PCV) are compensated
+    /// for in this [RINEX]. This is useful in high precision context when
+    /// [Observable::Phase] navigation is intended. If this is false,
+    /// you will have to deal with it yourself.
+    /// ```
+    /// let rinex = RINEX::from_file("../test_resources")
+    ///     .unwrap();
+    /// 
+    /// assert_eq!(rinex.pcv_compensated(), false)
+    /// ```
+    pub fn pcv_compensated(&self, constellation: Constellation) -> bool {
         self.header
             .pcv_compensations
             .iter()
@@ -956,10 +973,24 @@ impl Rinex {
             .count()
             > 0
     }
-    /// Returns `true` if self is a `merged` RINEX file,   
-    /// meaning, this file is the combination of two RINEX files merged together.  
-    /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
-    pub fn is_merged(&self) -> bool {
+
+    /// Returns true if this [RINEX] results from merging of two (or more) RINEX files. 
+    /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comment.
+    /// This is always true if [Self] was merged by this library.
+    /// ```
+    /// // example: this RINEX is original entity
+    /// let rinex = RINEX::from_file("../test_resources/")
+    ///     .unwrap();
+    /// // example: merge & verify
+    /// let b = RINEX::from_file("../test_resources/")
+    ///     .unwrap();
+    /// 
+    /// let new = rinex.merge(&b)
+    ///     .unwrap();
+    /// 
+    /// assert!(new.is_merged_rinex());
+    /// ```
+    pub fn is_merged_rinex(&self) -> bool {
         let special_comment = String::from("FILE MERGE");
         for comment in self.header.comments.iter() {
             if comment.contains(&special_comment) {
@@ -990,58 +1021,76 @@ impl Rinex {
     }
 }
 
-/*
- * Sampling related methods
- */
-impl Rinex {
-    /// Returns first [`Epoch`] encountered in time
+/* Sampling & related methods */
+impl RINEX {
+    /// Returns first [Epoch] encountered in time
     pub fn first_epoch(&self) -> Option<Epoch> {
         self.epoch().next()
     }
-
-    /// Returns last [`Epoch`] encountered in time
+    /// Returns last [Epoch] encountered in time
     pub fn last_epoch(&self) -> Option<Epoch> {
         self.epoch().last()
     }
-
-    /// Returns Duration of (time spanned by) this RINEX
+    /// Returns time span of this [RINEX] expressed as [Duration]
     pub fn duration(&self) -> Option<Duration> {
         let start = self.first_epoch()?;
         let end = self.last_epoch()?;
         Some(end - start)
     }
-
-    /// Form a [`Timeseries`] iterator spanning [Self::duration]
-    /// with [Self::dominant_sample_rate] spacing
+    /// Forms a [TimeSeries] Iterator spanning [Self::duration]
+    /// with [Self::dominant_sampling_period] spacing.
     pub fn timeseries(&self) -> Option<TimeSeries> {
         let start = self.first_epoch()?;
         let end = self.last_epoch()?;
-        let dt = self.dominant_sample_rate()?;
+        let dt = self.dominant_sampling_period()?;
         Some(TimeSeries::inclusive(start, end, dt))
     }
-
-    /// Returns sample rate used by the data receiver.
-    pub fn sample_rate(&self) -> Option<Duration> {
+    /// Returns Sample period used by the data receiver.
+    /// ## Output
+    ///   - sampling period [Duration]
+    pub fn sampling_period(&self) -> Option<Duration> {
         self.header.sampling_interval
     }
-
-    /// Returns dominant sample rate
+    /// Returns Sample Rate used by the data receiver.
+    /// ## Output
+    ///    - sample rate [Hz]
+    pub fn sampling_rate(&self) -> Option<f64> {
+        let period_s = self.sampling_period()?.to_seconds();
+        Some(1.0 / period_s)
+    }
+    /// Histogram like analysis to determine dominant [Self::sampling_rate].
+    /// [Self::sampling_rate] is the steady definition defined by [Header]
+    /// and it may sometimes vary. This Histogram analysis will return
+    /// the true Sample Rate, which is equal to the [Header] specs in correct setups.
+    /// ## Output
+    ///     - Dominant sampling period expressed as [Duration]
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
     /// assert_eq!(
-    ///     rnx.dominant_sample_rate(),
+    ///     rnx.dominant_sample_period(),
     ///     Some(Duration::from_seconds(60.0)));
     /// ```
-    pub fn dominant_sample_rate(&self) -> Option<Duration> {
-        self.sampling_histogram()
+    pub fn dominant_sampling_period(&self) -> Option<Duration> {
+        self.sampling_period_histogram()
+            .iter()
             .max_by(|(_, pop_i), (_, pop_j)| pop_i.cmp(pop_j))
             .map(|dominant| dominant.0)
     }
-    /// Histogram analysis on Epoch interval. Although
-    /// it is feasible on all types indexed by [Epoch],
-    /// this operation only makes truly sense on Observation Data.
+    /// See [Self::dominant_sampling_period]
+    /// ## Output
+    ///    - Dominant sampling rate [Hz]
+    pub fn dominant_sampling_rate(&self) -> Option<f64> {
+        let period_s = self.dominant_sampling_period()?.to_seconds();
+        Some(1.0 / period_s)
+    }
+    /// Histogram analysis on [Epoch] interval (=sampling period). 
+    /// This is particularly useful to study the quality of your sampling.
+    /// Although this applies (and will not panic) on all [RINEX] types,
+    /// it is truly inteded for Observation [RINEX].
+    /// ## Output
+    ///     - [Duration] [Histogram]
     /// ```
     /// use rinex::prelude::*;
     /// use itertools::Itertools;
@@ -1055,7 +1104,7 @@ impl Rinex {
     ///     "sampling_histogram failed"
     /// );
     /// ```
-    pub fn sampling_histogram(&self) -> Box<dyn Iterator<Item = (Duration, usize)> + '_> {
+    pub fn sampling_period_histogram(&self) -> Histogram<Duration> {
         // compute dt = |e_k+1 - e_k| : instantaneous epoch delta
         //              then compute an histogram on these intervals
         Box::new(
@@ -1080,12 +1129,18 @@ impl Rinex {
                 .into_iter(),
         )
     }
-    /// Returns True if Self has a steady sampling, ie., all epoch interval
-    /// are evenly spaced
-    pub fn steady_sampling(&self) -> bool {
-        self.sampling_histogram().count() == 1
+    pub fn sampling_rate_histogram(&self) -> Histogram<f64> {
+        self.sampling_period_histogram()
+            .iter()
+            .map(|h| h.value = 1.0 / h.value.to_seconds())
+            .collect()
     }
-    /// Returns an iterator over unexpected data gaps,
+    /// Returns True if this [RINEX] has steady sampling.
+    /// When this is true, all [Epoch]s are evenly spaced in time.
+    pub fn has_steady_sampling(&self) -> bool {
+        self.sampling_period_histogram().iter().count() == 1
+    }
+    /// Returns an iterator over unexpected Time gaps,
     /// in the form ([`Epoch`], [`Duration`]), where
     /// epoch is the starting datetime, and its related duration.
     /// ```
@@ -1126,39 +1181,40 @@ impl Rinex {
     pub fn data_gaps(
         &self,
         tolerance: Option<Duration>,
-    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_> {
-        let sample_rate: Duration = match tolerance {
-            Some(dt) => dt, // user defined
-            None => {
-                match self.dominant_sample_rate() {
-                    Some(dt) => dt,
-                    None => {
-                        match self.sample_rate() {
-                            Some(dt) => dt,
-                            None => {
-                                // not enough information
-                                // this is probably not an Epoch iterated RINEX
-                                return Box::new(Vec::<(Epoch, Duration)>::new().into_iter());
-                            },
-                        }
-                    },
-                }
-            },
-        };
-        Box::new(
-            self.epoch()
-                .zip(self.epoch().skip(1))
-                .filter_map(move |(ek, ekp1)| {
-                    let dt = ekp1 - ek; // gap
-                    if dt > sample_rate {
-                        // too large
-                        Some((ek, dt)) // retain starting datetime and gap duration
-                    } else {
-                        None
-                    }
-                }),
-        )
-    }
+    ) -> Iterator<Item = DataGap> {
+        Default::default()
+    //     let sample_rate: Duration = match tolerance {
+    //         Some(dt) => dt, // user defined
+    //         None => {
+    //             match self.dominant_sample_rate() {
+    //                 Some(dt) => dt,
+    //                 None => {
+    //                     match self.sample_rate() {
+    //                         Some(dt) => dt,
+    //                         None => {
+    //                             // not enough information
+    //                             // this is probably not an Epoch iterated RINEX
+    //                             return Box::new(Vec::<(Epoch, Duration)>::new().into_iter());
+    //                         },
+    //                     }
+    //                 },
+    //             }
+    //         },
+    //     };
+    //     Box::new(
+    //         self.epoch()
+    //             .zip(self.epoch().skip(1))
+    //             .filter_map(move |(ek, ekp1)| {
+    //                 let dt = ekp1 - ek; // gap
+    //                 if dt > sample_rate {
+    //                     // too large
+    //                     Some((ek, dt)) // retain starting datetime and gap duration
+    //                 } else {
+    //                     None
+    //                 }
+    //             }),
+    //     )
+    // }
 }
 
 /*
@@ -3333,8 +3389,16 @@ impl Rinex {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{fmt_comment, is_rinex_comment};
-    use std::str::FromStr;
+    use crate::is_rinex_comment;
+    #[test]
+    fn test_is_rinex_comment() {
+        for (desc, is_valid) in [
+            ("NOT A VALID COMMENT   COMMENT", false),
+            ("Converto v3.5.6     IGN                 20211222 000702 UTC COMMENT", true),
+        ] {
+            assert_eq!(is_rinex_comment(desc), is_valid);
+        }
+    }
     #[test]
     fn fmt_comments_singleline() {
         for desc in [
