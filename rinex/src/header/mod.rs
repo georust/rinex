@@ -8,7 +8,9 @@ use crate::{
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
-    ionex,
+    ionex::{
+        ReferenceSystem as IonexReferenceSystem,
+    },
     leap::{Error as LeapParsingError, Leap},
     linspace::{Error as LinspaceError, Linspace},
     marker::{GeodeticMarker, MarkerType},
@@ -70,6 +72,40 @@ pub struct PcvCompensation {
     pub constellation: Constellation,
     /// URL: source of corrections
     pub url: String,
+}
+
+/// Used when parsing a RINEX file.
+/// RINEX files should always start with this token
+pub struct VersionTypeConstellToken {
+    /// File Revision
+    pub version: Version,
+    /// File Format
+    pub rinex: RinexType,
+    /// Constellation (set to [Constellation::Mixed]
+    /// when several can be found. May not apply to 
+    /// some formats like [RinexType::Meteo]
+    pub constellation: Option<Constellation>,
+}   
+
+/// Token when parsing Header sections
+pub enum Token<'a> {
+    /// Comments are encountered in the Header section
+    /// and stored in [Header] "as is"
+    Comment('a str),
+    /// File Version definition
+    VersionTypeConstell(),
+    /// ANTEX calibration method specs
+    AntexMethodByDate(AntexMethodByDate),
+    /// ANTEX specific Number of frequencies
+    AntexNumberFrequencies(u32),
+    /// ANTEX specific Phase Center Variation
+    AntexPcvType(AntexPcvType),
+    /// Antenna specifications, usually found in
+    /// ANTEX, NAV and OBS formats
+    Antenna(Antenna),
+    /// Special Marker specifying that file body is starting.
+    /// Shared by all RINEX revisions and formats
+    EndOfHeader,
 }
 
 /// Describes `RINEX` file header
@@ -395,7 +431,7 @@ impl Header {
                 )))?;
 
                 rinex_type = Type::from_str(type_str.trim())?;
-                let ref_system = ionex::RefSystem::from_str(system_str.trim())?;
+                let ref_system = IonexReferenceSystem::from_str(system_str.trim())?;
                 ionex = ionex.with_reference_system(ref_system);
 
             ///////////////////////////////////////

@@ -18,9 +18,14 @@ mod snr;
 mod formater;
 mod parser; // parse_* helpers // fmt_* helpers
 
-mod merge; // [Record] merge ops
-mod processing;
-mod split; // [Record] split ops // [Processing] specific ops
+#[cfg(feature = "qc")]
+mod merge; // Merge impl
+
+#[cfg(feature = "qc")]
+mod split; // Split impl
+
+#[cfg(feature = "processing")]
+mod processing; // Processing
 
 pub mod flag;
 pub mod header;

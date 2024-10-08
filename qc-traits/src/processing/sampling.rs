@@ -39,9 +39,9 @@ pub trait Sampling {
             .collect()
     }
     /// [DataGap]s analysis: returns all [DataGap] that were determined.
-    fn data_gaps(&self) -> impl Iterator<Item = DataGap>;
+    fn data_gaps(&self) -> Box<dyn Iterator<Item = DataGap> + '_>;
     /// Returns [Duration] of longest [DataGap].
-    /// Returns Null if no [DataGap]s were found.
+    /// Returns [Duration::ZERO] if no [DataGap]s were found.
     fn longest_gap(&self) -> Duration {
         let gaps = self.data_gaps().collect::<Vec<_>>();
         if gaps.len() == 0 {
@@ -52,7 +52,7 @@ pub trait Sampling {
         }
     }
     /// Returns [Duration] of shortest [DataGap].
-    /// Returns Null if no [DataGap]s were found.
+    /// Returns [Duration::ZERO] if no [DataGap]s were found.
     fn shortest_gap(&self) -> Duration {
         let gaps = self.data_gaps().collect::<Vec<_>>();
 

@@ -1,5 +1,4 @@
 use crate::{
-    merge::{Error, Merge},
     observation::Record,
 };
 
