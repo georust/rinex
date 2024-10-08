@@ -117,14 +117,13 @@ impl Default for Decompressor {
 
 impl Decompressor {
     /// Creates a new decompression structure
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Error> {
         Self {
             first_epoch: true,
             state: State::default(),
             epoch_diff: TextDiff::new(),
             epoch_descriptor: String::with_capacity(128),
-            clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)
-                .expect("failed to prepare compression object"),
+            clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
             nb_sv: 0,
             sv_ptr: 0,
             sv_diff: HashMap::new(), // init. later

@@ -8,9 +8,7 @@ use crate::{
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
-    ionex::{
-        ReferenceSystem as IonexReferenceSystem,
-    },
+    ionex::ReferenceSystem as IonexReferenceSystem,
     leap::{Error as LeapParsingError, Leap},
     linspace::{Error as LinspaceError, Linspace},
     marker::{GeodeticMarker, MarkerType},
@@ -82,30 +80,9 @@ pub struct VersionTypeConstellToken {
     /// File Format
     pub rinex: RinexType,
     /// Constellation (set to [Constellation::Mixed]
-    /// when several can be found. May not apply to 
+    /// when several can be found. May not apply to
     /// some formats like [RinexType::Meteo]
     pub constellation: Option<Constellation>,
-}   
-
-/// Token when parsing Header sections
-pub enum Token<'a> {
-    /// Comments are encountered in the Header section
-    /// and stored in [Header] "as is"
-    Comment('a str),
-    /// File Version definition
-    VersionTypeConstell(),
-    /// ANTEX calibration method specs
-    AntexMethodByDate(AntexMethodByDate),
-    /// ANTEX specific Number of frequencies
-    AntexNumberFrequencies(u32),
-    /// ANTEX specific Phase Center Variation
-    AntexPcvType(AntexPcvType),
-    /// Antenna specifications, usually found in
-    /// ANTEX, NAV and OBS formats
-    Antenna(Antenna),
-    /// Special Marker specifying that file body is starting.
-    /// Shared by all RINEX revisions and formats
-    EndOfHeader,
 }
 
 /// Describes `RINEX` file header

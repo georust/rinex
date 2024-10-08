@@ -1,6 +1,4 @@
-use crate::{
-    observation::Record,
-};
+use crate::observation::Record;
 
 /// [Record] Merge ops
 impl Merge for Record {
