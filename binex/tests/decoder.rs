@@ -1,4 +1,4 @@
-use binex::prelude::{Error, Parser};
+use binex::prelude::{Decoder, Error};
 
 struct Reader {
     ptr: usize,
@@ -25,14 +25,15 @@ impl Reader {
 
 impl std::io::Read for Reader {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        let size = buf.capacity();
-        let tocopy = self.buf.len() - self.ptr;
-        if target_capacity < tocopy {
-            buf[..capacity].copy_from_slice(&self.buf);
-            Ok(capacity)
-        } else {
-            Ok(self.buf.len() - self.ptr)
-        }
+        //let size = buf.capacity();
+        //let tocopy = self.buf.len() - self.ptr;
+        //if target_capacity < tocopy {
+        //    buf[..capacity].copy_from_slice(&self.buf);
+        //    Ok(capacity)
+        //} else {
+        //    Ok(self.buf.len() - self.ptr)
+        //}
+        Ok(0)
     }
 }
 
@@ -40,7 +41,7 @@ impl std::io::Read for Reader {
 fn parser_not_enough_bytes() {
     let buf = [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5];
     let mut reader = Reader::new(&buf);
-    let mut parser = Parser::new(reader);
+    let mut parser = Decoder::new(reader);
 
     match parser.next() {
         Some(Err(e)) => match e {
@@ -69,7 +70,7 @@ fn parser_missing_sync() {
         0, 1, 2, 3, 4, 5,
     ];
     let mut reader = Reader::new(&buf);
-    let mut parser = Parser::new(reader);
+    let mut parser = Decoder::new(reader);
 
     match parser.next() {
         Some(Ok(msg)) => {},

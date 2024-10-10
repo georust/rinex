@@ -9,7 +9,6 @@ repository = "https://github.com/georust/rinex"
 keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "science::geo", "parsing"]
 edition = "2021"
-readme = "README.md"
 rust-version = "1.64"
 
 [features]

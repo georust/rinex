@@ -13,8 +13,8 @@ pub enum State {
     SOF = 1,
 }
 
-/// [BINEX] Stream Parser
-pub struct Parser<R: Read> {
+/// [BINEX] Stream Decoder
+pub struct Decoder<R: Read> {
     pub(crate) state: State,
     reader: R,
     ptr: usize,
@@ -22,7 +22,7 @@ pub struct Parser<R: Read> {
     buffer: Vec<u8>,
 }
 
-impl<R: Read> Parser<R> {
+impl<R: Read> Decoder<R> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
@@ -34,17 +34,15 @@ impl<R: Read> Parser<R> {
     }
 }
 
-impl<R: Read> Iterator for Parser<R> {
+impl<R: Read> Iterator for Decoder<R> {
     type Item = Result<Message, Error>;
     /// Parse next message in stream
     fn next(&mut self) -> Option<Self::Item> {
         // read some bytes
         match self.reader.read(&mut self.buffer) {
             Ok(size) => {
-                if size < self.next_read {
-                    // not enough bytes compared to what we currently need
-                    // reiterate, preserve desired size
-                    return Some(Err(Error::NotEnoughBytes));
+                if size == 0 {
+                    return None; // End of Stream
                 }
             },
             Err(e) => {
@@ -58,23 +56,37 @@ impl<R: Read> Iterator for Parser<R> {
         let avail = size - current;
         let mut next_state = self.state;
 
+        if avail < self.next_read {
+            // not enough data compared to what we'd like
+            // Re-iterate, maintain required data & current state
+            return Some(Err(Error::NotEnoughBytes));
+        }
+
         match self.state {
             State::Synchronizing => {
                 // obtain SYNC byte from I/O interface
-                if avail < 1 {
-                    // not enough data
-                    return None;
-                }
-
                 for i in current..size {
-                    if self.buffer[i] == Constants::BNXSYNC2 {
-                        debug!("sync byte found");
-                        next_state = State::SOF;
-                        // ahead: prepare to read more data if need be
-                        if size < 4 {
-                            self.next_read = 4;
-                        }
-                        break;
+                    match self.buffer[i] {
+                        Constants::FWDSYNC_BE_STANDARD_CRC => {
+                            debug!("forward big endian stream");
+                            next_state = State::SOF;
+
+                            // request more data if need be
+                            if size < 4 {
+                                self.next_read = 4;
+                            }
+                        },
+                        Constants::FWDSYNC_LE_STANDARD_CRC
+                        | Constants::FWDSYNC_LE_ENHANCED_CRC
+                        | Constants::REVSYNC_LE_ENHANCED_CRC
+                        | Constants::REVSYNC_BE_ENHANCED_CRC
+                        | Constants::FWDSYNC_BE_ENHANCED_CRC
+                        | Constants::FWDSYNC_LE_ENHANCED_CRC => {
+                            // Little Endian + Enhanced CRC + Reversed
+                            // not supported yet
+                            error!("non supported format");
+                        },
+                        _ => {}, // invalid
                     }
                 }
             },

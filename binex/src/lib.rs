@@ -2,17 +2,17 @@
 use std::io::Read;
 use thiserror::Error;
 
-mod parser;
-
-mod frameid;
-use frameid::FrameID;
-
 mod checksum;
+mod decoder;
+mod frameid;
+mod utils;
 
 pub(crate) mod constants;
 
+use frameid::FrameID;
+
 pub mod prelude {
-    pub use crate::{parser::Parser, Error, Message};
+    pub use crate::{decoder::Decoder, Error, Message};
 }
 
 pub struct Message {
@@ -39,6 +39,8 @@ impl Message {
 pub enum Error {
     #[error("not enough bytes available")]
     NotEnoughBytes,
+    #[error("format not supported: library limitation")]
+    NonSupportedFormat,
     #[error("non supported message")]
     UnknownFrame,
     #[error("i/o error")]
