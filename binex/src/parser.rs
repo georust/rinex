@@ -29,7 +29,7 @@ impl<R: Read> Parser<R> {
             ptr: 0,
             next_read: 128,
             state: State::default(),
-            buffer: Vec::with_capacity(128),
+            buffer: [0; 128].to_vec(),
         }
     }
 }

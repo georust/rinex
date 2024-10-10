@@ -7,6 +7,8 @@ mod parser;
 mod frameid;
 use frameid::FrameID;
 
+mod checksum;
+
 pub(crate) mod constants;
 
 pub mod prelude {
@@ -16,6 +18,21 @@ pub mod prelude {
 pub struct Message {
     /// Frame ID
     pub(crate) fid: FrameID,
+}
+
+impl Message {
+    /// Message length in Bytes
+    pub fn len(&self) -> usize {
+        0
+    }
+    /// Converts self to Byte array
+    pub fn to_bytes(&self) -> &[u8] {
+        &[0, 1, 2]
+    }
+    /// Calcualtes CRC for Self
+    pub fn crc(&self) -> u32 {
+        0
+    }
 }
 
 #[derive(Error, Debug)]
