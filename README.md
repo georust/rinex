@@ -20,11 +20,10 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 ## Advantages :rocket: 
 
 - Fast
-  - Parse and render reports in a few seconds 
-  - Perform precise Geodetic surveys in a few seconds
-- Open sources
-  - Read and access all the code
-  - All examples based on Open data 
+- Render High level Geodetic survey reports
+- Resolve PPP solutions in a few seconds
+- Open sources: read and access all the code!
+- Self sustained examples and tutorials: data hosted within this repo
 - All modern GNSS constellations, codes and signals
   - Surveying with GPS, Galileo, BeiDou and QZSS
 - Time scales: GPST, QZSST, BDT, GST, UTC, TAI
@@ -34,21 +33,18 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 - High Precision Clock RINEX products (for PPP)
 - High Precision Orbital [SP3 for PPP](https://docs.rs/sp3/1.0.7/sp3/)
 - DORIS (special RINEX)
-- Several pre-processing algorithms:
-  - [File merging](https://github.com/georust/rinex/wiki/file-merging)
-  - [Time binning](https://github.com/georust/rinex/wiki/time-binning)
-  - [Filtering](https://github.com/georust/rinex/wiki/Preprocessing)
-- Several post-processing operations
-  - [File Operations](https://github.com/georust/rinex/wiki/fops)
+- Many pre-processing algorithms including Filter Designer
+- Several file operations: merging, splitting, time binning (batch)
+- Post processing:
   - [Position solver](https://github.com/georust/rinex/wiki/Positioning)
   - [CGGTTS solver](https://github.com/georust/rinex/wiki/CGGTTS)
-  - [Graphical QC](https://github.com/georust/rinex/wiki/Graph-Mode)
 
 ## Disadvantages :warning:
 
+- BINEX support is currently work in progress
 - Navigation is currently not feasible with Glonass and IRNSS
 - Differential navigation (SBAS, DGNSS or RTK) is not support yet
-- Our applications do not accept BINEX or other proprietary formats
+- Our applications do not accept proprietary formats like Septentrio for example
 - File production might lack some features, mostly because we're currently focused on data processing
 
 ## Repository 
@@ -62,6 +58,7 @@ The application is auto-generated for a few architectures, you can directly
 * [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
 to get started quickly. The examples span pretty much everything our applications allow.
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
+* [`binex`](binex/) BINEX Encoding and Decoding library
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
