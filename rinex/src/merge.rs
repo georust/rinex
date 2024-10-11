@@ -1,10 +1,10 @@
 //! RINEX File merging (combination)
 use crate::prelude::Epoch;
+use hifitime::errors::HifitimeError;
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 use std::hash::Hash;
 use thiserror::Error;
-use hifitime::errors::HifitimeError;
 
 // use hifitime::EpochError;
 

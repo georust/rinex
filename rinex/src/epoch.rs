@@ -1,12 +1,9 @@
 //! Epoch parsing helpers
 use crate::types::Type;
 use hifitime::{
-    Epoch, 
-    //EpochError as HifitimeEpochError, 
-    errors::{
-        ParsingError as HifitimeParsingError, 
-        HifitimeError,
-    },
+    //EpochError as HifitimeEpochError,
+    errors::{HifitimeError, ParsingError as HifitimeParsingError},
+    Epoch,
     TimeScale,
 };
 use std::str::FromStr;
