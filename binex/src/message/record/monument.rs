@@ -46,3 +46,26 @@ impl Record {
         Ok(0)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn bnx00_monument_error() {
+        let buf = [0, 0, 0, 0];
+        let mlen = 4;
+        let time_res = TimeResolution::QuarterSecond;
+        let monument = Record::decode(mlen, time_res, &buf);
+        assert!(monument.is_err());
+    }
+    #[test]
+    fn bnx00_monument_decoding() {
+        let buf = [0, 0, 0, 0];
+        let mlen = 4;
+        let time_res = TimeResolution::QuarterSecond;
+        let monument = Record::decode(mlen, time_res, &buf);
+        assert!(monument.is_ok());
+        let monument = monument.unwrap();
+        assert_eq!(monument.epoch, Epoch::from_gpst_seconds(10.0));
+    }
+}

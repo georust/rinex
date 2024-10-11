@@ -27,8 +27,12 @@ pub enum Error {
     NoSyncByte,
     #[error("reversed streams are not supported yet")]
     ReversedStream,
+    #[error("little endian encoded streams not supported yet")]
+    LittleEndianStream,
     #[error("enhanced crc is not supported yet")]
     EnhancedCrc,
+    #[error("non supported timescale")]
+    NonSupportedTimescale,
     #[error("U32 decoding error")]
     U32Decoding,
     #[error("unknown message")]

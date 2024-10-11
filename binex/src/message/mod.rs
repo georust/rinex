@@ -66,6 +66,7 @@ impl Message {
             sync_off = offset;
         } else if let Some(offset) = Self::locate(Constants::FWDSYNC_LE_STANDARD_CRC, buf) {
             sync_off = offset;
+            big_endian = false;
         } else if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_ENHANCED_CRC, buf) {
             big_endian = true;
             enhanced_crc = true;
@@ -100,6 +101,9 @@ impl Message {
         }
         if enhanced_crc {
             return Err(Error::EnhancedCrc);
+        }
+        if !big_endian {
+            return Err(Error::LittleEndianStream);
         }
 
         // 1* make sure we have enough bytes
@@ -231,7 +235,7 @@ impl Message {
 #[cfg(test)]
 mod test {
     use super::Message;
-    use crate::Error;
+    use crate::{constants::Constants, Error};
     #[test]
     fn big_endian_bnxi_7a() {
         let bytes = [0x7a];
@@ -303,6 +307,51 @@ mod test {
         let buf = [0, 0, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::NoSyncByte) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
+        }
+    }
+    #[test]
+    fn decode_fwd_enhancedcrc_stream() {
+        let buf = [Constants::FWDSYNC_BE_ENHANCED_CRC, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::EnhancedCrc) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
+        }
+    }
+    #[test]
+    fn decode_fwd_le_stream() {
+        let buf = [Constants::FWDSYNC_LE_STANDARD_CRC, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::LittleEndianStream) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
+        }
+    }
+    #[test]
+    fn decode_reversed_stream() {
+        let buf = [Constants::REVSYNC_BE_STANDARD_CRC, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::ReversedStream) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
+        }
+        let buf = [Constants::REVSYNC_BE_ENHANCED_CRC, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::ReversedStream) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
+        }
+        let buf = [Constants::REVSYNC_LE_STANDARD_CRC, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::ReversedStream) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
+        }
+        let buf = [Constants::REVSYNC_LE_ENHANCED_CRC, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::ReversedStream) => {},
             Err(e) => panic!("returned unexpected error: {}", e),
             _ => panic!("should have paniced"),
         }
