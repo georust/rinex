@@ -21,3 +21,4 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [dependencies]
 log = "0.4"
 thiserror = "1"
+hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
