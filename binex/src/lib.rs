@@ -5,6 +5,7 @@ use thiserror::Error;
 mod checksum;
 mod decoder;
 mod frameid;
+mod message;
 mod utils;
 
 pub(crate) mod constants;
