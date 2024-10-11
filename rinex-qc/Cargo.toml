@@ -46,8 +46,10 @@ plotly = "0.9"
 # plotly = { path = "../../plotly-rs/plotly" }
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
 
-hifitime = "4.0.0-alpha"
-gnss-rs = { version = "2.2.3", features = ["serde"] }
+hifitime = "4.0.0-beta"
+
+# gnss-rs = { version = "2.2.3", features = ["serde"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 
 rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.2.0", features = ["processing"] }

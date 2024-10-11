@@ -20,4 +20,6 @@ chrono = "0.4"
 thiserror = "1"
 strum_macros = "0.26"
 strum = { version = "0.26", features = ["derive"] }
-gnss-rs = { version = "2.2.3", features = ["serde"] }
+
+# gnss-rs = { version = "2.2.3", features = ["serde"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
