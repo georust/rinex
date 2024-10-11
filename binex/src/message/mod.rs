@@ -58,7 +58,7 @@ impl Message {
         let mut reversed = false;
         let mut enhanced_crc = false;
         let mut mid = MessageID::default();
-        let mut time_res = TimeResolution::QuarterSec;
+        let mut time_res = TimeResolution::QuarterSecond;
 
         // 1. locate SYNC byte
         if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
