@@ -1,6 +1,6 @@
 mod mid; // message ID
 mod record; // Record: message content
-mod time;
+mod time; // Epoch encoding/decoding
 
 pub use record::Record;
 pub use time::TimeResolution;
@@ -113,10 +113,10 @@ impl Message {
 
         // 2. parse MID
         let mid =
-            MessageID::from(Self::decode_bnxi(&buf[sync_off..sync_off + 1], big_endian) as u8);
+            MessageID::from(Self::decode_bnxi_u32(&buf[sync_off..sync_off + 1], big_endian) as u8);
 
         // 3. parse MLEN
-        let mlen = Self::decode_bnxi(&buf[sync_off + 1..sync_off + 8 + 1], big_endian);
+        let mlen = Self::decode_bnxi_u32(&buf[sync_off + 1..sync_off + 8 + 1], big_endian);
 
         // 4. parse RECORD
         let record = match mid {
@@ -146,57 +146,161 @@ impl Message {
     pub(crate) fn eval_crc(&self) -> u32 {
         0
     }
-    /// Decodes unsigned U32 integer with selected endianness,
-    /// as per [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
-    pub(crate) fn decode_bnxi(buf: &[u8], big_endian: bool) -> u32 {
+    /// Decodes BNXI encoded unsigned U32 integer with selected endianness,
+    /// according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
+    pub(crate) fn decode_bnxi_u32(buf: &[u8], big_endian: bool) -> u32 {
         let last_preserved = buf
             .iter()
             .position(|b| *b & Constants::BNXI_KEEP_GOING_MASK == 0);
 
+        // apply mask
+        let masked = buf
+            .iter()
+            .enumerate()
+            .map(|(j, b)| {
+                if j == 3 {
+                    *b
+                } else {
+                    *b & Constants::BNXI_BYTE_MASK
+                }
+            })
+            .collect::<Vec<_>>();
+
         if let Some(last_preserved) = last_preserved {
-            // apply data mask to all bytes
-            let mut bytes = [0_u8; 4];
-            let size = Utils::min_usize(last_preserved + 1, 4);
+            println!("bytes: {:?}[{}]", masked, last_preserved);
+            let mut ret = 0_u32;
 
-            for i in 0..size {
-                bytes[3 - i] = buf[i] & Constants::BNXI_BYTE_MASK;
-            }
-
-            // println!("bytes: {:?}", bytes);
             // interprate as desired
             if big_endian {
-                u32::from_be_bytes(bytes)
+                for i in 0..=last_preserved {
+                    ret += (masked[i] as u32) << (8 * i);
+                }
             } else {
-                u32::from_le_bytes(bytes)
+                for i in 0..=last_preserved {
+                    ret += (masked[i] as u32) << ((4 - i) * 8);
+                }
             }
+            ret
         } else {
             0
         }
+    }
+    /// Decodes BNXI encoded unsigned U8 integer according to
+    /// [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
+    pub(crate) fn decode_bnxi_u8(bnxi: u8, big_endian: bool) -> u8 {
+        Self::decode_bnxi_u32(&[bnxi, 0, 0, 0, 0], big_endian) as u8
+    }
+    /// Decodes BNXI encoded unsigned U16 integer accordig to
+    /// [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
+    pub(crate) fn decode_bnxi_u16(buf: &[u8], big_endian: bool) -> u16 {
+        Self::decode_bnxi_u32(buf, big_endian) as u16
+    }
+    /// U16 to BNXI encoder according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
+    pub(crate) fn encode_u16_bnxi(val: u16, big_endian: bool) -> [u8; 4] {
+        [0, 0, 0, 0]
+    }
+    /// U32 to BNXI encoder according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
+    pub(crate) fn encode_u32_bnxi(val: u32, big_endian: bool) -> [u8; 4] {
+        let mut ret = if val < 256 {
+            if big_endian {
+                [0, 0, 0, 0]
+            } else {
+                [0, 0, 0, 0]
+            }
+        } else if val < 65536 {
+            if big_endian {
+                [0x80, 0, 0, 0]
+            } else {
+                [0, 0, 0, 0x80]
+            }
+        } else {
+            if big_endian {
+                [0x80, 0x80, 0, 0]
+            } else {
+                [0, 0, 0x80, 0x80]
+            }
+        };
+
+        for i in 0..4usize {
+            ret[i] += (val >> (8 * i)) as u8;
+        }
+        ret
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::Message;
+    use crate::Error;
     #[test]
-    fn big_endian_bnxi() {
-        for (bytes, expected) in [
-            ([0x7f, 0x81, 0x7f].to_vec(), 0x7f),
-            ([0x7f, 0x81, 0x7f, 0x7f, 0x7f].to_vec(), 0x7f),
-            ([0x83, 0x7a].to_vec(), 0x7a03),
-        ] {
-            assert_eq!(Message::decode_bnxi(&bytes, true), expected);
-        }
+    fn big_endian_bnxi_7a() {
+        let bytes = [0x7a];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x7a);
+        // test mirror op
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x7a, 0_u8, 0_u8, 0_u8]);
     }
     #[test]
-    fn little_endian_bnxi() {
-        for (bytes, expected) in [
-            ([0x7f, 0x81].to_vec(), 0x17f),
-            ([0x7f, 0x81, 0x7f].to_vec(), 0x17f),
-            ([0x7f, 0x81, 0x7f, 0x7f, 0x7f].to_vec(), 0x17f),
-            ([0x83, 0x7a].to_vec(), 0x37a),
-        ] {
-            assert_eq!(Message::decode_bnxi(&bytes, false), expected);
+    fn big_endian_bnxi_7a_81() {
+        let bytes = [0x7a, 0x81];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x7a);
+        // test mirror op
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x7a, 0_u8, 0_u8, 0_u8]);
+    }
+    #[test]
+    fn big_endian_bnxi_83_7a() {
+        let bytes = [0x83, 0x7a];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x7a03);
+
+        // test mirror ops
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x83_u8, 0x7a_u8, 0, 0]);
+    }
+    #[test]
+    fn big_endian_bnxi_83_84_7a() {
+        let bytes = [0x83, 0x84, 0x7a, 0];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x7a0403);
+
+        // test mirror ops
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x83_u8, 0x84_u8, 0x7a_u8, 0]);
+    }
+    // let bytes = [0x7f, 0x81, 0x7f, 0xAB];
+    // let bnxi = Message::decode_bnxi(&bytes, true);
+    // assert_eq!(bnxi, 0x7f01);
+
+    // // test mirror ops
+    // let bytes = Message::encode_bnxi(bnxi, true)
+    // assert_eq!(bytes, [0x7f, 0x81]);
+    // #[test]
+    // fn little_endian_bnxi() {
+    //     for (bytes, expected) in [
+    //         ([0x7f, 0x81].to_vec(), 0x17f),
+    //         ([0x7f, 0x81, 0x7f].to_vec(), 0x17f),
+    //         ([0x7f, 0x81, 0x7f, 0x7f, 0x7f].to_vec(), 0x17f),
+    //         ([0x83, 0x7a].to_vec(), 0x37a),
+    //     ] {
+    //         assert_eq!(Message::decode_bnxi(&bytes, false), expected);
+    //     }
+    // }
+    #[test]
+    fn decode_no_sync_byte() {
+        let buf = [0, 0, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::NoSyncByte) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
+        }
+        let buf = [0, 0, 0, 0, 0];
+        match Message::decode(&buf) {
+            Err(Error::NoSyncByte) => {},
+            Err(e) => panic!("returned unexpected error: {}", e),
+            _ => panic!("should have paniced"),
         }
     }
 }

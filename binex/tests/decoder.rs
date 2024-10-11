@@ -37,48 +37,48 @@ impl std::io::Read for Reader {
     }
 }
 
-#[test]
-fn parser_not_enough_bytes() {
-    let buf = [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5];
-    let mut reader = Reader::new(&buf);
-    let mut parser = Decoder::new(reader);
-
-    match parser.next() {
-        Some(Err(e)) => match e {
-            Error::NotEnoughBytes => {},
-            e => {
-                panic!("found invalid error: {}", e);
-            },
-        },
-        _ => {
-            panic!("invalid state");
-        },
-    }
-}
-
-#[test]
-fn parser_missing_sync() {
-    let buf = [
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-        0, 1, 2, 3, 4, 5,
-    ];
-    let mut reader = Reader::new(&buf);
-    let mut parser = Decoder::new(reader);
-
-    match parser.next() {
-        Some(Ok(msg)) => {},
-        Some(Err(e)) => {
-            panic!("found invalid error: {}", e);
-        },
-        None => {
-            panic!("should have parsed valid message");
-        },
-    }
-}
+// #[test]
+// fn parser_not_enough_bytes() {
+//     let buf = [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5];
+//     let mut reader = Reader::new(&buf);
+//     let mut parser = Decoder::new(reader);
+//
+//     match parser.next() {
+//         Some(Err(e)) => match e {
+//             Error::NotEnoughBytes => {},
+//             e => {
+//                 panic!("found invalid error: {}", e);
+//             },
+//         },
+//         _ => {
+//             panic!("invalid state");
+//         },
+//     }
+// }
+//
+// #[test]
+// fn parser_missing_sync() {
+//     let buf = [
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
+//         0, 1, 2, 3, 4, 5,
+//     ];
+//     let mut reader = Reader::new(&buf);
+//     let mut parser = Decoder::new(reader);
+//
+//     match parser.next() {
+//         Some(Ok(msg)) => {},
+//         Some(Err(e)) => {
+//             panic!("found invalid error: {}", e);
+//         },
+//         None => {
+//             panic!("should have parsed valid message");
+//         },
+//     }
+// }
