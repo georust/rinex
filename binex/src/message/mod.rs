@@ -237,6 +237,7 @@ mod test {
         let bytes = [0x7a];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a);
+
         // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
         assert_eq!(bytes, [0x7a, 0_u8, 0_u8, 0_u8]);
@@ -246,6 +247,7 @@ mod test {
         let bytes = [0x7a, 0x81];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a);
+
         // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
         assert_eq!(bytes, [0x7a, 0_u8, 0_u8, 0_u8]);
@@ -256,7 +258,7 @@ mod test {
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a03);
 
-        // test mirror ops
+        // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
         assert_eq!(bytes, [0x83_u8, 0x7a_u8, 0, 0]);
     }
@@ -266,28 +268,30 @@ mod test {
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a0403);
 
-        // test mirror ops
+        // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
         assert_eq!(bytes, [0x83_u8, 0x84_u8, 0x7a_u8, 0]);
     }
-    // let bytes = [0x7f, 0x81, 0x7f, 0xAB];
-    // let bnxi = Message::decode_bnxi(&bytes, true);
-    // assert_eq!(bnxi, 0x7f01);
+    #[test]
+    fn big_endian_bnxi_7f_81_7f_ab() {
+        let bytes = [0x7f, 0x81, 0x7f, 0xAB];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x7f);
 
-    // // test mirror ops
-    // let bytes = Message::encode_bnxi(bnxi, true)
-    // assert_eq!(bytes, [0x7f, 0x81]);
-    // #[test]
-    // fn little_endian_bnxi() {
-    //     for (bytes, expected) in [
-    //         ([0x7f, 0x81].to_vec(), 0x17f),
-    //         ([0x7f, 0x81, 0x7f].to_vec(), 0x17f),
-    //         ([0x7f, 0x81, 0x7f, 0x7f, 0x7f].to_vec(), 0x17f),
-    //         ([0x83, 0x7a].to_vec(), 0x37a),
-    //     ] {
-    //         assert_eq!(Message::decode_bnxi(&bytes, false), expected);
-    //     }
-    // }
+        // test mirror
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x7f, 0x81, 0x8f, 0]);
+    }
+    #[test]
+    fn big_endian_bnxi_81_9a_7f_ab() {
+        let bytes = [0x81, 0x9a, 0x7f, 0xAB];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x7f1a01);
+
+        // test mirror
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x7f, 0x1a, 0x01, 0]);
+    }
     #[test]
     fn decode_no_sync_byte() {
         let buf = [0, 0, 0, 0, 0];
