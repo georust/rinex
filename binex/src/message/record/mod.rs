@@ -3,7 +3,8 @@
 use crate::message::MessageID;
 
 mod monument; // geodetic marker
-pub use monument::MonumentGeoRecord;
+
+pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Record {
@@ -34,6 +35,13 @@ impl Record {
     pub(crate) fn to_message_id(&self) -> MessageID {
         match self {
             Self::MonumentGeo(_) => MessageID::SiteMonumentMarker,
+        }
+    }
+
+    /// Returns internal encoding size
+    pub(crate) fn encoding_size(&self) -> usize {
+        match self {
+            Self::MonumentGeo(geo) => geo.encoding_size(),
         }
     }
 }

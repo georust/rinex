@@ -9,7 +9,7 @@ pub(crate) mod utils;
 
 pub mod prelude {
     pub use crate::decoder::Decoder;
-    pub use crate::message::Message;
+    pub use crate::message::{Message, MonumentGeoMetadata, MonumentGeoRecord};
     pub use crate::Error;
     // re-export
     pub use hifitime::Epoch;

@@ -2,12 +2,13 @@ mod mid; // message ID
 mod record; // Record: message content
 mod time; // Epoch encoding/decoding
 
-pub use record::Record;
+pub use record::{MonumentGeoMetadata, MonumentGeoRecord, Record};
+
 pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
 
-use crate::{constants::Constants, message::record::MonumentGeoRecord, utils::Utils, Error};
+use crate::{constants::Constants, utils::Utils, Error};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
@@ -45,12 +46,7 @@ impl Message {
             enhanced_crc,
         }
     }
-    /// [Message] encoding attempt into buffer.
-    /// [Self] must fit in preallocated size.
-    /// Returns total encoded size, which is equal to the message size (in bytes).
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, Error> {
-        Ok(0)
-    }
+
     /// Decoding attempt from buffered content.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
         let mut size = 0usize;
@@ -124,13 +120,22 @@ impl Message {
         // 3. parse MLEN
         let (mlen, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
 
+        if buf.len() < mlen as usize {
+            // buffered content does not match stream specs
+            return Err(Error::NotEnoughBytes);
+        }
+
         ptr += size;
 
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec =
-                    MonumentGeoRecord::decode(mlen as usize, time_res, big_endian, &buf[ptr..])?;
+                let rec = MonumentGeoRecord::decode(
+                    mlen as usize,
+                    time_res,
+                    big_endian,
+                    &buf[ptr + size..],
+                )?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Unknown => {
@@ -150,9 +155,36 @@ impl Message {
         })
     }
 
+    /// [Message] encoding attempt into buffer.
+    /// [Self] must fit in preallocated size.
+    /// Returns total encoded size, which is equal to the message size (in bytes).
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, Error> {
+        let size = self.encoding_size();
+        if buf.len() < size {
+            return Err(Error::NotEnoughBytes);
+        }
+
+        Ok(0)
+    }
+
     /// Tries to locate desired byte within buffer
     fn locate(to_find: u8, buf: &[u8]) -> Option<usize> {
         buf.iter().position(|b| *b == to_find)
+    }
+
+    /// Returns total length (bytewise) to fully encode [Self].
+    /// Use this to fullfill [Self::encode] requirements.
+    pub fn encoding_size(&self) -> usize {
+        // MID 1-4 byte encoding
+        let mid = Self::bnxi_encoding_size(self.mid.into());
+
+        // actual record length
+        let rlen = self.record.encoding_size();
+
+        // MLEN 1-4 byte encoding
+        let mlen = Self::bnxi_encoding_size(rlen as u32);
+
+        1 + mid + mlen + rlen // SYNC BYTE
     }
 
     // /// Evaluates CRC for [Self]
@@ -217,12 +249,18 @@ impl Message {
         (ret, last_preserved + 1)
     }
 
+    /// Number of bytes to encode U32 unsigned integer
+    /// following the 1-4 BNXI encoding algorithm
+    pub(crate) fn bnxi_encoding_size(val: u32) -> usize {
+        let bytes = (val as f64).log2().ceil() as usize / 8 + 1;
+        Utils::min_usize(bytes, 4)
+    }
+
     /// U32 to BNXI encoder according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details].
     /// Encodes into given buffer, returns encoding size.
     /// Will fail if buffer is too small.
     pub(crate) fn encode_bnxi(val: u32, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
-        let bytes = (val as f64).log2().ceil() as usize / 8 + 1;
-        let bytes = Utils::min_usize(bytes, 4);
+        let bytes = Self::bnxi_encoding_size(val);
         if buf.len() < bytes {
             return Err(Error::NotEnoughBytes);
         }

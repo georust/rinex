@@ -14,10 +14,14 @@ pub enum MonumentGeoFrame {
 }
 
 impl MonumentGeoFrame {
-    /// Returns encoding size for [Self]
-    pub(crate) fn size(&self) -> usize {
+    /// Returns total length (bytewise) required to fully encode [Self].
+    /// Use this to fulfill [Self::encode] requirements.
+    pub(crate) fn encoding_size(&self) -> usize {
         match self {
-            Self::Comment(s) => s.len(),
+            Self::Comment(s) => {
+                let s_len = s.len();
+                s_len + Message::bnxi_encoding_size(s_len as u32)
+            },
         }
     }
 
@@ -56,5 +60,47 @@ impl MonumentGeoFrame {
             },
             _ => Err(Error::UnknownRecordFieldId),
         }
+    }
+
+    /// Encodes [Self] into buffer, returns encoded size (total bytes).
+    /// [Self] must fit in preallocated buffer.
+    pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+        let size = self.encoding_size();
+        if buf.len() < size {
+            return Err(Error::NotEnoughBytes);
+        }
+
+        match self {
+            Self::Comment(s) => {
+                // s_len as 1-4 Byte
+                let s_len = s.len();
+                let size = Message::encode_bnxi(s_len as u32, big_endian, buf)?;
+                buf[size..size + s_len].clone_from_slice(s.as_bytes()); // utf8 encoding
+            },
+        }
+
+        Ok(size)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn comment_encoding() {
+        let comment = "hello geo".to_string();
+        let s_len = comment.len();
+        let frame = MonumentGeoFrame::Comment(comment);
+        assert_eq!(frame.encoding_size(), s_len + 1);
+
+        let big_endian = true;
+        let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let size = frame.encode(big_endian, &mut buf).unwrap();
+
+        assert_eq!(size, frame.encoding_size());
+        assert_eq!(
+            buf,
+            [9, 104, 101, 108, 108, 111, 32, 103, 101, 111, 0, 0, 0]
+        )
     }
 }

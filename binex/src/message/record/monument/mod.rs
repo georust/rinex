@@ -5,16 +5,16 @@
  **/
 use crate::{
     message::{
-        time::{decode_gpst_epoch, TimeResolution},
+        time::{decode_gpst_epoch, encode_epoch, TimeResolution},
         Message,
     },
     Error,
 };
 
-use hifitime::Epoch;
-use log::{debug, error};
+use hifitime::{Epoch, TimeScale};
 
-mod builder;
+use log::error;
+
 mod fid;
 mod frame;
 mod src;
@@ -23,7 +23,6 @@ mod src;
 use fid::FieldID;
 
 // public
-pub use builder::MonumentGeoBuilder;
 pub use frame::MonumentGeoFrame;
 pub use src::MonumentGeoMetadata;
 
@@ -47,14 +46,74 @@ impl MonumentGeoRecord {
     /// follows: FID dependent sequence. See [FieldID].
     const MIN_SIZE: usize = 5 + 1 + 1;
 
+    /// Creates new empty [MonumentGeoRecord], which is not suitable for encoding yet.
+    /// Use other method to customize it!
+    /// ```
+    /// use binex::prelude::{
+    ///     Epoch,
+    ///     Error,
+    ///     MonumentGeoRecord,
+    ///     MonumentGeoMetadata,
+    /// };
+    ///     
+    /// let t = Epoch::from_gpst_seconds(60.0 + 0.75);
+    ///
+    /// let record = MonumentGeoRecord::new(t, MonumentGeoMetadata::RNX2BIN)
+    ///     .with_comment("A B C")
+    ///     .with_comment("D E F");
+    ///
+    /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ///
+    /// match record.encode(true, &mut buf) {
+    ///     Ok(_) => {
+    ///         panic!("encoding should have failed!");
+    ///     },
+    ///     Err(Error::NotEnoughBytes) => {
+    ///         // This frame does not fit in this pre allocated buffer.
+    ///         // You should always tie your allocation to .encoding_size() !
+    ///     },
+    ///     Err(e) => {
+    ///         panic!("{} error should not have happened!", e);
+    ///     },
+    /// }
+    ///
+    /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ///
+    /// match record.encode(true, &mut buf) {
+    ///     Err(e) => panic!("{} should have passed!", e),
+    ///     Ok(size) => {
+    ///         assert_eq!(size, 20);
+    ///         assert_eq!(buf, [
+    ///             0, 0, 0, 1, 3, 1, 0, 5, 65, 32, 66, 32, 67, 0, 5, 68, 32, 69, 32, 70, 0
+    ///         ]);
+    ///     },
+    /// }
+    /// ```
+    pub fn new(epoch: Epoch, meta: MonumentGeoMetadata) -> Self {
+        Self {
+            epoch,
+            source_meta: meta,
+            frames: Vec::with_capacity(8),
+        }
+    }
+
     /// [Self] decoding attempt from buffered content.
+    /// ## Inputs
+    ///    - mlen: message length in bytes
+    ///    - time_res: [TimeResolution]
+    ///    - big_endian: endianness
+    ///    - buf: buffered content
+    /// ## Outputs
+    ///    - Ok: [Self]
+    ///    - Err: [Error]
     pub fn decode(
-        msglen: usize,
+        mlen: usize,
         time_res: TimeResolution,
         big_endian: bool,
         buf: &[u8],
     ) -> Result<Self, Error> {
-        if buf.len() < Self::MIN_SIZE {
+        if mlen < Self::MIN_SIZE {
+            // does not look good
             return Err(Error::NotEnoughBytes);
         }
 
@@ -69,7 +128,7 @@ impl MonumentGeoRecord {
         let mut frames = Vec::<MonumentGeoFrame>::with_capacity(8);
 
         // this method tolerates badly duplicated subrecords
-        while ptr < buf.len() {
+        while ptr < mlen {
             // decode field id
             let (bnxi, size) = Message::decode_bnxi(&buf[ptr..], big_endian);
             let fid = FieldID::from(bnxi);
@@ -83,10 +142,11 @@ impl MonumentGeoRecord {
                 },
                 fid => match MonumentGeoFrame::decode(fid, big_endian, &buf[ptr + size..]) {
                     Ok(fr) => {
-                        ptr += fr.size();
+                        ptr += fr.encoding_size();
                         frames.push(fr);
                     },
                     Err(e) => {
+                        error!("bnx00-monugment_geo: {}", e);
                         ptr += 1;
                         continue;
                     },
@@ -103,38 +163,71 @@ impl MonumentGeoRecord {
 
     /// Encodes [Self] into buffer, returns encoded size (total bytes).
     /// [Self] must fit in preallocated buffer.
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, Error> {
-        Ok(0)
+    pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+        let size = self.encoding_size();
+        if buf.len() < size {
+            return Err(Error::NotEnoughBytes);
+        }
+
+        // encode tstamp
+        let mut size = encode_epoch(self.epoch.to_time_scale(TimeScale::GPST), big_endian, buf)?;
+
+        // encode source meta
+        buf[size] = self.source_meta.into();
+        size += 2;
+
+        // encode subrecords
+        for fr in self.frames.iter() {
+            let offs = fr.encode(big_endian, &mut buf[size..])?;
+            size += offs + 1;
+        }
+
+        Ok(self.encoding_size())
+    }
+
+    /// Returns total length (bytewise) required to fully encode [Self].
+    /// Use this to fulfill [Self::encode] requirements.
+    pub(crate) fn encoding_size(&self) -> usize {
+        let mut size = 6; // tstamp + source_meta
+        for fr in self.frames.iter() {
+            size += 1 + fr.encoding_size(); // FID + actual content
+        }
+        size
+    }
+
+    /// Build new [MonumentGeoRecord] with desired Comment
+    pub fn with_comment(&self, comment: &str) -> Self {
+        let mut s = self.clone();
+        s.frames
+            .push(MonumentGeoFrame::Comment(comment.to_string()));
+        s
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
     #[test]
     fn monument_marker_bnx00_error() {
         let buf = [0, 0, 0, 0];
-        let mlen = 4;
         let time_res = TimeResolution::QuarterSecond;
-        let monument = MonumentGeoRecord::decode(mlen, time_res, true, &buf);
+        let monument = MonumentGeoRecord::decode(4, time_res, true, &buf);
         assert!(monument.is_err());
     }
+
     #[test]
     fn monument_geo_comments_decoding() {
-        let mlen = 5;
+        let mlen = 9;
         let big_endian = true;
         let time_res = TimeResolution::QuarterSecond;
 
-        let mut buf = [0];
-        let s_len = "Hello GEO".len() as u32;
-        Message::encode_bnxi(s_len, big_endian, &mut buf).unwrap();
-
         let buf = [
-            0, 0, 1, 1, 1, 2, 0, buf[0], 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8,
+            0, 0, 1, 1, 1, 2, 0, 9, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8,
             ' ' as u8, 'G' as u8, 'E' as u8, 'O' as u8,
         ];
 
-        match MonumentGeoRecord::decode(mlen, time_res, true, &buf) {
+        match MonumentGeoRecord::decode(mlen, time_res, big_endian, &buf) {
             Ok(monument) => {
                 assert_eq!(
                     monument.epoch,
@@ -146,8 +239,63 @@ mod test {
                     monument.frames[0],
                     MonumentGeoFrame::Comment("Hello GEO".to_string())
                 );
+
+                // test mirror op
+                let mut target = [0, 0, 0, 0, 0, 0, 0, 0];
+                match monument.encode(big_endian, &mut target) {
+                    Err(Error::NotEnoughBytes) => {},
+                    Err(e) => panic!("invalid error: {}", e),
+                    Ok(_) => panic!("should have panic'ed"),
+                }
+
+                // test mirror op
+                let mut target = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                match monument.encode(big_endian, &mut target) {
+                    Err(e) => panic!("{} should have passed", e),
+                    Ok(_) => {
+                        assert_eq!(
+                            target,
+                            [
+                                0, 0, 1, 1, 1, 2, 0, 9, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8,
+                                'o' as u8, ' ' as u8, 'G' as u8, 'E' as u8, 'O' as u8
+                            ],
+                        );
+                    },
+                }
             },
             Err(e) => panic!("decoding error: {}", e),
+        }
+    }
+
+    #[test]
+    fn monument_geo_double_comments_decoding() {
+        let t = Epoch::from_gpst_seconds(60.0 + 0.75);
+
+        let record = MonumentGeoRecord::new(t, MonumentGeoMetadata::RNX2BIN)
+            .with_comment("A B C")
+            .with_comment("D E F");
+
+        let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        match record.encode(true, &mut buf) {
+            Ok(_) => panic!("should have panic'ed!"),
+            Err(Error::NotEnoughBytes) => {},
+            Err(e) => panic!("invalid error: {}", e),
+        }
+
+        let mut buf = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+
+        match record.encode(true, &mut buf) {
+            Err(e) => panic!("{} should have passed!", e),
+            Ok(size) => {
+                assert_eq!(size, 20);
+                assert_eq!(
+                    buf,
+                    [0, 0, 0, 1, 3, 1, 0, 5, 65, 32, 66, 32, 67, 0, 5, 68, 32, 69, 32, 70, 0]
+                );
+            },
         }
     }
 }
