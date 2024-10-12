@@ -70,7 +70,7 @@ pub(crate) fn encode_epoch(
     buf[1] = bytes[1];
     buf[2] = bytes[2];
     buf[3] = bytes[3];
-    buf[4] = total_qsec;
+    buf[4] = total_qsec & 0x7f; // 0xf0-0xff are excluded
     Ok(5)
 }
 

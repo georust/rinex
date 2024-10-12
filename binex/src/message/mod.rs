@@ -7,7 +7,7 @@ pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
 
-use crate::{constants::Constants, message::record::MonumentMarkerRecord, utils::Utils, Error};
+use crate::{constants::Constants, message::record::MonumentGeoRecord, utils::Utils, Error};
 
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct Message {
@@ -41,7 +41,7 @@ impl Message {
             reversed,
             big_endian,
             enhanced_crc,
-            mid: record.message_id(),
+            mid: record.to_message_id(),
         }
     }
     /// [Message] encoding attempt into buffer.
@@ -125,8 +125,8 @@ impl Message {
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec = MonumentMarkerRecord::decode(0, time_res, &buf[sync_off + 8..])?;
-                Record::new_monument_marker(rec)
+                let rec = MonumentGeoRecord::decode(0, time_res, big_endian, &buf[sync_off + 8..])?;
+                Record::new_monument_geo(rec)
             },
             MessageID::Unknown => {
                 return Err(Error::UnknownMessage);
