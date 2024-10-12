@@ -60,7 +60,11 @@ impl MonumentGeoRecord {
     ///
     /// let record = MonumentGeoRecord::new(t, MonumentGeoMetadata::RNX2BIN)
     ///     .with_comment("A B C")
-    ///     .with_comment("D E F");
+    ///     // read comments carefuly. For example, unlike `comments`
+    ///     // we're not allowed to define more than one geophysical_info.
+    ///     // Otherwise, to frame to be forged will not respect the standards.
+    ///     .with_geophysical_info("Eurasian plate")
+    ///     .with_climatic_info("Rain!");
     ///
     /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     ///
@@ -77,14 +81,16 @@ impl MonumentGeoRecord {
     ///     },
     /// }
     ///
-    /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     ///
     /// match record.encode(true, &mut buf) {
     ///     Err(e) => panic!("{} but should have passed!", e),
     ///     Ok(size) => {
-    ///         assert_eq!(size, 20);
+    ///         assert_eq!(size, 36);
     ///         assert_eq!(buf, [
-    ///             0, 0, 0, 1, 3, 1, 0, 5, 65, 32, 66, 32, 67, 0, 5, 68, 32, 69, 32, 70, 0
+    ///             0, 0, 0, 1, 3, 1, 0, 5, 65, 32, 66, 32, 67, 0,
+    ///             14, 69, 117, 114, 97, 115, 105, 97, 110, 32, 112,
+    ///             108, 97, 116, 101, 0, 5, 82, 97, 105, 110, 33,
     ///         ]);
     ///     },
     /// }
@@ -195,11 +201,40 @@ impl MonumentGeoRecord {
         size
     }
 
-    /// Build new [MonumentGeoRecord] with desired Comment
+    /// Add one [MonumentGeoFrame::Comment] to [MonumentGeoRecord].
+    /// You can add as many as needed.
     pub fn with_comment(&self, comment: &str) -> Self {
         let mut s = self.clone();
         s.frames
             .push(MonumentGeoFrame::Comment(comment.to_string()));
+        s
+    }
+
+    /// Attach readable Geophysical information (like local tectonic plate)
+    /// to this [MonumentGeoRecord]. You can only add one per dataset
+    /// otherwise, the message will not respect the standard definitions.
+    pub fn with_geophysical_info(&self, info: &str) -> Self {
+        let mut s = self.clone();
+        s.frames
+            .push(MonumentGeoFrame::Geophysical(info.to_string()));
+        s
+    }
+
+    /// Provide Climatic or Meteorological information (local to reference site).
+    /// You can only add one per dataset otherwise,
+    /// the message will not respect the standard definitions.
+    pub fn with_climatic_info(&self, info: &str) -> Self {
+        let mut s = self.clone();
+        s.frames.push(MonumentGeoFrame::Climatic(info.to_string()));
+        s
+    }
+
+    /// Define a readable UserID to attach to this [MonumentGeoRecord] dataset.
+    /// You can only add one per dataset otherwise,
+    /// the message will not respect the standard definitions.
+    pub fn with_user_id(&self, userid: &str) -> Self {
+        let mut s = self.clone();
+        s.frames.push(MonumentGeoFrame::Comment(userid.to_string()));
         s
     }
 }
