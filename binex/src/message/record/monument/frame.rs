@@ -87,7 +87,7 @@ impl MonumentGeoFrame {
 mod test {
     use super::*;
     #[test]
-    fn comment_encoding() {
+    fn geo_comments() {
         let comment = "hello geo".to_string();
         let s_len = comment.len();
         let frame = MonumentGeoFrame::Comment(comment);

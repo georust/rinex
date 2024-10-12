@@ -1,4 +1,7 @@
-//! BINEX: Binary RINEX encoding and decoding
+#![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
+#![doc = include_str!("../README.md")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 use thiserror::Error;
 
 mod decoder;

@@ -80,7 +80,7 @@ impl MonumentGeoRecord {
     /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     ///
     /// match record.encode(true, &mut buf) {
-    ///     Err(e) => panic!("{} should have passed!", e),
+    ///     Err(e) => panic!("{} but should have passed!", e),
     ///     Ok(size) => {
     ///         assert_eq!(size, 20);
     ///         assert_eq!(buf, [

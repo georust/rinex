@@ -17,7 +17,43 @@ pub enum State {
     Message = 3,
 }
 
-/// [BINEX] Stream Decoder
+/// [BINEX] Stream Decoder. Use this structure to decode all messages streamed
+/// on a readable interface.
+/// ```
+/// use std::fs::File;
+/// use binex::prelude::{Decoder, Error};
+///
+/// // Create the Decoder
+/// //  * this one works from a local source
+/// //  * decoder must be mutable
+/// let mut fd = File::open("../test_resources/BIN/cres_20080526.bin")
+///     .unwrap();
+/// let mut decoder = Decoder::new(fd);
+///
+/// // Iterate the data stream
+/// while let Some(ret) = decoder.next() {
+///     match ret {
+///         Ok(msg) => {
+///             
+///         },
+///         Err(e) => match e {
+///             Error::IoError(e) => {
+///                 // any I/O error should be handled
+///                 // and user should react accordingly,
+///             },
+///             Error::ReversedStream | Error::LittleEndianStream => {
+///                 // this library is currently limited:
+///                 //  - reversed streams are not supported yet
+///                 //  - little endian streams are not supported yet
+///             },
+///             Error::InvalidStartofStream => {
+///                 // other errors give meaningful information
+///             },
+///             _ => {},
+///         },
+///     }
+/// }
+/// ```
 pub struct Decoder<R: Read> {
     /// [R]
     reader: R,
@@ -48,17 +84,27 @@ impl<R: Read> Decoder<R> {
 
 impl<R: Read> Iterator for Decoder<R> {
     type Item = Result<Message, Error>;
-    /// Parse next message in stream
+    /// Parse next message contained in stream
     fn next(&mut self) -> Option<Self::Item> {
-        match self.reader.read(&mut self.buffer) {
-            Ok(size) => {},
+        match self.reader.read(&mut self.buffer[self.ptr..]) {
+            Ok(size) => {
+                if size == 0 {
+                    return None; // marks the EOS
+                } else {
+                    self.ptr += size;
+                }
+            },
             Err(e) => {
-                return None; // EOS
+                return Some(Err(Error::IoError(e)));
             },
         }
+
         match Message::decode(&self.buffer) {
             Ok(msg) => Some(Ok(msg)),
-            Err(e) => None,
+            Err(e) => {
+                println!("decoding error: {}", e);
+                None
+            },
         }
     }
 }
