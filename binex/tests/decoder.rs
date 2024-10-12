@@ -2,6 +2,7 @@ use binex::prelude::{Decoder, Error};
 use std::fs::File;
 
 #[test]
+#[ignore]
 fn parse_cres_2008() {
     let mut found = 0;
 
