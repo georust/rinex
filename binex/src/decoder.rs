@@ -1,6 +1,8 @@
 use std::io::Read;
-
 use log::{debug, error};
+
+#[cfg(feature = "flate2")]
+use flate2::GzDecoder;
 
 use crate::{constants::Constants, message::Message, utils::Utils, Error};
 
@@ -103,6 +105,8 @@ impl<R: Read> Iterator for Decoder<R> {
             Ok(msg) => Some(Ok(msg)),
             Err(e) => {
                 println!("decoding error: {}", e);
+                self.buffer.clear();
+                self.ptr = 0;
                 None
             },
         }
