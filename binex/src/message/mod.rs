@@ -57,6 +57,8 @@ impl Message {
         let mut mid = MessageID::default();
         let mut time_res = TimeResolution::QuarterSecond;
 
+        // print!("decoding {:?}", buf);
+
         // 1. locate SYNC byte
         if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
             big_endian = true;
@@ -109,10 +111,11 @@ impl Message {
             return Err(Error::NotEnoughBytes);
         }
 
-        let mut ptr = sync_off;
+        let mut ptr = sync_off + 1;
 
         // 2. parse MID
         let (bnxi, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
+        println!("bnxi={}/{}", bnxi, size);
 
         let mid = MessageID::from(bnxi);
         ptr += size;
@@ -139,6 +142,11 @@ impl Message {
                 Record::new_monument_geo(rec)
             },
             MessageID::Unknown => {
+                println!("id=0xffffffff");
+                return Err(Error::UnknownMessage);
+            },
+            id => {
+                println!("found unsupported msg id={:?}", id);
                 return Err(Error::UnknownMessage);
             },
         };

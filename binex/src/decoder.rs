@@ -1,5 +1,5 @@
-use std::io::Read;
 use log::{debug, error};
+use std::io::Read;
 
 #[cfg(feature = "flate2")]
 use flate2::GzDecoder;
@@ -8,15 +8,11 @@ use crate::{constants::Constants, message::Message, utils::Utils, Error};
 
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum State {
-    /// Searching for SYNC byte, defining a start of stream
+    /// Read I/O: needs more byte
     #[default]
-    Synchronizing = 0,
-    /// Message ID byte follows SYNC byte and is BNXI encoded
-    MID = 1,
-    /// Message length follows MID bytes and is BNXI encoded
-    MLength = 2,
-    /// Message content follows MLength bytes
-    Message = 3,
+    Read,
+    /// Parse internal buffer: consuming data
+    Parsing,
 }
 
 /// [BINEX] Stream Decoder. Use this structure to decode all messages streamed
@@ -60,26 +56,24 @@ pub struct Decoder<R: Read> {
     /// [R]
     reader: R,
     /// Buffer read pointer
-    ptr: usize,
+    rd_ptr: usize,
+    /// Buffer write pointer
+    wr_ptr: usize,
     /// Internal buffer
     buffer: Vec<u8>,
-    /// Current Message being decoded
+    /// Current Message being decoded to handle
+    /// case when [Message] appears in the middle of two succesive .read()
     msg: Message,
-    /// Internal [State]
-    state: State,
-    /// Minimal number of bytes for current [State]
-    next_read: usize,
 }
 
 impl<R: Read> Decoder<R> {
     pub fn new(reader: R) -> Self {
         Self {
-            ptr: 0,
+            rd_ptr: 0,
+            wr_ptr: 0,
             reader,
-            next_read: 128,
-            state: State::default(),
             msg: Default::default(),
-            buffer: [0; 128].to_vec(),
+            buffer: [0; 1024].to_vec(),
         }
     }
 }
@@ -88,26 +82,47 @@ impl<R: Read> Iterator for Decoder<R> {
     type Item = Result<Message, Error>;
     /// Parse next message contained in stream
     fn next(&mut self) -> Option<Self::Item> {
-        match self.reader.read(&mut self.buffer[self.ptr..]) {
+        // parse internal buffer
+        while self.rd_ptr < self.wr_ptr {
+            println!("parsing: rd={}/wr={}", self.rd_ptr, self.wr_ptr);
+
+            match Message::decode(&self.buffer[self.rd_ptr..]) {
+                Ok(msg) => {
+                    println!("decoded: {:?}", msg);
+                    return Some(Ok(msg));
+                },
+                Err(Error::NoSyncByte) => {
+                    // no SYNC in entire buffer
+                    // => reset & re-read
+                    println!(".decode no-sync");
+                    self.rd_ptr = 0;
+                    self.wr_ptr = 0;
+                    self.buffer.clear();
+                    break;
+                },
+                Err(e) => {
+                    println!(".decode error: {}", e);
+                    self.rd_ptr = 0;
+                    self.wr_ptr = 0;
+                    self.buffer.clear();
+                    break;
+                },
+            }
+        }
+
+        // read data: fill in buffer
+        match self.reader.read(&mut self.buffer) {
             Ok(size) => {
                 if size == 0 {
-                    return None; // marks the EOS
+                    None // EOS
                 } else {
-                    self.ptr += size;
+                    self.wr_ptr += size;
+                    Some(Err(Error::NotEnoughBytes))
                 }
             },
             Err(e) => {
-                return Some(Err(Error::IoError(e)));
-            },
-        }
-
-        match Message::decode(&self.buffer) {
-            Ok(msg) => Some(Ok(msg)),
-            Err(e) => {
-                println!("decoding error: {}", e);
-                self.buffer.clear();
-                self.ptr = 0;
-                None
+                println!("i/o error: {}", e);
+                Some(Err(Error::IoError(e)))
             },
         }
     }

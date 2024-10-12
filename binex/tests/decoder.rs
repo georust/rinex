@@ -2,22 +2,27 @@ use binex::prelude::{Decoder, Error};
 use std::fs::File;
 
 #[test]
-#[ignore]
 fn mfle20190130() {
-
     let mut found = 0;
     let fd = File::open("../test_resources/BIN/mfle20190130.bnx").unwrap();
-        
+
     let mut decoder = Decoder::new(fd);
 
-    while let Some(ret) = decoder.next() {
-        match ret {
-            Ok(msg) => {
+    loop {
+        match decoder.next() {
+            Some(Ok(msg)) => {
                 found += 1;
+                println!("parse: {:?}", msg);
             },
-            Err(e) => match e {
+            Some(Err(e)) => match e {
                 Error::IoError(e) => panic!("i/o error: {}", e),
-                e => panic!("other error: {}", e),
+                e => {
+                    println!("err={}", e);
+                },
+            },
+            None => {
+                println!("EOS");
+                break;
             },
         }
     }
@@ -36,7 +41,7 @@ fn gz_decoder() {
     ] {
         let fp = format!("../test_resources/BIN/{}", fp);
         let mut fd = File::open(fp).unwrap();
-        
+
         let mut decoder = Decoder::new(fd);
 
         while let Some(ret) = decoder.next() {

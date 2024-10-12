@@ -7,23 +7,23 @@ pub enum MessageID {
     /// Geodetic Marker, Site and Refenrece point info:
     /// Geodetic metadata
     SiteMonumentMarker = 0,
-    // /// Decode Ephemeris frame
-    // Ephemeris = 0x01,
-    // /// Observation time tag and receiver info
-    // ObservationTimeTagRxInfo = 0x02,
-    // /// Local Meteorological and Geophysical information
-    // Meteo = 0x03,
-    // /// Receiver info: BINEX specific
-    // ReceiverInfo = 0x04,
-    // /// Processed Solutions like PVT
-    // ProcessedSolutions = 0x05,
-    // /// Receiver info prototyping: BINEX specific
-    // ReceiverInfoPrototyping = 0x7d,
-    // /// Meteo prototyping: BINEX specific
-    // MeteoPrototyping = 0x7e,
-    // /// Observation time tag prototyping: BINEX specific
-    // ObservationTimeTagRxPrototyping = 0x7f,
-    // /// Unknown is used when building MessageID from buffer content
+    /// Decode Ephemeris frame
+    Ephemeris = 1,
+    /// Observation time tag and receiver info
+    ObservationTimeTagRxInfo = 2,
+    /// Local Meteorological and Geophysical information
+    Meteo = 3,
+    /// Receiver info: BINEX specific
+    ReceiverInfo = 4,
+    /// Processed Solutions like PVT
+    ProcessedSolutions = 5,
+    // Receiver info prototyping: BINEX specific
+    ReceiverInfoPrototyping = 125,
+    /// Meteo prototyping: BINEX specific
+    MeteoPrototyping = 126,
+    /// Observation time tag prototyping: BINEX specific
+    ObservationTimeTagRxPrototyping = 127,
+    // Unknown / unsupported message
     #[default]
     Unknown = 0xffffffff,
 }
@@ -32,14 +32,14 @@ impl From<u32> for MessageID {
     fn from(val: u32) -> Self {
         match val {
             0 => Self::SiteMonumentMarker,
-            // 0x01 => Self::Ephemeris,
-            // 0x02 => Self::ObservationTimeTagRxInfo,
-            // 0x03 => Self::Meteo,
-            // 0x04 => Self::ReceiverInfo,
-            // 0x05 => Self::ProcessedSolutions,
-            // 0x7d => Self::ReceiverInfoPrototyping,
-            // 0x7e => Self::MeteoPrototyping,
-            // 0x7f => Self::ObservationTimeTagRxPrototyping,
+            1 => Self::Ephemeris,
+            2 => Self::ObservationTimeTagRxInfo,
+            3 => Self::Meteo,
+            4 => Self::ReceiverInfo,
+            5 => Self::ProcessedSolutions,
+            125 => Self::ReceiverInfoPrototyping,
+            126 => Self::MeteoPrototyping,
+            127 => Self::ObservationTimeTagRxPrototyping,
             _ => Self::Unknown,
         }
     }
