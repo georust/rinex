@@ -56,6 +56,9 @@ jobs:
           - name: RINEX All-features
             folder: rinex
             opts: --all-features
+          - name: BINEX
+            folder: binex
+            opts: --all-features
           - name: SP3 default
             folder: sp3
             opts: -r

@@ -21,6 +21,7 @@ jobs:
           - crate: rinex
           - crate: sp3
           - crate: sinex
+          - crate: binex
           - crate: rinex-qc
           - crate: ublox-rnx
           - crate: rnx2crx
