@@ -138,12 +138,14 @@ impl MonumentGeoRecord {
             // decode field id
             let (bnxi, size) = Message::decode_bnxi(&buf[ptr..], big_endian);
             let fid = FieldID::from(bnxi);
-            println!("bnx00-monument_geo: fid={:?}", fid);
+            println!(
+                "bnx00-monument_geo (ptr={}/len={}): fid={:?}",
+                ptr, mlen, fid
+            );
 
             match fid {
                 FieldID::Unknown => {
                     ptr += size + 1;
-                    continue;
                 },
                 fid => match MonumentGeoFrame::decode(fid, big_endian, &buf[ptr + size..]) {
                     Ok(fr) => {
@@ -153,7 +155,6 @@ impl MonumentGeoRecord {
                     Err(e) => {
                         error!("bnx00-monugment_geo: {}", e);
                         ptr += 1;
-                        continue;
                     },
                 },
             }

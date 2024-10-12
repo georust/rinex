@@ -232,7 +232,12 @@ impl MonumentGeoFrame {
                         FieldID::SiteOperatorContact => {
                             Ok(Self::SiteOperatorContact(s.to_string()))
                         },
-                        _ => unreachable!("oops"),
+                        // TODO
+                        FieldID::AntennaEcef3D
+                        | FieldID::Geocode
+                        | FieldID::AntennaOffset3D
+                        | FieldID::AntennaGeo3D
+                        | FieldID::Unknown => Err(Error::UnknownMessage),
                     },
                     Err(e) => {
                         println!("bnx00-str: utf8 error {}", e);

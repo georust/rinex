@@ -133,8 +133,12 @@ impl Message {
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec =
-                    MonumentGeoRecord::decode(mlen as usize, time_res, big_endian, &buf[ptr..])?;
+                let rec = MonumentGeoRecord::decode(
+                    (mlen - 1) as usize, // CRC!
+                    time_res,
+                    big_endian,
+                    &buf[ptr..],
+                )?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Unknown => {
