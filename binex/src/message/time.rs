@@ -62,9 +62,9 @@ pub(crate) fn encode_epoch(
             return Err(Error::NonSupportedTimescale);
         },
     };
-    let dt = (t - t0).to_seconds();
-    let total_mins = (dt / 60.0).round() as u32;
-    let total_qsec = ((dt / 0.25) * 10.0).round() as u8;
+    let dt_s = (t - t0).to_seconds();
+    let total_mins = (dt_s / 60.0).round() as u32;
+    let total_qsec = (dt_s.fract() * 100.0 / 25.0).round() as u8;
     let bytes = total_mins.to_be_bytes();
     buf[0] = bytes[0];
     buf[1] = bytes[1];
@@ -149,7 +149,7 @@ mod test {
             let mut test = [0, 0, 0, 0, 0];
             let _ =
                 encode_epoch(epoch, big_endian, TimeResolution::QuarterSecond, &mut test).unwrap();
-            assert_eq!(test, buf);
+            assert_eq!(test, buf, "encode_epoch failed for {}", epoch);
         }
     }
 }
