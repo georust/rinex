@@ -13,7 +13,7 @@ pub(crate) mod utils;
 pub mod prelude {
     pub use crate::{
         decoder::Decoder,
-        message::{Message, MonumentGeoMetadata, MonumentGeoRecord, Record, TimeResolution},
+        message::{Message, MonumentGeoMetadata, MonumentGeoRecord, Record, TimeResolution, EphemerisFrame},
         Error,
     };
     // re-export
