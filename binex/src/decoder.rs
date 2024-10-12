@@ -21,20 +21,21 @@ pub enum State {
 /// use std::fs::File;
 /// use binex::prelude::{Decoder, Error};
 ///
-/// // Create the Decoder
-/// //  * this one works from a local source
-/// //  * decoder must be mutable
-/// let mut fd = File::open("../test_resources/BIN/cres_20080526.bin")
+/// // Create the Decoder:
+/// //  * works from our local source
+/// //  * needs to be mutable due to iterating process
+/// let mut fd = File::open("../test_resources/BIN/mfle20190130.bnx")
 ///     .unwrap();
+///
 /// let mut decoder = Decoder::new(fd);
 ///
-/// // Iterate the data stream
-/// while let Some(ret) = decoder.next() {
-///     match ret {
-///         Ok(msg) => {
+/// // Consume data stream
+/// loop {
+///     match decoder.next() {
+///         Some(Ok(msg)) => {
 ///             
 ///         },
-///         Err(e) => match e {
+///         Some(Err(e)) => match e {
 ///             Error::IoError(e) => {
 ///                 // any I/O error should be handled
 ///                 // and user should react accordingly,
@@ -48,6 +49,10 @@ pub enum State {
 ///                 // other errors give meaningful information
 ///             },
 ///             _ => {},
+///         },
+///         None => {
+///             // reacehed of stream!
+///             break;
 ///         },
 ///     }
 /// }
