@@ -73,15 +73,15 @@ impl MonumentGeoRecord {
             // decode field id
             let (bnxi, size) = Message::decode_bnxi(&buf[ptr..], big_endian);
             let fid = FieldID::from(bnxi);
-            debug!("monument_geo: fid={:?}", fid);
+            println!("bnx00-monument_geo: fid={:?}", fid);
 
             match fid {
                 FieldID::Unknown => {
-                    error!("monument_geo: unknown fid={}", bnxi);
+                    error!("bnx00-monument_geo: unknown fid={}", bnxi);
                     ptr += 1;
                     continue;
                 },
-                fid => match MonumentGeoFrame::decode(fid, big_endian, &buf) {
+                fid => match MonumentGeoFrame::decode(fid, big_endian, &buf[ptr + size..]) {
                     Ok(fr) => {
                         ptr += fr.size();
                         frames.push(fr);
@@ -121,12 +121,19 @@ mod test {
     }
     #[test]
     fn monument_geo_comments_decoding() {
-        let buf = [
-            0, 0, 1, 1, 1, 2, 0, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, ' ' as u8,
-            'G' as u8, 'E' as u8, 'O' as u8,
-        ];
         let mlen = 5;
+        let big_endian = true;
         let time_res = TimeResolution::QuarterSecond;
+
+        let mut buf = [0];
+        let s_len = "Hello GEO".len() as u32;
+        Message::encode_bnxi(s_len, big_endian, &mut buf).unwrap();
+
+        let buf = [
+            0, 0, 1, 1, 1, 2, 0, buf[0], 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8,
+            ' ' as u8, 'G' as u8, 'E' as u8, 'O' as u8,
+        ];
+
         match MonumentGeoRecord::decode(mlen, time_res, true, &buf) {
             Ok(monument) => {
                 assert_eq!(
@@ -134,6 +141,11 @@ mod test {
                     Epoch::from_gpst_seconds(256.0 * 60.0 + 60.0 + 0.25)
                 );
                 assert_eq!(monument.source_meta, MonumentGeoMetadata::IGS);
+                assert_eq!(monument.frames.len(), 1);
+                assert_eq!(
+                    monument.frames[0],
+                    MonumentGeoFrame::Comment("Hello GEO".to_string())
+                );
             },
             Err(e) => panic!("decoding error: {}", e),
         }

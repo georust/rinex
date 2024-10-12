@@ -30,14 +30,19 @@ impl MonumentGeoFrame {
 
     /// [MonumentGeoFrame] decoding attempt from given [FieldID]
     pub(crate) fn decode(fid: FieldID, big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+        println!("bnx00-monument_geo: {:?}", buf);
+
         match fid {
             FieldID::Comment => {
                 if buf.len() < 1 {
                     return Err(Error::NotEnoughBytes); // can't parse BNXI
                 }
+
                 let (s_len, off) = Message::decode_bnxi(&buf, big_endian);
 
-                if buf.len() < s_len as usize - off {
+                println!("strlen={}", s_len);
+
+                if buf.len() - off < s_len as usize {
                     return Err(Error::NotEnoughBytes); // can't parse entire string
                 }
 
