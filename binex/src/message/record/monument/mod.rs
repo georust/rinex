@@ -1,8 +1,5 @@
-//! Monument / Geodetic marker frame
-/**
- * Geodetic / Monument marker
- * Does not have subrecord (simple record)
- **/
+//! Monument / Geodetic marker frames
+
 use crate::{
     message::{
         time::{decode_gpst_epoch, encode_epoch, TimeResolution},

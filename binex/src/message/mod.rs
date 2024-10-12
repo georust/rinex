@@ -2,7 +2,7 @@ mod mid; // message ID
 mod record; // Record: message content
 mod time; // Epoch encoding/decoding
 
-pub use record::{MonumentGeoMetadata, MonumentGeoRecord, Record};
+pub use record::{EphemerisFrame, MonumentGeoMetadata, MonumentGeoRecord, Record};
 
 pub use time::TimeResolution;
 
@@ -140,6 +140,14 @@ impl Message {
                     &buf[ptr..],
                 )?;
                 Record::new_monument_geo(rec)
+            },
+            MessageID::Ephemeris => {
+                let fr = EphemerisFrame::decode(
+                    (mlen - 1) as usize, // CRC!
+                    big_endian,
+                    &buf[ptr..],
+                )?;
+                Record::new_ephemeris_frame(fr)
             },
             MessageID::Unknown => {
                 println!("id=0xffffffff");

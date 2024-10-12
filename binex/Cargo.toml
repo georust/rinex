@@ -1,6 +1,6 @@
 [package]
 name = "binex"
-version = "0.0.1"
+version = "0.1.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "BINEX Binary RINEX encoder and decoder"

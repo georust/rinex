@@ -2,8 +2,10 @@
 
 use crate::message::MessageID;
 
-mod monument; // geodetic marker
+mod ephemeris;
+mod monument; // geodetic marker // ephemeris frames
 
+pub use ephemeris::EphemerisFrame;
 pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -11,6 +13,8 @@ pub enum Record {
     /// Geodetic Marker, Site and Reference point information.
     /// Includes Geodetic metadata.
     MonumentGeo(MonumentGeoRecord),
+    /// Ephemeris Frame
+    EphemerisFrame(EphemerisFrame),
 }
 
 impl Default for Record {
@@ -24,6 +28,10 @@ impl Record {
     pub fn new_monument_geo(r: MonumentGeoRecord) -> Self {
         Self::MonumentGeo(r)
     }
+    /// Builds new [EphemerisFrame]
+    pub fn new_ephemeris_frame(fr: EphemerisFrame) -> Self {
+        Self::EphemerisFrame(fr)
+    }
     /// [MonumentGeoRecord] unwrapping attempt
     pub fn as_monument_geo(&self) -> Option<&MonumentGeoRecord> {
         match self {
@@ -34,6 +42,7 @@ impl Record {
     /// Returns [MessageID] to associate to [Self] in stream header.
     pub(crate) fn to_message_id(&self) -> MessageID {
         match self {
+            Self::EphemerisFrame(_) => MessageID::Ephemeris,
             Self::MonumentGeo(_) => MessageID::SiteMonumentMarker,
         }
     }
@@ -41,6 +50,7 @@ impl Record {
     /// Returns internal encoding size
     pub(crate) fn encoding_size(&self) -> usize {
         match self {
+            Self::EphemerisFrame(fr) => fr.encoding_size(),
             Self::MonumentGeo(geo) => geo.encoding_size(),
         }
     }
