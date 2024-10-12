@@ -23,4 +23,9 @@ log = "0.4"
 thiserror = "1"
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
-# flate2 = { version = "1.0.34", optional = true, default-features = false }
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "bnxi"
+harness = false
