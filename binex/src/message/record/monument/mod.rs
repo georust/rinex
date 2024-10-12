@@ -136,8 +136,7 @@ impl MonumentGeoRecord {
 
             match fid {
                 FieldID::Unknown => {
-                    error!("bnx00-monument_geo: unknown fid={}", bnxi);
-                    ptr += 1;
+                    ptr += size + 1;
                     continue;
                 },
                 fid => match MonumentGeoFrame::decode(fid, big_endian, &buf[ptr + size..]) {
@@ -190,7 +189,8 @@ impl MonumentGeoRecord {
     pub(crate) fn encoding_size(&self) -> usize {
         let mut size = 6; // tstamp + source_meta
         for fr in self.frames.iter() {
-            size += 1 + fr.encoding_size(); // FID + actual content
+            size += Message::bnxi_encoding_size(fr.to_field_id() as u32);
+            size += fr.encoding_size(); // actual content
         }
         size
     }

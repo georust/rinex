@@ -11,6 +11,8 @@ use log::error;
 pub enum MonumentGeoFrame {
     /// Comment
     Comment(String),
+    /// Antenna Type
+    AntennaType(String),
 }
 
 impl MonumentGeoFrame {
@@ -22,6 +24,10 @@ impl MonumentGeoFrame {
                 let s_len = s.len();
                 s_len + Message::bnxi_encoding_size(s_len as u32)
             },
+            Self::AntennaType(s) => {
+                let s_len = s.len();
+                s_len + Message::bnxi_encoding_size(s_len as u32)
+            },
         }
     }
 
@@ -29,13 +35,12 @@ impl MonumentGeoFrame {
     pub(crate) fn to_field_id(&self) -> FieldID {
         match self {
             Self::Comment(_) => FieldID::Comment,
+            Self::AntennaType(_) => FieldID::AntennaType,
         }
     }
 
     /// [MonumentGeoFrame] decoding attempt from given [FieldID]
     pub(crate) fn decode(fid: FieldID, big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
-        println!("bnx00-monument_geo: {:?}", buf);
-
         match fid {
             FieldID::Comment => {
                 if buf.len() < 1 {
@@ -43,17 +48,36 @@ impl MonumentGeoFrame {
                 }
 
                 let (s_len, off) = Message::decode_bnxi(&buf, big_endian);
-
-                println!("strlen={}", s_len);
-
                 if buf.len() - off < s_len as usize {
                     return Err(Error::NotEnoughBytes); // can't parse entire string
                 }
 
-                match std::str::from_utf8(&buf[off..]) {
+                let (start, stop) = (off, off + s_len as usize);
+
+                match std::str::from_utf8(&buf[start..stop]) {
                     Ok(s) => Ok(Self::Comment(s.to_string())),
                     Err(e) => {
-                        error!("bnx00(geo)-comment: utf8 error {}", e);
+                        println!("bnx00(geo)-comment: utf8 error {}", e);
+                        Err(Error::Utf8Error)
+                    },
+                }
+            },
+            FieldID::AntennaType => {
+                if buf.len() < 1 {
+                    return Err(Error::NotEnoughBytes); // can't parse BNXI
+                }
+
+                let (s_len, off) = Message::decode_bnxi(&buf, big_endian);
+                if buf.len() - off < s_len as usize {
+                    return Err(Error::NotEnoughBytes); // can't parse entire string
+                }
+
+                let (start, stop) = (off, off + s_len as usize);
+
+                match std::str::from_utf8(&buf[start..stop]) {
+                    Ok(s) => Ok(Self::Comment(s.to_string())),
+                    Err(e) => {
+                        println!("bnx00(geo)-ant: utf8 error {}", e);
                         Err(Error::Utf8Error)
                     },
                 }
@@ -72,6 +96,12 @@ impl MonumentGeoFrame {
 
         match self {
             Self::Comment(s) => {
+                // s_len as 1-4 Byte
+                let s_len = s.len();
+                let size = Message::encode_bnxi(s_len as u32, big_endian, buf)?;
+                buf[size..size + s_len].clone_from_slice(s.as_bytes()); // utf8 encoding
+            },
+            Self::AntennaType(s) => {
                 // s_len as 1-4 Byte
                 let s_len = s.len();
                 let size = Message::encode_bnxi(s_len as u32, big_endian, buf)?;

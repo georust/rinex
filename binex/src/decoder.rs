@@ -85,10 +85,11 @@ impl<R: Read> Iterator for Decoder<R> {
         // parse internal buffer
         while self.rd_ptr < self.wr_ptr {
             println!("parsing: rd={}/wr={}", self.rd_ptr, self.wr_ptr);
+            println!("workbuf: {:?}", &self.buffer[self.rd_ptr..]);
 
             match Message::decode(&self.buffer[self.rd_ptr..]) {
                 Ok(msg) => {
-                    println!("decoded: {:?}", msg);
+                    self.rd_ptr += msg.encoding_size();
                     return Some(Ok(msg));
                 },
                 Err(Error::NoSyncByte) => {

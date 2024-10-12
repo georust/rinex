@@ -115,9 +115,8 @@ impl Message {
 
         // 2. parse MID
         let (bnxi, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
-        println!("bnxi={}/{}", bnxi, size);
-
         let mid = MessageID::from(bnxi);
+        println!("mid={:?}", mid);
         ptr += size;
 
         // 3. parse MLEN
@@ -128,17 +127,14 @@ impl Message {
             return Err(Error::NotEnoughBytes);
         }
 
+        println!("mlen={:?}", mlen);
         ptr += size;
 
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec = MonumentGeoRecord::decode(
-                    mlen as usize,
-                    time_res,
-                    big_endian,
-                    &buf[ptr + size..],
-                )?;
+                let rec =
+                    MonumentGeoRecord::decode(mlen as usize, time_res, big_endian, &buf[ptr..])?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Unknown => {
@@ -192,7 +188,7 @@ impl Message {
         // MLEN 1-4 byte encoding
         let mlen = Self::bnxi_encoding_size(rlen as u32);
 
-        1 + mid + mlen + rlen // SYNC BYTE
+        mid + mlen + rlen + 1 + 1 // +SYNC BYTE + CRC
     }
 
     // /// Evaluates CRC for [Self]

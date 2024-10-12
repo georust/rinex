@@ -12,7 +12,7 @@ fn mfle20190130() {
         match decoder.next() {
             Some(Ok(msg)) => {
                 found += 1;
-                println!("parse: {:?}", msg);
+                println!("parsed: {:?}", msg);
             },
             Some(Err(e)) => match e {
                 Error::IoError(e) => panic!("i/o error: {}", e),

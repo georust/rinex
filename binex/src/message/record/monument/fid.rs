@@ -110,7 +110,7 @@ pub enum FieldID {
     /// Antenna Radome Type (=TYPE). Must be unique.
     AntennaRadomeType = 32,
     /// Antenna Radom Number. Must be unique.
-    AntennaRadomNumber = 33,
+    AntennaRadomeNumber = 33,
     /// Geocode. Must be unique.
     Geocode = 34,
     /// Extra / Additional information, very similar to [Self::Comment]
@@ -155,7 +155,7 @@ impl From<u32> for FieldID {
             30 => Self::AntennaGeo3D,
             31 => Self::AntennaOffset3D,
             32 => Self::AntennaRadomeType,
-            33 => Self::AntennaRadomNumber,
+            33 => Self::AntennaRadomeNumber,
             34 => Self::Geocode,
             127 => Self::Extra,
             _ => Self::Unknown,
@@ -199,7 +199,7 @@ impl From<FieldID> for u32 {
             FieldID::AntennaGeo3D => 30,
             FieldID::AntennaOffset3D => 31,
             FieldID::AntennaRadomeType => 32,
-            FieldID::AntennaRadomNumber => 33,
+            FieldID::AntennaRadomeNumber => 33,
             FieldID::Geocode => 34,
             FieldID::Extra => 127,
             FieldID::Unknown => 0xffffffff,
