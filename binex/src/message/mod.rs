@@ -153,9 +153,18 @@ impl Message {
     /// Decodes BNXI encoded unsigned U32 integer with selected endianness,
     /// according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
     pub(crate) fn decode_bnxi_u32(buf: &[u8], big_endian: bool) -> u32 {
-        let last_preserved = buf
-            .iter()
-            .position(|b| *b & Constants::BNXI_KEEP_GOING_MASK == 0);
+        let mut last_preserved = 0;
+
+        for i in 0..buf.len() {
+            if i < 3 {
+                if buf[i] & Constants::BNXI_KEEP_GOING_MASK == 0 {
+                    last_preserved = i;
+                    break;
+                }
+            } else {
+                last_preserved = i;
+            }
+        }
 
         // apply mask
         let masked = buf
@@ -170,24 +179,19 @@ impl Message {
             })
             .collect::<Vec<_>>();
 
-        if let Some(last_preserved) = last_preserved {
-            println!("bytes: {:?}[{}]", masked, last_preserved);
-            let mut ret = 0_u32;
+        let mut ret = 0_u32;
 
-            // interprate as desired
-            if big_endian {
-                for i in 0..=last_preserved {
-                    ret += (masked[i] as u32) << (8 * i);
-                }
-            } else {
-                for i in 0..=last_preserved {
-                    ret += (masked[i] as u32) << ((4 - i) * 8);
-                }
+        // interprate as desired
+        if big_endian {
+            for i in 0..=last_preserved {
+                ret += (masked[i] as u32) << (8 * i);
             }
-            ret
         } else {
-            0
+            for i in 0..=last_preserved {
+                ret += (masked[i] as u32) << ((4 - i) * 8);
+            }
         }
+        ret
     }
     /// Decodes BNXI encoded unsigned U8 integer according to
     /// [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
@@ -205,23 +209,29 @@ impl Message {
     }
     /// U32 to BNXI encoder according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
     pub(crate) fn encode_u32_bnxi(val: u32, big_endian: bool) -> [u8; 4] {
-        let mut ret = if val < 256 {
+        let mut ret = if val < 2_u32.pow(8) {
             if big_endian {
                 [0, 0, 0, 0]
             } else {
                 [0, 0, 0, 0]
             }
-        } else if val < 65536 {
+        } else if val < 2_u32.pow(16) {
             if big_endian {
                 [0x80, 0, 0, 0]
             } else {
                 [0, 0, 0, 0x80]
             }
-        } else {
+        } else if val < 2_u32.pow(24) {
             if big_endian {
                 [0x80, 0x80, 0, 0]
             } else {
                 [0, 0, 0x80, 0x80]
+            }
+        } else {
+            if big_endian {
+                [0x80, 0x80, 0x80, 0]
+            } else {
+                [0, 0x80, 0x80, 0x80]
             }
         };
 
@@ -237,7 +247,7 @@ mod test {
     use super::Message;
     use crate::{constants::Constants, Error};
     #[test]
-    fn big_endian_bnxi_7a() {
+    fn big_endian_bnxi_1() {
         let bytes = [0x7a];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a);
@@ -245,56 +255,81 @@ mod test {
         // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
         assert_eq!(bytes, [0x7a, 0_u8, 0_u8, 0_u8]);
+
+        // we tolerate invalid content
+        let bytes = [0x81];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 1);
     }
     #[test]
-    fn big_endian_bnxi_7a_81() {
+    fn big_endian_bnxi_2() {
         let bytes = [0x7a, 0x81];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a);
 
         // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
-        assert_eq!(bytes, [0x7a, 0_u8, 0_u8, 0_u8]);
-    }
-    #[test]
-    fn big_endian_bnxi_83_7a() {
+        assert_eq!(bytes, [0x7a, 0, 0, 0]);
+
         let bytes = [0x83, 0x7a];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a03);
 
         // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
-        assert_eq!(bytes, [0x83_u8, 0x7a_u8, 0, 0]);
+        assert_eq!(bytes, [0x83, 0x7a, 0, 0]);
     }
     #[test]
-    fn big_endian_bnxi_83_84_7a() {
+    fn big_endian_bnxi_3() {
         let bytes = [0x83, 0x84, 0x7a, 0];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7a0403);
 
         // test mirror op
         let bytes = Message::encode_u32_bnxi(bnxi, true);
-        assert_eq!(bytes, [0x83_u8, 0x84_u8, 0x7a_u8, 0]);
+        assert_eq!(bytes, [0x83, 0x84, 0x7a, 0]);
     }
     #[test]
-    fn big_endian_bnxi_7f_81_7f_ab() {
-        let bytes = [0x7f, 0x81, 0x7f, 0xAB];
+    fn big_endian_bnxi_4() {
+        let bytes = [0x7f, 0x81, 0x7f, 0xab];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
         assert_eq!(bnxi, 0x7f);
 
         // test mirror
         let bytes = Message::encode_u32_bnxi(bnxi, true);
-        assert_eq!(bytes, [0x7f, 0x81, 0x8f, 0]);
-    }
-    #[test]
-    fn big_endian_bnxi_81_9a_7f_ab() {
-        let bytes = [0x81, 0x9a, 0x7f, 0xAB];
+        assert_eq!(bytes, [0x7f, 0, 0, 0]);
+
+        let bytes = [0x81, 0xaf, 0x7f, 0xab];
         let bnxi = Message::decode_bnxi_u32(&bytes, true);
-        assert_eq!(bnxi, 0x7f1a01);
+        assert_eq!(bnxi, 0x7f2f01);
 
         // test mirror
         let bytes = Message::encode_u32_bnxi(bnxi, true);
-        assert_eq!(bytes, [0x7f, 0x1a, 0x01, 0]);
+        assert_eq!(bytes, [0x81, 0xaf, 0x7f, 0]);
+
+        let bytes = [0x81, 0xaf, 0x8f, 1];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x10f2f01);
+
+        // test mirror
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x81, 0xaf, 0x8f, 1]);
+
+        let bytes = [0x81, 0xaf, 0x8f, 0x7f];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x7f0f2f01);
+
+        // test mirror
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x81, 0xaf, 0x8f, 0x7f]);
+
+        let bytes = [0x81, 0xaf, 0x8f, 0x80];
+        let bnxi = Message::decode_bnxi_u32(&bytes, true);
+        assert_eq!(bnxi, 0x800f2f01);
+
+        // test mirror
+        let bytes = Message::encode_u32_bnxi(bnxi, true);
+        assert_eq!(bytes, [0x81, 0xaf, 0x8f, 0x80]);
     }
     #[test]
     fn decode_no_sync_byte() {
