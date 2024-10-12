@@ -5,7 +5,8 @@ use crate::{
     Error,
 };
 
-// use log::error;
+use core::str::from_utf8;
+use log::error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MonumentGeoFrame {
@@ -192,7 +193,7 @@ impl MonumentGeoFrame {
 
                 let (start, stop) = (off, off + s_len as usize);
 
-                match std::str::from_utf8(&buf[start..stop]) {
+                match from_utf8(&buf[start..stop]) {
                     Ok(s) => match fid {
                         FieldID::Comment => Ok(Self::Comment(s.to_string())),
                         FieldID::MonumentName => Ok(Self::MonumentName(s.to_string())),
@@ -240,7 +241,7 @@ impl MonumentGeoFrame {
                         | FieldID::Unknown => Err(Error::UnknownMessage),
                     },
                     Err(e) => {
-                        println!("bnx00-str: utf8 error {}", e);
+                        error!("bnx00-str: utf8 error {}", e);
                         Err(Error::Utf8Error)
                     },
                 }

@@ -1,18 +1,19 @@
 [package]
 name = "binex"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
-description = "BINEX Binary RINEX encoder and decoder"
+description = "BINEX: RINEX Binary encoder and decoder"
 homepage = "https://github.com/georust/rinex"
 repository = "https://github.com/georust/rinex"
-keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
-categories = ["science", "science::geo", "parsing"]
+keywords = ["navigation", "time", "no-std"]
+categories = ["science", "science::geo", "parsing", "no-std"]
 edition = "2021"
 rust-version = "1.64"
 
 [features]
 default = []
+std = [] # no-std by default
 
 [package.metadata.docs.rs]
 all-features = true
@@ -20,7 +21,6 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
 log = "0.4"
-thiserror = "1"
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 
 # flate2 = { version = "1.0.34", optional = true, default-features = false }

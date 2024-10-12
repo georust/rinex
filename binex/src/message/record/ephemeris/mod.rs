@@ -7,6 +7,8 @@ use fid::FieldID;
 mod gps;
 pub use gps::{GPSEphemeris, GPSRaw};
 
+use log::error;
+
 /// [EphemerisFrame] may describe raw, decoded GNSS
 /// Ephemeris or Ionosphere model parameters.
 #[derive(Debug, Clone, PartialEq)]
@@ -41,7 +43,7 @@ impl EphemerisFrame {
         // decode field id
         let (bnxi, size) = Message::decode_bnxi(&buf, big_endian);
         let fid = FieldID::from(bnxi);
-        println!("bnx01-eph fid={:?}", fid);
+        error!("bnx01-eph fid={:?}", fid);
 
         match fid {
             FieldID::GPSRaw => {

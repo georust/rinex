@@ -21,11 +21,52 @@ Like RINEX, it is an open source format, the specifications are described by
 This library allows easy message encoding and decoding, and aims at providing seamless
 convertion from RINEX back and forth.
 
+BINEX is embedded friendty: no-std is supported by default. You can unlock "std" support by compiling
+with the `std` option. Read last paragraph for related consequences.
+
 ## Message Decoding
 
 Use the BINEX `Decoder` to decode messages from a `Readable` interface:
 
 ```rust
+use std::fs::File;
+use binex::prelude::{Decoder, Error};
+
+// Create the Decoder:
+//  * works from our local source
+//  * needs to be mutable due to iterating process
+let mut fd = File::open("../test_resources/BIN/mfle20190130.bnx")
+    .unwrap();
+
+let mut decoder = Decoder::new(fd);
+
+// Consume data stream
+loop {
+    match decoder.next() {
+        Some(Ok(msg)) => {
+            
+        },
+        Some(Err(e)) => match e {
+            Error::IoError => {
+                // any I/O error should be handled
+                // and user should react accordingly,
+            },
+            Error::ReversedStream | Error::LittleEndianStream => {
+                // this library is currently limited:
+                //  - reversed streams are not supported yet
+                //  - little endian streams are not supported yet
+            },
+            Error::InvalidStartofStream => {
+                // other errors give meaningful information
+            },
+            _ => {},
+        },
+        None => {
+            // reacehed of stream!
+            break;
+        },
+    }
+}
 ```
 
 ## Message forging
@@ -35,6 +76,22 @@ streamed into a `Writable` interface:
 
 ```rust
 ```
+
+## BINEX and physical applications / high level operations
+
+BINEX is not processing nor calculation oriented. It supports `no-std` which is very limiting
+and allows embedding BINEX on STM32 or similarly limited platforms. The scope of this library
+is to encode and decode messages: we don't not interprate the GNSS streams.
+
+If you want access to higher level operations that permit physical applications, you need to move on
+to the RINEX library (which does not support `no-std`) and compile it with the `binex` compilation option.
+
+* it will unlock the RINEX to BINEX encoding function (:warning: Work In Progress :warning:)
+* it will unlock the BINEX to RINEX: high level interpretation (:warning: Work In Progress :warning:)
+* you can then access all the RINEX methods, mostly
+   - Interprate and manipulate Ephemeris frames, especially using the Nyx/ANISE toolkit
+   - Encode to binary Ephemeris that were processed using Nyx/ANISE 
+   - Interprate signal observations and process them (mainly, signal combination)
 
 ## Licensing
 

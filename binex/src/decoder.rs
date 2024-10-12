@@ -1,21 +1,8 @@
 use log::{debug, error};
-use std::io::Read;
-
-#[cfg(feature = "flate2")]
-use flate2::GzDecoder;
 
 use crate::{constants::Constants, message::Message, utils::Utils, Error};
 
-#[derive(Debug, Copy, Clone, PartialEq, Default)]
-pub enum State {
-    /// Read I/O: needs more byte
-    #[default]
-    Read,
-    /// Parse internal buffer: consuming data
-    Parsing,
-}
-
-/// [BINEX] Stream Decoder. Use this structure to decode all messages streamed
+/// BINEX Stream Decoder. Use this structure to decode all messages streamed
 /// on a readable interface.
 /// ```
 /// use std::fs::File;
@@ -89,8 +76,8 @@ impl<R: Read> Iterator for Decoder<R> {
     fn next(&mut self) -> Option<Self::Item> {
         // parse internal buffer
         while self.rd_ptr < self.wr_ptr {
-            println!("parsing: rd={}/wr={}", self.rd_ptr, self.wr_ptr);
-            println!("workbuf: {:?}", &self.buffer[self.rd_ptr..]);
+            debug!("parsing: rd={}/wr={}", self.rd_ptr, self.wr_ptr);
+            debug!("workbuf: {:?}", &self.buffer[self.rd_ptr..]);
 
             match Message::decode(&self.buffer[self.rd_ptr..]) {
                 Ok(msg) => {
@@ -100,14 +87,14 @@ impl<R: Read> Iterator for Decoder<R> {
                 Err(Error::NoSyncByte) => {
                     // no SYNC in entire buffer
                     // => reset & re-read
-                    println!(".decode no-sync");
+                    error!(".decode no-sync");
                     self.rd_ptr = 0;
                     self.wr_ptr = 0;
                     self.buffer.clear();
                     break;
                 },
                 Err(e) => {
-                    println!(".decode error: {}", e);
+                    error!(".decode error: {}", e);
                     self.rd_ptr = 0;
                     self.wr_ptr = 0;
                     self.buffer.clear();
@@ -127,7 +114,7 @@ impl<R: Read> Iterator for Decoder<R> {
                 }
             },
             Err(e) => {
-                println!("i/o error: {}", e);
+                error!("i/o error: {}", e);
                 Some(Err(Error::IoError(e)))
             },
         }

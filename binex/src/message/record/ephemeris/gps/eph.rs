@@ -1,4 +1,4 @@
-use std::f32::consts::PI as Pi32;
+use core::f32::consts::PI as Pi32;
 
 use crate::{utils::Utils, Error};
 

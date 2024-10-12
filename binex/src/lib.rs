@@ -1,6 +1,7 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 use thiserror::Error;
 
@@ -20,30 +21,33 @@ pub mod prelude {
     pub use hifitime::Epoch;
 }
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
-    #[error("not enough bytes available")]
+    /// Input or Output buffer length mismatch
     NotEnoughBytes,
-    #[error("i/o error")]
-    IoError(#[from] std::io::Error),
-    #[error("invalid start of stream")]
+    /// I/O interface error
+    IoError,
+    /// Invalid (non supported) SOF.
+    /// We're currently limited to Foward BE/LE streams:
+    ///    * backwards streams are not supported
+    ///    * enhanced CRC is not supported
     InvalidStartofStream,
-    #[error("no SYNC byte found")]
+    /// Missing SYNC byte. Buffer does not contain a SYNC byte.
     NoSyncByte,
-    #[error("reversed streams are not supported yet")]
+    /// We're currently limited to Forward Streams only.
     ReversedStream,
-    #[error("little endian encoded streams not supported yet")]
+    /// We're currently limited to Big Endianness
     LittleEndianStream,
-    #[error("enhanced crc is not supported yet")]
+    /// Only Regular CRC is currently supported.
     EnhancedCrc,
-    #[error("non supported timescale")]
+    /// This is not a supported Timescale
     NonSupportedTimescale,
-    #[error("U32 decoding error")]
+    /// U32 decoding error
     U32Decoding,
-    #[error("unknown message")]
+    /// Non supported (unknown) message: can't decode or encode.
     UnknownMessage,
-    #[error("unknown record field id")]
+    /// Non supported (unknown) record entry: can't decode or encode.
     UnknownRecordFieldId,
-    #[error("utf8 error")]
+    /// String parsing error: invalid utf8 data
     Utf8Error,
 }

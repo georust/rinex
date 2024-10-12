@@ -15,7 +15,7 @@ fn mfle20190130() {
                 println!("parsed: {:?}", msg);
             },
             Some(Err(e)) => match e {
-                Error::IoError(e) => panic!("i/o error: {}", e),
+                Error::IoError => panic!("i/o error: {}"),
                 e => {
                     println!("err={}", e);
                 },
