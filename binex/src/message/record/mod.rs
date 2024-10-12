@@ -5,7 +5,7 @@ use crate::message::MessageID;
 mod monument; // geodetic marker
 pub use monument::MonumentGeoRecord;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Record {
     /// Geodetic Marker, Site and Reference point information.
     /// Includes Geodetic metadata.
@@ -24,9 +24,9 @@ impl Record {
         Self::MonumentGeo(r)
     }
     /// [MonumentGeoRecord] unwrapping attempt
-    pub fn as_monument_geo(&self) -> Option<MonumentGeoRecord> {
+    pub fn as_monument_geo(&self) -> Option<&MonumentGeoRecord> {
         match self {
-            Self::MonumentGeo(r) => Some(*r),
+            Self::MonumentGeo(r) => Some(r),
             _ => None,
         }
     }

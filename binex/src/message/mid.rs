@@ -6,7 +6,7 @@
 pub enum MessageID {
     /// Geodetic Marker, Site and Refenrece point info:
     /// Geodetic metadata
-    SiteMonumentMarker = 0x00,
+    SiteMonumentMarker = 0,
     // /// Decode Ephemeris frame
     // Ephemeris = 0x01,
     // /// Observation time tag and receiver info
@@ -25,13 +25,13 @@ pub enum MessageID {
     // ObservationTimeTagRxPrototyping = 0x7f,
     // /// Unknown is used when building MessageID from buffer content
     #[default]
-    Unknown = 0xff,
+    Unknown = 0xffffffff,
 }
 
-impl From<u8> for MessageID {
-    fn from(val: u8) -> Self {
+impl From<u32> for MessageID {
+    fn from(val: u32) -> Self {
         match val {
-            0x00 => Self::SiteMonumentMarker,
+            0 => Self::SiteMonumentMarker,
             // 0x01 => Self::Ephemeris,
             // 0x02 => Self::ObservationTimeTagRxInfo,
             // 0x03 => Self::Meteo,
@@ -45,10 +45,10 @@ impl From<u8> for MessageID {
     }
 }
 
-impl From<MessageID> for u8 {
-    fn from(val: MessageID) -> u8 {
+impl From<MessageID> for u32 {
+    fn from(val: MessageID) -> u32 {
         match val {
-            MessageID::SiteMonumentMarker => 0x00,
+            MessageID::SiteMonumentMarker => 0,
             // MessageID::Ephemeris => 0x01,
             // MessageID::ObservationTimeTagRxInfo => 0x02,
             // MessageID::Meteo => 0x03,
@@ -57,7 +57,7 @@ impl From<MessageID> for u8 {
             // MessageID::ReceiverInfoPrototyping => 0x7d,
             // MessageID::MeteoPrototyping => 0x7e,
             // MessageID::ObservationTimeTagRxPrototyping => 0x7f,
-            _ => 0xff,
+            _ => 0xffffffff,
         }
     }
 }

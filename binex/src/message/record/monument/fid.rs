@@ -116,11 +116,11 @@ pub enum FieldID {
     /// Extra / Additional information, very similar to [Self::Comment]
     Extra = 127,
     /// Unknown / Invalid
-    Unknown = 255,
+    Unknown = 0xffffffff,
 }
 
-impl From<u8> for FieldID {
-    fn from(val: u8) -> Self {
+impl From<u32> for FieldID {
+    fn from(val: u32) -> Self {
         match val {
             0 => Self::Comment,
             1 => Self::SoftwareName,
@@ -163,8 +163,8 @@ impl From<u8> for FieldID {
     }
 }
 
-impl From<FieldID> for u8 {
-    fn from(val: FieldID) -> u8 {
+impl From<FieldID> for u32 {
+    fn from(val: FieldID) -> u32 {
         match val {
             FieldID::Comment => 0,
             FieldID::SoftwareName => 1,
@@ -202,7 +202,7 @@ impl From<FieldID> for u8 {
             FieldID::AntennaRadomNumber => 33,
             FieldID::Geocode => 34,
             FieldID::Extra => 127,
-            FieldID::Unknown => 255,
+            FieldID::Unknown => 0xffffffff,
         }
     }
 }

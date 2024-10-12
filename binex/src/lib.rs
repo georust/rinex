@@ -37,4 +37,8 @@ pub enum Error {
     U32Decoding,
     #[error("unknown message")]
     UnknownMessage,
+    #[error("unknown record field id")]
+    UnknownRecordFieldId,
+    #[error("utf8 error")]
+    Utf8Error,
 }

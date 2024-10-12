@@ -12,26 +12,29 @@ use crate::{
 };
 
 use hifitime::Epoch;
+use log::{debug, error};
 
+mod builder;
 mod fid;
+mod frame;
 mod src;
 
 // private
 use fid::FieldID;
 
 // public
+pub use builder::MonumentGeoBuilder;
+pub use frame::MonumentGeoFrame;
 pub use src::MonumentGeoMetadata;
 
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct MonumentGeoRecord {
     /// [Epoch]
     pub epoch: Epoch,
     /// Source of this information
     pub source_meta: MonumentGeoMetadata,
-    // /// Antenna position in ECEF [m]
-    // pub antenna_ecef_xyz: (f64, f64, f64),
-    // /// Antenna ENU offset [m]
-    // pub antenna_offset_enu: (f64, f64, f64),
+    /// Frames also refered to as Subrecords
+    pub frames: Vec<MonumentGeoFrame>,
 }
 
 impl MonumentGeoRecord {
@@ -41,23 +44,9 @@ impl MonumentGeoRecord {
     /// 1 byte FID
     ///     if FID corresponds to a character string
     ///     the next 1-4 BNXI byte represent the number of bytes in the caracter string
-    const MIN_SIZE: usize = 4 + 1 + 1 + 1;
-    /// Builds new [MonumentGeoRecord] at specific [Epoch] with desired content
-    pub fn new(
-        epoch: Epoch,
-        source_meta: MonumentGeoMetadata,
-        // antenna_lat_ddeg: f64,
-        // antenna_long_ddeg: f64,
-        // antenna_alt_sea_m: f64,
-        // antenna_offset_enu: (f64, f64, f64),
-    ) -> Self {
-        Self {
-            epoch,
-            source_meta,
-            //antenna_ecef_xyz: (antenna_lat_ddeg, antenna_long_ddeg, antenna_alt_sea_m),
-            //antenna_offset_enu,
-        }
-    }
+    /// follows: FID dependent sequence. See [FieldID].
+    const MIN_SIZE: usize = 5 + 1 + 1;
+
     /// [Self] decoding attempt from buffered content.
     pub fn decode(
         msglen: usize,
@@ -75,11 +64,43 @@ impl MonumentGeoRecord {
         // decode source meta
         let source_meta = MonumentGeoMetadata::from(buf[5]);
 
-        // decode field id
-        let fid = Message::decode_bnxi_u32(&buf[6..], big_endian);
+        // parse inner frames (= subrecords)
+        let mut ptr = 6;
+        let mut frames = Vec::<MonumentGeoFrame>::with_capacity(8);
 
-        Ok(Self { epoch, source_meta })
+        // this method tolerates badly duplicated subrecords
+        while ptr < buf.len() {
+            // decode field id
+            let (bnxi, size) = Message::decode_bnxi(&buf[ptr..], big_endian);
+            let fid = FieldID::from(bnxi);
+            debug!("monument_geo: fid={:?}", fid);
+
+            match fid {
+                FieldID::Unknown => {
+                    error!("monument_geo: unknown fid={}", bnxi);
+                    ptr += 1;
+                    continue;
+                },
+                fid => match MonumentGeoFrame::decode(fid, big_endian, &buf) {
+                    Ok(fr) => {
+                        ptr += fr.size();
+                        frames.push(fr);
+                    },
+                    Err(e) => {
+                        ptr += 1;
+                        continue;
+                    },
+                },
+            }
+        }
+
+        Ok(Self {
+            epoch,
+            frames,
+            source_meta,
+        })
     }
+
     /// Encodes [Self] into buffer, returns encoded size (total bytes).
     /// [Self] must fit in preallocated buffer.
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, Error> {
@@ -99,8 +120,11 @@ mod test {
         assert!(monument.is_err());
     }
     #[test]
-    fn big_endian_monument_decoding() {
-        let buf = [0, 0, 1, 1, 1, 2];
+    fn monument_geo_comments_decoding() {
+        let buf = [
+            0, 0, 1, 1, 1, 2, 0, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, ' ' as u8,
+            'G' as u8, 'E' as u8, 'O' as u8,
+        ];
         let mlen = 5;
         let time_res = TimeResolution::QuarterSecond;
         match MonumentGeoRecord::decode(mlen, time_res, true, &buf) {
