@@ -7,7 +7,7 @@
 [![crates.io](https://docs.rs/binex/badge.svg)](https://docs.rs/binex/badge.svg)
 
 BINEX is a simple library to decode and encode BINEX messages.  
-BinEX stands for Binary Exchange and is the "real time" stream oriented
+BINEX stands for BINary EXchange and is the "real time" stream oriented
 version of the RINEX format.
 
 RINEX is a readable text format which is based on line termination and allows describing
