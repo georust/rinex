@@ -45,8 +45,12 @@ impl EphemerisFrame {
 
         match fid {
             FieldID::GPSRaw => {
-                let fr = GPSRaw::decode(big_endian, buf)?;
+                let fr = GPSRaw::decode(big_endian, &buf[size..])?;
                 Ok(Self::GPSRaw(fr))
+            },
+            FieldID::GPS => {
+                let fr = GPSEphemeris::decode(big_endian, &buf[size..])?;
+                Ok(Self::GPS(fr))
             },
             _ => Err(Error::UnknownRecordFieldId),
         }

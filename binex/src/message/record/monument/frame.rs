@@ -5,7 +5,7 @@ use crate::{
     Error,
 };
 
-use log::error;
+// use log::error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MonumentGeoFrame {

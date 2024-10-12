@@ -11,9 +11,11 @@ pub(crate) mod constants;
 pub(crate) mod utils;
 
 pub mod prelude {
-    pub use crate::decoder::Decoder;
-    pub use crate::message::{Message, MonumentGeoMetadata, MonumentGeoRecord};
-    pub use crate::Error;
+    pub use crate::{
+        decoder::Decoder,
+        message::{Message, MonumentGeoMetadata, MonumentGeoRecord, Record, TimeResolution},
+        Error,
+    };
     // re-export
     pub use hifitime::Epoch;
 }

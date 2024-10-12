@@ -22,7 +22,7 @@ pub struct Message {
     /// True when reversible stream
     pub reversed: bool,
     /// [Record]
-    record: Record,
+    pub record: Record,
     /// Time Resolution in use
     time_res: TimeResolution,
 }
@@ -49,13 +49,11 @@ impl Message {
 
     /// Decoding attempt from buffered content.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
-        let mut size = 0usize;
-        let mut sync_off = 0usize;
+        let sync_off;
         let mut big_endian = true;
         let mut reversed = false;
         let mut enhanced_crc = false;
-        let mut mid = MessageID::default();
-        let mut time_res = TimeResolution::QuarterSecond;
+        let time_res = TimeResolution::QuarterSecond;
 
         // print!("decoding {:?}", buf);
 
