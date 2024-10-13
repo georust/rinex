@@ -186,30 +186,29 @@ impl Message {
 
         // Encode SYNC byte
         buf[0] = self.sync_byte();
+        let mut ptr = 1;
 
         // Encode MID
         let mid = self.record.to_message_id() as u32;
-        let mid_size = Self::encode_bnxi(mid, self.big_endian, &mut buf[1..])?;
+        ptr += Self::encode_bnxi(mid, self.big_endian, &mut buf[ptr..])?;
 
         // Encode MLEN
         let mlen = self.record.encoding_size() as u32;
-        let mlen_size = Self::encode_bnxi(mlen, self.big_endian, &mut buf[1 + mid_size..])?;
-
-        let rec_offset = 2 + mid_size + mlen_size;
+        ptr += Self::encode_bnxi(mlen, self.big_endian, &mut buf[ptr..])?;
 
         // Encode message
         match &self.record {
             Record::EphemerisFrame(fr) => {
-                fr.encode(self.big_endian, &mut buf[rec_offset..])?;
+                fr.encode(self.big_endian, &mut buf[ptr..])?;
             },
             Record::MonumentGeo(geo) => {
-                geo.encode(self.big_endian, &mut buf[rec_offset..])?;
+                geo.encode(self.big_endian, &mut buf[ptr..])?;
             },
         }
 
         // TODO: encode CRC
 
-        Ok(total)
+        Ok(ptr)
     }
 
     /// Returns the SYNC byte we expect for [Self]

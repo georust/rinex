@@ -306,5 +306,27 @@ mod test {
                 );
             },
         }
+
+        let geo = MonumentGeoRecord::new(t, MonumentGeoMetadata::IGS)
+            .with_comment("Hello")
+            .with_climatic_info("Clim");
+
+        let mut buf = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+
+        match geo.encode(true, &mut buf) {
+            Err(e) => panic!("{} should have passed!", e),
+            Ok(size) => {
+                assert_eq!(size, 19);
+                assert_eq!(
+                    buf,
+                    [
+                        0, 0, 0, 1, 3, 2, 0, 5, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8,
+                        'o' as u8, 14, 4, 'C' as u8, 'l' as u8, 'i' as u8, 'm' as u8, 0, 0
+                    ]
+                );
+            },
+        }
     }
 }

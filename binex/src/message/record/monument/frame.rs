@@ -341,4 +341,23 @@ mod test {
 
         assert_eq!(decoded, frame);
     }
+    #[test]
+    fn geo_climatic() {
+        let frame = MonumentGeoFrame::Climatic("ABC".to_string());
+        assert_eq!(frame.encoding_size(), 3 + 2);
+
+        let big_endian = true;
+        let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let size = frame.encode(big_endian, &mut buf).unwrap();
+
+        assert_eq!(size, frame.encoding_size());
+        assert_eq!(
+            buf,
+            [14, 3, 'A' as u8, 'B' as u8, 'C' as u8, 0, 0, 0, 0, 0, 0]
+        );
+
+        let decoded = MonumentGeoFrame::decode(big_endian, &buf).unwrap();
+
+        assert_eq!(decoded, frame);
+    }
 }
