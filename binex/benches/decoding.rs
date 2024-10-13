@@ -20,11 +20,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut buf = [0; 256];
     msg.encode(&mut buf).unwrap();
 
-    c.bench_function("bnx00", |b| {
-        b.iter(|| {
-            black_box(Message::decode(&buf).unwrap());
-        })
-    });
+    // c.bench_function("bnx00", |b| {
+    //     b.iter(|| {
+    //         black_box(Message::decode(&buf).unwrap());
+    //     })
+    // });
 
     // let record = Record::new_ephemeris_frame(EphemerisFrame::GPSRaw(Default::default()));
     // let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
