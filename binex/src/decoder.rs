@@ -1,10 +1,38 @@
 // use log::{debug, error};
-use std::io::Read;
+use std::io::{Error as IoError, Read};
 
-// #[cfg(feature = "flate2")]
-// use flate2::GzDecoder;
+#[cfg(feature = "flate2")]
+use flate2::read::GzDecoder;
 
 use crate::{message::Message, Error};
+
+enum Reader<R: Read> {
+    Plain(R),
+    #[cfg(feature = "flate2")]
+    Compressed(GzDecoder<R>),
+}
+
+impl<R: Read> From<R> for Reader<R> {
+    fn from(r: R) -> Reader<R> {
+        Self::Plain(r)
+    }
+}
+
+#[cfg(feature = "flate2")]
+impl<R: Read> From<GzDecoder<R>> for Reader<R> {
+    fn from(r: GzDecoder<R>) -> Reader<R> {
+        Self::Compressed(r)
+    }
+}
+
+impl<R: Read> Read for Reader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
+        match self {
+            Self::Plain(r) => r.read(buf),
+            Self::Compressed(r) => r.read(buf),
+        }
+    }
+}
 
 /// [BINEX] Stream Decoder. Use this structure to decode all messages streamed
 /// on a readable interface.
@@ -50,22 +78,32 @@ use crate::{message::Message, Error};
 /// ```
 pub struct Decoder<R: Read> {
     /// [R]
-    reader: R,
+    reader: Reader<R>,
     /// Buffer read pointer
     rd_ptr: usize,
-    /// Buffer write pointer
-    wr_ptr: usize,
     /// Internal buffer
     buffer: Vec<u8>,
 }
 
 impl<R: Read> Decoder<R> {
+    /// Creates a new BINEX [Decoder] from [R] readable interface,
+    /// ready to parse incoming bytes.
     pub fn new(reader: R) -> Self {
         Self {
-            reader,
             rd_ptr: 1024,
-            wr_ptr: 0,
+            reader: reader.into(),
             buffer: [0; 1024].to_vec(),
+        }
+    }
+
+    #[cfg(feature = "flate2")]
+    /// Creates a new Compressed BINEX stream [Decoder] from [R] readable
+    /// interface, that must stream Gzip encoded bytes.
+    pub fn new_gzip(reader: R) -> Self {
+        Self {
+            rd_ptr: 1024,
+            buffer: [0; 1024].to_vec(),
+            reader: GzDecoder::new(reader).into(),
         }
     }
 }
@@ -103,6 +141,7 @@ impl<R: Read> Iterator for Decoder<R> {
         // read data: fill in buffer
         match self.reader.read_exact(&mut self.buffer) {
             Ok(_) => {
+                println!("OK GOT SOMETHING: {:?}", self.buffer);
                 self.rd_ptr = 0;
                 // Exit and prepare for next Iter
                 Some(Err(Error::NotEnoughBytes))
