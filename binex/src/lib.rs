@@ -5,6 +5,7 @@
 use thiserror::Error;
 
 mod decoder;
+mod encoder;
 mod message;
 
 pub(crate) mod constants;
@@ -13,6 +14,7 @@ pub(crate) mod utils;
 pub mod prelude {
     pub use crate::{
         decoder::Decoder,
+        encoder::Encoder,
         message::{
             EphemerisFrame, GPSEphemeris, GPSRaw, Message, MonumentGeoMetadata, MonumentGeoRecord,
             Record, TimeResolution,
