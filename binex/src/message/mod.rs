@@ -47,6 +47,22 @@ impl Message {
         }
     }
 
+    /// Returns total size required to encode this [Message].
+    /// Use this to fulfill [Self::encode] requirements.
+    pub fn encoding_size(&self) -> usize {
+        let mut total = 1; // SYNC
+
+        let mid = self.record.to_message_id() as u32;
+        total += Self::bnxi_encoding_size(mid);
+
+        let mlen = self.record.encoding_size() as u32;
+        total += Self::bnxi_encoding_size(mlen);
+
+        total += self.record.encoding_size();
+        total += 1; // CRC: TODO!
+        total
+    }
+
     /// Decoding attempt from buffered content.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
         let sync_off;
@@ -54,8 +70,6 @@ impl Message {
         let mut reversed = false;
         let mut enhanced_crc = false;
         let time_res = TimeResolution::QuarterSecond;
-
-        // print!("decoding {:?}", buf);
 
         // 1. locate SYNC byte
         if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
@@ -131,20 +145,12 @@ impl Message {
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec = MonumentGeoRecord::decode(
-                    (mlen - 1) as usize, // CRC!
-                    time_res,
-                    big_endian,
-                    &buf[ptr..],
-                )?;
+                let rec =
+                    MonumentGeoRecord::decode(mlen as usize, time_res, big_endian, &buf[ptr..])?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Ephemeris => {
-                let fr = EphemerisFrame::decode(
-                    (mlen - 1) as usize, // CRC!
-                    big_endian,
-                    &buf[ptr..],
-                )?;
+                let fr = EphemerisFrame::decode(big_endian, &buf[ptr..])?;
                 Record::new_ephemeris_frame(fr)
             },
             MessageID::Unknown => {
@@ -173,32 +179,75 @@ impl Message {
     /// [Self] must fit in preallocated size.
     /// Returns total encoded size, which is equal to the message size (in bytes).
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, Error> {
-        let size = self.encoding_size();
-        if buf.len() < size {
+        let total = self.encoding_size();
+        if buf.len() < total {
             return Err(Error::NotEnoughBytes);
         }
 
-        Ok(0)
+        // Encode SYNC byte
+        buf[0] = self.sync_byte();
+
+        // Encode MID
+        let mid = self.record.to_message_id() as u32;
+        let mid_size = Self::encode_bnxi(mid, self.big_endian, &mut buf[1..])?;
+
+        // Encode MLEN
+        let mlen = self.record.encoding_size() as u32;
+        let mlen_size = Self::encode_bnxi(mlen, self.big_endian, &mut buf[1 + mid_size..])?;
+
+        let rec_offset = 2 + mid_size + mlen_size;
+
+        // Encode message
+        match &self.record {
+            Record::EphemerisFrame(fr) => {
+                fr.encode(self.big_endian, &mut buf[rec_offset..])?;
+            },
+            Record::MonumentGeo(geo) => {
+                geo.encode(self.big_endian, &mut buf[rec_offset..])?;
+            },
+        }
+
+        // TODO: encode CRC
+
+        Ok(total)
+    }
+
+    /// Returns the SYNC byte we expect for [Self]
+    pub(crate) fn sync_byte(&self) -> u8 {
+        if self.reversed {
+            if self.big_endian {
+                if self.enhanced_crc {
+                    Constants::REVSYNC_BE_ENHANCED_CRC
+                } else {
+                    Constants::REVSYNC_BE_STANDARD_CRC
+                }
+            } else {
+                if self.enhanced_crc {
+                    Constants::REVSYNC_LE_ENHANCED_CRC
+                } else {
+                    Constants::REVSYNC_LE_STANDARD_CRC
+                }
+            }
+        } else {
+            if self.big_endian {
+                if self.enhanced_crc {
+                    Constants::FWDSYNC_BE_ENHANCED_CRC
+                } else {
+                    Constants::FWDSYNC_BE_STANDARD_CRC
+                }
+            } else {
+                if self.enhanced_crc {
+                    Constants::FWDSYNC_LE_ENHANCED_CRC
+                } else {
+                    Constants::FWDSYNC_LE_STANDARD_CRC
+                }
+            }
+        }
     }
 
     /// Tries to locate desired byte within buffer
     fn locate(to_find: u8, buf: &[u8]) -> Option<usize> {
         buf.iter().position(|b| *b == to_find)
-    }
-
-    /// Returns total length (bytewise) to fully encode [Self].
-    /// Use this to fullfill [Self::encode] requirements.
-    pub fn encoding_size(&self) -> usize {
-        // MID 1-4 byte encoding
-        let mid = Self::bnxi_encoding_size(self.mid.into());
-
-        // actual record length
-        let rlen = self.record.encoding_size();
-
-        // MLEN 1-4 byte encoding
-        let mlen = Self::bnxi_encoding_size(rlen as u32);
-
-        mid + mlen + rlen + 1 + 1 // +SYNC BYTE + CRC
     }
 
     // /// Evaluates CRC for [Self]

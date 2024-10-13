@@ -37,8 +37,13 @@ impl EphemerisFrame {
     }
 
     /// [EphemerisFrame] decoding attempt from given [FieldID]
-    pub(crate) fn decode(mlen: usize, big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
-        // decode field id
+    pub(crate) fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+        // cant decode 1-4b
+        if buf.len() < 1 {
+            return Err(Error::NotEnoughBytes);
+        }
+
+        // decode FID
         let (bnxi, size) = Message::decode_bnxi(&buf, big_endian);
         let fid = FieldID::from(bnxi);
         println!("bnx01-eph fid={:?}", fid);
@@ -59,9 +64,17 @@ impl EphemerisFrame {
     /// Encodes [Self] into buffer, returns encoded size (total bytes).
     /// [Self] must fit in preallocated buffer.
     pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+        if buf.len() < self.encoding_size() {
+            return Err(Error::NotEnoughBytes);
+        }
+
+        // encode FID
+        let fid = self.to_field_id() as u32;
+        let offset = Message::encode_bnxi(fid, big_endian, buf)?;
+
         match self {
-            Self::GPSRaw(r) => r.encode(big_endian, buf),
-            Self::GPS(r) => r.encode(big_endian, buf),
+            Self::GPSRaw(r) => r.encode(big_endian, &mut buf[offset..]),
+            Self::GPS(r) => r.encode(big_endian, &mut buf[offset..]),
         }
     }
 
@@ -76,6 +89,30 @@ mod test {
     use super::*;
     #[test]
     fn gps_raw() {
+        let mut eph = GPSEphemeris::default();
+        eph.sv_prn = 10;
+        eph.cic = 10.0;
+        eph.cus = 12.0;
+        eph.m0_rad = 100.0;
+        eph.clock_offset = 123.0;
+
+        assert_eq!(GPSEphemeris::encoding_size(), 153);
+
+        let big_endian = true;
+
+        let mut encoded = [0; 77];
+        assert!(eph.encode(big_endian, &mut encoded).is_err());
+
+        let mut encoded = [0; 153];
+        let size = eph.encode(big_endian, &mut encoded).unwrap();
+        assert_eq!(size, 153);
+
+        let decoded = GPSEphemeris::decode(big_endian, &encoded).unwrap();
+
+        assert_eq!(decoded, eph);
+    }
+    #[test]
+    fn gps_eph() {
         let raw: GPSRaw = GPSRaw::new();
         assert_eq!(GPSRaw::encoding_size(), 1 + 4 + 72);
 
@@ -84,6 +121,6 @@ mod test {
         let size = raw.encode(big_endian, &mut buf).unwrap();
 
         assert_eq!(size, GPSRaw::encoding_size());
-        assert_eq!(buf, [0; 77],);
+        assert_eq!(buf, [0; 77]);
     }
 }

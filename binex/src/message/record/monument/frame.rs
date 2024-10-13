@@ -114,7 +114,7 @@ impl MonumentGeoFrame {
             | Self::UserID(s)
             | Self::AgencyName(s) => {
                 let s_len = s.len();
-                s_len + Message::bnxi_encoding_size(s_len as u32)
+                s_len + 1 + Message::bnxi_encoding_size(s_len as u32) // FID
             },
         }
     }
@@ -158,7 +158,16 @@ impl MonumentGeoFrame {
     }
 
     /// [MonumentGeoFrame] decoding attempt from given [FieldID]
-    pub(crate) fn decode(fid: FieldID, big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+    pub(crate) fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+        if buf.len() < 2 {
+            // smallest size
+            return Err(Error::NotEnoughBytes);
+        }
+
+        // decode FID
+        let (fid, mut ptr) = Message::decode_bnxi(&buf, big_endian);
+        let fid = FieldID::from(fid);
+
         match fid {
             FieldID::Comment
             | FieldID::AntennaNumber
@@ -181,18 +190,21 @@ impl MonumentGeoFrame {
             | FieldID::ReceiverType
             | FieldID::ReceiverNumber
             | FieldID::Extra => {
-                if buf.len() < 1 {
-                    return Err(Error::NotEnoughBytes); // can't parse BNXI
+                // can't decode 1-4b
+                if buf.len() < 1 + ptr {
+                    return Err(Error::NotEnoughBytes);
                 }
 
-                let (s_len, off) = Message::decode_bnxi(&buf, big_endian);
-                if buf.len() - off < s_len as usize {
+                // decode slen
+                let (s_len, size) = Message::decode_bnxi(&buf[ptr..], big_endian);
+                let s_len = s_len as usize;
+                ptr += size;
+
+                if buf.len() - ptr < s_len {
                     return Err(Error::NotEnoughBytes); // can't parse entire string
                 }
 
-                let (start, stop) = (off, off + s_len as usize);
-
-                match std::str::from_utf8(&buf[start..stop]) {
+                match std::str::from_utf8(&buf[ptr..ptr + s_len]) {
                     Ok(s) => match fid {
                         FieldID::Comment => Ok(Self::Comment(s.to_string())),
                         FieldID::MonumentName => Ok(Self::MonumentName(s.to_string())),
@@ -257,6 +269,10 @@ impl MonumentGeoFrame {
             return Err(Error::NotEnoughBytes);
         }
 
+        // encode FID
+        let fid = self.to_field_id() as u32;
+        let mut ptr = Message::encode_bnxi(fid, big_endian, buf)?;
+
         match self {
             Self::Comment(s)
             | Self::UserID(s)
@@ -290,10 +306,12 @@ impl MonumentGeoFrame {
             | Self::AntennaMount(s)
             | Self::AntennaRadomeType(s)
             | Self::AntennaRadomeNumber(s) => {
-                // s_len as 1-4 Byte
+                // encode strlen
                 let s_len = s.len();
-                let size = Message::encode_bnxi(s_len as u32, big_endian, buf)?;
-                buf[size..size + s_len].clone_from_slice(s.as_bytes()); // utf8 encoding
+                let size = Message::encode_bnxi(s_len as u32, big_endian, &mut buf[ptr..])?;
+                ptr += size;
+
+                buf[ptr..ptr + s_len].clone_from_slice(s.as_bytes()); // utf8 encoding
             },
         }
 
@@ -306,10 +324,8 @@ mod test {
     use super::*;
     #[test]
     fn geo_comments() {
-        let comment = "hello geo".to_string();
-        let s_len = comment.len();
-        let frame = MonumentGeoFrame::Comment(comment);
-        assert_eq!(frame.encoding_size(), s_len + 1);
+        let frame = MonumentGeoFrame::Comment("Hello".to_string());
+        assert_eq!(frame.encoding_size(), 5 + 2);
 
         let big_endian = true;
         let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -318,7 +334,11 @@ mod test {
         assert_eq!(size, frame.encoding_size());
         assert_eq!(
             buf,
-            [9, 104, 101, 108, 108, 111, 32, 103, 101, 111, 0, 0, 0]
-        )
+            [0, 5, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0, 0, 0, 0]
+        );
+
+        let decoded = MonumentGeoFrame::decode(big_endian, &buf).unwrap();
+
+        assert_eq!(decoded, frame);
     }
 }

@@ -1,10 +1,10 @@
-use log::{debug, error};
+// use log::{debug, error};
 use std::io::Read;
 
-#[cfg(feature = "flate2")]
-use flate2::GzDecoder;
+// #[cfg(feature = "flate2")]
+// use flate2::GzDecoder;
 
-use crate::{constants::Constants, message::Message, utils::Utils, Error};
+use crate::{message::Message, Error};
 
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum State {

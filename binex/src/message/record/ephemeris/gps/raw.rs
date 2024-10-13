@@ -24,7 +24,7 @@ impl GPSRaw {
         Self::default()
     }
     pub const fn encoding_size() -> usize {
-        1 + 4 + 72
+        77
     }
     pub fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if buf.len() < Self::encoding_size() {
@@ -41,7 +41,7 @@ impl GPSRaw {
         Ok(Self {
             uint1,
             sint4,
-            bytes: buf[5..72 - 5].to_vec(),
+            bytes: buf[5..77].to_vec(),
         })
     }
     pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
@@ -61,5 +61,38 @@ impl GPSRaw {
             buf[5..].copy_from_slice(&self.bytes);
             Ok(size)
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn gps_raw() {
+        let big_endian = true;
+
+        let buf = [0; 64];
+        let decode = GPSRaw::decode(big_endian, &buf);
+        assert!(decode.is_err());
+
+        let mut buf = [0; 77];
+        buf[0] = 10;
+        buf[4] = 1;
+        buf[5] = 123;
+        buf[6] = 124;
+
+        let decoded = GPSRaw::decode(big_endian, &buf).unwrap();
+
+        assert_eq!(decoded.uint1, 10);
+        assert_eq!(decoded.sint4, 1);
+        assert_eq!(decoded.bytes.len(), 72);
+        assert_eq!(decoded.bytes[0], 123);
+        assert_eq!(decoded.bytes[1], 124);
+
+        let mut encoded = [0; 77];
+        let size = decoded.encode(big_endian, &mut encoded).unwrap();
+
+        assert_eq!(size, 77);
+        assert_eq!(buf, encoded)
     }
 }
