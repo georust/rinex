@@ -49,7 +49,7 @@ impl From<MessageID> for u32 {
     fn from(val: MessageID) -> u32 {
         match val {
             MessageID::SiteMonumentMarker => 0,
-            // MessageID::Ephemeris => 0x01,
+            MessageID::Ephemeris => 1,
             // MessageID::ObservationTimeTagRxInfo => 0x02,
             // MessageID::Meteo => 0x03,
             // MessageID::ReceiverInfo => 0x04,
