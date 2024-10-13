@@ -26,12 +26,12 @@ pub struct Decompressor {
     /// It still needs to be formatted for the final result though.
     epoch_descriptor: String,
     /// Clock offset differentiator
-    clock_diff: NumDiff,
+    clock_diff: NumDiff<3>,
     /// vehicle identification
     sv_ptr: usize,
     nb_sv: usize, // sv_ptr range
     /// Vehicle differentiators
-    sv_diff: HashMap<SV, Vec<(NumDiff, TextDiff, TextDiff)>>,
+    sv_diff: HashMap<SV, Vec<(NumDiff<3>, TextDiff, TextDiff)>>,
 }
 
 /// Reworks given content to match RINEX specifications
@@ -123,13 +123,13 @@ impl Decompressor {
             state: State::default(),
             epoch_diff: TextDiff::new(),
             epoch_descriptor: String::with_capacity(128),
-            clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)
-                .expect("failed to prepare compression object"),
+            clock_diff: NumDiff::<3>::new(0),
             nb_sv: 0,
             sv_ptr: 0,
             sv_diff: HashMap::new(), // init. later
         }
     }
+
     /*
         fn reset(&mut self) {
             // are we sure this is enough ?
@@ -138,6 +138,7 @@ impl Decompressor {
             self.state = State::default();
         }
     */
+
     fn parse_nb_sv(content: &str, crx_major: u8) -> Option<usize> {
         let mut offset: usize = 2    // Y
             +2+1 // m
@@ -147,10 +148,12 @@ impl Decompressor {
             +11  // s
             +1   // ">" or "&" init marker
             +3; // epoch flag
+
         if content.starts_with("> ") {
             //CRNX3 initial epoch, 1 extra whitespace
             offset += 1;
         }
+
         if crx_major > 1 {
             offset += 2; // YYYY on 4 digits
         }
@@ -321,8 +324,9 @@ impl Decompressor {
                         let (n, rem) = line.split_at(1);
                         if let Ok(order) = u8::from_str_radix(n, 10) {
                             let (_, value) = rem.split_at(1);
+
                             if let Ok(value) = i64::from_str_radix(value, 10) {
-                                self.clock_diff.init(order.into(), value)?;
+                                self.clock_diff.force_init(value);
                             } else {
                                 return Err(Error::ClockOffsetValueError);
                             }
@@ -384,7 +388,7 @@ impl Decompressor {
                          * Build compress tools in case this vehicle is new
                          */
                         if self.sv_diff.get(&sv).is_none() {
-                            let mut inner: Vec<(NumDiff, TextDiff, TextDiff)> =
+                            let mut inner: Vec<(NumDiff<3>, TextDiff, TextDiff)> =
                                 Vec::with_capacity(16);
                             // this protects from malformed Headers or malformed Epoch descriptions
                             let codes = match sv.constellation.is_sbas() {
@@ -393,11 +397,9 @@ impl Decompressor {
                             };
                             if let Some(codes) = codes {
                                 for _ in codes {
-                                    let mut kernels = (
-                                        NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
-                                        TextDiff::new(),
-                                        TextDiff::new(),
-                                    );
+                                    let mut kernels =
+                                        (NumDiff::<3>::new(0), TextDiff::new(), TextDiff::new());
+
                                     kernels.1.init(" "); // LLI
                                     kernels.2.init(" "); // SSI
                                     inner.push(kernels);
@@ -439,7 +441,8 @@ impl Decompressor {
                                                 {
                                                     sv_diff[obs_ptr]
                                                         .0 // observations only, at this point
-                                                        .init(order.into(), data)?;
+                                                        .force_init(data);
+
                                                     observations.push(Some(data));
                                                 }
                                             } else {
@@ -472,7 +475,8 @@ impl Decompressor {
                                             if let Ok(data) = i64::from_str_radix(data.trim(), 10) {
                                                 sv_diff[obs_ptr]
                                                     .0 // observations only, at this point
-                                                    .init(order.into(), data)?;
+                                                    .force_init(data);
+
                                                 observations.push(Some(data));
                                             }
                                         } else {

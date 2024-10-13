@@ -40,9 +40,9 @@ pub struct Compressor {
     /// Epoch differentiator
     epoch_diff: TextDiff,
     /// Clock offset differentiator
-    clock_diff: NumDiff,
+    clock_diff: NumDiff<3>,
     /// Vehicle differentiators
-    sv_diff: HashMap<SV, HashMap<usize, (NumDiff, TextDiff, TextDiff)>>,
+    sv_diff: HashMap<SV, HashMap<usize, (NumDiff<3>, TextDiff, TextDiff)>>,
     /// Pending kernel re-initialization
     forced_init: HashMap<SV, Vec<usize>>,
 }
@@ -69,9 +69,9 @@ impl Default for Compressor {
             vehicle_ptr: 0,
             obs_ptr: 0,
             epoch_diff: TextDiff::new(),
-            clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER).unwrap(),
             sv_diff: HashMap::new(),
             forced_init: HashMap::new(),
+            clock_diff: NumDiff::<3>::new(0),
         }
     }
 }
@@ -345,7 +345,7 @@ impl Compressor {
                                                 if indexes.contains(&self.obs_ptr) {
                                                     // forced reinit pending
                                                     compressed = obsdata;
-                                                    diffs.0.init(3, obsdata).unwrap();
+                                                    diffs.0.force_init(obsdata);
                                                     diffs.1.init(" ");
                                                     diffs.2.init(" ");
                                                     //println!("FORCED REINIT WITH FLAGS \"{}\"", self.flags_descriptor); //DEBUG
@@ -376,16 +376,17 @@ impl Compressor {
 
                                             let _ = diffs.1.compress(" ");
                                             let _ = diffs.2.compress(" ");
+
                                             // ==> empty flags fields
                                             self.flags_descriptor.push_str("  ");
                                         } else {
                                             // first time dealing with this observable
-                                            let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                                NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
+                                            let mut diff = (
+                                                NumDiff::<3>::new(obsdata),
                                                 TextDiff::new(),
                                                 TextDiff::new(),
                                             );
-                                            diff.0.init(3, obsdata).unwrap();
+
                                             result.push_str(&format!("3&{} ", obsdata)); //append obs
                                             diff.1.init(" "); // BLANK
                                             diff.2.init(" "); // BLANK
@@ -394,18 +395,23 @@ impl Compressor {
                                         }
                                     } else {
                                         // first time dealing with this vehicle
-                                        let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                            NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
+                                        let mut diff = (
+                                            NumDiff::<3>::new(obsdata),
                                             TextDiff::new(),
                                             TextDiff::new(),
                                         );
-                                        diff.0.init(3, obsdata).unwrap();
+
                                         result.push_str(&format!("3&{} ", obsdata)); //append obs
                                         diff.1.init(" "); // BLANK
                                         diff.2.init(" "); // BLANK
+
                                         self.flags_descriptor.push_str("  ");
-                                        let mut map: HashMap<usize, (NumDiff, TextDiff, TextDiff)> =
-                                            HashMap::new();
+
+                                        let mut map: HashMap<
+                                            usize,
+                                            (NumDiff<3>, TextDiff, TextDiff),
+                                        > = HashMap::new();
+
                                         map.insert(self.obs_ptr, diff);
                                         self.sv_diff.insert(sv, map);
                                     }
@@ -424,7 +430,8 @@ impl Compressor {
                                                     // forced init pending
                                                     compressed = obsdata;
                                                     result.push_str(&format!("3&{} ", compressed));
-                                                    diffs.0.init(3, obsdata).unwrap();
+                                                    diffs.0.force_init(obsdata);
+
                                                     // remove from pending list,
                                                     // so we only force it once
                                                     for i in 0..indexes.len() {
@@ -452,12 +459,12 @@ impl Compressor {
                                             self.flags_descriptor.push_str(&ssi);
                                         } else {
                                             // first time dealing with this observable
-                                            let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                                NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
+                                            let mut diff = (
+                                                NumDiff::<3>::new(obsdata),
                                                 TextDiff::new(),
                                                 TextDiff::new(),
                                             );
-                                            diff.0.init(3, obsdata).unwrap();
+
                                             diff.1.init(lli);
                                             diff.2.init(ssi);
                                             result.push_str(&format!("3&{} ", obsdata)); //append obs
@@ -477,12 +484,12 @@ impl Compressor {
                                         }
                                     } else {
                                         // first time dealing with this vehicle
-                                        let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                            NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
+                                        let mut diff = (
+                                            NumDiff::<3>::new(obsdata),
                                             TextDiff::new(),
                                             TextDiff::new(),
                                         );
-                                        diff.0.init(3, obsdata).unwrap();
+
                                         result.push_str(&format!("3&{} ", obsdata)); //append obs
                                         diff.1.init(lli);
                                         diff.2.init(ssi);
@@ -494,8 +501,12 @@ impl Compressor {
                                             diff.2.init(" "); // BLANK
                                             self.flags_descriptor.push(' ');
                                         }
-                                        let mut map: HashMap<usize, (NumDiff, TextDiff, TextDiff)> =
-                                            HashMap::new();
+
+                                        let mut map: HashMap<
+                                            usize,
+                                            (NumDiff<3>, TextDiff, TextDiff),
+                                        > = HashMap::new();
+
                                         map.insert(self.obs_ptr, diff);
                                         self.sv_diff.insert(sv, map);
                                     }

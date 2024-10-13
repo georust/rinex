@@ -124,5 +124,5 @@ criterion = "0.5"
 rand = "0.8.4"
 
 [[bench]]
-name = "benchmark"
+name = "hatanaka"
 harness = false
