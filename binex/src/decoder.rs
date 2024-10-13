@@ -6,15 +6,6 @@ use std::io::Read;
 
 use crate::{message::Message, Error};
 
-#[derive(Debug, Copy, Clone, PartialEq, Default)]
-pub enum State {
-    /// Read I/O: needs more byte
-    #[default]
-    Read,
-    /// Parse internal buffer: consuming data
-    Parsing,
-}
-
 /// [BINEX] Stream Decoder. Use this structure to decode all messages streamed
 /// on a readable interface.
 /// ```
@@ -66,18 +57,14 @@ pub struct Decoder<R: Read> {
     wr_ptr: usize,
     /// Internal buffer
     buffer: Vec<u8>,
-    /// Current Message being decoded to handle
-    /// case when [Message] appears in the middle of two succesive .read()
-    msg: Message,
 }
 
 impl<R: Read> Decoder<R> {
     pub fn new(reader: R) -> Self {
         Self {
-            rd_ptr: 0,
-            wr_ptr: 0,
             reader,
-            msg: Default::default(),
+            rd_ptr: 1024,
+            wr_ptr: 0,
             buffer: [0; 1024].to_vec(),
         }
     }
@@ -88,9 +75,9 @@ impl<R: Read> Iterator for Decoder<R> {
     /// Parse next message contained in stream
     fn next(&mut self) -> Option<Self::Item> {
         // parse internal buffer
-        while self.rd_ptr < self.wr_ptr {
-            println!("parsing: rd={}/wr={}", self.rd_ptr, self.wr_ptr);
-            println!("workbuf: {:?}", &self.buffer[self.rd_ptr..]);
+        while self.rd_ptr < 1024 {
+            println!("parsing: rd={}/wr={}", self.rd_ptr, 1024);
+            //println!("workbuf: {:?}", &self.buffer[self.rd_ptr..]);
 
             match Message::decode(&self.buffer[self.rd_ptr..]) {
                 Ok(msg) => {
@@ -99,36 +86,31 @@ impl<R: Read> Iterator for Decoder<R> {
                 },
                 Err(Error::NoSyncByte) => {
                     // no SYNC in entire buffer
-                    // => reset & re-read
                     println!(".decode no-sync");
-                    self.rd_ptr = 0;
-                    self.wr_ptr = 0;
-                    self.buffer.clear();
-                    break;
+                    // prepare for next read
+                    self.rd_ptr = 1024;
+                    //self.buffer.clear();
+                    self.buffer = [0; 1024].to_vec();
                 },
-                Err(e) => {
-                    println!(".decode error: {}", e);
-                    self.rd_ptr = 0;
-                    self.wr_ptr = 0;
-                    self.buffer.clear();
-                    break;
+                Err(_) => {
+                    // decoding error: unsupported message
+                    // Keep iterating the buffer
+                    self.rd_ptr += 1;
                 },
             }
         }
 
         // read data: fill in buffer
-        match self.reader.read(&mut self.buffer) {
-            Ok(size) => {
-                if size == 0 {
-                    None // EOS
-                } else {
-                    self.wr_ptr += size;
-                    Some(Err(Error::NotEnoughBytes))
-                }
+        match self.reader.read_exact(&mut self.buffer) {
+            Ok(_) => {
+                self.rd_ptr = 0;
+                // Exit and prepare for next Iter
+                Some(Err(Error::NotEnoughBytes))
             },
             Err(e) => {
-                println!("i/o error: {}", e);
-                Some(Err(Error::IoError(e)))
+                //println!("i/o error: {}", e);
+                // Some(Err(Error::IoError(e)))
+                None // EOS
             },
         }
     }
