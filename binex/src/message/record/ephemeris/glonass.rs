@@ -23,7 +23,7 @@ pub struct GLOEphemeris {
     pub age_op_days: u8,
     pub leap_s: u8,
     pub tau_gps_s: f64,
-    pub l1_l2_gd: f64, 
+    pub l1_l2_gd: f64,
 }
 
 impl GLOEphemeris {
@@ -154,7 +154,7 @@ impl GLOEphemeris {
         buf[114] = self.freq_channel as u8;
         buf[115] = self.age_op_days;
         buf[116] = self.leap_s;
-        
+
         let tau_gps_s = if big_endian {
             self.tau_gps_s.to_be_bytes()
         } else {
@@ -206,13 +206,13 @@ impl GLOEphemeris {
         let sv_health = buf[113];
         let freq_channel = buf[114] as i8;
         let age_op_days = buf[115];
-        let leap_s = buf[116];  
+        let leap_s = buf[116];
 
         // 10 tau_gps_s
         let tau_gps_s = Utils::decode_f64(big_endian, &buf[117..125])?;
         // 11: l1/l2 gd
         let l1_l2_gd = Utils::decode_f64(big_endian, &buf[126..134])?;
-      
+
         Ok(Self {
             slot,
             day,

@@ -10,6 +10,9 @@ pub use gps::{GPSEphemeris, GPSRaw};
 mod glonass;
 pub use glonass::GLOEphemeris;
 
+mod sbas;
+pub use sbas::SBASEphemeris;
+
 /// [EphemerisFrame] may describe raw, decoded GNSS
 /// Ephemeris or Ionosphere model parameters.
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +24,8 @@ pub enum EphemerisFrame {
     GPS(GPSEphemeris),
     /// Decoded Glonass Ephemeris
     GLO(GLOEphemeris),
+    /// Decoded SBAS Ephemeris
+    SBAS(SBASEphemeris),
 }
 
 impl EphemerisFrame {
@@ -31,6 +36,7 @@ impl EphemerisFrame {
             Self::GPSRaw(_) => GPSRaw::encoding_size(),
             Self::GPS(_) => GPSEphemeris::encoding_size(),
             Self::GLO(_) => GLOEphemeris::encoding_size(),
+            Self::SBAS(_) => SBASEphemeris::encoding_size(),
         }
     }
 
@@ -39,6 +45,7 @@ impl EphemerisFrame {
         match self {
             Self::GPS(_) => FieldID::GPS,
             Self::GLO(_) => FieldID::GLO,
+            Self::SBAS(_) => FieldID::SBAS,
             Self::GPSRaw(_) => FieldID::GPSRaw,
         }
     }
@@ -83,6 +90,7 @@ impl EphemerisFrame {
             Self::GPSRaw(r) => r.encode(big_endian, &mut buf[offset..]),
             Self::GPS(r) => r.encode(big_endian, &mut buf[offset..]),
             Self::GLO(r) => r.encode(big_endian, &mut buf[offset..]),
+            Self::SBAS(r) => r.encode(big_endian, &mut buf[offset..]),
         }
     }
 

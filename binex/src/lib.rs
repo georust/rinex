@@ -14,8 +14,8 @@ pub mod prelude {
     pub use crate::{
         decoder::Decoder,
         message::{
-            EphemerisFrame, Message, MonumentGeoMetadata, MonumentGeoRecord, Record, TimeResolution,
-            GPSRaw, GPSEphemeris,
+            EphemerisFrame, GPSEphemeris, GPSRaw, Message, MonumentGeoMetadata, MonumentGeoRecord,
+            Record, TimeResolution,
         },
         Error,
     };

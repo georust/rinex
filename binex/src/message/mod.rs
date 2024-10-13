@@ -2,7 +2,9 @@ mod mid; // message ID
 mod record; // Record: message content
 mod time; // Epoch encoding/decoding
 
-pub use record::{EphemerisFrame, MonumentGeoMetadata, MonumentGeoRecord, Record, GPSRaw, GPSEphemeris};
+pub use record::{
+    EphemerisFrame, GPSEphemeris, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record,
+};
 
 pub use time::TimeResolution;
 
