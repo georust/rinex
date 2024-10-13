@@ -1,5 +1,8 @@
 //! Raw GPS Ephemeris
-use crate::Error;
+use crate::{
+    //utils::Utils,
+    Error,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GPSRaw {
@@ -58,7 +61,7 @@ impl GPSRaw {
             };
 
             buf[1..5].copy_from_slice(&bytes);
-            buf[5..].copy_from_slice(&self.bytes);
+            buf[5..72 + 5].copy_from_slice(&self.bytes);
             Ok(size)
         }
     }

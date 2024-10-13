@@ -132,7 +132,7 @@ impl Message {
         // 2. parse MID
         let (bnxi, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mid = MessageID::from(bnxi);
-        println!("mid={:?}", mid);
+        //println!("mid={:?}", mid);
         ptr += size;
 
         // make sure we can parse up to 4 byte MLEN
@@ -149,7 +149,7 @@ impl Message {
             return Err(Error::IncompleteMessage(mlen));
         }
 
-        println!("mlen={:?}", mlen);
+        //println!("mlen={:?}", mlen);
         ptr += size;
 
         // 4. parse RECORD
@@ -164,11 +164,11 @@ impl Message {
                 Record::new_ephemeris_frame(fr)
             },
             MessageID::Unknown => {
-                println!("id=0xffffffff");
+                //println!("id=0xffffffff");
                 return Err(Error::UnknownMessage);
             },
             id => {
-                println!("found unsupported msg id={:?}", id);
+                //println!("found unsupported msg id={:?}", id);
                 return Err(Error::UnknownMessage);
             },
         };
@@ -281,7 +281,7 @@ impl Message {
             }
         }
 
-        for i in 0..buf.len() {
+        for i in 0..Utils::min_usize(buf.len(), 4) {
             if i < 3 {
                 if buf[i] & Constants::BNXI_KEEP_GOING_MASK == 0 {
                     last_preserved = i;
@@ -366,6 +366,8 @@ impl Message {
 #[cfg(test)]
 mod test {
     use super::Message;
+    use crate::message::TimeResolution;
+    use crate::message::{EphemerisFrame, GPSRaw, Record};
     use crate::{constants::Constants, Error};
     #[test]
     fn big_endian_bnxi_1() {
@@ -569,5 +571,13 @@ mod test {
             Err(e) => panic!("returned unexpected error: {}", e),
             _ => panic!("should have paniced"),
         }
+    }
+    #[test]
+    fn test_gps_raw() {
+        let record = Record::new_ephemeris_frame(EphemerisFrame::GPSRaw(GPSRaw::default()));
+        let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
+
+        let mut encoded = [0; 256];
+        msg.encode(&mut encoded).unwrap();
     }
 }

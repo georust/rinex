@@ -203,7 +203,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn eph_x00_x01_error() {
+    fn eph_x00_x03_error() {
         let buf = [0; 100];
         assert!(SBASEphemeris::decode(true, &buf).is_err());
     }

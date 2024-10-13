@@ -2,7 +2,6 @@
 
 [![Rust](https://github.com/georust/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/rust.yml)
 [![Rust](https://github.com/georust/rinex/actions/workflows/daily.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/daily.yml)
-
 [![crates.io](https://img.shields.io/crates/v/binex.svg)](https://crates.io/crates/binex)
 [![crates.io](https://docs.rs/binex/badge.svg)](https://docs.rs/binex/badge.svg)
 

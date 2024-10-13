@@ -18,7 +18,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let record = Record::new_monument_geo(record);
     let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
 
-    c.bench_function("bnx00", |b| {
+    c.bench_function("encoding-00", |b| {
         b.iter(|| {
             black_box(msg.encode(&mut buf).unwrap());
         })
@@ -27,7 +27,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let record = Record::new_ephemeris_frame(EphemerisFrame::GPSRaw(Default::default()));
     let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
 
-    c.bench_function("bnx01-00", |b| {
+    c.bench_function("encoding-01-00", |b| {
         b.iter(|| {
             black_box(msg.encode(&mut buf).unwrap());
         })
@@ -36,7 +36,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let record = Record::new_ephemeris_frame(EphemerisFrame::GPS(Default::default()));
     let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
 
-    c.bench_function("bnx01-01", |b| {
+    c.bench_function("encoding-01-01", |b| {
         b.iter(|| {
             black_box(msg.encode(&mut buf).unwrap());
         })

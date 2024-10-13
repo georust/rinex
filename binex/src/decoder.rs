@@ -5,6 +5,7 @@ use std::io::{Error as IoError, Read};
 use flate2::read::GzDecoder;
 
 use crate::{message::Message, Error};
+use log::warn;
 
 /// Abstraction for Plain or Compressed [R]
 enum Reader<R: Read> {
@@ -20,6 +21,7 @@ impl<R: Read> From<R> for Reader<R> {
 }
 
 #[cfg(feature = "flate2")]
+#[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
 impl<R: Read> From<GzDecoder<R>> for Reader<R> {
     fn from(r: GzDecoder<R>) -> Reader<R> {
         Self::Compressed(r)
@@ -125,6 +127,7 @@ impl<R: Read> Decoder<R> {
     }
 
     #[cfg(feature = "flate2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
     /// Creates a new Compressed BINEX stream [Decoder] from [R] readable
     /// interface, that must stream Gzip encoded bytes.
     /// ```
@@ -185,7 +188,7 @@ impl<R: Read> Iterator for Decoder<R> {
     fn next(&mut self) -> Option<Self::Item> {
         // parse internal buffer
         while self.rd_ptr < 1024 && self.state == State::Parsing {
-            println!("parsing: rd={}/wr={}", self.rd_ptr, 1024);
+            //println!("parsing: rd={}/wr={}", self.rd_ptr, 1024);
             //println!("workbuf: {:?}", &self.buffer[self.rd_ptr..]);
 
             match Message::decode(&self.buffer[self.rd_ptr..]) {
@@ -197,7 +200,7 @@ impl<R: Read> Iterator for Decoder<R> {
                     return Some(Ok(msg));
                 },
                 Err(Error::IncompleteMessage(mlen)) => {
-                    print!("INCOMPLETE: rd_ptr={}/mlen={}", self.rd_ptr, mlen);
+                    //print!("INCOMPLETE: rd_ptr={}/mlen={}", self.rd_ptr, mlen);
                     // buffer contains partial message
 
                     // [IF] mlen (size to complete) fits in self.buffer
@@ -214,7 +217,7 @@ impl<R: Read> Iterator for Decoder<R> {
                         // especially the signal sampling that we do not support yet.
                         // In this case, we simply trash the remaning amount of bytes,
                         // message is lost and we move on to the next SYNC
-                        println!("library limitation: unprocessed message");
+                        warn!("library limitation: unprocessed message");
                         self.state = State::IncompleteTrashing;
                         //println!("need to trash {} bytes", self.size_to_complete);
                     }
@@ -248,7 +251,7 @@ impl<R: Read> Iterator for Decoder<R> {
                         if self.size_to_complete == 0 {
                             // trashed completely.
                             self.state = State::Parsing;
-                            println!("back to parsing");
+                            //println!("back to parsing");
                         } else {
                             if self.size_to_complete < 1024 {
                                 //println!("shiting {} bytes", self.size_to_complete);

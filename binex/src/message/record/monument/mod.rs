@@ -28,6 +28,13 @@ pub struct MonumentGeoRecord {
     pub frames: Vec<MonumentGeoFrame>,
 }
 
+impl Iterator for MonumentGeoRecord {
+    type Item = MonumentGeoFrame;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.frames.iter().next().cloned()
+    }
+}
+
 impl MonumentGeoRecord {
     /// 4 byte date uint4       }
     /// 1 byte qsec             } epoch
