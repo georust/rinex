@@ -2,10 +2,10 @@
 
 use crate::message::MessageID;
 
-mod ephemeris;
+mod ephemeris; // ephemeris frames 
 mod monument; // geodetic marker // ephemeris frames
 
-pub use ephemeris::EphemerisFrame;
+pub use ephemeris::{EphemerisFrame, GPSEphemeris, GPSRaw};
 pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -36,6 +36,13 @@ impl Record {
     pub fn as_monument_geo(&self) -> Option<&MonumentGeoRecord> {
         match self {
             Self::MonumentGeo(r) => Some(r),
+            _ => None,
+        }
+    }
+    /// [EphemerisFrame] unwrapping attempt
+    pub fn as_ephemeris(&self) -> Option<&EphemerisFrame> {
+        match self {
+            Self::EphemerisFrame(fr) => Some(fr),
             _ => None,
         }
     }

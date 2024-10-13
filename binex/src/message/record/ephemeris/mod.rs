@@ -7,6 +7,9 @@ use fid::FieldID;
 mod gps;
 pub use gps::{GPSEphemeris, GPSRaw};
 
+mod glonass;
+pub use glonass::GLOEphemeris;
+
 /// [EphemerisFrame] may describe raw, decoded GNSS
 /// Ephemeris or Ionosphere model parameters.
 #[derive(Debug, Clone, PartialEq)]

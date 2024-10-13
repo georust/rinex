@@ -15,6 +15,7 @@ pub mod prelude {
         decoder::Decoder,
         message::{
             EphemerisFrame, Message, MonumentGeoMetadata, MonumentGeoRecord, Record, TimeResolution,
+            GPSRaw, GPSEphemeris,
         },
         Error,
     };
