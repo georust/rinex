@@ -40,12 +40,12 @@ pub enum Error {
     EnhancedCrc,
     #[error("non supported timescale")]
     NonSupportedTimescale,
-    #[error("U32 decoding error")]
-    U32Decoding,
     #[error("unknown message")]
     UnknownMessage,
     #[error("unknown record field id")]
     UnknownRecordFieldId,
     #[error("utf8 error")]
     Utf8Error,
+    #[error("Incomplete message")]
+    IncompleteMessage(usize),
 }

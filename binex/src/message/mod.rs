@@ -106,7 +106,10 @@ impl Message {
             return Err(Error::NoSyncByte);
         }
 
-        // TODO: non supported cases (WIP)
+        // <!> TODO: non supported cases <!>
+        //    * Rev Streams are not supported
+        //    * Only basic CRC is managed
+        //    * Little Endianness not tested yet!
         if reversed {
             return Err(Error::ReversedStream);
         }
@@ -117,9 +120,8 @@ impl Message {
             return Err(Error::LittleEndianStream);
         }
 
-        // 1* make sure we have enough bytes
+        // make sure we can parse up to 4 byte MID
         if buf.len() - sync_off < 4 {
-            // TODO improve this test ? Depends on following 1-4 byte
             return Err(Error::NotEnoughBytes);
         }
 
@@ -131,12 +133,18 @@ impl Message {
         println!("mid={:?}", mid);
         ptr += size;
 
+        // make sure we can parse up to 4 byte MLEN
+        if buf.len() - ptr < 4 {
+            return Err(Error::NotEnoughBytes);
+        }
+
         // 3. parse MLEN
         let (mlen, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
+        let mlen = mlen as usize;
 
-        if buf.len() < mlen as usize {
-            // buffered content does not match stream specs
-            return Err(Error::NotEnoughBytes);
+        if buf.len() - ptr < mlen {
+            // buffer does not contain complete message!
+            return Err(Error::IncompleteMessage(mlen));
         }
 
         println!("mlen={:?}", mlen);

@@ -1,5 +1,4 @@
 use binex::prelude::{Decoder, Error};
-use flate2::read::GzDecoder;
 use std::fs::File;
 
 #[test]
@@ -18,7 +17,7 @@ fn mfle20190130() {
             Some(Err(e)) => match e {
                 Error::IoError(e) => panic!("i/o error: {}", e),
                 e => {
-                    println!("err={}", e);
+                    //println!("err={}", e);
                 },
             },
             None => {
@@ -30,7 +29,6 @@ fn mfle20190130() {
     assert!(found > 0, "not a single msg decoded");
 }
 
-#[test]
 #[cfg(feature = "flate2")]
 fn gziped_files() {
     let mut found = 0;
