@@ -19,6 +19,8 @@ pub enum EphemerisFrame {
     GPSRaw(GPSRaw),
     /// Decoded GPS Ephemeris
     GPS(GPSEphemeris),
+    /// Decoded Glonass Ephemeris
+    GLO(GLOEphemeris),
 }
 
 impl EphemerisFrame {
@@ -28,6 +30,7 @@ impl EphemerisFrame {
         match self {
             Self::GPSRaw(_) => GPSRaw::encoding_size(),
             Self::GPS(_) => GPSEphemeris::encoding_size(),
+            Self::GLO(_) => GLOEphemeris::encoding_size(),
         }
     }
 
@@ -35,6 +38,7 @@ impl EphemerisFrame {
     pub(crate) fn to_field_id(&self) -> FieldID {
         match self {
             Self::GPS(_) => FieldID::GPS,
+            Self::GLO(_) => FieldID::GLO,
             Self::GPSRaw(_) => FieldID::GPSRaw,
         }
     }
@@ -78,12 +82,23 @@ impl EphemerisFrame {
         match self {
             Self::GPSRaw(r) => r.encode(big_endian, &mut buf[offset..]),
             Self::GPS(r) => r.encode(big_endian, &mut buf[offset..]),
+            Self::GLO(r) => r.encode(big_endian, &mut buf[offset..]),
         }
     }
 
     /// Creates new [GPSRaw] frame
     pub fn new_gps_raw(&self, raw: GPSRaw) -> Self {
         Self::GPSRaw(raw)
+    }
+
+    /// Creates new [GPSEphemeris] frame
+    pub fn new_gps(&self, gps: GPSEphemeris) -> Self {
+        Self::GPS(gps)
+    }
+
+    /// Creates new [GLOEphemeris] frame
+    pub fn new_glonass(&self, glo: GLOEphemeris) -> Self {
+        Self::GLO(glo)
     }
 }
 

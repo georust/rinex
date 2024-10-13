@@ -11,6 +11,8 @@ pub enum FieldID {
     GPSRaw = 0,
     /// Decoded GPS Ephemeris
     GPS = 1,
+    /// Decoded GLO Ephemeris
+    GLO = 2,
     /// Unknown / Invalid
     Unknown = 0xffffffff,
 }
@@ -20,6 +22,7 @@ impl From<u32> for FieldID {
         match val {
             0 => Self::GPSRaw,
             1 => Self::GPS,
+            2 => Self::GLO,
             _ => Self::Unknown,
         }
     }
@@ -30,6 +33,7 @@ impl From<FieldID> for u32 {
         match val {
             FieldID::GPSRaw => 0,
             FieldID::GPS => 1,
+            FieldID::GLO => 2,
             FieldID::Unknown => 0xffffffff,
         }
     }
