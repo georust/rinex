@@ -109,9 +109,10 @@ wkt = { version = "0.10.0", default-features = false, optional = true }
 
 anise = { version = "=0.4.2", optional = true }
 nalgebra = { version = "=0.32.3", optional = true }
-hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
+hifitime = { version = "4.0.0-beta", features = ["serde", "std"] }
 
-gnss-rs = { version = "2.2.3", features = ["serde", "domes", "cospar"] }
+# gnss-rs = { version = "2.2.3", features = ["serde", "domes", "cospar"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde", "domes", "cospar"] }
 
 # RINEX QC dedicated traits
 maud = { version = "0.26", optional = true }

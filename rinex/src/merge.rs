@@ -1,10 +1,12 @@
 //! RINEX File merging (combination)
 use crate::prelude::Epoch;
-use hifitime::EpochError;
+use hifitime::errors::HifitimeError;
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 use std::hash::Hash;
 use thiserror::Error;
+
+// use hifitime::EpochError;
 
 /// Merge operation related error(s)
 #[derive(Error, Debug)]
@@ -22,7 +24,7 @@ pub enum Error {
     #[error("cannot merge ionex where base radius differs")]
     IonexBaseRadiusMismatch,
     #[error("failed to retrieve system time for merge ops date")]
-    HifitimeError(#[from] EpochError),
+    HifitimeError(#[from] HifitimeError),
 }
 
 /*
