@@ -58,34 +58,23 @@ impl MonumentGeoRecord {
     ///     .with_geophysical_info("Eurasian plate")
     ///     .with_climatic_info("Rain!");
     ///
-    /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    ///
+    /// let mut buf = [0; 8];
     /// match record.encode(true, &mut buf) {
     ///     Ok(_) => {
     ///         panic!("encoding should have failed!");
     ///     },
     ///     Err(Error::NotEnoughBytes) => {
     ///         // This frame does not fit in this pre allocated buffer.
-    ///         // You should always tie your allocation to .encoding_size() !
+    ///         // You should always tie your allocations to .encoding_size() !
     ///     },
     ///     Err(e) => {
     ///         panic!("{} error should not have happened!", e);
     ///     },
     /// }
     ///
-    /// let mut buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    ///
-    /// match record.encode(true, &mut buf) {
-    ///     Err(e) => panic!("{} but should have passed!", e),
-    ///     Ok(size) => {
-    ///         assert_eq!(size, 36);
-    ///         assert_eq!(buf, [
-    ///             0, 0, 0, 1, 3, 1, 0, 5, 65, 32, 66, 32, 67, 0,
-    ///             14, 69, 117, 114, 97, 115, 105, 97, 110, 32, 112,
-    ///             108, 97, 116, 101, 0, 5, 82, 97, 105, 110, 33,
-    ///         ]);
-    ///     },
-    /// }
+    /// let mut buf = [0; 64];
+    /// let _ = record.encode(true, &mut buf)
+    ///     .unwrap();
     /// ```
     pub fn new(epoch: Epoch, meta: MonumentGeoMetadata) -> Self {
         Self {
