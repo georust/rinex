@@ -1,6 +1,9 @@
+//! Y. Hatanaka TextDiff algorithm
+use std::cmp::min as min_usize;
+
 #[derive(Debug)]
 pub struct TextDiff {
-    pub buffer: String,
+    buffer: String,
 }
 
 impl Default for TextDiff {
@@ -10,83 +13,57 @@ impl Default for TextDiff {
 }
 
 impl TextDiff {
-    /// Creates a new `Text` differentiator.
-    /// Text compression has no limitations
-    pub fn new() -> Self {
+    /// Creates a new [TextDiff] structure to apply the
+    /// differntial algorithm developped by Y. Hatanaka.
+    pub fn new(data: &str) -> Self {
         Self {
-            buffer: String::with_capacity(64),
+            buffer: data.to_string(),
         }
     }
-
-    /// Initializes `Text` differentiator
-    pub fn init(&mut self, data: &str) {
+    /// Force kernel reinitialization
+    pub fn force_init(&mut self, data: &str) {
         self.buffer = data.to_string();
     }
-
     /// Decompresses given data
     pub fn decompress(&mut self, data: &str) -> &str {
-        let s0_len = self.buffer.len();
-        let s0 = unsafe { self.buffer.as_bytes_mut() };
-        let s1_len = data.len();
-        let s1 = data.as_bytes();
-        let min = std::cmp::min(s1_len, s0_len);
+        let min_usize = min_usize(data.len(), self.buffer.len());
 
-        // browse shared content
-        for index in 0..min {
-            if s1[index] != b' ' {
-                // not a differenced out character
-                // ==> needs to overwrite internal content
-                if s1[index] == b'&' {
-                    // special whitespace insertion
-                    // overwrite with space
-                    s0[index] = b' ';
+        for i in 0..min_usize {
+            if data[i] != self.buffer[i] {
+                // update new content
+                if data[i] == ' ' {
+                    self.buffer[i] = '&';
                 } else {
-                    // regular content
-                    s0[index] = s1[index]; // overwrite
+                    self.buffer[i] = data[i];
                 }
             }
         }
-
-        if s1_len > s0_len {
-            // got new bytes to latch
-            let new_slice = &data[min..s1_len].replace('&', " ");
-            self.buffer.push_str(new_slice);
+        for i in data.len()..self.buffer.len() {
+            if data[i] == ' ' {
+                self.buffer.push_str("&");
+            } else {
+                self.buffer.push_str(data[i]);
+            }
         }
-
         &self.buffer
     }
 
-    /// Compresses given data
-    pub fn compress(&mut self, data: &str) -> String {
-        let mut result = String::new();
-        let inner: Vec<_> = self.buffer.chars().collect();
-        self.buffer.clear();
-        let to_compress: Vec<_> = data.chars().collect();
-
-        for i in 0..inner.len() {
-            if let Some(c) = to_compress.get(i) {
-                self.buffer.push_str(&c.to_string());
-                if c != &inner[i] {
-                    result.push_str(&c.to_string());
-                } else {
-                    result.push(' ');
-                }
+    /// Compress data by applying the Text diff. algorithm.
+    pub fn compress(&mut self, data: &str) -> &str {
+        let len = self.buffer.len();
+        for (index, byte) in data.char().enumerate() {
+            // overwrite case
+            if byte[i] != ' ' {
+                if let Some(mut c) = self.buffer.chars().nth(index) {
+                    if byte[i] == '&' {
+                        c = ' ';
+                    } else {
+                        c = byte[i];
+                    }
+                }    
             }
         }
-
-        for i in inner.len()..data.len() {
-            if let Some(c) = to_compress.get(i) {
-                if c.is_ascii_whitespace() {
-                    self.buffer.push('&');
-                    result.push('&');
-                } else {
-                    self.buffer.push_str(&c.to_string());
-                    result.push_str(&c.to_string());
-                }
-            }
-        }
-
-        result.to_string()
+        &self.buffer
     }
 }
 
@@ -147,48 +124,16 @@ mod test {
     }
     #[test]
     fn test_compression() {
-        let mut diff = TextDiff::new();
+        let mut diff = TextDiff::new("0");
+        assert_eq!(diff.compress("0"), " ");
+        assert_eq!(diff.compress("4"), "4");
+        assert_eq!(diff.compress("4"), "4");
+        assert_eq!(diff.compress("4  "), " &&");
+        assert_eq!(diff.compress("0"), "0  ");
 
-        diff.init("0");
-        let compressed = diff.compress("0");
-        assert_eq!(compressed, " ");
-        let compressed = diff.compress("4");
-        assert_eq!(compressed, "4");
-
-        let compressed = diff.compress("4  ");
-        assert_eq!(compressed, " &&");
-
-        let compressed = diff.compress("0");
-        assert_eq!(compressed, "0");
-
-        // test re-init
-        diff.init("Default Phrase 1234");
-        let to_compress = "DEfault Phrase 1234";
-        let result = diff.compress(to_compress);
-        assert_eq!(result, " E                 ");
-
-        let to_compress = "DEfault Phrase 1234";
-        let result = diff.compress(to_compress);
-        assert_eq!(result, "                   ");
-
-        let to_compress = "DEFault Phrase 1234";
-        let result = diff.compress(to_compress);
-        assert_eq!(result, "  F                ");
-
-        let to_compress = "DEFault Phrase 1234  ";
-        let result = diff.compress(to_compress);
-        assert_eq!(result, "                   &&");
-
-        let to_compress = " EFault Phrase 1234  ";
-        let result = diff.compress(to_compress);
-        assert_eq!(result, "                     ");
-
-        let to_compress = "__ abcd Phrase 1222    ";
-        let result = diff.compress(to_compress);
-        assert_eq!(result, "__  bcd          22  &&");
-
-        diff.init(" ");
-        assert_eq!(diff.compress("3"), "3");
-        assert_eq!(diff.compress("3"), " ");
+        diff.force_init("Default 1234");
+        asset_eq!(diff.compress("DEfault 1234"), " E          ");
+        asset_eq!(diff.compress("DEfault 1234"), "            ");
+        asset_eq!(diff.compress("             "),"             &");
     }
 }

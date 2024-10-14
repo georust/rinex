@@ -1,29 +1,32 @@
 //! RINEX compression module
-use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::is_rinex_comment;
-use crate::{Constellation, Observable, SV};
-use std::collections::HashMap;
-use std::str::FromStr;
 
-#[derive(Default, PartialEq)]
+use std::{
+    str::FromStr,
+    collections::HashMap,
+    cmp::min as min_usize,
+};
+
+use crate::{
+    is_rinex_comment,
+    hatanaka::{
+        NumDiff, TextDiff, ObsDiff,
+        Error,
+    },
+    prelude::{Constellation, Observable, SV},
+};
+
+#[derive(Default, Copy, Clone, PartialEq)]
 pub enum State {
     #[default]
     EpochDescriptor,
     Body,
 }
 
-impl State {
-    /// Resets Finite State Machine
-    pub fn reset(&mut self) {
-        *self = Self::default()
-    }
-}
-
 /// Structure to compress RINEX data
 pub struct Compressor {
     /// finite state machine
     state: State,
-    /// True only for first epoch ever processed
+    /// True only when processing first epoch
     first_epoch: bool,
     /// epoch line ptr
     epoch_ptr: u8,
@@ -31,18 +34,18 @@ pub struct Compressor {
     epoch_descriptor: String,
     /// flags descriptor being constructed
     flags_descriptor: String,
-    /// vehicles counter in next body
+    /// SV counter
     nb_vehicles: usize,
-    /// vehicle pointer
+    /// SV pointer
     vehicle_ptr: usize,
-    /// obs pointer
+    /// OBS pointer
     obs_ptr: usize,
-    /// Epoch differentiator
+    /// Epoch [TextDiff]
     epoch_diff: TextDiff,
-    /// Clock offset differentiator
+    /// Clock [NumDiff]
     clock_diff: NumDiff<3>,
-    /// Vehicle differentiators
-    sv_diff: HashMap<SV, HashMap<usize, (NumDiff<3>, TextDiff, TextDiff)>>,
+    /// SV Diff
+    sv_diff: HashMap<SV, ObsDiff<3>>,
     /// Pending kernel re-initialization
     forced_init: HashMap<SV, Vec<usize>>,
 }
@@ -325,20 +328,37 @@ impl Compressor {
                         // and store flags for line completion
                         let mut observables = line;
                         for _ in 0..nb_obs_line {
-                            let index = std::cmp::min(16, observables.len()); // avoid overflow
+                            let index = min_usize(16, observables.len()); // avoid overflow
                                                                               // as some data flags might be omitted
                             let (data, rem) = observables.split_at(index);
                             let (obsdata, flags) = data.split_at(14);
                             observables = rem;
+                            
                             if let Ok(obsdata) = obsdata.trim().parse::<f64>() {
-                                let obsdata = f64::round(obsdata * 1000.0) as i64;
+                                let obsdata = (obsdata * 1000.0).round() as i64;
                                 if flags.trim().is_empty() {
                                     // Both Flags ommited
                                     //println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata); //DEBUG
+                                    
                                     // data compression
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
                                         // retrieve observable state
-                                        if let Some(diffs) = sv_diffs.get_mut(&self.obs_ptr) {
+                                        if let Some(diffs) = sv_diffs
+                                            .iter_mut()
+                                            .filter(|diff| diff.obs_ptr == self.obs_ptr)
+                                            .reduce(|k, _| k)
+                                        {
+                                            // Scheduled re-init ?
+                                            if {
+                                                
+                                            } else {
+                                            }
+                                        } else {
+
+                                        }
+                                    }
+                                }
+                            }
                                             let compressed: i64;
                                             // forced re/init is pending
                                             if let Some(indexes) = self.forced_init.get_mut(&sv) {
