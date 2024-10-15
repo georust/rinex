@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-use std::io::prelude::*;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
@@ -11,7 +9,10 @@ use super::{
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_rinex_comment, merge,
     merge::Merge,
-    meteo, navigation, observation,
+    meteo, navigation,
+    navigation::record::parse_epoch as parse_nav_epoch,
+    observation,
+    prelude::Duration,
     reader::BufferedReader,
     split,
     split::Split,
@@ -20,9 +21,10 @@ use super::{
     *,
 };
 
-use crate::navigation::record::parse_epoch as parse_nav_epoch;
-
-use hifitime::Duration;
+use std::{
+    collections::BTreeMap,
+    io::{BufRead, Error as IoError},
+};
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -175,12 +177,12 @@ impl Record {
                         for line in epoch.lines() {
                             let line = line.to_owned() + "\n"; // helps the following .lines() iterator
                                                                // embedded in compression method
-                            if let Ok(compressed) =
-                                compressor.compress(major, &obs_fields.codes, constell, &line)
-                            {
-                                // println!("compressed \"{}\"", compressed); // DEBUG
-                                writeln!(writer, "{}", compressed)?;
-                            }
+                                                               //if let Ok(compressed) =
+                                                               //    compressor.compress(major, &obs_fields.codes, constell, &line)
+                                                               //{
+                                                               //    // println!("compressed \"{}\"", compressed); // DEBUG
+                                                               //    writeln!(writer, "{}", compressed)?;
+                                                               //}
                         }
                     } else {
                         writeln!(writer, "{}", epoch)?;
@@ -256,8 +258,8 @@ impl Default for Record {
 pub enum Error {
     #[error("record parsing not supported for type \"{0}\"")]
     TypeError(String),
-    #[error("file i/o error")]
-    FileIoError(#[from] std::io::Error),
+    #[error("i/o error")]
+    IoError(#[from] IoError),
     #[error("failed to produce Navigation epoch")]
     NavEpochError(#[from] navigation::Error),
     #[error("failed to produce Clock epoch")]
@@ -289,8 +291,8 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn parse_record<R: Read>(
-    reader: &mut BufferedReader<R>,
+pub fn parse_record<BR: BufRead>(
+    reader: &mut BufferedReader<BR>,
     header: &mut header::Header,
 ) -> Result<(Record, Comments), Error> {
     let mut first_epoch = true;
@@ -302,7 +304,6 @@ pub fn parse_record<R: Read>(
     let mut comment_ts = Epoch::default();
     let mut comment_content: Vec<String> = Vec::with_capacity(4);
 
-    let mut decompressor = Decompressor::new();
     // record
     let mut atx_rec = antex::Record::new(); // ATX
     let mut nav_rec = navigation::Record::new(); // NAV
@@ -377,57 +378,6 @@ pub fn parse_record<R: Read>(
                 if let Ok(e) = content.trim().parse::<i8>() {
                     *ionex = ionex.with_exponent(e); // scaling update
                 }
-            }
-        }
-        /*
-         * If plain RINEX: content is passed as is
-         *      if CRINEX: decompress and pass recovered content
-         */
-
-        if let Some(obs) = &header.obs {
-            if let Some(crinex) = &obs.crinex {
-                /*
-                 * CRINEX
-                 */
-                let constellation = &header.constellation.as_ref().unwrap();
-                if let Ok(recovered) = decompressor.decompress(
-                    crinex.version.major,
-                    constellation,
-                    header.version.major,
-                    &obs.codes,
-                    // we might encounter empty lines
-                    //   like missing clock offsets
-                    //   and .lines() will destroy them
-                    &(line.to_owned() + "\n"),
-                ) {
-                    content = recovered.clone();
-                } else {
-                    content.clear();
-                }
-            } else {
-                /*
-                 * RINEX
-                 */
-                if line.is_empty() {
-                    // we might encounter empty lines
-                    // and the following parsers (.lines() iterator)
-                    // do not like it
-                    content = String::from("\n");
-                } else {
-                    content = line.to_string();
-                }
-            }
-        } else {
-            /*
-             * RINEX
-             */
-            if line.is_empty() {
-                // we might encounter empty lines
-                // and the following parsers (.lines() iterator)
-                // do not like it
-                content = String::from("\n");
-            } else {
-                content = line.to_string();
             }
         }
 

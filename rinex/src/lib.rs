@@ -50,16 +50,19 @@ extern crate num_derive;
 #[macro_use]
 extern crate lazy_static;
 
-pub mod reader;
+mod reader;
 use reader::BufferedReader;
 
-pub mod writer;
+mod writer;
 use writer::BufferedWriter;
 
-use std::collections::{BTreeMap, HashMap};
-use std::io::Write; //, Read};
-use std::path::Path;
-use std::str::FromStr;
+use std::{
+    collections::{BTreeMap, HashMap},
+    fs::File,
+    io::{BufRead, Read, Write},
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use itertools::Itertools;
 use thiserror::Error;
@@ -819,26 +822,58 @@ impl Rinex {
     ///   This also means that plain readable RINEX can be terminated by
     ///   something that do not follow standard naming conventions.
     pub fn from_file(fullpath: &str) -> Result<Rinex, Error> {
-        Self::from_path(Path::new(fullpath))
+        let fp = Path::new(fullpath);
+        Self::from_path(fp)
     }
 
-    /// See [Self::from_file]
-    pub fn from_path(path: &Path) -> Result<Rinex, Error> {
-        let fullpath = path.to_string_lossy().to_string();
+    /// Parse [RINEX] from abstract [R]eadable interface.
+    /// Whether this is a [CRINEX] or not is automatically guessed and handled.
+    /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
+    /// For the simple reason they are defined by a File name.
+    /// You will have to define them afterwards.
+    pub fn read<R: BufRead>(reader: BR) -> Result<Rinex, Error> {
+        let mut r = &mut BufferedReader::Plain(reader);
+        Self::from_buffered_reader(r)
+    }
 
-        // create buffered reader
+    /// Parse [RINEX] from abstract Gzip compressed [R]eadable interface.
+    /// Whether this is a [CRINEX] or not is automatically guessed and handled.
+    /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
+    /// For the simple reason they are defined by a File name.
+    /// You will have to define them afterwards.
+    pub fn read_gzip<BR: BufRead>(reader: GzDecoder<BR>) -> Result<Rinex, Error> {
+        let mut r = &mut BufferedReader::Plain(reader);
+        Self::from_buffered_reader(r)
+    }
+
+    fn from_buffered_reader<BR: BufRead>(reader: &mut BufferedReader<BR>) -> Result<Rinex, Error> {
+        // Parses Header section: consumes header until this point
+        let mut header = Header::new(&mut reader)?;
+        // Parse record: consumes the rest of the record (File body).
+        //  Comments: are preserved and stored.
+        //  They don't serve a real purpose yet, but some comments
+        //  like "File Splice" may be important
+        let (record, comments) = record::parse_record(&mut reader, &mut header)?;
+        Ok(Rinex {
+            header,
+            record,
+            comments,
+            prod_attr: None,
+        })
+    }
+
+    /// Parse [RINEX] from [PathBuf]
+    pub fn from_path(path: &Path) -> Result<Rinex, Error> {
+        let fd = File::open(path)?;
+        let mut br = BufReader::new(fd);
+
         let mut reader = if path.ends_with(".gz") {
-            BufferedReader::gzip(&fullpath)
+            BufferedReader::gzip(br)
         } else {
-            BufferedReader::plain(&fullpath)
+            BufferedReader::plain(br)
         };
 
-        // Parse header fields
-        let mut header = Header::new(&mut reader)?;
-
-        // Parse file body (record content)
-        // Comments might serve some fileops like "splice".
-        let (record, comments) = record::parse_record(&mut reader, &mut header)?;
+        let mut rinex = Rinex::from_buffered_reader(&mut reader)?;
 
         // Parse / identify production attributes
         // that only exist in the filename.
@@ -854,12 +889,8 @@ impl Rinex {
             _ => None,
         };
 
-        Ok(Rinex {
-            header,
-            record,
-            comments,
-            prod_attr,
-        })
+        rinex.prod_attr = prod_attr;
+        Ok(rinex)
     }
 
     /// Returns true if this is an ATX RINEX

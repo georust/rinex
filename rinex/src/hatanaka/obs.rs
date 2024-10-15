@@ -16,7 +16,7 @@ impl<const M: usize> ObsDiff<M> {
             data_diff: NumDiff::<M>::new(obsdata),
         }
     }
-    pub fn force_init(obsdata: i64, snr: &str, lli: &str) {
+    pub fn force_init(&mut self, obsdata: i64, snr: &str, lli: &str) {
         self.snr_diff.force_init(snr);
         self.lli_diff.force_init(lli);
         self.data_diff.force_init(obsdata);

@@ -224,11 +224,14 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 if i - last_start >= 80 {
                     // consistent with valid RINEX HEADER
                     // Interprate this range as ASCII then proceed
-                    self.ascii_buf = from_utf8(&buf[last_start..i])?;
-                    if self.ascii_buf.ends_with("END OF HEADER") {
+                    self.buf_ascii = from_utf8(&buf[last_start..i])?;
+                    if self.buf_ascii.ends_with("END OF HEADER") {
                         next_state = State::EpochDescriptor;
-                    } else if self.ascii_buf.ends_with("CRINEX VERSION / TYPE") {
-                        self.crinex = CRINEX::from_str(self.ascii_buf)?;
+                    } else if self.buf_ascii.ends_with("CRINEX VERSION / TYPE") {
+                        // store first header line
+                    } else if self.buf_ascii.ends_with("CRINEX PROGRAM / DATE") {
+                        // second line => parse total CRINEX specs
+                        let crinex = CRINEX::from_str(&self.buf_ascii)?;
                     }
                 }
             }

@@ -29,7 +29,7 @@ use crate::{
     version::Version,
 };
 
-use std::{collections::HashMap, io::Read, str::FromStr};
+use std::{collections::HashMap, io::BufRead, str::FromStr};
 
 use hifitime::Unit;
 use thiserror::Error;
@@ -240,7 +240,7 @@ macro_rules! parse_float_error {
 
 impl Header {
     /// Builds a `Header` from stream reader
-    pub fn new<R: Read>(reader: &mut BufferedReader<R>) -> Result<Header, ParsingError> {
+    pub fn new<BR: BufRead>(reader: &mut BufferedReader<BR>) -> Result<Header, ParsingError> {
         let mut rinex_type = Type::default();
         let mut constellation: Option<Constellation> = None;
         let mut version = Version::default();
@@ -307,7 +307,7 @@ impl Header {
                     ParsingError::VersionParsing(format!("CRINEX VERS: \"{}\"", version)),
                 ))?;
 
-                observation.crinex = Some(Crinex::default().with_version(crinex_revision));
+                observation.crinex = Some(CRINEX::default().with_version(crinex_revision));
             } else if marker.contains("CRINEX PROG / DATE") {
                 Self::parse_crinex_prog_date(content, &mut observation)?;
 
@@ -1210,7 +1210,7 @@ impl Header {
         Self::default()
             .with_type(Type::ObservationData)
             .with_constellation(Constellation::Mixed)
-            .with_crinex(Crinex::default())
+            .with_crinex(CRINEX::default())
     }
 
     /// Returns Header structure with specific RINEX revision
