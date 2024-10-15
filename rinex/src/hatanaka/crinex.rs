@@ -58,6 +58,82 @@ impl CRINEX {
         s.date = e;
         s
     }
+    /// Parse and append prog+date fields
+    pub(crate) fn with_prog_date(&self, s: &str) -> Result<Self, ParsingError> {
+        let mut s = self.clone();
+
+        if s.len() < 60 {
+            return Err(ParsingError::HeaderLineTooShort);
+        }
+
+        let (prog, rem) = line.split_at(20);
+        let (_, rem) = rem.split_at(20);
+        let datetime_str = rem.split_at(20).0.trim();
+
+        let mut i = 0;
+        let mut year = 2000_i32; // CRINEX: Y2000
+        let mut month = 0_u8;
+        let mut day = 0_u8;
+        let mut hour = 0_u8;
+        let mut mins = 0_u8;
+
+        for (index, datetime) in datetime_str.split_ascii_whitespace().enumerate() {
+            match index {
+                0 => {
+                    for (index, parsed) in datetime.split('-').enumerate() {
+                        let parsed = parsed.trim();
+                        match index {
+                            0 => {
+                                day = parsed
+                                    .parse::<u8>()
+                                    .or(Err(ParsingError::DatetimeParsing))?;
+                            },
+                            1 => {
+                                month = parse_formatted_month(parsed)?;
+                            },
+                            2 => {
+                                year += parsed
+                                    .parse::<i32>()
+                                    .or(Err(ParsingError::DatetimeParsing))?;
+                            },
+                            _ => {},
+                        }
+                    }
+                },
+                1 => {
+                    for (index, parsed) in datetime.split(':').enumerate() {
+                        let parsed = parsed.trim();
+                        match index {
+                            0 => {
+                                hour = parsed
+                                    .parse::<u8>()
+                                    .or(Err(ParsingError::DatetimeParsing))?;
+                            },
+                            1 => {
+                                mins = parsed
+                                    .parse::<u8>()
+                                    .or(Err(ParsingError::DatetimeParsing))?;
+                            },
+                            _ => {},
+                        }
+                    }
+                },
+                _ => {},
+            }
+
+            i += 1;
+        }
+
+        if i != 2 {
+            return Err(ParsingError::DatetimeFormat);
+        }
+
+        let epoch = Epoch::from_gregorian_utc(year, month, day, hour, mins, 0, 0);
+        s.with_date(epoch);
+        s.with_prog(prog.trim());
+        s.with_date(date.trim());
+        Ok(s)
+    }
 }
 
 impl Default for CRINEX {
@@ -88,6 +164,30 @@ impl std::fmt::Display for CRINEX {
         let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y - 2000, hh, mm);
         write!(f, "{:<width$}", date, width = 20)?;
         f.write_str("CRINEX PROG / DATE")
+    }
+}
+
+impl std::str::FromStr for CRINEX {
+    fn from_str(s: &str) -> Result<CRINEX, ParsingError> {
+        let mut crinex = CRINEX::default();
+        // We expect one line separator.
+        // Content should follow standard odering (specs)
+        for (index, line) in s.lines().enumerate() {
+            if index == 0 {
+                if line.len() < 60 {
+                    return Err(ParsingError::HeaderLineTooShort);
+                }
+                let vers = line.split_at(20).0;
+                let version = Version::from_str(vers)?;
+                crinex.with_version(version);
+            } else {
+                if line.len() < 60 {
+                    return Err(ParsingError::HeaderLineTooShort);
+                }
+                crinex = crinex.with_prog_date(line)?;
+            }
+        }
+        Ok(crinex)
     }
 }
 
