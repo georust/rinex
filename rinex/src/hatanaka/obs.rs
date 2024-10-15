@@ -1,23 +1,24 @@
 //! Observation Compression kernel
 
-use crate::hatanaka::{
-    NumDiff, TextDiff,
-};
+use crate::hatanaka::{NumDiff, TextDiff};
 
 pub struct ObsDiff<const M: usize> {
-    pub obs_ptr: usize,
     pub data_diff: NumDiff<M>,
     pub snr_diff: TextDiff,
     pub lli_diff: TextDiff,
 }
 
 impl<const M: usize> ObsDiff<M> {
-    pub fn new(obsptr: usize, obsdata: i64, snr: &str, lli: &str) -> Self {
+    pub fn new(obsdata: i64, snr: &str, lli: &str) -> Self {
         Self {
-            obs_ptr: obsptr,
-            data_diff: NumDiff::<M>::new(obsdata),
             snr_diff: TextDiff::new(snr),
-            lli_diff:: TextDiff::new(lli),
+            lli_diff: TextDiff::new(lli),
+            data_diff: NumDiff::<M>::new(obsdata),
         }
-    } 
+    }
+    pub fn force_init(obsdata: i64, snr: &str, lli: &str) {
+        self.snr_diff.force_init(snr);
+        self.lli_diff.force_init(lli);
+        self.data_diff.force_init(obsdata);
+    }
 }

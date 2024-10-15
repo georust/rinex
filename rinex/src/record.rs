@@ -289,8 +289,8 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn parse_record(
-    reader: &mut BufferedReader,
+pub fn parse_record<R: Read>(
+    reader: &mut BufferedReader<R>,
     header: &mut header::Header,
 ) -> Result<(Record, Comments), Error> {
     let mut first_epoch = true;

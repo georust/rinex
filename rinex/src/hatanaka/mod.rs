@@ -1,10 +1,17 @@
 //! RINEX compression / decompression module
 use thiserror::Error;
 
-pub mod compressor;
-pub mod numdiff;
-pub mod textdiff;
+mod compressor;
+mod crinex;
+mod numdiff;
+mod obs;
+mod textdiff;
+
 pub use compressor::Compressor;
+pub use crinex::CRINEX;
+pub use numdiff::NumDiff;
+pub use obs::ObsDiff;
+pub use textdiff::TextDiff;
 
 pub mod decompressor;
 pub use decompressor::Decompressor;

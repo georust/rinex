@@ -8,7 +8,7 @@ pub struct TextDiff {
 
 impl Default for TextDiff {
     fn default() -> Self {
-        Self::new()
+        Self::new("")
     }
 }
 
@@ -51,16 +51,16 @@ impl TextDiff {
     /// Compress data by applying the Text diff. algorithm.
     pub fn compress(&mut self, data: &str) -> &str {
         let len = self.buffer.len();
-        for (index, byte) in data.char().enumerate() {
+        for (i, byte) in data.chars().enumerate() {
             // overwrite case
             if byte[i] != ' ' {
-                if let Some(mut c) = self.buffer.chars().nth(index) {
+                if let Some(mut c) = self.buffer.chars().nth(i) {
                     if byte[i] == '&' {
                         c = ' ';
                     } else {
                         c = byte[i];
                     }
-                }    
+                }
             }
         }
         &self.buffer
@@ -134,6 +134,6 @@ mod test {
         diff.force_init("Default 1234");
         asset_eq!(diff.compress("DEfault 1234"), " E          ");
         asset_eq!(diff.compress("DEfault 1234"), "            ");
-        asset_eq!(diff.compress("             "),"             &");
+        asset_eq!(diff.compress("             "), "             &");
     }
 }

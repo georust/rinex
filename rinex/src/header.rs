@@ -8,6 +8,7 @@ use crate::{
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
+    hatanaka::CRINEX,
     ionex,
     leap::{Error as LeapParsingError, Leap},
     linspace::{Error as LinspaceError, Linspace},
@@ -21,16 +22,14 @@ use crate::{
     navigation::{IonMessage, KbModel},
     observable::{Observable, ParsingError as ObsParsingError},
     observation,
-    observation::{Crinex, HeaderFields as ObservationHeader},
+    observation::HeaderFields as ObservationHeader,
     prelude::{Constellation, Duration, Epoch, TimeScale, COSPAR, DOMES, SV},
     reader::BufferedReader,
     types::Type,
     version::Version,
 };
 
-use std::collections::HashMap;
-use std::io::prelude::*;
-use std::str::FromStr;
+use std::{collections::HashMap, io::Read, str::FromStr};
 
 use hifitime::Unit;
 use thiserror::Error;
@@ -241,7 +240,7 @@ macro_rules! parse_float_error {
 
 impl Header {
     /// Builds a `Header` from stream reader
-    pub fn new(reader: &mut BufferedReader) -> Result<Header, ParsingError> {
+    pub fn new<R: Read>(reader: &mut BufferedReader<R>) -> Result<Header, ParsingError> {
         let mut rinex_type = Type::default();
         let mut constellation: Option<Constellation> = None;
         let mut version = Version::default();
@@ -1239,7 +1238,7 @@ impl Header {
 
     /// Adds crinex generation attributes to self,
     /// has no effect if this is not an Observation Data header.
-    pub fn with_crinex(&self, c: Crinex) -> Self {
+    pub fn with_crinex(&self, c: CRINEX) -> Self {
         let mut s = self.clone();
         if let Some(ref mut obs) = s.obs {
             obs.crinex = Some(c)

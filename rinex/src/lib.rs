@@ -67,10 +67,11 @@ use thiserror::Error;
 use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
 use doris::record::ObservationData as DorisObservationData;
 use epoch::epoch_decompose;
+use hatanaka::CRINEX;
 use ionex::TECPlane;
 use navigation::NavFrame;
 use observable::Observable;
-use observation::{Crinex, ObservationData};
+use observation::ObservationData;
 use version::Version;
 
 use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
@@ -80,20 +81,22 @@ use hifitime::Unit;
 
 /// Package to include all basic structures
 pub mod prelude {
+    // export
+    pub use crate::{
+        doris::Station, ground_position::GroundPosition, header::Header, observable::Observable,
+        observation::EpochFlag, types::Type as RinexType, version::Version, Error, Rinex,
+    };
+
     #[cfg(feature = "antex")]
     pub use crate::antex::AntennaMatcher;
+
     #[cfg(feature = "obs")]
     pub use crate::carrier::Carrier;
+
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
-    pub use crate::doris::Station;
-    pub use crate::ground_position::GroundPosition;
-    pub use crate::header::Header;
-    pub use crate::observable::Observable;
-    pub use crate::observation::EpochFlag;
-    pub use crate::types::Type as RinexType;
-    pub use crate::{Error, Rinex};
-    // pub re-export
+
+    // re-export
     #[cfg(feature = "nav")]
     pub use anise::{
         astro::AzElRange,
@@ -332,7 +335,7 @@ impl Rinex {
     /// [`Self::rnx2crnx`] mutable implementation
     pub fn rnx2crnx_mut(&mut self) {
         if self.is_observation_rinex() {
-            let mut crinex = Crinex::default();
+            let mut crinex = CRINEX::default();
             crinex.version.major = match self.header.version.major {
                 1 | 2 => 1,
                 _ => 3,
@@ -353,7 +356,7 @@ impl Rinex {
     /// [`Self::rnx2crnx1`] mutable implementation.
     pub fn rnx2crnx1_mut(&mut self) {
         if self.is_observation_rinex() {
-            self.header = self.header.with_crinex(Crinex {
+            self.header = self.header.with_crinex(CRINEX {
                 version: Version { major: 1, minor: 0 },
                 date: epoch::now(),
                 prog: format!("rust-rinex-{}", env!("CARGO_PKG_VERSION")),
@@ -373,7 +376,7 @@ impl Rinex {
     /// [`Self::rnx2crnx3`] mutable implementation.
     pub fn rnx2crnx3_mut(&mut self) {
         if self.is_observation_rinex() {
-            self.header = self.header.with_crinex(Crinex {
+            self.header = self.header.with_crinex(CRINEX {
                 date: epoch::now(),
                 version: Version { major: 3, minor: 0 },
                 prog: "rust-crinex".to_string(),
@@ -805,10 +808,16 @@ impl Rinex {
         attributes
     }
 
-    /// Builds a `RINEX` from given file fullpath.
-    /// Header section must respect labelization standards,
-    /// some are mandatory.   
-    /// Parses record (file body) for supported `RINEX` types.
+    /// Parses [RINEX] from local file.
+    /// We only have restrictions on the file extention, not the filename itself.
+    /// If filename follows standard naming conventions, then internal definitions
+    /// will be complete.
+    /// Restrictions that apply on file extension:
+    ///   - CRINEX files must be terminated by .crx (standard convention)
+    ///   - CRINEX + Gzip must be terminated by .crx.gz (standard convention)
+    ///   - Otherwise we interprate as Plain (readable) RINEX and it might panic.
+    ///   This also means that plain readable RINEX can be terminated by
+    ///   something that do not follow standard naming conventions.
     pub fn from_file(fullpath: &str) -> Result<Rinex, Error> {
         Self::from_path(Path::new(fullpath))
     }
@@ -818,7 +827,11 @@ impl Rinex {
         let fullpath = path.to_string_lossy().to_string();
 
         // create buffered reader
-        let mut reader = BufferedReader::new(&fullpath)?;
+        let mut reader = if path.ends_with(".gz") {
+            BufferedReader::gzip(&fullpath)
+        } else {
+            BufferedReader::plain(&fullpath)
+        };
 
         // Parse header fields
         let mut header = Header::new(&mut reader)?;

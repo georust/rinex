@@ -1,558 +1,668 @@
 //! RINEX decompression module
-use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::{is_rinex_comment, prelude::*};
+use crate::{
+    hatanaka::{NumDiff, ObsDiff, TextDiff, CRINEX},
+    is_rinex_comment,
+    prelude::{Constellation, Epoch, Version, SV},
+};
 
-use std::collections::HashMap;
-use std::str::FromStr;
+use std::{
+    collections::HashMap,
+    io::{Read, Result},
+    str::{from_utf8, FromStr},
+};
 
 #[derive(Default, Debug, Clone)]
 pub enum State {
+    /// Inside File Header
     #[default]
+    Header,
+    /// Inside an [Epoch] descriptor
     EpochDescriptor,
+    /// Inside Clock bias description
     ClockOffsetDescriptor,
-    Body,
+    /// Inside Observation content
+    Observation,
 }
 
 /// Structure to decompress CRINEX data
-pub struct Decompressor {
-    /// finite state machine
-    state: State,
+pub struct Decompressor<const M: usize, R: Read> {
+    /// Internal [State]. Use this to determine
+    /// whether we're still inside the Header section (algorithm is not active),
+    /// or inside file body (algorithm is active).
+    pub state: State,
+    /// CRINEX header that we did identify.
+    /// You should wait until State != State::InsideHeader to consume this.
+    pub crinex: CRINEX,
+    /// [R]
+    reader: R,
+    /// counters
+    nb_sv: usize, // total
+    sv_ptr: usize, // inside epoch
     /// True only for first epoch ever processed
     first_epoch: bool,
+    /// True until one clock offset was found
+    first_clock_diff: bool,
     /// Epoch differentiator
     epoch_diff: TextDiff,
-    /// recovered but unformatted CRINEX is stored
-    /// because it is particularly easy to parse to identify sv.
-    /// It still needs to be formatted for the final result though.
-    epoch_descriptor: String,
+    /// Current readable buffer
+    buf_ascii: String,
+    /// Internal buffer
+    buf: [u8; 1024],
+    /// Unformatted Readable Internal buffer.
+    epoch_ascii: String,
     /// Clock offset differentiator
-    clock_diff: NumDiff<3>,
-    /// vehicle identification
-    sv_ptr: usize,
-    nb_sv: usize, // sv_ptr range
-    /// Vehicle differentiators
-    sv_diff: HashMap<SV, Vec<(NumDiff<3>, TextDiff, TextDiff)>>,
+    clock_diff: NumDiff<M>,
+    /// OBservation differentiators
+    obs_diff: HashMap<SV, ObsDiff<M>>,
 }
 
-/// Reworks given content to match RINEX specifications
-/// of an epoch descriptor
-fn format_epoch(
-    version: u8,
-    nb_sv: usize,
-    content: &str,
-    clock_offset: Option<i64>,
-) -> Result<String, Error> {
-    let mut result = String::new();
-    match version {
-        1 | 2 => {
-            // old RINEX
-            // append Systems #ID,
-            //  on as many lines as needed
-            let min_size = 32 + 3; // epoch descriptor + at least one vehicle
-            if content.len() < min_size {
-                // parsing would fail
-                return Err(Error::FaultyRecoveredEpoch);
-            }
-
-            let (epoch, systems) = content.split_at(32); // grab epoch
-            result.push_str(&epoch.replace('&', " ")); // rework
-
-            //CRINEX has systems squashed in a single line
-            // we just split it to match standard definitions
-            // .. and don't forget the tab
-            if nb_sv <= 12 {
-                // fits in a single line
-                result.push_str(systems);
-                if let Some(value) = clock_offset {
-                    result.push_str(&format!("  {:3.9}", (value as f64) / 1000.0_f64))
-                }
-            } else {
-                // does not fit in a single line
-                let mut index = 0;
-                for i in 0..nb_sv {
-                    if index == 12 {
-                        index = 0;
-                        if i == 12 {
-                            // first line,
-                            if let Some(value) = clock_offset {
-                                result.push_str(&format!("  {:3.9}", (value as f64) / 1000.0_f64))
-                            }
-                        }
-                        // tab indent
-                        result.push_str("\n                                "); //TODO: improve this please
-                    }
-                    /*
-                     * avoids overflowing
-                     */
-                    let min_offset = i * 3;
-                    let max_offset = std::cmp::min(min_offset + 3, systems.len());
-                    result.push_str(&systems[min_offset..max_offset]);
-                    index += 1;
-                }
-            }
-        },
-        _ => {
-            // Modern RINEX case
-            // Systems #ID to be passed on future lines
-            if content.len() < 35 {
-                // parsing would fail
-                return Err(Error::FaultyRecoveredEpoch);
-            }
-            let (epoch, _) = content.split_at(35);
-            result.push_str(&epoch.replace('&', " "));
-            //TODO clock offset
-            if let Some(value) = clock_offset {
-                result.push_str(&format!("         {:3.12}", (value as f64) / 1000.0_f64))
-            }
-        },
-    }
-    Ok(result)
-}
-
-impl Default for Decompressor {
-    fn default() -> Self {
-        Self::new()
+impl<const M: usize, R: Read> Read for Decompressor<M, R> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        match self.state {
+            State::InsideHeader => self.read_inside_header(&mut buf),
+            _ => {},
+        }
     }
 }
 
-impl Decompressor {
-    /// Creates a new decompression structure
-    pub fn new() -> Self {
+// /// Reworks given content to match RINEX specifications
+// /// of an epoch descriptor
+// fn format_epoch(
+//     version: u8,
+//     nb_sv: usize,
+//     content: &str,
+//     clock_offset: Option<i64>,
+// ) -> Result<String, Error> {
+
+//     let mut result = String::new();
+//     match version {
+//         1 | 2 => {
+//             // old RINEX
+//             // append Systems #ID,
+//             //  on as many lines as needed
+//             let min_size = 32 + 3; // epoch descriptor + at least one vehicle
+//             if content.len() < min_size {
+//                 // parsing would fail
+//                 return Err(Error::FaultyRecoveredEpoch);
+//             }
+
+//             let (epoch, systems) = content.split_at(32); // grab epoch
+//             result.push_str(&epoch.replace('&', " ")); // rework
+
+//             //CRINEX has systems squashed in a single line
+//             // we just split it to match standard definitions
+//             // .. and don't forget the tab
+//             if nb_sv <= 12 {
+//                 // fits in a single line
+//                 result.push_str(systems);
+//                 if let Some(value) = clock_offset {
+//                     result.push_str(&format!("  {:3.9}", (value as f64) / 1000.0_f64))
+//                 }
+//             } else {
+//                 // does not fit in a single line
+//                 let mut index = 0;
+//                 for i in 0..nb_sv {
+//                     if index == 12 {
+//                         index = 0;
+//                         if i == 12 {
+//                             // first line,
+//                             if let Some(value) = clock_offset {
+//                                 result.push_str(&format!("  {:3.9}", (value as f64) / 1000.0_f64))
+//                             }
+//                         }
+//                         // tab indent
+//                         result.push_str("\n                                "); //TODO: improve this please
+//                     }
+//                     /*
+//                      * avoids overflowing
+//                      */
+//                     let min_offset = i * 3;
+//                     let max_offset = std::cmp::min(min_offset + 3, systems.len());
+//                     result.push_str(&systems[min_offset..max_offset]);
+//                     index += 1;
+//                 }
+//             }
+//         },
+//         _ => {
+//             // Modern RINEX case
+//             // Systems #ID to be passed on future lines
+//             if content.len() < 35 {
+//                 // parsing would fail
+//                 return Err(Error::FaultyRecoveredEpoch);
+//             }
+//             let (epoch, _) = content.split_at(35);
+//             result.push_str(&epoch.replace('&', " "));
+//             //TODO clock offset
+//             if let Some(value) = clock_offset {
+//                 result.push_str(&format!("         {:3.12}", (value as f64) / 1000.0_f64))
+//             }
+//         },
+//     }
+//     Ok(result)
+// }
+
+impl<const M: usize, R: Read> Decompressor<M, R> {
+    /// Creates a new [Decompressor] working from [Read]
+    pub fn new(reader: R) -> Self {
         Self {
-            first_epoch: true,
-            state: State::default(),
-            epoch_diff: TextDiff::new(),
-            epoch_descriptor: String::with_capacity(128),
-            clock_diff: NumDiff::<3>::new(0),
+            reader,
             nb_sv: 0,
             sv_ptr: 0,
-            sv_diff: HashMap::new(), // init. later
+            buf: [0; 1024],
+            first_epoch: true,
+            first_clock_diff: true,
+            state: State::default(),
+            crinex: CRINEX::default(),
+            epoch_diff: TextDiff::new(""),
+            clock_diff: NumDiff::<M>::new(0),
+            obs_diff: HashMap::new(), // init. late
+            buf_ascii: String::with_capacity(128),
+            epoch_ascii: String::with_capacity(256),
         }
     }
 
-    /*
-        fn reset(&mut self) {
-            // are we sure this is enough ?
-            // special comment markers, like "MERGE" and "SPLICE"
-            //  are they to be encountered inside an epoch ?
-            self.state = State::default();
+    /// When parsing (algorithm being active)
+    /// any COMMENTS encountered should be passed "as is".
+    /// There is no mean to apply the Hatanaka algorithm to COMMENTS located
+    /// in the file body
+    fn process_buffered_comments(&mut self, buf: &mut [u8]) -> usize {
+        let mut offset = 0;
+        let buf_len = self.buf.len();
+        for chunk in 0..buf_len / 80 {
+            // For all encountered COMMENTS simply extract as is
+            let start = chunk * 80;
+            let stop = ((chunk + 1) * 80).min(buf_len);
+            let size = stop - start;
+            if self.ascii[start..stop].contains("COMMENTS") {
+                buf[start..stop].copy_from_slice(&self.buf[start..stop]);
+                offset += size;
+            }
         }
-    */
-
-    fn parse_nb_sv(content: &str, crx_major: u8) -> Option<usize> {
-        let mut offset: usize = 2    // Y
-            +2+1 // m
-            +2+1 // d
-            +2+1 // h
-            +2+1 // m
-            +11  // s
-            +1   // ">" or "&" init marker
-            +3; // epoch flag
-
-        if content.starts_with("> ") {
-            //CRNX3 initial epoch, 1 extra whitespace
-            offset += 1;
-        }
-
-        if crx_major > 1 {
-            offset += 2; // YYYY on 4 digits
-        }
-
-        let (_, rem) = content.split_at(offset);
-        let (n, _) = rem.split_at(3);
-        if let Ok(n) = u16::from_str_radix(n.trim(), 10) {
-            Some(n.into())
-        } else {
-            None
-        }
+        offset
     }
 
-    fn parse_flags(&mut self, sv: SV, content: &str) {
-        //println!("FLAGS: \"{}\"", content); // DEBUG
-        if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-            for index in 0..content.len() {
-                if let Some(sv_obs) = sv_diff.get_mut(index / 2) {
-                    if index % 2 == 0 {
-                        // LLI
-                        let _ = sv_obs.1.decompress(&content[index..index + 1]);
-                    } else {
-                        //SSI
-                        let _ = sv_obs.2.decompress(&content[index..index + 1]);
+    // In the header section, we need to search for the CRINEX header
+    /// and we also have to serve the data "as is". So we act like a FIFO.
+    /// Current implemetation is performance limiting: read size is limited to 80.
+    //  - CRINEX specs (revision) determines our decoding profile
+    //  - END OF HEADER marker means File Body is about to start
+    //    and we need to turn on the decoding scheme
+    fn read_inside_header(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let avail_size = self.buf.len();
+        let mut read_size = buf.len();
+        let mut next_state = self.state;
+
+        // we have some left overs ready to be exposed
+        if self.avail_size > 0 {
+            if self.avail_size >= read_size {
+                // We have more than needed: expose only what is needed (no need to proceed)
+                buf[0..read_size].copy_from_slice(&self.buf[0..self.avail_size]);
+                self.avail_size -= read_size; // update
+                return Ok(read_size);
+            } else {
+                // Expose what we have then grab new content
+                buf[0..self.avail_size].copy_from_slice(&self.buf[0..self.avail_size]);
+                self.avail_size = 0; // reset
+                read_size -= self.avail_size; // update
+            }
+        }
+
+        // Fill internal buffer
+        let size = self.reader.read(&self.buf)?;
+        if size == 0 {
+            // Failed to grab new content: notify and exit
+            return Ok(0);
+        }
+
+        let buf_len = self.buf.len();
+
+        // Study every single new line: search for required content
+        let mut last_start = 0;
+        for i in 0..buf_len {
+            if buf[i] == b'\n' {
+                // found line termination
+                if i - last_start >= 80 {
+                    // consistent with valid RINEX HEADER
+                    // Interprate this range as ASCII then proceed
+                    self.ascii_buf = from_utf8(&buf[last_start..i])?;
+                    if self.ascii_buf.ends_with("END OF HEADER") {
+                        next_state = State::EpochDescriptor;
+                    } else if self.ascii_buf.ends_with("CRINEX VERSION / TYPE") {
+                        self.crinex = CRINEX::from_str(self.ascii_buf)?;
                     }
                 }
             }
         }
-    }
 
-    fn current_satellite(
-        &self,
-        crx_major: u8,
-        crx_constellation: &Constellation,
-        sv_ptr: usize,
-    ) -> Option<SV> {
-        let epoch = &self.epoch_descriptor;
-        let offset: usize = match crx_major {
-            1 => std::cmp::min(32 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
-            _ => std::cmp::min(41 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
-        };
-        let system = epoch.split_at(offset).0;
-        let (_, svnn) = system.split_at(system.len() - 3); // last 3 XXX
-        let svnn = svnn.trim();
-        match crx_major > 2 {
-            false => {
-                // OLD
-                match crx_constellation {
-                    Constellation::Mixed => {
-                        // OLD and MIXED is fine
-                        if let Ok(sv) = SV::from_str(svnn) {
-                            Some(sv)
-                        } else {
-                            None
-                        }
-                    },
-                    constellation => {
-                        // OLD + FIXED: constellation might be omitted.......
-                        if let Ok(prn) = u8::from_str_radix(svnn[1..].trim(), 10) {
-                            Some(SV {
-                                prn,
-                                constellation: *constellation,
-                            })
-                        } else {
-                            None
-                        }
-                    },
-                }
-            },
-            true => {
-                // MODERN
-                if let Ok(sv) = SV::from_str(svnn) {
-                    Some(sv)
-                } else {
-                    None
-                }
-            },
+        // expose new data
+        let size_to_copy = size - read_size;
+        buf[avail_size..read_size].copy_from_slice(&self.buf[0..size_to_copy]);
+
+        // determine next state
+        match (self.state, next_state) {
+            (State::Header, State::EpochDescriptor) => {},
+            _ => {}, // stable or invalid combinations
         }
+
+        self.state = next_state;
+        Ok(read_size)
     }
-    /// Decompresses (recovers) RINEX from given CRINEX content.
-    /// This method expects either RINEX comments,
-    /// or CRNX1/CRNX3 content, that is either epoch description
-    /// and epoch content.
-    pub fn decompress(
-        &mut self,
-        crx_major: u8,
-        crx_constell: &Constellation,
-        rnx_major: u8,
-        observables: &HashMap<Constellation, Vec<Observable>>,
-        content: &str,
-    ) -> Result<String, Error> {
-        // content browser
-        let mut result: String = String::new();
-        let mut lines = content.lines();
-        loop {
-            // browse all provided lines
-            let line: &str = match lines.next() {
-                Some(l) => l,
-                None => break,
-            };
 
-            //println!("DECOMPRESSING - \"{}\"", line); //DEBUG
-            //println!("state: {:?}", self.state);
+    // fn parse_nb_sv(content: &str, crx_major: u8) -> Option<usize> {
+    //     let mut offset: usize = 2    // Y
+    //         +2+1 // m
+    //         +2+1 // d
+    //         +2+1 // h
+    //         +2+1 // m
+    //         +11  // s
+    //         +1   // ">" or "&" init marker
+    //         +3; // epoch flag
 
-            // [0] : COMMENTS (special case)
-            if is_rinex_comment(line) {
-                //if line.contains("RINEX FILE SPLICE") {
-                // [0*] SPLICE special comments
-                //      merged RINEX Files
-                //    self.reset();
-                //}
-                result // feed content as is
-                    .push_str(line);
-                result.push('\n');
-                continue; // move to next line
-            }
+    //     if content.starts_with("> ") {
+    //         //CRNX3 initial epoch, 1 extra whitespace
+    //         offset += 1;
+    //     }
 
-            // [0*]: special epoch events
-            //       with uncompressed descriptor
-            //       (CRNX3)
-            if line.starts_with("> ") && !self.first_epoch {
-                result // feed content as is
-                    .push_str(line);
-                result.push('\n');
-                continue; // move to next line
-            }
+    //     if crx_major > 1 {
+    //         offset += 2; // YYYY on 4 digits
+    //     }
 
-            match self.state {
-                State::EpochDescriptor => {
-                    if self.first_epoch {
-                        match crx_major {
-                            1 => {
-                                if !line.starts_with('&') {
-                                    return Err(Error::FaultyCrx1FirstEpoch);
-                                }
-                            },
-                            3 => {
-                                if !line.starts_with('>') {
-                                    return Err(Error::FaultyCrx3FirstEpoch);
-                                }
-                            },
-                            _ => {}, // will never happen
-                        }
+    //     let (_, rem) = content.split_at(offset);
+    //     let (n, _) = rem.split_at(3);
+    //     if let Ok(n) = u16::from_str_radix(n.trim(), 10) {
+    //         Some(n.into())
+    //     } else {
+    //         None
+    //     }
+    // }
 
-                        // Kernel initialization,
-                        // only once, always text based
-                        // from this entire line
-                        self.epoch_diff.init(line.trim_end());
-                        self.first_epoch = false;
-                    } else {
-                        /*
-                         * this latches the current line content
-                         * we'll deal with it when combining with clock offsets
-                         */
-                        self.epoch_diff.decompress(line);
-                    }
+    // fn parse_flags(&mut self, sv: SV, content: &str) {
+    //     //println!("FLAGS: \"{}\"", content); // DEBUG
+    //     if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
+    //         for index in 0..content.len() {
+    //             if let Some(sv_obs) = sv_diff.get_mut(index / 2) {
+    //                 if index % 2 == 0 {
+    //                     // LLI
+    //                     let _ = sv_obs.1.decompress(&content[index..index + 1]);
+    //                 } else {
+    //                     //SSI
+    //                     let _ = sv_obs.2.decompress(&content[index..index + 1]);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
-                    self.state = State::ClockOffsetDescriptor;
-                }, // state::EpochDescriptor
+    // fn current_satellite(
+    //     &self,
+    //     crx_major: u8,
+    //     crx_constellation: &Constellation,
+    //     sv_ptr: usize,
+    // ) -> Option<SV> {
+    //     let epoch = &self.epoch_descriptor;
+    //     let offset: usize = match crx_major {
+    //         1 => std::cmp::min(32 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
+    //         _ => std::cmp::min(41 + 3 * (sv_ptr + 1), epoch.len()), // overflow protection
+    //     };
+    //     let system = epoch.split_at(offset).0;
+    //     let (_, svnn) = system.split_at(system.len() - 3); // last 3 XXX
+    //     let svnn = svnn.trim();
+    //     match crx_major > 2 {
+    //         false => {
+    //             // OLD
+    //             match crx_constellation {
+    //                 Constellation::Mixed => {
+    //                     // OLD and MIXED is fine
+    //                     if let Ok(sv) = SV::from_str(svnn) {
+    //                         Some(sv)
+    //                     } else {
+    //                         None
+    //                     }
+    //                 },
+    //                 constellation => {
+    //                     // OLD + FIXED: constellation might be omitted.......
+    //                     if let Ok(prn) = u8::from_str_radix(svnn[1..].trim(), 10) {
+    //                         Some(SV {
+    //                             prn,
+    //                             constellation: *constellation,
+    //                         })
+    //                     } else {
+    //                         None
+    //                     }
+    //                 },
+    //             }
+    //         },
+    //         true => {
+    //             // MODERN
+    //             if let Ok(sv) = SV::from_str(svnn) {
+    //                 Some(sv)
+    //             } else {
+    //                 None
+    //             }
+    //         },
+    //     }
+    // }
 
-                State::ClockOffsetDescriptor => {
-                    /*
-                     * this line is dedicated to clock offset description
-                     */
-                    let mut clock_offset: Option<i64> = None;
-                    if line.contains('&') {
-                        // clock offset kernel (re)init
-                        let (n, rem) = line.split_at(1);
-                        if let Ok(order) = u8::from_str_radix(n, 10) {
-                            let (_, value) = rem.split_at(1);
+    // /// Decompresses (recovers) RINEX from given CRINEX content.
+    // /// This method expects either RINEX comments,
+    // /// or CRNX1/CRNX3 content, that is either epoch description
+    // /// and epoch content.
+    // pub fn decompress(
+    //     &mut self,
+    //     crx_major: u8,
+    //     crx_constell: &Constellation,
+    //     rnx_major: u8,
+    //     observables: &HashMap<Constellation, Vec<Observable>>,
+    //     content: &str,
+    // ) -> Result<String, Error> {
+    //     // content browser
+    //     let mut result: String = String::new();
+    //     let mut lines = content.lines();
+    //     loop {
+    //         // browse all provided lines
+    //         let line: &str = match lines.next() {
+    //             Some(l) => l,
+    //             None => break,
+    //         };
 
-                            if let Ok(value) = i64::from_str_radix(value, 10) {
-                                self.clock_diff.force_init(value);
-                            } else {
-                                return Err(Error::ClockOffsetValueError);
-                            }
-                        } else {
-                            return Err(Error::ClockOffsetOrderError);
-                        }
-                    } else {
-                        // --> nominal clock offset line
-                        if let Ok(value) = i64::from_str_radix(line.trim(), 10) {
-                            clock_offset = Some(value); // latch for later
-                        }
-                    }
+    //         //println!("DECOMPRESSING - \"{}\"", line); //DEBUG
+    //         //println!("state: {:?}", self.state);
 
-                    /*
-                     * now we have all information to reconstruct the epoch descriptor
-                     */
-                    let recovered = self.epoch_diff.decompress(" ").trim_end();
-                    // we store the recovered and unformatted CRINEX descriptor
-                    //   because it is particularly easy to parse,
-                    //   as it is made of a single line.
-                    //   It needs to be formatted according to standards,
-                    //   for the result being constructed. See the following operations
-                    self.epoch_descriptor = recovered.to_string();
-                    // initialize sv identifier
-                    self.sv_ptr = 0;
-                    if let Some(n) = Self::parse_nb_sv(&self.epoch_descriptor, crx_major) {
-                        self.nb_sv = n;
-                    } else {
-                        return Err(Error::VehicleIdentificationError);
-                    }
+    //         // [0] : COMMENTS (special case)
+    //         if is_rinex_comment(line) {
+    //             //if line.contains("RINEX FILE SPLICE") {
+    //             // [0*] SPLICE special comments
+    //             //      merged RINEX Files
+    //             //    self.reset();
+    //             //}
+    //             result // feed content as is
+    //                 .push_str(line);
+    //             result.push('\n');
+    //             continue; // move to next line
+    //         }
 
-                    if let Ok(descriptor) =
-                        format_epoch(rnx_major, self.nb_sv, recovered, clock_offset)
-                    {
-                        //println!("--- EPOCH --- \n{}[STOP]", descriptor.trim_end()); //DEBUG
-                        result.push_str(&format!("{}\n", descriptor.trim_end()));
-                    } else {
-                        return Err(Error::EpochConstruct);
-                    }
+    //         // [0*]: special epoch events
+    //         //       with uncompressed descriptor
+    //         //       (CRNX3)
+    //         if line.starts_with("> ") && !self.first_epoch {
+    //             result // feed content as is
+    //                 .push_str(line);
+    //             result.push('\n');
+    //             continue; // move to next line
+    //         }
 
-                    self.state = State::Body;
-                }, // state::ClockOffsetDescriptor
+    //         match self.state {
+    //             State::EpochDescriptor => {
+    //                 if self.first_epoch {
+    //                     match crx_major {
+    //                         1 => {
+    //                             if !line.starts_with('&') {
+    //                                 return Err(Error::FaultyCrx1FirstEpoch);
+    //                             }
+    //                         },
+    //                         3 => {
+    //                             if !line.starts_with('>') {
+    //                                 return Err(Error::FaultyCrx3FirstEpoch);
+    //                             }
+    //                         },
+    //                         _ => {}, // will never happen
+    //                     }
 
-                State::Body => {
-                    let mut obs_ptr: usize = 0;
-                    let mut observations: Vec<Option<i64>> = Vec::with_capacity(16);
-                    /*
-                     * identify satellite we're dealing with
-                     */
-                    if let Some(sv) = self.current_satellite(crx_major, crx_constell, self.sv_ptr) {
-                        //println!("SV: {:?}", sv); //DEBUG
-                        self.sv_ptr += 1; // increment for next time
-                                          // vehicles are always described in a single line
-                        if rnx_major > 2 {
-                            // RNX3 needs SVNN on every line
-                            result.push_str(&format!("{} ", sv));
-                        }
-                        /*
-                         * Build compress tools in case this vehicle is new
-                         */
-                        if self.sv_diff.get(&sv).is_none() {
-                            let mut inner: Vec<(NumDiff<3>, TextDiff, TextDiff)> =
-                                Vec::with_capacity(16);
-                            // this protects from malformed Headers or malformed Epoch descriptions
-                            let codes = match sv.constellation.is_sbas() {
-                                true => observables.get(&Constellation::SBAS),
-                                false => observables.get(&sv.constellation),
-                            };
-                            if let Some(codes) = codes {
-                                for _ in codes {
-                                    let mut kernels =
-                                        (NumDiff::<3>::new(0), TextDiff::new(), TextDiff::new());
+    //                     // Kernel initialization,
+    //                     // only once, always text based
+    //                     // from this entire line
+    //                     self.epoch_diff.init(line.trim_end());
+    //                     self.first_epoch = false;
+    //                 } else {
+    //                     /*
+    //                      * this latches the current line content
+    //                      * we'll deal with it when combining with clock offsets
+    //                      */
+    //                     self.epoch_diff.decompress(line);
+    //                 }
 
-                                    kernels.1.init(" "); // LLI
-                                    kernels.2.init(" "); // SSI
-                                    inner.push(kernels);
-                                }
-                                self.sv_diff.insert(sv, inner);
-                            }
-                        }
-                        /*
-                         * iterate over entire line
-                         */
-                        let mut line = line.trim_end();
-                        let codes = match sv.constellation.is_sbas() {
-                            true => observables.get(&Constellation::SBAS),
-                            false => observables.get(&sv.constellation),
-                        };
-                        if let Some(codes) = codes {
-                            while obs_ptr < codes.len() {
-                                if let Some(pos) = line.find(' ') {
-                                    let content = &line[..pos];
-                                    //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], content); //DEBUG
-                                    if content.is_empty() {
-                                        /*
-                                         * missing observation
-                                         */
-                                        observations.push(None);
-                                    } else {
-                                        /*
-                                         * regular progression
-                                         */
-                                        if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                            if let Some(marker) = content.find('&') {
-                                                // kernel (re)initialization
-                                                let (order, rem) = content.split_at(marker);
-                                                let order = u8::from_str_radix(order.trim(), 10)?;
-                                                //println!("ORDER {}", order); //DEBUG
-                                                let (_, data) = rem.split_at(1);
-                                                if let Ok(data) =
-                                                    i64::from_str_radix(data.trim(), 10)
-                                                {
-                                                    sv_diff[obs_ptr]
-                                                        .0 // observations only, at this point
-                                                        .force_init(data);
+    //                 self.state = State::ClockOffsetDescriptor;
+    //             }, // state::EpochDescriptor
 
-                                                    observations.push(Some(data));
-                                                }
-                                            } else {
-                                                // regular compression
-                                                if let Ok(num) =
-                                                    i64::from_str_radix(content.trim(), 10)
-                                                {
-                                                    let recovered = sv_diff[obs_ptr]
-                                                        .0 // observations only, at this point
-                                                        .decompress(num);
-                                                    observations.push(Some(recovered));
-                                                }
-                                            }
-                                        }
-                                    }
-                                    line = &line[std::cmp::min(pos + 1, line.len())..]; // line remainder
-                                    obs_ptr += 1;
-                                } else {
-                                    /*
-                                     * EOL detected, but obs_ptr < codes.len()
-                                     *  => try to parse one last obs
-                                     */
-                                    //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
-                                    if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                        if let Some(marker) = line.find('&') {
-                                            // kernel (re)initliaization
-                                            let (order, rem) = line.split_at(marker);
-                                            let order = u8::from_str_radix(order.trim(), 10)?;
-                                            let (_, data) = rem.split_at(1);
-                                            if let Ok(data) = i64::from_str_radix(data.trim(), 10) {
-                                                sv_diff[obs_ptr]
-                                                    .0 // observations only, at this point
-                                                    .force_init(data);
+    //             State::ClockOffsetDescriptor => {
+    //                 /*
+    //                  * this line is dedicated to clock offset description
+    //                  */
+    //                 let mut clock_offset: Option<i64> = None;
+    //                 if line.contains('&') {
+    //                     // clock offset kernel (re)init
+    //                     let (n, rem) = line.split_at(1);
+    //                     if let Ok(order) = u8::from_str_radix(n, 10) {
+    //                         let (_, value) = rem.split_at(1);
 
-                                                observations.push(Some(data));
-                                            }
-                                        } else {
-                                            // regular compression
-                                            if let Ok(num) = i64::from_str_radix(line.trim(), 10) {
-                                                let recovered = sv_diff[obs_ptr]
-                                                    .0 // observations only, at this point
-                                                    .decompress(num);
-                                                observations.push(Some(recovered))
-                                            }
-                                        }
-                                    } //svdiff
-                                    line = ""; // avoid flags parsing: all flags omitted <=> content unchanged
-                                    obs_ptr = codes.len();
-                                } //EOL
-                            } //while()
-                        } //observables identification
-                          /*
-                           * Flags field
-                           */
-                        if !line.is_empty() {
-                            // can parse at least 1 flag
-                            self.parse_flags(sv, line);
-                        }
-                        /*
-                         * group previously parsed observations,
-                         *   into a single formatted line
-                         *   or into several in case of OLD RINEX
-                         */
-                        for (index, data) in observations.iter().enumerate() {
-                            if let Some(data) = data {
-                                let sv_diff = self.sv_diff.get_mut(&sv).unwrap(); //cant fail at this point
-                                let lli = sv_diff[index]
-                                    .1 // LLI
-                                    .decompress(" ") // trick to recover
-                                    // using textdiff property.
-                                    // Another option would be to have an array to
-                                    // store them
-                                    .to_string();
-                                let ssi = sv_diff[index]
-                                    .2 // SSI
-                                    .decompress(" ") // trick to recover
-                                    // using textdiff property.
-                                    // Another option would be to have an array to
-                                    // store them
-                                    .to_string();
-                                result.push_str(&format!(
-                                    "{:13.3}{}{} ",
-                                    *data as f64 / 1000_f64,
-                                    lli,
-                                    ssi
-                                )); //F14.3
-                            } else {
-                                result.push_str("                "); // BLANK
-                            }
+    //                         if let Ok(value) = i64::from_str_radix(value, 10) {
+    //                             self.clock_diff.force_init(value);
+    //                         } else {
+    //                             return Err(Error::ClockOffsetValueError);
+    //                         }
+    //                     } else {
+    //                         return Err(Error::ClockOffsetOrderError);
+    //                     }
+    //                 } else {
+    //                     // --> nominal clock offset line
+    //                     if let Ok(value) = i64::from_str_radix(line.trim(), 10) {
+    //                         clock_offset = Some(value); // latch for later
+    //                     }
+    //                 }
 
-                            if rnx_major < 3 {
-                                // old RINEX
-                                if (index + 1).rem_euclid(5) == 0 {
-                                    // maximal nb of OBS per line
-                                    result.push('\n')
-                                }
-                            }
-                        }
-                        //result.push_str("\n");
-                    }
-                    // end of line parsing
-                    //  if sv_ptr has reached the expected amount of vehicles
-                    //  we reset to state (1)
-                    if self.sv_ptr >= self.nb_sv {
-                        self.state = State::EpochDescriptor;
-                    }
-                }, //current_satellite()
-            } //match(state)
-        } //loop
-          //println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
-        Ok(result)
-    }
+    //                 /*
+    //                  * now we have all information to reconstruct the epoch descriptor
+    //                  */
+    //                 let recovered = self.epoch_diff.decompress(" ").trim_end();
+    //                 // we store the recovered and unformatted CRINEX descriptor
+    //                 //   because it is particularly easy to parse,
+    //                 //   as it is made of a single line.
+    //                 //   It needs to be formatted according to standards,
+    //                 //   for the result being constructed. See the following operations
+    //                 self.epoch_descriptor = recovered.to_string();
+    //                 // initialize sv identifier
+    //                 self.sv_ptr = 0;
+    //                 if let Some(n) = Self::parse_nb_sv(&self.epoch_descriptor, crx_major) {
+    //                     self.nb_sv = n;
+    //                 } else {
+    //                     return Err(Error::VehicleIdentificationError);
+    //                 }
+
+    //                 if let Ok(descriptor) =
+    //                     format_epoch(rnx_major, self.nb_sv, recovered, clock_offset)
+    //                 {
+    //                     //println!("--- EPOCH --- \n{}[STOP]", descriptor.trim_end()); //DEBUG
+    //                     result.push_str(&format!("{}\n", descriptor.trim_end()));
+    //                 } else {
+    //                     return Err(Error::EpochConstruct);
+    //                 }
+
+    //                 self.state = State::Body;
+    //             }, // state::ClockOffsetDescriptor
+
+    //             State::Body => {
+    //                 let mut obs_ptr: usize = 0;
+    //                 let mut observations: Vec<Option<i64>> = Vec::with_capacity(16);
+    //                 /*
+    //                  * identify satellite we're dealing with
+    //                  */
+    //                 if let Some(sv) = self.current_satellite(crx_major, crx_constell, self.sv_ptr) {
+    //                     //println!("SV: {:?}", sv); //DEBUG
+    //                     self.sv_ptr += 1; // increment for next time
+    //                                       // vehicles are always described in a single line
+    //                     if rnx_major > 2 {
+    //                         // RNX3 needs SVNN on every line
+    //                         result.push_str(&format!("{} ", sv));
+    //                     }
+    //                     /*
+    //                      * Build compress tools in case this vehicle is new
+    //                      */
+    //                     if self.sv_diff.get(&sv).is_none() {
+    //                         let mut inner: Vec<(NumDiff<3>, TextDiff, TextDiff)> =
+    //                             Vec::with_capacity(16);
+    //                         // this protects from malformed Headers or malformed Epoch descriptions
+    //                         let codes = match sv.constellation.is_sbas() {
+    //                             true => observables.get(&Constellation::SBAS),
+    //                             false => observables.get(&sv.constellation),
+    //                         };
+    //                         if let Some(codes) = codes {
+    //                             for _ in codes {
+    //                                 let mut kernels =
+    //                                     (NumDiff::<3>::new(0), TextDiff::new(), TextDiff::new());
+
+    //                                 kernels.1.init(" "); // LLI
+    //                                 kernels.2.init(" "); // SSI
+    //                                 inner.push(kernels);
+    //                             }
+    //                             self.sv_diff.insert(sv, inner);
+    //                         }
+    //                     }
+    //                     /*
+    //                      * iterate over entire line
+    //                      */
+    //                     let mut line = line.trim_end();
+    //                     let codes = match sv.constellation.is_sbas() {
+    //                         true => observables.get(&Constellation::SBAS),
+    //                         false => observables.get(&sv.constellation),
+    //                     };
+    //                     if let Some(codes) = codes {
+    //                         while obs_ptr < codes.len() {
+    //                             if let Some(pos) = line.find(' ') {
+    //                                 let content = &line[..pos];
+    //                                 //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], content); //DEBUG
+    //                                 if content.is_empty() {
+    //                                     /*
+    //                                      * missing observation
+    //                                      */
+    //                                     observations.push(None);
+    //                                 } else {
+    //                                     /*
+    //                                      * regular progression
+    //                                      */
+    //                                     if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
+    //                                         if let Some(marker) = content.find('&') {
+    //                                             // kernel (re)initialization
+    //                                             let (order, rem) = content.split_at(marker);
+    //                                             let order = u8::from_str_radix(order.trim(), 10)?;
+    //                                             //println!("ORDER {}", order); //DEBUG
+    //                                             let (_, data) = rem.split_at(1);
+    //                                             if let Ok(data) =
+    //                                                 i64::from_str_radix(data.trim(), 10)
+    //                                             {
+    //                                                 sv_diff[obs_ptr]
+    //                                                     .0 // observations only, at this point
+    //                                                     .force_init(data);
+
+    //                                                 observations.push(Some(data));
+    //                                             }
+    //                                         } else {
+    //                                             // regular compression
+    //                                             if let Ok(num) =
+    //                                                 i64::from_str_radix(content.trim(), 10)
+    //                                             {
+    //                                                 let recovered = sv_diff[obs_ptr]
+    //                                                     .0 // observations only, at this point
+    //                                                     .decompress(num);
+    //                                                 observations.push(Some(recovered));
+    //                                             }
+    //                                         }
+    //                                     }
+    //                                 }
+    //                                 line = &line[std::cmp::min(pos + 1, line.len())..]; // line remainder
+    //                                 obs_ptr += 1;
+    //                             } else {
+    //                                 /*
+    //                                  * EOL detected, but obs_ptr < codes.len()
+    //                                  *  => try to parse one last obs
+    //                                  */
+    //                                 //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
+    //                                 if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
+    //                                     if let Some(marker) = line.find('&') {
+    //                                         // kernel (re)initliaization
+    //                                         let (order, rem) = line.split_at(marker);
+    //                                         let order = u8::from_str_radix(order.trim(), 10)?;
+    //                                         let (_, data) = rem.split_at(1);
+    //                                         if let Ok(data) = i64::from_str_radix(data.trim(), 10) {
+    //                                             sv_diff[obs_ptr]
+    //                                                 .0 // observations only, at this point
+    //                                                 .force_init(data);
+
+    //                                             observations.push(Some(data));
+    //                                         }
+    //                                     } else {
+    //                                         // regular compression
+    //                                         if let Ok(num) = i64::from_str_radix(line.trim(), 10) {
+    //                                             let recovered = sv_diff[obs_ptr]
+    //                                                 .0 // observations only, at this point
+    //                                                 .decompress(num);
+    //                                             observations.push(Some(recovered))
+    //                                         }
+    //                                     }
+    //                                 } //svdiff
+    //                                 line = ""; // avoid flags parsing: all flags omitted <=> content unchanged
+    //                                 obs_ptr = codes.len();
+    //                             } //EOL
+    //                         } //while()
+    //                     } //observables identification
+    //                       /*
+    //                        * Flags field
+    //                        */
+    //                     if !line.is_empty() {
+    //                         // can parse at least 1 flag
+    //                         self.parse_flags(sv, line);
+    //                     }
+    //                     /*
+    //                      * group previously parsed observations,
+    //                      *   into a single formatted line
+    //                      *   or into several in case of OLD RINEX
+    //                      */
+    //                     for (index, data) in observations.iter().enumerate() {
+    //                         if let Some(data) = data {
+    //                             let sv_diff = self.sv_diff.get_mut(&sv).unwrap(); //cant fail at this point
+    //                             let lli = sv_diff[index]
+    //                                 .1 // LLI
+    //                                 .decompress(" ") // trick to recover
+    //                                 // using textdiff property.
+    //                                 // Another option would be to have an array to
+    //                                 // store them
+    //                                 .to_string();
+    //                             let ssi = sv_diff[index]
+    //                                 .2 // SSI
+    //                                 .decompress(" ") // trick to recover
+    //                                 // using textdiff property.
+    //                                 // Another option would be to have an array to
+    //                                 // store them
+    //                                 .to_string();
+    //                             result.push_str(&format!(
+    //                                 "{:13.3}{}{} ",
+    //                                 *data as f64 / 1000_f64,
+    //                                 lli,
+    //                                 ssi
+    //                             )); //F14.3
+    //                         } else {
+    //                             result.push_str("                "); // BLANK
+    //                         }
+
+    //                         if rnx_major < 3 {
+    //                             // old RINEX
+    //                             if (index + 1).rem_euclid(5) == 0 {
+    //                                 // maximal nb of OBS per line
+    //                                 result.push('\n')
+    //                             }
+    //                         }
+    //                     }
+    //                     //result.push_str("\n");
+    //                 }
+    //                 // end of line parsing
+    //                 //  if sv_ptr has reached the expected amount of vehicles
+    //                 //  we reset to state (1)
+    //                 if self.sv_ptr >= self.nb_sv {
+    //                     self.state = State::EpochDescriptor;
+    //                 }
+    //             }, //current_satellite()
+    //         } //match(state)
+    //     } //loop
+    //       //println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
+    //     Ok(result)
+    // }
 }
