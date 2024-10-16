@@ -6,8 +6,11 @@ use serde::Serialize;
 use super::{
     antex, clock,
     clock::{ClockKey, ClockProfile},
+    error::{FormattingError, ParsingError},
     hatanaka::{Compressor, Decompressor},
-    header, ionex, is_rinex_comment, merge,
+    header,
+    header::Header,
+    ionex, is_rinex_comment, merge,
     merge::Merge,
     meteo, navigation,
     navigation::record::parse_epoch as parse_nav_epoch,
@@ -154,7 +157,7 @@ impl Record {
         &self,
         header: &header::Header,
         writer: &mut BufferedWriter,
-    ) -> Result<(), Error> {
+    ) -> Result<(), FormattingError> {
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo().unwrap();
@@ -254,22 +257,6 @@ impl Default for Record {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("record parsing not supported for type \"{0}\"")]
-    TypeError(String),
-    #[error("i/o error")]
-    IoError(#[from] IoError),
-    #[error("failed to produce Navigation epoch")]
-    NavEpochError(#[from] navigation::Error),
-    #[error("failed to produce Clock epoch")]
-    ClockEpochError(#[from] clock::Error),
-    #[error("missing TIME OF FIRST OBS")]
-    BadObservationDataDefinition,
-    #[error("failed to identify timescale")]
-    ObservationDataTimescaleIdentification,
-}
-
 /// Returns true if given line matches the start   
 /// of a new epoch, inside a RINEX record.
 pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
@@ -293,8 +280,8 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
 /// which is constellation and `RINEX` file type dependent
 pub fn parse_record<BR: BufRead>(
     reader: &mut BufferedReader<BR>,
-    header: &mut header::Header,
-) -> Result<(Record, Comments), Error> {
+    header: &mut Header,
+) -> Result<(Record, Comments), ParsingError> {
     let mut first_epoch = true;
     let mut content = String::default();
     let mut epoch_content = String::with_capacity(6 * 64);

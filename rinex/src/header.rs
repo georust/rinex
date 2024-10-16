@@ -155,50 +155,6 @@ pub struct Header {
     pub doris: Option<DorisHeader>,
 }
 
-#[derive(Error, Debug)]
-pub enum ParsingError {
-    #[error("failed to parse version from \"{0}\"")]
-    VersionParsing(String),
-    #[error("version \"{0}\" is not supported")]
-    VersionNotSupported(String),
-    #[error("unknown RINEX type \"{0}\"")]
-    TypeParsing(String),
-    #[error("failed to parse observable")]
-    ObservableParsing(#[from] ObsParsingError),
-    #[error("constellation parsing error")]
-    ConstellationParsing(#[from] ConstellationParsingError),
-    #[error("timescale parsing error")]
-    TimescaleParsing(String),
-    #[error("failed to parse \"{0}\" coordinates from \"{1}\"")]
-    CoordinatesParsing(String, String),
-    #[error("failed to parse leap from \"{0}\"")]
-    LeapParsingError(#[from] LeapParsingError),
-    #[error("failed to parse antenna / receiver infos")]
-    AntennaReceiverError(#[from] std::io::Error),
-    #[error("failed to parse ANTEX fields")]
-    AntexParsingError(#[from] antex::record::Error),
-    #[error("failed to parse PCV field")]
-    ParsePcvError(#[from] antex::pcv::Error),
-    #[error("unknown ionex reference")]
-    UnknownReferenceIonex(#[from] ionex::system::Error),
-    #[error("invalid crinex header \"{0}\"")]
-    CrinexHeader(String),
-    #[error("failed to parse datetime {0} field from \"{1}\"")]
-    DateTimeParsing(String, String),
-    #[error("failed to parse {0} integer value from \"{1}\"")]
-    ParseIntError(String, String),
-    #[error("failed to parse {0} float value from \"{1}\"")]
-    ParseFloatError(String, String),
-    #[error("failed to parse ionex grid {0} from \"{1}\"")]
-    InvalidIonexGrid(String, String),
-    #[error("invalid ionex grid definition")]
-    InvalidIonexGridDefinition(#[from] LinspaceError),
-    #[error("doris parsing error")]
-    DorisError(#[from] DorisError),
-    #[error("failed to parse cospar number")]
-    CosparParsing(#[from] CosparParsingError),
-}
-
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
     match content {
         "Jan" => Ok(1),

@@ -13,9 +13,9 @@ use std::io::{BufRead, BufReader, Error as IoError, Read};
 /// [BufferedReader] allows seamless RINEX iteration by providing [BufRead] implementation in all cases.
 #[derive(Debug)]
 pub enum BufferedReader<BR: BufRead> {
-    /// Readable data
+    /// Readable stream
     Plain(BR),
-    /// Gzip compressed data (non readable)
+    /// Gzip compressed stream (non readable)
     #[cfg(feature = "flate2")]
     Gz(BufReader<GzDecoder<BR>>),
 }

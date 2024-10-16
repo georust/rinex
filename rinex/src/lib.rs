@@ -30,6 +30,7 @@ pub mod version;
 
 mod bibliography;
 mod constants;
+mod error; // error package
 mod ground_position;
 mod leap; // leap second
 mod linspace; // grid and linear spacing
@@ -272,10 +273,6 @@ pub struct Rinex {
 #[derive(Error, Debug)]
 /// `RINEX` Parsing related errors
 pub enum Error {
-    #[error("header parsing error")]
-    HeaderParsingError(#[from] header::ParsingError),
-    #[error("record parsing error")]
-    RecordError(#[from] record::Error),
     #[error("file i/o error")]
     IoError(#[from] std::io::Error),
 }
@@ -1168,7 +1165,7 @@ impl Rinex {
     ///   * [Self::standard_filename] to generate a standardized filename
     ///   * [Self::guess_production_attributes] helps generate standardized filenames for
     ///     files that do not follow naming conventions
-    pub fn to_file(&self, path: &str) -> Result<(), Error> {
+    pub fn to_file(&self, path: &str) -> Result<(), FormattingError> {
         let mut writer = BufferedWriter::new(path)?;
         write!(writer, "{}", self.header)?;
         self.record.to_file(&self.header, &mut writer)?;
