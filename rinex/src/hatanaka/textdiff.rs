@@ -1,10 +1,9 @@
 //! Y. Hatanaka TextDiff algorithm
-use std::cmp::min as min_usize;
 
 #[derive(Debug)]
 pub struct TextDiff {
     buffer: String,
-    latest: String,
+    compressed: String, // avoids one alloc() per compress call
 }
 
 impl Default for TextDiff {
@@ -19,13 +18,14 @@ impl TextDiff {
     pub fn new(data: &str) -> Self {
         Self {
             buffer: data.to_string(),
-            latest: data.to_string(),
+            compressed: data.to_string(),
         }
     }
 
     /// Force kernel reinitialization
     pub fn force_init(&mut self, data: &str) {
         self.buffer = data.to_string();
+        self.compressed = data.to_string();
     }
 
     /// Decompresses given data. Returns recovered value.
@@ -61,35 +61,27 @@ impl TextDiff {
 
     /// Compress given data by applying the Textdiff algorithm.
     /// Returns compressed value.
-    pub fn compress(&mut self, data: &str) -> String {
+    pub fn compress(&mut self, data: &str) -> &str {
+        self.buffer = data.to_string(); // store as is
         let buf_len = self.buffer.len();
 
-        if data.len() > buf_len {
-            // copy new bytes as is
-            self.buffer.push_str(&data[buf_len..]);
-        }
+        let data = data.as_bytes();
 
-        let mut chars = data.chars();
+        unsafe {
+            let buf = self.buffer.as_bytes_mut();
+            let bytes = self.compressed.as_bytes_mut();
 
-        // replaced shared bytes by ' '
-        self.buffer
-            .chars()
-            .map(|buf_c| {
-                if let Some(c) = chars.next() {
-                    if c == buf_c {
-                        ' '
-                    } else {
-                        if c == ' ' {
-                            '&'
-                        } else {
-                            c
-                        }
-                    }
+            // replaced shared bytes by ' '
+            for i in 0..buf_len {
+                if data[i] == buf[i] {
+                    bytes[i] = b' ';
                 } else {
-                    ' '
+                    bytes[i] = data[i];
                 }
-            })
-            .collect()
+            }
+
+            &self.compressed
+        }
     }
 }
 
@@ -168,7 +160,7 @@ mod test {
         let mut diff = TextDiff::new("0");
         assert_eq!(diff.compress("0"), " ");
         assert_eq!(diff.compress("4"), "4");
-        assert_eq!(diff.compress("4"), "4");
+        assert_eq!(diff.compress("4"), " ");
         assert_eq!(diff.compress("4  "), " &&");
         assert_eq!(diff.compress("0"), "0  ");
 
