@@ -2,7 +2,7 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
 
-use gnss::prelude::Constellation;
+use crate::prelude::{Constellation, ParsingError};
 
 /// Reference System parsing error
 #[derive(Error, Debug)]
@@ -96,7 +96,7 @@ impl std::fmt::Display for RefSystem {
 }
 
 impl FromStr for RefSystem {
-    type Err = Error;
+    type Err = ParsingError;
     fn from_str(system: &str) -> Result<Self, Self::Err> {
         if let Ok(gnss) = Constellation::from_str(system) {
             Ok(Self::GnssConstellation(gnss))
@@ -107,7 +107,7 @@ impl FromStr for RefSystem {
         } else if let Ok(m) = Model::from_str(system) {
             Ok(Self::Model(m))
         } else {
-            Err(Error::UnknownRefSystem)
+            Err(ParsingError::IonexReferenceSystem)
         }
     }
 }

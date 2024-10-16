@@ -72,10 +72,8 @@ mod test {
     use super::*;
     #[test]
     fn test_decompression() {
-        let init = "ABCDEFG 12 000 33 XXACQmpLf";
-        let mut diff = TextDiff::new();
+        let mut diff = TextDiff::new("ABCDEFG 12 000 33 XXACQmpLf");
         let masks: Vec<&str> = vec![
-            //"ABCDEFG 12 000 33 XXACQmpLf"
             "         3   1 44 xxACq   F",
             "        4 ",
             " 11 22   x   0 4  y     p  ",
@@ -93,7 +91,6 @@ mod test {
             "A11D22G 4x 000144 yzACqmpLF",
             "A11D22G 4x 000144 yzACqmpLF ",
         ];
-        diff.init(init);
         for i in 0..masks.len() {
             let mask = masks[i];
             let result = diff.decompress(mask);
@@ -101,8 +98,7 @@ mod test {
         }
 
         // test re-init
-        let init = " 2200 123      G 07G08G09G   XX XX";
-        diff.init(init);
+        diff.force_init(" 2200 123      G 07G08G09G   XX XX");
 
         let masks: Vec<&str> = vec![
             "        F       1  3",
@@ -132,8 +128,8 @@ mod test {
         assert_eq!(diff.compress("0"), "0  ");
 
         diff.force_init("Default 1234");
-        asset_eq!(diff.compress("DEfault 1234"), " E          ");
-        asset_eq!(diff.compress("DEfault 1234"), "            ");
-        asset_eq!(diff.compress("             "), "             &");
+        assert_eq!(diff.compress("DEfault 1234"), " E          ");
+        assert_eq!(diff.compress("DEfault 1234"), "            ");
+        assert_eq!(diff.compress("             "), "             &");
     }
 }

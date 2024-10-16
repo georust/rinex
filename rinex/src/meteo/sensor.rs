@@ -1,8 +1,5 @@
 //! Meteo sensor
-use crate::observable;
-use crate::prelude::GroundPosition;
-use crate::Observable;
-use thiserror::Error;
+use crate::prelude::{GroundPosition, Observable, ParsingError};
 
 #[cfg(feature = "qc")]
 use maud::{html, Markup, Render};
@@ -70,16 +67,8 @@ impl Render for Sensor {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum ParseSensorError {
-    #[error("observable parsing error")]
-    ObservableParsingErro(#[from] observable::ParsingError),
-    #[error("failed to parse accuracy field")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
 impl std::str::FromStr for Sensor {
-    type Err = ParseSensorError;
+    type Err = ParsingError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let (model, rem) = content.split_at(20);
         let (s_type, rem) = rem.split_at(20 + 6);

@@ -6,7 +6,7 @@ use strum_macros::EnumString;
 use serde::Serialize;
 
 mod sv;
-pub use sv::{Cospar, SvAntenna, SvAntennaParsingError};
+pub use sv::SvAntenna;
 
 /// Known Calibration Methods
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd, EnumString)]

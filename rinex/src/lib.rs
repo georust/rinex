@@ -57,11 +57,14 @@ use reader::BufferedReader;
 mod writer;
 use writer::BufferedWriter;
 
+#[cfg(feature = "flate2")]
+use flate2::bufread::GzDecoder;
+
 use std::{
     collections::{BTreeMap, HashMap},
     fs::File,
-    io::{BufRead, Read, Write},
-    path::{Path, PathBuf},
+    io::{BufRead, BufReader, Read, Write},
+    path::Path,
     str::FromStr,
 };
 
@@ -87,8 +90,16 @@ use hifitime::Unit;
 pub mod prelude {
     // export
     pub use crate::{
-        doris::Station, ground_position::GroundPosition, header::Header, observable::Observable,
-        observation::EpochFlag, types::Type as RinexType, version::Version, Error, Rinex,
+        doris::Station,
+        error::{Error, FormattingError, ParsingError},
+        ground_position::GroundPosition,
+        header::Header,
+        leap::Leap,
+        observable::Observable,
+        observation::EpochFlag,
+        types::Type as RinexType,
+        version::Version,
+        Rinex,
     };
 
     #[cfg(feature = "antex")]
@@ -828,7 +839,7 @@ impl Rinex {
     /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
     /// For the simple reason they are defined by a File name.
     /// You will have to define them afterwards.
-    pub fn read<R: BufRead>(reader: BR) -> Result<Rinex, Error> {
+    pub fn read<BR: BufRead>(reader: BR) -> Result<Rinex, Error> {
         let mut r = &mut BufferedReader::Plain(reader);
         Self::from_buffered_reader(r)
     }
@@ -845,12 +856,12 @@ impl Rinex {
 
     fn from_buffered_reader<BR: BufRead>(reader: &mut BufferedReader<BR>) -> Result<Rinex, Error> {
         // Parses Header section: consumes header until this point
-        let mut header = Header::new(&mut reader)?;
+        let mut header = Header::new(reader)?;
         // Parse record: consumes the rest of the record (File body).
         //  Comments: are preserved and stored.
         //  They don't serve a real purpose yet, but some comments
         //  like "File Splice" may be important
-        let (record, comments) = record::parse_record(&mut reader, &mut header)?;
+        let (record, comments) = record::parse_record(reader, &mut header)?;
         Ok(Rinex {
             header,
             record,
@@ -3519,7 +3530,6 @@ impl Rinex {
 mod test {
     use super::*;
     use crate::{fmt_comment, is_rinex_comment};
-    use std::str::FromStr;
     #[test]
     fn fmt_comments_singleline() {
         for desc in [

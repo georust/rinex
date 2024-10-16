@@ -1,14 +1,13 @@
 //! RINEX decompression module
 use crate::{
     hatanaka::{NumDiff, ObsDiff, TextDiff, CRINEX},
-    is_rinex_comment,
-    prelude::{Constellation, Epoch, Version, SV},
+    prelude::SV,
 };
 
 use std::{
     collections::HashMap,
     io::{Read, Result},
-    str::{from_utf8, FromStr},
+    str::FromStr,
 };
 
 #[derive(Default, Debug, Clone)]
@@ -224,7 +223,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 if i - last_start >= 80 {
                     // consistent with valid RINEX HEADER
                     // Interprate this range as ASCII then proceed
-                    self.buf_ascii = from_utf8(&buf[last_start..i])?;
+                    self.buf_ascii = String::from_utf8(&buf[last_start..i])?;
                     if self.buf_ascii.ends_with("END OF HEADER") {
                         next_state = State::EpochDescriptor;
                     } else if self.buf_ascii.ends_with("CRINEX VERSION / TYPE") {

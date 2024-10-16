@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use strum_macros::EnumString;
 
-use crate::prelude::{Epoch, SV};
+use crate::prelude::{Epoch, ParsingError, SV};
 
 #[cfg(feature = "processing")]
 use crate::prelude::TimeScale;

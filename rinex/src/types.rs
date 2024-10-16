@@ -1,8 +1,8 @@
-//! `RINEX` types description
-use crate::header::ParsingError;
-use crate::prelude::Constellation;
+//! RINEX file format description
 
-/// Describes all known `RINEX` file types
+use crate::prelude::{Constellation, ParsingError};
+
+/// [Type] describes all supported [RINEX] formats
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Type {
@@ -54,11 +54,11 @@ impl std::fmt::Display for Type {
 }
 
 impl Type {
-    /// Converts `Self` to RINEX file format
-    pub fn to_string(&self, constell: Option<Constellation>) -> String {
+    /// Converts [Type] to standard descriptor
+    pub fn to_standard_string(&self, constellation: Option<Constellation>) -> String {
         match *self {
             Self::ObservationData => String::from("OBSERVATION DATA"),
-            Self::NavigationData => match constell {
+            Self::NavigationData => match constellation {
                 Some(Constellation::Glonass) => String::from("Glonass NAV"),
                 _ => String::from("NAV DATA"),
             },
@@ -90,7 +90,7 @@ impl std::str::FromStr for Type {
         } else if s.eq("doris") || s.eq("d") {
             Ok(Self::DORIS)
         } else {
-            Err(ParsingError::TypeParsing(s))
+            Err(ParsingError::TypeParsing)
         }
     }
 }

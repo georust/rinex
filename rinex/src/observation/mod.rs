@@ -2,7 +2,6 @@
 use super::{
     hatanaka::CRINEX,
     prelude::{Constellation, Epoch, Observable, SV},
-    version::Version,
 };
 
 use std::collections::HashMap;

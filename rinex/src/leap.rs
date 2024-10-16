@@ -1,6 +1,5 @@
-//! Describes `leap` second information, contained in `header`
-use hifitime::{ParsingError, TimeScale};
-use thiserror::Error;
+//! Leap second described in Header
+use crate::prelude::{ParsingError, TimeScale};
 
 /// `Leap` to describe leap seconds.
 /// GLO = UTC = GPS - ΔtLS   
@@ -8,111 +7,147 @@ use thiserror::Error;
 #[derive(Default, Copy, Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Leap {
-    /// current number
+    /// Counter at the time of formatting
     pub leap: u32,
     /// ΔtLS : "future or past leap second(s)",
     /// actual number of leap seconds between GPS/GAL and GLO,
     /// or BDS and UTC.
     pub delta_tls: Option<u32>,
-    /// weeks counter
+    /// Week counter
     pub week: Option<u32>,
-    /// days counter
+    /// Days counter
     pub day: Option<u32>,
+    /// Timescale definition
     pub timescale: Option<TimeScale>,
 }
 
-/// `Leap` parsing related errors
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("failed to parse leap integer number")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse leap timescale")]
-    TimeScaleError(#[from] ParsingError),
-}
-
 impl Leap {
-    /// Builds a new `Leap` object to describe leap seconds
-    pub fn new(
-        leap: u32,
-        delta_tls: Option<u32>,
-        week: Option<u32>,
-        day: Option<u32>,
-        timescale: Option<TimeScale>,
-    ) -> Self {
-        Self {
-            leap,
-            delta_tls,
-            week,
-            day,
-            timescale,
-        }
+    // Copy and assign Delta [TLS]
+    pub fn with_delta_tls(&self, delta_tls: u32) -> Self {
+        let mut s = self.clone();
+        s.delta_tls = Some(delta_tls);
+        s
+    }
+    // Copy and assign Week counter
+    pub fn with_week(&self, week: u32) -> Self {
+        let mut s = self.clone();
+        s.week = Some(week);
+        s
+    }
+    // Copy and assign Day counter
+    pub fn with_day(&self, day: u32) -> Self {
+        let mut s = self.clone();
+        s.day = Some(day);
+        s
+    }
+    // Copy and assign Timescale
+    pub fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.timescale = Some(ts);
+        s
     }
 }
 
 impl std::str::FromStr for Leap {
-    type Err = Error;
-    /// Builds `Leap` from standard RINEX descriptor
+    type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // two formats exist
         let mut ls = Leap::default();
-        // leap second has two format
-        let items: Vec<&str> = s.split_ascii_whitespace().collect();
-        match items.len() > 2 {
-            false => {
-                // [1] simple format: basic
-                ls.leap = items[0].trim().parse::<u32>()?;
-            },
-            true => {
-                // [2] complex format: advanced infos
-                let (leap, rem) = s.split_at(5);
-                let (tls, rem) = rem.split_at(5);
-                let (week, rem) = rem.split_at(5);
-                let (day, rem) = rem.split_at(5);
-                let system = rem.trim();
-                ls.leap = leap.trim().parse::<u32>()?;
-                ls.delta_tls = Some(tls.trim().parse::<u32>()?);
-                ls.week = Some(week.trim().parse::<u32>()?);
-                ls.day = Some(day.trim().parse::<u32>()?);
-                if system.eq("") {
-                    ls.timescale = None
-                } else {
-                    ls.timescale = Some(TimeScale::from_str(system)?)
-                }
-            },
+        let items = s.split_ascii_whitespace().collect::<Vec<_>>();
+        let count = items.len();
+
+        if count < 3 {
+            // Simple / basic format
+            ls.leap = items[0].parse::<u32>().or(Err(ParsingError::LeapParsing))?;
+        } else {
+            // Complex / complete format
+            let (leap, rem) = s.split_at(5);
+            let (tls, rem) = rem.split_at(5);
+            let (week, rem) = rem.split_at(5);
+            let (day, rem) = rem.split_at(5);
+            let system = rem.trim();
+
+            ls.leap = leap
+                .trim()
+                .parse::<u32>()
+                .or(Err(ParsingError::LeapParsing))?;
+
+            let tls = tls
+                .trim()
+                .parse::<u32>()
+                .or(Err(ParsingError::LeapParsing))?;
+
+            ls.delta_tls = Some(tls);
+
+            let week = week
+                .trim()
+                .parse::<u32>()
+                .or(Err(ParsingError::LeapParsing))?;
+
+            ls.week = Some(week);
+
+            let day = day
+                .trim()
+                .parse::<u32>()
+                .or(Err(ParsingError::LeapParsing))?;
+
+            ls.day = Some(day);
+
+            if system.eq("") {
+                ls.timescale = None;
+            } else {
+                let ts = TimeScale::from_str(system)?;
+                ls.timescale = Some(ts);
+            }
         }
+
         Ok(ls)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::prelude::{Leap, TimeScale};
     use std::str::FromStr;
+
     #[test]
-    fn basic_format() {
-        let content = "18";
-        let leap = Leap::from_str(content);
-        assert!(leap.is_ok());
-        let leap = leap.unwrap();
-        assert_eq!(leap.leap, 18);
+    fn leap_second_basic() {
+        assert_eq!(
+            Leap::from_str("18").unwrap(),
+            Leap {
+                leap: 18,
+                week: None,
+                day: None,
+                timescale: None,
+                delta_tls: None,
+            }
+        );
     }
     #[test]
-    fn standard_format() {
-        let content = "18    18  2185     7";
-        let leap = Leap::from_str(content);
-        assert!(leap.is_ok());
-        let leap = leap.unwrap();
-        assert_eq!(leap.leap, 18);
-        assert_eq!(leap.week, Some(2185));
-        assert_eq!(leap.day, Some(7));
+    fn leap_second_standard() {
+        assert_eq!(
+            Leap::from_str("18    18  2185     7").unwrap(),
+            Leap {
+                leap: 18,
+                week: Some(2185),
+                day: Some(7),
+                timescale: None,
+                delta_tls: None,
+            }
+        );
     }
+
     #[test]
-    fn parse_with_timescale() {
-        let content = "18    18  2185     7GPS";
-        let leap = Leap::from_str(content);
-        assert!(leap.is_ok());
-        let leap = leap.unwrap();
-        assert_eq!(leap.leap, 18);
-        assert_eq!(leap.week, Some(2185));
-        assert_eq!(leap.day, Some(7));
+    fn leap_second_with_timescale() {
+        assert_eq!(
+            Leap::from_str("18    18  2185     7GPS").unwrap(),
+            Leap {
+                leap: 18,
+                week: Some(2185),
+                day: Some(7),
+                delta_tls: None,
+                timescale: Some(TimeScale::GPST),
+            }
+        );
     }
 }

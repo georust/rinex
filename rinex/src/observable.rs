@@ -1,14 +1,4 @@
-use crate::{carrier, Carrier, Constellation};
-use thiserror::Error;
-
-#[derive(Error, Debug, Clone, PartialEq)]
-/// Observable Parsing errors
-pub enum ParsingError {
-    #[error("unknown observable \"{0}\"")]
-    UnknownObservable(String),
-    #[error("malformed observable \"{0}\"")]
-    MalformedDescriptor(String),
-}
+use crate::prelude::{Carrier, Constellation, Error, ParsingError};
 
 /// Observable describes all possible observations,
 /// forming Observation and Meteo RINEX epoch content.
@@ -114,7 +104,7 @@ impl Observable {
             _ => None,
         }
     }
-    pub fn carrier(&self, c: Constellation) -> Result<Carrier, carrier::Error> {
+    pub fn carrier(&self, c: Constellation) -> Result<Carrier, Error> {
         Carrier::from_observable(c, self)
     }
     /// Returns the code length (repetition period), expressed in seconds,
@@ -358,10 +348,10 @@ impl std::str::FromStr for Observable {
                     } else if content.starts_with('D') {
                         Ok(Self::Doppler(content.to_string()))
                     } else {
-                        Err(ParsingError::UnknownObservable(content.to_string()))
+                        Err(ParsingError::UnknownObservable)
                     }
                 } else {
-                    Err(ParsingError::MalformedDescriptor(content.to_string()))
+                    Err(ParsingError::BadObservable)
                 }
             },
         }
@@ -403,80 +393,70 @@ mod test {
     }
     #[test]
     fn test_observable() {
-        let obs = Observable::from_str("PR");
-        assert_eq!(obs, Ok(Observable::Pressure));
-        assert_eq!(obs.clone().unwrap().to_string(), "PR");
-        assert_eq!(Observable::from_str("pr"), obs.clone());
+        assert_eq!(Observable::from_str("PR").unwrap(), Observable::Pressure);
+        assert_eq!(Observable::from_str("pr").unwrap(), Observable::Pressure);
+        assert_eq!(Observable::from_str("PR").unwrap().to_string(), "PR");
 
-        let obs = Observable::from_str("WS");
-        assert_eq!(obs, Ok(Observable::WindSpeed));
-        assert_eq!(obs.clone().unwrap().to_string(), "WS");
-        assert_eq!(Observable::from_str("ws"), obs.clone());
+        assert_eq!(Observable::from_str("WS").unwrap(), Observable::WindSpeed);
+        assert_eq!(Observable::from_str("ws").unwrap(), Observable::WindSpeed);
+        assert_eq!(Observable::from_str("WS").unwrap().to_string(), "WS");
 
         let obs = Observable::from_str("Err");
-        assert!(obs.is_err());
+
+        assert!(Observable::from_str("TODO").is_err());
 
         assert_eq!(
-            Observable::from_str("L1"),
-            Ok(Observable::Phase(String::from("L1")))
+            Observable::from_str("L1").unwrap(),
+            Observable::Phase(String::from("L1")),
         );
+
         assert!(Observable::from_str("L1").unwrap().code().is_none());
 
         assert_eq!(
-            Observable::from_str("L2"),
-            Ok(Observable::Phase(String::from("L2")))
+            Observable::from_str("L2").unwrap(),
+            Observable::Phase(String::from("L2"))
+        );
+
+        assert_eq!(
+            Observable::from_str("L5").unwrap(),
+            Observable::Phase(String::from("L5"))
         );
         assert_eq!(
-            Observable::from_str("L5"),
-            Ok(Observable::Phase(String::from("L5")))
-        );
-        assert_eq!(
-            Observable::from_str("L6Q"),
-            Ok(Observable::Phase(String::from("L6Q")))
+            Observable::from_str("L6Q").unwrap(),
+            Observable::Phase(String::from("L6Q"))
         );
         assert_eq!(
             Observable::from_str("L6Q").unwrap().code(),
-            Some(String::from("6Q"))
+            Some(String::from("6Q")),
         );
 
         assert_eq!(
-            Observable::from_str("L1C"),
-            Ok(Observable::Phase(String::from("L1C")))
-        );
-        assert_eq!(
-            Observable::from_str("L1P"),
-            Ok(Observable::Phase(String::from("L1P")))
-        );
-        assert_eq!(
-            Observable::from_str("L8X"),
-            Ok(Observable::Phase(String::from("L8X")))
+            Observable::from_str("L1C").unwrap(),
+            Observable::Phase(String::from("L1C"))
         );
 
         assert_eq!(
-            Observable::from_str("S7Q"),
-            Ok(Observable::SSI(String::from("S7Q")))
-        );
-        assert_eq!(
-            format!("{}", Observable::PseudoRange(String::from("S7Q"))),
-            "S7Q"
+            Observable::from_str("L1P").unwrap(),
+            Observable::Phase(String::from("L1P"))
         );
 
         assert_eq!(
-            Observable::from_str("D7Q"),
-            Ok(Observable::Doppler(String::from("D7Q")))
-        );
-        assert_eq!(
-            format!("{}", Observable::Doppler(String::from("D7Q"))),
-            "D7Q"
+            Observable::from_str("L8X").unwrap(),
+            Observable::Phase(String::from("L8X"))
         );
 
         assert_eq!(
-            Observable::from_str("C7X"),
-            Ok(Observable::PseudoRange(String::from("C7X")))
+            Observable::from_str("S7Q").unwrap(),
+            Observable::SSI(String::from("S7Q")),
         );
+
         assert_eq!(
-            format!("{}", Observable::PseudoRange(String::from("C7X"))),
-            "C7X"
+            Observable::PseudoRange("S7Q".to_string()).to_string(),
+            "S7Q",
         );
+
+        assert_eq!(Observable::Doppler("D7Q".to_string()).to_string(), "D7Q",);
+
+        assert_eq!(Observable::Doppler("C7X".to_string()).to_string(), "C7X",);
     }
 }

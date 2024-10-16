@@ -3,15 +3,18 @@ use crate::{
     antex, clock,
     clock::ClockProfileType,
     clock::WorkClock,
-    doris::{Error as DorisError, HeaderFields as DorisHeader, Station as DorisStation},
+    doris::{HeaderFields as DorisHeader, Station as DorisStation},
     epoch::parse_ionex_utc as parse_ionex_utc_epoch,
     fmt_comment, fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
     hatanaka::CRINEX,
-    ionex,
-    leap::{Error as LeapParsingError, Leap},
-    linspace::{Error as LinspaceError, Linspace},
+    ionex::{
+        HeaderFields as IonexHeaderFields, MappingFunction as IonexMappingFunction,
+        RefSystem as IonexRefSystem,
+    },
+    leap::Leap,
+    linspace::Linspace,
     marker::{GeodeticMarker, MarkerType},
     merge::{
         merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
@@ -20,10 +23,10 @@ use crate::{
     meteo,
     meteo::HeaderFields as MeteoHeader,
     navigation::{IonMessage, KbModel},
-    observable::{Observable, ParsingError as ObsParsingError},
+    observable::Observable,
     observation,
     observation::HeaderFields as ObservationHeader,
-    prelude::{Constellation, Duration, Epoch, TimeScale, COSPAR, DOMES, SV},
+    prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, COSPAR, DOMES, SV},
     reader::BufferedReader,
     types::Type,
     version::Version,
@@ -32,11 +35,6 @@ use crate::{
 use std::{collections::HashMap, io::BufRead, str::FromStr};
 
 use hifitime::Unit;
-use thiserror::Error;
-
-use gnss_rs::{
-    constellation::ParsingError as ConstellationParsingError, cospar::Error as CosparParsingError,
-};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -149,49 +147,10 @@ pub struct Header {
     pub antex: Option<antex::HeaderFields>,
     /// IONEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub ionex: Option<ionex::HeaderFields>,
+    pub ionex: Option<IonexHeaderFields>,
     /// DORIS RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub doris: Option<DorisHeader>,
-}
-
-fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
-    match content {
-        "Jan" => Ok(1),
-        "Feb" => Ok(2),
-        "Mar" => Ok(3),
-        "Apr" => Ok(4),
-        "May" => Ok(5),
-        "Jun" => Ok(6),
-        "Jul" => Ok(7),
-        "Aug" => Ok(8),
-        "Sep" => Ok(9),
-        "Oct" => Ok(10),
-        "Nov" => Ok(11),
-        "Dec" => Ok(12),
-        _ => Err(ParsingError::DateTimeParsing(
-            String::from("month"),
-            content.to_string(),
-        )),
-    }
-}
-
-/*
- * Generates a ParsingError::ParseIntError(x, y)
- */
-macro_rules! parse_int_error {
-    ($field: expr, $content: expr) => {
-        ParsingError::ParseIntError(String::from($field), $content.to_string())
-    };
-}
-
-/*
- * Generates a ParsingError::ParseFloatError(x, y)
- */
-macro_rules! parse_float_error {
-    ($field: expr, $content: expr) => {
-        ParsingError::ParseFloatError(String::from($field), $content.to_string())
-    };
 }
 
 impl Header {
@@ -221,13 +180,14 @@ impl Header {
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
         let mut ionod_corrections = HashMap::<Constellation, IonMessage>::with_capacity(4);
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
+
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = ObservationHeader::default();
         let mut meteo = MeteoHeader::default();
         let mut clock = clock::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
-        let mut ionex = ionex::HeaderFields::default();
+        let mut ionex = IonexHeaderFields::default();
         let mut doris = DorisHeader::default();
 
         // iterate on a line basis
@@ -246,36 +206,39 @@ impl Header {
                 break;
             }
             ///////////////////////////////
-            // [0*] COMMENTS
+            // COMMENTS are stored: "as is"
             ///////////////////////////////
             if marker.trim().eq("COMMENT") {
                 // --> storing might be useful
                 comments.push(content.trim().to_string());
                 continue;
 
-            //////////////////////////////////////
-            // [1] CRINEX Special fields
-            /////////////////////////////////////
+            ///////////////////////////////////////////////////////
+            // Handled elsewe: CRINEX specs
+            //     handled inside the smart I/O READER
+            //     we still have to grab what was idenfied though
+            //     and we do this at the end of the Header section
+            ///////////////////////////////////////////////////////
             } else if marker.contains("CRINEX VERS") {
-                let version = content.split_at(20).0;
-                let version = version.trim();
-                let crinex_revision = Version::from_str(version).or(Err(
-                    ParsingError::VersionParsing(format!("CRINEX VERS: \"{}\"", version)),
-                ))?;
-
-                observation.crinex = Some(CRINEX::default().with_version(crinex_revision));
             } else if marker.contains("CRINEX PROG / DATE") {
-                Self::parse_crinex_prog_date(content, &mut observation)?;
 
-            ////////////////////////////////////////
-            // [2] ANTEX special header
-            ////////////////////////////////////////
+                ///////////////////////////////////////////////////////
+                // Unhandled cases: TODO
+                ///////////////////////////////////////////////////////
+            } else if marker.contains("ANTENNA: B.SIGHT XYZ") {
+            } else if marker.contains("ANTENNA: ZERODIR XYZ") {
+            } else if marker.contains("ANTENNA: PHASECENTER") {
+            } else if marker.contains("CENTER OF MASS: XYZ") {
+            } else if marker.contains("PRN / BIAS / RMS") {
+            } else if marker.contains("DELTA-UTC") {
+
+                ///////////////////////////////////////////////////////
+                // Handled cases
+                ///////////////////////////////////////////////////////
             } else if marker.contains("ANTEX VERSION / SYST") {
                 let (vers, system) = content.split_at(8);
                 let vers = vers.trim();
-                version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
-                    format!("ANTEX VERSION / SYST: \"{}\"", vers),
-                )))?;
+                version = Version::from_str(vers).or(Err(ParsingError::AntexVersion))?;
 
                 if let Ok(constell) = Constellation::from_str(system.trim()) {
                     constellation = Some(constell)
@@ -345,12 +308,10 @@ impl Header {
                 let (system_str, _) = rem.split_at(20);
 
                 let vers_str = vers_str.trim();
-                version = Version::from_str(vers_str).or(Err(ParsingError::VersionParsing(
-                    format!("IONEX VERSION / TYPE : \"{}\"", vers_str),
-                )))?;
+                version = Version::from_str(vers_str).or(Err(ParsingError::IonexVersion))?;
 
                 rinex_type = Type::from_str(type_str.trim())?;
-                let ref_system = ionex::RefSystem::from_str(system_str.trim())?;
+                let ref_system = IonexRefSystem::from_str(system_str.trim())?;
                 ionex = ionex.with_reference_system(ref_system);
 
             ///////////////////////////////////////
@@ -413,12 +374,10 @@ impl Header {
                  * Parse version descriptor
                  */
                 let vers = vers.trim();
-                version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
-                    format!("RINEX VERSION / TYPE \"{}\"", vers),
-                )))?;
+                version = Version::from_str(vers).or(Err(ParsingError::VersionParsing))?;
 
                 if !version.is_supported() {
-                    return Err(ParsingError::VersionNotSupported(vers.to_string()));
+                    return Err(ParsingError::NonSupportedVersion);
                 }
             } else if marker.contains("PGM / RUN BY / DATE") {
                 let (pgm, rem) = line.split_at(20);
@@ -532,7 +491,7 @@ impl Header {
                 let factor = factor.trim();
                 let scaling = factor
                     .parse::<u16>()
-                    .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
+                    .or(Err(ParsingError::SystemScalingFactor))?;
 
                 // parse end of line
                 let (_num, rem) = rem.split_at(3);
@@ -563,28 +522,16 @@ impl Header {
                 let observable = Observable::from_str(phys)?;
 
                 let x = x.trim();
-                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("SENSOR POS X"),
-                    x.to_string(),
-                )))?;
+                let x = f64::from_str(x).or(Err(ParsingError::SensorCoordinates))?;
 
                 let y = y.trim();
-                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("SENSOR POS Y"),
-                    y.to_string(),
-                )))?;
+                let y = f64::from_str(y).or(Err(ParsingError::SensorCoordinates))?;
 
                 let z = z.trim();
-                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("SENSOR POS Z"),
-                    z.to_string(),
-                )))?;
+                let z = f64::from_str(z).or(Err(ParsingError::SensorCoordinates))?;
 
                 let h = h.trim();
-                let h = f64::from_str(h).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("SENSOR POS H"),
-                    h.to_string(),
-                )))?;
+                let h = f64::from_str(h).or(Err(ParsingError::SensorCoordinates))?;
 
                 for sensor in meteo.sensors.iter_mut() {
                     if sensor.observable == observable {
@@ -594,9 +541,8 @@ impl Header {
                 }
             } else if marker.contains("LEAP SECOND") {
                 let leap_str = content.split_at(40).0.trim();
-                if let Ok(lleap) = Leap::from_str(leap_str) {
-                    leap = Some(lleap)
-                }
+                let parsed = Leap::from_str(leap_str)?;
+                leap = Some(parsed.clone());
             } else if marker.contains("DOI") {
                 let (content, _) = content.split_at(40); //  TODO: confirm please
                 doi = Some(content.trim().to_string())
@@ -615,22 +561,13 @@ impl Header {
                 // station base coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 let x = items[0].trim();
-                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("APPROX POSITION X"),
-                    x.to_string(),
-                )))?;
+                let x = f64::from_str(x).or(Err(ParsingError::Coordinates))?;
 
                 let y = items[1].trim();
-                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("APPROX POSITION Y"),
-                    y.to_string(),
-                )))?;
+                let y = f64::from_str(y).or(Err(ParsingError::Coordinates))?;
 
                 let z = items[2].trim();
-                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("APPROX POSITION Z"),
-                    z.to_string(),
-                )))?;
+                let z = f64::from_str(z).or(Err(ParsingError::Coordinates))?;
 
                 ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
             } else if marker.contains("ANT # / TYPE") {
@@ -650,22 +587,13 @@ impl Header {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
 
                 let x = items[0].trim();
-                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("ANTENNA DELTA X"),
-                    x.to_string(),
-                )))?;
+                let x = f64::from_str(x).or(Err(ParsingError::AntennaCoordinates))?;
 
                 let y = items[1].trim();
-                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("ANTENNA DELTA Y"),
-                    y.to_string(),
-                )))?;
+                let y = f64::from_str(y).or(Err(ParsingError::AntennaCoordinates))?;
 
                 let z = items[2].trim();
-                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
-                    String::from("ANTENNA DELTA Z"),
-                    z.to_string(),
-                )))?;
+                let z = f64::from_str(z).or(Err(ParsingError::AntennaCoordinates))?;
 
                 if let Some(ant) = &mut rcvr_antenna {
                     *ant = ant.with_base_coordinates((x, y, z));
@@ -696,18 +624,10 @@ impl Header {
                         }
                     }
                 }
-            } else if marker.contains("ANTENNA: B.SIGHT XYZ") {
-                //TODO
-            } else if marker.contains("ANTENNA: ZERODIR XYZ") {
-                //TODO
-            } else if marker.contains("ANTENNA: PHASECENTER") {
-                //TODO
-            } else if marker.contains("CENTER OF MASS: XYZ") {
-                //TODO
             } else if marker.contains("RCV CLOCK OFFS APPL") {
                 let value = content.split_at(20).0.trim();
-                let n = i32::from_str_radix(value, 10)
-                    .or(Err(parse_int_error!("RCV CLOCK OFFS APPL", value)))?;
+                let n =
+                    i32::from_str_radix(value, 10).or(Err(ParsingError::RcvClockOffsApplied))?;
 
                 observation.clock_offset_applied = n > 0;
             } else if marker.contains("# OF SATELLITES") {
@@ -734,7 +654,7 @@ impl Header {
                         //  use that information, as it may be omitted in the TIME OF OBS header
                         time_of_first_obs.time_scale = c
                             .timescale()
-                            .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
+                            .ok_or(ParsingError::BadObsNoTimescaleDefinition)?;
                     },
                 }
                 if rinex_type == Type::DORIS {
@@ -751,9 +671,10 @@ impl Header {
                         //  use that information, as it may be omitted in the TIME OF OBS header
                         time_of_last_obs.time_scale = c
                             .timescale()
-                            .ok_or(ParsingError::TimescaleParsing(c.to_string()))?;
+                            .ok_or(ParsingError::BadObsNoTimescaleDefinition)?;
                     },
                 }
+
                 if rinex_type == Type::DORIS {
                     doris.time_of_last_obs = Some(time_of_last_obs);
                 } else {
@@ -787,9 +708,7 @@ impl Header {
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
                 let n = n.trim();
-                let n = n
-                    .parse::<u8>()
-                    .or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
+                let n = n.parse::<u8>().or(Err(ParsingError::ClockTypeofData))?;
 
                 let mut rem = r;
                 for _ in 0..n {
@@ -977,12 +896,8 @@ impl Header {
                 //}
             } else if marker.contains("TIME SYSTEM ID") {
                 let timescale = content.trim();
-                let ts = TimeScale::from_str(timescale)
-                    .or(Err(ParsingError::TimescaleParsing(timescale.to_string())))?;
+                let ts = TimeScale::from_str(timescale)?;
                 clock = clock.timescale(ts);
-            } else if marker.contains("DELTA-UTC") {
-                //TODO
-                //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
             } else if marker.contains("DESCRIPTION") {
                 // IONEX description
                 // <o
@@ -1009,9 +924,8 @@ impl Header {
                     ionex = ionex.with_base_radius(f);
                 }
             } else if marker.contains("MAPPING FUCTION") {
-                if let Ok(mf) = ionex::MappingFunction::from_str(content.trim()) {
-                    ionex = ionex.with_mapping_function(mf);
-                }
+                let mapf = IonexMappingFunction::from_str(content.trim())?;
+                ionex = ionex.with_mapping_function(mapf);
             } else if marker.contains("# OF STATIONS") {
                 // IONEX
                 if let Ok(u) = content.trim().parse::<u32>() {
@@ -1042,15 +956,12 @@ impl Header {
             } else if marker.contains("LON1 / LON2 / DLON") {
                 let grid = Self::parse_grid(content)?;
                 ionex = ionex.with_longitude_grid(grid);
-            } else if marker.contains("PRN / BIAS / RMS") {
-                // differential PR code analysis
-                //TODO
             } else if marker.contains("L2 / L1 DATE OFFSET") {
                 // DORIS special case
                 let content = content[1..].trim();
                 let l2l1_date_offset = content
                     .parse::<f64>()
-                    .or(Err(parse_float_error!("doris l2/l1 date offset", content)))?;
+                    .or(Err(ParsingError::DorisL1L2DateOffset))?;
 
                 doris.l2_l1_date_offset = Duration::from_microseconds(l2l1_date_offset);
             } else if marker.contains("STATION REFERENCE") {
@@ -2123,23 +2034,5 @@ pub(crate) fn header_mask_mut(hd: &mut Header, f: &MaskFilter) {
     }
     if let Some(doris) = &mut hd.doris {
         doris.mask_mut(f);
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::parse_formatted_month;
-    #[test]
-    fn formatted_month_parser() {
-        for (desc, expected) in [("Jan", 1), ("Feb", 2), ("Mar", 3), ("Nov", 11), ("Dec", 12)] {
-            let month = parse_formatted_month(desc);
-            assert!(month.is_ok(), "failed to parse month from \"{}\"", desc);
-            let month = month.unwrap();
-            assert_eq!(
-                month, expected,
-                "failed to parse correct month number from \"{}\"",
-                desc
-            );
-        }
     }
 }

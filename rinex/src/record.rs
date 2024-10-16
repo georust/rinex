@@ -1,5 +1,3 @@
-use thiserror::Error;
-
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
@@ -26,7 +24,7 @@ use super::{
 
 use std::{
     collections::BTreeMap,
-    io::{BufRead, Error as IoError},
+    io::{BufRead, Write},
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -153,10 +151,10 @@ impl Record {
         }
     }
     /// Streams into given file writer
-    pub fn to_file(
+    pub fn to_file<W: Write>(
         &self,
         header: &header::Header,
-        writer: &mut BufferedWriter,
+        writer: &mut BufferedWriter<W>,
     ) -> Result<(), FormattingError> {
         match &header.rinex_type {
             Type::MeteoData => {
@@ -170,13 +168,13 @@ impl Record {
             Type::ObservationData => {
                 let record = self.as_obs().unwrap();
                 let obs_fields = &header.obs.as_ref().unwrap();
-                let mut compressor = Compressor::default();
+                let compressor = Compressor::default();
                 for ((epoch, flag), (clock_offset, data)) in record.iter() {
                     let epoch =
                         observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);
                     if obs_fields.crinex.is_some() {
-                        let major = header.version.major;
-                        let constell = &header.constellation.as_ref().unwrap();
+                        // let major = header.version.major;
+                        // let constell = &header.constellation.as_ref().unwrap();
                         for line in epoch.lines() {
                             let line = line.to_owned() + "\n"; // helps the following .lines() iterator
                                                                // embedded in compression method
@@ -283,7 +281,7 @@ pub fn parse_record<BR: BufRead>(
     header: &mut Header,
 ) -> Result<(Record, Comments), ParsingError> {
     let mut first_epoch = true;
-    let mut content = String::default();
+    let content = String::default();
     let mut epoch_content = String::with_capacity(6 * 64);
 
     // to manage `record` comments
@@ -309,13 +307,13 @@ pub fn parse_record<BR: BufRead>(
             Some(Constellation::Mixed) | None => {
                 let time_of_first_obs = obs
                     .time_of_first_obs
-                    .ok_or(Error::BadObservationDataDefinition)?;
+                    .ok_or(ParsingError::BadObsBadTimescaleDefinition)?;
                 obs_ts = time_of_first_obs.time_scale;
             },
             Some(constellation) => {
                 obs_ts = constellation
                     .timescale()
-                    .ok_or(Error::ObservationDataTimescaleIdentification)?;
+                    .ok_or(ParsingError::BadObsBadTimescaleDefinition)?;
             },
         }
     }

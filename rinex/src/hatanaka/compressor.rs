@@ -1,11 +1,10 @@
 //! RINEX compression module
 
-use std::{cmp::min as min_usize, collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use crate::{
     hatanaka::{Error, NumDiff, ObsDiff, TextDiff},
-    is_rinex_comment,
-    prelude::{Constellation, Observable, SV},
+    prelude::{Constellation, SV},
 };
 
 #[derive(Default, Copy, Clone, PartialEq)]
@@ -73,7 +72,7 @@ impl Default for Compressor {
             nb_vehicles: 0,
             vehicle_ptr: 0,
             obs_ptr: 0,
-            epoch_diff: TextDiff::new(),
+            epoch_diff: TextDiff::new(""),
             sv_diff: HashMap::new(),
             forced_init: HashMap::new(),
             clock_diff: NumDiff::<3>::new(0),
