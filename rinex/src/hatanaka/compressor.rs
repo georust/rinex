@@ -155,7 +155,7 @@ impl Compressor {
         if let Some(kernel) = self
             .sv_diff
             .iter_mut()
-            .filter_map(|(key, value)| if key == key { Some(value) } else { None })
+            .filter_map(|(key, value)| if key == obskey { Some(value) } else { None })
             .reduce(|k, _k| k)
         {
             kernel.force_init(obsdata, snr, lli);

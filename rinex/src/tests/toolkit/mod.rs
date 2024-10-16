@@ -546,9 +546,7 @@ pub fn test_meteo_rinex(
     let _header = dut.header.meteo.as_ref().unwrap();
 }
 
-/*
- * Any parsed NAVIGATION RINEX should go through this test
- */
+/// Any parsed NAVIGATION RINEX should go through this test
 pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
     test_rinex(dut, version, constellation);
     assert!(dut.is_navigation_rinex(), "should be declared as NAV RINEX");
@@ -573,9 +571,7 @@ pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&
     );
 }
 
-/*
- * Any parsed CLOCK RINEX should go through this test
- */
+/// Any parsed CLOCK RINEX should go through this test
 pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
     test_rinex(dut, version, constellation);
     assert!(dut.is_clock_rinex(), "should be declared as CLK RINEX");
@@ -600,9 +596,7 @@ pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>)
     );
 }
 
-/*
- * Any parsed IONEX should go through this test
- */
+/// Any parsed IONEX should go through this test
 pub fn test_ionex(dut: &Rinex, version: &str, constellation: Option<&str>) {
     test_rinex(dut, version, constellation);
     assert!(dut.is_ionex(), "should be declared as IONEX");

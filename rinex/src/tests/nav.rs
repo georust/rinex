@@ -1357,7 +1357,7 @@ mod test {
         let rinex = Rinex::from_file(path.to_string_lossy().as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
-        for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
+        for (_toc, (_, sv, _ephemeris)) in rinex.ephemeris() {
             match sv.prn {
                 3 => {},
                 17 => {},

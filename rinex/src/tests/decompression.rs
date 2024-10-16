@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod test {
-    use crate::hatanaka::Decompressor;
     use crate::tests::toolkit::obsrinex_check_observables;
     use crate::tests::toolkit::random_name;
     use crate::tests::toolkit::test_observation_rinex;
@@ -255,7 +254,7 @@ mod test {
                 Observable::from_str("S2").unwrap(),
             ],
         );
-        let content = "21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15";
+        // let content = "21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15";
         // let mut decompressor = Decompressor::new();
         // assert!(decompressor
         //     .decompress(1, &Constellation::Mixed, 2, &obscodes, content)

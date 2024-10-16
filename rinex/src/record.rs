@@ -5,7 +5,6 @@ use super::{
     antex, clock,
     clock::{ClockKey, ClockProfile},
     error::{FormattingError, ParsingError},
-    hatanaka::{Compressor, Decompressor},
     header,
     header::Header,
     ionex, is_rinex_comment, merge,
@@ -168,7 +167,6 @@ impl Record {
             Type::ObservationData => {
                 let record = self.as_obs().unwrap();
                 let obs_fields = &header.obs.as_ref().unwrap();
-                let compressor = Compressor::default();
                 for ((epoch, flag), (clock_offset, data)) in record.iter() {
                     let epoch =
                         observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);

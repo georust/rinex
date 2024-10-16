@@ -13,7 +13,7 @@ pub(crate) fn now() -> Epoch {
 }
 
 /// Parse "Jan" like month string
-fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
+pub fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
     match content {
         "Jan" => Ok(1),
         "Feb" => Ok(2),
@@ -308,6 +308,7 @@ mod test {
     use hifitime::Epoch;
     use hifitime::TimeScale;
     use std::str::FromStr;
+
     #[test]
     fn epoch_parse_nav_v2() {
         let e = parse_utc("20 12 31 23 45  0.0");
@@ -631,5 +632,15 @@ mod test {
                 epoch
             );
         }
+    }
+    #[test]
+    fn test_formatted_month() {
+        assert_eq!(parse_formatted_month("Jan").unwrap(), 1);
+        assert_eq!(parse_formatted_month("Feb").unwrap(), 2);
+        assert_eq!(parse_formatted_month("Mar").unwrap(), 3);
+        assert_eq!(parse_formatted_month("Aug").unwrap(), 8);
+        assert_eq!(parse_formatted_month("Dec").unwrap(), 12);
+
+        assert!(parse_formatted_month("Ced").is_err());
     }
 }

@@ -12,7 +12,6 @@ pub mod antex;
 pub mod carrier;
 pub mod clock;
 pub mod doris;
-pub mod epoch;
 pub mod gnss_time;
 pub mod hardware;
 pub mod hatanaka;
@@ -30,6 +29,7 @@ pub mod version;
 
 mod bibliography;
 mod constants;
+mod epoch;
 mod error; // error package
 mod ground_position;
 mod leap; // leap second
@@ -41,7 +41,7 @@ mod production; // RINEX production infrastructure // physical observations
 mod tests;
 
 #[macro_use]
-mod macros;
+pub(crate) mod macros;
 
 extern crate num;
 

@@ -10,7 +10,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub enum State {
     /// Inside File Header
     #[default]
@@ -34,32 +34,34 @@ pub struct Decompressor<const M: usize, R: Read> {
     pub crinex: CRINEX,
     /// [R]
     reader: R,
+    /// Current size in buffer
+    pub avail_size: usize,
     /// counters
-    nb_sv: usize, // total
-    sv_ptr: usize, // inside epoch
+    pub nb_sv: usize, // total
+    pub sv_ptr: usize, // inside epoch
     /// True only for first epoch ever processed
-    first_epoch: bool,
+    pub first_epoch: bool,
     /// True until one clock offset was found
-    first_clock_diff: bool,
+    pub first_clock_diff: bool,
     /// Epoch differentiator
-    epoch_diff: TextDiff,
+    pub epoch_diff: TextDiff,
     /// Current readable buffer
-    buf_ascii: String,
+    pub buf_ascii: String,
     /// Internal buffer
-    buf: [u8; 1024],
+    pub buf: [u8; 1024],
     /// Unformatted Readable Internal buffer.
-    epoch_ascii: String,
+    pub epoch_ascii: String,
     /// Clock offset differentiator
-    clock_diff: NumDiff<M>,
+    pub clock_diff: NumDiff<M>,
     /// OBservation differentiators
-    obs_diff: HashMap<SV, ObsDiff<M>>,
+    pub obs_diff: HashMap<SV, ObsDiff<M>>,
 }
 
 impl<const M: usize, R: Read> Read for Decompressor<M, R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         match self.state {
-            State::InsideHeader => self.read_inside_header(&mut buf),
-            _ => {},
+            State::Header => self.read_header(buf),
+            _ => Ok(0),
         }
     }
 }
@@ -147,6 +149,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             reader,
             nb_sv: 0,
             sv_ptr: 0,
+            avail_size: 0,
             buf: [0; 1024],
             first_epoch: true,
             first_clock_diff: true,
@@ -167,12 +170,12 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     fn process_buffered_comments(&mut self, buf: &mut [u8]) -> usize {
         let mut offset = 0;
         let buf_len = self.buf.len();
-        for chunk in 0..buf_len / 80 {
+        for chunk in 0..self.avail_size / 80 {
             // For all encountered COMMENTS simply extract as is
             let start = chunk * 80;
             let stop = ((chunk + 1) * 80).min(buf_len);
             let size = stop - start;
-            if self.ascii[start..stop].contains("COMMENTS") {
+            if self.buf_ascii[start..stop].contains("COMMENTS") {
                 buf[start..stop].copy_from_slice(&self.buf[start..stop]);
                 offset += size;
             }
@@ -180,14 +183,13 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         offset
     }
 
-    // In the header section, we need to search for the CRINEX header
+    /// In the header section, we need to search for the CRINEX header
     /// and we also have to serve the data "as is". So we act like a FIFO.
     /// Current implemetation is performance limiting: read size is limited to 80.
-    //  - CRINEX specs (revision) determines our decoding profile
-    //  - END OF HEADER marker means File Body is about to start
+    ///  - CRINEX specs (revision) determines our decoding profile
+    ///  - END OF HEADER marker means File Body is about to start
     //    and we need to turn on the decoding scheme
-    fn read_inside_header(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let avail_size = self.buf.len();
+    fn read_header(&mut self, buf: &mut [u8]) -> Result<usize> {
         let mut read_size = buf.len();
         let mut next_state = self.state;
 
@@ -207,7 +209,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         }
 
         // Fill internal buffer
-        let size = self.reader.read(&self.buf)?;
+        let size = self.reader.read(&mut self.buf)?;
         if size == 0 {
             // Failed to grab new content: notify and exit
             return Ok(0);
@@ -215,30 +217,30 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
         let buf_len = self.buf.len();
 
-        // Study every single new line: search for required content
-        let mut last_start = 0;
-        for i in 0..buf_len {
-            if buf[i] == b'\n' {
-                // found line termination
-                if i - last_start >= 80 {
-                    // consistent with valid RINEX HEADER
-                    // Interprate this range as ASCII then proceed
-                    self.buf_ascii = String::from_utf8(&buf[last_start..i])?;
-                    if self.buf_ascii.ends_with("END OF HEADER") {
-                        next_state = State::EpochDescriptor;
-                    } else if self.buf_ascii.ends_with("CRINEX VERSION / TYPE") {
-                        // store first header line
-                    } else if self.buf_ascii.ends_with("CRINEX PROGRAM / DATE") {
-                        // second line => parse total CRINEX specs
-                        let crinex = CRINEX::from_str(&self.buf_ascii)?;
-                    }
-                }
-            }
-        }
+        // // Study every single new line: search for required content
+        // let mut last_start = 0;
+        // for i in 0..buf_len {
+        //     if buf[i] == b'\n' {
+        //         // found line termination
+        //         if i - last_start >= 80 {
+        //             // consistent with valid RINEX HEADER
+        //             // Interprate this range as ASCII then proceed
+        //             self.buf_ascii = String::from_utf8(&buf[last_start..i])?;
+        //             if self.buf_ascii.ends_with("END OF HEADER") {
+        //                 next_state = State::EpochDescriptor;
+        //             } else if self.buf_ascii.ends_with("CRINEX VERSION / TYPE") {
+        //                 // store first header line
+        //             } else if self.buf_ascii.ends_with("CRINEX PROGRAM / DATE") {
+        //                 // second line => parse total CRINEX specs
+        //                 let crinex = CRINEX::from_str(&self.buf_ascii)?;
+        //             }
+        //         }
+        //     }
+        // }
 
-        // expose new data
-        let size_to_copy = size - read_size;
-        buf[avail_size..read_size].copy_from_slice(&self.buf[0..size_to_copy]);
+        // // expose new data
+        // let size_to_copy = size - read_size;
+        // buf[avail_size..read_size].copy_from_slice(&self.buf[0..size_to_copy]);
 
         // determine next state
         match (self.state, next_state) {

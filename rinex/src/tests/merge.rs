@@ -67,7 +67,7 @@ mod test {
         );
 
         // dump
-        let merged = merged.unwrap();
+        // let merged = merged.unwrap();
         // assert!(
         //     merged.to_file("merge.txt").is_ok(),
         //     "failed to generate file previously merged"

@@ -1,13 +1,15 @@
 //! CRINEX Header definitions
 use crate::{
     epoch::now as epoch_now_utc,
+    epoch::parse_formatted_month,
     prelude::{Epoch, ParsingError, Version},
 };
 
 #[cfg(feature = "serde")]
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-macro_rules! fmt_month {
+/// Formats 1 to "Jan" and so on..
+macro_rules! fmt_algebric_month {
     ($m: expr) => {
         match $m {
             1 => "Jan",
@@ -24,24 +26,6 @@ macro_rules! fmt_month {
             _ => "Dec",
         }
     };
-}
-
-fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
-    match content {
-        "Jan" => Ok(1),
-        "Feb" => Ok(2),
-        "Mar" => Ok(3),
-        "Apr" => Ok(4),
-        "May" => Ok(5),
-        "Jun" => Ok(6),
-        "Jul" => Ok(7),
-        "Aug" => Ok(8),
-        "Sep" => Ok(9),
-        "Oct" => Ok(10),
-        "Nov" => Ok(11),
-        "Dec" => Ok(12),
-        _ => Err(ParsingError::DateTimeParsing),
-    }
 }
 
 #[cfg(feature = "serde")]
@@ -77,14 +61,14 @@ impl CRINEX {
         s
     }
     /// Parse and append prog+date fields
-    pub(crate) fn with_prog_date(&self, s: &str) -> Result<Self, ParsingError> {
+    pub(crate) fn with_prog_date(&self, prog_date: &str) -> Result<Self, ParsingError> {
         let mut s = self.clone();
 
-        if s.len() < 60 {
+        if prog_date.len() < 60 {
             return Err(ParsingError::HeaderLineTooShort);
         }
 
-        let (prog, rem) = s.split_at(20);
+        let (prog, rem) = prog_date.split_at(20);
         let (_, rem) = rem.split_at(20);
         let datetime_str = rem.split_at(20).0.trim();
 
@@ -177,7 +161,7 @@ impl std::fmt::Display for CRINEX {
         write!(f, "{:<width$}", self.prog, width = 20)?;
         write!(f, "{:20}", "")?;
         let (y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
-        let m = fmt_month!(m);
+        let m = fmt_algebric_month!(m);
         let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y - 2000, hh, mm);
         write!(f, "{:<width$}", date, width = 20)?;
         f.write_str("CRINEX PROG / DATE")
@@ -211,30 +195,10 @@ impl std::str::FromStr for CRINEX {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::{Epoch, Version};
+    use super::CRINEX;
+    use crate::prelude::{Epoch, ParsingError, Version};
     use std::str::FromStr;
 
-    use super::{parse_formatted_month, ParsingError, CRINEX};
-
-    #[test]
-    fn test_fmt_month() {
-        assert_eq!(fmt_month!(1), "Jan");
-        assert_eq!(fmt_month!(2), "Feb");
-        assert_eq!(fmt_month!(3), "Mar");
-        assert_eq!(fmt_month!(10), "Oct");
-        assert_eq!(fmt_month!(11), "Nov");
-        assert_eq!(fmt_month!(12), "Dec");
-
-        assert_eq!(parse_formatted_month("Jan"), Ok(1));
-        assert_eq!(parse_formatted_month("Feb"), Ok(2));
-        assert_eq!(parse_formatted_month("Mar"), Ok(3));
-        assert_eq!(parse_formatted_month("Aug"), Ok(8));
-        assert_eq!(parse_formatted_month("Dec"), Ok(12));
-        assert_eq!(
-            parse_formatted_month("Ced"),
-            Err(ParsingError::DateTimeError)
-        );
-    }
     #[test]
     fn test_encode_decode() {
         let crinex = CRINEX {
@@ -254,7 +218,8 @@ mod test {
 
         assert_eq!(lines[1], "");
 
-        let decoded = CRINEX::from_str(&formatted);
+        let decoded = CRINEX::from_str(&formatted).unwrap();
+
         assert_eq!(decoded, crinex);
 
         let crinex = CRINEX {
@@ -273,5 +238,15 @@ mod test {
         );
 
         assert_eq!(lines[1], "");
+    }
+
+    #[test]
+    fn test_fmt_month() {
+        assert_eq!(fmt_algebric_month!(1), "Jan");
+        assert_eq!(fmt_algebric_month!(2), "Feb");
+        assert_eq!(fmt_algebric_month!(3), "Mar");
+        assert_eq!(fmt_algebric_month!(10), "Oct");
+        assert_eq!(fmt_algebric_month!(11), "Nov");
+        assert_eq!(fmt_algebric_month!(12), "Dec");
     }
 }

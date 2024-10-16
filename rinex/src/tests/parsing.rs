@@ -54,9 +54,9 @@ mod test {
                             assert!(rinex.navigation().count() > 0); // all files have content
                                                                      // Ephemeris verifications
                             #[cfg(feature = "nav")]
-                            for (toc_i, (msg, sv_i, eph_i)) in rinex.ephemeris() {
+                            for (_toc_i, (_msg, sv_i, eph_i)) in rinex.ephemeris() {
                                 // test toc(i)
-                                let timescale = sv_i.constellation.timescale().unwrap();
+                                let _timescale = sv_i.constellation.timescale().unwrap();
 
                                 // TODO: verify V4 cases
                                 if revision != "V4" {
@@ -147,7 +147,7 @@ mod test {
                             assert!(rinex.is_clock_rinex(), "badly identified CLK RINEX");
                             assert!(rinex.header.clock.is_some(), "badly formed CLK RINEX");
                             assert!(rinex.epoch().count() > 0); // all files have content
-                            let record = rinex.record.as_clock().unwrap();
+                            let _ = rinex.record.as_clock().unwrap();
                         },
                         "IONEX" => {
                             assert!(rinex.is_ionex());

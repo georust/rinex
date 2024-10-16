@@ -4,6 +4,7 @@ use std::cmp::min as min_usize;
 #[derive(Debug)]
 pub struct TextDiff {
     buffer: String,
+    latest: String,
 }
 
 impl Default for TextDiff {
@@ -14,56 +15,81 @@ impl Default for TextDiff {
 
 impl TextDiff {
     /// Creates a new [TextDiff] structure to apply the
-    /// differntial algorithm developped by Y. Hatanaka.
+    /// differential algorithm developped by Y. Hatanaka.
     pub fn new(data: &str) -> Self {
         Self {
             buffer: data.to_string(),
+            latest: data.to_string(),
         }
     }
+
     /// Force kernel reinitialization
     pub fn force_init(&mut self, data: &str) {
         self.buffer = data.to_string();
     }
-    /// Decompresses given data
+
+    /// Decompresses given data. Returns recovered value.
     pub fn decompress(&mut self, data: &str) -> &str {
-        let min_usize = min_usize(data.len(), self.buffer.len());
+        let size = data.len();
+        let buf_len = self.buffer.len();
 
-        for i in 0..min_usize {
-            if data[i] != self.buffer[i] {
-                // update new content
-                if data[i] == ' ' {
-                    self.buffer[i] = '&';
-                } else {
-                    self.buffer[i] = data[i];
-                }
-            }
+        if size > buf_len {
+            // extend new bytes as is
+            self.buffer.push_str(&data[buf_len..]);
         }
-        for i in data.len()..self.buffer.len() {
-            if data[i] == ' ' {
-                self.buffer.push_str("&");
-            } else {
-                self.buffer.push_str(data[i]);
-            }
-        }
-        &self.buffer
-    }
 
-    /// Compress data by applying the Text diff. algorithm.
-    pub fn compress(&mut self, data: &str) -> &str {
-        let len = self.buffer.len();
-        for (i, byte) in data.chars().enumerate() {
-            // overwrite case
-            if byte[i] != ' ' {
-                if let Some(mut c) = self.buffer.chars().nth(i) {
-                    if byte[i] == '&' {
-                        c = ' ';
-                    } else {
-                        c = byte[i];
+        // browse all bytes and save only new content
+        let bytes = data.bytes();
+        unsafe {
+            let buf = self.buffer.as_bytes_mut();
+
+            // browse all new bytes
+            for (i, byte) in bytes.enumerate() {
+                if let Some(buf) = buf.get_mut(i) {
+                    if byte != b' ' {
+                        if byte == b'&' {
+                            *buf = b' ';
+                        } else {
+                            *buf = byte;
+                        }
                     }
                 }
             }
+            &self.buffer
         }
-        &self.buffer
+    }
+
+    /// Compress given data by applying the Textdiff algorithm.
+    /// Returns compressed value.
+    pub fn compress(&mut self, data: &str) -> String {
+        let buf_len = self.buffer.len();
+
+        if data.len() > buf_len {
+            // copy new bytes as is
+            self.buffer.push_str(&data[buf_len..]);
+        }
+
+        let mut chars = data.chars();
+
+        // replaced shared bytes by ' '
+        self.buffer
+            .chars()
+            .map(|buf_c| {
+                if let Some(c) = chars.next() {
+                    if c == buf_c {
+                        ' '
+                    } else {
+                        if c == ' ' {
+                            '&'
+                        } else {
+                            c
+                        }
+                    }
+                } else {
+                    ' '
+                }
+            })
+            .collect()
     }
 }
 
@@ -73,7 +99,8 @@ mod test {
     #[test]
     fn test_decompression() {
         let mut diff = TextDiff::new("ABCDEFG 12 000 33 XXACQmpLf");
-        let masks: Vec<&str> = vec![
+
+        let compressed: Vec<&str> = vec![
             "         3   1 44 xxACq   F",
             "        4 ",
             " 11 22   x   0 4  y     p  ",
@@ -81,7 +108,10 @@ mod test {
             "                   z",
             " ",
             "                           &",
+            "&                           ",
+            " ",
         ];
+
         let expected: Vec<&str> = vec![
             "ABCDEFG 13 001 44 xxACqmpLF",
             "ABCDEFG 43 001 44 xxACqmpLF",
@@ -90,11 +120,19 @@ mod test {
             "A11D22G 4x 000144 yzACqmpLF",
             "A11D22G 4x 000144 yzACqmpLF",
             "A11D22G 4x 000144 yzACqmpLF ",
+            " 11D22G 4x 000144 yzACqmpLF ",
+            " 11D22G 4x 000144 yzACqmpLF ",
         ];
-        for i in 0..masks.len() {
-            let mask = masks[i];
-            let result = diff.decompress(mask);
-            assert_eq!(result, String::from(expected[i]));
+
+        for i in 0..compressed.len() {
+            let decompressed = diff.decompress(compressed[i]);
+            assert_eq!(
+                decompressed,
+                expected[i],
+                "failed for {}th \"{}\"",
+                i + 1,
+                compressed[i]
+            );
         }
 
         // test re-init
@@ -115,9 +153,16 @@ mod test {
         for i in 0..masks.len() {
             let mask = masks[i];
             let result = diff.decompress(mask);
-            assert_eq!(result, String::from(expected[i]));
+            assert_eq!(
+                result,
+                expected[i].to_string(),
+                "failed for [{}]{}",
+                i,
+                mask
+            );
         }
     }
+
     #[test]
     fn test_compression() {
         let mut diff = TextDiff::new("0");

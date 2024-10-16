@@ -7,7 +7,6 @@ mod numdiff;
 mod obs;
 mod textdiff;
 
-pub use compressor::Compressor;
 pub use crinex::CRINEX;
 pub use numdiff::NumDiff;
 pub use obs::ObsDiff;
