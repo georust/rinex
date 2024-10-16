@@ -1,9 +1,14 @@
-use crate::{merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split};
+use crate::{
+    epoch::parse_utc as parse_utc_epoch,
+    merge::{Error as MergeError, Merge},
+    prelude::{Duration, Epoch, Header, ParsingError},
+    split::{Error as SplitError, Split},
+};
 
-use crate::epoch;
-use std::collections::{BTreeMap, HashMap};
-use std::str::FromStr;
-use thiserror::Error;
+use std::{
+    collections::{BTreeMap, HashMap},
+    str::FromStr,
+};
 
 #[cfg(feature = "processing")]
 use qc_traits::processing::{
@@ -62,23 +67,7 @@ pub type TECPlane = HashMap<(i32, i32), TEC>;
 /// ```
 pub type Record = BTreeMap<(Epoch, i32), TECPlane>;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("failed to parse map index from \"{0}\"")]
-    MapIndexParsing(String),
-    #[error("faulty epoch description")]
-    EpochDescriptionError,
-    #[error("bad grid definition")]
-    BadGridDefinition(#[from] crate::linspace::Error),
-    #[error("failed to parse {0} coordinates from \"{1}\"")]
-    CoordinatesParsing(String, String),
-    #[error("failed to parse epoch")]
-    EpochParsing(#[from] epoch::ParsingError),
-}
-
-/*
- * Merges `rhs` into `lhs`
- */
+/// Merge rhs [TECPlane] into lhs
 fn merge_plane_mut(lhs: &mut TECPlane, rhs: &TECPlane) {
     for (coord, tec) in rhs {
         if lhs.get(coord).is_none() {
@@ -98,7 +87,7 @@ pub(crate) fn parse_plane(
     content: &str,
     header: &mut Header,
     is_rms_plane: bool,
-) -> Result<(Epoch, i32, TECPlane), Error> {
+) -> Result<(Epoch, i32, TECPlane), ParsingError> {
     let lines = content.lines();
     let mut epoch = Epoch::default();
     let mut plane = TECPlane::with_capacity(128);
@@ -125,7 +114,7 @@ pub(crate) fn parse_plane(
                 let index = index.trim();
                 let _map_index = index
                     .parse::<u32>()
-                    .or(Err(Error::MapIndexParsing(index.to_string())))?;
+                    .map_err(|_| ParsingError::IonexMapIndex)?;
 
                 return Ok((epoch, altitude, plane));
             } else if marker.contains("LAT/LON1/LON2/DLON/H") {
@@ -134,19 +123,13 @@ pub(crate) fn parse_plane(
 
                 let (lat, rem) = rem.split_at(6);
                 let lat = lat.trim();
-                let lat = f64::from_str(lat).or(Err(Error::CoordinatesParsing(
-                    String::from("latitude"),
-                    lat.to_string(),
-                )))?;
+                let lat = f64::from_str(lat).map_err(|_| ParsingError::IonexGridCoordinates)?;
 
                 let (lon1, rem) = rem.split_at(6);
                 let lon1 = lon1.trim();
-                let lon1 = f64::from_str(lon1).or(Err(Error::CoordinatesParsing(
-                    String::from("longitude"),
-                    lon1.to_string(),
-                )))?;
+                let lon1 = f64::from_str(lon1).map_err(|_| ParsingError::IonexGridCoordinates)?;
 
-                let (_lon2, rem) = rem.split_at(6);
+                let _ = rem.split_at(6);
                 //let lon2 = lon2.trim();
                 //let lon2 = f64::from_str(lon2).or(Err(Error::CoordinatesParsing(
                 //    String::from("longitude"),
@@ -155,17 +138,13 @@ pub(crate) fn parse_plane(
 
                 let (dlon_str, rem) = rem.split_at(6);
                 let dlon_str = dlon_str.trim();
-                let dlon_f64 = f64::from_str(dlon_str).or(Err(Error::CoordinatesParsing(
-                    String::from("longitude"),
-                    dlon_str.to_string(),
-                )))?;
+                let dlon_f64 =
+                    f64::from_str(dlon_str).map_err(|_| ParsingError::IonexGridCoordinates)?;
 
                 let (h, _) = rem.split_at(6);
                 let h = h.trim();
-                let alt = f64::from_str(h).or(Err(Error::CoordinatesParsing(
-                    String::from("altitude"),
-                    h.to_string(),
-                )))?;
+                let alt =
+                    f64::from_str(dlon_str).map_err(|_| ParsingError::IonexGridCoordinates)?;
 
                 altitude = (alt.round() * 100.0_f64) as i32;
                 latitude = (lat.round() * 1000.0_f64) as i32;
@@ -175,7 +154,7 @@ pub(crate) fn parse_plane(
                 // debug
                 // println!("NEW GRID : h: {} lat : {} lon : {}, dlon: {}", altitude, latitude, longitude, dlon);
             } else if marker.contains("EPOCH OF CURRENT MAP") {
-                epoch = epoch::parse_utc(content)?;
+                epoch = parse_utc_epoch(content)?;
             } else if marker.contains("EXPONENT") {
                 // update current scaling
                 if let Ok(e) = content.trim().parse::<i8>() {
@@ -246,13 +225,13 @@ pub(crate) fn parse_plane(
 
 impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         for (eh, plane) in rhs {
             if let Some(lhs_plane) = self.get_mut(eh) {
                 for (latlon, plane) in plane {
@@ -275,7 +254,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
         let before = self
             .iter()
             .flat_map(|((e, h), plane)| {
@@ -298,7 +277,7 @@ impl Split for Record {
             .collect();
         Ok((before, after))
     }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, SplitError> {
         Ok(Vec::new())
     }
 }

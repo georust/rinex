@@ -1,14 +1,12 @@
-use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
-use crate::constants::Constants;
-use crate::{
-    constants, epoch,
-    prelude::{Constellation, Duration, Epoch, TimeScale, SV},
-    version::Version,
-};
-
 #[cfg(feature = "nav")]
 use crate::prelude::Almanac;
 
+use crate::{
+    constants::{Constants, Omega},
+    epoch::parse_in_timescale as parse_epoch_in_timescale,
+    navigation::{orbits::closest_nav_standards, NavMsgType, OrbitItem},
+    prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, Version, SV},
+};
 #[cfg(feature = "nav")]
 use anise::{
     astro::AzElRange,
@@ -18,36 +16,12 @@ use anise::{
     prelude::{Frame, Orbit},
 };
 
-use log::{error, warn};
-use std::collections::HashMap;
-use std::str::FromStr;
-use thiserror::Error;
+use std::{collections::HashMap, str::FromStr};
 
-use crate::epoch::{
-    parse_in_timescale as parse_epoch_in_timescale, ParsingError as EpochParsingError,
-};
+use log::{error, warn};
 
 #[cfg(feature = "nav")]
 use nalgebra::{self as na, Matrix3, Rotation, Rotation3, Vector4};
-
-/// Parsing errors
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("missing data")]
-    MissingData,
-    #[error("data base revision error")]
-    DataBaseRevisionError,
-    #[error("failed to parse data")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse data")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse epoch")]
-    EpochParsing(#[from] EpochParsingError),
-    #[error("sv parsing error")]
-    SvParsing(#[from] gnss::sv::ParsingError),
-    #[error("failed to identify timescale for sv \"{0}\"")]
-    TimescaleIdentification(SV),
-}
 
 /// EphemerisHelper
 /// # Action
@@ -102,8 +76,7 @@ impl EphemerisHelper {
 
     fn geo_orbit_to_ecef_rotation_matrix(&self) -> Rotation<f64, 3> {
         let rotation_x = Rotation::from_axis_angle(&Vector3::x_axis(), 5.0f64.to_radians());
-        let rotation_z =
-            Rotation::from_axis_angle(&Vector3::z_axis(), -constants::Omega::BDS * self.t_k);
+        let rotation_z = Rotation::from_axis_angle(&Vector3::z_axis(), -Omega::BDS * self.t_k);
         rotation_z * rotation_x
     }
 
@@ -182,8 +155,8 @@ impl EphemerisHelper {
         let fd_zgk = fd_y * sin_i_k + y * self.fd_i_k * cos_i_k;
 
         let rx = Rotation3::from_axis_angle(&Vector3::x_axis(), 5.0);
-        let rz = Rotation3::from_axis_angle(&Vector3::z_axis(), -constants::Omega::BDS * self.t_k);
-        let (sin_omega_tk, cos_omega_tk) = (constants::Omega::BDS * self.t_k).sin_cos();
+        let rz = Rotation3::from_axis_angle(&Vector3::z_axis(), -Omega::BDS * self.t_k);
+        let (sin_omega_tk, cos_omega_tk) = (Omega::BDS * self.t_k).sin_cos();
         let fd_rz = self.fd_omega_k
             * na::Matrix3::new(
                 -sin_omega_tk,
@@ -215,8 +188,8 @@ impl EphemerisHelper {
         let fd_zgk = fd_y * sin_i_k + y * self.fd_i_k * cos_i_k;
 
         let rx = Rotation3::from_axis_angle(&Vector3::x_axis(), 5.0);
-        let rz = Rotation3::from_axis_angle(&Vector3::z_axis(), -constants::Omega::BDS * self.t_k);
-        let (sin_omega_tk, cos_omega_tk) = (constants::Omega::BDS * self.t_k).sin_cos();
+        let rz = Rotation3::from_axis_angle(&Vector3::z_axis(), -Omega::BDS * self.t_k);
+        let (sin_omega_tk, cos_omega_tk) = (Omega::BDS * self.t_k).sin_cos();
         let fd_rz = self.fd_omega_k
             * na::Matrix3::new(
                 -sin_omega_tk,
@@ -362,16 +335,19 @@ impl Ephemeris {
         self.orbits
             .insert(field.to_string(), OrbitItem::from(value));
     }
+
     /// Try to retrive the week counter. This exists
     /// for all Constellations expect [Constellation::Glonass].
     pub(crate) fn get_week(&self) -> Option<u32> {
         self.orbits.get("week").and_then(|value| value.as_u32())
     }
+
     /// Returns TGD (if value exists) as [Duration]
     pub fn tgd(&self) -> Option<Duration> {
         let tgd_s = self.get_orbit_f64("tgd")?;
         Some(Duration::from_seconds(tgd_s))
     }
+
     /// Return ToE expressed as [Epoch]
     pub fn toe(&self, sv_ts: TimeScale) -> Option<Epoch> {
         // TODO: in CNAV V4 TOC is said to be TOE... ...
@@ -401,10 +377,10 @@ impl Ephemeris {
         version: Version,
         constellation: Constellation,
         mut lines: std::str::Lines<'_>,
-    ) -> Result<(Epoch, SV, Self), Error> {
+    ) -> Result<(Epoch, SV, Self), ParsingError> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::MissingData),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
 
         let svnn_offset: usize = match version.major < 3 {
@@ -431,15 +407,18 @@ impl Ephemeris {
         let ts = sv
             .constellation
             .timescale()
-            .ok_or(Error::TimescaleIdentification(sv))?;
+            .ok_or(ParsingError::NoTimescaleDefinition)?;
 
         //log::debug!("V2/V3 CONTENT \"{}\" TIMESCALE {}", line, ts);
 
         let epoch = parse_epoch_in_timescale(date.trim(), ts)?;
 
-        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
-        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
-        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())
+            .map_err(|_| ParsingError::ClockParsing)?;
+        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())
+            .map_err(|_| ParsingError::ClockParsing)?;
+        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())
+            .map_err(|_| ParsingError::ClockParsing)?;
 
         // parse orbits :
         //  only Legacy Frames in V2 and V3 (old) RINEX
@@ -471,22 +450,26 @@ impl Ephemeris {
         msg: NavMsgType,
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,
-    ) -> Result<(Epoch, SV, Self), Error> {
+    ) -> Result<(Epoch, SV, Self), ParsingError> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::MissingData),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
 
         let (svnn, rem) = line.split_at(4);
         let sv = SV::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
-        let epoch = epoch::parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = parse_epoch_in_timescale(epoch.trim(), ts)?;
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
-        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())?;
-        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())?;
-        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())?;
+        let clock_bias = f64::from_str(clk_bias.replace('D', "E").trim())
+            .map_err(|_| ParsingError::ClockParsing)?;
+        let clock_drift = f64::from_str(clk_dr.replace('D', "E").trim())
+            .map_err(|_| ParsingError::ClockParsing)?;
+        let mut clock_drift_rate = f64::from_str(clk_drr.replace('D', "E").trim())
+            .map_err(|_| ParsingError::ClockParsing)?;
+
         let mut orbits =
             parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
 
@@ -616,6 +599,7 @@ impl Ephemeris {
         let mut e_k_lst: f64 = 0.0;
         let mut e_k: f64 = 0.0;
         let mut i = 0;
+
         loop {
             e_k = m_k + kepler.e * e_k_lst.sin();
             if (e_k - e_k_lst).abs() < 1e-10 {
@@ -624,7 +608,8 @@ impl Ephemeris {
             i += 1;
             e_k_lst = e_k;
         }
-        if i >= constants::MaxIterNumber::KEPLER {
+
+        if i >= Constants::MAX_KEPLER_ITER {
             error!("{} kepler iteration overflow", sv);
         }
 
@@ -898,7 +883,7 @@ fn parse_orbits(
     msg: NavMsgType,
     constell: Constellation,
     lines: std::str::Lines<'_>,
-) -> Result<HashMap<String, OrbitItem>, Error> {
+) -> Result<HashMap<String, OrbitItem>, ParsingError> {
     // convert SBAS constell to compatible "sbas" (undetermined/general constell)
     let constell = match constell.is_sbas() {
         true => Constellation::SBAS,
@@ -908,7 +893,7 @@ fn parse_orbits(
     // <=> data fields to parse
     let nav_standards = match closest_nav_standards(constell, version, msg) {
         Some(v) => v,
-        _ => return Err(Error::DataBaseRevisionError),
+        _ => return Err(ParsingError::NoNavigationDefinition),
     };
 
     //println!("FIELD : {:?} \n", nav_standards.items); // DEBUG

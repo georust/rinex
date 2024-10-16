@@ -231,6 +231,7 @@ impl Header {
             } else if marker.contains("CENTER OF MASS: XYZ") {
             } else if marker.contains("PRN / BIAS / RMS") {
             } else if marker.contains("DELTA-UTC") {
+            } else if marker.contains("TIME REF STATION") {
 
                 ///////////////////////////////////////////////////////
                 // Handled cases
@@ -652,9 +653,8 @@ impl Header {
                     Some(c) => {
                         // in case of OLD RINEX : fixed constellation
                         //  use that information, as it may be omitted in the TIME OF OBS header
-                        time_of_first_obs.time_scale = c
-                            .timescale()
-                            .ok_or(ParsingError::BadObsNoTimescaleDefinition)?;
+                        time_of_first_obs.time_scale =
+                            c.timescale().ok_or(ParsingError::NoTimescaleDefinition)?;
                     },
                 }
                 if rinex_type == Type::DORIS {
@@ -669,9 +669,8 @@ impl Header {
                     Some(c) => {
                         // in case of OLD RINEX : fixed constellation
                         //  use that information, as it may be omitted in the TIME OF OBS header
-                        time_of_last_obs.time_scale = c
-                            .timescale()
-                            .ok_or(ParsingError::BadObsNoTimescaleDefinition)?;
+                        time_of_last_obs.time_scale =
+                            c.timescale().ok_or(ParsingError::NoTimescaleDefinition)?;
                     },
                 }
 
@@ -903,7 +902,7 @@ impl Header {
                 // <o
                 //   if "DESCRIPTION" is to be encountered in other RINEX
                 //   we can safely test RinexType here because its already been determined
-                ionex = ionex.with_description(content.trim())
+                ionex = ionex.with_description(content.trim());
             } else if marker.contains("EPOCH OF FIRST MAP") {
                 if let Ok(epoch) = parse_ionex_utc_epoch(content.trim()) {
                     ionex = ionex.with_epoch_of_first_map(epoch);
@@ -914,7 +913,7 @@ impl Header {
                 }
             } else if marker.contains("OBSERVABLES USED") {
                 // IONEX observables
-                ionex = ionex.with_observables(content.trim())
+                ionex = ionex.with_observables(content.trim());
             } else if marker.contains("ELEVATION CUTOFF") {
                 if let Ok(f) = f32::from_str(content.trim()) {
                     ionex = ionex.with_elevation_cutoff(f);
@@ -968,8 +967,6 @@ impl Header {
                 // DORIS special case
                 let station = DorisStation::from_str(content.trim())?;
                 doris.stations.push(station);
-            } else if marker.contains("TIME REF STATION") {
-                // DORIS special case (TODO)
             }
         }
 
@@ -1162,37 +1159,37 @@ impl Header {
         let y = y
             .trim()
             .parse::<u32>()
-            .map_err(|_| ParsingError::DateTimeParsing(String::from("year"), y.to_string()))?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         let m = m
             .trim()
             .parse::<u8>()
-            .map_err(|_| ParsingError::DateTimeParsing(String::from("months"), m.to_string()))?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         let d = d
             .trim()
             .parse::<u8>()
-            .map_err(|_| ParsingError::DateTimeParsing(String::from("days"), d.to_string()))?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         let hh = hh
             .trim()
             .parse::<u8>()
-            .map_err(|_| ParsingError::DateTimeParsing(String::from("hours"), hh.to_string()))?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         let mm = mm
             .trim()
             .parse::<u8>()
-            .map_err(|_| ParsingError::DateTimeParsing(String::from("minutes"), mm.to_string()))?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         let ss = ss
             .trim()
             .parse::<u8>()
-            .map_err(|_| ParsingError::DateTimeParsing(String::from("seconds"), ss.to_string()))?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         let ns = ns
             .trim()
             .parse::<u32>()
-            .map_err(|_| ParsingError::DateTimeParsing(String::from("nanos"), ns.to_string()))?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         /*
          * We set TAI as "default" Timescale.
@@ -1207,16 +1204,14 @@ impl Header {
          * offset from TAI, that we will convert back to TAI later
          */
         if !rem.is_empty() && rem != "DOR" {
-            ts = TimeScale::from_str(rem.trim()).map_err(|_| {
-                ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string())
-            })?;
+            ts = TimeScale::from_str(rem.trim())?;
         }
 
         Epoch::from_str(&format!(
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:08} {}",
             y, m, d, hh, mm, ss, ns, ts
         ))
-        .map_err(|_| ParsingError::DateTimeParsing(String::from("timescale"), rem.to_string()))
+        .map_err(|_| ParsingError::DatetimeParsing)
     }
 
     /*
@@ -1541,16 +1536,13 @@ impl Header {
             let item = item.trim();
             match index {
                 0 => {
-                    start =
-                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [0]", item)))?;
+                    start = f64::from_str(item).or(Err(ParsingError::IonexGridSpecs))?;
                 },
                 1 => {
-                    end =
-                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [1]", item)))?;
+                    end = f64::from_str(item).or(Err(ParsingError::IonexGridSpecs))?;
                 },
                 2 => {
-                    spacing =
-                        f64::from_str(item).or(Err(parse_float_error!("IONEX GRID [2]", item)))?;
+                    spacing = f64::from_str(item).or(Err(ParsingError::IonexGridSpecs))?;
                 },
                 _ => {},
             }

@@ -1,14 +1,9 @@
-use hifitime::Epoch;
 use std::collections::{BTreeMap, HashMap};
-use thiserror::Error;
 
 use crate::{
     doris::Station,
-    epoch::{parse_in_timescale, ParsingError as EpochParsingError},
-    header::Header,
-    observable::Observable,
-    observation::EpochFlag,
-    prelude::TimeScale,
+    epoch::parse_in_timescale as parse_epoch_in_timescale,
+    prelude::{Epoch, EpochFlag, Header, Observable, ParsingError, TimeScale},
 };
 
 #[cfg(feature = "processing")]
@@ -40,14 +35,6 @@ pub(crate) fn is_new_epoch(line: &str) -> bool {
     line.starts_with('>')
 }
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("failed to parse epoch")]
-    EpochError(#[from] EpochParsingError),
-    #[error("failed to parse data")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
 /// DORIS measurement parsing process
 pub(crate) fn parse_epoch(
     header: &Header,
@@ -57,7 +44,7 @@ pub(crate) fn parse_epoch(
         (Epoch, EpochFlag),
         BTreeMap<Station, HashMap<Observable, ObservationData>>,
     ),
-    Error,
+    ParsingError,
 > {
     let mut obs_idx = 0usize;
     let mut epoch = Epoch::default();
@@ -68,7 +55,7 @@ pub(crate) fn parse_epoch(
     let doris = header
         .doris
         .as_ref()
-        .expect("missing header field(s): badly formed DORIS RINEX");
+        .ok_or(ParsingError::MissingObservableDefinition)?;
 
     let observables = &doris.observables;
     let stations = &doris.stations;
@@ -89,7 +76,7 @@ pub(crate) fn parse_epoch(
                 let line = line.split_at(2).1; // "> "
                 let offset = "YYYY MM DD HH MM SS.NNNNNNNNN  0".len();
                 let (date, _rem) = line.split_at(offset);
-                epoch = parse_in_timescale(date, TimeScale::TAI)?;
+                epoch = parse_epoch_in_timescale(date, TimeScale::TAI)?;
             },
             _ => {
                 let (id, _remainder) = line.split_at(4);

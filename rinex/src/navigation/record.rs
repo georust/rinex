@@ -1,8 +1,9 @@
 //! NAV frames parser
-use super::{Error, FrameClass};
 use regex::{Captures, Regex};
-use std::collections::BTreeMap;
-use std::str::FromStr;
+
+use std::{collections::BTreeMap, str::FromStr};
+
+use crate::navigation::FrameClass;
 
 #[cfg(docsrs)]
 use crate::Bibliography;
@@ -107,7 +108,7 @@ impl std::fmt::Display for NavMsgType {
 }
 
 impl std::str::FromStr for NavMsgType {
-    type Err = Error;
+    type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let c = s.to_uppercase();
         let c = c.trim();
@@ -126,7 +127,7 @@ impl std::str::FromStr for NavMsgType {
             "CNV2" => Ok(Self::CNV2),
             "CNV3" => Ok(Self::CNV3),
             "CNVX" => Ok(Self::CNVX),
-            _ => Err(Error::UnknownNavMsgType),
+            _ => Err(ParsingError::NavMsgType),
         }
     }
 }
@@ -260,7 +261,7 @@ pub(crate) fn parse_epoch(
     version: Version,
     constell: Constellation,
     content: &str,
-) -> Result<(Epoch, NavFrame), Error> {
+) -> Result<(Epoch, NavFrame), ParsingError> {
     if content.starts_with('>') {
         parse_v4_record_entry(content)
     } else {
@@ -269,11 +270,11 @@ pub(crate) fn parse_epoch(
 }
 
 /// Builds `Record` entry for Modern NAV frames
-fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
+fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), ParsingError> {
     let mut lines = content.lines();
     let line = match lines.next() {
         Some(l) => l,
-        _ => return Err(Error::MissingData),
+        _ => return Err(ParsingError::EmptyEpoch),
     };
 
     let (_, rem) = line.split_at(2);
@@ -288,7 +289,7 @@ fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
     let ts = sv
         .constellation
         .timescale()
-        .ok_or(Error::TimescaleIdentification(sv))?;
+        .ok_or(ParsingError::NoTimescaleDefinition)?;
 
     let (epoch, fr): (Epoch, NavFrame) = match frame_class {
         FrameClass::Ephemeris => {
@@ -334,7 +335,7 @@ fn parse_v2_v3_record_entry(
     version: Version,
     constell: Constellation,
     content: &str,
-) -> Result<(Epoch, NavFrame), Error> {
+) -> Result<(Epoch, NavFrame), ParsingError> {
     // NAV V2/V3 only contain Ephemeris frames
     let (epoch, sv, ephemeris) = Ephemeris::parse_v2v3(version, constell, content.lines())?;
     // Wrap Ephemeris into a NavFrame
@@ -371,7 +372,7 @@ pub(crate) fn fmt_epoch(
     epoch: &Epoch,
     data: &Vec<NavFrame>,
     header: &Header,
-) -> Result<String, Error> {
+) -> Result<String, FormattingError> {
     if header.version.major < 4 {
         fmt_epoch_v2v3(epoch, data, header)
     } else {
@@ -379,7 +380,11 @@ pub(crate) fn fmt_epoch(
     }
 }
 
-fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<String, Error> {
+fn fmt_epoch_v2v3(
+    epoch: &Epoch,
+    data: &Vec<NavFrame>,
+    header: &Header,
+) -> Result<String, FormattingError> {
     let mut lines = String::with_capacity(128);
     for fr in data.iter() {
         if let Some(fr) = fr.as_eph() {
@@ -396,7 +401,7 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
                     lines.push_str(&format!("{:2} ", sv.prn));
                 },
                 None => {
-                    panic!("can't generate data without predefined constellations");
+                    return Err(FormattingError::NoConstellationDefinition);
                 },
             }
             lines.push_str(&format!(
@@ -415,7 +420,7 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
             let closest_orbits_definition =
                 match closest_nav_standards(sv.constellation, header.version, NavMsgType::LNAV) {
                     Some(v) => v,
-                    _ => return Err(Error::OrbitRevision),
+                    _ => return Err(FormattingError::NoNavigationDefinition),
                 };
 
             let nb_items_per_line = 4;
@@ -452,7 +457,11 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
     Ok(lines)
 }
 
-fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<String, Error> {
+fn fmt_epoch_v4(
+    epoch: &Epoch,
+    data: &Vec<NavFrame>,
+    header: &Header,
+) -> Result<String, FormattingError> {
     let mut lines = String::with_capacity(128);
     for fr in data.iter() {
         if let Some(fr) = fr.as_eph() {
@@ -485,7 +494,7 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
             let closest_orbits_definition =
                 match closest_nav_standards(sv.constellation, header.version, NavMsgType::LNAV) {
                     Some(v) => v,
-                    _ => return Err(Error::OrbitRevision),
+                    _ => return Err(FormattingError::NoNavigationDefinition),
                 };
 
             let mut index = 0;

@@ -1,8 +1,6 @@
 //! IONEX module
-use std::collections::HashMap;
-use strum_macros::EnumString;
-
 use crate::prelude::{Epoch, ParsingError, SV};
+use std::collections::HashMap;
 
 #[cfg(feature = "processing")]
 use crate::prelude::TimeScale;
@@ -23,16 +21,25 @@ use serde::Serialize;
 #[cfg(feature = "processing")]
 use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// Mapping function used in when determining this IONEX
 pub enum MappingFunction {
     /// 1/cos(z)
-    #[strum(serialize = "COSZ")]
     CosZ,
     /// Q-factor
-    #[strum(serialize = "QFAC")]
     QFac,
+}
+
+impl std::str::FromStr for MappingFunction {
+    type Err = ParsingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "cosz" => Ok(Self::CosZ),
+            "qfac" => Ok(Self::QFac),
+            _ => Err(ParsingError::IonexMappingFunction),
+        }
+    }
 }
 
 impl std::fmt::Display for MappingFunction {
@@ -45,7 +52,7 @@ impl std::fmt::Display for MappingFunction {
 }
 
 /// Possible source of DCBs
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum BiasSource {
     /// Referenced against a given vehicle

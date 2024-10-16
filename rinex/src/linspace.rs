@@ -1,14 +1,6 @@
 use std::ops::Rem;
-use thiserror::Error;
 
-/// Grid definition Error
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("faulty grid definition: `start` and `end` must be multiples of each other")]
-    GridStartEndError,
-    #[error("faulty grid definition: `start` and `end` must be multiples of `spacing`")]
-    GridSpacingError,
-}
+use crate::prelude::ParsingError;
 
 /// Linear space as used in IONEX or Antenna grid definitions.
 /// Linear space starting from `start` ranging to `end` (included).
@@ -25,7 +17,7 @@ pub struct Linspace {
 
 impl Linspace {
     /// Builds a new Linear space
-    pub fn new(start: f64, end: f64, spacing: f64) -> Result<Self, Error> {
+    pub fn new(start: f64, end: f64, spacing: f64) -> Result<Self, ParsingError> {
         let r = end.rem(start);
         /*
          * End / Start must be multiple of one another
@@ -38,10 +30,10 @@ impl Linspace {
                     spacing,
                 })
             } else {
-                Err(Error::GridSpacingError)
+                Err(ParsingError::BadIonexGridSpecs)
             }
         } else {
-            Err(Error::GridStartEndError)
+            Err(ParsingError::BadIonexGridSpecs)
         }
     }
     // Returns grid length, in terms of data points

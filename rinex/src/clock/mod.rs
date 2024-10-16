@@ -1,7 +1,7 @@
 //! RINEX Clock files parser & analysis
 pub mod record;
 
-pub use record::{ClockKey, ClockProfile, ClockProfileType, ClockType, Error, Record};
+pub use record::{ClockKey, ClockProfile, ClockProfileType, ClockType, Record};
 
 use crate::version::Version;
 use hifitime::TimeScale;

@@ -1,51 +1,12 @@
 use crate::{
     carrier::Carrier,
-    epoch::{parse_in_timescale, ParsingError as EpochParsingError},
-    prelude::{
-        Epoch,
-        TimeScale,
-        //Duration,
-    },
+    epoch::parse_in_timescale as parse_epoch_in_timescale,
+    prelude::{Epoch, ParsingError, TimeScale},
 };
+
 use bitflags::bitflags;
-use std::str::FromStr;
-use thiserror::Error;
 
-use map_3d::deg2rad;
-use std::f64::consts::PI;
-
-/// Model parsing error
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("ng model missing 1st line")]
-    NgModelMissing1stLine,
-    #[error("failed to parse nequick-g parameter")]
-    NgValueError,
-    #[error("kb model missing 1st line")]
-    KbModelMissing1stLine,
-    #[error("failed to parse klobuchar alpha parameter")]
-    KbAlphaValueError,
-    #[error("failed to parse klobuchar beta parameter")]
-    KbBetaValueError,
-    #[error("bd model missing 1st line")]
-    BdModelMissing1stLine,
-    #[error("ng model missing 2nd line")]
-    NgModelMissing2ndLine,
-    #[error("kb model missing 2nd line")]
-    KbModelMissing2ndLine,
-    #[error("bd model missing 2nd line")]
-    BdModelMissing2ndLine,
-    #[error("kb model missing 3rd line")]
-    KbModelMissing3rdLine,
-    #[error("bd model missing 3rd line")]
-    BdModelMissing3rdLine,
-    #[error("missing data fields")]
-    MissingData,
-    #[error("failed to parse bgdim parameter")]
-    BdValueError,
-    #[error("failed to parse epoch")]
-    EpochParsingError(#[from] EpochParsingError),
-}
+use std::{f64::consts::PI, str::FromStr};
 
 /// Klobuchar Parameters region
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
@@ -79,24 +40,23 @@ pub struct KbModel {
 }
 
 impl KbModel {
-    /*
-     * Parse self from line groupings
-     */
+    /// Parse [KbModel] from lines Iter
     pub(crate) fn parse(
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,
-    ) -> Result<(Epoch, Self), Error> {
+    ) -> Result<(Epoch, Self), ParsingError> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::NgModelMissing1stLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
+
         let (epoch, rem) = line.split_at(23);
         let (a0, rem) = rem.split_at(19);
         let (a1, a2) = rem.split_at(19);
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing2ndLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
         let (a3, rem) = line.split_at(23);
         let (b0, rem) = rem.split_at(19);
@@ -104,7 +64,7 @@ impl KbModel {
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing3rdLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
         let (b3, region) = line.split_at(23);
 
@@ -124,18 +84,18 @@ impl KbModel {
             },
         };
 
-        let epoch = parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = parse_epoch_in_timescale(epoch.trim(), ts)?;
         let alpha = (
-            f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?,
-            f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?,
-            f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?,
-            f64::from_str(a3.trim()).map_err(|_| Error::KbAlphaValueError)?,
+            f64::from_str(a0.trim()).map_err(|_| ParsingError::KlobucharData)?,
+            f64::from_str(a1.trim()).map_err(|_| ParsingError::KlobucharData)?,
+            f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?,
+            f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?,
         );
         let beta = (
-            f64::from_str(b0.trim()).map_err(|_| Error::KbBetaValueError)?,
-            f64::from_str(b1.trim()).map_err(|_| Error::KbBetaValueError)?,
-            f64::from_str(b2.trim()).map_err(|_| Error::KbBetaValueError)?,
-            f64::from_str(b3.trim()).map_err(|_| Error::KbBetaValueError)?,
+            f64::from_str(b0.trim()).map_err(|_| ParsingError::KlobucharData)?,
+            f64::from_str(b1.trim()).map_err(|_| ParsingError::KlobucharData)?,
+            f64::from_str(b2.trim()).map_err(|_| ParsingError::KlobucharData)?,
+            f64::from_str(b3.trim()).map_err(|_| ParsingError::KlobucharData)?,
         );
 
         Ok((
@@ -147,7 +107,8 @@ impl KbModel {
             },
         ))
     }
-    /* converts self to meters of delay */
+
+    // Converts [KbModel] to meters of delay
     pub(crate) fn meters_delay(
         &self,
         t: Epoch,
@@ -164,8 +125,8 @@ impl KbModel {
         const L1_F: f64 = 1575.42E6;
 
         let fract = R_EARTH / (R_EARTH + h_km);
-        let phi_u = deg2rad(user_lat_ddeg);
-        let lambda_u = deg2rad(user_lon_ddeg);
+        let phi_u = user_lat_ddeg.to_radians();
+        let lambda_u = user_lon_ddeg.to_radians();
 
         let t_gps = t.to_duration_in_time_scale(TimeScale::GPST).to_seconds();
         let psi = PI / 2.0 - e - (fract * e.cos()).asin();
@@ -237,16 +198,14 @@ pub struct NgModel {
 }
 
 impl NgModel {
-    /*
-     * Parse self from line groupings
-     */
+    /// Parses [NgModel] from Lines Iter
     pub(crate) fn parse(
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,
-    ) -> Result<(Epoch, Self), Error> {
+    ) -> Result<(Epoch, Self), ParsingError> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::NgModelMissing1stLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
         let (epoch, rem) = line.split_at(23);
         let (a0, rem) = rem.split_at(19);
@@ -254,16 +213,16 @@ impl NgModel {
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::NgModelMissing2ndLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
 
-        let epoch = parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = parse_epoch_in_timescale(epoch.trim(), ts)?;
         let a = (
-            f64::from_str(a0.trim()).map_err(|_| Error::NgValueError)?,
-            f64::from_str(a1.trim()).map_err(|_| Error::NgValueError)?,
-            f64::from_str(rem.trim()).map_err(|_| Error::NgValueError)?,
+            f64::from_str(a0.trim()).map_err(|_| ParsingError::NequickGData)?,
+            f64::from_str(a1.trim()).map_err(|_| ParsingError::NequickGData)?,
+            f64::from_str(rem.trim()).map_err(|_| ParsingError::NequickGData)?,
         );
-        let f = f64::from_str(line.trim()).map_err(|_| Error::NgValueError)?;
+        let f = f64::from_str(line.trim()).map_err(|_| ParsingError::NequickGData)?;
         Ok((
             epoch,
             Self {
@@ -287,24 +246,23 @@ pub struct BdModel {
 }
 
 impl BdModel {
-    /*
-     * Parse Self from line groupings
-     */
+    /// Parses [BdModel] from Lines Iter
     pub(crate) fn parse(
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,
-    ) -> Result<(Epoch, Self), Error> {
+    ) -> Result<(Epoch, Self), ParsingError> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::BdModelMissing1stLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
+
         let (epoch, rem) = line.split_at(23);
         let (a0, rem) = rem.split_at(19);
         let (a1, a2) = rem.split_at(19);
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing2ndLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
         let (a3, rem) = line.split_at(23);
         let (a4, rem) = rem.split_at(19);
@@ -312,22 +270,24 @@ impl BdModel {
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing3rdLine),
+            _ => return Err(ParsingError::EmptyEpoch),
         };
         let (a7, a8) = line.split_at(23);
 
-        let epoch = parse_in_timescale(epoch.trim(), ts)?;
+        let epoch = parse_epoch_in_timescale(epoch.trim(), ts)?;
+
         let alpha = (
-            f64::from_str(a0.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a1.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a2.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a3.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a4.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a5.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a6.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a7.trim()).unwrap_or(0.0_f64),
-            f64::from_str(a8.trim()).unwrap_or(0.0_f64),
+            f64::from_str(a0.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a1.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a2.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a3.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a4.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a5.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a6.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a7.trim()).map_err(|_| ParsingError::BdgimData)?,
+            f64::from_str(a8.trim()).map_err(|_| ParsingError::BdgimData)?,
         );
+
         Ok((epoch, Self { alpha }))
     }
     // /* converts self to meters of delay */
@@ -355,12 +315,12 @@ impl Default for IonMessage {
 }
 
 impl IonMessage {
-    /* Parses old (RINEX3) Ionospheric Correction as IonMessage.
-     * The IonMessage is shared by RINEX3 and newest revision
-     * to represent the Ionospheric correction model.
-     * It's just unique and applies to the entire daycourse in RINEX3.
-     * The API remains totally coherent. */
-    pub(crate) fn from_rinex3_header(header: &str) -> Result<Self, Error> {
+    /// Parses [IonMessage] from old (RINEX3) Ionospheric Correction as IonMessage.
+    /// The IonMessage is shared by RINEX3 and newest revision
+    /// to represent the Ionospheric correction model.
+    /// It's just unique and applies to the entire daycourse in RINEX3.
+    /// The API remains totally coherent.
+    pub(crate) fn from_rinex3_header(header: &str) -> Result<Self, ParsingError> {
         let (system, rem) = header.split_at(5);
         match system.trim() {
             /*
@@ -370,9 +330,9 @@ impl IonMessage {
                 let (a0, rem) = rem.split_at(12);
                 let (a1, rem) = rem.split_at(12);
                 let (a2, _) = rem.split_at(12);
-                let a0 = f64::from_str(a0.trim()).map_err(|_| Error::NgValueError)?;
-                let a1 = f64::from_str(a1.trim()).map_err(|_| Error::NgValueError)?;
-                let a2 = f64::from_str(a2.trim()).map_err(|_| Error::NgValueError)?;
+                let a0 = f64::from_str(a0.trim()).map_err(|_| ParsingError::NequickGData)?;
+                let a1 = f64::from_str(a1.trim()).map_err(|_| ParsingError::NequickGData)?;
+                let a2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::NequickGData)?;
                 Ok(Self::NequickGModel(NgModel {
                     a: (a0, a1, a2),
                     // TODO: is this not the 4th field? double check
@@ -394,10 +354,10 @@ impl IonMessage {
                 };
                 /* determine which field we're dealing with */
                 if system.ends_with('A') {
-                    let a0 = f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?;
-                    let a1 = f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?;
-                    let a2 = f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?;
-                    let a3 = f64::from_str(a3.trim()).map_err(|_| Error::KbAlphaValueError)?;
+                    let a0 = f64::from_str(a0.trim()).map_err(|_| ParsingError::KlobucharData)?;
+                    let a1 = f64::from_str(a1.trim()).map_err(|_| ParsingError::KlobucharData)?;
+                    let a2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
+                    let a3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
 
                     Ok(Self::KlobucharModel(KbModel {
                         alpha: (a0, a1, a2, a3),
@@ -405,10 +365,10 @@ impl IonMessage {
                         region,
                     }))
                 } else {
-                    let b0 = f64::from_str(a0.trim()).map_err(|_| Error::KbBetaValueError)?;
-                    let b1 = f64::from_str(a1.trim()).map_err(|_| Error::KbBetaValueError)?;
-                    let b2 = f64::from_str(a2.trim()).map_err(|_| Error::KbBetaValueError)?;
-                    let b3 = f64::from_str(a3.trim()).map_err(|_| Error::KbBetaValueError)?;
+                    let b0 = f64::from_str(a0.trim()).map_err(|_| ParsingError::KlobucharData)?;
+                    let b1 = f64::from_str(a1.trim()).map_err(|_| ParsingError::KlobucharData)?;
+                    let b2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
+                    let b3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
                     Ok(Self::KlobucharModel(KbModel {
                         alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                         beta: (b0, b1, b2, b3),
@@ -419,7 +379,7 @@ impl IonMessage {
         }
     }
 
-    pub(crate) fn from_rinex2_header(header: &str, marker: &str) -> Result<Self, Error> {
+    pub(crate) fn from_rinex2_header(header: &str, marker: &str) -> Result<Self, ParsingError> {
         let header = header.replace("d", "e").replace("D", "E");
         let (_, rem) = header.split_at(2);
         let (a0, rem) = rem.split_at(12);
@@ -428,10 +388,10 @@ impl IonMessage {
         let (a3, _) = rem.split_at(12);
 
         if marker.contains("ALPHA") {
-            let a0 = f64::from_str(a0.trim()).map_err(|_| Error::KbAlphaValueError)?;
-            let a1 = f64::from_str(a1.trim()).map_err(|_| Error::KbAlphaValueError)?;
-            let a2 = f64::from_str(a2.trim()).map_err(|_| Error::KbAlphaValueError)?;
-            let a3 = f64::from_str(a3.trim()).map_err(|_| Error::KbAlphaValueError)?;
+            let a0 = f64::from_str(a0.trim()).map_err(|_| ParsingError::KlobucharData)?;
+            let a1 = f64::from_str(a1.trim()).map_err(|_| ParsingError::KlobucharData)?;
+            let a2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
+            let a3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
 
             Ok(Self::KlobucharModel(KbModel {
                 alpha: (a0, a1, a2, a3),
@@ -440,10 +400,11 @@ impl IonMessage {
             }))
         } else {
             // Assume marker.contains("BETA")
-            let b0 = f64::from_str(a0.trim()).map_err(|_| Error::KbBetaValueError)?;
-            let b1 = f64::from_str(a1.trim()).map_err(|_| Error::KbBetaValueError)?;
-            let b2 = f64::from_str(a2.trim()).map_err(|_| Error::KbBetaValueError)?;
-            let b3 = f64::from_str(a3.trim()).map_err(|_| Error::KbBetaValueError)?;
+            let b0 = f64::from_str(a0.trim()).map_err(|_| ParsingError::KlobucharData)?;
+            let b1 = f64::from_str(a1.trim()).map_err(|_| ParsingError::KlobucharData)?;
+            let b2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
+            let b3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
+
             Ok(Self::KlobucharModel(KbModel {
                 alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                 beta: (b0, b1, b2, b3),

@@ -97,6 +97,7 @@ pub mod prelude {
         leap::Leap,
         observable::Observable,
         observation::EpochFlag,
+        observation::SNR,
         types::Type as RinexType,
         version::Version,
         Rinex,
@@ -819,29 +820,14 @@ impl Rinex {
         attributes
     }
 
-    /// Parses [RINEX] from local file.
-    /// We only have restrictions on the file extention, not the filename itself.
-    /// If filename follows standard naming conventions, then internal definitions
-    /// will be complete.
-    /// Restrictions that apply on file extension:
-    ///   - CRINEX files must be terminated by .crx (standard convention)
-    ///   - CRINEX + Gzip must be terminated by .crx.gz (standard convention)
-    ///   - Otherwise we interprate as Plain (readable) RINEX and it might panic.
-    ///   This also means that plain readable RINEX can be terminated by
-    ///   something that do not follow standard naming conventions.
-    pub fn from_file(fullpath: &str) -> Result<Rinex, Error> {
-        let fp = Path::new(fullpath);
-        Self::from_path(fp)
-    }
-
     /// Parse [RINEX] from abstract [R]eadable interface.
     /// Whether this is a [CRINEX] or not is automatically guessed and handled.
     /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
     /// For the simple reason they are defined by a File name.
     /// You will have to define them afterwards.
-    pub fn read<BR: BufRead>(reader: BR) -> Result<Rinex, Error> {
-        let mut r = &mut BufferedReader::Plain(reader);
-        Self::from_buffered_reader(r)
+    pub fn read<BR: BufRead>(reader: BR) -> Result<Rinex, ParsingError> {
+        let mut r = BufferedReader::plain(reader);
+        Self::from_buffered_reader(&mut r)
     }
 
     /// Parse [RINEX] from abstract Gzip compressed [R]eadable interface.
@@ -849,14 +835,17 @@ impl Rinex {
     /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
     /// For the simple reason they are defined by a File name.
     /// You will have to define them afterwards.
-    pub fn read_gzip<BR: BufRead>(reader: GzDecoder<BR>) -> Result<Rinex, Error> {
-        let mut r = &mut BufferedReader::Plain(reader);
-        Self::from_buffered_reader(r)
+    pub fn read_gzip<BR: BufRead>(reader: BR) -> Result<Rinex, ParsingError> {
+        let mut r = BufferedReader::gzip(reader);
+        Self::from_buffered_reader(&mut r)
     }
 
-    fn from_buffered_reader<BR: BufRead>(reader: &mut BufferedReader<BR>) -> Result<Rinex, Error> {
+    fn from_buffered_reader<BR: BufRead>(
+        reader: &mut BufferedReader<BR>,
+    ) -> Result<Rinex, ParsingError> {
         // Parses Header section: consumes header until this point
         let mut header = Header::new(reader)?;
+
         // Parse record: consumes the rest of the record (File body).
         //  Comments: are preserved and stored.
         //  They don't serve a real purpose yet, but some comments
@@ -869,11 +858,26 @@ impl Rinex {
             prod_attr: None,
         })
     }
+    /// Parses [RINEX] from local file.
+    /// We only have restrictions on the file extention, not the filename itself.
+    /// If filename follows standard naming conventions, then internal definitions
+    /// will be complete.
+    /// Restrictions that apply on file extension:
+    ///   - CRINEX files must be terminated by .crx (standard convention)
+    ///   - CRINEX + Gzip must be terminated by .crx.gz (standard convention)
+    ///   - Otherwise we interprate as Plain (readable) RINEX and it might panic.
+    ///   This also means that plain readable RINEX can be terminated by
+    ///   something that do not follow standard naming conventions.
+    pub fn from_file(fullpath: &str) -> Result<Rinex, ParsingError> {
+        let fp = Path::new(fullpath);
+        Self::from_path(fp)
+    }
 
-    /// Parse [RINEX] from [PathBuf]
-    pub fn from_path(path: &Path) -> Result<Rinex, Error> {
-        let fd = File::open(path)?;
-        let mut br = BufReader::new(fd);
+    /// Parse [RINEX] from [Path]
+    pub fn from_path(path: &Path) -> Result<Rinex, ParsingError> {
+        let fd = File::open(path).unwrap();
+
+        let br = BufReader::new(fd);
 
         let mut reader = if path.ends_with(".gz") {
             BufferedReader::gzip(br)
@@ -1162,26 +1166,31 @@ impl Rinex {
         s
     }
 
-    /// Writes self into given file.   
-    /// Both header + record will strictly follow RINEX standards.   
-    /// Record: refer to supported RINEX types.
-    /// ```
-    /// // Read a RINEX and dump it without any modifications
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///   .unwrap();
-    /// assert!(rnx.to_file("test.rnx").is_ok());
-    /// ```
-    /// Other useful links are:
-    ///   * [Self::standard_filename] to generate a standardized filename
-    ///   * [Self::guess_production_attributes] helps generate standardized filenames for
-    ///     files that do not follow naming conventions
-    pub fn to_file(&self, path: &str) -> Result<(), FormattingError> {
-        let mut writer = BufferedWriter::new(path)?;
-        write!(writer, "{}", self.header)?;
-        self.record.to_file(&self.header, &mut writer)?;
-        Ok(())
-    }
+    // /// Writes self into given file.
+    // /// Both header + record will strictly follow RINEX standards.
+    // /// Record: refer to supported RINEX types.
+    // /// ```
+    // /// // Read a RINEX and dump it without any modifications
+    // /// use rinex::prelude::*;
+    // /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    // ///   .unwrap();
+    // /// assert!(rnx.to_file("test.rnx").is_ok());
+    // /// ```
+    // /// Other useful links are:
+    // ///   * [Self::standard_filename] to generate a standardized filename
+    // ///   * [Self::guess_production_attributes] helps generate standardized filenames for
+    // ///     files that do not follow naming conventions
+    // pub fn write(&self, path: &Path) -> Result<(), FormattingError> {
+    //     let mut writer = if path.ends_with("gzip") {
+    //         BufferedWriter::new(path)
+    //     } else {
+    //         BufferedWriter::gzip(path)
+    //     };
+
+    //     write!(writer, "{}", self.header)?;
+    //     self.record.to_file(&self.header, &mut writer)?;
+    //     Ok(())
+    // }
 }
 
 /*
@@ -2406,7 +2415,7 @@ impl Rinex {
         if sv.constellation.is_sbas() {
             let (toc, (_, _, eph)) = self
                 .ephemeris()
-                .filter(|(t_i, (_, sv_i, eph_i))| sv == *sv_i)
+                .filter(|(t_i, (_, sv_i, _eph_i))| sv == *sv_i)
                 .reduce(|k, _| k)?;
             Some((*toc, *toc, eph))
         } else {

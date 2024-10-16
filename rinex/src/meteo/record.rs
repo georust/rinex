@@ -1,11 +1,12 @@
 use crate::{
     epoch, merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split, types::Type,
-    version, Observable,
+    version, FormattingError, Observable, ParsingError,
 };
 
-use std::collections::{BTreeMap, HashMap};
-use std::str::FromStr;
-use thiserror::Error;
+use std::{
+    collections::{BTreeMap, HashMap},
+    str::FromStr,
+};
 
 #[cfg(feature = "processing")]
 use qc_traits::processing::{
@@ -42,24 +43,11 @@ pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
     }
 }
 
-#[derive(Error, Debug)]
-/// Meteo Data `Record` parsing specific errors
-pub enum Error {
-    #[error("failed to parse epoch")]
-    EpochParsingError(#[from] epoch::ParsingError),
-    #[error("failed to integer number")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to float number")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
-/*
- * Meteo record entry parsing method
- */
+/// METEO parsing
 pub(crate) fn parse_epoch(
     header: &Header,
     content: &str,
-) -> Result<(Epoch, HashMap<Observable, f64>), Error> {
+) -> Result<(Epoch, HashMap<Observable, f64>), ParsingError> {
     let mut lines = content.lines();
     let mut line = lines.next().unwrap();
 
@@ -118,7 +106,7 @@ pub(crate) fn fmt_epoch(
     epoch: &Epoch,
     data: &HashMap<Observable, f64>,
     header: &Header,
-) -> Result<String, Error> {
+) -> Result<String, FormattingError> {
     let mut lines = String::with_capacity(128);
     lines.push_str(&format!(
         " {}",

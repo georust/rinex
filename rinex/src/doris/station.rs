@@ -1,5 +1,5 @@
 //! DORIS Station
-use crate::{doris::Error, prelude::DOMES};
+use crate::prelude::{ParsingError, DOMES};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -30,14 +30,11 @@ impl Station {
     }
 }
 
-/*
- * Parses DORIS station, returns ID# code and Station
- */
 impl std::str::FromStr for Station {
-    type Err = Error;
+    type Err = ParsingError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.len() < 40 {
-            return Err(Error::InvalidStation);
+            return Err(ParsingError::DorisStationFormat);
         }
 
         let content = content.split_at(1).1;
@@ -55,9 +52,15 @@ impl std::str::FromStr for Station {
             gen: gen
                 .trim()
                 .parse::<u8>()
-                .or(Err(Error::BeaconGenerationParsing))?,
-            k_factor: k_factor.trim().parse::<i8>().or(Err(Error::KfParsing))?,
-            key: key.trim().parse::<u16>().or(Err(Error::IdParsing))?,
+                .map_err(|_| ParsingError::DorisStation)?,
+            k_factor: k_factor
+                .trim()
+                .parse::<i8>()
+                .map_err(|_| ParsingError::DorisStation)?,
+            key: key
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| ParsingError::DorisStation)?,
         })
     }
 }

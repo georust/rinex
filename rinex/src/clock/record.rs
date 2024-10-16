@@ -1,17 +1,12 @@
-use std::str::FromStr;
 use thiserror::Error;
 
-use std::collections::BTreeMap;
-use strum_macros::EnumString;
+use std::{collections::BTreeMap, str::FromStr};
 
 use crate::{
-    epoch, merge,
-    merge::Merge,
-    prelude::*,
-    prelude::{Duration, SV},
-    split,
-    split::Split,
-    version::Version,
+    epoch::parse_in_timescale as parse_epoch_in_timescale,
+    merge::{Error as MergeError, Merge},
+    prelude::{Duration, Epoch, ParsingError, TimeScale, Version, SV},
+    split::{Error as SplitError, Split},
 };
 
 #[cfg(feature = "processing")]
@@ -80,23 +75,6 @@ impl std::fmt::Display for ClockType {
     }
 }
 
-#[derive(Error, Debug)]
-/// Clocks file parsing & identification errors
-pub enum Error {
-    #[error("unknown data code \"{0}\"")]
-    UnknownDataCode(String),
-    #[error("failed to parse epoch")]
-    EpochParsingError(#[from] epoch::ParsingError),
-    #[error("failed to parse # of data fields")]
-    DataFieldsParsing,
-    #[error("failed to parse clock profile")]
-    ClockProfileParsing,
-    #[error("failed to identify observable")]
-    ParseObservableError(#[from] strum::ParseError),
-    #[error("failed to write data")]
-    WriterIoError(#[from] std::io::Error),
-}
-
 /// Clock Profile is the actual measurement or estimate
 /// at a specified Epoch.
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -117,7 +95,7 @@ pub struct ClockProfile {
 }
 
 /// Clock data observables
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, EnumString)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ClockProfileType {
     /// Data analysis results for receiver clocks
@@ -132,6 +110,20 @@ pub enum ClockProfileType {
     DR,
     /// Broadcast SV clocks monitor measurements
     MS,
+}
+
+impl std::str::FromStr for ClockProfileType {
+    type Err = ParsingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "ar" => Ok(Self::AR),
+            "as" => Ok(Self::AS),
+            "cr" => Ok(Self::CR),
+            "dr" => Ok(Self::DR),
+            "ms" => Ok(Self::MS),
+            _ => Err(ParsingError::ClockProfileType),
+        }
+    }
 }
 
 impl std::fmt::Display for ClockProfileType {
@@ -166,7 +158,7 @@ pub(crate) fn parse_epoch(
     version: Version,
     content: &str,
     ts: TimeScale,
-) -> Result<(Epoch, ClockKey, ClockProfile), Error> {
+) -> Result<(Epoch, ClockKey, ClockProfile), ParsingError> {
     let mut lines = content.lines();
     let line = lines.next().unwrap();
     const LIMIT: Version = Version { major: 3, minor: 4 };
@@ -205,7 +197,7 @@ pub(crate) fn parse_epoch(
     const OFFSET: usize = "yyyy mm dd hh mm sssssssssss".len();
 
     let (epoch, rem) = rem.split_at(OFFSET);
-    let epoch = epoch::parse_in_timescale(epoch.trim(), ts)?;
+    let epoch = parse_epoch_in_timescale(epoch.trim(), ts)?;
 
     // nb of data fields
     let (_n, rem) = rem.split_at(4);
@@ -219,13 +211,13 @@ pub(crate) fn parse_epoch(
                 profile.bias = item
                     .trim()
                     .parse::<f64>()
-                    .map_err(|_| Error::ClockProfileParsing)?;
+                    .map_err(|_| ParsingError::ClockProfile)?;
             },
             1 => {
                 profile.bias_dev = Some(
                     item.trim()
                         .parse::<f64>()
-                        .map_err(|_| Error::ClockProfileParsing)?,
+                        .map_err(|_| ParsingError::ClockProfile)?,
                 );
             },
             _ => {},
@@ -238,28 +230,28 @@ pub(crate) fn parse_epoch(
                     profile.drift = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 1 => {
                     profile.drift_dev = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 2 => {
                     profile.drift_change = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 3 => {
                     profile.drift_change_dev = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 _ => {},
@@ -324,13 +316,13 @@ use crate::merge::merge_mut_option;
 
 impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         for (rhs_epoch, rhs_content) in rhs.iter() {
             if let Some(lhs_content) = self.get_mut(rhs_epoch) {
                 for (rhs_key, rhs_prof) in rhs_content.iter() {
@@ -356,7 +348,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
         let r0 = self
             .iter()
             .flat_map(|(k, v)| {
@@ -379,7 +371,7 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, SplitError> {
         Ok(Vec::new())
     }
 }

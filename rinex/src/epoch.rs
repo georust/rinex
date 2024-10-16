@@ -1,50 +1,37 @@
-//! Epoch parsing helpers
-use crate::types::Type;
-use hifitime::{
-    //EpochError as HifitimeEpochError,
-    errors::{HifitimeError, ParsingError as HifitimeParsingError},
-    Epoch,
-    TimeScale,
+//! Epoch parsing helper
+
+use crate::{
+    prelude::{Epoch, ParsingError, TimeScale},
+    types::Type,
 };
+
 use std::str::FromStr;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum ParsingError {
-    #[error("failed to parse epoch")]
-    HifitimeParsingError(#[from] HifitimeParsingError),
-    #[error("hifitime error")]
-    HifitimeError(#[from] HifitimeError),
-    #[error("expecting \"yyyy mm dd hh mm ss.ssss\" format")]
-    FormatError,
-    #[error("failed to parse seconds + nanos")]
-    SecsNanosError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse years from \"{0}\"")]
-    YearField(String),
-    #[error("failed to parse months from \"{0}\"")]
-    MonthField(String),
-    #[error("failed to parse days from \"{0}\"")]
-    DayField(String),
-    #[error("failed to parse hours from \"{0}\"")]
-    HoursField(String),
-    #[error("failed to parse minutes field from \"{0}\"")]
-    MinutesField(String),
-    #[error("failed to parse seconds field from \"{0}\"")]
-    SecondsField(String),
-    #[error("failed to parse nanos from \"{0}\"")]
-    NanosecondsField(String),
-}
-
-/*
- * Infaillible `Epoch::now()` call.
- */
+/// Infaillible `Epoch::now()` call.
 pub(crate) fn now() -> Epoch {
     Epoch::now().unwrap_or(Epoch::from_gregorian_utc_at_midnight(2000, 1, 1))
 }
 
-/*
- * Formats given epoch to string, matching standard specifications
- */
+/// Parse "Jan" like month string
+fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
+    match content {
+        "Jan" => Ok(1),
+        "Feb" => Ok(2),
+        "Mar" => Ok(3),
+        "Apr" => Ok(4),
+        "May" => Ok(5),
+        "Jun" => Ok(6),
+        "Jul" => Ok(7),
+        "Aug" => Ok(8),
+        "Sep" => Ok(9),
+        "Oct" => Ok(10),
+        "Nov" => Ok(11),
+        "Dec" => Ok(12),
+        _ => Err(ParsingError::DatetimeParsing),
+    }
+}
+
+/// Formats given epoch to string, matching standard specifications
 pub(crate) fn format(epoch: Epoch, t: Type, revision: u8) -> String {
     let (y, m, d, hh, mm, ss, nanos) = epoch_decompose(epoch);
 
@@ -122,9 +109,7 @@ pub(crate) fn format(epoch: Epoch, t: Type, revision: u8) -> String {
     }
 }
 
-/*
- * Parses an Epoch, interpreted as a datetime within specified TimeScale.
- */
+/// Parses [Epoch] from string, interprated in [TimeScale]
 pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, ParsingError> {
     let mut y = 0_i32;
     let mut m = 0_u8;
@@ -135,7 +120,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
     let mut ns = 0_u64;
 
     if content.split_ascii_whitespace().count() < 6 {
-        return Err(ParsingError::FormatError);
+        return Err(ParsingError::EpochFormat);
     }
 
     for (field_index, item) in content.split_ascii_whitespace().enumerate() {
@@ -143,7 +128,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
             0 => {
                 y = item
                     .parse::<i32>()
-                    .map_err(|_| ParsingError::YearField(item.to_string()))?;
+                    .map_err(|_| ParsingError::EpochParsing)?;
 
                 /* old RINEX problem: YY sometimes encoded on two digits */
                 if y < 100 {
@@ -156,24 +141,16 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                 }
             },
             1 => {
-                m = item
-                    .parse::<u8>()
-                    .map_err(|_| ParsingError::MonthField(item.to_string()))?;
+                m = item.parse::<u8>().map_err(|_| ParsingError::EpochParsing)?;
             },
             2 => {
-                d = item
-                    .parse::<u8>()
-                    .map_err(|_| ParsingError::DayField(item.to_string()))?;
+                d = item.parse::<u8>().map_err(|_| ParsingError::EpochParsing)?;
             },
             3 => {
-                hh = item
-                    .parse::<u8>()
-                    .map_err(|_| ParsingError::HoursField(item.to_string()))?;
+                hh = item.parse::<u8>().map_err(|_| ParsingError::EpochParsing)?;
             },
             4 => {
-                mm = item
-                    .parse::<u8>()
-                    .map_err(|_| ParsingError::MinutesField(item.to_string()))?;
+                mm = item.parse::<u8>().map_err(|_| ParsingError::EpochParsing)?;
             },
             5 => {
                 if let Some(dot) = item.find('.') {
@@ -182,13 +159,13 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                     ss = item[..dot]
                         .trim()
                         .parse::<u8>()
-                        .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
+                        .map_err(|_| ParsingError::EpochParsing)?;
 
                     let nanos = item[dot + 1..].trim();
 
                     ns = nanos
                         .parse::<u64>()
-                        .map_err(|_| ParsingError::NanosecondsField(item.to_string()))?;
+                        .map_err(|_| ParsingError::EpochParsing)?;
 
                     if is_nav {
                         // NAV RINEX : 100ms precision
@@ -201,7 +178,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                     ss = item
                         .trim()
                         .parse::<u8>()
-                        .map_err(|_| ParsingError::SecondsField(item.to_string()))?;
+                        .map_err(|_| ParsingError::EpochParsing)?;
                 }
             },
             _ => {},
@@ -214,7 +191,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
         TimeScale::UTC => {
             // Catch possible Hifitime panic on bad string content
             if y == 0 {
-                return Err(ParsingError::FormatError);
+                return Err(ParsingError::EpochFormat);
             }
             let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns as u32);
             Ok(epoch)
@@ -222,7 +199,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
         TimeScale::TAI => {
             // Catch possible Hifitime panic on bad string content
             if y == 0 {
-                return Err(ParsingError::FormatError);
+                return Err(ParsingError::EpochFormat);
             }
             let epoch = Epoch::from_gregorian_tai(y, m, d, hh, mm, ss, ns as u32);
             Ok(epoch)
@@ -230,7 +207,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
         ts => {
             // Catch possible Hifitime panic on bad string content
             if y == 0 {
-                return Err(ParsingError::FormatError);
+                return Err(ParsingError::EpochFormat);
             }
             let epoch = Epoch::from_gregorian_str(&format!(
                 "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06} {}",
@@ -253,37 +230,37 @@ pub(crate) fn parse_ionex_utc(s: &str) -> Result<Epoch, ParsingError> {
                 y = field
                     .trim()
                     .parse::<i32>()
-                    .map_err(|_| ParsingError::YearField(field.to_string()))?;
+                    .map_err(|_| ParsingError::EpochParsing)?;
             },
             1 => {
                 m = field
                     .trim()
                     .parse::<u8>()
-                    .map_err(|_| ParsingError::MonthField(field.to_string()))?;
+                    .map_err(|_| ParsingError::EpochParsing)?;
             },
             2 => {
                 d = field
                     .trim()
                     .parse::<u8>()
-                    .map_err(|_| ParsingError::DayField(field.to_string()))?;
+                    .map_err(|_| ParsingError::EpochParsing)?;
             },
             3 => {
                 hh = field
                     .trim()
                     .parse::<u8>()
-                    .map_err(|_| ParsingError::HoursField(field.to_string()))?;
+                    .map_err(|_| ParsingError::EpochParsing)?;
             },
             4 => {
                 mm = field
                     .trim()
                     .parse::<u8>()
-                    .map_err(|_| ParsingError::MinutesField(field.to_string()))?;
+                    .map_err(|_| ParsingError::EpochParsing)?;
             },
             5 => {
                 ss = field
                     .trim()
                     .parse::<u8>()
-                    .map_err(|_| ParsingError::SecondsField(field.to_string()))?;
+                    .map_err(|_| ParsingError::EpochParsing)?;
             },
             _ => {},
         }

@@ -2,12 +2,10 @@ use thiserror::Error;
 
 use gnss_rs::{
     constellation::ParsingError as ConstellationParsingError, cospar::Error as CosparParsingError,
-    sv::ParsingError as SVParsingError,
+    domes::Error as DOMESParsingError, sv::ParsingError as SVParsingError,
 };
 
-use crate::{clock::Error as ClockError, navigation::Error as NavigationError};
-
-use hifitime::ParsingError as HifitimeParsingError;
+use hifitime::{HifitimeError, ParsingError as HifitimeParsingError};
 
 use std::io::Error as IoError;
 
@@ -16,35 +14,44 @@ use std::io::Error as IoError;
 pub enum ParsingError {
     #[error("header line too short (invalid)")]
     HeaderLineTooShort,
-    #[error("datime parsing error")]
+    #[error("empty epoch")]
+    EmptyEpoch,
+    #[error("invalid epoch flag")]
+    EpochFlag,
+    #[error("number of sat")]
+    NumSat,
+    #[error("nav: clock parsing")]
+    ClockParsing,
+    #[error("invalid epoch format")]
+    EpochFormat,
+    #[error("epoch parsing")]
+    EpochParsing,
+    #[error("datime parsing")]
     DatetimeParsing,
     #[error("datime invalid format")]
     DatetimeFormat,
     #[error("bad rinex revision format")]
     VersionFormat,
-    #[error("rinex revision parsing error")]
+    #[error("rinex revision parsing")]
     VersionParsing,
-    #[error("rinex format identification error")]
+    #[error("rinex format identification")]
     TypeParsing,
-    #[error("observable parsing error")]
+    #[error("observable parsing")]
     ObservableParsing,
-    #[error("constellation parsing error")]
+    #[error("constellation parsing")]
     ConstellationParsing(#[from] ConstellationParsingError),
-    #[error("sv parsing error")]
+    #[error("sv parsing")]
     SVParsing(#[from] SVParsingError),
-    #[error("cospar parsing error")]
+    #[error("cospar parsing")]
     COSPAR(#[from] CosparParsingError),
-    #[error("navdata parsing error")]
-    NavigationParsing(#[from] NavigationError),
-    /// Clock specific Parsing error
-    #[error("clkdata parsing error")]
-    ClockData(#[from] ClockError),
-    #[error("clock TYPE OF DATA parsing error")]
+    #[error("nav: eop missing line")]
+    EopMissingData,
+    #[error("clock TYPE OF DATA parsing")]
     ClockTypeofData,
     #[error("OBS RINEX invalid timescale")]
     BadObsBadTimescaleDefinition,
-    #[error("OBS RINEX parsing requires proper timescale specs")]
-    BadObsNoTimescaleDefinition,
+    #[error("bad RINEX: missing timescale specs")]
+    NoTimescaleDefinition,
     #[error("SYS / SCALE FACTOR parsing")]
     SystemScalingFactor,
     #[error("REF CLOCK OFFS parsing")]
@@ -63,7 +70,9 @@ pub enum ParsingError {
     IonexReferenceSystem,
     #[error("non supported rinex revision")]
     NonSupportedVersion,
-    #[error("unknown/non supported observable")]
+    #[error("invalid mapping function")]
+    IonexMappingFunction,
+    #[error("unknown / non supported observable")]
     UnknownObservable,
     #[error("invalid observable")]
     BadObservable,
@@ -73,6 +82,8 @@ pub enum ParsingError {
     LeapParsing,
     #[error("hifitime parsing")]
     HifitimeParsing(#[from] HifitimeParsingError),
+    #[error("hifitime error")]
+    Hifitime(#[from] HifitimeError),
     #[error("DORIS L1/L2 date offset")]
     DorisL1L2DateOffset,
     #[error("DORIS L1/L2 date offset")]
@@ -85,6 +96,46 @@ pub enum ParsingError {
     AntexZenithGrid,
     #[error("antex: frequency")]
     AntexFrequency,
+    #[error("doris: invalid station format")]
+    DorisStationFormat,
+    #[error("doris: station parsing")]
+    DorisStation,
+    #[error("obs/doris: missing observable specs")]
+    MissingObservableDefinition,
+    #[error("clock profile type parsing")]
+    ClockProfileType,
+    #[error("clock profile parsing")]
+    ClockProfile,
+    #[error("DOMES parsing")]
+    DOMES(#[from] DOMESParsingError),
+    #[error("ionex: map index parsing")]
+    IonexMapIndex,
+    #[error("ionex: grid specs parsing")]
+    IonexGridSpecs,
+    #[error("ionex: invalid grid specs")]
+    BadIonexGridSpecs,
+    #[error("ionex: map coordinates parsing")]
+    IonexGridCoordinates,
+    #[error("nav: invalid frame class")]
+    NavFrameClass,
+    #[error("nav: invalid message type")]
+    NavMsgType,
+    #[error("nav: unknown radio message")]
+    NoNavigationDefinition,
+    #[error("nav: unsigned radio field")]
+    OrbitUnsignedData,
+    #[error("nav: signed radio field")]
+    OrbitSignedData,
+    #[error("nav: float radio field")]
+    OrbitFloatData,
+    #[error("nav:ion klobuchar data")]
+    KlobucharData,
+    #[error("nav:ion nequick-g data")]
+    NequickGData,
+    #[error("nav:ion bdgim data")]
+    BdgimData,
+    #[error("nav:sto data")]
+    SystemTimeData,
 }
 
 /// Errors that may rise in Formatting process
@@ -92,6 +143,10 @@ pub enum ParsingError {
 pub enum FormattingError {
     #[error("i/o: output error")]
     OutputError(#[from] IoError),
+    #[error("missing constellation information")]
+    NoConstellationDefinition,
+    #[error("nav: unknown radio message")]
+    NoNavigationDefinition,
 }
 
 /// General error (processing, analysis..)

@@ -1,9 +1,9 @@
 //! NAV Orbits description, spanning all revisions and constellations
 use super::health;
-use crate::version;
 use bitflags::bitflags;
 use std::str::FromStr;
-use thiserror::Error;
+
+use crate::prelude::ParsingError;
 
 include!(concat!(env!("OUT_DIR"), "/nav_orbits.rs"));
 
@@ -65,51 +65,49 @@ impl From<f64> for OrbitItem {
     }
 }
 
-/// `OrbitItem` related errors
-#[derive(Error, Debug)]
-pub enum OrbitItemError {
-    #[error("failed to parse int value")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float value")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("unknown type descriptor \"{0}\"")]
-    UnknownTypeDescriptor(String),
-}
-
 impl OrbitItem {
     /// Builds a `OrbitItem` from type descriptor and string content
     pub fn new(
         type_desc: &str,
         content: &str,
         constellation: Constellation,
-    ) -> Result<OrbitItem, OrbitItemError> {
+    ) -> Result<OrbitItem, ParsingError> {
         match type_desc {
             "u8" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 Ok(OrbitItem::U8(float as u8))
             },
             "i8" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitSignedData)?;
                 Ok(OrbitItem::I8(float as i8))
             },
             "u32" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 Ok(OrbitItem::U32(float as u32))
             },
-            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace('D', "e"))?)),
+            "f64" => {
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitFloatData)?;
+                Ok(OrbitItem::F64(float))
+            },
             "gloStatus" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 let unsigned = float as u32;
                 let status = GloStatus::from_bits(unsigned).unwrap_or(GloStatus::empty());
                 Ok(OrbitItem::GloStatus(status))
             },
             "health" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 let unsigned = float as u32;
                 match constellation {
                     Constellation::GPS | Constellation::QZSS => {
@@ -145,7 +143,7 @@ impl OrbitItem {
                     },
                 }
             }, // "health"
-            _ => Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string())),
+            _ => Err(ParsingError::NoNavigationDefinition),
         }
     }
     /// Formats self following RINEX standards,
@@ -229,16 +227,14 @@ impl OrbitItem {
     }
 }
 
-/*
- * Identifies closest (but older) revision contained in NAV database.
- * Closest content (in time) is used during record parsing to identify and sort data.
- * Returns None
- *   - if no database entries were found for requested constellation.
- *   - or only newer revision exist : we prefer matching on older revisions
- */
+/// Identifies closest (but older) revision contained in NAV database.
+/// Closest content (in time) is used during record parsing to identify and sort data.
+/// Returns None
+/// - if no database entries were found for requested constellation.
+///  - or only newer revision exist : we prefer matching on older revisions
 pub(crate) fn closest_nav_standards(
     constellation: Constellation,
-    revision: version::Version,
+    revision: Version,
     msg: NavMsgType,
 ) -> Option<&'static NavHelper<'static>> {
     let database = &NAV_ORBITS;

@@ -1,40 +1,25 @@
 use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
-use thiserror::Error;
 
 use crate::{
-    epoch, merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split, types::Type,
-    version::Version, Carrier, Observable,
+    epoch::{
+        format as epoch_format, parse_in_timescale as parse_epoch_in_timescale,
+        parse_utc as parse_utc_epoch,
+    },
+    merge::{Error as MergeError, Merge},
+    prelude::{
+        Carrier, Constellation, Duration, Epoch, EpochFlag, Header, Observable, ParsingError,
+        TimeScale, Version, SNR, SV,
+    },
+    split::{Error as SplitError, Split},
+    types::Type,
 };
-
-use crate::observation::EpochFlag;
-use crate::observation::SNR;
 
 #[cfg(feature = "processing")]
 use qc_traits::processing::{
     DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Repair,
 };
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("failed to parse epoch flag")]
-    EpochFlag(#[from] crate::observation::flag::Error),
-    #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::ParsingError),
-    #[error("constellation parsing error")]
-    ConstellationParsing(#[from] gnss::constellation::ParsingError),
-    #[error("sv parsing error")]
-    SvParsing(#[from] gnss::sv::ParsingError),
-    #[error("failed to parse integer number")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float number")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse vehicles properly (nb_sat mismatch)")]
-    EpochParsingError,
-    #[error("line is empty")]
-    MissingData,
-}
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -150,7 +135,7 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
         } else {
             // SPLICE flag handling (still an Observation::flag)
             let significant = !line[0..26].trim().is_empty();
-            let epoch = epoch::parse_utc(&line[0..26]);
+            let epoch = parse_utc_epoch(&line[0..26]);
             let flag = EpochFlag::from_str(line[26..29].trim());
             if significant {
                 epoch.is_ok() && flag.is_ok()
@@ -189,12 +174,12 @@ pub(crate) fn parse_epoch(
         Option<f64>,
         BTreeMap<SV, HashMap<Observable, ObservationData>>,
     ),
-    Error,
+    ParsingError,
 > {
     let mut lines = content.lines();
     let mut line = match lines.next() {
         Some(l) => l,
-        _ => return Err(Error::MissingData),
+        _ => return Err(ParsingError::EmptyEpoch),
     };
 
     // epoch::
@@ -216,11 +201,15 @@ pub(crate) fn parse_epoch(
     }
 
     let (date, rem) = line.split_at(offset);
-    let epoch = epoch::parse_in_timescale(date, ts)?;
+    let epoch = parse_epoch_in_timescale(date, ts)?;
     let (flag, rem) = rem.split_at(3);
     let flag = EpochFlag::from_str(flag.trim())?;
     let (n_sat, rem) = rem.split_at(3);
-    let n_sat = n_sat.trim().parse::<u16>()?;
+
+    let n_sat = n_sat
+        .trim()
+        .parse::<u16>()
+        .map_err(|_| ParsingError::NumSat)?;
 
     // grab possible clock offset
     let offs: Option<&str> = match header.version.major < 2 {
@@ -284,7 +273,7 @@ fn parse_normal(
         Option<f64>,
         BTreeMap<SV, HashMap<Observable, ObservationData>>,
     ),
-    Error,
+    ParsingError,
 > {
     // previously identified observables (that we expect)
     let obs = header.obs.as_ref().unwrap();
@@ -303,7 +292,7 @@ fn parse_normal(
                 if let Some(l) = lines.next() {
                     systems.push_str(l.trim());
                 } else {
-                    return Err(Error::MissingData);
+                    return Err(ParsingError::EmptyEpoch);
                 }
             }
             parse_v2(header, &systems, observables, lines)
@@ -327,13 +316,13 @@ fn parse_event(
         Option<f64>,
         BTreeMap<SV, HashMap<Observable, ObservationData>>,
     ),
-    Error,
+    ParsingError,
 > {
     // TODO: Verify that the number of lines of data
     // to read matches the number of records expected
 
     // TODO: Actually process event data
-    Err(Error::MissingData)
+    Err(ParsingError::EmptyEpoch)
 }
 
 /*
@@ -658,7 +647,7 @@ fn fmt_epoch_v3(
 
     lines.push_str(&format!(
         "> {}  {} {:2}",
-        epoch::format(epoch, Type::ObservationData, 3),
+        epoch_format(epoch, Type::ObservationData, 3),
         flag,
         data.len()
     ));
@@ -711,7 +700,7 @@ fn fmt_epoch_v2(
 
     lines.push_str(&format!(
         " {}  {} {:2}",
-        epoch::format(epoch, Type::ObservationData, 2),
+        epoch_format(epoch, Type::ObservationData, 2),
         flag,
         data.len()
     ));
@@ -772,13 +761,13 @@ fn fmt_epoch_v2(
 
 impl Merge for Record {
     /// Merge `rhs` into `Self`
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merge `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         for (rhs_epoch, (rhs_clk, rhs_vehicles)) in rhs {
             if let Some((clk, vehicles)) = self.get_mut(rhs_epoch) {
                 // exact epoch (both timestamp and flag) did exist
@@ -811,7 +800,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
         let r0 = self
             .iter()
             .flat_map(|(k, v)| {
@@ -834,7 +823,7 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-    fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, SplitError> {
         let mut curr = Self::new();
         let mut ret: Vec<Self> = Vec::new();
         let mut prev: Option<Epoch> = None;
@@ -1568,7 +1557,7 @@ pub(crate) fn code_multipath(
 mod test {
     use super::*;
     fn parse_and_format_helper(ver: Version, epoch_str: &str, expected_flag: EpochFlag) {
-        let first = epoch::parse_utc("2020 01 01 00 00  0.1000000").unwrap();
+        let first = parse_utc_epoch("2020 01 01 00 00  0.1000000").unwrap();
         let data: BTreeMap<SV, HashMap<Observable, ObservationData>> = BTreeMap::new();
         let header = Header::default().with_version(ver).with_observation_fields(
             crate::observation::HeaderFields::default().with_time_of_first_obs(first),
