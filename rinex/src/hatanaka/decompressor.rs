@@ -28,33 +28,36 @@ pub struct Decompressor<const M: usize, R: Read> {
     /// Internal [State]. Use this to determine
     /// whether we're still inside the Header section (algorithm is not active),
     /// or inside file body (algorithm is active).
-    pub state: State,
-    /// CRINEX header that we did identify.
-    /// You should wait until State != State::InsideHeader to consume this.
-    pub crinex: CRINEX,
+    state: State,
     /// [R]
     reader: R,
-    /// Current size in buffer
-    pub avail_size: usize,
-    /// counters
-    pub nb_sv: usize, // total
-    pub sv_ptr: usize, // inside epoch
-    /// True only for first epoch ever processed
-    pub first_epoch: bool,
-    /// True until one clock offset was found
-    pub first_clock_diff: bool,
-    /// Epoch differentiator
-    pub epoch_diff: TextDiff,
-    /// Current readable buffer
-    pub buf_ascii: String,
     /// Internal buffer
-    pub buf: [u8; 1024],
+    buf: [u8; 1024],
+    /// Partial line buffer
+    /// is used to cover the possibility of frame recovered by 2 successive read
+    partial_line: [u8; 128],
+    /// Read pointer
+    ptr: 0,
+    /// counters
+    nb_sv: usize, // total
+    sv_ptr: usize, // inside epoch
+    /// True only for first epoch ever processed
+    first_epoch: bool,
+    /// True until one clock offset was found
+    first_clock_diff: bool,
+    /// Epoch differentiator
+    epoch_diff: TextDiff,
+    /// Current readable buffer
+    buf_ascii: String,
     /// Unformatted Readable Internal buffer.
-    pub epoch_ascii: String,
+    epoch_ascii: String,
     /// Clock offset differentiator
-    pub clock_diff: NumDiff<M>,
-    /// OBservation differentiators
-    pub obs_diff: HashMap<SV, ObsDiff<M>>,
+    clock_diff: NumDiff<M>,
+    /// Observation differentiators
+    obs_diff: HashMap<SV, ObsDiff<M>>,
+    /// CRINEX header that we did identify.
+    /// You should wait until State != State::InsideHeader to consider this field.
+    pub crinex: CRINEX,
 }
 
 impl<const M: usize, R: Read> Read for Decompressor<M, R> {
@@ -149,7 +152,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             reader,
             nb_sv: 0,
             sv_ptr: 0,
-            avail_size: 0,
+            ptr: 0,
             buf: [0; 1024],
             first_epoch: true,
             first_clock_diff: true,
@@ -184,27 +187,28 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     }
 
     /// In the header section, we need to search for the CRINEX header
-    /// and we also have to serve the data "as is". So we act like a FIFO.
-    /// Current implemetation is performance limiting: read size is limited to 80.
-    ///  - CRINEX specs (revision) determines our decoding profile
-    ///  - END OF HEADER marker means File Body is about to start
-    //    and we need to turn on the decoding scheme
+    /// and we also have to serve the data "as is": we act like a FIFO.
+    /// Once End of Header is specified, this state will be over
+    /// and decompression scheme needs to deploy.
     fn read_header(&mut self, buf: &mut [u8]) -> Result<usize> {
         let mut read_size = buf.len();
         let mut next_state = self.state;
+        let avail_size = self.buf.len() - self.ptr;
 
-        // we have some left overs ready to be exposed
-        if self.avail_size > 0 {
-            if self.avail_size >= read_size {
-                // We have more than needed: expose only what is needed (no need to proceed)
-                buf[0..read_size].copy_from_slice(&self.buf[0..self.avail_size]);
-                self.avail_size -= read_size; // update
+        if avail_size > 0 {
+            // we have some leftovers ready to be exposed
+            if avail_size >= read_size {
+                // We have more than needed: expose and exit: no Read
+                buf[0..read_size].copy_from_slice(&self.buf[self.ptr..read_size]);
+                self.ptr += read_size;
                 return Ok(read_size);
+
             } else {
-                // Expose what we have then grab new content
-                buf[0..self.avail_size].copy_from_slice(&self.buf[0..self.avail_size]);
-                self.avail_size = 0; // reset
-                read_size -= self.avail_size; // update
+                // We don't have enough:
+                //  1. Expose what we have
+                //  2. new Read
+                buf[0..avail_size].copy_from_slice(&self.buf[self.ptr..]);
+                self.ptr = 0;
             }
         }
 
@@ -216,6 +220,20 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         }
 
         let buf_len = self.buf.len();
+
+        // study new (complete) lines, one at a time
+        let total_lines = buf_len / 80;
+        let mut ptr = 0;
+        for i in 0..total_lines {
+            match String::from_utf8(self.buf[ptr..total_lines * 80]) {
+                Ok(ascii) => {
+                },
+                Err(e) => {
+                    return Err(Error::HeaderBadUtf8Data);
+                },
+            }
+        }
+        
 
         // // Study every single new line: search for required content
         // let mut last_start = 0;
