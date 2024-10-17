@@ -27,8 +27,8 @@ mod test {
             .join("OBS")
             .join("V3")
             .join("LARM0630.22O");
-        let mut r1 = Rinex::from_file(&path1.to_string_lossy()).unwrap();
-        let r2 = Rinex::from_file(&path2.to_string_lossy()).unwrap();
+        let mut r1 = Rinex::from_file::<5>(&path1.to_string_lossy()).unwrap();
+        let r2 = Rinex::from_file::<5>(&path2.to_string_lossy()).unwrap();
         assert!(r1.merge_mut(&r2).is_err())
     }
     #[test]
@@ -42,7 +42,7 @@ mod test {
             .join("NAV")
             .join("V3")
             .join("AMEL00NLD_R_20210010000_01D_MN.rnx");
-        let rnx_a = Rinex::from_file(&path1.to_string_lossy());
+        let rnx_a = Rinex::from_file::<5>(&path1.to_string_lossy());
         assert!(
             rnx_a.is_ok(),
             "failed to parse NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx"
@@ -52,7 +52,7 @@ mod test {
             .join("NAV")
             .join("V3")
             .join("CBW100NLD_R_20210010000_01D_MN.rnx");
-        let rnx_b = Rinex::from_file(&path2.to_string_lossy());
+        let rnx_b = Rinex::from_file::<5>(&path2.to_string_lossy());
         assert!(
             rnx_b.is_ok(),
             "failed to parse NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx"
@@ -78,7 +78,7 @@ mod test {
         // );
 
         // parse back
-        let rnx = Rinex::from_file("merge.txt");
+        let rnx = Rinex::from_file::<5>("merge.txt");
         assert!(rnx.is_ok(), "Failed to parsed back previously merged file");
 
         let rnx = rnx.unwrap();
@@ -109,14 +109,14 @@ mod test {
             .join("OBS")
             .join("V2")
             .join("AJAC3550.21O");
-        let rnx_a = Rinex::from_file(&path1.to_string_lossy());
+        let rnx_a = Rinex::from_file::<5>(&path1.to_string_lossy());
         assert!(rnx_a.is_ok(), "failed to parse OBS/V2/AJAC3550.21O");
         let path2 = test_resources
             .clone()
             .join("OBS")
             .join("V2")
             .join("npaz3550.21o");
-        let rnx_b = Rinex::from_file(&path2.to_string_lossy());
+        let rnx_b = Rinex::from_file::<5>(&path2.to_string_lossy());
         assert!(rnx_b.is_ok(), "failed to parse OBS/V2/npaz3550.21o");
 
         let rnx_a = rnx_a.unwrap();
@@ -155,7 +155,7 @@ mod test {
         );
 
         // parse back
-        let rnx = Rinex::from_file("merge.txt");
+        let rnx = Rinex::from_file::<5>("merge.txt");
         assert!(rnx.is_ok(), "Failed to parsed back previously merged file");
 
         let rnx = rnx.unwrap();
@@ -179,12 +179,12 @@ mod test {
     fn merge_atx() {
         let fp = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/ATX/V1/TROSAR25.R4__LEIT_2020_09_23.atx";
-        let rinex_a = Rinex::from_file(&fp);
+        let rinex_a = Rinex::from_file::<5>(&fp);
         let rinex_a = rinex_a.unwrap();
 
         let fp =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/ATX/V1/igs14_small.atx.gz";
-        let rinex_b = Rinex::from_file(&fp);
+        let rinex_b = Rinex::from_file::<5>(&fp);
         let rinex_b = rinex_b.unwrap();
 
         let merged = rinex_a.merge(&rinex_b);

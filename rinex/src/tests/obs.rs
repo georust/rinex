@@ -21,7 +21,7 @@ mod test {
             .join("V2")
             .join("aopr0010.17o");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(fullpath.as_ref());
+        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
@@ -149,7 +149,7 @@ mod test {
             .join("V2")
             .join("npaz3550.21o");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(fullpath.as_ref());
+        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
@@ -293,7 +293,7 @@ mod test {
             .join("V2")
             .join("rovn0010.21o");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(fullpath.as_ref());
+        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
@@ -502,7 +502,7 @@ mod test {
             .join("V3")
             .join("DUTH0630.22O");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(fullpath.as_ref());
+        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
@@ -623,7 +623,7 @@ mod test {
     fn v4_kms300dnk_r_2022_v3crx() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx";
-        let rinex = Rinex::from_file(&test_resource);
+        let rinex = Rinex::from_file::<5>(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         //////////////////////////
@@ -713,7 +713,7 @@ mod test {
             .join("V2")
             .join("KOSG0010.95O");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(fullpath.as_ref()).unwrap();
+        let rnx = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
         // for (e, sv) in rnx.sv_epoch() {
         //     println!("{:?} @ {}", sv, e);
         // }
@@ -745,7 +745,7 @@ mod test {
             .join("V2")
             .join("AJAC3550.21O");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(fullpath.as_ref()).unwrap();
+        let rnx = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
         let epochs: Vec<Epoch> = vec![
             Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
             Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
@@ -996,7 +996,7 @@ mod test {
             .join("V3")
             .join("NOA10630.22O");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(fullpath.as_ref()).unwrap();
+        let rnx = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
 
         test_observation_rinex(
             &rnx,
@@ -1070,9 +1070,10 @@ mod test {
     #[cfg(feature = "processing")]
     #[test]
     fn v3_esbc00dnk_r_2020() {
-        let rnx =
-            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-                .unwrap();
+        let rnx = Rinex::from_file::<5>(
+            "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+        )
+        .unwrap();
 
         test_observation_rinex(
             &rnx,
@@ -1231,9 +1232,10 @@ mod test {
     #[cfg(feature = "flate2")]
     #[test]
     fn v3_mojn00dnk_r_2020() {
-        let rnx =
-            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
-                .unwrap();
+        let rnx = Rinex::from_file::<5>(
+            "../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
+        )
+        .unwrap();
         test_observation_rinex(
             &rnx,
             "3.5",

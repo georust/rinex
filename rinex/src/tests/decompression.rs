@@ -24,7 +24,7 @@ mod test {
             let (crnx_name, rnx_name) = duplet;
             // parse CRINEX
             let path = format!("../test_resources/CRNX/V1/{}", crnx_name);
-            let crnx = Rinex::from_file(&path);
+            let crnx = Rinex::from_file::<5>(&path);
 
             assert!(crnx.is_ok());
             let mut rnx = crnx.unwrap();
@@ -162,7 +162,7 @@ mod test {
 
             // parse plain RINEX and run reciprocity
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
-            let _model = Rinex::from_file(&path).unwrap();
+            let _model = Rinex::from_file::<5>(&path).unwrap();
 
             // run testbench
             // test_against_model(&rnx, &model, &path, 1.0E-6);
@@ -191,7 +191,7 @@ mod test {
             let (crnx_name, rnx_name) = duplet;
             // parse CRINEX
             let path = format!("../test_resources/CRNX/V3/{}", crnx_name);
-            let crnx = Rinex::from_file(&path);
+            let crnx = Rinex::from_file::<5>(&path);
 
             assert!(crnx.is_ok());
             let mut rnx = crnx.unwrap();
@@ -218,7 +218,7 @@ mod test {
 
             // parse Model for testbench
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);
-            let _model = Rinex::from_file(&path).unwrap();
+            let _model = Rinex::from_file::<5>(&path).unwrap();
 
             // run testbench
             // test_against_model(&rnx, &model, &path, 1.0E-6);
@@ -269,7 +269,7 @@ mod test {
             .join("V1")
             .join("zegv0010.21d");
         let fullpath = path.to_string_lossy();
-        let rnx = Rinex::from_file(fullpath.as_ref());
+        let rnx = Rinex::from_file::<5>(fullpath.as_ref());
 
         assert!(rnx.is_ok(), "failed to parse CRNX/V1/zegv0010.21d");
         let rnx = rnx.unwrap();
@@ -446,7 +446,7 @@ mod test {
             .join("V3")
             .join("ACOR00ESP_R_20213550000_01D_30S_MO.crx");
         let fullpath = path.to_string_lossy();
-        let crnx = Rinex::from_file(fullpath.as_ref());
+        let crnx = Rinex::from_file::<5>(fullpath.as_ref());
         assert!(crnx.is_ok());
         let rnx = crnx.unwrap();
 
@@ -646,8 +646,9 @@ mod test {
     #[test]
     #[cfg(feature = "flate2")]
     fn v3_mojn00dnk_sig_strength_regression() {
-        let crnx =
-            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
+        let crnx = Rinex::from_file::<5>(
+            "../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
+        );
         assert!(crnx.is_ok());
         let rnx = crnx.unwrap();
         /*
@@ -735,8 +736,9 @@ mod test {
     #[test]
     #[cfg(feature = "flate2")]
     fn v3_mojn00dnk() {
-        let crnx =
-            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
+        let crnx = Rinex::from_file::<5>(
+            "../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
+        );
         assert!(crnx.is_ok());
         let rnx = crnx.unwrap();
 
@@ -795,8 +797,9 @@ mod test {
     #[test]
     #[cfg(feature = "flate2")]
     fn v3_esbc00dnk() {
-        let crnx =
-            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz");
+        let crnx = Rinex::from_file::<5>(
+            "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+        );
         assert!(crnx.is_ok());
         let rnx = crnx.unwrap();
 

@@ -21,7 +21,7 @@ fn short_filename_conventions() {
             .join("test_resources")
             .join(testfile);
 
-        let rinex = Rinex::from_file(fp.to_string_lossy().as_ref()).unwrap();
+        let rinex = Rinex::from_file::<5>(fp.to_string_lossy().as_ref()).unwrap();
 
         // these are all standard names: we only support uppercase formatting
         let filename = fp
@@ -62,7 +62,7 @@ fn long_filename_conventions() {
             .join("test_resources")
             .join(testfile);
 
-        let rinex = Rinex::from_path(&fp).unwrap();
+        let rinex = Rinex::from_path::<5>(&fp).unwrap();
         let output = rinex.standard_filename(false, custom_suffix, None);
         assert_eq!(output, expected, "bad filename generated");
     }

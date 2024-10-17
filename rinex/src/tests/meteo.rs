@@ -9,7 +9,7 @@ mod test {
     fn v2_abvi0010_15m() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
-        let rinex = Rinex::from_file(&test_resource);
+        let rinex = Rinex::from_file::<5>(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         test_meteo_rinex(
@@ -224,7 +224,7 @@ mod test {
     fn v4_example1() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V4/example1.txt";
-        let rinex = Rinex::from_file(&test_resource);
+        let rinex = Rinex::from_file::<5>(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         test_meteo_rinex(

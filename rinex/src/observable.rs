@@ -401,8 +401,7 @@ mod test {
         assert_eq!(Observable::from_str("ws").unwrap(), Observable::WindSpeed);
         assert_eq!(Observable::from_str("WS").unwrap().to_string(), "WS");
 
-        let obs = Observable::from_str("Err");
-
+        assert!(Observable::from_str("Err").is_err());
         assert!(Observable::from_str("TODO").is_err());
 
         assert_eq!(

@@ -62,8 +62,6 @@ impl CRINEX {
     }
     /// Parse and append prog+date fields
     pub(crate) fn with_prog_date(&self, prog_date: &str) -> Result<Self, ParsingError> {
-        let mut s = self.clone();
-
         if prog_date.len() < 60 {
             return Err(ParsingError::HeaderLineTooShort);
         }
@@ -131,8 +129,8 @@ impl CRINEX {
         }
 
         let epoch = Epoch::from_gregorian_utc(year, month, day, hour, mins, 0, 0);
-        s.with_prog(prog.trim());
-        s.with_date(epoch);
+        let s = self.with_prog(prog.trim());
+        let s = s.with_date(epoch);
         Ok(s)
     }
 }
@@ -196,7 +194,7 @@ impl std::str::FromStr for CRINEX {
 #[cfg(test)]
 mod test {
     use super::CRINEX;
-    use crate::prelude::{Epoch, ParsingError, Version};
+    use crate::prelude::{Epoch, Version};
     use std::str::FromStr;
 
     #[test]

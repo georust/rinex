@@ -5,10 +5,10 @@ mod test {
     use std::path::Path;
     fn testbench(path: &str) {
         println!("running on \"{}\"", path);
-        let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere
+        let rnx = Rinex::from_file::<5>(path).unwrap(); // already tested elsewhere
         let tmp_path = format!("test-{}.rnx", random_name(5));
         // assert!(rnx.to_file(&tmp_path).is_ok()); // test writer
-        let copy = Rinex::from_file(&tmp_path);
+        let copy = Rinex::from_file::<5>(&tmp_path);
         assert!(copy.is_ok()); // content should be valid
         let copy = copy.unwrap();
         // run comparison

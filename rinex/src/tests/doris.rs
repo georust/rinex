@@ -16,7 +16,7 @@ mod test {
             .join("V3")
             .join("cs2rx18164.gz");
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file(fullpath.as_ref()).unwrap(); // verified elsewhere
+        let rinex = Rinex::from_file::<5>(fullpath.as_ref()).unwrap(); // verified elsewhere
 
         doris_check_observables(
             &rinex,

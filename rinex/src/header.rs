@@ -1,8 +1,7 @@
 //! Describes a `RINEX` file header.
 use crate::{
-    antex, clock,
-    clock::ClockProfileType,
-    clock::WorkClock,
+    antex::{HeaderFields as AntexHeader, Pcv},
+    clock::{ClockProfileType, HeaderFields as ClockHeader, WorkClock},
     doris::{HeaderFields as DorisHeader, Station as DorisStation},
     epoch::parse_ionex_utc as parse_ionex_utc_epoch,
     fmt_comment, fmt_rinex,
@@ -20,8 +19,7 @@ use crate::{
         merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
         merge_time_of_first_obs, merge_time_of_last_obs, Error as MergeError, Merge,
     },
-    meteo,
-    meteo::HeaderFields as MeteoHeader,
+    meteo::{sensor::Sensor as MeteoSensor, HeaderFields as MeteoHeader},
     navigation::{IonMessage, KbModel},
     observable::Observable,
     observation,
@@ -32,7 +30,11 @@ use crate::{
     version::Version,
 };
 
-use std::{collections::HashMap, io::BufRead, str::FromStr};
+use std::{
+    collections::HashMap,
+    io::{BufRead, Read},
+    str::FromStr,
+};
 
 use hifitime::Unit;
 
@@ -141,10 +143,10 @@ pub struct Header {
     pub meteo: Option<MeteoHeader>,
     /// High Precision Clock RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub clock: Option<clock::HeaderFields>,
+    pub clock: Option<ClockHeader>,
     /// ANTEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub antex: Option<antex::HeaderFields>,
+    pub antex: Option<AntexHeader>,
     /// IONEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub ionex: Option<IonexHeaderFields>,
@@ -154,8 +156,10 @@ pub struct Header {
 }
 
 impl Header {
-    /// Builds a `Header` from stream reader
-    pub fn new<BR: BufRead>(reader: &mut BufferedReader<BR>) -> Result<Header, ParsingError> {
+    /// Builds [Header] from [Read]able interface
+    pub fn new<const M: usize, R: Read>(
+        reader: &mut BufferedReader<M, R>,
+    ) -> Result<Header, ParsingError> {
         let mut rinex_type = Type::default();
         let mut constellation: Option<Constellation> = None;
         let mut version = Version::default();
@@ -185,14 +189,12 @@ impl Header {
         let mut current_constell: Option<Constellation> = None;
         let mut observation = ObservationHeader::default();
         let mut meteo = MeteoHeader::default();
-        let mut clock = clock::HeaderFields::default();
-        let mut antex = antex::HeaderFields::default();
+        let mut clock = ClockHeader::default();
+        let mut antex = AntexHeader::default();
         let mut ionex = IonexHeaderFields::default();
         let mut doris = DorisHeader::default();
 
-        // iterate on a line basis
-        let lines = reader.lines();
-        for l in lines {
+        for l in reader.lines() {
             let line = l.unwrap();
             if line.len() < 60 {
                 continue; // --> invalid header content
@@ -249,7 +251,7 @@ impl Header {
                 let (pcv_str, rem) = content.split_at(20);
                 let (rel_type, rem) = rem.split_at(20);
                 let (ref_sn, _) = rem.split_at(20);
-                if let Ok(mut pcv) = antex::Pcv::from_str(pcv_str.trim()) {
+                if let Ok(mut pcv) = Pcv::from_str(pcv_str.trim()) {
                     if pcv.is_relative() {
                         // try to parse "Relative Type"
                         if !rel_type.trim().is_empty() {
@@ -507,7 +509,7 @@ impl Header {
                     }
                 }
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
-                if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
+                if let Ok(sensor) = MeteoSensor::from_str(content) {
                     meteo.sensors.push(sensor)
                 }
             } else if marker.contains("SENSOR POS XYZ/H") {

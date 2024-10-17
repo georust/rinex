@@ -7,15 +7,14 @@ use super::{
     error::{FormattingError, ParsingError},
     header,
     header::Header,
-    ionex, is_rinex_comment, merge,
-    merge::Merge,
+    ionex, is_rinex_comment,
+    merge::{Error as MergeError, Merge},
     meteo, navigation,
     navigation::record::parse_epoch as parse_nav_epoch,
     observation,
     prelude::Duration,
     reader::BufferedReader,
-    split,
-    split::Split,
+    split::{Error as SplitError, Split},
     types::Type,
     writer::BufferedWriter,
     *,
@@ -23,7 +22,7 @@ use super::{
 
 use std::{
     collections::BTreeMap,
-    io::{BufRead, Write},
+    io::{BufRead, Read, Write},
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -272,10 +271,9 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
     }
 }
 
-/// Builds a `Record`, `RINEX` file body content,
-/// which is constellation and `RINEX` file type dependent
-pub fn parse_record<BR: BufRead>(
-    reader: &mut BufferedReader<BR>,
+/// Builds [Record] from [Read]able interface.
+pub fn parse_record<const M: usize, R: Read>(
+    reader: &mut BufferedReader<M, R>,
     header: &mut Header,
 ) -> Result<(Record, Comments), ParsingError> {
     let mut first_epoch = true;
@@ -571,13 +569,13 @@ pub fn parse_record<BR: BufRead>(
 
 impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if let Some(lhs) = self.as_mut_nav() {
             if let Some(rhs) = rhs.as_nav() {
                 lhs.merge_mut(rhs)?;
@@ -608,7 +606,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
         if let Some(r) = self.as_obs() {
             let (r0, r1) = r.split(epoch)?;
             Ok((Self::ObsRecord(r0), Self::ObsRecord(r1)))
@@ -628,7 +626,7 @@ impl Split for Record {
             Err(split::Error::NoEpochIteration)
         }
     }
-    fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, SplitError> {
         Ok(Vec::new())
     }
 }

@@ -8,7 +8,7 @@ fn test_decompressor() {
     let mut total = 0;
     let mut buf = [0_u8; 80];
 
-    let mut reader = File::open("../test_resources/CRNX/V1/AJAC3550.21D").unwrap();
+    let reader = File::open("../test_resources/CRNX/V1/AJAC3550.21D").unwrap();
 
     let mut decomp = Decompressor::<3, File>::new(reader);
 
