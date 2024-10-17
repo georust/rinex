@@ -5,10 +5,10 @@ mod antex;
 mod compression;
 mod decompression;
 mod filename;
+mod hatanaka;
 mod merge;
 mod parsing;
 mod production;
-mod hatanaka;
 
 #[cfg(feature = "clock")]
 mod clock;

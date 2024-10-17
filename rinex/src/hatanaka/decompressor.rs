@@ -1,7 +1,7 @@
 //! RINEX decompression module
 use crate::{
-    hatanaka::{NumDiff, ObsDiff, TextDiff, CRINEX},
-    prelude::SV,
+    hatanaka::{Error, NumDiff, ObsDiff, TextDiff, CRINEX},
+    prelude::{Version, SV},
 };
 
 use std::{
@@ -10,17 +10,13 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub enum State {
     /// Inside File Header
     #[default]
     Header,
     /// Inside an [Epoch] descriptor
     EpochDescriptor,
-    /// Inside Clock bias description
-    ClockOffsetDescriptor,
-    /// Inside Observation content
-    Observation,
 }
 
 /// Structure to decompress CRINEX data
@@ -37,7 +33,7 @@ pub struct Decompressor<const M: usize, R: Read> {
     /// is used to cover the possibility of frame recovered by 2 successive read
     partial_line: [u8; 128],
     /// Read pointer
-    ptr: 0,
+    ptr: usize,
     /// counters
     nb_sv: usize, // total
     sv_ptr: usize, // inside epoch
@@ -154,6 +150,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             sv_ptr: 0,
             ptr: 0,
             buf: [0; 1024],
+            partial_line: [0; 128],
             first_epoch: true,
             first_clock_diff: true,
             state: State::default(),
@@ -173,12 +170,16 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     fn process_buffered_comments(&mut self, buf: &mut [u8]) -> usize {
         let mut offset = 0;
         let buf_len = self.buf.len();
-        for chunk in 0..self.avail_size / 80 {
+        for chunk in 0..buf_len / 80 {
             // For all encountered COMMENTS simply extract as is
             let start = chunk * 80;
             let stop = ((chunk + 1) * 80).min(buf_len);
             let size = stop - start;
-            if self.buf_ascii[start..stop].contains("COMMENTS") {
+            // Using .ends_with is a nice way to
+            //    - Only grab valid descriptor
+            //    - Only grab complete lines
+            //    Partial comments are to be treated next time
+            if self.buf_ascii[start..stop].ends_with("COMMENTS") {
                 buf[start..stop].copy_from_slice(&self.buf[start..stop]);
                 offset += size;
             }
@@ -193,72 +194,68 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     fn read_header(&mut self, buf: &mut [u8]) -> Result<usize> {
         let mut read_size = buf.len();
         let mut next_state = self.state;
-        let avail_size = self.buf.len() - self.ptr;
 
-        if avail_size > 0 {
+        if self.ptr > 0 {
             // we have some leftovers ready to be exposed
-            if avail_size >= read_size {
+            if self.ptr >= read_size {
                 // We have more than needed: expose and exit: no Read
-                buf[0..read_size].copy_from_slice(&self.buf[self.ptr..read_size]);
+                buf[..read_size].copy_from_slice(&self.buf[self.ptr..read_size]);
                 self.ptr += read_size;
                 return Ok(read_size);
-
             } else {
                 // We don't have enough:
                 //  1. Expose what we have
                 //  2. new Read
-                buf[0..avail_size].copy_from_slice(&self.buf[self.ptr..]);
+                buf[..self.ptr].copy_from_slice(&self.buf[self.ptr..]);
                 self.ptr = 0;
             }
         }
 
         // Fill internal buffer
-        let size = self.reader.read(&mut self.buf)?;
-        if size == 0 {
-            // Failed to grab new content: notify and exit
+        let new_size = self.reader.read(&mut self.buf)?;
+        if new_size == 0 {
+            // End of stream: notify and exit
             return Ok(0);
         }
 
-        let buf_len = self.buf.len();
-
         // study new (complete) lines, one at a time
-        let total_lines = buf_len / 80;
+        // all correctly studied content (= complete + valid line)
+        // gets forwared to user
         let mut ptr = 0;
-        for i in 0..total_lines {
-            match String::from_utf8(self.buf[ptr..total_lines * 80]) {
-                Ok(ascii) => {
-                },
-                Err(e) => {
-                    return Err(Error::HeaderBadUtf8Data);
-                },
+        while ptr < new_size && next_state == State::Header {
+            let (start, stop) = (ptr, (ptr + 80).min(new_size));
+            let ascii = String::from_utf8_lossy(&self.buf[start..stop]);
+            println!("ASCII \"{}\"", ascii);
+
+            if stop > read_size {
+                // can't forward this
+                break;
             }
+            if ascii.len() < 80 {
+                // not a complete line: not treated
+                continue;
+            }
+
+            // forward as is (=header)
+            buf[start..stop].copy_from_slice(&self.buf[start..stop]);
+
+            if ascii.contains("CRINEX VERS") {
+                let version = Version::from_str(&ascii[0..20].trim())
+                    .map_err(|_| Error::VersionParsing.to_stdio())?;
+
+                self.crinex.with_version(version);
+            } else if ascii.ends_with("CRINEX PROG / DATE") {
+                self.crinex.with_prog_date(&ascii[0..60].trim());
+            } else if ascii.contains("END OF HEADER") {
+                next_state = State::EpochDescriptor;
+            }
+
+            ptr += ascii.len() + 1;
         }
-        
 
-        // // Study every single new line: search for required content
-        // let mut last_start = 0;
-        // for i in 0..buf_len {
-        //     if buf[i] == b'\n' {
-        //         // found line termination
-        //         if i - last_start >= 80 {
-        //             // consistent with valid RINEX HEADER
-        //             // Interprate this range as ASCII then proceed
-        //             self.buf_ascii = String::from_utf8(&buf[last_start..i])?;
-        //             if self.buf_ascii.ends_with("END OF HEADER") {
-        //                 next_state = State::EpochDescriptor;
-        //             } else if self.buf_ascii.ends_with("CRINEX VERSION / TYPE") {
-        //                 // store first header line
-        //             } else if self.buf_ascii.ends_with("CRINEX PROGRAM / DATE") {
-        //                 // second line => parse total CRINEX specs
-        //                 let crinex = CRINEX::from_str(&self.buf_ascii)?;
-        //             }
-        //         }
-        //     }
-        // }
-
-        // // expose new data
-        // let size_to_copy = size - read_size;
-        // buf[avail_size..read_size].copy_from_slice(&self.buf[0..size_to_copy]);
+        // // forward all that we can
+        // let read_size = ptr.min(read_size);
+        // buf[..read_size].copy_from_slice(&self.buf[..read_size]);
 
         // determine next state
         match (self.state, next_state) {
@@ -266,8 +263,9 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             _ => {}, // stable or invalid combinations
         }
 
+        println!("NEXT STATE: {:?}", next_state);
         self.state = next_state;
-        Ok(read_size)
+        Ok(ptr)
     }
 
     // fn parse_nb_sv(content: &str, crx_major: u8) -> Option<usize> {

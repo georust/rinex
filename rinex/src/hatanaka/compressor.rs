@@ -85,14 +85,14 @@ impl Compressor {
     /// by analyzing epoch descriptor
     fn determine_nb_vehicles(&self, content: &str) -> Result<usize, Error> {
         if content.len() < 33 {
-            Err(Error::MalformedEpochDescriptor)
+            Err(Error::EpochFormat)
         } else {
             let nb = &content[30..32];
             if let Ok(u) = nb.trim().parse::<u16>() {
                 //println!("Identified {} vehicles", u); //DEBUG
                 Ok(u.into())
             } else {
-                Err(Error::MalformedEpochDescriptor)
+                Err(Error::EpochFormat)
             }
         }
     }
@@ -111,11 +111,13 @@ impl Compressor {
                 //   it is possible that constellation ID is omitted..
                 vehicle.insert_str(0, &format!("{:x}", constellation));
             }
-            let sv = SV::from_str(vehicle)?;
+
+            let sv = SV::from_str(vehicle).map_err(|_| Error::SVParsing)?;
+
             //println!("VEHICULE: {}", sv); //DEBUG
             Ok(sv)
         } else {
-            Err(Error::VehicleIdentificationError)
+            Err(Error::SVFormat)
         }
     }
 
