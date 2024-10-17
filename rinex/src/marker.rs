@@ -1,5 +1,5 @@
 //! Geodetic marker description
-use strum_macros::EnumString;
+use crate::prelude::ParsingError;
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -18,52 +18,60 @@ pub struct GeodeticMarker {
     monument: Option<u16>,
 }
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, EnumString)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision
-    #[strum(serialize = "GEODETIC", serialize = "Geodetic")]
     #[default]
     Geodetic,
     /// Earth fixed & low precision
-    #[strum(serialize = "NON GEODETIC", serialize = "NonGeodetic")]
     NonGeodetic,
     /// Generated from network
-    #[strum(serialize = "NON PHYSICAL", serialize = "NonPhysical")]
     NonPhysical,
     /// Orbiting space vehicle
-    #[strum(serialize = "SPACE BORNE", serialize = "Spaceborne")]
     Spaceborne,
     /// Aircraft, balloon..
-    #[strum(serialize = "AIR BORNE", serialize = "Airborne")]
     Airborne,
     /// Mobile water craft
-    #[strum(serialize = "WATER CRAFT", serialize = "Watercraft")]
     Watercraft,
     /// Mobile terrestrial vehicle
-    #[strum(serialize = "GROUND CRAFT", serialize = "Groundcraft")]
     Groundcraft,
     /// Fixed on water surface
-    #[strum(serialize = "FIXED BUOY", serialize = "FixedBuoy")]
     FixedBuoy,
     /// Floating on water surface
-    #[strum(serialize = "FLOATING BUOY", serialize = "FloatingBuoy")]
     FloatingBuoy,
     /// Floating on ice
-    #[strum(serialize = "FLOATING ICE", serialize = "FloatingIce")]
     FloatingIce,
     /// Fixed on glacier
-    #[strum(serialize = "GLACIER", serialize = "Glacier")]
     Glacier,
     /// Rockets, shells, etc..
-    #[strum(serialize = "BALLISTIC", serialize = "Ballistic")]
     Ballistic,
     /// Animal carrying a receiver
-    #[strum(serialize = "ANIMAL", serialize = "Animal")]
     Animal,
     /// Human being carrying a receiver
-    #[strum(serialize = "HUMAN", serialize = "Human")]
     Human,
+}
+
+impl std::str::FromStr for MarkerType {
+    type Err = ParsingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "geodetic" => Ok(Self::Geodetic),
+            "non geodetic" => Ok(Self::NonGeodetic),
+            "ground craft" => Ok(Self::Groundcraft),
+            "water craft" => Ok(Self::Watercraft),
+            "airborne" => Ok(Self::Airborne),
+            "non physical" => Ok(Self::NonPhysical),
+            "spaceborne" => Ok(Self::Spaceborne),
+            "floating ice" => Ok(Self::FloatingIce),
+            "floating buoy" => Ok(Self::FloatingBuoy),
+            "glacier" => Ok(Self::Glacier),
+            "ballistic" => Ok(Self::Ballistic),
+            "animal" => Ok(Self::Animal), 
+            "human" => Ok(Self::Human),
+            _ => Err(ParsingError::MarkerType),
+        }
+    }
 }
 
 impl GeodeticMarker {

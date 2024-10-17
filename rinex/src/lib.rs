@@ -43,8 +43,6 @@ mod tests;
 #[macro_use]
 pub(crate) mod macros;
 
-extern crate num;
-
 #[macro_use]
 extern crate num_derive;
 

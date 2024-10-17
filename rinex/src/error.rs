@@ -20,6 +20,8 @@ pub enum ParsingError {
     EpochFlag,
     #[error("number of sat")]
     NumSat,
+    #[error("marker type")]
+    MarkerType,
     #[error("nav: clock parsing")]
     ClockParsing,
     #[error("invalid epoch format")]
@@ -136,6 +138,12 @@ pub enum ParsingError {
     BdgimData,
     #[error("nav:sto data")]
     SystemTimeData,
+    #[error("ionex: earth obs sat")]
+    IonexEarthObservationSat,
+    #[error("ionex: model")]
+    IonexModel,
+    #[error("antex: calibration method")]
+    AntexCalibrationMethod,
 }
 
 /// Errors that may rise in Formatting process

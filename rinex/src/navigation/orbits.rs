@@ -2,6 +2,7 @@
 use super::health;
 use bitflags::bitflags;
 use std::str::FromStr;
+use num::FromPrimitive;
 
 use crate::prelude::ParsingError;
 
@@ -111,12 +112,12 @@ impl OrbitItem {
                 let unsigned = float as u32;
                 match constellation {
                     Constellation::GPS | Constellation::QZSS => {
-                        let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
+                        let flag: health::Health = FromPrimitive::from_u32(unsigned)
                             .unwrap_or(health::Health::default());
                         Ok(OrbitItem::Health(flag))
                     },
                     Constellation::Glonass => {
-                        let flag: health::GloHealth = num::FromPrimitive::from_u32(unsigned)
+                        let flag: health::GloHealth = FromPrimitive::from_u32(unsigned)
                             .unwrap_or(health::GloHealth::default());
                         Ok(OrbitItem::GloHealth(flag))
                     },
