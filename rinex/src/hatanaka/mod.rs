@@ -25,11 +25,10 @@ use std::io::{Error as IoError, ErrorKind};
 /// Hatanaka dedicated Errors
 #[derive(Debug)]
 pub enum Error {
-    /// Header lines should only contain valid UTF-8 data
-    // #[error("header contains invalid UTF8")]
-    HeaderUtf8Data,
-    /// File body should only contain valid UTF8 data
-    BodyUtf8Data,
+    /// Invalid UTF-8 content
+    BadUtf8Data,
+    /// Buffer too small to accept incoming data
+    BufferOverflow,
     /// Failed to read CRINEX PROG/DATE
     CrinexParsing,
     /// Forwarded Epoch description does not look good: Invalid RINEX!
@@ -71,8 +70,8 @@ impl Error {
     /// Converts [Error] to custom [IoError]
     fn to_stdio(&self) -> IoError {
         let descriptor = match self {
-            Self::HeaderUtf8Data => "bad utf-8 in header",
-            Self::BodyUtf8Data => "bad utf-8 in body",
+            Self::BadUtf8Data => "bad utf-8 data",
+            Self::BufferOverflow => "read buf overflow",
             Self::EpochFormat => "invalid epoch description",
             Self::RecoveredEpochFormat => "invalid recovered epoch",
             Self::SVFormat => "invalid sv formatting",
