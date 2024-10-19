@@ -245,4 +245,18 @@ mod test {
         assert_eq!(fmt_algebric_month!(11), "Nov");
         assert_eq!(fmt_algebric_month!(12), "Dec");
     }
+
+    #[test]
+    fn test_with_prog_date() {
+        let crinex = CRINEX::default();
+        let crinex = crinex
+            .with_prog_date(
+                "RNX2CRX ver.4.0.7                       28-Dec-21 00:17     CRINEX PROG / DATE",
+            )
+            .unwrap();
+
+        let crinex = crinex
+            .with_prog_date("RNX2CRX ver.4.0.7                       28-Dec-21 00:17     ")
+            .unwrap();
+    }
 }

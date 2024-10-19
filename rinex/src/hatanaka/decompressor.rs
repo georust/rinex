@@ -477,20 +477,20 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 let version = Version::from_str(&ascii[0..20].trim())
                     .map_err(|_| Error::VersionParsing.to_stdio())?;
 
-                self.crinex.with_version(version);
+                self.crinex = self.crinex.with_version(version);
                 self.crinex_found = true;
                 skip = true;
             } else if ascii.ends_with("CRINEX VERSION / TYPE\n") {
                 let version = Version::from_str(&ascii[0..20].trim())
                     .map_err(|_| Error::VersionParsing.to_stdio())?;
 
-                self.crinex.with_version(version);
+                self.crinex = self.crinex.with_version(version);
                 self.crinex_found = true;
                 skip = true;
             } else if ascii.ends_with("CRINEX PROG / DATE\n") {
-                // self.crinex
-                //     .with_prog_date(&ascii[0..60].trim())
-                //     .map_err(|_| Error::CrinexParsing.to_stdio())?;
+                self.crinex
+                    .with_prog_date(&ascii.trim_end())
+                    .map_err(|_| Error::CrinexParsing.to_stdio())?;
 
                 skip = true;
             } else if ascii.ends_with("END OF HEADER\n") {

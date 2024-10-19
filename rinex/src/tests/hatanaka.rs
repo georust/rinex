@@ -31,47 +31,15 @@ fn test_decompressor_read() {
         "HEADER CHANGED BY EPN CB ON 2021-12-28                      COMMENT\n"
     );
 
-    //let size = decomp.read_to_string(&mut content)
-    //    .unwrap();
-
-    //let size = decomp.read_to_string(&mut content)
-    //    .unwrap();
-
-    // println!("content: \"{}\"", content);
-
-    // // decompress header
-    // while line < 35 {
-    //     match decomp.read(&mut buf) {
-    //         Ok(size) => {
-    //             if size < 80 {
-    //                 panic!("invalid read!");
-    //             }
-    //             let buf = String::from_utf8(buf.to_vec()).unwrap();
-
-    //             if line == 1 {
-    //                 assert_eq!(buf, "1.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE");
-    //             } else if line == 2 {
-    //                 assert_eq!(buf, "RNX2CRX ver.4.0.7                       28-Dec-21 00:17     CRINEX PROG / DATE");
-    //             } else if line == 3 {
-    //                 assert_eq!(buf, "     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
-    //             } else if line == 3 {
-    //                 assert_eq!(
-    //                     buf,
-    //                     "HEADER CHANGED BY EPN CB ON 2021-12-28                      COMMENT"
-    //                 );
-    //             } else if line == 35 {
-    //                 // test other lines
-    //                 assert_eq!(buf, "                                                            END OF HEADER");
-    //                 //assert_eq!(buf, "    30.0000                                                 INTERVAL");
-    //                 //assert_eq!(buf, "Automatic           IGN                                     OBSERVER / AGENCY");
-    //             } else if line > 35 {
-    //                 panic!("header limit exceeded");
-    //             }
-    //             line += 1;
-    //         },
-    //         Err(e) => panic!("i/o error: {}", e),
-    //     }
-    // }
+    loop {
+        match decomp.read(&mut buf) {
+            Ok(0) => break,
+            Ok(size) => {
+                let _ = String::from_utf8(buf[..size].to_vec()).unwrap();
+            },
+            Err(e) => {},
+        }
+    }
 }
 
 #[test]
@@ -94,6 +62,39 @@ fn test_decompressor_lines() {
                         "HEADER CHANGED BY EPN CB ON 2021-12-28                      COMMENT"
                     );
                 } else if nth == 3 {
+                    assert_eq!(
+                        line,
+                        "HEADER CHANGED BY EPN CB ON 2021-12-28                      COMMENT"
+                    );
+                } else if nth == 4 {
+                    assert_eq!(
+                        line,
+                        "TO BE CONFORM WITH THE INFORMATION IN                       COMMENT"
+                    );
+                } else if nth == 5 {
+                    assert_eq!(
+                        line,
+                        "ftp://epncb.oma.be/pub/station/log/ajac.log                 COMMENT"
+                    );
+                } else if nth == 6 {
+                    assert_eq!(
+                        line,
+                        "                                                            COMMENT"
+                    );
+                } else if nth == 7 {
+                    assert_eq!(line, "teqc  2019Feb25     IGN-RGP             20211222 00:07:07UTCPGM / RUN BY / DATE");
+                } else if nth == 8 {
+                    assert_eq!(
+                        line,
+                        "Linux 2.6.32-573.12.1.x86_64|x86_64|gcc|Linux 64|=+         COMMENT"
+                    );
+                } else if nth == 35 {
+                    assert_eq!(line,"  2021    12    21     0     0    0.0000000     GPS         TIME OF FIRST OBS");
+                } else if nth == 36 {
+                    assert_eq!(
+                        line,
+                        "                                                            END OF HEADER"
+                    );
                 }
                 nth += 1;
             },
