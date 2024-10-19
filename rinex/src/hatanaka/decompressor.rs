@@ -88,8 +88,9 @@ pub struct Decompressor<const M: usize, R: Read> {
     reader: R,
     /// Internal buffer
     buf: [u8; 1024],
-    /// Read pointer
+    /// Pointers
     ptr: usize,
+    wr_ptr: usize,
     /// counters
     numsat: usize, // total
     sv_ptr: usize, // inside epoch
@@ -111,8 +112,6 @@ pub struct Decompressor<const M: usize, R: Read> {
     obs_diff: HashMap<SV, ObsDiff<M>>,
     /// Whether the CRINEX header was found or not
     crinex_found: bool,
-    /// True when V3 parsing
-    crinx_v3: bool,
     /// CRINEX header that we did identify.
     /// You should wait until State != State::InsideHeader to consider this field.
     pub crinex: CRINEX,
@@ -122,13 +121,13 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         println!("state: {:?}", self.state); //TODO: debug!
 
-        // COMMENTS cannot go through the decompression algorithm
-        // and must always be forwarded as is.
-        // Current behavior is to pass COMMENT groupings entirely
-        let wr_size = self.process_buffered_comments(buf);
-        if wr_size > 0 {
-            return Ok(wr_size);
-        }
+        // // COMMENTS cannot go through the decompression algorithm
+        // // and must always be forwarded as is.
+        // // Current behavior is to pass COMMENT groupings entirely
+        // let wr_size = self.process_buffered_comments(buf);
+        // if wr_size > 0 {
+        //     return Ok(wr_size);
+        // }
 
         if self.state == State::Header {
             // special initial case is treated here
@@ -343,9 +342,9 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         Self {
             reader,
             ptr: 0,
+            wr_ptr: 0,
             numsat: 0,
             sv_ptr: 0,
-            crinx_v3: false,
             buf: [0; 1024],
             first_epoch: true,
             first_clock_diff: true,
@@ -367,99 +366,100 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         self.buf[offset..].iter().position(|b| *b == b'\n')
     }
 
-    /// When parsing (algorithm being active)
-    /// any COMMENTS encountered should be passed "as is".
-    /// There is no mean to apply the Hatanaka algorithm to COMMENTS located
-    /// in the file body.
-    /// Returns total size already forwarded
-    fn process_buffered_comments(&mut self, buf: &mut [u8]) -> usize {
-        let len = buf.len();
-        let mut wr_size = 0;
-        while let Some(eol) = self.next_eol(self.ptr) {
-            if let Ok(ascii) = from_utf8(&self.buf[self.ptr..eol]) {
-                // can we forward this (entirely ?)
-                if wr_size < len {
-                    let ascii = ascii.trim_end();
-                    if ascii.ends_with("COMMENTS") {
-                        // consitent with COMMENT:
-                        //  progress in buffer
-                        //  forward to user (as is)
-                        let ascii_len = ascii.len();
-                        buf[wr_size..ascii_len].copy_from_slice(&self.buf[self.ptr..ascii_len]);
-                        self.ptr += eol;
-                        wr_size += ascii_len;
-                    }
-                }
-            }
-        }
-        wr_size
-    }
+    // /// When parsing (algorithm being active)
+    // /// any COMMENTS encountered should be passed "as is".
+    // /// There is no mean to apply the Hatanaka algorithm to COMMENTS located
+    // /// in the file body.
+    // /// Returns total size already forwarded
+    // fn process_buffered_comments(&mut self, buf: &mut [u8]) -> usize {
+    //     let len = buf.len();
+    //     let mut wr_size = 0;
+    //     while let Some(eol) = self.next_eol(self.ptr) {
+    //         if let Ok(ascii) = from_utf8(&self.buf[self.ptr..eol]) {
+    //             // can we forward this (entirely ?)
+    //             if wr_size < len {
+    //                 let ascii = ascii.trim_end();
+    //                 if ascii.ends_with("COMMENTS") {
+    //                     // consitent with COMMENT:
+    //                     //  progress in buffer
+    //                     //  forward to user (as is)
+    //                     let ascii_len = ascii.len();
+    //                     buf[wr_size..ascii_len].copy_from_slice(&self.buf[self.ptr..ascii_len]);
+    //                     self.ptr += eol +1;
+    //                     wr_size += ascii_len;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     wr_size
+    // }
 
     /// In the header section, we need to search for the CRINEX header
     /// and we also have to serve the data "as is": we act like a FIFO.
     /// Once End of Header is specified, this state will be over
     /// and decompression scheme needs to deploy.
     fn read_header(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let mut read_size = buf.len();
+        let read_size = buf.len();
         let mut next_state = self.state;
 
-        if self.ptr > 0 {
-            // we have some leftovers ready to be exposed
-            if self.ptr >= read_size {
-                // We have more than needed: expose and exit: no Read
-                buf[..read_size].copy_from_slice(&self.buf[self.ptr..read_size]);
-                self.ptr += read_size;
-                return Ok(read_size);
-            } else {
-                // We don't have enough:
-                //  1. Expose what we have
-                //  2. new Read
-                buf[..self.ptr].copy_from_slice(&self.buf[self.ptr..]);
-                self.ptr = 0;
+        // if self.ptr > 0 {
+        //     // we have some leftovers ready to be exposed
+        //     if self.ptr >= read_size {
+        //         // We have more than needed: expose and exit: no Read
+        //         buf[..read_size].copy_from_slice(&self.buf[self.ptr..read_size]);
+        //         self.ptr += read_size;
+        //         return Ok(read_size);
+
+        //     } else {
+        //         // We don't have enough:
+        //         //  1. Expose what we have
+        //         //  2. new Read
+        //         buf[..self.ptr].copy_from_slice(&self.buf[self.ptr..]);
+        //         self.ptr = 0;
+        //     }
+        // }
+
+        // Fill internal buffer (when it's worth)
+        if self.wr_ptr < 1024 - 80 {
+            let size = self.reader.read(&mut self.buf[self.wr_ptr..])?;
+            if size == 0 {
+                // End of stream: notify and exit
+                return Ok(0);
             }
+            self.wr_ptr += size;
         }
 
-        // Fill internal buffer
-        let new_size = self.reader.read(&mut self.buf)?;
-        if new_size == 0 {
-            // End of stream: notify and exit
-            return Ok(0);
-        }
+        // Studies (complete) lines (only), one at a time
+        // All content that we have correctly studied gets exposed to end user.
+        // We do not forward incomplete lines, which facilitates the anlysis and overall process
 
-        // study new (complete) lines, one at a time
-        // all correctly studied content (= complete + valid line)
-        // gets forwared to user. We do not forward incomplete lines
-        // or what we have not analyzed.
-        let mut ptr = 0;
-        let mut wr_ptr = 0;
+        let mut rem = self.wr_ptr;
+        let mut total = 0;
+        let mut processed = 0;
 
-        while ptr < new_size && next_state == State::Header {
-            let (start, stop) = (ptr, self.next_eol(ptr));
-            if stop.is_none() {
-                break;
-            }
-            let stop = stop.unwrap();
+        loop {
+            let mut skip = false;
 
-            let ascii =
-                from_utf8(&self.buf[start..=stop]).map_err(|_| Error::BodyUtf8Data.to_stdio())?;
+            let end = match self.next_eol(0) {
+                Some(offset) => offset + 1,
+                None => rem,
+            };
 
-            let ascii = ascii.trim_end(); // see [Decompressor] expert notes
-            let ascii_len = ascii.len();
-            println!("ASCII \"{}\"", ascii); // TODO: debug!
+            let ascii = from_utf8(&self.buf[..end]).map_err(|_| Error::BodyUtf8Data.to_stdio())?;
 
-            if ascii_len < 80 {
-                // incomplete line: abort, study next time
-                break;
-            }
-            if ptr > read_size {
-                // can't forward this
-                // we do not study lines we cannot forward entirely
-                // - it simplifies this entire process
-                // - and slightly reduces reading throughput
-                break;
-            }
+            // if end < 79 {
+            //     // incomplete line: abort, proceed after next read
+            //     println!("incomplete: {}/80", end);
+            //     break;
+            // }
 
-            // Analysis:
+            println!("CRINEX V{}", self.crinex.version.major); // TODO: debug
+            println!("ASCII \"{}\"", &ascii[..end - 1]); // TODO: debug!
+            println!(
+                "total={}/processed={}/rem={}/END={}\n",
+                total, processed, rem, end
+            );
+
             // - Grab CRINEX specs when found
             //   should come first, but we're tolerant
             //   This actually tolerates a missing PROG / DATE specs.. whatever
@@ -468,41 +468,75 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             //   The second one being widespread, most likely not generated
             //   by RNX2CRX historical tool
             //
-            // - Move on to next state when END OF HEADER marker is found
+            // - Exit this state when END OF HEADER is reached
             //
-            // - We will panic on invalid CRINEX
-            //   This avoids panic'ing later on in decompression process,
-            //   this is a very simple cause but would then be difficult to debug/figure out
-            //
-            if ascii.ends_with("CRINEX VERS   / TYPE") {
+            // - PANIC on invalid CRINEX specs.
+            //   Which is actually ideal. It will prevent panic'ing later on in the
+            //   decyphering process, which could be hard to debug.
+            if ascii.ends_with("CRINEX VERS   / TYPE\n") {
                 let version = Version::from_str(&ascii[0..20].trim())
                     .map_err(|_| Error::VersionParsing.to_stdio())?;
 
                 self.crinex.with_version(version);
                 self.crinex_found = true;
-            } else if ascii.ends_with("CRINEX VERSION / TYPE") {
+                skip = true;
+            } else if ascii.ends_with("CRINEX VERSION / TYPE\n") {
                 let version = Version::from_str(&ascii[0..20].trim())
                     .map_err(|_| Error::VersionParsing.to_stdio())?;
 
                 self.crinex.with_version(version);
                 self.crinex_found = true;
-            } else if ascii.ends_with("CRINEX PROG / DATE") {
-                self.crinex
-                    .with_prog_date(&ascii[0..60].trim())
-                    .map_err(|_| Error::CrinexParsing.to_stdio())?;
-            } else if ascii.ends_with("END OF HEADER") {
-                next_state = State::Timestamp;
+                skip = true;
+            } else if ascii.ends_with("CRINEX PROG / DATE\n") {
+                // self.crinex
+                //     .with_prog_date(&ascii[0..60].trim())
+                //     .map_err(|_| Error::CrinexParsing.to_stdio())?;
+
+                skip = true;
+            } else if ascii.ends_with("END OF HEADER\n") {
+                next_state = State::Timestamp; // concludes this step
             }
 
-            // expose to user (as is =header)
-            let bytes = ascii.as_bytes();
-            buf[start..ascii_len].copy_from_slice(&bytes[start..ascii_len]);
-            wr_ptr += ascii_len;
-            ptr += stop;
+            if !skip {
+                // expose to user (as is =header)
+                buf[total..total + end].copy_from_slice(&self.buf[..end]);
+
+                total += end;
+            }
+
+            // roll left
+            // TODO kind of inefficient to do this everytime
+            //     we might be able to improve this later
+            //     but it will require two pointers
+            self.buf.copy_within(end.., 0);
+
+            processed += end;
+            rem -= (end);
+
+            if next_state == State::Timestamp {
+                println!("BREAK 1");
+                break; // exit: end of this state
+            }
+
+            if total >= read_size {
+                println!("BREAK 2");
+                break; // exit: can't accept more data
+            }
+
+            if total + 80 > read_size {
+                // would not fit
+                println!("BREAK 3");
+                break;
+            }
+
+            if rem < 80 {
+                println!("BREAK 4");
+                break; // not enough to form a complete line
+            }
         }
 
         self.state = next_state; // update state
-        Ok(ptr)
+        Ok(total)
     }
 
     // fn parse_nb_sv(content: &str, crx_major: u8) -> Option<usize> {

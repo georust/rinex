@@ -81,3 +81,85 @@ impl<const M: usize, R: Read> BufRead for BufferedReader<M, R> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::reader::BufferedReader;
+    use std::fs::File;
+    use std::io::BufRead;
+    #[test]
+    fn plain_reader() {
+        let fp = File::open("../test_resources/OBS/V2/AJAC3550.21O").unwrap();
+
+        let reader = BufferedReader::<6, _>::plain(fp);
+        let lines = reader.lines();
+
+        let mut nth = 1;
+        for line in lines {
+            if let Ok(line) = line {
+                if nth == 1 {
+                    assert_eq!(line, "     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
+                } else if nth == 2 {
+                    assert_eq!(
+                        line,
+                        "HEADER CHANGED BY EPN CB ON 2021-12-28                      COMMENT"
+                    );
+                } else if nth == 3 {
+                    assert_eq!(
+                        line,
+                        "TO BE CONFORM WITH THE INFORMATION IN                       COMMENT"
+                    );
+                } else if nth == 33 {
+                    assert_eq!(
+                        line,
+                        "                                                            END OF HEADER"
+                    );
+                }
+                nth += 1;
+            }
+        }
+        assert_eq!(nth, 300);
+    }
+
+    #[test]
+    fn crinex_reader() {
+        let fp = File::open("../test_resources/CRNX/V1/AJAC3550.21D").unwrap();
+
+        let reader = BufferedReader::<6, _>::crinex(fp);
+        let lines = reader.lines();
+
+        let mut nth = 1;
+        for line in lines {
+            match line {
+                Ok(line) => {
+                    println!("[{}] \"{}\"", nth, line);
+                    if nth == 1 {
+                        assert_eq!(line, "1.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE");
+                    } else if nth == 2 {
+                        assert_eq!(line, "                    RNX2CRX ver.4.0.7                       28-Dec-21 00:17     CRINEX PROG / DATE");
+                    } else if nth == 3 {
+                        assert_eq!(line, "     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
+                    } else if nth == 4 {
+                        assert_eq!(
+                            line,
+                            "HEADER CHANGED BY EPN CB ON 2021-12-28                      COMMENT"
+                        );
+                    } else if nth == 5 {
+                        assert_eq!(
+                            line,
+                            "TO BE CONFORM WITH THE INFORMATION IN                       COMMENT"
+                        );
+                    } else if nth == 35 {
+                        assert_eq!(line, "                                                            END OF HEADER");
+                    }
+                },
+                Err(e) => {
+                    println!("error= {}", e);
+                },
+            }
+            nth += 1;
+        }
+        assert!(nth > 35); // File Body left out !
+        assert_eq!(nth, 303); // Missing some data (total) !
+    }
+}

@@ -58,10 +58,13 @@ use writer::BufferedWriter;
 #[cfg(feature = "flate2")]
 use flate2::bufread::GzDecoder;
 
+#[cfg(feature = "binex")]
+mod binex;
+
 use std::{
     collections::{BTreeMap, HashMap},
     fs::File,
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufReader, Read},
     path::Path,
     str::FromStr,
 };
@@ -116,14 +119,21 @@ pub mod prelude {
         errors::AlmanacResult,
         prelude::{Almanac, Frame, Orbit},
     };
+
     pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
+
     #[cfg(feature = "nav")]
     pub use hifitime::ut1::DeltaTaiUt1;
+
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
+
     #[cfg(feature = "processing")]
     pub use qc_traits::processing::{
         Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
     };
+
+    #[cfg(feature = "binex")]
+    pub use binex::prelude::Message;
 }
 
 /// Package dedicated to file production.

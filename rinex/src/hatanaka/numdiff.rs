@@ -1,13 +1,4 @@
 //! Y. Hatanaka lossy Numerical compression algorithm
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("maximal compression order is 7")]
-    MaximalCompressionOrder,
-    #[error("order cannot be greater than {0}")]
-    OrderTooBig(usize),
-}
 
 /// [NumDiff] is dedicated to numerical (de-)compression, following
 /// the algorithm developped by Y. Hatanaka. This compression
