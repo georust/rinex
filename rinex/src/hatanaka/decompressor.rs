@@ -354,7 +354,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             crinex_found: false,
             crinex: CRINEX::default(),
             epoch_diff: TextDiff::new(""),
-            clock_diff: NumDiff::<M>::new(0),
+            clock_diff: NumDiff::<M>::new(0, 3),
             obs_diff: HashMap::new(), // init. late
             buf_ascii: String::with_capacity(128),
             epoch_ascii: String::with_capacity(256),

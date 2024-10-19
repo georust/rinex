@@ -1,15 +1,14 @@
 //! Y. Hatanaka lossless TextDiff algorithm
 
-// TODO
-// [TextDiff] does not support Compress/Decompress back and forth,
-// it currently requires to be built for one way or the other,
-// and requires new Build to change direction.
-// We should avoid that and permit back & forth operations.
-
+/// [TextDiff] is a structure that implements the Text diff. algorithm
+/// designed by Y. Hatanaka, which is a lossless text compression algorithm.
+/// [TextDiff] in its current form does not allow compressing & decompressing (back & forth)
+/// at the same time: you need two dedicated objects.
+/// This does not bother our application because it only operates in one way,
+/// but it is one aspect to keep in mind.
 #[derive(Debug)]
 pub struct TextDiff {
     buffer: String,
-    // avoids one alloc per compression call
     compressed: String,
 }
 
@@ -86,14 +85,20 @@ impl TextDiff {
         unsafe {
             let mut compressed = self.compressed.as_bytes_mut().iter_mut();
 
-            // any new byte gets compressed or kept
+            // run through bytes for which we have history
+            // and either keep or compress
             while let Some(new) = new.next() {
                 let compressed = compressed.next().unwrap();
+
                 if let Some(history) = history.next() {
                     if history == new {
                         *compressed = b' ';
                     } else {
-                        *compressed = new;
+                        if new == b' ' {
+                            *compressed = b'&';
+                        } else {
+                            *compressed = new;
+                        }
                     }
                 }
             }
@@ -189,6 +194,8 @@ mod test {
         assert_eq!(diff.compress("4 "), " &");
         assert_eq!(diff.compress("4  "), "  &");
         assert_eq!(diff.compress("0"), "0  ");
+        assert_eq!(diff.compress("0"), "   ");
+        assert_eq!(diff.compress("   "), "&  ");
 
         diff.force_init("Default 1234");
         assert_eq!(diff.compress("DEfault 1234"), " E          ");

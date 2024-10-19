@@ -20,7 +20,7 @@ struct ObsKey {
 }
 
 /// Structure to compress RINEX data
-pub struct Compressor {
+pub struct Compressor<const M: usize> {
     /// finite state machine
     state: State,
     /// True until END OF HEADER has not been reached
@@ -42,9 +42,9 @@ pub struct Compressor {
     /// Epoch [TextDiff]
     epoch_diff: TextDiff,
     /// Clock [NumDiff]
-    clock_diff: NumDiff<3>,
+    clock_diff: NumDiff<M>,
     /// SV Diff
-    sv_diff: HashMap<ObsKey, ObsDiff<3>>,
+    sv_diff: HashMap<ObsKey, ObsDiff<M>>,
     /// Pending kernel re-initialization
     forced_init: HashMap<SV, Vec<usize>>,
 }
@@ -59,7 +59,7 @@ fn format_epoch_descriptor(content: &str) -> String {
     result
 }
 
-impl Default for Compressor {
+impl<const M: usize> Default for Compressor<M> {
     fn default() -> Self {
         Self {
             first_epoch: true,
@@ -74,12 +74,12 @@ impl Default for Compressor {
             epoch_diff: TextDiff::new(""),
             sv_diff: HashMap::new(),
             forced_init: HashMap::new(),
-            clock_diff: NumDiff::<3>::new(0),
+            clock_diff: NumDiff::<M>::new(0, 3),
         }
     }
 }
 
-impl Compressor {
+impl<const M: usize> Compressor<M> {
     /// Identifies amount of vehicles to be provided in next iterations
     /// by analyzing epoch descriptor
     fn determine_nb_vehicles(&self, content: &str) -> Result<usize, Error> {
@@ -159,7 +159,7 @@ impl Compressor {
             .filter_map(|(key, value)| if key == obskey { Some(value) } else { None })
             .reduce(|k, _k| k)
         {
-            kernel.force_init(obsdata, snr, lli);
+            kernel.force_init(obsdata, 3, snr, lli);
         }
     }
 
