@@ -42,7 +42,10 @@ This library supports RINEX V2, V3 and V4 (latest), this includes all new V4 Nav
 
 All RINEX format are supported, but restrictions may apply, especially when generating data. [Refer to the main front-page table right here](https://github.com/georust/rinex) to understand what restriction applies to your usecases.
 
-## Getting started: Parsing
+Getting started
+===============
+
+## Parsing
 
 Reading RINEX files is quick and easy. When the provided file follows standard naming conventions,
 the structure definition will be complete: the production context is described by the file name itself.
