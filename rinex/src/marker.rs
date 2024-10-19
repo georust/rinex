@@ -67,7 +67,7 @@ impl std::str::FromStr for MarkerType {
             "floating buoy" => Ok(Self::FloatingBuoy),
             "glacier" => Ok(Self::Glacier),
             "ballistic" => Ok(Self::Ballistic),
-            "animal" => Ok(Self::Animal), 
+            "animal" => Ok(Self::Animal),
             "human" => Ok(Self::Human),
             _ => Err(ParsingError::MarkerType),
         }

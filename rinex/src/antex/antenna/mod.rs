@@ -5,8 +5,8 @@ mod sv;
 pub use sv::SvAntenna;
 
 use crate::{
-    prelude::{Epoch, ParsingError},
     linspace::Linspace,
+    prelude::{Epoch, ParsingError},
 };
 
 /// Known Calibration Methods

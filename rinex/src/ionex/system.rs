@@ -57,7 +57,7 @@ impl std::str::FromStr for ObsSystem {
             "env" => Ok(Self::ENVisat),
             "ers" => Ok(Self::ERS),
             "iri" => Ok(Self::IRI),
-            _ => Err(ParsingError::IonexEarthObservationSat)
+            _ => Err(ParsingError::IonexEarthObservationSat),
         }
     }
 }

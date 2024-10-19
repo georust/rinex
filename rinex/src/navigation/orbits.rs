@@ -1,8 +1,8 @@
 //! NAV Orbits description, spanning all revisions and constellations
 use super::health;
 use bitflags::bitflags;
-use std::str::FromStr;
 use num::FromPrimitive;
+use std::str::FromStr;
 
 use crate::prelude::ParsingError;
 
@@ -112,8 +112,8 @@ impl OrbitItem {
                 let unsigned = float as u32;
                 match constellation {
                     Constellation::GPS | Constellation::QZSS => {
-                        let flag: health::Health = FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::Health::default());
+                        let flag: health::Health =
+                            FromPrimitive::from_u32(unsigned).unwrap_or(health::Health::default());
                         Ok(OrbitItem::Health(flag))
                     },
                     Constellation::Glonass => {

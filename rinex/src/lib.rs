@@ -88,9 +88,11 @@ use hifitime::Unit;
 pub mod prelude {
     // export
     pub use crate::{
+        carrier::Carrier,
         doris::Station,
         error::{Error, FormattingError, ParsingError},
         ground_position::GroundPosition,
+        hatanaka::CRINEX,
         header::Header,
         leap::Leap,
         observable::Observable,
@@ -103,9 +105,6 @@ pub mod prelude {
 
     #[cfg(feature = "antex")]
     pub use crate::antex::AntennaMatcher;
-
-    #[cfg(feature = "obs")]
-    pub use crate::carrier::Carrier;
 
     #[cfg(feature = "clock")]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
@@ -833,6 +832,7 @@ impl Rinex {
     /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
     /// For the simple reason they are defined by a File name.
     /// You will have to define them afterwards.
+    #[cfg(feature = "flate2")]
     pub fn read_gzip<const M: usize, R: Read>(reader: R) -> Result<Rinex, ParsingError> {
         let mut r = BufferedReader::<M, R>::gzip(reader);
         Self::from_buffered_reader(&mut r)
@@ -877,10 +877,22 @@ impl Rinex {
         let fd = File::open(path).unwrap();
         let br = BufReader::new(fd);
 
+        #[cfg(feature = "flate2")]
         let mut reader: BufferedReader<M, _> = if path.ends_with(".crx.gz") {
             BufferedReader::<M, _>::gzip_crinex(br)
         } else if path.ends_with(".gz") {
             BufferedReader::<M, _>::gzip(br)
+        } else if path.ends_with(".crx") {
+            BufferedReader::<M, _>::crinex(br)
+        } else {
+            BufferedReader::<M, _>::plain(br)
+        };
+
+        #[cfg(not(feature = "flate2"))]
+        let mut reader: BufferedReader<M, _> = if path.ends_with(".crx.gz") {
+            panic!("Gzip not supported: activate flate2");
+        } else if path.ends_with(".gz") {
+            panic!("Gzip not supported: activate flate2");
         } else if path.ends_with(".crx") {
             BufferedReader::<M, _>::crinex(br)
         } else {

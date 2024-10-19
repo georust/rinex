@@ -2005,7 +2005,7 @@ impl Render for Header {
 }
 
 #[cfg(feature = "processing")]
-fn header_mask_eq(hd: &mut Header, item: &FilterItem) {}
+fn header_mask_eq(hd: &mut Header, _item: &FilterItem) {}
 
 #[cfg(feature = "processing")]
 pub(crate) fn header_mask_mut(hd: &mut Header, f: &MaskFilter) {

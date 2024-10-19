@@ -28,7 +28,8 @@ use itertools::Itertools;
 #[cfg(feature = "processing")]
 use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
-use serde::Serialize;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Observation Record specific header fields
 #[derive(Debug, Clone, Default, PartialEq)]
