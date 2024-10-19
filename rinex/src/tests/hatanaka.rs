@@ -64,45 +64,52 @@ fn test_decompressor_lines() {
                 } else if nth == 3 {
                     assert_eq!(
                         line,
-                        "HEADER CHANGED BY EPN CB ON 2021-12-28                      COMMENT"
+                        "TO BE CONFORM WITH THE INFORMATION IN                       COMMENT"
                     );
                 } else if nth == 4 {
                     assert_eq!(
                         line,
-                        "TO BE CONFORM WITH THE INFORMATION IN                       COMMENT"
+                        "ftp://epncb.oma.be/pub/station/log/ajac.log                 COMMENT"
                     );
                 } else if nth == 5 {
                     assert_eq!(
                         line,
-                        "ftp://epncb.oma.be/pub/station/log/ajac.log                 COMMENT"
-                    );
-                } else if nth == 6 {
-                    assert_eq!(
-                        line,
                         "                                                            COMMENT"
                     );
-                } else if nth == 7 {
+                } else if nth == 6 {
                     assert_eq!(line, "teqc  2019Feb25     IGN-RGP             20211222 00:07:07UTCPGM / RUN BY / DATE");
-                } else if nth == 8 {
+                } else if nth == 7 {
                     assert_eq!(
                         line,
                         "Linux 2.6.32-573.12.1.x86_64|x86_64|gcc|Linux 64|=+         COMMENT"
                     );
-                } else if nth == 35 {
+                } else if nth == 12 {
+                    assert_eq!(
+                        line,
+                        "BIT 2 OF LLI FLAGS DATA COLLECTED UNDER A/S CONDITION       COMMENT"
+                    );
+                } else if nth == 13 {
+                    assert_eq!(
+                        line,
+                        "AJAC                                                        MARKER NAME"
+                    );
+                } else if nth == 32 {
                     assert_eq!(line,"  2021    12    21     0     0    0.0000000     GPS         TIME OF FIRST OBS");
-                } else if nth == 36 {
+                } else if nth == 33 {
                     assert_eq!(
                         line,
                         "                                                            END OF HEADER"
                     );
+                } else {
                 }
                 nth += 1;
             },
-            Err(e) => {},
+            Err(e) => {
+                panic!("unexpected error: {}", e);
+            },
         }
-        nth += 1;
     }
-    assert_eq!(nth, 35);
+    assert_eq!(nth, 92);
 }
 
 #[test]

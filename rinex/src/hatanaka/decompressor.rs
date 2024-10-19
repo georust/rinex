@@ -442,16 +442,12 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
             let end = match self.next_eol(0) {
                 Some(offset) => offset + 1,
-                None => rem,
+                None => {
+                    break;
+                },
             };
 
             let ascii = from_utf8(&self.buf[..end]).map_err(|_| Error::BodyUtf8Data.to_stdio())?;
-
-            // if end < 79 {
-            //     // incomplete line: abort, proceed after next read
-            //     println!("incomplete: {}/80", end);
-            //     break;
-            // }
 
             println!("CRINEX V{}", self.crinex.version.major); // TODO: debug
             println!("ASCII \"{}\"", &ascii[..end - 1]); // TODO: debug!
@@ -512,6 +508,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
             processed += end;
             rem -= (end);
+            self.wr_ptr -= end;
 
             if next_state == State::Timestamp {
                 println!("BREAK 1");
