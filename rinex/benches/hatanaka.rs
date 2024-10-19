@@ -1,5 +1,5 @@
 //#![feature(test)]
-use rinex::hatanaka::{numdiff::NumDiff, textdiff::TextDiff};
+use rinex::hatanaka::{NumDiff, TextDiff};
 
 extern crate criterion;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -23,7 +23,7 @@ fn numdiff_decompression<const M: usize>(
 ) {
     for (index, data) in pool.iter().enumerate() {
         if index % forced_init == 0 {
-            numdiff.force_init(*data);
+            numdiff.force_init(*data, 3);
         } else {
             let _ = numdiff.decompress(*data);
         }
@@ -33,7 +33,7 @@ fn numdiff_decompression<const M: usize>(
 fn numdiff_compression<const M: usize>(numdiff: &mut NumDiff<M>, forced_init: usize, pool: &[i64]) {
     for (index, data) in pool.iter().enumerate() {
         if index % forced_init == 0 {
-            numdiff.force_init(*data);
+            numdiff.force_init(*data, 3);
         } else {
             let _ = numdiff.compress(*data);
         }
@@ -84,9 +84,7 @@ fn benchmark(c: &mut Criterion) {
     ];
 
     let epochs_len = epochs_pool.len();
-    let init_content = "NyV1xYEQcXyv2zzlG1A";
-    let mut textdiff = TextDiff::new();
-    textdiff.init(init_content);
+    let mut textdiff = TextDiff::new("NyV1xYEQcXyv2zzlG1A");
 
     // epoch like text
     textdiff_grp.bench_function("compress/epoch", |b| {
@@ -102,9 +100,7 @@ fn benchmark(c: &mut Criterion) {
     });
 
     let flags_len = flags_pool.len();
-    let init_content = "X";
-    let mut textdiff = TextDiff::new();
-    textdiff.init(init_content);
+    let mut textdiff = TextDiff::new("X");
 
     // flags like text
     textdiff_grp.bench_function("compress/flags", |b| {
@@ -146,7 +142,7 @@ fn benchmark(c: &mut Criterion) {
         -19542118, 29235, -38, 1592, -931, 645, 1001, -1038, 2198, -2679, 2804, -892,
     ];
 
-    let mut numdiff = NumDiff::<6>::new(25065408994);
+    let mut numdiff = NumDiff::<6>::new(25065408994, 3);
 
     numdiff_group.bench_function("compress/small", |b| {
         b.iter(|| {

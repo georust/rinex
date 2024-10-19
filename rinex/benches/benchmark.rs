@@ -2,14 +2,11 @@
 use rinex::{
     prelude::*,
     //processing::*,
-    reader::BufferedReader,
     record::parse_record,
 };
 
 extern crate criterion;
 use criterion::{criterion_group, criterion_main, Criterion};
-
-use std::io::BufRead;
 
 /*struct CpuProfiler;
 
@@ -32,30 +29,7 @@ fn profiled() -> Criterion {
 }*/
 
 fn parse_file(fp: &str) {
-    let _ = Rinex::from_file(fp).unwrap();
-}
-
-/*
- * Browses and skip header fields
- * used in record focused benchmark
- */
-fn browse_skip_header_section(reader: &mut BufferedReader) {
-    let lines = reader.lines();
-    for line in lines {
-        let line = line.unwrap();
-        if line.contains("END OF HEADER") {
-            return;
-        }
-    }
-}
-
-/*
- * Puts record section parsing to test
- */
-fn record_parsing(path: &str, header: &mut Header) {
-    let mut reader = BufferedReader::new(path).unwrap();
-    browse_skip_header_section(&mut reader);
-    let _record = parse_record(&mut reader, header);
+    let _ = Rinex::from_file::<3>(fp).unwrap();
 }
 
 /*
