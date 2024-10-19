@@ -1,3 +1,4 @@
+//! Y. Hatanaka lossy Numerical compression algorithm
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -9,11 +10,20 @@ pub enum Error {
 }
 
 /// [NumDiff] is dedicated to numerical (de-)compression, following
-/// algorithm developped by Y. Hatanaka. We recommend fixing M = 5
-/// in the application. You must not use M > 6 with this library or it will eventually panic!!
+/// algorithm developped by Y. Hatanaka. This compression scheme
+/// is not lossless: the more efficient the data compression, the farther
+/// you will get from the oritinal data points.
+/// [NumDiff] is limited to M <= 6!! it will panic in higher orders.
+/// We recommend fixing M = 5 in the application:
+///    - because it was determined as optimal compromise
+///    - because you can only compress/decompress data that used the same M value,
+///    and M=5 is hardcoded in the historical RNX2CRX program. If you intend to
+///    use our library with general public files, they most likely went through
+///    that very program, and we need to remain compatible.
+/// Our API allows controlling the compression versus loss of accuracy compromise.
 #[derive(Debug, Clone)]
 pub struct NumDiff<const M: usize> {
-    /// level/iteration counter
+    /// iteration counter
     m: usize,
     /// internal data history
     buf: [i64; M],
@@ -23,7 +33,7 @@ impl<const M: usize> NumDiff<M> {
     /// Builds a [NumDiff] structure dedicated to numerical (de-)compression
     /// with `data` initial point.    
     pub fn new(data: i64) -> Self {
-        let mut buf = [0; M];
+        let mut buf = [0; M]; // reset
         buf[0] = data;
         Self { buf, m: 0 }
     }
@@ -35,7 +45,7 @@ impl<const M: usize> NumDiff<M> {
 
     /// Rotate internal buffer, take new sample into account.
     fn rotate_history(&mut self, data: i64) {
-        self.buf.copy_within(0..M - 2, 1);
+        self.buf.copy_within(1..M - 1, 0);
         self.buf[0] = data;
     }
 

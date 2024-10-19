@@ -1,9 +1,16 @@
-//! Y. Hatanaka TextDiff algorithm
+//! Y. Hatanaka lossless TextDiff algorithm
+
+// TODO
+// [TextDiff] does not support Compress/Decompress back and forth,
+// it currently requires to be built for one way or the other,
+// and requires new Build to change direction.
+// We should avoid that and permit back & forth operations.
 
 #[derive(Debug)]
 pub struct TextDiff {
     buffer: String,
-    compressed: String, // avoids one alloc() per compress call
+    // avoids one alloc per compression call
+    compressed: String,
 }
 
 impl Default for TextDiff {
@@ -22,7 +29,7 @@ impl TextDiff {
         }
     }
 
-    /// Force kernel reinitialization
+    /// Force kernel reset using new content
     pub fn force_init(&mut self, data: &str) {
         self.buffer = data.to_string();
         self.compressed = data.to_string();
@@ -59,27 +66,46 @@ impl TextDiff {
         }
     }
 
-    /// Compress given data by applying the Textdiff algorithm.
-    /// Returns compressed value.
+    /// Compress given data using the Textdiff algorithm.
+    /// Returns compressed text.
     pub fn compress(&mut self, data: &str) -> &str {
-        self.buffer = data.to_string(); // store as is
+        let len = data.len();
         let buf_len = self.buffer.len();
+        let history_len = self.buffer.len();
 
-        let data = data.as_bytes();
+        // expand with new content
+        if len > buf_len {
+            self.buffer.push_str(&data[buf_len..]);
+            self.compressed.push_str(&data[buf_len..].replace(' ', "&")); // copy & replace whitespaces
+        }
+
+        // study possible shared content
+        let mut new = data.bytes();
+        let mut history = self.buffer[..history_len].bytes();
 
         unsafe {
-            let buf = self.buffer.as_bytes_mut();
-            let bytes = self.compressed.as_bytes_mut();
+            let mut compressed = self.compressed.as_bytes_mut().iter_mut();
 
-            // replaced shared bytes by ' '
-            for i in 0..buf_len {
-                if data[i] == buf[i] {
-                    bytes[i] = b' ';
-                } else {
-                    bytes[i] = data[i];
+            // any new byte gets compressed or kept
+            while let Some(new) = new.next() {
+                let compressed = compressed.next().unwrap();
+                if let Some(history) = history.next() {
+                    if history == new {
+                        *compressed = b' ';
+                    } else {
+                        *compressed = new;
+                    }
                 }
             }
 
+            // supports shorter inputs than internal buffer:
+            // possible '&' residues need to be whitened
+            // this gives maximum flexibility when dealing with actual files
+            while let Some(compressed) = compressed.next() {
+                *compressed = b' ';
+            }
+
+            self.buffer = data.to_string();
             &self.compressed
         }
     }
@@ -103,7 +129,6 @@ mod test {
             "&                           ",
             " ",
         ];
-
         let expected: Vec<&str> = vec![
             "ABCDEFG 13 001 44 xxACqmpLF",
             "ABCDEFG 43 001 44 xxACqmpLF",
@@ -161,12 +186,13 @@ mod test {
         assert_eq!(diff.compress("0"), " ");
         assert_eq!(diff.compress("4"), "4");
         assert_eq!(diff.compress("4"), " ");
-        assert_eq!(diff.compress("4  "), " &&");
+        assert_eq!(diff.compress("4 "), " &");
+        assert_eq!(diff.compress("4  "), "  &");
         assert_eq!(diff.compress("0"), "0  ");
 
         diff.force_init("Default 1234");
         assert_eq!(diff.compress("DEfault 1234"), " E          ");
         assert_eq!(diff.compress("DEfault 1234"), "            ");
-        assert_eq!(diff.compress("             "), "             &");
+        assert_eq!(diff.compress("             "), "            &");
     }
 }

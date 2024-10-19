@@ -1,4 +1,4 @@
-//! RINEX decompression module
+//! CRINEX decompression module
 use crate::{
     hatanaka::{Error, NumDiff, ObsDiff, TextDiff, CRINEX},
     prelude::{Version, SV},
@@ -7,7 +7,7 @@ use crate::{
 use std::{
     collections::HashMap,
     io::{Read, Result},
-    str::FromStr,
+    str::{from_utf8, FromStr},
 };
 
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
@@ -15,34 +15,92 @@ pub enum State {
     /// Inside File Header
     #[default]
     Header,
-    /// Inside an [Epoch] descriptor
-    EpochDescriptor,
+    /// Decypher Epoch timestamp
+    Timestamp,
+    /// Decypher Numsat
+    NumSat,
+    /// Decypher Satellites
+    Satellites,
+    /// Decypher Clock
+    Clock,
+    /// Observation
+    Observation,
+    /// LLI
+    LLI,
+    /// SNR
+    SNR,
+    /// Separator
+    Separator,
+    /// Content is discarded until a new Epoch starts.
+    /// This will create a data gap. But we are resilient to boggus part
+    /// of the data stream. This currently only happens when the Numsat description is boggus.
+    // TODO: This could be improved. Recovered Epoch contains the numsat
+    // information by itself, and we already handle boggus content inside of it.
+    // It would slightly increase our flexibility with respect to invalid encoded content.
+    Garbage,
+}
+
+impl State {
+    /// Returns true if we're inside the File Body.
+    /// Use this to grab the [CRINEX] definition if you have to.
+    pub fn file_body(&self) -> bool {
+        *self != Self::Header
+    }
+    /// Total bytes buffer should comprise so we can proceed and attempt
+    /// moving to next [State]. We keep reading until buffer
+    /// has enough data, otherwise it is pointless to attempt
+    /// progressing in the FSM.
+    pub(crate) fn expected_size(&self, v3: bool, numsat: usize) -> usize {
+        match *self {
+            Self::Header => 80,
+            Self::Timestamp => {
+                if v3 {
+                    10
+                } else {
+                    12 // Y2000
+                }
+            },
+            Self::NumSat => 3,
+            Self::Satellites => 3 * numsat,
+            Self::Clock => 17,
+            Self::Observation => 17,
+            Self::LLI | Self::SNR | Self::Separator => 1,
+            Self::Garbage => 0, // not applicable
+        }
+    }
 }
 
 /// Structure to decompress CRINEX data
+// Side notes (dev/expert)
+//  Decompressor discards trailing whitespace (between last ASCII byte and \n)
+//  - Which should most likely not exist in the Header section anyway
+//  - Which might be present in the Epoch encoding process (complex process).
+//  This kind of "purifies" the forwarded data, and actually facilitates the
+//  parsing process coming right after.
 pub struct Decompressor<const M: usize, R: Read> {
     /// Internal [State]. Use this to determine
     /// whether we're still inside the Header section (algorithm is not active),
     /// or inside file body (algorithm is active).
     state: State,
+    /// For internal needs
+    prev_state: State,
     /// [R]
     reader: R,
     /// Internal buffer
     buf: [u8; 1024],
-    /// Partial line buffer
-    /// is used to cover the possibility of frame recovered by 2 successive read
-    partial_line: [u8; 128],
     /// Read pointer
     ptr: usize,
     /// counters
-    nb_sv: usize, // total
+    numsat: usize, // total
     sv_ptr: usize, // inside epoch
     /// True only for first epoch ever processed
     first_epoch: bool,
     /// True until one clock offset was found
     first_clock_diff: bool,
-    /// Epoch differentiator
+    /// [TextDiff] that works on entire Epoch line
     epoch_diff: TextDiff,
+    /// Current recovered epoch description
+    epoch_descriptor: String,
     /// Current readable buffer
     buf_ascii: String,
     /// Unformatted Readable Internal buffer.
@@ -51,6 +109,10 @@ pub struct Decompressor<const M: usize, R: Read> {
     clock_diff: NumDiff<M>,
     /// Observation differentiators
     obs_diff: HashMap<SV, ObsDiff<M>>,
+    /// Whether the CRINEX header was found or not
+    crinex_found: bool,
+    /// True when V3 parsing
+    crinx_v3: bool,
     /// CRINEX header that we did identify.
     /// You should wait until State != State::InsideHeader to consider this field.
     pub crinex: CRINEX,
@@ -58,10 +120,144 @@ pub struct Decompressor<const M: usize, R: Read> {
 
 impl<const M: usize, R: Read> Read for Decompressor<M, R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        match self.state {
-            State::Header => self.read_header(buf),
-            _ => Ok(0),
+        println!("state: {:?}", self.state); //TODO: debug!
+
+        // COMMENTS cannot go through the decompression algorithm
+        // and must always be forwarded as is.
+        // Current behavior is to pass COMMENT groupings entirely
+        let wr_size = self.process_buffered_comments(buf);
+        if wr_size > 0 {
+            return Ok(wr_size);
         }
+
+        if self.state == State::Header {
+            // special initial case is treated here
+            return self.read_header(buf);
+        }
+
+        // other states
+        let buf_len = buf.len();
+        let len = self.buf.len();
+
+        if len < 80 {
+            // we don't proceed. This takes care of
+            // partial COMMENTS that could potentialy enter the decompression algorithm
+            let size = self.reader.read(&mut self.buf)?;
+            if size == 0 {
+                // EOS reached
+                return Ok(0);
+            } else {
+                return Err(Error::NeedMoreData.to_stdio());
+            }
+        }
+
+        Ok(0)
+
+        // let mut rd_size = 0;
+
+        // // Process all data, running the FSM
+        // // and forwarding data to user when we can
+        // while self.ptr < len {
+
+        //     let mut next_state = self.state;
+        //     let avail = len - self.ptr;
+        //     let required_size = self.state.expected_size();
+
+        //     if avail < required_size {
+        //         // cant proceed for this state
+        //         if self.state != State::Clock {
+        //             // it is possible that Clock is not produced
+        //             // therefore we need to handle its presence
+        //             if rd_size > 0 {
+        //                 return Ok(rd_size);
+        //             } else {
+        //                 return Err(Error::NeedMoreData.to_stdio());
+        //             }
+        //         }
+        //     }
+
+        //     // For any state, we don't proceed if User can't accept the potential results.
+        //     // It reduces the I/O performance, but simplifies internal logic.
+        //     // Otherwise, we would need two separate FSM
+        //     //   1. one for decypher process (with its own buffer)
+        //     //   2. one for what was forwarded by the decyphering process (with its own buffer)
+
+        //     // FSM
+        //     match self.state {
+        //         State::Timestamp => {
+        //             next_state = State::NumSat;
+        //         },
+        //         State::NumSat => {
+        //             next_state = State::Satellites;
+        //         },
+        //         State::Satellites => {
+        //             next_state = State::Clock;
+        //         },
+        //         State::Clock => {
+        //             // TODO: handle clock presence
+
+        //             // Reached end of line
+        //             //  - We proceed to run the textdiff and clock.numdiff
+        //             //  - Numsat must be valid integer otherwise
+        //             //  we can't progress and following decypher would panic (hard to debug).
+        //             //  It is possible that the sat descriptor is invalid (on boggus encoder),
+        //             //  but that we handle in the decyphering process individually.
+        //             //  If NumSat is faulty (too boggus): we move on to the special
+        //             //  [State::Garbage] state.
+        //             let epoch_ascii = from_utf8(&self.buf[self.ptr..self.ptr+required_size])?;
+        //             println!("epoch ascii: \"{}\"", epoch_ascii); // TODO: debug!
+
+        //             // Forward input as is to the kernel (it is very important
+        //             // otherwise we would bias the results)
+        //             self.epoch_descriptor = self.epoch_diff
+        //                 .decompress(&ascii);
+
+        //             // It facilitates everything if we keep clean internal content
+        //             self.epoch_descriptor = self.epoch_descriptor.trim();
+
+        //             // Recover the clock offset
+
+        //             // parse actual numsat
+        //             // we don't need more th
+        //             println!("descriptor: \"{}\"", self.epoch_descriptor); // TODO: debug!
+
+        //             next_state = State::Observation;
+        //         },
+        //         State::Observation => {
+
+        //         },
+        //         State::LLI => {
+
+        //         },
+        //         State::SNR => {
+
+        //         },
+        //         State::Separator => {
+        //             match self.prev_state {
+        //                 State::Timestamp => {
+        //                     next_state = State::NumSat;
+        //                 },
+        //                 State::NumSat => {
+        //                     next_state = State::Satellites;
+        //                 },
+        //                 State::Satellites => {
+        //                     next_state = State::Clock;
+        //                 },
+        //                 State::Clock => {
+        //                     next_state = State::Observation;
+        //                 },
+        //                 State::LLI => {
+        //                     next_state = State::SNR;
+        //                 },
+        //                 State::SNR => {
+        //                     panic!("todo");
+        //                 },
+        //             }
+        //         },
+        //     }
+
+        //     self.prev_state = self.state;
+        //     self.state = next_state;
     }
 }
 
@@ -146,45 +342,57 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
-            nb_sv: 0,
-            sv_ptr: 0,
             ptr: 0,
+            numsat: 0,
+            sv_ptr: 0,
+            crinx_v3: false,
             buf: [0; 1024],
-            partial_line: [0; 128],
             first_epoch: true,
             first_clock_diff: true,
             state: State::default(),
+            prev_state: State::default(),
+            crinex_found: false,
             crinex: CRINEX::default(),
             epoch_diff: TextDiff::new(""),
             clock_diff: NumDiff::<M>::new(0),
             obs_diff: HashMap::new(), // init. late
             buf_ascii: String::with_capacity(128),
             epoch_ascii: String::with_capacity(256),
+            epoch_descriptor: String::with_capacity(256),
         }
+    }
+
+    /// Returns index of next \n in the buffer, if it exists
+    fn next_eol(&self, offset: usize) -> Option<usize> {
+        self.buf[offset..].iter().position(|b| *b == b'\n')
     }
 
     /// When parsing (algorithm being active)
     /// any COMMENTS encountered should be passed "as is".
     /// There is no mean to apply the Hatanaka algorithm to COMMENTS located
-    /// in the file body
+    /// in the file body.
+    /// Returns total size already forwarded
     fn process_buffered_comments(&mut self, buf: &mut [u8]) -> usize {
-        let mut offset = 0;
-        let buf_len = self.buf.len();
-        for chunk in 0..buf_len / 80 {
-            // For all encountered COMMENTS simply extract as is
-            let start = chunk * 80;
-            let stop = ((chunk + 1) * 80).min(buf_len);
-            let size = stop - start;
-            // Using .ends_with is a nice way to
-            //    - Only grab valid descriptor
-            //    - Only grab complete lines
-            //    Partial comments are to be treated next time
-            if self.buf_ascii[start..stop].ends_with("COMMENTS") {
-                buf[start..stop].copy_from_slice(&self.buf[start..stop]);
-                offset += size;
+        let len = buf.len();
+        let mut wr_size = 0;
+        while let Some(eol) = self.next_eol(self.ptr) {
+            if let Ok(ascii) = from_utf8(&self.buf[self.ptr..eol]) {
+                // can we forward this (entirely ?)
+                if wr_size < len {
+                    let ascii = ascii.trim_end();
+                    if ascii.ends_with("COMMENTS") {
+                        // consitent with COMMENT:
+                        //  progress in buffer
+                        //  forward to user (as is)
+                        let ascii_len = ascii.len();
+                        buf[wr_size..ascii_len].copy_from_slice(&self.buf[self.ptr..ascii_len]);
+                        self.ptr += eol;
+                        wr_size += ascii_len;
+                    }
+                }
             }
         }
-        offset
+        wr_size
     }
 
     /// In the header section, we need to search for the CRINEX header
@@ -220,51 +428,80 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
         // study new (complete) lines, one at a time
         // all correctly studied content (= complete + valid line)
-        // gets forwared to user
+        // gets forwared to user. We do not forward incomplete lines
+        // or what we have not analyzed.
         let mut ptr = 0;
-        while ptr < new_size && next_state == State::Header {
-            let (start, stop) = (ptr, (ptr + 80).min(new_size));
-            let ascii = String::from_utf8_lossy(&self.buf[start..stop]);
-            println!("ASCII \"{}\"", ascii);
+        let mut wr_ptr = 0;
 
-            if stop > read_size {
-                // can't forward this
+        while ptr < new_size && next_state == State::Header {
+            let (start, stop) = (ptr, self.next_eol(ptr));
+            if stop.is_none() {
                 break;
             }
-            if ascii.len() < 80 {
-                // not a complete line: not treated
-                continue;
+            let stop = stop.unwrap();
+
+            let ascii =
+                from_utf8(&self.buf[start..=stop]).map_err(|_| Error::BodyUtf8Data.to_stdio())?;
+
+            let ascii = ascii.trim_end(); // see [Decompressor] expert notes
+            let ascii_len = ascii.len();
+            println!("ASCII \"{}\"", ascii); // TODO: debug!
+
+            if ascii_len < 80 {
+                // incomplete line: abort, study next time
+                break;
+            }
+            if ptr > read_size {
+                // can't forward this
+                // we do not study lines we cannot forward entirely
+                // - it simplifies this entire process
+                // - and slightly reduces reading throughput
+                break;
             }
 
-            // forward as is (=header)
-            buf[start..stop].copy_from_slice(&self.buf[start..stop]);
-
-            if ascii.contains("CRINEX VERS") {
+            // Analysis:
+            // - Grab CRINEX specs when found
+            //   should come first, but we're tolerant
+            //   This actually tolerates a missing PROG / DATE specs.. whatever
+            //
+            // - Support both (yet one is incorrect) CRINEX specs marker
+            //   The second one being widespread, most likely not generated
+            //   by RNX2CRX historical tool
+            //
+            // - Move on to next state when END OF HEADER marker is found
+            //
+            // - We will panic on invalid CRINEX
+            //   This avoids panic'ing later on in decompression process,
+            //   this is a very simple cause but would then be difficult to debug/figure out
+            //
+            if ascii.ends_with("CRINEX VERS   / TYPE") {
                 let version = Version::from_str(&ascii[0..20].trim())
                     .map_err(|_| Error::VersionParsing.to_stdio())?;
 
                 self.crinex.with_version(version);
+                self.crinex_found = true;
+            } else if ascii.ends_with("CRINEX VERSION / TYPE") {
+                let version = Version::from_str(&ascii[0..20].trim())
+                    .map_err(|_| Error::VersionParsing.to_stdio())?;
+
+                self.crinex.with_version(version);
+                self.crinex_found = true;
             } else if ascii.ends_with("CRINEX PROG / DATE") {
-                self.crinex.with_prog_date(&ascii[0..60].trim());
-            } else if ascii.contains("END OF HEADER") {
-                next_state = State::EpochDescriptor;
+                self.crinex
+                    .with_prog_date(&ascii[0..60].trim())
+                    .map_err(|_| Error::CrinexParsing.to_stdio())?;
+            } else if ascii.ends_with("END OF HEADER") {
+                next_state = State::Timestamp;
             }
 
-            ptr += ascii.len() + 1;
+            // expose to user (as is =header)
+            let bytes = ascii.as_bytes();
+            buf[start..ascii_len].copy_from_slice(&bytes[start..ascii_len]);
+            wr_ptr += ascii_len;
+            ptr += stop;
         }
 
-        // // forward all that we can
-        // let read_size = ptr.min(read_size);
-        // buf[..read_size].copy_from_slice(&self.buf[..read_size]);
-
-        // determine next state
-        match (self.state, next_state) {
-            (State::Header, State::EpochDescriptor) => {},
-            _ => {}, // stable or invalid combinations
-        }
-
-        println!("NEXT STATE: {:?}", next_state);
-        self.state = next_state;
+        self.state = next_state; // update state
         Ok(ptr)
     }
 

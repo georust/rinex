@@ -14,10 +14,12 @@ pub enum BufferedReader<const M: usize, R: Read> {
     /// Readable stream
     Plain(BufReader<R>),
     /// Seamless Gzip compressed stream (non readable)
+    #[cfg(feature = "flate2")]
     Gz(BufReader<GzDecoder<R>>),
-    /// Seamless Hatanaka compressed stream (non readable)
+    // Seamless Hatanaka compressed stream (non readable)
     CRINEX(BufReader<Decompressor<M, R>>),
     /// Seamless Gzip Hatanaka compressed stream (non readable)
+    #[cfg(feature = "flate2")]
     GzCRINEX(BufReader<Decompressor<M, GzDecoder<R>>>),
 }
 
@@ -28,9 +30,11 @@ impl<const M: usize, R: Read> BufferedReader<M, R> {
     pub fn crinex(r: R) -> Self {
         Self::CRINEX(BufReader::new(Decompressor::new(r)))
     }
+    #[cfg(feature = "flate2")]
     pub fn gzip(r: R) -> Self {
         Self::Gz(BufReader::new(GzDecoder::new(r)))
     }
+    #[cfg(feature = "flate2")]
     pub fn gzip_crinex(r: R) -> Self {
         Self::GzCRINEX(BufReader::new(Decompressor::new(GzDecoder::new(r))))
     }
@@ -41,7 +45,9 @@ impl<const M: usize, R: Read> Read for BufferedReader<M, R> {
         match self {
             Self::Plain(ref mut r) => r.read(buf),
             Self::CRINEX(ref mut r) => r.read(buf),
+            #[cfg(feature = "flate2")]
             Self::Gz(ref mut r) => r.read(buf),
+            #[cfg(feature = "flate2")]
             Self::GzCRINEX(ref mut r) => r.read(buf),
         }
     }
@@ -57,16 +63,20 @@ impl<const M: usize, R: Read> BufRead for BufferedReader<M, R> {
     fn fill_buf(&mut self) -> Result<&[u8], IoError> {
         match self {
             Self::Plain(r) => r.fill_buf(),
+            #[cfg(feature = "flate2")]
             Self::Gz(r) => r.fill_buf(),
             Self::CRINEX(r) => r.fill_buf(),
+            #[cfg(feature = "flate2")]
             Self::GzCRINEX(r) => r.fill_buf(),
         }
     }
     fn consume(&mut self, s: usize) {
         match self {
             Self::Plain(r) => r.consume(s),
+            #[cfg(feature = "flate2")]
             Self::Gz(r) => r.consume(s),
             Self::CRINEX(r) => r.consume(s),
+            #[cfg(feature = "flate2")]
             Self::GzCRINEX(r) => r.consume(s),
         }
     }

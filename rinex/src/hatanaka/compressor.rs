@@ -11,7 +11,6 @@ use crate::{
 pub enum State {
     #[default]
     EpochDescriptor,
-    Body,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

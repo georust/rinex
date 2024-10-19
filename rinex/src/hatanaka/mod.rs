@@ -1,6 +1,11 @@
 //! RINEX compression / decompression module
 use thiserror::Error;
 
+// TODO
+// Improve Result<> IoError/Error relation ship
+// the current User API .read().error()
+// Will trigger a string comparison on every single .read() acces veritication
+
 mod compressor;
 mod crinex;
 mod numdiff;
@@ -20,11 +25,13 @@ use std::io::{Error as IoError, ErrorKind};
 /// Hatanaka dedicated Errors
 #[derive(Debug)]
 pub enum Error {
-    /// Header lines should only containt valid UTF-8 data.
-    /// One reason being we need to analyse its content
-    /// to adapt the compression/decompression scheme.
+    /// Header lines should only contain valid UTF-8 data
     // #[error("header contains invalid UTF8")]
     HeaderUtf8Data,
+    /// File body should only contain valid UTF8 data
+    BodyUtf8Data,
+    /// Failed to read CRINEX PROG/DATE
+    CrinexParsing,
     /// Forwarded Epoch description does not look good: Invalid RINEX!
     EpochFormat,
     /// Recovered Epoch descriptor (in the decompression scheme)
@@ -43,18 +50,36 @@ pub enum Error {
     /// It is mandatory that the CRINEX version be correctly defined
     /// so we can parse it and adapt the (de-)compression scheme
     VersionParsing,
+    /// Keep reading: need more data to progress (FSM stuck)
+    NeedMoreData,
 }
 
 impl Error {
+    // /// Converts [IoError] to [Self] when possible
+    // pub fn from_stdio(&self, error: IoError) -> Option<Self> {
+    //     match error.kind() {
+    //         ErrorKind::Other => Some(Self::HeaderUtf8Data),
+    //         // ErrorKind::Other("bad utf-8 in header") => Some(Self::HeaderUtf8Data),
+    //         // IoError::Other("invalid epoch description") => Some(Self::EpochFormat),
+    //         // IoError::Other("invalid recovered epoch") => Some(Self::RecoveredEpochFormat),
+    //         // IoError::Other("invalid sv formatting") => Some(Self::SVFormat),
+    //         // IoError::Other("sv parsing") => Some(Self::SVParsing),
+    //         // IoError::Other("crinex version parsing") => Some(Self::VersionParsing),
+    //         _ => None,
+    //     }
+    // }
     /// Converts [Error] to custom [IoError]
     fn to_stdio(&self) -> IoError {
         let descriptor = match self {
             Self::HeaderUtf8Data => "bad utf-8 in header",
+            Self::BodyUtf8Data => "bad utf-8 in body",
             Self::EpochFormat => "invalid epoch description",
             Self::RecoveredEpochFormat => "invalid recovered epoch",
             Self::SVFormat => "invalid sv formatting",
-            Self::SVParsing => "sv parsing error",
-            Self::VersionParsing => "crinex version parsing error",
+            Self::SVParsing => "sv parsing",
+            Self::VersionParsing => "crinex version parsing",
+            Self::CrinexParsing => "crinex specs parsing",
+            Self::NeedMoreData => "need more data",
         };
         IoError::new(ErrorKind::Other, descriptor)
     }

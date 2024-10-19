@@ -28,7 +28,6 @@ macro_rules! fmt_algebric_month {
     };
 }
 
-#[cfg(feature = "serde")]
 /// CRINEX specifications
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -193,8 +192,7 @@ impl std::str::FromStr for CRINEX {
 
 #[cfg(test)]
 mod test {
-    use super::CRINEX;
-    use crate::prelude::{Epoch, Version};
+    use crate::prelude::{Epoch, Version, CRINEX};
     use std::str::FromStr;
 
     #[test]
