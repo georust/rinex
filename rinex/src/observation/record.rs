@@ -1,15 +1,11 @@
 //! OBS RINEX specific content
 
+
 // TODO: can't we get rid of num_integer ?
 use num_integer::div_ceil;
 
 #[cfg(feature = "log")]
 use log::{debug, error};
-
-#[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Repair,
-};
 
 #[cfg(feature = "obs")]
 use crate::observation::{Combination, Combine};
@@ -195,21 +191,6 @@ fn mw_combination(
     phase_wide
 }
 
-#[cfg(feature = "obs")]
-impl Combine for Record {
-    fn combine(
-        &self,
-        c: Combination,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        match c {
-            Combination::GeometryFree
-            | Combination::IonosphereFree
-            | Combination::NarrowLane
-            | Combination::WideLane => dual_freq_combination(self, c),
-            Combination::MelbourneWubbena => mw_combination(self),
-        }
-    }
-}
 
 #[cfg(feature = "obs")]
 use crate::{

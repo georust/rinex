@@ -7,7 +7,7 @@ use crate::{
 
 use rinex_qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 
-use std::{iter::Filter, str::FromStr};
+use std::str::FromStr;
 
 /// Applies [MaskFilter] to [Record]
 pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
@@ -236,7 +236,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
                     if let Some(sig) = obs.as_signal() {
-                        let mut retained;
+                        let mut retained = true;
                         for item in items {
                             if item.constellation == sig.sv.constellation {
                                 retained &= sig.sv.prn < item.prn;

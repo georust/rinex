@@ -1,17 +1,17 @@
-use std::collections::BTreeMap;
-use std::io::prelude::*;
-use thiserror::Error;
-
-#[cfg(feature = "serde")]
-use serde::Serialize;
-
 use super::{
     antex, clock,
     clock::{ClockKey, ClockProfile},
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_rinex_comment, merge,
     merge::Merge,
-    meteo, navigation, observation,
+    meteo, navigation,
+    navigation::record::parse_epoch as parse_nav_epoch,
+    observation,
+    observation::{
+        fmt_observations as format_observations, is_new_epoch as is_new_observation_epoch,
+        parse_epoch as parse_observation_epoch, Record as ObsRecord,
+    },
+    prelude::Duration,
     reader::BufferedReader,
     split,
     split::Split,
@@ -20,9 +20,17 @@ use super::{
     *,
 };
 
-use crate::navigation::record::parse_epoch as parse_nav_epoch;
+use std::io::prelude::*;
+use thiserror::Error;
 
-use hifitime::Duration;
+#[cfg(feature = "log")]
+use log::error;
+
+#[cfg(feature = "serde")]
+use serde::{
+    Serialize,
+    // Deserialize,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -37,8 +45,8 @@ pub enum Record {
     MeteoRecord(meteo::Record),
     /// Navigation record, see [navigation::record::Record]
     NavRecord(navigation::Record),
-    /// Observation record, see [observation::record::Record]
-    ObsRecord(observation::Record),
+    /// Observation record [ObsRecord]
+    ObsRecord(ObsRecord),
     /// DORIS RINEX, special DORIS measurements wraped as observations
     DorisRecord(doris::Record),
 }
@@ -153,6 +161,9 @@ impl Record {
         header: &header::Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
+        let major = header.version.major;
+        let constell = header.constellation;
+
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo().unwrap();
@@ -166,24 +177,38 @@ impl Record {
                 let record = self.as_obs().unwrap();
                 let obs_fields = &header.obs.as_ref().unwrap();
                 let mut compressor = Compressor::default();
-                for ((epoch, flag), (clock_offset, data)) in record.iter() {
-                    let epoch =
-                        observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);
+
+                let unique_keys = record.keys().unique();
+
+                // browse record by timeline
+                for key in unique_keys {
+                    // Grab clock observation, if it exists
+                    let clock = record
+                        .filter(|k, v| if k == key { v.as_clock() } else { None })
+                        .reduce(|k, _| k);
+
+                    // Grab all signal observations
+                    let signals = record.filter(|k, v| if k == key { v.as_signal() } else { None });
+
+                    // format
+                    let formatted = format_observations(major, header, key, clock, signals);
+
+                    // compress (if need be)
                     if obs_fields.crinex.is_some() {
-                        let major = header.version.major;
-                        let constell = &header.constellation.as_ref().unwrap();
-                        for line in epoch.lines() {
-                            let line = line.to_owned() + "\n"; // helps the following .lines() iterator
-                                                               // embedded in compression method
-                            if let Ok(compressed) =
-                                compressor.compress(major, &obs_fields.codes, constell, &line)
-                            {
-                                // println!("compressed \"{}\"", compressed); // DEBUG
-                                writeln!(writer, "{}", compressed)?;
-                            }
-                        }
+                        //TODO rework: compress should work on entire Epoch content (or byte wise)
+                        // for line in formatted.lines() {
+                        //     let line = line.to_owned() + "\n"; // Compressor uses Lines Iterator
+                        //     if let Ok(compressed) = compressor.compress(
+                        //         major,
+                        //         &obs_fields.codes,
+                        //         constell,
+                        //         &line
+                        //     ) {
+                        //         writeln!(writer, "{}", compressed)?;
+                        //     }
+                        // }
                     } else {
-                        writeln!(writer, "{}", epoch)?;
+                        writeln!(writer, "{}", formatted)?;
                     }
                 }
             },
@@ -281,7 +306,7 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
             ionex::record::is_new_tec_plane(line) || ionex::record::is_new_rms_plane(line)
         },
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version),
-        Type::ObservationData => observation::record::is_new_epoch(line, header.version),
+        Type::ObservationData => is_new_observation_epoch(line, header.version),
         Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
         Type::DORIS => doris::record::is_new_epoch(line),
     }
@@ -452,11 +477,18 @@ pub fn parse_record(
                         }
                     },
                     Type::ObservationData => {
-                        if let Ok((e, ck_offset, map)) =
-                            observation::record::parse_epoch(header, &epoch_content, obs_ts)
-                        {
-                            obs_rec.insert(e, (ck_offset, map));
-                            comment_ts = e.0; // for comments classification & management
+                        match parse_observation_epoch(header, &epoch_content, obs_ts) {
+                            Ok((key, observations)) => {
+                                for observation in observations {
+                                    obs_rec.insert(key, observation);
+                                    comment_ts = key.epoch; // for temporal comment indexing
+                                }
+                            },
+                            Err(e) => {
+                                // notify (debugger) non vital problems (slight/temporary formatting issues
+                                #[cfg(feature = "log")]
+                                error!("parsing: {}", e);
+                            },
                         }
                     },
                     Type::DORIS => {
@@ -554,11 +586,18 @@ pub fn parse_record(
             }
         },
         Type::ObservationData => {
-            if let Ok((e, ck_offset, map)) =
-                observation::record::parse_epoch(header, &epoch_content, obs_ts)
-            {
-                obs_rec.insert(e, (ck_offset, map));
-                comment_ts = e.0; // for comments classification + management
+            match parse_observation_epoch(header, &epoch_content, obs_ts) {
+                Ok((key, observations)) => {
+                    for observation in observations {
+                        obs_rec.insert(key, observation);
+                        comment_ts = key.epoch; // for temporal comment indexing
+                    }
+                },
+                Err(e) => {
+                    // notify (debugger) non vital problems (slight/temporary formatting issues
+                    #[cfg(feature = "log")]
+                    error!("parsing: {}", e);
+                },
             }
         },
         Type::DORIS => {

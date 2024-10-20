@@ -14,7 +14,7 @@ use itertools::Itertools;
 /// - signals: [SignalObservation]s
 /// ## Returns
 /// - formatter string according to standard specifications
-pub(crate) fn fmt_observations(
+pub fn fmt_observations(
     major: u8,
     header: &Header,
     key: ObsKey,

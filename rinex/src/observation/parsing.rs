@@ -1,17 +1,23 @@
 //! Observation RINEX parsing
 use crate::{
     epoch::{parse_in_timescale as parse_epoch_in_timescale, parse_utc as parse_utc_epoch},
-    observation::{Error, Observation},
+    observation::{Observation, ParsingError},
     prelude::{
-        ClockObservation, Constellation, Epoch, EpochFlag, Header, ObsKey, Observable,
-        SignalObservation, TimeScale, Version, SV,
+        Constellation, EpochFlag, Header, LliFlags, ObsKey, Observable, SignalObservation,
+        TimeScale, Version, SNR, SV,
     },
 };
 
-use std::str::FromStr;
+use std::{
+    collections::HashMap,
+    str::{FromStr, Lines},
+};
+
+// TODO: see if we can get rid of num_integer
+use num_integer::div_ceil;
 
 /// Returns true if given content matches a new OBSERVATION data epoch
-pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
+pub fn is_new_epoch(line: &str, v: Version) -> bool {
     if v.major < 3 {
         if line.len() < 30 {
             false
@@ -47,16 +53,16 @@ pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
 }
 
 /// Parses all [Record] entries from readable content
-pub(crate) fn parse_epoch(
+pub fn parse_epoch(
     header: &Header,
     content: &str,
     ts: TimeScale,
-) -> Result<(ObsKey, Vec<Observation>), Error> {
+) -> Result<(ObsKey, Vec<Observation>), ParsingError> {
     let mut lines = content.lines();
 
     let mut line = match lines.next() {
         Some(l) => l,
-        _ => return Err(Error::EmptyEpoch),
+        _ => return Err(ParsingError::EmptyEpoch),
     };
 
     // epoch::
@@ -145,7 +151,7 @@ fn parse_observations(
     rem: &str,
     mut lines: std::str::Lines<'_>,
     observations: &mut Vec<Observation>,
-) -> Result<(), Error> {
+) -> Result<(), ParsingError> {
     // previously identified observables (that we expect)
     let obs = header.obs.as_ref().unwrap();
     let observables = &obs.codes;
@@ -163,7 +169,7 @@ fn parse_observations(
                 if let Some(l) = lines.next() {
                     systems_str.push_str(l.trim());
                 } else {
-                    return Err(Error::BadV2SatellitesDescription);
+                    return Err(ParsingError::BadV2SatellitesDescription);
                 }
             }
             parse_observations_v2(

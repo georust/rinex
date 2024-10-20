@@ -20,7 +20,6 @@ use crate::{
     meteo::HeaderFields as MeteoHeader,
     navigation::{IonMessage, KbModel},
     observable::{Observable, ParsingError as ObsParsingError},
-    observation,
     observation::{Crinex, HeaderFields as ObservationHeader},
     prelude::{Constellation, Duration, Epoch, TimeScale, COSPAR, DOMES, SV},
     reader::BufferedReader,
@@ -1275,7 +1274,7 @@ impl Header {
         s
     }
 
-    pub fn with_observation_fields(&self, fields: observation::HeaderFields) -> Self {
+    pub fn with_observation_fields(&self, fields: ObservationHeader) -> Self {
         let mut s = self.clone();
         s.obs = Some(fields);
         s
