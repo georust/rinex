@@ -17,11 +17,11 @@ The [Wiki pages](https://github.com/georust/rinex/wiki) contain all documentatio
 Use [Github Issues](https://github.com/georust/rinex/issues) to report bugs and other malfunctions.  
 You can also open a [Discussion](https://github.com/georust/rinex/discussions) or leave us a message [on Discord](https://discord.gg/Fp2aape).
 
-## Advantages :rocket: 
+## Advantages :rocket: :artificial_satellite:
 
 - Fast
-- Render High level Geodetic survey reports
-- Resolve PPP solutions in a few seconds
+- Renders High level Geodetic survey reports
+- Fast PPP solver
 - Open sources: read and access all the code!
 - Self sustained examples and tutorials: data hosted within this repo
 - All modern GNSS constellations, codes and signals
@@ -41,11 +41,13 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 
 ## Disadvantages :warning:
 
-- BINEX support is currently work in progress
-- Navigation is currently not feasible with Glonass and IRNSS
-- Differential navigation (SBAS, DGNSS or RTK) is not support yet
+- Navigation is currently not feasible with Glonass and IRNSS (applications/ ppp solver).
+- QZSS has not been tested in the PPP solver yet
+- PPP solver and Navigation in general using SBAS is not 100 % feasible yet
+- RTK navigation is not feasible yet (work in progress) 
 - Our applications do not accept proprietary formats like Septentrio for example
-- File production might lack some features, mostly because we're currently focused on data processing
+- BINEX support is currently work in progress.
+Library exists and works, not integrated to applications yet.
 
 ## Repository 
 
@@ -89,23 +91,36 @@ RINEX-Cli
 =========
 
 `rinex-cli` is our main application, build it without any features to obtain its smallest form.
-The available options are:
+
+Available options are:
 
 - `kml`: allows formatting PPP solutions as KML tracks
 - `gpx`: allows formatting PPP solutions as GPX tracks
 - `cggtts`: enable CGGTTS solutions solver
 
+`rinex-cli` always generates logs, whether you see them or not is up to your environment.  
+But activating the `log` feature of `rinex-cli` actually turns internal dependency logging 
+(like the `RINEX` lib itself) for debugging / testing purposes.
+
 Formats & revisions
 ===================
 
-The core library supports parsing RINEX V4.0, that includes RINEX V4 Navigation files.   
-We support the latest revisions for both IONEX and Clock RINEX.  
-We support the latest (rev D) SP3 format.  
+The `RINEX` lib supports RINEX V4, including the new Navigation frames.  
+It also supports IONEX and Clock RINEX in their latest revisions. 
 
-RINEX formats & applications
-============================
+The `SP3` lib supports rev D.
 
-| Type                       | Parser            | Writer              |  CLI                 |      Content         | Record Iteration     | Timescale  |
+RINEX Format and applications
+=============================
+
+This table summarizes the RINEX format we support. 
+It also gives a better understanding of what they contain and what they're used for.   
+`Record Indexing` gives the internal structure that is used as the Epoch Indexer, in the *RINEX* lib. 
+In otherwords, this is how this particular type of dataset is sorted and iterated.  
+*Timescale* gives the general Hifitime Timescale the Epochs are expressed in.  
+It is important to understand that as well.
+
+| Type                       | Parser            | Writer              |  CLI                 |      Content         | Record Indexing | Record Iteration     | Timescale  |
 |----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
 | Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | Epoch | SV System time broadcasting this message |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
@@ -119,8 +134,8 @@ RINEX formats & applications
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: |
 
-:heavy_check_mark: means all revisions supported   
-:construction: : means Work in Progress   
+:heavy_check_mark: all revisions are supported   
+:construction: : Work in Progress   
 
 __CLI__ : possibility to [load this format](https://github.com/georust/rinex/wiki/file-loading) in the apps.  
 __CLI__ + :chart_with_upwards_trend: : possibility to [project or extract and plot](https://github.com/georust/rinex/wiki/graph-mode) this format.

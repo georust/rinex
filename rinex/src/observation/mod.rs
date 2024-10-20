@@ -2,310 +2,123 @@
 use super::{epoch, prelude::*, version::Version};
 use std::collections::HashMap;
 
-pub mod record;
+pub use signal::SignalObservation;
+
+mod clock;
+mod crinex;
+mod formatting;
+mod header;
+mod lli;
+mod merge;
+mod parsing;
+mod signal;
+mod snr;
+mod split;
+
+#[cfg(feature = "processing")]
+mod mask;
+
+#[cfg(feature = "processing")]
+mod decim;
 
 pub mod flag;
-pub use flag::EpochFlag;
+pub mod record;
 
-mod snr;
+pub use clock::ClockObservation;
+pub use crinex::Crinex;
+pub use flag::EpochFlag;
+pub use lli::LliFlags;
 pub use snr::SNR;
 
 #[cfg(docsrs)]
 use crate::Bibliography;
 
-pub use record::{LliFlags, ObservationData, Record};
-
-#[cfg(feature = "processing")]
-use crate::prelude::TimeScale;
-
-#[cfg(feature = "processing")]
-use itertools::Itertools;
-
-#[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
-
-macro_rules! fmt_month {
-    ($m: expr) => {
-        match $m {
-            1 => "Jan",
-            2 => "Feb",
-            3 => "Mar",
-            4 => "Apr",
-            5 => "May",
-            6 => "Jun",
-            7 => "Jul",
-            8 => "Aug",
-            9 => "Sep",
-            10 => "Oct",
-            11 => "Nov",
-            _ => "Dec",
-        }
-    };
-}
+use std::collections::BTreeMap;
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-/// Describes `Compact RINEX` specific information
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
+use crate::{epoch::ParsingError as EpochParsingError, observation::flag::Error as FlagError};
+
+use gnss::{
+    constellation::ParsingError as ConstellationParsingError, sv::ParsingError as SVParsingError,
+};
+
+/// Observation RINEX specific [ParsingError]
+#[derive(Error, Debug)]
+pub enum ParsingError {
+    #[error("failed to parse epoch flag")]
+    EpochFlag(#[from] FlagError),
+    #[error("failed to parse epoch")]
+    EpochError(#[from] EpochParsingError),
+    #[error("constellation parsing error")]
+    ConstellationParsing(#[from] ConstellationParsingError),
+    #[error("sv parsing error")]
+    SvParsing(#[from] SVParsingError),
+    #[error("failed to parse vehicles properly (nb_sat mismatch)")]
+    EpochParsingError,
+    #[error("bad v2 satellites description")]
+    BadV2SatellitesDescription,
+    #[error("epoch is empty")]
+    EmptyEpoch,
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Crinex {
-    /// Compression program version
-    pub version: Version,
-    /// Compression program name
-    pub prog: String,
-    /// Date of compression
-    pub date: Epoch,
+pub enum Observation {
+    /// GNSS Receiver [ClockObservation]
+    Clock(ClockObservation),
+    /// GNSS [SignalObservation]
+    Signal(SignalObservation),
 }
 
-impl Crinex {
-    /// Sets compression algorithm revision
-    pub fn with_version(&self, version: Version) -> Self {
-        let mut s = self.clone();
-        s.version = version;
-        s
+impl Observation {
+    /// Creates new [ClockObservation] with offset to [Constellation] in [s]
+    pub fn clock_offset(offset_s: f64) -> Self {
+        Self::Clock(ClockObservation { offset_s })
     }
-    /// Sets compression program name
-    pub fn with_prog(&self, prog: &str) -> Self {
-        let mut s = self.clone();
-        s.prog = prog.to_string();
-        s
+    /// [ClockObservation] unwrapping attempt
+    pub fn as_clock(&self) -> Option<&ClockObservation> {
+        match self {
+            Self::Clock(clock) => Some(clock),
+            _ => None,
+        }
     }
-    /// Sets compression date
-    pub fn with_date(&self, e: Epoch) -> Self {
-        let mut s = self.clone();
-        s.date = e;
-        s
+    /// Mutable [ClockObservation] unwrapping attempt    
+    pub fn as_clock_mut(&mut self) -> Option<&mut ClockObservation> {
+        match self {
+            Self::Clock(clock) => Some(clock),
+            _ => None,
+        }
     }
-}
-
-impl Default for Crinex {
-    fn default() -> Self {
-        Self {
-            version: Version { major: 3, minor: 0 },
-            prog: format!("rust-rinex-{}", env!("CARGO_PKG_VERSION")),
-            date: epoch::now(),
+    /// [SignalObservation] unwrapping attempt
+    pub fn as_signal(&self) -> Option<&SignalObservation> {
+        match self {
+            Self::Signal(signal) => Some(signal),
+            _ => None,
+        }
+    }
+    /// Mutable [SignalObservation] unwrapping attempt
+    pub fn as_signal_mut(&self) -> Option<&mut SignalObservation> {
+        match self {
+            Self::Signal(signal) => Some(signal),
+            _ => None,
         }
     }
 }
 
-impl std::fmt::Display for Crinex {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let version = self.version.to_string();
-        write!(f, "{:<width$}", version, width = 20)?;
-        write!(f, "{:<width$}", "COMPACT RINEX FORMAT", width = 20)?;
-        writeln!(
-            f,
-            "{value:<width$} CRINEX VERS   / TYPE",
-            value = "",
-            width = 19
-        )?;
-        write!(f, "{:<width$}", self.prog, width = 20)?;
-        write!(f, "{:20}", "")?;
-        let (y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
-        let m = fmt_month!(m);
-        let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y - 2000, hh, mm);
-        write!(f, "{:<width$}", date, width = 20)?;
-        f.write_str("CRINEX PROG / DATE")
-    }
-}
-
-/// Observation Record specific header fields
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct HeaderFields {
-    /// Optional CRINEX information
-    pub crinex: Option<Crinex>,
-    /// Time of FIRST OBS
-    pub time_of_first_obs: Option<Epoch>,
-    /// Time of LAST OBS
-    pub time_of_last_obs: Option<Epoch>,
-    /// Observables per constellation basis
-    pub codes: HashMap<Constellation, Vec<Observable>>,
-    /// True if local clock drift is compensated for
-    pub clock_offset_applied: bool,
-    /// Possible observation scaling, used in high precision
-    /// OBS RINEX (down to nano radians precision).
-    pub scaling: HashMap<(Constellation, Observable), u16>,
+pub struct ObsKey {
+    /// Sampling [Epoch]
+    pub epoch: Epoch,
+    /// [EpochFlag] gives more information about sampling conditions
+    pub flag: EpochFlag,
 }
 
-impl HeaderFields {
-    /// Add TIME OF FIRST OBS
-    pub(crate) fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
-        let mut s = self.clone();
-        s.time_of_first_obs = Some(epoch);
-        s
-    }
-    /// Add TIME OF LAST OBS
-    pub(crate) fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
-        let mut s = self.clone();
-        s.time_of_last_obs = Some(epoch);
-        s
-    }
-    /// Insert a data scaling
-    pub(crate) fn with_scaling(&mut self, c: Constellation, observable: Observable, scaling: u16) {
-        self.scaling.insert((c, observable.clone()), scaling);
-    }
-    /// Returns given scaling to apply for given GNSS system
-    /// and given observation. Returns 1.0 by default, so it always applies
-    pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
-        self.scaling.get(&(c, observable))
-    }
-}
-
-#[cfg(feature = "processing")]
-use std::str::FromStr;
-
-#[cfg(feature = "processing")]
-impl HeaderFields {
-    /// Timescale helper
-    fn timescale(&self) -> TimeScale {
-        match self.time_of_first_obs {
-            Some(ts) => ts.time_scale,
-            None => match self.time_of_last_obs {
-                Some(ts) => ts.time_scale,
-                None => TimeScale::GPST,
-            },
-        }
-    }
-    /// Modifies in place Self, when applying preprocessing filter ops
-    pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
-        match f.operand {
-            MaskOperand::Equals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    self.time_of_first_obs = Some(epoch.to_time_scale(ts));
-                    self.time_of_last_obs = Some(epoch.to_time_scale(ts));
-                },
-                FilterItem::SvItem(svs) => {
-                    let constells = svs
-                        .iter()
-                        .map(|sv| sv.constellation)
-                        .unique()
-                        .collect::<Vec<_>>();
-                    self.codes.retain(|c, _| constells.contains(&c));
-                    self.scaling.retain(|(c, _), _| constells.contains(&c));
-                },
-                FilterItem::ComplexItem(complex) => {
-                    // try to interprate as [Observable]
-                    let observables = complex
-                        .iter()
-                        .filter_map(|f| {
-                            if let Ok(ob) = Observable::from_str(f) {
-                                Some(ob)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    if observables.len() > 0 {
-                        self.codes.retain(|_, obs| {
-                            obs.retain(|ob| observables.contains(&ob));
-                            !obs.is_empty()
-                        });
-                        self.scaling.retain(|(_, c), _| !observables.contains(c));
-                    }
-                },
-                FilterItem::ConstellationItem(constells) => {
-                    self.codes.retain(|c, _| constells.contains(&c));
-                    self.scaling.retain(|(c, _), _| constells.contains(&c));
-                },
-                _ => {},
-            },
-            MaskOperand::NotEquals => match &f.item {
-                FilterItem::SvItem(svs) => {
-                    let constells = svs
-                        .iter()
-                        .map(|sv| sv.constellation)
-                        .unique()
-                        .collect::<Vec<_>>();
-                    self.codes.retain(|c, _| !constells.contains(&c));
-                    self.scaling.retain(|(c, _), _| !constells.contains(&c));
-                },
-                FilterItem::ConstellationItem(constells) => {
-                    self.codes.retain(|c, _| !constells.contains(&c));
-                    self.scaling.retain(|(c, _), _| !constells.contains(&c));
-                },
-                FilterItem::ComplexItem(complex) => {
-                    // try to interprate as [Observable]
-                    let observables = complex
-                        .iter()
-                        .filter_map(|f| {
-                            if let Ok(ob) = Observable::from_str(f) {
-                                Some(ob)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    if observables.len() > 0 {
-                        self.codes.retain(|_, obs| {
-                            obs.retain(|ob| observables.contains(&ob));
-                            !obs.is_empty()
-                        });
-                        self.scaling.retain(|(_, c), _| !observables.contains(c));
-                    }
-                },
-                _ => {},
-            },
-            MaskOperand::GreaterThan => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if let Some(t) = self.time_of_first_obs {
-                        if t < *epoch {
-                            self.time_of_first_obs = Some(epoch.to_time_scale(ts));
-                        }
-                    } else {
-                        self.time_of_first_obs = Some(epoch.to_time_scale(ts));
-                    }
-                },
-                _ => {},
-            },
-            MaskOperand::GreaterEquals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if let Some(t_first) = self.time_of_first_obs {
-                        if t_first < *epoch {
-                            self.time_of_first_obs = Some(epoch.to_time_scale(ts));
-                        }
-                    } else {
-                        self.time_of_first_obs = Some(epoch.to_time_scale(ts));
-                    }
-                },
-                _ => {},
-            },
-            MaskOperand::LowerThan => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if let Some(t_last) = self.time_of_last_obs {
-                        if t_last > *epoch {
-                            self.time_of_last_obs = Some(epoch.to_time_scale(ts));
-                        }
-                    } else {
-                        self.time_of_last_obs = Some(*epoch);
-                    }
-                },
-                _ => {},
-            },
-            MaskOperand::LowerEquals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if let Some(t_last) = self.time_of_last_obs {
-                        if t_last > *epoch {
-                            self.time_of_last_obs = Some(epoch.to_time_scale(ts));
-                        }
-                    } else {
-                        self.time_of_last_obs = Some(epoch.to_time_scale(ts));
-                    }
-                },
-                _ => {},
-            },
-        }
-    }
-}
-
-#[cfg(feature = "obs")]
-use std::collections::BTreeMap;
+/// Observation [Record] are sorted by [Epoch] of observation and may have two different forms.
+pub type Record = BTreeMap<ObsKey, Observation>;
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
@@ -349,33 +162,18 @@ pub trait Dcb {
     fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
-#[cfg(test)]
-mod crinex {
-    use super::*;
-    #[test]
-    fn test_fmt_month() {
-        assert_eq!(fmt_month!(1), "Jan");
-        assert_eq!(fmt_month!(2), "Feb");
-        assert_eq!(fmt_month!(3), "Mar");
-        assert_eq!(fmt_month!(10), "Oct");
-        assert_eq!(fmt_month!(11), "Nov");
-        assert_eq!(fmt_month!(12), "Dec");
-    }
-    #[test]
-    fn test_display() {
-        let crinex = Crinex::default();
-        let now = Epoch::now().unwrap();
-        let (_y, _m, _d, _hh, _mm, _, _) = now.to_gregorian_utc();
-        let content = crinex.to_string();
-        let lines: Vec<&str> = content.lines().collect();
-        assert_eq!(lines.len(), 2); // main title should span 2 lines
-
-        // test first line
-        let expected =
-            "3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE";
-        assert_eq!(expected, lines[0]);
-
-        // test second line width : must follow RINEX standards
-        //assert_eq!(lines[1].len(), 80);
+#[cfg(feature = "obs")]
+impl Combine for Record {
+    fn combine(
+        &self,
+        c: Combination,
+    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        match c {
+            Combination::GeometryFree
+            | Combination::IonosphereFree
+            | Combination::NarrowLane
+            | Combination::WideLane => dual_freq_combination(self, c),
+            Combination::MelbourneWubbena => mw_combination(self),
+        }
     }
 }

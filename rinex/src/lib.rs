@@ -70,7 +70,7 @@ use epoch::epoch_decompose;
 use ionex::TECPlane;
 use navigation::NavFrame;
 use observable::Observable;
-use observation::{Crinex, ObservationData};
+use observation::Crinex;
 use version::Version;
 
 use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
@@ -90,8 +90,11 @@ pub mod prelude {
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;
-    pub use crate::observation::EpochFlag;
+    pub use crate::observation::{
+        ClockObservation, EpochFlag, LliFlags, ObsKey, SignalObservation, SNR,
+    };
     pub use crate::types::Type as RinexType;
+    pub use crate::version::Version;
     pub use crate::{Error, Rinex};
     // pub re-export
     #[cfg(feature = "nav")]
