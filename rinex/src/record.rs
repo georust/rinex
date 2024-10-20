@@ -20,7 +20,7 @@ use super::{
     *,
 };
 
-use std::io::prelude::*;
+use std::{io::prelude::*, num::NonZero};
 use thiserror::Error;
 
 #[cfg(feature = "log")]
@@ -128,14 +128,14 @@ impl Record {
         }
     }
     /// Unwraps self as OBS record
-    pub fn as_obs(&self) -> Option<&observation::Record> {
+    pub fn as_obs(&self) -> Option<&ObsRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Observation record
-    pub fn as_mut_obs(&mut self) -> Option<&mut observation::Record> {
+    pub fn as_mut_obs(&mut self) -> Option<&mut ObsRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
@@ -184,11 +184,35 @@ impl Record {
                 for key in unique_keys {
                     // Grab clock observation, if it exists
                     let clock = record
-                        .filter(|k, v| if k == key { v.as_clock() } else { None })
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if k == key {
+                                if let Some(clk) = v.as_clock() {
+                                    Some(clk)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        })
                         .reduce(|k, _| k);
 
                     // Grab all signal observations
-                    let signals = record.filter(|k, v| if k == key { v.as_signal() } else { None });
+                    let signals = record
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if k == key {
+                                if let Some(sig) = v.as_signal() {
+                                    Some(sig)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
 
                     // format
                     let formatted = format_observations(major, header, key, clock, signals);

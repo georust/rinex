@@ -15,15 +15,15 @@ pub enum ParsingError {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Ord, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
-    /// Carrier phase observation
-    Phase(String),
+    /// Carrier phase range converted to [m] (not cycles!)
+    PhaseRange(String),
     /// Doppler shift observation
     Doppler(String),
     /// SSI: Receiver signal strength observation [dB]
     SSI(String),
     /// Received Power [dBm]
     Power(String),
-    /// Pseudo range observation
+    /// Decoded Pseudo range converted to [m]
     PseudoRange(String),
     /// Channel number Pseudo Observable.
     /// Attached to Phase or PseudoRange observable to accurately
@@ -56,7 +56,7 @@ pub enum Observable {
 
 impl Default for Observable {
     fn default() -> Self {
-        Self::Phase("L1C".to_string())
+        Self::PhaseRange("L1C".to_string())
     }
 }
 
@@ -66,7 +66,7 @@ impl Observable {
     pub fn same_physics(&self, rhs: &Observable) -> bool {
         match self {
             Self::SSI(_) => matches!(rhs, Self::SSI(_)),
-            Self::Phase(_) => matches!(rhs, Self::Phase(_)),
+            Self::PhaseRange(_) => matches!(rhs, Self::PhaseRange(_)),
             Self::Power(_) => matches!(rhs, Self::Power(_)),
             Self::Doppler(_) => matches!(rhs, Self::Doppler(_)),
             Self::PseudoRange(_) => matches!(rhs, Self::PseudoRange(_)),
@@ -84,10 +84,10 @@ impl Observable {
             Self::FrequencyRatio => matches!(rhs, Self::FrequencyRatio),
         }
     }
-    pub fn is_phase_observable(&self) -> bool {
-        matches!(self, Self::Phase(_))
+    pub fn is_phase_range_observable(&self) -> bool {
+        matches!(self, Self::PhaseRange(_))
     }
-    pub fn is_pseudorange_observable(&self) -> bool {
+    pub fn is_pseudo_range_observable(&self) -> bool {
         matches!(self, Self::PseudoRange(_))
     }
     pub fn is_doppler_observable(&self) -> bool {
@@ -104,7 +104,7 @@ impl Observable {
     }
     pub fn code(&self) -> Option<String> {
         match self {
-            Self::Phase(c) | Self::Doppler(c) | Self::SSI(c) | Self::PseudoRange(c) => {
+            Self::PhaseRange(c) | Self::Doppler(c) | Self::SSI(c) | Self::PseudoRange(c) => {
                 if c.len() == 3 {
                     Some(c[1..].to_string())
                 } else {
@@ -318,7 +318,7 @@ impl std::fmt::Display for Observable {
             Self::HailIndicator => write!(f, "HI"),
             Self::FrequencyRatio => write!(f, "F"),
             Self::PseudoRange(c)
-            | Self::Phase(c)
+            | Self::PhaseRange(c)
             | Self::Doppler(c)
             | Self::SSI(c)
             | Self::Power(c)
@@ -348,7 +348,7 @@ impl std::str::FromStr for Observable {
                 let len = content.len();
                 if len > 1 && len < 4 {
                     if content.starts_with('L') {
-                        Ok(Self::Phase(content.to_string()))
+                        Ok(Self::PhaseRange(content.to_string()))
                     } else if content.starts_with('C') || content.starts_with('P') {
                         Ok(Self::PseudoRange(content.to_string()))
                     } else if content.starts_with('S') {
@@ -376,23 +376,29 @@ mod test {
     fn test_default_observable() {
         let default = Observable::default();
         assert_eq!(default, Observable::from_str("L1C").unwrap());
-        assert_eq!(default, Observable::Phase(String::from("L1C")));
-        assert!(default.is_phase_observable());
+        assert_eq!(default, Observable::PhaseRange(String::from("L1C")));
+        assert!(default.is_phase_range_observable());
     }
     #[test]
     fn test_physics() {
-        assert!(Observable::from_str("L1").unwrap().is_phase_observable());
-        assert!(Observable::from_str("L2").unwrap().is_phase_observable());
-        assert!(Observable::from_str("L6X").unwrap().is_phase_observable());
+        assert!(Observable::from_str("L1")
+            .unwrap()
+            .is_phase_range_observable());
+        assert!(Observable::from_str("L2")
+            .unwrap()
+            .is_phase_range_observable());
+        assert!(Observable::from_str("L6X")
+            .unwrap()
+            .is_phase_range_observable());
         assert!(Observable::from_str("C1")
             .unwrap()
-            .is_pseudorange_observable());
+            .is_pseudo_range_observable());
         assert!(Observable::from_str("C2")
             .unwrap()
-            .is_pseudorange_observable());
+            .is_pseudo_range_observable());
         assert!(Observable::from_str("C6X")
             .unwrap()
-            .is_pseudorange_observable());
+            .is_pseudo_range_observable());
         assert!(Observable::from_str("D1").unwrap().is_doppler_observable());
         assert!(Observable::from_str("D2").unwrap().is_doppler_observable());
         assert!(Observable::from_str("D6X").unwrap().is_doppler_observable());
@@ -418,21 +424,21 @@ mod test {
 
         assert_eq!(
             Observable::from_str("L1"),
-            Ok(Observable::Phase(String::from("L1")))
+            Ok(Observable::PhaseRange(String::from("L1")))
         );
         assert!(Observable::from_str("L1").unwrap().code().is_none());
 
         assert_eq!(
             Observable::from_str("L2"),
-            Ok(Observable::Phase(String::from("L2")))
+            Ok(Observable::PhaseRange(String::from("L2")))
         );
         assert_eq!(
             Observable::from_str("L5"),
-            Ok(Observable::Phase(String::from("L5")))
+            Ok(Observable::PhaseRange(String::from("L5")))
         );
         assert_eq!(
             Observable::from_str("L6Q"),
-            Ok(Observable::Phase(String::from("L6Q")))
+            Ok(Observable::PhaseRange(String::from("L6Q")))
         );
         assert_eq!(
             Observable::from_str("L6Q").unwrap().code(),
@@ -441,15 +447,15 @@ mod test {
 
         assert_eq!(
             Observable::from_str("L1C"),
-            Ok(Observable::Phase(String::from("L1C")))
+            Ok(Observable::PhaseRange(String::from("L1C")))
         );
         assert_eq!(
             Observable::from_str("L1P"),
-            Ok(Observable::Phase(String::from("L1P")))
+            Ok(Observable::PhaseRange(String::from("L1P")))
         );
         assert_eq!(
             Observable::from_str("L8X"),
-            Ok(Observable::Phase(String::from("L8X")))
+            Ok(Observable::PhaseRange(String::from("L8X")))
         );
 
         assert_eq!(

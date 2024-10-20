@@ -4,8 +4,6 @@ use crate::{
     prelude::{ClockObservation, Constellation, Header, ObsKey, RinexType, SignalObservation},
 };
 
-use itertools::Itertools;
-
 /// Formats one epoch according to standard definitions.
 /// ## Inputs
 /// - major: RINEX revision major
@@ -17,9 +15,9 @@ use itertools::Itertools;
 pub fn fmt_observations(
     major: u8,
     header: &Header,
-    key: ObsKey,
-    clock: &Option<ClockObservation>,
-    signals: &[SignalObservation],
+    key: &ObsKey,
+    clock: Option<&ClockObservation>,
+    signals: Vec<&SignalObservation>,
 ) -> String {
     if major < 3 {
         fmt_observations_v2(header, key, clock, signals)
@@ -30,9 +28,9 @@ pub fn fmt_observations(
 
 fn fmt_observations_v3(
     header: &Header,
-    key: ObsKey,
-    clock: &Option<ClockObservation>,
-    signals: &[SignalObservation],
+    key: &ObsKey,
+    clock: Option<&ClockObservation>,
+    signals: Vec<&SignalObservation>,
 ) -> String {
     const EMPTY_FIELD: &str = "                ";
     let mut lines = String::with_capacity(128);
@@ -81,7 +79,7 @@ fn fmt_observations_v3(
         for observable in observables {
             if let Some(signal) = signals
                 .iter()
-                .filter(|sig| sig.sv == *sv && sig.observable == observable)
+                .filter(|sig| sig.sv == *sv && &sig.observable == observable)
                 .reduce(|k, _| k)
             {
                 lines.push_str(&format!("{:14.3}", signal.value));
@@ -109,9 +107,9 @@ fn fmt_observations_v3(
 
 fn fmt_observations_v2(
     header: &Header,
-    key: ObsKey,
-    clock: &Option<ClockObservation>,
-    signals: &[SignalObservation],
+    key: &ObsKey,
+    clock: Option<&ClockObservation>,
+    signals: Vec<&SignalObservation>,
 ) -> String {
     const NUM_SV_PER_LINE: usize = 12;
     const OBSERVATION_PER_LINE: usize = 5;
@@ -178,7 +176,7 @@ fn fmt_observations_v2(
             }
             if let Some(signal) = signals
                 .iter()
-                .filter(|sig| sig.sv == *sv && sig.observable == observable)
+                .filter(|sig| sig.sv == *sv && &sig.observable == observable)
                 .reduce(|k, _| k)
             {
                 lines.push_str(&format!("{:14.3}", signal.value));

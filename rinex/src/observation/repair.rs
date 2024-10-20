@@ -1,25 +1,27 @@
 //! Observation RINEX repair implementation
 use crate::observation::Record;
 
-#[cfg(feature = "processing")]
-pub(crate) fn repair_zero_mut(rec: &mut Record) {
-    rec.retain(|_, (_, svnn)| {
-        svnn.retain(|_, obs| {
-            obs.retain(|ob, value| {
-                if ob.is_pseudorange_observable() || ob.is_phase_observable() {
-                    value.obs > 0.0
-                } else {
-                    true
-                }
-            });
-            !obs.is_empty()
-        });
-        !svnn.is_empty()
+use qc_traits::processing::Repair;
+
+/// Repairs all Zero (=null) values in [Record]
+fn repair_zero_mut(rec: &mut Record) {
+    rec.retain(|_, v| {
+        if let Some(sig) = v.as_signal_mut() {
+            if sig.observable.is_pseudo_range_observable()
+                || sig.observable.is_phase_range_observable()
+            {
+                sig.value > 0.0
+            } else {
+                true
+            }
+        } else {
+            true
+        }
     });
 }
 
-#[cfg(feature = "processing")]
-pub(crate) fn repair_mut(rec: &mut Record, repair: Repair) {
+/// Applies [Repair] to [Record]
+pub fn repair_mut(rec: &mut Record, repair: Repair) {
     match repair {
         Repair::Zero => repair_zero_mut(rec),
     }

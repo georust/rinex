@@ -58,7 +58,6 @@ use writer::BufferedWriter;
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
-//, Read};
 use std::path::Path;
 use std::str::FromStr;
 
@@ -93,6 +92,7 @@ pub mod prelude {
     pub use crate::observation::{
         ClockObservation, EpochFlag, LliFlags, ObsKey, Observation, SignalObservation, SNR,
     };
+    pub use crate::record::{Comments, Record};
     pub use crate::types::Type as RinexType;
     pub use crate::version::Version;
     pub use crate::{Error, Rinex};
@@ -133,8 +133,9 @@ use crate::{
     ionex::record::{ionex_decim_mut, ionex_mask_mut},
     meteo::record::{meteo_decim_mut, meteo_mask_mut},
     navigation::record::{navigation_decim_mut, navigation_mask_mut},
-    observation::record::{
-        observation_decim_mut, observation_mask_mut, repair_mut as observation_repair_mut,
+    observation::{
+        decim::decim_mut as observation_decim_mut, mask::mask_mut as observation_mask_mut,
+        repair::repair_mut as observation_repair_mut,
     },
 };
 
@@ -188,8 +189,7 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-/// `Rinex` describes a `RINEX` file, it comprises a [Header] section,
-/// and a [record::Record] file body.   
+/// [Rinex] comprises a [Header] section and a [Record] section (AKA File Body).
 /// This parser can also store comments encountered while parsing the file body,
 /// stored as [record::Comments], without much application other than presenting
 /// all encountered data at the moment.   
@@ -255,10 +255,10 @@ pub struct Rinex {
     /// `comments` : list of extra readable information,   
     /// found in `record` section exclusively.    
     /// Comments extracted from `header` sections are exposed in `header.comments`
-    pub comments: record::Comments,
+    pub comments: Comments,
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent
-    pub record: record::Record,
+    pub record: Record,
     /*
      * File Production attributes, attached to Self
      * parsed from files that follow stadard naming conventions
@@ -897,61 +897,6 @@ impl Rinex {
         self.header.rinex_type == types::Type::NavigationData
     }
 
-    /// Retruns true if this is an OBS RINEX
-    pub fn is_observation_rinex(&self) -> bool {
-        self.header.rinex_type == types::Type::ObservationData
-    }
-
-    /// Copies [Self] and Substract [Rinex] (rhs) (self-rhs).
-    /// RHS is therefore, considered as reference.
-    /// This operation is typically used to compare two GNSS receivers.
-    /// Both RINEX formats must match otherwise this will panic.
-    /// This is only available to Observation RINEX currenly (panics otherwise).
-    pub fn substract_mut(&mut self, rhs: &Self) {
-        let rhs_rec = rhs
-            .record
-            .as_obs()
-            .expect("can only substract observation data");
-
-        let lhs_rec = self
-            .record
-            .as_mut_obs()
-            .expect("can only substract observation data");
-
-        for (key, obs) in lhs_rec.iter_mut() {
-            if let Some(clk) = obs.as_clock_mut() {
-                if let Some(rhs_clk) =
-                    rhs_rec.iter().filter_map(
-                        |rhs_k, rhs_v| {
-                            if rhs_k == key {
-                                rhs_v.as_clock()
-                            } else {
-                                None
-                            }
-                        },
-                    )
-                {
-                    clk -= rhs_clk;
-                }
-            } else if let Some(sig) = obs.as_signal_mut() {
-                if let Some(rhs_val) = rhs_rec.iter().filter_map(|rhs_k, rhs_v| {
-                    if rhs_k == key {
-                        let rhs_sig = rhs_v.as_signal()?;
-                        if rhs_sig.sv == sig.sv && rhs_sig.observable == sig.observable {
-                            Some(rhs_sig.value)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }) {
-                    sig.value -= rhs_val;
-                }
-            }
-        }
-    }
-
     /// Returns true if Differential Code Biases (DCBs)
     /// are compensated for, in this file, for this GNSS constellation.
     /// DCBs are biases due to tiny frequency differences,
@@ -978,9 +923,10 @@ impl Rinex {
             .count()
             > 0
     }
-    /// Returns `true` if self is a `merged` RINEX file,   
-    /// meaning, this file is the combination of two RINEX files merged together.  
-    /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
+
+    /// Determines whether [Rinex] is the result of a previous [Merge] operation.
+    /// That is, the combination of two files merged together.  
+    /// This is determined by the presence of custom yet somewhat standardized [Comments].
     pub fn is_merged(&self) -> bool {
         let special_comment = String::from("FILE MERGE");
         for comment in self.header.comments.iter() {
@@ -989,98 +935,6 @@ impl Rinex {
             }
         }
         false
-    }
-
-    /// Removes all observations where receiver phase lock was lost.   
-    /// This is only relevant on OBS RINEX.
-    pub fn lock_loss_filter_mut(&mut self) {
-        self.lli_and_mask_mut(observation::LliFlags::LOCK_LOSS)
-    }
-
-    /// Applies given AND mask in place, to all observations.
-    /// This has no effect on non observation records.
-    /// This also drops observations that did not come with an LLI flag.  
-    /// Only relevant on OBS RINEX.
-    pub fn lli_and_mask_mut(&mut self, mask: observation::LliFlags) {
-        if !self.is_observation_rinex() {
-            return; // nothing to browse
-        }
-        let record = self.record.as_mut_obs().unwrap();
-        for (_e, (_clk, sv)) in record.iter_mut() {
-            for (_sv, obs) in sv.iter_mut() {
-                obs.retain(|_, data| {
-                    if let Some(lli) = data.lli {
-                        lli.intersects(mask)
-                    } else {
-                        false // drops data with no LLI attached
-                    }
-                })
-            }
-        }
-    }
-
-    /// [`Rinex::lli_and_mask`] immutable implementation.   
-    /// Only relevant on OBS RINEX.
-    pub fn lli_and_mask(&self, mask: observation::LliFlags) -> Self {
-        let mut c = self.clone();
-        c.lli_and_mask_mut(mask);
-        c
-    }
-    /// Aligns Phase observations at origin
-    pub fn observation_phase_align_origin_mut(&mut self) {
-        let mut init_phases: HashMap<SV, HashMap<Observable, f64>> = HashMap::new();
-        if let Some(r) = self.record.as_mut_obs() {
-            for (_, (_, vehicles)) in r.iter_mut() {
-                for (sv, observations) in vehicles.iter_mut() {
-                    for (observable, data) in observations.iter_mut() {
-                        if observable.is_phase_observable() {
-                            if let Some(init_phase) = init_phases.get_mut(sv) {
-                                if init_phase.get(observable).is_none() {
-                                    init_phase.insert(observable.clone(), data.obs);
-                                }
-                            } else {
-                                let mut map: HashMap<Observable, f64> = HashMap::new();
-                                map.insert(observable.clone(), data.obs);
-                                init_phases.insert(*sv, map);
-                            }
-                            data.obs -= init_phases.get(sv).unwrap().get(observable).unwrap();
-                        }
-                    }
-                }
-            }
-        }
-    }
-    /// Aligns Phase observations at origin,
-    /// immutable implementation
-    pub fn observation_phase_align_origin(&self) -> Self {
-        let mut s = self.clone();
-        s.observation_phase_align_origin_mut();
-        s
-    }
-    /// Converts all Phase Data to Carrier Cycles by multiplying all phase points
-    /// by the carrier signal wavelength.
-    pub fn observation_phase_carrier_cycles_mut(&mut self) {
-        if let Some(r) = self.record.as_mut_obs() {
-            for (_, (_, vehicles)) in r.iter_mut() {
-                for (sv, observations) in vehicles.iter_mut() {
-                    for (observable, data) in observations.iter_mut() {
-                        if observable.is_phase_observable() {
-                            if let Ok(carrier) = observable.carrier(sv.constellation) {
-                                data.obs *= carrier.wavelength();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Converts all Phase Data to Carrier Cycles by multiplying all phase points
-    /// by the carrier signal wavelength.
-    pub fn observation_phase_carrier_cycles(&self) -> Self {
-        let mut s = self.clone();
-        s.observation_phase_carrier_cycles_mut();
-        s
     }
 
     /// Writes self into given file.   
@@ -1109,17 +963,17 @@ impl Rinex {
  * Sampling related methods
  */
 impl Rinex {
-    /// Returns first [`Epoch`] encountered in time
+    /// Returns first [Epoch] encountered in time
     pub fn first_epoch(&self) -> Option<Epoch> {
         self.epoch().next()
     }
 
-    /// Returns last [`Epoch`] encountered in time
+    /// Returns last [Epoch] encountered in time
     pub fn last_epoch(&self) -> Option<Epoch> {
         self.epoch().last()
     }
 
-    /// Returns Duration of (time spanned by) this RINEX
+    /// Returns total [Duration] this [Rinex].
     pub fn duration(&self) -> Option<Duration> {
         let start = self.first_epoch()?;
         let end = self.last_epoch()?;
@@ -1283,7 +1137,7 @@ impl Rinex {
 impl Rinex {
     pub fn epoch(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
         if let Some(r) = self.record.as_obs() {
-            Box::new(r.iter().map(|((k, _), _)| *k))
+            Box::new(r.iter().map(|(k, _)| k.epoch))
         } else if let Some(r) = self.record.as_doris() {
             Box::new(r.iter().map(|((k, _), _)| *k))
         } else if let Some(r) = self.record.as_nav() {
@@ -1331,24 +1185,16 @@ impl Rinex {
     pub fn sv(&self) -> Box<dyn Iterator<Item = SV> + '_> {
         if let Some(record) = self.record.as_obs() {
             Box::new(
-                // grab all vehicles identified through all Epochs
-                // and fold them into a unique list
                 record
                     .iter()
-                    .map(|((_, _), (_clk, entries))| {
-                        let sv: Vec<SV> = entries.keys().cloned().collect();
-                        sv
-                    })
-                    .fold(vec![], |mut list, new_items| {
-                        for new in new_items {
-                            if !list.contains(&new) {
-                                // create a unique list
-                                list.push(new);
-                            }
+                    .filter_map(|(_, v)| {
+                        if let Some(sig) = v.as_signal() {
+                            Some(sig.sv)
+                        } else {
+                            None
                         }
-                        list
                     })
-                    .into_iter(),
+                    .unique(),
             )
         } else if let Some(record) = self.record.as_nav() {
             Box::new(
@@ -1398,79 +1244,77 @@ impl Rinex {
         }
     }
 
-    /// List all [`SV`] per epoch of appearance.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use std::str::FromStr;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
-    ///     .unwrap();
-    ///
-    /// let mut data = rnx.sv_epoch();
-    ///
-    /// if let Some((epoch, vehicles)) = data.nth(0) {
-    ///     assert_eq!(epoch, Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap());
-    ///     let expected = vec![
-    ///         SV::new(Constellation::GPS, 03),
-    ///         SV::new(Constellation::GPS, 08),
-    ///         SV::new(Constellation::GPS, 14),
-    ///         SV::new(Constellation::GPS, 16),
-    ///         SV::new(Constellation::GPS, 22),
-    ///         SV::new(Constellation::GPS, 23),
-    ///         SV::new(Constellation::GPS, 26),
-    ///         SV::new(Constellation::GPS, 27),
-    ///         SV::new(Constellation::GPS, 31),
-    ///         SV::new(Constellation::GPS, 32),
-    ///     ];
-    ///     assert_eq!(*vehicles, expected);
-    /// }
-    /// ```
-    pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<SV>)> + '_> {
-        if let Some(record) = self.record.as_obs() {
-            Box::new(
-                // grab all vehicles identified through all Epochs
-                // and fold them into individual lists
-                record.iter().map(|((epoch, _), (_clk, entries))| {
-                    (*epoch, entries.keys().unique().cloned().collect())
-                }),
-            )
-        } else if let Some(record) = self.record.as_nav() {
-            Box::new(
-                // grab all vehicles through all epochs,
-                // fold them into individual lists
-                record.iter().map(|(epoch, frames)| {
-                    (
-                        *epoch,
-                        frames
-                            .iter()
-                            .filter_map(|fr| {
-                                if let Some((_, sv, _)) = fr.as_eph() {
-                                    Some(sv)
-                                } else if let Some((_, sv, _)) = fr.as_eop() {
-                                    Some(sv)
-                                } else if let Some((_, sv, _)) = fr.as_ion() {
-                                    Some(sv)
-                                } else if let Some((_, sv, _)) = fr.as_sto() {
-                                    Some(sv)
-                                } else {
-                                    None
-                                }
-                            })
-                            .fold(vec![], |mut list, sv| {
-                                if !list.contains(&sv) {
-                                    list.push(sv);
-                                }
-                                list
-                            }),
-                    )
-                }),
-            )
-        } else {
-            panic!(
-                ".sv_epoch() is not feasible on \"{:?}\" RINEX",
-                self.header.rinex_type
-            );
-        }
-    }
+    // /// List all [`SV`] per epoch of appearance.
+    // /// ```
+    // /// use rinex::prelude::*;
+    // /// use std::str::FromStr;
+    // /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
+    // ///     .unwrap();
+    // ///
+    // /// let mut data = rnx.sv_epoch();
+    // ///
+    // /// if let Some((epoch, vehicles)) = data.nth(0) {
+    // ///     assert_eq!(epoch, Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap());
+    // ///     let expected = vec![
+    // ///         SV::new(Constellation::GPS, 03),
+    // ///         SV::new(Constellation::GPS, 08),
+    // ///         SV::new(Constellation::GPS, 14),
+    // ///         SV::new(Constellation::GPS, 16),
+    // ///         SV::new(Constellation::GPS, 22),
+    // ///         SV::new(Constellation::GPS, 23),
+    // ///         SV::new(Constellation::GPS, 26),
+    // ///         SV::new(Constellation::GPS, 27),
+    // ///         SV::new(Constellation::GPS, 31),
+    // ///         SV::new(Constellation::GPS, 32),
+    // ///     ];
+    // ///     assert_eq!(*vehicles, expected);
+    // /// }
+    // /// ```
+    // pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<SV>)> + '_> {
+    //     if let Some(record) = self.record.as_obs() {
+    //         Box::new(
+    //             record.iter().map(|((epoch, _), (_clk, entries))| {
+    //                 (*epoch, entries.keys().unique().cloned().collect())
+    //             }),
+    //         )
+    //     } else if let Some(record) = self.record.as_nav() {
+    //         Box::new(
+    //             // grab all vehicles through all epochs,
+    //             // fold them into individual lists
+    //             record.iter().map(|(epoch, frames)| {
+    //                 (
+    //                     *epoch,
+    //                     frames
+    //                         .iter()
+    //                         .filter_map(|fr| {
+    //                             if let Some((_, sv, _)) = fr.as_eph() {
+    //                                 Some(sv)
+    //                             } else if let Some((_, sv, _)) = fr.as_eop() {
+    //                                 Some(sv)
+    //                             } else if let Some((_, sv, _)) = fr.as_ion() {
+    //                                 Some(sv)
+    //                             } else if let Some((_, sv, _)) = fr.as_sto() {
+    //                                 Some(sv)
+    //                             } else {
+    //                                 None
+    //                             }
+    //                         })
+    //                         .fold(vec![], |mut list, sv| {
+    //                             if !list.contains(&sv) {
+    //                                 list.push(sv);
+    //                             }
+    //                             list
+    //                         }),
+    //                 )
+    //             }),
+    //         )
+    //     } else {
+    //         panic!(
+    //             ".sv_epoch() is not feasible on \"{:?}\" RINEX",
+    //             self.header.rinex_type
+    //         );
+    //     }
+    // }
     /// Returns a (unique) Iterator over all identified [`Constellation`]s.
     /// ```
     /// use rinex::prelude::*;
@@ -1495,17 +1339,19 @@ impl Rinex {
         //  create a unique list of Constellations
         Box::new(self.sv().map(|sv| sv.constellation).unique())
     }
-    /// Returns an Iterator over Unique Constellations, per Epoch
-    pub fn constellation_epoch(
-        &self,
-    ) -> Box<dyn Iterator<Item = (Epoch, Vec<Constellation>)> + '_> {
-        Box::new(self.sv_epoch().map(|(epoch, svnn)| {
-            (
-                epoch,
-                svnn.iter().map(|sv| sv.constellation).unique().collect(),
-            )
-        }))
-    }
+
+    // /// Returns an Iterator over Unique Constellations, per Epoch
+    // pub fn constellation_epoch(
+    //     &self,
+    // ) -> Box<dyn Iterator<Item = (Epoch, Vec<Constellation>)> + '_> {
+    //     Box::new(self.sv_epoch().map(|(epoch, svnn)| {
+    //         (
+    //             epoch,
+    //             svnn.iter().map(|sv| sv.constellation).unique().collect(),
+    //         )
+    //     }))
+    // }
+
     /// Returns a (unique) Iterator over all identified [`Observable`]s.
     /// Applies to Observation RINEX:
     /// ```
@@ -1541,15 +1387,14 @@ impl Rinex {
     /// }
     /// ```
     pub fn observable(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
-        if self.record.as_obs().is_some() {
-            Box::new(
-                self.observation()
-                    .flat_map(|(_, (_, svnn))| {
-                        svnn.iter()
-                            .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
-                    })
-                    .unique(),
-            )
+        if let Some(rec) = self.record.as_obs() {
+            Box::new(rec.iter().filter_map(|(_, v)| {
+                if let Some(sig) = v.as_signal() {
+                    Some(&sig.observable)
+                } else {
+                    None
+                }
+            }))
         } else if self.record.as_meteo().is_some() {
             Box::new(
                 self.meteo()
@@ -2441,38 +2286,6 @@ impl Decimate for Rinex {
         }
     }
 }
-#[cfg(feature = "obs")]
-use observation::Dcb;
-
-#[cfg(feature = "obs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-impl Dcb for Rinex {
-    fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.dcb()
-        } else {
-            panic!("wrong rinex type");
-        }
-    }
-}
-
-#[cfg(feature = "obs")]
-use observation::{Combination, Combine};
-
-#[cfg(feature = "obs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-impl Combine for Rinex {
-    fn combine(
-        &self,
-        c: Combination,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.combine(c)
-        } else {
-            HashMap::new()
-        }
-    }
-}
 
 #[cfg(feature = "clock")]
 use crate::clock::{ClockKey, ClockProfile, ClockProfileType};
@@ -2823,7 +2636,7 @@ impl Rinex {
         Box::new(self.doris().flat_map(|((epoch, _), stations)| {
             stations.iter().flat_map(move |(station, observables)| {
                 observables.iter().filter_map(move |(observable, data)| {
-                    if observable.is_phase_observable() {
+                    if observable.is_phase_range_observable() {
                         Some((*epoch, station, observable, data.value))
                     } else {
                         None
@@ -2846,7 +2659,7 @@ impl Rinex {
         Box::new(self.doris().flat_map(move |((epoch, _), stations)| {
             stations.iter().flat_map(move |(station, observables)| {
                 observables.iter().filter_map(move |(observable, data)| {
-                    if observable.is_pseudorange_observable() {
+                    if observable.is_pseudo_range_observable() {
                         if let Some(header) = &self.header.doris {
                             // apply a scaling (if any), otherwise preserve data precision
                             if let Some(scaling) = header.scaling.get(&observable) {
@@ -2894,7 +2707,6 @@ impl Rinex {
 mod test {
     use super::*;
     use crate::{fmt_comment, is_rinex_comment};
-    use std::str::FromStr;
     #[test]
     fn fmt_comments_singleline() {
         for desc in [

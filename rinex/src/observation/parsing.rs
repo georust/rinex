@@ -90,7 +90,10 @@ pub fn parse_epoch(
     let flag = EpochFlag::from_str(flag.trim())?;
 
     let (num_sat, rem) = rem.split_at(3);
-    let num_sat = num_sat.trim().parse::<u16>()?;
+    let num_sat = num_sat
+        .trim()
+        .parse::<u16>()
+        .map_err(|_| ParsingError::NumSatParsing)?;
 
     let key = ObsKey { epoch, flag };
     let mut observations = Vec::<Observation>::with_capacity(16);

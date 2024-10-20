@@ -341,7 +341,7 @@ impl Carrier {
     }
     fn from_gps_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -387,7 +387,7 @@ impl Carrier {
     }
     fn from_glo_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -439,7 +439,7 @@ impl Carrier {
     }
     fn from_gal_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -472,7 +472,7 @@ impl Carrier {
     }
     fn from_geo_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -516,7 +516,7 @@ impl Carrier {
     }
     fn from_qzss_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -585,7 +585,7 @@ impl Carrier {
     }
     fn from_bds_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -629,7 +629,7 @@ impl Carrier {
     }
     fn from_irnss_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {

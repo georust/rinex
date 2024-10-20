@@ -1,4 +1,5 @@
 //! Observation RINEX module
+//!
 mod clock;
 mod crinex;
 mod formatting; // formatter
@@ -6,13 +7,10 @@ mod header;
 mod lli;
 mod merge; // merge implementation
 mod parsing; // parser
-mod rinex;
+mod rinex; // high level methods
 mod signal;
 mod snr;
-mod split; // split implementation // high level implementations
-
-#[cfg(feature = "obs")]
-mod feature; // feature dependent, high level implementations
+mod split; // split implementation
 
 pub use header::HeaderFields;
 pub use signal::SignalObservation;
@@ -21,10 +19,13 @@ pub(crate) use formatting::fmt_observations;
 pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 #[cfg(feature = "processing")]
-mod mask; // mask implementation
+pub(crate) mod mask; // mask Trait implementation
 
 #[cfg(feature = "processing")]
-mod decim; // decim implementation
+pub(crate) mod decim; // decim Trait implementation
+
+#[cfg(feature = "processing")]
+pub(crate) mod repair; // repair Trait implementation
 
 pub mod flag;
 
@@ -70,6 +71,8 @@ pub enum ParsingError {
     BadV2SatellitesDescription,
     #[error("epoch is empty")]
     EmptyEpoch,
+    #[error("failed to parse numsat")]
+    NumSatParsing,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -116,7 +119,7 @@ impl Observation {
     }
 }
 
-#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ObsKey {
     /// Sampling [Epoch]
