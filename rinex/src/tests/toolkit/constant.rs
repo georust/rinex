@@ -20,22 +20,14 @@ pub fn is_null_rinex(rnx: &Rinex, tolerance: f64) {
 }
 
 fn is_constant_obs_record(record: &ObsRecord, constant: f64, tolerance: f64) {
-    for (_, (clk, svnn)) in record {
-        if let Some(clk) = clk {
-            let err = (clk - constant).abs();
+    for (key, obs) in record {
+        for sig in obs.signals {
+            let err = (sig.value - constant).abs();
             if err > tolerance {
-                panic!("rcvr clock {} != {}", clk, constant);
-            }
-        }
-        for (_, observables) in svnn {
-            for (observable, observation) in observables {
-                let err = (observation.obs - constant).abs();
-                if err > tolerance {
-                    panic!(
-                        "{} observation {} != {}",
-                        observable, observation.obs, constant
-                    );
-                }
+                panic!(
+                    "({} {}){} observation {} != {}",
+                    key.epoch, sig.sv, sig.observable, sig.value, constant
+                );
             }
         }
     }

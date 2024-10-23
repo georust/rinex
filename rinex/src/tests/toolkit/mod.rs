@@ -210,18 +210,15 @@ pub fn test_observables_csv(dut: &Rinex, observables_csv: &str) {
     }
 }
 
-/*
- * OBS RINEX thorough comparison
- */
+/// Observation RINEX thorough comparison
 fn observation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
     let rec_dut = dut.record.as_obs().expect("failed to unwrap rinex record");
     let rec_model = model
         .record
         .as_obs()
         .expect("failed to unwrap rinex record");
-    /*
-     * 1: make sure constellations are identical
-     */
+
+    // verify constellations
     let dut_constell: Vec<_> = dut.constellation().collect();
     let expected_constell: Vec<_> = model.constellation().collect();
     assert_eq!(
@@ -230,100 +227,16 @@ fn observation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon
         filename
     );
 
-    for (e_model, (clk_offset_model, vehicles_model)) in rec_model.iter() {
-        if let Some((clk_offset_dut, vehicles_dut)) = rec_dut.get(e_model) {
-            assert_eq!(
-                clk_offset_model, clk_offset_dut,
-                "\"{}\" - {:?} - faulty clock offset, expecting {:?} got {:?}",
-                filename, e_model, clk_offset_model, clk_offset_dut
-            );
-            for (sv_model, observables_model) in vehicles_model.iter() {
-                if let Some(observables_dut) = vehicles_dut.get(sv_model) {
-                    for (code_model, obs_model) in observables_model {
-                        if let Some(obs_dut) = observables_dut.get(code_model) {
-                            assert!(
-                                (obs_model.obs - obs_dut.obs).abs() < epsilon,
-                                "\"{}\" - {:?} - {:?} - \"{}\" expecting {} got {}",
-                                filename,
-                                e_model,
-                                sv_model,
-                                code_model,
-                                obs_model.obs,
-                                obs_dut.obs
-                            );
-                            assert_eq!(
-                                obs_model.lli, obs_dut.lli,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                filename, e_model, sv_model, code_model, obs_model.lli, obs_dut.lli
-                            );
-                            assert_eq!(
-                                obs_model.snr, obs_dut.snr,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                filename, e_model, sv_model, code_model, obs_model.snr, obs_dut.snr
-                            );
-                        } else {
-                            panic!(
-                                "\"{}\" - {:?} - {:?} : missing \"{}\" observation",
-                                filename, e_model, sv_model, code_model
-                            );
-                        }
-                    }
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} - missing vehicle {:?}",
-                        filename, e_model, sv_model
-                    );
-                }
-            }
-        } else {
-            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
-        }
-    }
+    for (key, value) in rec_model.iter() {
+        let dut_value = rec_dut.get(key).expect(&format!("{} does not exist"), key);
 
-    for (e_b, (clk_offset_b, vehicles_b)) in rec_model.iter() {
-        if let Some((clk_offset_model, vehicles_model)) = rec_dut.get(e_b) {
-            assert_eq!(clk_offset_model, clk_offset_b);
-            for (sv_b, observables_b) in vehicles_b.iter() {
-                if let Some(observables_model) = vehicles_model.get(sv_b) {
-                    for (code_b, obs_b) in observables_b {
-                        if let Some(obs_model) = observables_model.get(code_b) {
-                            assert!(
-                                (obs_model.obs - obs_b.obs).abs() < 1.0E-6,
-                                "\"{}\" - {:?} - {:?} - \"{}\" expecting {} got {}",
-                                filename,
-                                e_b,
-                                sv_b,
-                                code_b,
-                                obs_model.obs,
-                                obs_b.obs
-                            );
-                            assert_eq!(
-                                obs_model.lli, obs_b.lli,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                filename, e_b, sv_b, code_b, obs_model.lli, obs_b.lli
-                            );
-                            assert_eq!(
-                                obs_model.snr, obs_b.snr,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                filename, e_b, sv_b, code_b, obs_model.snr, obs_b.snr
-                            );
-                        } else {
-                            panic!(
-                                "\"{}\" - {:?} - {:?} : parsed \"{}\" unexpectedly",
-                                filename, e_b, sv_b, code_b
-                            );
-                        }
-                    }
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} - parsed {:?} unexpectedly",
-                        filename, e_b, sv_b
-                    );
-                }
-            }
-        } else {
-            panic!("\"{}\" - parsed epoch {:?} unexpectedly", filename, e_b);
-        }
+        assert_eq!(value.clock, dut_value.clock);
+        assert_eq!(value.signals, dut_value.signals);
+    }
+    for (key, _) in rec_dut.iter() {
+        let model_value = rec_model
+            .get(key)
+            .expect(&format!("found unexpected key: {}", key));
     }
 }
 

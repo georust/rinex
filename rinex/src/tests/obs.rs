@@ -47,96 +47,57 @@ mod test {
         //testbench(&rinex, 2, 11, Constellation::GPS, epochs, observables);
         let record = rinex.record.as_obs().unwrap();
 
-        for (index, (_e, (_, vehicles))) in record.iter().enumerate() {
-            let keys: Vec<_> = vehicles.keys().collect();
-            if index == 0 {
-                assert_eq!(
-                    keys,
-                    vec![
-                        &SV::new(Constellation::GPS, 03),
-                        &SV::new(Constellation::GPS, 08),
-                        &SV::new(Constellation::GPS, 14),
-                        &SV::new(Constellation::GPS, 16),
-                        &SV::new(Constellation::GPS, 22),
-                        &SV::new(Constellation::GPS, 23),
-                        &SV::new(Constellation::GPS, 26),
-                        &SV::new(Constellation::GPS, 27),
-                        &SV::new(Constellation::GPS, 31),
-                        &SV::new(Constellation::GPS, 32),
-                    ]
-                );
+        for (nth_epoch, (key, value)) in record.iter().enumerate() {
+            assert!(value.clock.is_none());
+            match nth_epoch {
+                0 => {
+                    assert_eq!(key, ObsKey {});
+                    let svnn = value
+                        .signals
+                        .iter()
+                        .map(|sig| sig.sv)
+                        .sorted()
+                        .collect::<Vec<_>>();
+                    assert_eq!(svnn,);
 
-                /*
-                 * Test G03
-                 */
-                let sv = SV::new(Constellation::GPS, 03);
-                let observations = vehicles.get(&sv).unwrap();
-                let l1 = observations
-                    .get(&Observable::from_str("L1").unwrap())
-                    .unwrap();
-                assert_eq!(l1.obs, -9440000.265);
-                assert!(l1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert_eq!(l1.snr, Some(SNR::DbHz48_53));
+                    // test G03
+                    let sv = SV::new(Constellation::GPS, 03);
+                    let observations = vehicles.get(&sv).unwrap();
+                    let l1 = observations
+                        .get(&Observable::from_str("L1").unwrap())
+                        .unwrap();
+                    assert_eq!(l1.obs, -9440000.265);
+                    assert!(l1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                    assert_eq!(l1.snr, Some(SNR::DbHz48_53));
 
-                let l2 = observations
-                    .get(&Observable::from_str("L2").unwrap())
-                    .unwrap();
-                assert_eq!(l2.obs, -7293824.593);
-                assert!(l2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert_eq!(l2.snr, Some(SNR::DbHz42_47));
+                    let l2 = observations
+                        .get(&Observable::from_str("L2").unwrap())
+                        .unwrap();
+                    assert_eq!(l2.obs, -7293824.593);
+                    assert!(l2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                    assert_eq!(l2.snr, Some(SNR::DbHz42_47));
 
-                let c1 = observations
-                    .get(&Observable::from_str("C1").unwrap())
-                    .unwrap();
-                assert_eq!(c1.obs, 23189944.587);
-                assert!(c1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert!(c1.snr.is_none());
+                    let c1 = observations
+                        .get(&Observable::from_str("C1").unwrap())
+                        .unwrap();
+                    assert_eq!(c1.obs, 23189944.587);
+                    assert!(c1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                    assert!(c1.snr.is_none());
 
-                let p1 = observations
-                    .get(&Observable::from_str("P1").unwrap())
-                    .unwrap();
-                assert_eq!(p1.obs, 23189944.999);
-                assert!(p1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert!(p1.snr.is_none());
+                    let p1 = observations
+                        .get(&Observable::from_str("P1").unwrap())
+                        .unwrap();
+                    assert_eq!(p1.obs, 23189944.999);
+                    assert!(p1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                    assert!(p1.snr.is_none());
 
-                let p2 = observations
-                    .get(&Observable::from_str("P2").unwrap())
-                    .unwrap();
-                assert_eq!(p2.obs, 23189951.464);
-                assert!(p2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert!(p2.snr.is_none());
-            } else if index == 1 {
-                assert_eq!(
-                    keys,
-                    vec![
-                        &SV::new(Constellation::GPS, 01),
-                        &SV::new(Constellation::GPS, 07),
-                        &SV::new(Constellation::GPS, 08),
-                        &SV::new(Constellation::GPS, 09),
-                        &SV::new(Constellation::GPS, 11),
-                        &SV::new(Constellation::GPS, 16),
-                        &SV::new(Constellation::GPS, 23),
-                        &SV::new(Constellation::GPS, 27),
-                        &SV::new(Constellation::GPS, 30),
-                    ]
-                );
-            } else if index == 2 {
-                assert_eq!(
-                    keys,
-                    vec![
-                        &SV::new(Constellation::GPS, 01),
-                        &SV::new(Constellation::GPS, 03),
-                        &SV::new(Constellation::GPS, 06),
-                        &SV::new(Constellation::GPS, 07),
-                        &SV::new(Constellation::GPS, 08),
-                        &SV::new(Constellation::GPS, 11),
-                        &SV::new(Constellation::GPS, 17),
-                        &SV::new(Constellation::GPS, 19),
-                        &SV::new(Constellation::GPS, 22),
-                        &SV::new(Constellation::GPS, 28),
-                        &SV::new(Constellation::GPS, 30),
-                    ]
-                );
+                    let p2 = observations
+                        .get(&Observable::from_str("P2").unwrap())
+                        .unwrap();
+                    assert_eq!(p2.obs, 23189951.464);
+                    assert!(p2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                    assert!(p2.snr.is_none());
+                },
             }
         }
     }

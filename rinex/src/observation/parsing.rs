@@ -532,10 +532,10 @@ fn parse_observations_v3(
 
 #[cfg(test)]
 mod test {
-    use super::is_new_epoch;
-    use crate::prelude::Version;
+    use super::{is_new_epoch, parse_epoch};
+    use crate::prelude::{Header, Observations, Version};
     #[test]
-    fn test_new_epoch() {
+    fn new_observation_epoch() {
         assert!(is_new_epoch(
             "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
             Version { major: 2, minor: 0 }
@@ -564,5 +564,12 @@ mod test {
             "G01  22331467.880   117352685.28208        48.950    22331469.28",
             Version { major: 3, minor: 0 }
         ));
+    }
+
+    #[test]
+    fn test_parse_epoch_1() {
+        let header = Header::default();
+        let mut observations = Observations::default();
+        let parsed = parse_epoch(&header, content, TimeScale::GPST, observations);
     }
 }
