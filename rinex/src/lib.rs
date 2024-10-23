@@ -64,10 +64,10 @@ use std::str::FromStr;
 use itertools::Itertools;
 use thiserror::Error;
 
-use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
+use antex::{Antenna, FrequencyDependentData};
 use doris::record::ObservationData as DorisObservationData;
 use epoch::epoch_decompose;
-use ionex::TECPlane;
+
 use navigation::NavFrame;
 use observable::Observable;
 use observation::Crinex;
@@ -75,7 +75,7 @@ use version::Version;
 
 use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
 
-use hifitime::Unit;
+
 
 /// Package to include all basic structures
 pub mod prelude {
@@ -1379,7 +1379,7 @@ impl Rinex {
         if self.is_observation_rinex() {
             Box::new(
                 self.signal_observations_iter()
-                    .map(|(k, v)| &v.observable)
+                    .map(|(_k, v)| &v.observable)
                     .unique(),
             )
         // } else if self.record.as_meteo().is_some() {

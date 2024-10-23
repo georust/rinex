@@ -6,9 +6,8 @@ use super::{
     merge::Merge,
     meteo, navigation,
     navigation::record::parse_epoch as parse_nav_epoch,
-    observation,
     observation::{
-        fmt_observations as format_observations, is_new_epoch as is_new_observation_epoch,
+        is_new_epoch as is_new_observation_epoch,
         parse_epoch as parse_observation_epoch, Record as ObservationRecord,
     },
     prelude::Duration,
@@ -158,8 +157,8 @@ impl Record {
         header: &header::Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
-        let major = header.version.major;
-        let constell = header.constellation;
+        let _major = header.version.major;
+        let _constell = header.constellation;
 
         match &header.rinex_type {
             Type::MeteoData => {
@@ -172,13 +171,13 @@ impl Record {
             },
             Type::ObservationData => {
                 let record = self.as_obs().unwrap();
-                let obs_fields = &header.obs.as_ref().unwrap();
-                let mut compressor = Compressor::default();
+                let _obs_fields = &header.obs.as_ref().unwrap();
+                let _compressor = Compressor::default();
 
                 let unique_keys = record.keys().unique();
 
                 // browse record by timeline
-                for key in unique_keys {
+                for _key in unique_keys {
                     // // Grab clock observation, if it exists
                     // let clock = record
                     //     .iter()
@@ -396,11 +395,9 @@ pub fn parse_record(
     if let Some(clk) = &header.clock {
         if let Some(ts) = clk.timescale {
             clk_ts = ts;
-        } else {
-            if let Some(constellation) = &header.constellation {
-                if let Some(ts) = constellation.timescale() {
-                    clk_ts = ts;
-                }
+        } else if let Some(constellation) = &header.constellation {
+            if let Some(ts) = constellation.timescale() {
+                clk_ts = ts;
             }
         }
     }
@@ -517,7 +514,7 @@ pub fn parse_record(
                                 observations.signals.clear(); // for next time, avoids re-alloc
                                 comment_ts = key.epoch; // for temporal comment indexing
                             },
-                            Err(e) => {
+                            Err(_e) => {
                                 // notify (debugger) non vital problems (slight/temporary formatting issues
                                 #[cfg(feature = "log")]
                                 error!("parsing: {}", e);
@@ -625,7 +622,7 @@ pub fn parse_record(
                     observations.signals.clear(); // for next time, avoids re-alloc
                     comment_ts = key.epoch; // for temporal comment storage
                 },
-                Err(e) => {
+                Err(_e) => {
                     // notify (debugger) non vital problems (slight/temporary formatting issues
                     #[cfg(feature = "log")]
                     error!("parsing: {}", e);

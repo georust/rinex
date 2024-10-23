@@ -1,4 +1,4 @@
-use dms_coordinates::DMS;
+
 use map_3d::{deg2rad, ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 
 #[cfg(feature = "serde")]

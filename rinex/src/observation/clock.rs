@@ -36,7 +36,7 @@ impl ClockObservation {
 
     /// Copies and define a new [ClockObservation] with given offset [s]
     pub fn with_offset_s(&self, timeof_obs: Epoch, offset_s: f64) -> Self {
-        let mut s = self.clone();
+        let mut s = *self;
         s.set_offset_s(timeof_obs, offset_s);
         s
     }

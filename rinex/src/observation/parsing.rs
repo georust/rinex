@@ -164,7 +164,7 @@ pub fn parse_epoch(
 
 fn parse_observations(
     header: &Header,
-    key: ObsKey,
+    _key: ObsKey,
     num_sat: u16,
     rem: &str,
     mut lines: Lines<'_>,
@@ -303,14 +303,12 @@ fn parse_observations_v2(
                     error!("abort (sbas): not observable specs");
                     break;
                 }
+            } else if let Some(observables) = head_observables.get(&sv.constellation) {
+                observables
             } else {
-                if let Some(observables) = head_observables.get(&sv.constellation) {
-                    observables
-                } else {
-                    #[cfg(feature = "log")]
-                    error!("abort ({}): no observable specs", sv.constellation);
-                    break;
-                }
+                #[cfg(feature = "log")]
+                error!("abort ({}): no observable specs", sv.constellation);
+                break;
             };
 
             obs_ptr = 0;
@@ -346,7 +344,7 @@ fn parse_observations_v2(
         debug!("line: \"{}\" [={}]", line, num_obs);
 
         // process all of them
-        for i in 0..num_obs {
+        for _i in 0..num_obs {
             if obs_ptr > observables.len() {
                 // line is abnormally long (trailing whitespaces): abort
                 break;
@@ -368,7 +366,7 @@ fn parse_observations_v2(
                     Ok(unsigned) => {
                         lli = LliFlags::from_bits(unsigned);
                     },
-                    Err(e) => {
+                    Err(_e) => {
                         #[cfg(feature = "log")]
                         error!("lli: {}", e);
                     },
@@ -384,7 +382,7 @@ fn parse_observations_v2(
                     Ok(found) => {
                         snr = Some(found);
                     },
-                    Err(e) => {
+                    Err(_e) => {
                         #[cfg(feature = "log")]
                         error!("snr: {:?}", e);
                     },
@@ -443,7 +441,7 @@ fn parse_observations_v3(
             Ok(found) => {
                 sv = found;
             },
-            Err(e) => {
+            Err(_e) => {
                 #[cfg(feature = "log")]
                 error!("sv parsing: {}", e);
                 continue;
@@ -469,8 +467,8 @@ fn parse_observations_v3(
         debug!("{}: {:?}", sv, observables);
 
         let num_obs = line.len() / OBSERVABLE_WIDTH;
-        let mut obs_ptr = 0;
-        let mut offset = SVNN_SIZE + 1;
+        let obs_ptr = 0;
+        let offset = SVNN_SIZE + 1;
 
         for i in 0..num_obs {
             if i == observables.len() {
@@ -491,7 +489,7 @@ fn parse_observations_v3(
                     Ok(unsigned) => {
                         lli = LliFlags::from_bits(unsigned);
                     },
-                    Err(e) => {
+                    Err(_e) => {
                         #[cfg(feature = "log")]
                         error!("lli: {}", e);
                     },
@@ -508,7 +506,7 @@ fn parse_observations_v3(
                     Ok(found) => {
                         snr = Some(found);
                     },
-                    Err(e) => {
+                    Err(_e) => {
                         #[cfg(feature = "log")]
                         error!("snr: {:?}", e);
                     },

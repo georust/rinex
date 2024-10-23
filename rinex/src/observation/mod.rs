@@ -38,7 +38,7 @@ pub use snr::SNR;
 #[cfg(docsrs)]
 use crate::Bibliography;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
@@ -47,7 +47,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     epoch::ParsingError as EpochParsingError,
     observation::flag::Error as FlagError,
-    prelude::{Epoch, Observable, SV},
+    prelude::{Epoch},
 };
 
 use gnss::{
