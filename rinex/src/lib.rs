@@ -1183,19 +1183,8 @@ impl Rinex {
     ///     sv!("G32")]);
     /// ```
     pub fn sv(&self) -> Box<dyn Iterator<Item = SV> + '_> {
-        if let Some(record) = self.record.as_obs() {
-            Box::new(
-                record
-                    .iter()
-                    .filter_map(|(_, v)| {
-                        if let Some(sig) = v.as_signal() {
-                            Some(sig.sv)
-                        } else {
-                            None
-                        }
-                    })
-                    .unique(),
-            )
+        if self.is_observation_rinex() {
+            Box::new(self.signal_observations_iter().map(|(_, v)| v.sv).unique())
         } else if let Some(record) = self.record.as_nav() {
             Box::new(
                 // grab all vehicles through all epochs,
@@ -1352,8 +1341,8 @@ impl Rinex {
     //     }))
     // }
 
-    /// Returns a (unique) Iterator over all identified [`Observable`]s.
-    /// Applies to Observation RINEX:
+    /// Unique [Observable]s Iterator. Can only be used on either Observation,
+    /// Meteo or DORIS RINEX and will panic otherwise (invalid RINEX type).
     /// ```
     /// use rinex::prelude::*;
     /// let rinex = Rinex::from_file("../test_resources/CRNX/V1/AJAC3550.21D")
@@ -1387,32 +1376,30 @@ impl Rinex {
     /// }
     /// ```
     pub fn observable(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
-        if let Some(rec) = self.record.as_obs() {
-            Box::new(rec.iter().filter_map(|(_, v)| {
-                if let Some(sig) = v.as_signal() {
-                    Some(&sig.observable)
-                } else {
-                    None
-                }
-            }))
-        } else if self.record.as_meteo().is_some() {
+        if self.is_observation_rinex() {
             Box::new(
-                self.meteo()
-                    .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
+                self.signal_observations_iter()
+                    .map(|(k, v)| &v.observable)
                     .unique(),
             )
-        } else if self.record.as_doris().is_some() {
-            Box::new(
-                self.doris()
-                    .flat_map(|(_, stations)| {
-                        stations
-                            .iter()
-                            .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
-                    })
-                    .unique(),
-            )
+        // } else if self.record.as_meteo().is_some() {
+        //     Box::new(
+        //         self.meteo()
+        //             .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
+        //             .unique(),
+        //     )
+        // } else if self.record.as_doris().is_some() {
+        //     Box::new(
+        //         self.doris()
+        //             .flat_map(|(_, stations)| {
+        //                 stations
+        //                     .iter()
+        //                     .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
+        //             })
+        //             .unique(),
+        //     )
         } else {
-            Box::new([].iter())
+            Box::new([].into_iter())
         }
     }
     /// Meteo RINEX record browsing method. Extracts data for this specific format.

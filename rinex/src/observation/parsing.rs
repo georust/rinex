@@ -150,7 +150,7 @@ pub fn parse_epoch(
 
     match flag {
         EpochFlag::Ok | EpochFlag::PowerFailure | EpochFlag::CycleSlip => {
-            parse_observations(header, key, num_sat, rem, lines, &mut observations);
+            parse_observations(header, key, num_sat, rem, lines, observations)?;
         },
         _ => {
             // TODO following OBS_RINEX refactor:

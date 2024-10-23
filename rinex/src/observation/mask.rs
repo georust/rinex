@@ -14,48 +14,41 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
     match mask.operand {
         MaskOperand::Equals => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch == *epoch),
-            FilterItem::ClockItem => {
-                rec.retain(|_, obs| obs.clock.is_some());
-            },
+            FilterItem::ClockItem => rec.retain(|_, obs| obs.clock.is_some()),
             FilterItem::ConstellationItem(constells) => {
                 let mut broad_sbas_filter = false;
                 for c in constells {
                     broad_sbas_filter |= *c == Constellation::SBAS;
                 }
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         if broad_sbas_filter {
                             sig.sv.constellation.is_sbas()
                                 || constells.contains(&sig.sv.constellation)
                         } else {
                             constells.contains(&sig.sv.constellation)
                         }
-                    } else {
-                        true
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
-                        items.contains(&sig.sv)
-                    } else {
-                        true
-                    }
+                    obs.signals.retain(|sig| items.contains(&sig.sv));
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::SNRItem(filter) => {
                 let filter = SNR::from(*filter);
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         if let Some(snr) = sig.snr {
                             snr == filter
                         } else {
                             false // no SNR: drop out
                         }
-                    } else {
-                        true // does not apply
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::ComplexItem(filter) => {
@@ -73,11 +66,9 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
 
                 if !observables.is_empty() {
                     rec.retain(|_, obs| {
-                        if let Some(sig) = obs.as_signal() {
-                            observables.contains(&sig.observable)
-                        } else {
-                            true
-                        }
+                        obs.signals
+                            .retain(|sig| observables.contains(&sig.observable));
+                        !obs.signals.is_empty()
                     });
                 }
             },
@@ -86,25 +77,18 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
 
         MaskOperand::NotEquals => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch != *epoch),
-            FilterItem::ClockItem => {
-                rec.retain(|_, obs| obs.as_clock().is_none());
-            },
+            FilterItem::ClockItem => rec.retain(|_, obs| obs.clock.is_none()),
             FilterItem::ConstellationItem(constells) => {
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
-                        !constells.contains(&sig.sv.constellation)
-                    } else {
-                        true
-                    }
+                    obs.signals
+                        .retain(|sig| !constells.contains(&sig.sv.constellation));
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
-                        !items.contains(&sig.sv)
-                    } else {
-                        true
-                    }
+                    obs.signals.retain(|sig| items.contains(&sig.sv));
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::ComplexItem(filter) => {
@@ -122,11 +106,9 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
 
                 if !observables.is_empty() {
                     rec.retain(|_, obs| {
-                        if let Some(sig) = obs.as_signal() {
-                            !observables.contains(&sig.observable)
-                        } else {
-                            true
-                        }
+                        obs.signals
+                            .retain(|sig| observables.contains(&sig.observable));
+                        !obs.signals.is_empty()
                     });
                 }
             },
@@ -136,7 +118,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch >= *epoch),
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         let mut retained = true;
                         for item in items {
                             if item.constellation == sig.sv.constellation {
@@ -144,23 +126,21 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
                             }
                         }
                         retained
-                    } else {
-                        true
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::SNRItem(filter) => {
                 let filter = SNR::from(*filter);
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         if let Some(snr) = sig.snr {
                             snr >= filter
                         } else {
                             false // no SNR: drop out
                         }
-                    } else {
-                        true // does not apply
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             _ => {},
@@ -169,7 +149,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch > *epoch),
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         let mut retained = true;
                         for item in items {
                             if item.constellation == sig.sv.constellation {
@@ -177,23 +157,21 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
                             }
                         }
                         retained
-                    } else {
-                        true
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::SNRItem(filter) => {
                 let filter = SNR::from(*filter);
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         if let Some(snr) = sig.snr {
                             snr > filter
                         } else {
                             false // no SNR: drop out
                         }
-                    } else {
-                        true // does not apply
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             _ => {},
@@ -202,7 +180,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch <= *epoch),
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         let mut retained = true;
                         for item in items {
                             if item.constellation == sig.sv.constellation {
@@ -210,23 +188,21 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
                             }
                         }
                         retained
-                    } else {
-                        true
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::SNRItem(filter) => {
                 let filter = SNR::from(*filter);
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         if let Some(snr) = sig.snr {
                             snr <= filter
                         } else {
                             false // no SNR: drop out
                         }
-                    } else {
-                        true // does not apply
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             _ => {},
@@ -235,7 +211,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch < *epoch),
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         let mut retained = true;
                         for item in items {
                             if item.constellation == sig.sv.constellation {
@@ -243,23 +219,21 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
                             }
                         }
                         retained
-                    } else {
-                        true
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             FilterItem::SNRItem(filter) => {
                 let filter = SNR::from(*filter);
                 rec.retain(|_, obs| {
-                    if let Some(sig) = obs.as_signal() {
+                    obs.signals.retain(|sig| {
                         if let Some(snr) = sig.snr {
                             snr < filter
                         } else {
                             false // no SNR: drop out
                         }
-                    } else {
-                        true // does not apply
-                    }
+                    });
+                    !obs.signals.is_empty()
                 });
             },
             _ => {},

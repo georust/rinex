@@ -9,7 +9,7 @@ use super::{
     observation,
     observation::{
         fmt_observations as format_observations, is_new_epoch as is_new_observation_epoch,
-        parse_epoch as parse_observation_epoch, Record as ObsRecord,
+        parse_epoch as parse_observation_epoch, Record as ObservationRecord,
     },
     prelude::Duration,
     reader::BufferedReader,
@@ -42,8 +42,8 @@ pub enum Record {
     MeteoRecord(meteo::Record),
     /// Navigation record, see [navigation::record::Record]
     NavRecord(navigation::Record),
-    /// Observation record [ObsRecord]
-    ObsRecord(ObsRecord),
+    /// Observation record [ObservationRecord]
+    ObsRecord(ObservationRecord),
     /// DORIS RINEX, special DORIS measurements wraped as observations
     DorisRecord(doris::Record),
 }
@@ -125,14 +125,14 @@ impl Record {
         }
     }
     /// Unwraps self as OBS record
-    pub fn as_obs(&self) -> Option<&ObsRecord> {
+    pub fn as_obs(&self) -> Option<&ObservationRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Observation record
-    pub fn as_mut_obs(&mut self) -> Option<&mut ObsRecord> {
+    pub fn as_mut_obs(&mut self) -> Option<&mut ObservationRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
@@ -349,13 +349,21 @@ pub fn parse_record(
     let mut comment_content: Vec<String> = Vec::with_capacity(4);
 
     let mut decompressor = Decompressor::new();
-    // record
-    let mut atx_rec = antex::Record::new(); // ATX
-    let mut nav_rec = navigation::Record::new(); // NAV
-    let mut obs_rec = observation::Record::new(); // OBS
-    let mut met_rec = meteo::Record::new(); // MET
-    let mut clk_rec = clock::Record::new(); // CLK
-    let mut dor_rec = doris::Record::new(); // DORIS
+
+    // ANTEX
+    let mut atx_rec = antex::Record::new();
+    // NAV
+    let mut nav_rec = navigation::Record::new();
+    // OBS
+    let mut obs_rec = ObservationRecord::new();
+    let mut observations = Observations::default();
+
+    // MET
+    let mut met_rec = meteo::Record::new();
+    // CLK
+    let mut clk_rec = clock::Record::new();
+    // DORIS
+    let mut dor_rec = doris::Record::new();
 
     // OBSERVATION case
     //  timescale is defined either
@@ -498,12 +506,16 @@ pub fn parse_record(
                         }
                     },
                     Type::ObservationData => {
-                        match parse_observation_epoch(header, &epoch_content, obs_ts) {
-                            Ok((key, observations)) => {
-                                for observation in observations {
-                                    obs_rec.insert(key, observation);
-                                    comment_ts = key.epoch; // for temporal comment indexing
-                                }
+                        match parse_observation_epoch(
+                            header,
+                            &epoch_content,
+                            obs_ts,
+                            &mut observations,
+                        ) {
+                            Ok(key) => {
+                                obs_rec.insert(key, observations.clone());
+                                observations.signals.clear(); // for next time, avoids re-alloc
+                                comment_ts = key.epoch; // for temporal comment indexing
                             },
                             Err(e) => {
                                 // notify (debugger) non vital problems (slight/temporary formatting issues
@@ -607,12 +619,11 @@ pub fn parse_record(
             }
         },
         Type::ObservationData => {
-            match parse_observation_epoch(header, &epoch_content, obs_ts) {
-                Ok((key, observations)) => {
-                    for observation in observations {
-                        obs_rec.insert(key, observation);
-                        comment_ts = key.epoch; // for temporal comment indexing
-                    }
+            match parse_observation_epoch(header, &epoch_content, obs_ts, &mut observations) {
+                Ok(key) => {
+                    obs_rec.insert(key, observations.clone());
+                    observations.signals.clear(); // for next time, avoids re-alloc
+                    comment_ts = key.epoch; // for temporal comment storage
                 },
                 Err(e) => {
                     // notify (debugger) non vital problems (slight/temporary formatting issues

@@ -18,8 +18,8 @@ pub use signal::SignalObservation;
 pub(crate) use formatting::fmt_observations;
 pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
-// #[cfg(feature = "processing")]
-// pub(crate) mod mask; // mask Trait implementation
+#[cfg(feature = "processing")]
+pub(crate) mod mask; // mask Trait implementation
 
 #[cfg(feature = "processing")]
 pub(crate) mod decim; // decim Trait implementation
@@ -105,7 +105,7 @@ impl Observations {
         if let Some(ref mut clock) = s.clock {
             clock.set_offset_s(timeof_obs, offset_s);
         } else {
-            s.clock = Some(ClockObservation::default().with_offfset_s(offset_s));
+            s.clock = Some(ClockObservation::default().with_offset_s(timeof_obs, offset_s));
         }
         s
     }

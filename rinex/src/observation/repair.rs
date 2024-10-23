@@ -7,7 +7,7 @@ use qc_traits::processing::Repair;
 fn repair_zero_mut(rec: &mut Record) {
     rec.retain(|_, obs| {
         obs.signals.retain(|signal| {
-            if signal.observable.is_pseudo_range_obseravble()
+            if signal.observable.is_pseudo_range_observable()
                 || signal.observable.is_phase_range_observable()
             {
                 signal.value > 0.0
