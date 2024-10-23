@@ -420,7 +420,7 @@ impl IonMessage {
     }
 
     pub(crate) fn from_rinex2_header(header: &str, marker: &str) -> Result<Self, Error> {
-        let header = header.replace('d', "e").replace('D', "E");
+        let header = header.replace("d", "e").replace("D", "E");
         let (_, rem) = header.split_at(2);
         let (a0, rem) = rem.split_at(12);
         let (a1, rem) = rem.split_at(12);

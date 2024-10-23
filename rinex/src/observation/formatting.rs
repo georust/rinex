@@ -157,7 +157,7 @@ fn fmt_observations_v2(
         index += 1;
     }
 
-    for (_nth_sv, sv) in unique_sv.iter().enumerate() {
+    for (nth_sv, sv) in unique_sv.iter().enumerate() {
         // retrieve header specs
         let observables = if sv.constellation.is_sbas() {
             observables.get(&Constellation::SBAS)
@@ -193,7 +193,8 @@ fn fmt_observations_v2(
                 } else {
                     lines.push(' ');
                 }
-            } 
+            } else {
+            }
         }
     }
     lines

@@ -2,10 +2,10 @@
 
 use crate::{
     observation::Crinex,
-    prelude::{Constellation, Epoch, Observable},
+    prelude::{Constellation, Epoch, Observable, TimeScale},
 };
 
-use std::{collections::HashMap};
+use std::{collections::HashMap, str::FromStr};
 
 #[cfg(feature = "processing")]
 use itertools::Itertools;

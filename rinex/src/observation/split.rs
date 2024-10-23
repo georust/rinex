@@ -11,7 +11,7 @@ impl Split for Record {
             .iter()
             .filter_map(|(key, sig)| {
                 if key.epoch <= epoch {
-                    Some((*key, sig.clone()))
+                    Some((key.clone(), sig.clone()))
                 } else {
                     None
                 }
@@ -22,7 +22,7 @@ impl Split for Record {
             .iter()
             .filter_map(|(key, sig)| {
                 if key.epoch > epoch {
-                    Some((*key, sig.clone()))
+                    Some((key.clone(), sig.clone()))
                 } else {
                     None
                 }

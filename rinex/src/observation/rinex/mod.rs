@@ -88,7 +88,11 @@ impl Rinex {
         &mut self,
     ) -> Box<dyn Iterator<Item = (&ObsKey, &mut ClockObservation)> + '_> {
         Box::new(self.observations_iter_mut().filter_map(|(k, v)| {
-            v.clock.as_mut().map(|clock| (k, clock))
+            if let Some(ref mut clock) = v.clock {
+                Some((k, clock))
+            } else {
+                None
+            }
         }))
     }
 

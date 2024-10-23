@@ -10,7 +10,7 @@ impl Merge for Record {
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    fn merge_mut(&mut self, _rhs: &Self) -> Result<(), MergeError> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         Ok(())
     }
 }
