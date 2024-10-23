@@ -90,7 +90,7 @@ pub mod prelude {
     pub use crate::header::Header;
     pub use crate::observable::Observable;
     pub use crate::observation::{
-        ClockObservation, EpochFlag, LliFlags, ObsKey, Observation, SignalObservation, SNR,
+        ClockObservation, EpochFlag, LliFlags, ObsKey, Observations, SignalObservation, SNR,
     };
     pub use crate::record::{Comments, Record};
     pub use crate::types::Type as RinexType;

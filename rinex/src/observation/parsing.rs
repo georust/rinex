@@ -1,10 +1,10 @@
 //! Observation RINEX parsing
 use crate::{
     epoch::{parse_in_timescale as parse_epoch_in_timescale, parse_utc as parse_utc_epoch},
-    observation::{Observation, ParsingError},
+    observation::ParsingError,
     prelude::{
-        Constellation, EpochFlag, Header, LliFlags, ObsKey, Observable, SignalObservation,
-        TimeScale, Version, SNR, SV,
+        ClockObservation, Constellation, EpochFlag, Header, LliFlags, ObsKey, Observable,
+        Observations, SignalObservation, TimeScale, Version, SNR, SV,
     },
 };
 
@@ -15,6 +15,9 @@ use std::{
 
 // TODO: see if we can get rid of num_integer
 use num_integer::div_ceil;
+
+#[cfg(feature = "log")]
+use log::{debug, error};
 
 /// Returns true if given content matches a new OBSERVATION data epoch
 pub fn is_new_epoch(line: &str, v: Version) -> bool {
@@ -52,12 +55,19 @@ pub fn is_new_epoch(line: &str, v: Version) -> bool {
     }
 }
 
-/// Parses all [Record] entries from readable content
+/// Parses all [Record] entries from readable content.
+/// ## Inputs
+///   - header: reference to [Header] specs
+///   - content: readable content
+///   - ts: file [TimeScale] specs
+///   - observations: actual results, allocated only once
+///   that should be reset before this call
 pub fn parse_epoch(
     header: &Header,
     content: &str,
     ts: TimeScale,
-) -> Result<(ObsKey, Vec<Observation>), ParsingError> {
+    observations: &mut Observations,
+) -> Result<ObsKey, ParsingError> {
     let mut lines = content.lines();
 
     let mut line = match lines.next() {
@@ -96,7 +106,6 @@ pub fn parse_epoch(
         .map_err(|_| ParsingError::NumSatParsing)?;
 
     let key = ObsKey { epoch, flag };
-    let mut observations = Vec::<Observation>::with_capacity(16);
 
     // grab possible clock offset
     let offs: Option<&str> = match header.version.major < 2 {
@@ -129,7 +138,13 @@ pub fn parse_epoch(
     };
     if let Some(offset) = offs {
         if let Ok(offset_s) = offset.parse::<f64>() {
-            observations.push(Observation::clock_offset(offset_s));
+            if let Some(ref mut clock) = observations.clock {
+                clock.set_offset_s(epoch, offset_s);
+            } else {
+                observations.with_clock_observation(
+                    ClockObservation::default().with_offset_s(epoch, offset_s),
+                );
+            }
         }
     }
 
@@ -144,7 +159,7 @@ pub fn parse_epoch(
         },
     }
 
-    Ok((key, observations))
+    Ok(key)
 }
 
 fn parse_observations(
@@ -152,8 +167,8 @@ fn parse_observations(
     key: ObsKey,
     num_sat: u16,
     rem: &str,
-    mut lines: std::str::Lines<'_>,
-    observations: &mut Vec<Observation>,
+    mut lines: Lines<'_>,
+    observations: &mut Observations,
 ) -> Result<(), ParsingError> {
     // previously identified observables (that we expect)
     let obs = header.obs.as_ref().unwrap();
@@ -191,22 +206,21 @@ fn parse_observations(
     Ok(())
 }
 
-/// Parses all [Observation]s as described by following V2 content.
+/// Parses all [Observations] as described by following V2 content.
 /// Old format is tedious:
 ///   - vehicle description is contained in first line
 ///   - wrapped in as many lines as needed
 /// Inputs
-///   - key: previously identified [ObsKey]
 ///   - system_str: first line description
 ///   - constellation: [Constellation] specs defined in [Header]
 ///   - observables: reference to [Observable]s specs defined in [Header]
-///   - lines: remaing [Lines] Iterator
+///   - lines: remaining [Lines] Iterator
 fn parse_observations_v2(
     systems_str: &str,
     head_constellation: Option<Constellation>,
     head_observables: &HashMap<Constellation, Vec<Observable>>,
     lines: Lines<'_>,
-    observations: &mut Vec<Observation>,
+    observations: &mut Observations,
 ) {
     const SVNN_SIZE: usize = 3; // SVNN standard
     const MAX_OBSERVABLES_LINE: usize = 5; // max in a single line
@@ -223,7 +237,7 @@ fn parse_observations_v2(
     }
 
     #[cfg(feature = "log")]
-    debug!("V2 parsing: \"{}\"", systems);
+    debug!("V2 parsing: \"{}\"", systems_str);
 
     // sv pointer
     let mut sv = SV::default();
@@ -372,7 +386,7 @@ fn parse_observations_v2(
                     },
                     Err(e) => {
                         #[cfg(feature = "log")]
-                        error!("snr: {}", e);
+                        error!("snr: {:?}", e);
                     },
                 }
             }
@@ -381,13 +395,13 @@ fn parse_observations_v2(
             let end: usize = slice.len().min(OBSERVABLE_F14_WIDTH);
             let value_slice = &slice[0..end];
             if let Ok(value) = value_slice.trim().parse::<f64>() {
-                observations.push(Observation::Signal(SignalObservation {
+                observations.signals.push(SignalObservation {
                     sv,
                     value,
                     snr,
                     lli,
                     observable: observables[obs_ptr].clone(),
-                }));
+                });
             }
 
             obs_ptr += 1;
@@ -410,7 +424,7 @@ fn parse_observations_v2(
 fn parse_observations_v3(
     head_observables: &HashMap<Constellation, Vec<Observable>>,
     lines: Lines<'_>,
-    observations: &mut Vec<Observation>,
+    observations: &mut Observations,
 ) {
     const SVNN_SIZE: usize = 3;
     const OBSERVABLE_F14_WIDTH: usize = 14;
@@ -496,7 +510,7 @@ fn parse_observations_v3(
                     },
                     Err(e) => {
                         #[cfg(feature = "log")]
-                        error!("snr: {}", e);
+                        error!("snr: {:?}", e);
                     },
                 }
             }
@@ -504,13 +518,13 @@ fn parse_observations_v3(
             let end = (offset + OBSERVABLE_F14_WIDTH).min(slice.len());
 
             if let Ok(value) = slice[offset..offset + end].parse::<f64>() {
-                observations.push(Observation::Signal(SignalObservation {
+                observations.signals.push(SignalObservation {
                     sv,
                     value,
                     lli,
                     snr,
                     observable: observables[obs_ptr].clone(),
-                }));
+                });
             }
         }
     } //browse all lines

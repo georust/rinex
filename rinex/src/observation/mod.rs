@@ -18,8 +18,8 @@ pub use signal::SignalObservation;
 pub(crate) use formatting::fmt_observations;
 pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
-#[cfg(feature = "processing")]
-pub(crate) mod mask; // mask Trait implementation
+// #[cfg(feature = "processing")]
+// pub(crate) mod mask; // mask Trait implementation
 
 #[cfg(feature = "processing")]
 pub(crate) mod decim; // decim Trait implementation
@@ -75,50 +75,49 @@ pub enum ParsingError {
     NumSatParsing,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+/// [Observations] describes all the content an Observation Epoch
+/// indexed by [ObsKey] may contain.
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Observation {
-    /// GNSS Receiver [ClockObservation]
-    Clock(ClockObservation),
-    /// GNSS [SignalObservation]
-    Signal(SignalObservation),
+pub struct Observations {
+    /// Local [ClockObservation] may exist, depending on receiver
+    /// capabilities and production context.
+    /// It describes the receiver state with respect to the GNSS [TimeScale] defined
+    /// in [Header].
+    pub clock: Option<ClockObservation>,
+    /// List of [SignalObservation]s.
+    pub signals: Vec<SignalObservation>,
 }
 
-impl Observation {
-    /// Creates new [ClockObservation] with offset to [Constellation] in [s]
-    pub fn clock_offset(offset_s: f64) -> Self {
-        Self::Clock(ClockObservation { offset_s })
-    }
-    /// [ClockObservation] unwrapping attempt
-    pub fn as_clock(&self) -> Option<&ClockObservation> {
-        match self {
-            Self::Clock(clock) => Some(clock),
-            _ => None,
-        }
-    }
-    /// Mutable [ClockObservation] unwrapping attempt    
-    pub fn as_clock_mut(&mut self) -> Option<&mut ClockObservation> {
-        match self {
-            Self::Clock(clock) => Some(clock),
-            _ => None,
-        }
-    }
-    /// [SignalObservation] unwrapping attempt
-    pub fn as_signal(&self) -> Option<&SignalObservation> {
-        match self {
-            Self::Signal(signal) => Some(signal),
-            _ => None,
-        }
-    }
-    /// Mutable [SignalObservation] unwrapping attempt
-    pub fn as_signal_mut(&mut self) -> Option<&mut SignalObservation> {
-        match self {
-            Self::Signal(signal) => Some(signal),
-            _ => None,
+impl Default for Observations {
+    fn default() -> Self {
+        Self {
+            clock: None,
+            signals: Vec::with_capacity(16),
         }
     }
 }
 
+impl Observations {
+    /// Define [Observations] with Clock offset [s] observed at [Epoch]
+    pub fn with_clock_offset_s(&self, timeof_obs: Epoch, offset_s: f64) -> Self {
+        let mut s = self.clone();
+        if let Some(ref mut clock) = s.clock {
+            clock.set_offset_s(timeof_obs, offset_s);
+        } else {
+            s.clock = Some(ClockObservation::default().with_offfset_s(offset_s));
+        }
+        s
+    }
+    /// Define [Observations] with [ClockObservation]
+    pub fn with_clock_observation(&self, clock: ClockObservation) -> Self {
+        let mut s = self.clone();
+        s.clock = Some(clock);
+        s
+    }
+}
+
+/// [ObsKey] is used to Index [Observations] in [Record] type definition.
 #[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ObsKey {
@@ -129,7 +128,7 @@ pub struct ObsKey {
 }
 
 /// Observation [Record] are sorted by [Epoch] of observation and may have two different forms.
-pub type Record = BTreeMap<ObsKey, Observation>;
+pub type Record = BTreeMap<ObsKey, Observations>;
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]

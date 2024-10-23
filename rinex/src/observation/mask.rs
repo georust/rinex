@@ -15,7 +15,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
         MaskOperand::Equals => match &mask.item {
             FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch == *epoch),
             FilterItem::ClockItem => {
-                rec.retain(|_, obs| obs.as_clock().is_some());
+                rec.retain(|_, obs| obs.clock.is_some());
             },
             FilterItem::ConstellationItem(constells) => {
                 let mut broad_sbas_filter = false;

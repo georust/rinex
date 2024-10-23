@@ -20,17 +20,14 @@ use super::{
     *,
 };
 
-use std::{io::prelude::*, num::NonZero};
+use std::io::BufRead;
 use thiserror::Error;
 
 #[cfg(feature = "log")]
 use log::error;
 
 #[cfg(feature = "serde")]
-use serde::{
-    Serialize,
-    // Deserialize,
-};
+use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -182,58 +179,58 @@ impl Record {
 
                 // browse record by timeline
                 for key in unique_keys {
-                    // Grab clock observation, if it exists
-                    let clock = record
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if k == key {
-                                if let Some(clk) = v.as_clock() {
-                                    Some(clk)
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        })
-                        .reduce(|k, _| k);
+                    // // Grab clock observation, if it exists
+                    // let clock = record
+                    //     .iter()
+                    //     .filter_map(|(k, v)| {
+                    //         if k == key {
+                    //             if let Some(clk) = v.as_clock() {
+                    //                 Some(clk)
+                    //             } else {
+                    //                 None
+                    //             }
+                    //         } else {
+                    //             None
+                    //         }
+                    //     })
+                    //     .reduce(|k, _| k);
 
-                    // Grab all signal observations
-                    let signals = record
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if k == key {
-                                if let Some(sig) = v.as_signal() {
-                                    Some(sig)
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
+                    // // Grab all signal observations
+                    // let signals = record
+                    //     .iter()
+                    //     .filter_map(|(k, v)| {
+                    //         if k == key {
+                    //             if let Some(sig) = v.as_signal() {
+                    //                 Some(sig)
+                    //             } else {
+                    //                 None
+                    //             }
+                    //         } else {
+                    //             None
+                    //         }
+                    //     })
+                    //     .collect::<Vec<_>>();
 
-                    // format
-                    let formatted = format_observations(major, header, key, clock, signals);
+                    // // format
+                    // let formatted = format_observations(major, header, key, clock, signals);
 
-                    // compress (if need be)
-                    if obs_fields.crinex.is_some() {
-                        //TODO rework: compress should work on entire Epoch content (or byte wise)
-                        // for line in formatted.lines() {
-                        //     let line = line.to_owned() + "\n"; // Compressor uses Lines Iterator
-                        //     if let Ok(compressed) = compressor.compress(
-                        //         major,
-                        //         &obs_fields.codes,
-                        //         constell,
-                        //         &line
-                        //     ) {
-                        //         writeln!(writer, "{}", compressed)?;
-                        //     }
-                        // }
-                    } else {
-                        writeln!(writer, "{}", formatted)?;
-                    }
+                    // // compress (if need be)
+                    // if obs_fields.crinex.is_some() {
+                    //     //TODO rework: compress should work on entire Epoch content (or byte wise)
+                    //     // for line in formatted.lines() {
+                    //     //     let line = line.to_owned() + "\n"; // Compressor uses Lines Iterator
+                    //     //     if let Ok(compressed) = compressor.compress(
+                    //     //         major,
+                    //     //         &obs_fields.codes,
+                    //     //         constell,
+                    //     //         &line
+                    //     //     ) {
+                    //     //         writeln!(writer, "{}", compressed)?;
+                    //     //     }
+                    //     // }
+                    // } else {
+                    //     writeln!(writer, "{}", formatted)?;
+                    // }
                 }
             },
             Type::NavigationData => {

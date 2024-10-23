@@ -1,5 +1,5 @@
 //! Observation specific high level methods
-use crate::prelude::{ClockObservation, ObsKey, Observation, Rinex, RinexType, SignalObservation};
+use crate::prelude::{ClockObservation, ObsKey, Observations, Rinex, RinexType, SignalObservation};
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
@@ -21,7 +21,7 @@ impl Rinex {
 
     /// Returns [ObsKey] Iterator.
     /// This only applies to Observation RINEX and will panic otherwise (bad operation).
-    pub fn observation_keys(&self) -> Keys<'_, ObsKey, Observation> {
+    pub fn observation_keys(&self) -> Keys<'_, ObsKey, Observations> {
         if let Some(rec) = self.record.as_obs() {
             rec.keys()
         } else {
@@ -31,7 +31,7 @@ impl Rinex {
 
     /// Returns [Observation] Iterator.
     /// This only applies to Observation RINEX and will panic otherwise (bad operation).
-    pub fn observation_iter(&self) -> Iter<'_, ObsKey, Observation> {
+    pub fn observations_iter(&self) -> Iter<'_, ObsKey, Observations> {
         if let Some(rec) = self.record.as_obs() {
             rec.iter()
         } else {
@@ -39,9 +39,9 @@ impl Rinex {
         }
     }
 
-    /// Returns mutable [Observation] Iterator.
+    /// Mutable [Observation] Iterator.
     /// This only applies to Observation RINEX and will panic otherwise (bad operation).
-    pub fn observation_iter_mut(&mut self) -> IterMut<'_, ObsKey, Observation> {
+    pub fn observations_iter_mut(&mut self) -> IterMut<'_, ObsKey, Observations> {
         if let Some(rec) = self.record.as_mut_obs() {
             rec.iter_mut()
         } else {
@@ -50,51 +50,46 @@ impl Rinex {
     }
 
     /// Returns [SignalObservation] Iterator
-    pub fn signal_observation_iter(
+    pub fn signal_observations_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (&ObsKey, &SignalObservation)> + '_> {
-        Box::new(self.observation_iter().filter_map(|(k, v)| {
-            if let Some(v) = v.as_signal() {
-                Some((k, v))
-            } else {
-                None
-            }
+        Box::new(self.observations_iter().flat_map(|(k, obs)| {
+            obs.signals.iter().fold(vec![], |mut signals, x| {
+                signals.push((k, x));
+                signals
+            })
         }))
     }
 
-    /// Returns mutable [SignalObservation] Iterator
-    pub fn signal_observation_iter_mut(
+    /// Mutable [SignalObservation] Iterator
+    pub fn signal_observations_iter_mut(
         &mut self,
     ) -> Box<dyn Iterator<Item = (&ObsKey, &mut SignalObservation)> + '_> {
-        Box::new(self.observation_iter_mut().filter_map(|(k, v)| {
-            if let Some(v) = v.as_signal_mut() {
-                Some((k, v))
-            } else {
-                None
-            }
+        Box::new(self.observations_iter_mut().flat_map(|(k, obs)| {
+            obs.signals.iter_mut().fold(vec![], |mut signals, x| {
+                signals.push((k, x));
+                signals
+            })
         }))
     }
 
     /// Returns [ClockObservation] Iterator.
-    pub fn clock_observation_iter(
+    pub fn clock_observations_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (&ObsKey, &ClockObservation)> + '_> {
-        Box::new(self.observation_iter().filter_map(|(k, v)| {
-            if let Some(v) = v.as_clock() {
-                Some((k, v))
-            } else {
-                None
-            }
+    ) -> Box<dyn Iterator<Item = (&ObsKey, ClockObservation)> + '_> {
+        Box::new(self.observations_iter().filter_map(|(k, v)| {
+            let clock = v.clock?;
+            Some((k, clock))
         }))
     }
 
-    /// Returns mutable [ClockObservation] Iterator
-    pub fn clock_observation_iter_mut(
+    /// Mutable [ClockObservation] Iterator
+    pub fn clock_observations_iter_mut(
         &mut self,
     ) -> Box<dyn Iterator<Item = (&ObsKey, &mut ClockObservation)> + '_> {
-        Box::new(self.observation_iter_mut().filter_map(|(k, v)| {
-            if let Some(v) = v.as_clock_mut() {
-                Some((k, v))
+        Box::new(self.observations_iter_mut().filter_map(|(k, v)| {
+            if let Some(ref mut clock) = v.clock {
+                Some((k, clock))
             } else {
                 None
             }

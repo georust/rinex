@@ -4,6 +4,9 @@ use crate::{
     prelude::{ClockObservation, Constellation, Header, ObsKey, RinexType, SignalObservation},
 };
 
+#[cfg(feature = "log")]
+use log::error;
+
 /// Formats one epoch according to standard definitions.
 /// ## Inputs
 /// - major: RINEX revision major
