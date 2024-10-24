@@ -97,6 +97,7 @@ pub mod prelude {
     pub use crate::types::Type as RinexType;
     pub use crate::version::Version;
     pub use crate::{Error, Rinex};
+
     // pub re-export
     #[cfg(feature = "nav")]
     pub use anise::{
@@ -104,14 +105,19 @@ pub mod prelude {
         errors::AlmanacResult,
         prelude::{Almanac, Frame, Orbit},
     };
+
     pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
+
     #[cfg(feature = "nav")]
     pub use hifitime::ut1::DeltaTaiUt1;
+
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
+
+    #[cfg(feature = "qc")]
+    pub use qc_traits::{Merge, MergeError, Split};
+
     #[cfg(feature = "processing")]
-    pub use qc_traits::processing::{
-        Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
-    };
+    pub use qc_traits::{Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing};
 }
 
 /// Package dedicated to file production.
@@ -121,8 +127,12 @@ pub mod prod {
     };
 }
 
+#[cfg(feature = "qc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
+mod qc;
+
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
+use qc_traits::{
     Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing, Repair, RepairTrait,
 };
 
@@ -143,7 +153,6 @@ use crate::{
 use carrier::Carrier;
 use prelude::*;
 
-pub use merge::Merge;
 pub use split::Split;
 
 #[cfg(feature = "serde")]
@@ -2157,56 +2166,6 @@ impl Rinex {
         } else {
             false
         }
-    }
-}
-
-impl Merge for Rinex {
-    /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self` in place
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        self.header.merge_mut(&rhs.header)?;
-        if !self.is_antex() {
-            if self.epoch().count() == 0 {
-                // lhs is empty : overwrite
-                self.record = rhs.record.clone();
-            } else if rhs.epoch().count() != 0 {
-                // real merge
-                self.record.merge_mut(&rhs.record)?;
-            }
-        } else {
-            // real merge
-            self.record.merge_mut(&rhs.record)?;
-        }
-        Ok(())
-    }
-}
-
-impl Split for Rinex {
-    /// Splits `Self` at desired epoch
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let (r0, r1) = self.record.split(epoch)?;
-        Ok((
-            Self {
-                header: self.header.clone(),
-                comments: self.comments.clone(),
-                record: r0,
-                prod_attr: self.prod_attr.clone(),
-            },
-            Self {
-                header: self.header.clone(),
-                comments: self.comments.clone(),
-                record: r1,
-                prod_attr: self.prod_attr.clone(),
-            },
-        ))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
     }
 }
 

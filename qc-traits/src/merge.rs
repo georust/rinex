@@ -1,25 +1,27 @@
-//! Merge traits to extend data contexts
+//! Merge trait to extend datasets
 use thiserror::Error;
+
+#[cfg(docsrs)]
+use hifitime::TimeScale;
 
 /// [Merge] specific Errors.
 #[derive(Error, Debug)]
 pub enum Error {
-    /// When merging B into A, both types should match
-    /// otherwise operation in invalid.
+    /// You can only [Merge] two compatible files toghether.
     #[error("file type mismatch")]
     FileTypeMismatch,
-    /// Some file formats, to remain valid, require that
-    /// B and A be expressed in the same Timescale to remain valid
+    /// Depending on file format, [Merge] may require that A & B be expressed
+    /// in the same [TimeScale]
     #[error("timescale mismatch")]
     TimescaleMismatch,
-    /// Some file formats, to remain valid, require that coordinates
-    /// from B and A be expressed in the same Reference Frame to remain valid
+    /// Depending on file format, [Merge] may require that A and B be expressed
+    /// in the same reference coordinates system.
     #[error("reference frame mismatch")]
     ReferenceFrameMismatch,
-    /// Some file formats, to remain valid, require that they are
-    /// published by the same publisher/agency to be merged to into one another
-    #[error("data provider (agency) mismatch")]
-    DataProviderAgencyMismatch,
+    /// Depending on file format, [Merge] may require that A and B were produced
+    /// by the same data provider.
+    #[error("data provider mismatch")]
+    DataProviderMismatch,
 }
 
 /// Merge Trait is impleted to extend Data Contexts.
