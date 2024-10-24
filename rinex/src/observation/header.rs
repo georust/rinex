@@ -43,7 +43,7 @@ impl HeaderFields {
     /// Add "TIME OF LAST OBS" field
     pub(crate) fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
-        s.timeof_first_obs = Some(epoch);
+        s.timeof_last_obs = Some(epoch);
         s
     }
     /// Insert a data scaling
@@ -61,9 +61,9 @@ impl HeaderFields {
 impl HeaderFields {
     /// Timescale helper
     fn timescale(&self) -> TimeScale {
-        match self.time_of_first_obs {
+        match self.timeof_first_obs {
             Some(ts) => ts.time_scale,
-            None => match self.time_of_last_obs {
+            None => match self.timeof_last_obs {
                 Some(ts) => ts.time_scale,
                 None => TimeScale::GPST,
             },
@@ -75,8 +75,8 @@ impl HeaderFields {
             MaskOperand::Equals => match &f.item {
                 FilterItem::EpochItem(epoch) => {
                     let ts = self.timescale();
-                    self.time_of_first_obs = Some(epoch.to_time_scale(ts));
-                    self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                    self.timeof_first_obs = Some(epoch.to_time_scale(ts));
+                    self.timeof_last_obs = Some(epoch.to_time_scale(ts));
                 },
                 FilterItem::SvItem(svs) => {
                     let constells = svs
@@ -152,12 +152,12 @@ impl HeaderFields {
             MaskOperand::GreaterThan => match &f.item {
                 FilterItem::EpochItem(epoch) => {
                     let ts = self.timescale();
-                    if let Some(t) = self.time_of_first_obs {
+                    if let Some(t) = self.timeof_first_obs {
                         if t < *epoch {
-                            self.time_of_first_obs = Some(epoch.to_time_scale(ts));
+                            self.timeof_first_obs = Some(epoch.to_time_scale(ts));
                         }
                     } else {
-                        self.time_of_first_obs = Some(epoch.to_time_scale(ts));
+                        self.timeof_first_obs = Some(epoch.to_time_scale(ts));
                     }
                 },
                 _ => {},
@@ -165,12 +165,12 @@ impl HeaderFields {
             MaskOperand::GreaterEquals => match &f.item {
                 FilterItem::EpochItem(epoch) => {
                     let ts = self.timescale();
-                    if let Some(t_first) = self.time_of_first_obs {
+                    if let Some(t_first) = self.timeof_first_obs {
                         if t_first < *epoch {
-                            self.time_of_first_obs = Some(epoch.to_time_scale(ts));
+                            self.timeof_first_obs = Some(epoch.to_time_scale(ts));
                         }
                     } else {
-                        self.time_of_first_obs = Some(epoch.to_time_scale(ts));
+                        self.timeof_first_obs = Some(epoch.to_time_scale(ts));
                     }
                 },
                 _ => {},
@@ -178,12 +178,12 @@ impl HeaderFields {
             MaskOperand::LowerThan => match &f.item {
                 FilterItem::EpochItem(epoch) => {
                     let ts = self.timescale();
-                    if let Some(t_last) = self.time_of_last_obs {
+                    if let Some(t_last) = self.timeof_last_obs {
                         if t_last > *epoch {
-                            self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                            self.timeof_last_obs = Some(epoch.to_time_scale(ts));
                         }
                     } else {
-                        self.time_of_last_obs = Some(*epoch);
+                        self.timeof_last_obs = Some(*epoch);
                     }
                 },
                 _ => {},
@@ -191,12 +191,12 @@ impl HeaderFields {
             MaskOperand::LowerEquals => match &f.item {
                 FilterItem::EpochItem(epoch) => {
                     let ts = self.timescale();
-                    if let Some(t_last) = self.time_of_last_obs {
+                    if let Some(t_last) = self.timeof_last_obs {
                         if t_last > *epoch {
-                            self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                            self.timeof_last_obs = Some(epoch.to_time_scale(ts));
                         }
                     } else {
-                        self.time_of_last_obs = Some(epoch.to_time_scale(ts));
+                        self.timeof_last_obs = Some(epoch.to_time_scale(ts));
                     }
                 },
                 _ => {},

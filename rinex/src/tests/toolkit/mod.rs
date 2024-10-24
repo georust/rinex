@@ -17,10 +17,6 @@ mod doris;
 pub use doris::check_observables as doris_check_observables;
 pub use doris::check_stations as doris_check_stations;
 
-/* ANY RINEX == constant (special ops) */
-mod constant;
-pub use constant::is_null_rinex;
-
 pub mod timeframe;
 pub use timeframe::TimeFrame;
 

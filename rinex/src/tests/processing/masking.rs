@@ -190,10 +190,8 @@ mod test {
     #[test]
     fn obs_signals_v3_duth0630() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
-        let total = rinex.carrier().count();
-        assert_eq!(total, 4);
 
-        let carriers = rinex.signal().sorted().collect::<Vec<_>>();
+        let carriers = rinex.carrier_iter().sorted().collect::<Vec<_>>();
         assert_eq!(
             carriers,
             vec![
@@ -209,20 +207,19 @@ mod test {
             FilterItem::ComplexItem(vec!["C1C".to_string(), "D1C".to_string()]),
         );
         let dut = rinex.filter(&l1_only);
-        assert_eq!(dut.carrier().count(), 2);
         assert_eq!(dut.constellation().count(), 2);
-        assert_eq!(
-            dut.carrier().collect::<Vec<_>>(),
-            vec![Carrier::L1, Carrier::G1(None)]
-        );
+
+        let carriers = dut.carrier_iter().sorted().collect::<Vec<_>>();
+        assert_eq!(carriers, vec![Carrier::L1, Carrier::G1(None)]);
 
         let glo_l2_only = Filter::mask(
             MaskOperand::Equals,
             FilterItem::ComplexItem(vec!["D2P".to_string()]),
         );
         let dut = rinex.filter(&glo_l2_only);
-        assert_eq!(dut.carrier().count(), 1);
         assert_eq!(dut.constellation().count(), 1);
-        assert_eq!(dut.carrier().collect::<Vec<_>>(), vec![Carrier::G2(None)]);
+
+        let carriers = dut.carrier_iter().sorted().collect::<Vec<_>>();
+        assert_eq!(carriers, vec![Carrier::G2(None)]);
     }
 }

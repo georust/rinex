@@ -29,7 +29,7 @@ impl Rinex {
         }
     }
 
-    /// Returns [Observation] Iterator.
+    /// Returns [Observations] Iterator.
     /// This only applies to Observation RINEX and will panic otherwise (bad operation).
     pub fn observations_iter(&self) -> Iter<'_, ObsKey, Observations> {
         if let Some(rec) = self.record.as_obs() {
@@ -39,7 +39,7 @@ impl Rinex {
         }
     }
 
-    /// Mutable [Observation] Iterator.
+    /// Mutable [Observations] Iterator.
     /// This only applies to Observation RINEX and will panic otherwise (bad operation).
     pub fn observations_iter_mut(&mut self) -> IterMut<'_, ObsKey, Observations> {
         if let Some(rec) = self.record.as_mut_obs() {
