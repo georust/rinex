@@ -245,8 +245,7 @@ fn parse_signals_v2(
         //  2. every time past SV is concluded
         if !sv_identified {
             // identify new SV
-            let start = sv_ptr * SVNN_SIZE;
-            let system = &systems_str[start..start + SVNN_SIZE].trim();
+            let system = &systems_str[sv_ptr..sv_ptr + SVNN_SIZE].trim();
 
             // actual parsing
             if let Ok(found) = SV::from_str(system) {
@@ -306,7 +305,7 @@ fn parse_signals_v2(
             obs_identified = true;
 
             #[cfg(feature = "log")]
-            debug!("{}: {:?}", sv, observables);
+            println!("{}: {:?}", sv, observables);
         }
 
         let line_width = line.len();
@@ -346,7 +345,7 @@ fn parse_signals_v2(
             let slice = &line[offset..end];
 
             #[cfg(feature = "log")]
-            println!("observation: \"{}\"", slice);
+            println!("observation: \"{}\" {}", slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
@@ -396,7 +395,7 @@ fn parse_signals_v2(
             obs_ptr += 1;
             offset += OBSERVABLE_F14_WIDTH + 2;
 
-            if obs_ptr >= observables.len() {
+            if obs_ptr == observables.len() {
                 #[cfg(feature = "log")]
                 debug!("{} completed", sv);
 
@@ -406,6 +405,10 @@ fn parse_signals_v2(
                 #[cfg(feature = "log")]
                 debug!("{}/{}", obs_ptr, num_obs);
             }
+        } //num_obs
+
+        if num_obs < MAX_OBSERVABLES_LINE {
+            obs_ptr += MAX_OBSERVABLES_LINE - num_obs;
         }
     } // for all lines provided
 }
@@ -870,22 +873,25 @@ G04  21342618.100   112156219.39808      2167.688          48.250    21342617.44
         let content = " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27
 G30R01R02R03R08R09R15R16R17R18R19R24
   24178026.635 6  24178024.891 6                 127056391.69906  99004963.01703
-  24178026.139 3  24178024.181 3        38.066          22.286
+                  24178026.139 3  24178024.181 3        38.066          22.286
 
   21866748.928 7  21866750.407 7  21866747.537 8 114910552.08207  89540700.32608
   85809828.27608  21866748.200 8  21866749.482 8        45.759          49.525
-52.161
+  52.161
   21458907.960 8  21458908.454 7  21458905.489 8 112767333.29708  87870655.27209
   84209365.43808  21458907.312 9  21458908.425 9        50.526          55.388
-53.157
+  53.157
   25107711.730 5                                 131941919.38305 102811868.09001
   25107711.069 1  25107709.586 1        33.150           8.952
 
   24224693.760 6  24224693.174 5                 127301651.00206  99196079.53805
-  24224693.407 5  24224691.898 5        36.121          31.645
+                  24224693.407 5  24224691.898 5        36.121          31.645
 
   21749627.212 8                                 114295057.63608  89061063.16706
-  21749626.220 6  21749624.795 6        48.078          39.240
+                  21749626.220 6  21749624.795 6        48.078          39.240
+
+  23203962.113 6  23203960.554 6  23203963.222 7 121937655.11806  95016353.74904
+  91057352.20207  23203961.787 4  23203960.356 4        41.337          28.313
 ";
         let key = parse_epoch(header, content, ts, &mut obs).unwrap();
 
@@ -911,6 +917,8 @@ G30R01R02R03R08R09R15R16R17R18R19R24
         let g13 = SV::from_str("G13").unwrap();
         let g15 = SV::from_str("G15").unwrap();
         let g16 = SV::from_str("G16").unwrap();
+        let g18 = SV::from_str("G18").unwrap();
+        let g20 = SV::from_str("G20").unwrap();
 
         let signals = obs.signals.clone();
 
@@ -946,8 +954,10 @@ G30R01R02R03R08R09R15R16R17R18R19R24
             } else if sig.sv == g13 {
             } else if sig.sv == g15 {
             } else if sig.sv == g16 {
+            } else if sig.sv == g18 {
+            } else if sig.sv == g20 {
             } else {
-                panic!("invalid sv");
+                panic!("invalid sv {}", sig.sv);
             }
         }
 
