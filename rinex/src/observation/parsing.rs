@@ -200,7 +200,6 @@ fn parse_observations(
 ///   - vehicle description is contained in first line
 ///   - wrapped in as many lines as needed
 /// Inputs
-///   - key: previously identified [ObsKey]
 ///   - system_str: first line description
 ///   - constellation: [Constellation] specs defined in [Header]
 ///   - observables: reference to [Observable]s specs defined in [Header]
@@ -329,25 +328,25 @@ fn parse_signals_v2(
         }
 
         // num obs contained this line
-        let num_obs = div_ceil(line_width, OBSERVABLE_WIDTH);
+        let num_obs = div_ceil(line_width, OBSERVABLE_WIDTH); //TODO: get rid of .div_ceil
 
-        // got something to parse (= at least 1 OBS)
         #[cfg(feature = "log")]
-        debug!("line: \"{}\" [={}]", line, num_obs);
+        println!("line: \"{}\" [={}]", line, num_obs);
+
+        let mut offset = 0;
 
         // process all of them
-        for i in 0..num_obs {
+        for _ in 0..num_obs {
             if obs_ptr > observables.len() {
                 // line is abnormally long (trailing whitespaces): abort
                 break;
             }
 
-            let start = obs_ptr * OBSERVABLE_WIDTH;
-            let end = (start + OBSERVABLE_WIDTH).min(line_width);
-            let slice = &line[start..end];
+            let end = (offset + OBSERVABLE_WIDTH).min(line_width);
+            let slice = &line[offset..end];
 
             #[cfg(feature = "log")]
-            debug!("observation: \"{}\"", slice);
+            println!("observation: \"{}\"", slice);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
@@ -382,10 +381,9 @@ fn parse_signals_v2(
             }
 
             // parse observed value
-            let end: usize = slice.len().min(OBSERVABLE_F14_WIDTH);
-            let value_slice = &slice[0..end];
+            let end = slice.len().min(OBSERVABLE_F14_WIDTH);
 
-            if let Ok(value) = value_slice.trim().parse::<f64>() {
+            if let Ok(value) = slice[..end].trim().parse::<f64>() {
                 signals.push(SignalObservation {
                     sv,
                     value,
@@ -396,13 +394,14 @@ fn parse_signals_v2(
             }
 
             obs_ptr += 1;
+            offset += OBSERVABLE_F14_WIDTH + 2;
 
             if obs_ptr >= observables.len() {
-                sv_identified = false;
-                obs_identified = false;
-
                 #[cfg(feature = "log")]
                 debug!("{} completed", sv);
+
+                sv_identified = false;
+                obs_identified = false;
             } else {
                 #[cfg(feature = "log")]
                 debug!("{}/{}", obs_ptr, num_obs);
@@ -870,23 +869,23 @@ G04  21342618.100   112156219.39808      2167.688          48.250    21342617.44
 
         let content = " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27
 G30R01R02R03R08R09R15R16R17R18R19R24
-24178026.635 6  24178024.891 6                 127056391.69906  99004963.01703
-24178026.139 3  24178024.181 3        38.066          22.286
+  24178026.635 6  24178024.891 6                 127056391.69906  99004963.01703
+  24178026.139 3  24178024.181 3        38.066          22.286
 
-21866748.928 7  21866750.407 7  21866747.537 8 114910552.08207  89540700.32608
-85809828.27608  21866748.200 8  21866749.482 8        45.759          49.525
+  21866748.928 7  21866750.407 7  21866747.537 8 114910552.08207  89540700.32608
+  85809828.27608  21866748.200 8  21866749.482 8        45.759          49.525
 52.161
-21458907.960 8  21458908.454 7  21458905.489 8 112767333.29708  87870655.27209
-84209365.43808  21458907.312 9  21458908.425 9        50.526          55.388
+  21458907.960 8  21458908.454 7  21458905.489 8 112767333.29708  87870655.27209
+  84209365.43808  21458907.312 9  21458908.425 9        50.526          55.388
 53.157
-25107711.730 5                                 131941919.38305 102811868.09001
-25107711.069 1  25107709.586 1        33.150           8.952
+  25107711.730 5                                 131941919.38305 102811868.09001
+  25107711.069 1  25107709.586 1        33.150           8.952
 
-24224693.760 6  24224693.174 5                 127301651.00206  99196079.53805
-24224693.407 5  24224691.898 5        36.121          31.645
+  24224693.760 6  24224693.174 5                 127301651.00206  99196079.53805
+  24224693.407 5  24224691.898 5        36.121          31.645
 
-21749627.212 8                                 114295057.63608  89061063.16706
-21749626.220 6  21749624.795 6        48.078          39.240
+  21749627.212 8                                 114295057.63608  89061063.16706
+  21749626.220 6  21749624.795 6        48.078          39.240
 ";
         let key = parse_epoch(header, content, ts, &mut obs).unwrap();
 
@@ -900,6 +899,8 @@ G30R01R02R03R08R09R15R16R17R18R19R24
         let l1 = Observable::from_str("L1").unwrap();
         let l2 = Observable::from_str("L2").unwrap();
         let l5 = Observable::from_str("L5").unwrap();
+        let p1 = Observable::from_str("P1").unwrap();
+        let p2 = Observable::from_str("P2").unwrap();
         let s1 = Observable::from_str("S1").unwrap();
         let s2 = Observable::from_str("S2").unwrap();
         let s5 = Observable::from_str("S5").unwrap();
@@ -916,24 +917,27 @@ G30R01R02R03R08R09R15R16R17R18R19R24
         for sig in &signals {
             if sig.sv == g07 {
                 if sig.observable == c1 {
-                    assert_eq!(sig.value, 20176608.780);
+                    assert_eq!(sig.value, 24178026.635);
                 } else if sig.observable == c2 {
-                    assert_eq!(sig.value, 106028802.118);
+                    assert_eq!(sig.value, 24178024.891);
                 } else if sig.observable == c5 {
-                    assert_eq!(sig.value, -1009.418);
+                    panic!("found invalid obs");
                 } else if sig.observable == l1 {
-                    assert_eq!(sig.value, 50.250);
+                    assert_eq!(sig.value, 127056391.699);
                 } else if sig.observable == l2 {
-                    assert_eq!(sig.value, 20176610.080);
+                    assert_eq!(sig.value, 99004963.017);
                 } else if sig.observable == l5 {
-                    assert_eq!(sig.value, 82619851.246);
-                    //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
+                    panic!("found invalid obs");
+                } else if sig.observable == p1 {
+                    assert_eq!(sig.value, 24178026.139);
+                } else if sig.observable == p2 {
+                    assert_eq!(sig.value, 24178024.181);
                 } else if sig.observable == s1 {
-                    assert_eq!(sig.value, -786.562);
+                    assert_eq!(sig.value, 38.066);
                 } else if sig.observable == s2 {
-                    assert_eq!(sig.value, 54.500);
+                    assert_eq!(sig.value, 22.286);
                 } else if sig.observable == s5 {
-                    assert_eq!(sig.value, 54.500);
+                    panic!("found invalid obs");
                 } else {
                     panic!("found invalid observable {}", sig.observable);
                 }
