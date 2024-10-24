@@ -215,7 +215,7 @@ fn parse_signals_v2(
     const MAX_OBSERVABLES_LINE: usize = 5; // max in a single line
     const OBSERVABLE_F14_WIDTH: usize = 14;
     const OBSERVABLE_WIDTH: usize = OBSERVABLE_F14_WIDTH + 2; // data +lli +snr +1separator
-    const MIN_LINE_WIDTH: usize = 10; // below 10 bytes, we're sure this line is empty (=not a single obs)
+    const MIN_LINE_WIDTH: usize = 1; // below 10 bytes, we're sure this line is empty (=not a single obs)
 
     // basic check that avoid entering the loop for nothing
     if systems_str.len() < SVNN_SIZE {
@@ -918,7 +918,6 @@ G30R01R02R03R08R09R15R16R17R18R19R24
         let g15 = SV::from_str("G15").unwrap();
         let g16 = SV::from_str("G16").unwrap();
         let g18 = SV::from_str("G18").unwrap();
-        let g20 = SV::from_str("G20").unwrap();
 
         let signals = obs.signals.clone();
 
@@ -950,18 +949,47 @@ G30R01R02R03R08R09R15R16R17R18R19R24
                     panic!("found invalid observable {}", sig.observable);
                 }
             } else if sig.sv == g08 {
+                if sig.observable == c1 {
+                } else if sig.observable == c2 {
+                } else if sig.observable == c5 {
+                } else if sig.observable == l1 {
+                } else if sig.observable == l2 {
+                } else if sig.observable == l5 {
+                } else if sig.observable == p1 {
+                } else if sig.observable == p2 {
+                } else if sig.observable == s1 {
+                } else if sig.observable == s2 {
+                } else if sig.observable == s5 {
+                    assert_eq!(sig.value, 52.161);
+                } else {
+                    panic!("found invalid observable {}", sig.observable);
+                }
             } else if sig.sv == g10 {
             } else if sig.sv == g13 {
             } else if sig.sv == g15 {
+                if sig.observable == c5 {
+                    panic!("found invalid obs");
+                } else if sig.observable == l5 {
+                    panic!("found invalid obs");
+                }
             } else if sig.sv == g16 {
+                if sig.observable == c2 {
+                    panic!("found invalid obs");
+                } else if sig.observable == c5 {
+                    panic!("found invalid obs");
+                } else if sig.observable == s5 {
+                    panic!("found invalid obs");
+                }
             } else if sig.sv == g18 {
-            } else if sig.sv == g20 {
+                if sig.observable == s5 {
+                    panic!("found invalid obs");
+                }
             } else {
                 panic!("invalid sv {}", sig.sv);
             }
         }
 
-        assert_eq!(obs.signals.len(), 24);
+        assert_eq!(obs.signals.len(), 62);
 
         let signals = obs.signals.clone();
 
