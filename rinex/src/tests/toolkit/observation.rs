@@ -124,8 +124,11 @@ pub fn generic_observation_rinex_test(
         let found = specs
             .codes
             .get(&gnss)
+            .expect(&format!("missing observables for {}", gnss))
+            .into_iter()
             .cloned()
-            .expect(&format!("missing observables for {}", gnss));
+            .sorted()
+            .collect::<Vec<_>>();
         assert_eq!(found, expected);
     }
 
@@ -141,14 +144,9 @@ pub fn generic_observation_rinex_test(
     let expected = sv_from_csv(sv_csv);
     assert_eq!(content, expected);
 
-    // Check Observable content
-    let content = dut.observable().cloned().collect::<Vec<_>>();
-    let expected = observable_from_csv(sv_csv);
-    assert_eq!(content, expected);
-
     // Check GNSS content
-    let content = dut.constellation().collect::<Vec<_>>();
-    let expected = gnss_from_csv(sv_csv);
+    let content = dut.constellation().sorted().collect::<Vec<_>>();
+    let expected = gnss_from_csv(gnss_csv);
     assert_eq!(content, expected);
 
     // // Self - Self should be 0

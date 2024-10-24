@@ -87,7 +87,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             },
             FilterItem::SvItem(items) => {
                 rec.retain(|_, obs| {
-                    obs.signals.retain(|sig| items.contains(&sig.sv));
+                    obs.signals.retain(|sig| !items.contains(&sig.sv));
                     !obs.signals.is_empty()
                 });
             },
@@ -107,7 +107,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
                 if !observables.is_empty() {
                     rec.retain(|_, obs| {
                         obs.signals
-                            .retain(|sig| observables.contains(&sig.observable));
+                            .retain(|sig| !observables.contains(&sig.observable));
                         !obs.signals.is_empty()
                     });
                 }

@@ -67,20 +67,10 @@ pub fn generic_rinex_test(
     assert_eq!(dut.header.rinex_type, expected_type);
 
     let version = Version::from_str(version).unwrap();
-    assert!(
-        dut.header.version == version,
-        "parsed wrong version {}, expecting \"{}\"",
-        dut.header.version,
-        version
-    );
+    assert_eq!(dut.header.version, version);
 
     let constellation = constellation.map(|s| Constellation::from_str(s.trim()).unwrap());
-    assert!(
-        dut.header.constellation == constellation,
-        "bad gnss description: {:?}, expecting {:?}",
-        dut.header.constellation,
-        constellation
-    );
+    assert_eq!(dut.header.constellation, constellation);
 
     if let Some(tf) = timeframe {
         generic_timeframe_test(dut, tf);

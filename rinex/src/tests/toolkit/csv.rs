@@ -9,14 +9,7 @@ use crate::prelude::{Constellation, Observable, SV};
 pub fn observables_csv(observable_csv: &str) -> Vec<Observable> {
     observable_csv
         .split(',')
-        .map(|c| {
-            let c = c.trim();
-            if let Ok(observ) = Observable::from_str(c) {
-                observ
-            } else {
-                panic!("invalid observable in csv");
-            }
-        })
+        .map(|c| Observable::from_str(c.trim()).unwrap())
         .collect::<Vec<Observable>>()
         .into_iter()
         .unique()

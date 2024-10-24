@@ -59,6 +59,7 @@ mod test {
             MaskOperand::Equals,
             FilterItem::ComplexItem(vec!["PR".to_string()]),
         );
+
         let dut = rnx.filter(&pressure);
         assert_eq!(dut.observable().count(), 1);
 

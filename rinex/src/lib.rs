@@ -1185,7 +1185,12 @@ impl Rinex {
     /// ```
     pub fn sv(&self) -> Box<dyn Iterator<Item = SV> + '_> {
         if self.is_observation_rinex() {
-            Box::new(self.signal_observations_iter().map(|(_, v)| v.sv).unique())
+            Box::new(
+                self.signal_observations_iter()
+                    .map(|(_, v)| v.sv)
+                    .sorted()
+                    .unique(),
+            )
         } else if let Some(record) = self.record.as_nav() {
             Box::new(
                 // grab all vehicles through all epochs,

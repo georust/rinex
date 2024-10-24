@@ -513,7 +513,6 @@ fn parse_signals_v3(
                     snr,
                     observable: observables[i].clone(),
                 });
-                println!("{} obs {} [{}]", sv, value, i);
             }
 
             obs_ptr += 1;
@@ -527,12 +526,8 @@ mod test {
     use super::{is_new_epoch, parse_epoch};
     use crate::{
         observation::{fmt_observations, HeaderFields as SpecFields},
-        prelude::{
-            Constellation, Epoch, Header, Observable, Observations, TimeScale, Version, SNR, SV,
-        },
-        tests::toolkit::{observables_csv as observables_from_csv, sv_csv as sv_from_csv},
+        prelude::{Constellation, Epoch, Header, Observable, Observations, TimeScale, Version, SV},
     };
-    use itertools::Itertools;
     use std::str::FromStr;
 
     #[test]
@@ -584,6 +579,7 @@ mod test {
         );
 
         let header = &Header::default()
+            .with_version(Version { major: 3, minor: 0 })
             .with_constellation(Constellation::GPS)
             .with_observation_fields(specs);
 
@@ -735,6 +731,7 @@ G09  25493930.890   133971510.403 6        41.250                    25493926.95
         );
 
         let header = &Header::default()
+            .with_version(Version { major: 3, minor: 0 })
             .with_constellation(Constellation::GPS)
             .with_observation_fields(specs);
 
@@ -843,5 +840,117 @@ G04  21342618.100   112156219.39808      2167.688          48.250    21342617.44
         let formatted = fmt_observations(3, &header, &key, &None, signals);
 
         // TODO assert_eq!(formatted, content); // reciprocal
+    }
+
+    #[test]
+    fn test_parse_v2_1() {
+        let mut obs = Observations::default();
+
+        let t0 = Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap();
+
+        let mut specs = SpecFields::default().with_time_of_first_obs(t0);
+
+        specs.codes.insert(
+            Constellation::GPS,
+            "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5"
+                .split(',')
+                .map(|s| Observable::from_str(s).unwrap())
+                .collect::<Vec<_>>(),
+        );
+
+        let header = &Header::default()
+            .with_version(Version {
+                major: 2,
+                minor: 10,
+            })
+            .with_constellation(Constellation::GPS)
+            .with_observation_fields(specs);
+
+        let ts = TimeScale::GPST;
+
+        let content = " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27
+G30R01R02R03R08R09R15R16R17R18R19R24
+24178026.635 6  24178024.891 6                 127056391.69906  99004963.01703
+24178026.139 3  24178024.181 3        38.066          22.286
+
+21866748.928 7  21866750.407 7  21866747.537 8 114910552.08207  89540700.32608
+85809828.27608  21866748.200 8  21866749.482 8        45.759          49.525
+52.161
+21458907.960 8  21458908.454 7  21458905.489 8 112767333.29708  87870655.27209
+84209365.43808  21458907.312 9  21458908.425 9        50.526          55.388
+53.157
+25107711.730 5                                 131941919.38305 102811868.09001
+25107711.069 1  25107709.586 1        33.150           8.952
+
+24224693.760 6  24224693.174 5                 127301651.00206  99196079.53805
+24224693.407 5  24224691.898 5        36.121          31.645
+
+21749627.212 8                                 114295057.63608  89061063.16706
+21749626.220 6  21749624.795 6        48.078          39.240
+";
+        let key = parse_epoch(header, content, ts, &mut obs).unwrap();
+
+        assert_eq!(key.epoch, t0);
+        assert!(key.flag.is_ok());
+        assert!(obs.clock.is_none());
+
+        let c1 = Observable::from_str("C1").unwrap();
+        let c2 = Observable::from_str("C2").unwrap();
+        let c5 = Observable::from_str("C5").unwrap();
+        let l1 = Observable::from_str("L1").unwrap();
+        let l2 = Observable::from_str("L2").unwrap();
+        let l5 = Observable::from_str("L5").unwrap();
+        let s1 = Observable::from_str("S1").unwrap();
+        let s2 = Observable::from_str("S2").unwrap();
+        let s5 = Observable::from_str("S5").unwrap();
+
+        let g07 = SV::from_str("G07").unwrap();
+        let g08 = SV::from_str("G08").unwrap();
+        let g10 = SV::from_str("G10").unwrap();
+        let g13 = SV::from_str("G13").unwrap();
+        let g15 = SV::from_str("G15").unwrap();
+        let g16 = SV::from_str("G16").unwrap();
+
+        let signals = obs.signals.clone();
+
+        for sig in &signals {
+            if sig.sv == g07 {
+                if sig.observable == c1 {
+                    assert_eq!(sig.value, 20176608.780);
+                } else if sig.observable == c2 {
+                    assert_eq!(sig.value, 106028802.118);
+                } else if sig.observable == c5 {
+                    assert_eq!(sig.value, -1009.418);
+                } else if sig.observable == l1 {
+                    assert_eq!(sig.value, 50.250);
+                } else if sig.observable == l2 {
+                    assert_eq!(sig.value, 20176610.080);
+                } else if sig.observable == l5 {
+                    assert_eq!(sig.value, 82619851.246);
+                    //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
+                } else if sig.observable == s1 {
+                    assert_eq!(sig.value, -786.562);
+                } else if sig.observable == s2 {
+                    assert_eq!(sig.value, 54.500);
+                } else if sig.observable == s5 {
+                    assert_eq!(sig.value, 54.500);
+                } else {
+                    panic!("found invalid observable {}", sig.observable);
+                }
+            } else if sig.sv == g08 {
+            } else if sig.sv == g10 {
+            } else if sig.sv == g13 {
+            } else if sig.sv == g15 {
+            } else if sig.sv == g16 {
+            } else {
+                panic!("invalid sv");
+            }
+        }
+
+        assert_eq!(obs.signals.len(), 24);
+
+        let signals = obs.signals.clone();
+
+        let formatted = fmt_observations(2, &header, &key, &None, signals);
     }
 }
