@@ -365,18 +365,23 @@ pub fn parse_record(
     // DORIS
     let mut dor_rec = doris::Record::new();
 
-    // OBSERVATION case
-    //  timescale is defined either
-    //    [+] by TIME OF FIRST header field
-    //    [+] fixed system in case of old GPS/GLO Observation Data
+    // OBSERVATION case: timescale is either defined by
+    //    [+] TIME OF FIRST header field
+    //    [+] TIME OF LAST header field (flexibility, actually invalid according to specs)
+    //    [+] GNSS system in case of single GNSS old RINEX
     let mut obs_ts = TimeScale::default();
+
     if let Some(obs) = &header.obs {
         match header.constellation {
             Some(Constellation::Mixed) | None => {
-                let time_of_first_obs = obs
-                    .time_of_first_obs
-                    .ok_or(Error::BadObservationDataDefinition)?;
-                obs_ts = time_of_first_obs.time_scale;
+                if let Some(t) = obs.timeof_first_obs {
+                    obs_ts = t.time_scale;
+                } else {
+                    let t = obs
+                        .timeof_last_obs
+                        .ok_or(Error::ObservationDataTimescaleIdentification)?;
+                    obs_ts = t.time_scale;
+                }
             },
             Some(constellation) => {
                 obs_ts = constellation

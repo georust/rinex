@@ -193,7 +193,7 @@ mod test {
         let total = rinex.carrier().count();
         assert_eq!(total, 4);
 
-        let carriers = rinex.carrier().sorted().collect::<Vec<_>>();
+        let carriers = rinex.signal().sorted().collect::<Vec<_>>();
         assert_eq!(
             carriers,
             vec![

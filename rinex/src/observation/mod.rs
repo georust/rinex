@@ -61,6 +61,8 @@ pub enum ParsingError {
     EpochFlag(#[from] FlagError),
     #[error("failed to parse epoch")]
     EpochError(#[from] EpochParsingError),
+    #[error("observation events are not supported yet")]
+    Event,
     #[error("constellation parsing error")]
     ConstellationParsing(#[from] ConstellationParsingError),
     #[error("sv parsing error")]

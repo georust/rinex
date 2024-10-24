@@ -3,8 +3,8 @@ use crate::{
     epoch::{parse_in_timescale as parse_epoch_in_timescale, parse_utc as parse_utc_epoch},
     observation::ParsingError,
     prelude::{
-        ClockObservation, Constellation, EpochFlag, Header, LliFlags, ObsKey, Observable,
-        Observations, SignalObservation, TimeScale, Version, SNR, SV,
+        Constellation, EpochFlag, Header, LliFlags, ObsKey, Observable, Observations,
+        SignalObservation, TimeScale, Version, SNR, SV,
     },
 };
 
@@ -18,6 +18,8 @@ use num_integer::div_ceil;
 
 #[cfg(feature = "log")]
 use log::{debug, error};
+
+use super::ClockObservation;
 
 /// Returns true if given content matches a new OBSERVATION data epoch
 pub fn is_new_epoch(line: &str, v: Version) -> bool {
@@ -55,13 +57,14 @@ pub fn is_new_epoch(line: &str, v: Version) -> bool {
     }
 }
 
-/// Parses all [Record] entries from readable content.
-/// ## Inputs
-///   - header: reference to [Header] specs
+/// Parses record entries from readable content
+/// ## Input
+///   - header: reference to previously parsed [Header]
 ///   - content: readable content
-///   - ts: file [TimeScale] specs
-///   - observations: actual results, allocated only once
-///   that should be reset before this call
+///   - ts: [TimeScale] defined by [Header]
+///   - observations: preallocated [Observations] for performance issue.
+/// ## Output
+///   - [ObsKey] record indexer
 pub fn parse_epoch(
     header: &Header,
     content: &str,
@@ -99,13 +102,13 @@ pub fn parse_epoch(
     let (flag, rem) = rem.split_at(3);
     let flag = EpochFlag::from_str(flag.trim())?;
 
+    let key = ObsKey { epoch, flag };
+
     let (num_sat, rem) = rem.split_at(3);
     let num_sat = num_sat
         .trim()
         .parse::<u16>()
         .map_err(|_| ParsingError::NumSatParsing)?;
-
-    let key = ObsKey { epoch, flag };
 
     // grab possible clock offset
     let offs: Option<&str> = match header.version.major < 2 {
@@ -138,24 +141,18 @@ pub fn parse_epoch(
     };
     if let Some(offset) = offs {
         if let Ok(offset_s) = offset.parse::<f64>() {
-            if let Some(ref mut clock) = observations.clock {
-                clock.set_offset_s(epoch, offset_s);
-            } else {
-                observations.with_clock_observation(
-                    ClockObservation::default().with_offset_s(epoch, offset_s),
-                );
-            }
+            observations
+                .with_clock_observation(ClockObservation::default().with_offset_s(epoch, offset_s));
         }
     }
 
     match flag {
         EpochFlag::Ok | EpochFlag::PowerFailure | EpochFlag::CycleSlip => {
-            parse_observations(header, key, num_sat, rem, lines, observations)?;
+            parse_observations(header, key, num_sat, rem, lines, &mut observations.signals)?;
         },
         _ => {
-            // TODO following OBS_RINEX refactor:
-            // Epoch events are not supported yet (coming soong)
-            // parse_event(header, epoch, flag, n_sat, clock_offset, rem, lines)
+            // Hardware events are not supported yet (coming soon)
+            return Err(ParsingError::Event);
         },
     }
 
@@ -167,14 +164,15 @@ fn parse_observations(
     key: ObsKey,
     num_sat: u16,
     rem: &str,
-    mut lines: Lines<'_>,
-    observations: &mut Observations,
+    mut lines: std::str::Lines<'_>,
+    signals: &mut Vec<SignalObservation>,
 ) -> Result<(), ParsingError> {
-    // previously identified observables (that we expect)
-    let obs = header.obs.as_ref().unwrap();
-    let observables = &obs.codes;
-
+    // retrieve header specs
     let constellation = header.constellation;
+
+    let obs = header.obs.as_ref().unwrap();
+
+    let observables = &obs.codes;
 
     match header.version.major {
         2 => {
@@ -190,37 +188,32 @@ fn parse_observations(
                     return Err(ParsingError::BadV2SatellitesDescription);
                 }
             }
-            parse_observations_v2(
-                &systems_str,
-                constellation,
-                observables,
-                lines,
-                observations,
-            );
+            parse_signals_v2(&systems_str, constellation, observables, lines, signals);
         },
         _ => {
-            parse_observations_v3(observables, lines, observations);
+            parse_signals_v3(observables, lines, signals);
         },
     }
 
     Ok(())
 }
 
-/// Parses all [Observations] as described by following V2 content.
+/// Parses all [SignalObservation]s as described by following V2 content.
 /// Old format is tedious:
 ///   - vehicle description is contained in first line
 ///   - wrapped in as many lines as needed
 /// Inputs
+///   - key: previously identified [ObsKey]
 ///   - system_str: first line description
 ///   - constellation: [Constellation] specs defined in [Header]
 ///   - observables: reference to [Observable]s specs defined in [Header]
-///   - lines: remaining [Lines] Iterator
-fn parse_observations_v2(
+///   - lines: remaing [Lines] Iterator
+fn parse_signals_v2(
     systems_str: &str,
     head_constellation: Option<Constellation>,
     head_observables: &HashMap<Constellation, Vec<Observable>>,
     lines: Lines<'_>,
-    observations: &mut Observations,
+    signals: &mut Vec<SignalObservation>,
 ) {
     const SVNN_SIZE: usize = 3; // SVNN standard
     const MAX_OBSERVABLES_LINE: usize = 5; // max in a single line
@@ -395,7 +388,7 @@ fn parse_observations_v2(
             let end: usize = slice.len().min(OBSERVABLE_F14_WIDTH);
             let value_slice = &slice[0..end];
             if let Ok(value) = value_slice.trim().parse::<f64>() {
-                observations.signals.push(SignalObservation {
+                signals.push(SignalObservation {
                     sv,
                     value,
                     snr,
@@ -420,11 +413,11 @@ fn parse_observations_v2(
     } // for all lines provided
 }
 
-/// Parses all [Observation]s described by following [Lines].
-fn parse_observations_v3(
+/// Parses all [SignalObservation]s described by following [Lines].
+fn parse_signals_v3(
     head_observables: &HashMap<Constellation, Vec<Observable>>,
     lines: Lines<'_>,
-    observations: &mut Observations,
+    signals: &mut Vec<SignalObservation>,
 ) {
     const SVNN_SIZE: usize = 3;
     const OBSERVABLE_F14_WIDTH: usize = 14;
@@ -518,7 +511,7 @@ fn parse_observations_v3(
             let end = (offset + OBSERVABLE_F14_WIDTH).min(slice.len());
 
             if let Ok(value) = slice[offset..offset + end].parse::<f64>() {
-                observations.signals.push(SignalObservation {
+                signals.push(SignalObservation {
                     sv,
                     value,
                     lli,
@@ -532,10 +525,10 @@ fn parse_observations_v3(
 
 #[cfg(test)]
 mod test {
-    use super::{is_new_epoch, parse_epoch};
-    use crate::prelude::{Header, Observations, Version};
+    use super::is_new_epoch;
+    use crate::prelude::Version;
     #[test]
-    fn new_observation_epoch() {
+    fn test_new_epoch() {
         assert!(is_new_epoch(
             "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
             Version { major: 2, minor: 0 }
@@ -564,12 +557,5 @@ mod test {
             "G01  22331467.880   117352685.28208        48.950    22331469.28",
             Version { major: 3, minor: 0 }
         ));
-    }
-
-    #[test]
-    fn test_parse_epoch_1() {
-        let header = Header::default();
-        let mut observations = Observations::default();
-        let parsed = parse_epoch(&header, content, TimeScale::GPST, observations);
     }
 }

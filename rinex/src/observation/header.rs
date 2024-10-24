@@ -18,10 +18,12 @@ use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
 pub struct HeaderFields {
     /// Optional CRINEX information
     pub crinex: Option<Crinex>,
-    /// Time of FIRST OBS
-    pub time_of_first_obs: Option<Epoch>,
-    /// Time of LAST OBS
-    pub time_of_last_obs: Option<Epoch>,
+    /// [Epoch] of first observation. Following content should match.
+    /// Defines [TimeScale] of following content.
+    pub timeof_first_obs: Option<Epoch>,
+    /// [Epoch] of last observation. Following content should match.
+    /// Defines [TimeScale] of following content.
+    pub timeof_last_obs: Option<Epoch>,
     /// Observables per constellation basis
     pub codes: HashMap<Constellation, Vec<Observable>>,
     /// True if local clock drift is compensated for
@@ -32,16 +34,16 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
-    /// Add TIME OF FIRST OBS
+    /// Add "TIME OF FIRST OBS" field
     pub(crate) fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
-        s.time_of_first_obs = Some(epoch);
+        s.timeof_first_obs = Some(epoch);
         s
     }
-    /// Add TIME OF LAST OBS
+    /// Add "TIME OF LAST OBS" field
     pub(crate) fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
-        s.time_of_last_obs = Some(epoch);
+        s.timeof_first_obs = Some(epoch);
         s
     }
     /// Insert a data scaling

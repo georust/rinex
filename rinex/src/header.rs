@@ -1581,7 +1581,7 @@ impl Header {
      */
     fn fmt_observation_rinex(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(obs) = &self.obs {
-            if let Some(e) = obs.time_of_first_obs {
+            if let Some(e) = obs.timeof_first_obs {
                 let (y, m, d, hh, mm, ss, nanos) =
                     (e + e.leap_seconds(true).unwrap_or(0.0) * Unit::Second).to_gregorian_utc();
                 writeln!(
@@ -1596,7 +1596,7 @@ impl Header {
                     )
                 )?;
             }
-            if let Some(e) = obs.time_of_last_obs {
+            if let Some(e) = obs.timeof_last_obs {
                 let (y, m, d, hh, mm, ss, nanos) =
                     (e + e.leap_seconds(true).unwrap_or(0.0) * Unit::Second).to_gregorian_utc();
                 writeln!(
@@ -2149,8 +2149,8 @@ impl Merge for Header {
             if let Some(rhs) = &rhs.obs {
                 merge_mut_option(&mut lhs.crinex, &rhs.crinex);
                 merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
-                merge_time_of_first_obs(&mut lhs.time_of_first_obs, &rhs.time_of_first_obs);
-                merge_time_of_last_obs(&mut lhs.time_of_last_obs, &rhs.time_of_last_obs);
+                merge_time_of_first_obs(&mut lhs.timeof_first_obs, &rhs.timeof_first_obs);
+                merge_time_of_last_obs(&mut lhs.timeof_last_obs, &rhs.timeof_last_obs);
                 // TODO: lhs.clock_offset_applied |= rhs.clock_offset_applied;
             }
         }

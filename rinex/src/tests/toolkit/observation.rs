@@ -1,134 +1,216 @@
-// use crate::observation::Record as ObsRecord;
-use crate::prelude::{Constellation, Epoch, Observable, Rinex};
-use crate::tests::toolkit::{
-    test_gnss_csv, test_observables_csv, test_rinex, test_sv_csv, test_time_frame, TestTimeFrame,
-};
 use std::str::FromStr;
 
-/*
- * Verifies given constellation does (only) contain the following observables
- */
-pub fn check_observables(rnx: &Rinex, constellation: Constellation, observables: &[&str]) {
-    let expected = observables
-        .iter()
-        .map(|desc| Observable::from_str(desc).unwrap())
-        .collect::<Vec<_>>();
+use crate::{
+    prelude::{
+        ClockObservation, Constellation, Epoch, EpochFlag, GeodeticMarker, GroundPosition, Header,
+        ObsKey, Observable, Rinex, RinexType, SignalObservation, SV,
+    },
+    tests::toolkit::{
+        generic_null_rinex_test, generic_rinex_test, gnss_csv as gnss_from_csv,
+        observables_csv as observable_from_csv, sv_csv as sv_from_csv, TimeFrame,
+    },
+};
 
-    match &rnx.header.obs {
-        Some(obs_specific) => {
-            let observables = obs_specific.codes.get(&constellation);
-            if let Some(observables) = observables {
-                for expected in &expected {
-                    let mut found = false;
-                    for observable in observables {
-                        found |= observable == expected;
-                    }
-                    if !found {
-                        panic!(
-                            "{} observable is not present in header, for {} constellation",
-                            expected, constellation
-                        );
-                    }
-                }
-                for observable in observables {
-                    let mut is_expected = false;
-                    for expected in &expected {
-                        is_expected |= expected == observable;
-                    }
-                    if !is_expected {
-                        panic!(
-                            "{} header observables unexpectedly contain {} observable",
-                            constellation, observable
-                        );
-                    }
-                }
-            } else {
-                panic!(
-                    "no observable in header for {} constellation",
-                    constellation
-                );
-            }
-        },
-        _ => {
-            panic!("empty observation specific header fields");
-        },
+use itertools::Itertools;
+
+pub struct ClockDataPoint {
+    pub key: ObsKey,
+    pub clock: ClockObservation,
+}
+
+impl ClockDataPoint {
+    pub fn new(epoch: Epoch, flag: EpochFlag, offset_s: f64) -> Self {
+        Self {
+            key: ObsKey { epoch, flag },
+            clock: ClockObservation::default().with_offset_s(epoch, offset_s),
+        }
     }
 }
 
-/*
- * Any parsed OBSERVATION RINEX should go through this test
- */
-pub fn test_observation_rinex(
+pub struct SignalDataPoint {
+    pub key: ObsKey,
+    pub signal: SignalObservation,
+}
+
+impl SignalDataPoint {
+    pub fn new(epoch: Epoch, flag: EpochFlag, sv: SV, observable: Observable, value: f64) -> Self {
+        let mut signal = SignalObservation {
+            sv,
+            observable,
+            value,
+            lli: None,
+            snr: None,
+        };
+        Self {
+            key: ObsKey { epoch, flag },
+            signal,
+        }
+    }
+}
+
+/// Basic tests for Observation [Rinex]
+fn basic_header_tests(dut: &Header, timeof_first_obs: Option<&str>, timeof_last_obs: Option<&str>) {
+    assert!(dut.obs.is_some(),);
+    assert!(dut.meteo.is_none(),);
+    assert!(dut.ionex.is_none(),);
+    assert!(dut.clock.is_none(),);
+
+    let specs = dut.obs.as_ref().expect("missing specific specs");
+
+    if let Some(t) = timeof_first_obs {
+        let t = Epoch::from_str(t).unwrap();
+        assert_eq!(specs.timeof_first_obs, Some(t));
+    }
+
+    if let Some(t) = timeof_last_obs {
+        let t = Epoch::from_str(t).unwrap();
+        assert_eq!(specs.timeof_last_obs, Some(t));
+    }
+}
+
+/// Generic test that we can use for Observation [Rinex]
+pub fn generic_observation_rinex_test(
     dut: &Rinex,
+    model: Option<&Rinex>,
     version: &str,
-    constellation: Option<&str>,
-    gnss_csv: &str,
+    header_constellation: Option<&str>,
+    has_clock: bool,
     sv_csv: &str,
-    observ_csv: &str,
-    time_of_first_obs: Option<&str>,
-    time_of_last_obs: Option<&str>,
-    time_frame: TestTimeFrame,
-    //observ_gnss_json: &str,
+    gnss_csv: &str,
+    gnss_observ_csv: &[(&str, &str)],
+    timeof_first_obs: Option<&str>,
+    timeof_last_obs: Option<&str>,
+    ground_ref_wgs84_m: Option<(f64, f64, f64)>,
+    observer: Option<&str>,
+    geodetic_marker: Option<GeodeticMarker>,
+    time_frame: TimeFrame,
+    signal_points: Vec<SignalDataPoint>,
+    clock_points: Vec<ClockDataPoint>,
 ) {
-    test_rinex(dut, version, constellation);
-    assert!(
-        dut.is_observation_rinex(),
-        "should be declared as OBS RINEX"
+    assert!(dut.is_observation_rinex());
+
+    let dut_rec = dut.record.as_obs().unwrap();
+
+    generic_rinex_test(
+        dut,
+        version,
+        header_constellation,
+        RinexType::ObservationData,
+        Some(time_frame),
     );
 
-    assert!(
-        dut.record.as_obs().is_some(),
-        "observation record unwrapping"
-    );
-    test_sv_csv(dut, sv_csv);
-    test_gnss_csv(dut, gnss_csv);
-    test_time_frame(dut, time_frame);
-    test_observables_csv(dut, observ_csv);
-    /*
-     * Specific header field testing
-     */
-    assert!(
-        dut.header.obs.is_some(),
-        "missing observation specific header fields"
-    );
-    assert!(
-        dut.header.meteo.is_none(),
-        "should not contain specific METEO fields"
-    );
-    assert!(
-        dut.header.ionex.is_none(),
-        "should not contain specific IONEX fields"
-    );
-    assert!(
-        dut.header.clock.is_none(),
-        "should not contain specific CLOCK fields"
-    );
+    basic_header_tests(&dut.header, timeof_first_obs, timeof_last_obs);
 
-    let header = dut.header.obs.as_ref().unwrap();
-    //for (constell, observables) in observables {
-    //    assert!(header_obs.codes.get(&constell).is_some(), "observation rinex specific header missing observables for constellation {}", constell);
-    //    let values = header_obs.codes.get(&constell).unwrap();
-    //    for o in &observables {
-    //        assert!(values.contains(&o), "observation rinex specific {} header is missing {} observable", constell, o);
-    //    }
-    //    for o in values {
-    //        assert!(values.contains(&o), "observation rinex specific {} header should not contain {} observable", constell, o);
-    //    }
-    //}
-    if let Some(time_of_first_obs) = time_of_first_obs {
+    if let Some((x_m, y_m, z_m)) = ground_ref_wgs84_m {
         assert_eq!(
-            Some(Epoch::from_str(time_of_first_obs).unwrap()),
-            header.time_of_first_obs,
-            "obs header is missing time of first obs \"{}\"",
-            time_of_first_obs
+            dut.header.ground_position,
+            Some(GroundPosition::from_ecef_wgs84((x_m, y_m, z_m)))
         );
     }
-    if let Some(time_of_last_obs) = time_of_last_obs {
-        assert_eq!(
-            Some(Epoch::from_str(time_of_last_obs).unwrap()),
-            header.time_of_last_obs,
-            "obs header is missing time of last obs \"{}\"",
-            time_of_last_obs
+
+    if let Some(observer) = observer {
+        assert_eq!(dut.header.observer, observer);
+    }
+
+    if let Some(marker) = geodetic_marker {
+        assert_eq!(dut.header.geodetic_marker, Some(marker));
+    }
+
+    let specs = dut.header.obs.as_ref().unwrap();
+
+    for (gnss, observable_csv) in gnss_observ_csv {
+        let gnss = Constellation::from_str(gnss).unwrap();
+        let expected = observable_from_csv(observable_csv);
+        let found = specs
+            .codes
+            .get(&gnss)
+            .cloned()
+            .expect(&format!("missing observables for {}", gnss));
+        assert_eq!(found, expected);
+    }
+
+    let clocks = dut.clock_observations_iter().collect::<Vec<_>>();
+    if has_clock {
+        assert!(clocks.len() > 0, "missing clock data");
+    } else {
+        assert!(clocks.len() == 0, "found invalid clock data");
+    }
+
+    // Check SV content
+    let content = dut.sv().collect::<Vec<_>>();
+    let expected = sv_from_csv(sv_csv);
+    assert_eq!(content, expected);
+
+    // Check Observable content
+    let content = dut.observable().cloned().collect::<Vec<_>>();
+    let expected = observable_from_csv(sv_csv);
+    assert_eq!(content, expected);
+
+    // Check GNSS content
+    let content = dut.constellation().collect::<Vec<_>>();
+    let expected = gnss_from_csv(sv_csv);
+    assert_eq!(content, expected);
+
+    // Self - Self should be 0
+    let null_dut = dut.substract(&dut);
+    generic_null_rinex_test(null_dut);
+
+    // Check against provided model
+    if let Some(model) = model {
+        generic_observation_rinex_against_model(dut, model);
+    }
+
+    // Test signal data points
+    for point in signal_points {
+        let k = point.key;
+        let values = dut_rec.get(&k).unwrap();
+        assert!(values.signals.contains(&point.signal));
+    }
+
+    // Test clock data points
+    for point in clock_points {
+        let k = point.key;
+        let values = dut_rec.get(&k).unwrap();
+        assert_eq!(values.clock, Some(point.clock));
+    }
+}
+
+/// [Rinex] against [Rinex] model verification
+pub fn generic_observation_rinex_against_model(dut: &Rinex, model: &Rinex) {
+    let rec_dut = dut.record.as_obs().expect("failed to unwrap rinex record");
+
+    let rec_model = model
+        .record
+        .as_obs()
+        .expect("failed to unwrap rinex record");
+
+    // verify constellations
+    let dut_content = dut.constellation().sorted().collect::<Vec<_>>();
+    let expected_content = model.constellation().sorted().collect::<Vec<_>>();
+    assert_eq!(dut_content, expected_content);
+
+    // verify observables
+    let dut_content = dut.observable().sorted().collect::<Vec<_>>();
+    let expected_content = dut.observable().sorted().collect::<Vec<_>>();
+    assert_eq!(dut_content, expected_content);
+
+    // TODO : verify carriers
+
+    for (k, v) in rec_dut.iter() {
+        assert!(
+            rec_model.get(k).is_some(),
+            "found unexpected content: {:?}",
+            k
         );
+    }
+
+    for (k, v) in rec_model.iter() {
+        let dut = rec_dut.get(k).expect(&format!("missing content {:?}", k));
+
+        // clock comparison
+        assert_eq!(v.clock, dut.clock);
+
+        // signal comparison
+        assert_eq!(v.signals, dut.signals);
     }
 }

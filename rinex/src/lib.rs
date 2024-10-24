@@ -88,6 +88,7 @@ pub mod prelude {
     pub use crate::doris::Station;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
+    pub use crate::marker::{GeodeticMarker, MarkerType};
     pub use crate::observable::Observable;
     pub use crate::observation::{
         ClockObservation, EpochFlag, LliFlags, ObsKey, Observations, SignalObservation, SNR,
@@ -403,8 +404,8 @@ impl Rinex {
                     codes: params.codes.clone(),
                     clock_offset_applied: params.clock_offset_applied,
                     scaling: params.scaling.clone(),
-                    time_of_first_obs: params.time_of_first_obs,
-                    time_of_last_obs: params.time_of_last_obs,
+                    timeof_first_obs: params.timeof_first_obs,
+                    timeof_last_obs: params.timeof_last_obs,
                 });
         }
     }
