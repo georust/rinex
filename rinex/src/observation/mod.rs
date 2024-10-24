@@ -38,16 +38,14 @@ pub use snr::SNR;
 #[cfg(docsrs)]
 use crate::Bibliography;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    epoch::ParsingError as EpochParsingError,
-    observation::flag::Error as FlagError,
-    prelude::{Epoch, Observable, SV},
+    epoch::ParsingError as EpochParsingError, observation::flag::Error as FlagError, prelude::Epoch,
 };
 
 use gnss::{
@@ -67,8 +65,6 @@ pub enum ParsingError {
     ConstellationParsing(#[from] ConstellationParsingError),
     #[error("sv parsing error")]
     SvParsing(#[from] SVParsingError),
-    #[error("failed to parse vehicles properly (nb_sat mismatch)")]
-    EpochParsingError,
     #[error("bad v2 satellites description")]
     BadV2SatellitesDescription,
     #[error("epoch is empty")]
@@ -132,29 +128,29 @@ pub struct ObsKey {
 /// Observation [Record] are sorted by [Epoch] of observation and may have two different forms.
 pub type Record = BTreeMap<ObsKey, Observations>;
 
-#[cfg(feature = "obs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-#[derive(Debug, Copy, Clone)]
-pub enum Combination {
-    GeometryFree,
-    IonosphereFree,
-    WideLane,
-    NarrowLane,
-    MelbourneWubbena,
-}
+// #[cfg(feature = "obs")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
+// #[derive(Debug, Copy, Clone)]
+// pub enum Combination {
+//     GeometryFree,
+//     IonosphereFree,
+//     WideLane,
+//     NarrowLane,
+//     MelbourneWubbena,
+// }
 
-/// GNSS signal combination trait.    
-/// This only applies to OBS RINEX records.  
-/// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1]
-/// for more information.
-#[cfg(feature = "obs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-pub trait Combine {
-    fn combine(
-        &self,
-        combination: Combination,
-    ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-}
+// /// GNSS signal combination trait.
+// /// This only applies to OBS RINEX records.
+// /// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1]
+// /// for more information.
+// #[cfg(feature = "obs")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
+// pub trait Combine {
+//     fn combine(
+//         &self,
+//         combination: Combination,
+//     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
+// }
 
 // /// GNSS code bias estimation trait.
 // /// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1].

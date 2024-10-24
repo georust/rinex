@@ -22,7 +22,6 @@ pub mod marker;
 pub mod merge;
 pub mod meteo;
 pub mod navigation;
-pub mod observation;
 pub mod record;
 pub mod split;
 pub mod types;
@@ -34,6 +33,7 @@ mod ground_position;
 mod leap; // leap second
 mod linspace; // grid and linear spacing
 mod observable;
+mod observation;
 mod production; // RINEX production infrastructure // physical observations
 
 #[cfg(test)]

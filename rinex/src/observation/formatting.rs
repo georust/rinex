@@ -7,6 +7,8 @@ use crate::{
 #[cfg(feature = "log")]
 use log::error;
 
+use itertools::Itertools;
+
 /// Formats one epoch according to standard definitions.
 /// ## Inputs
 /// - major: RINEX revision major
@@ -19,8 +21,8 @@ pub fn fmt_observations(
     major: u8,
     header: &Header,
     key: &ObsKey,
-    clock: Option<&ClockObservation>,
-    signals: Vec<&SignalObservation>,
+    clock: &Option<ClockObservation>,
+    signals: Vec<SignalObservation>,
 ) -> String {
     if major < 3 {
         fmt_observations_v2(header, key, clock, signals)
@@ -32,26 +34,27 @@ pub fn fmt_observations(
 fn fmt_observations_v3(
     header: &Header,
     key: &ObsKey,
-    clock: Option<&ClockObservation>,
-    signals: Vec<&SignalObservation>,
+    clock: &Option<ClockObservation>,
+    signals: Vec<SignalObservation>,
 ) -> String {
     const EMPTY_FIELD: &str = "                ";
+
     let mut lines = String::with_capacity(128);
 
-    let observables = &header
-        .obs
-        .as_ref()
-        .expect("bad rinex: not observable definitions")
-        .codes;
+    let observables = &header.obs.as_ref().expect("missing observable specs").codes;
 
-    let unique_sv = signals.iter().map(|sig| sig.sv).collect::<Vec<_>>();
+    let unique_sv = signals
+        .iter()
+        .map(|sig| sig.sv)
+        .unique()
+        .collect::<Vec<_>>();
 
     let num_sat = unique_sv.len();
 
     lines.push_str(&format!(
         "> {}  {} {:2}",
         epoch_format(key.epoch, RinexType::ObservationData, 3),
-        key.epoch,
+        key.flag,
         num_sat,
     ));
 
@@ -111,8 +114,8 @@ fn fmt_observations_v3(
 fn fmt_observations_v2(
     header: &Header,
     key: &ObsKey,
-    clock: Option<&ClockObservation>,
-    signals: Vec<&SignalObservation>,
+    clock: &Option<ClockObservation>,
+    signals: Vec<SignalObservation>,
 ) -> String {
     const NUM_SV_PER_LINE: usize = 12;
     const OBSERVATION_PER_LINE: usize = 5;
