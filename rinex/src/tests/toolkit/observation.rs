@@ -212,3 +212,50 @@ pub fn generic_observation_rinex_against_model(dut: &Rinex, model: &Rinex) {
         assert_eq!(v.signals, dut.signals);
     }
 }
+
+/// Generic method to use at the epoch decoding level (testing)
+pub fn generic_observation_epoch_decoding_test(
+    content: &str,
+    major: u8,
+    header_constell: Constellation,
+    header_gnss_obs_csv: &[(&str, &str)],
+    timeof_first_obs: &str,
+    num_signals: usize,
+    key_epoch: &str,
+    key_flag: EpochFlag,
+    clock: Option<ClockObservation>,
+    data_points: &[ObsDataPoint],
+) {
+    // build [Header]
+    let t0 = Epoch::from_str(timeof_first_obs)
+        .unwrap();
+
+    let ts = t0.time_scale;
+
+    let mut specs = SpecFields::default()
+        .with_timeof_first_obs(t0);
+    
+    for (constell, observable_csv) in header_gnss_obs_csv.iter() {
+        let constell = Constellation::from_str(constell)
+            .unwrap();
+        let observables = observable_from_csv(header_obs_csv);
+        specs.codes.insert(constell, observables);
+    }
+
+    let header = Header::default()
+        .with_version(Version { major, minor: 0 })
+        .with_constellation(header_constell)
+        .with_observation_fields(specs);
+
+    // PARSE
+    let key = parse_epoch(
+        haeder,
+        content,
+        ts,
+        &mut obs
+    ).unwrap();
+
+    assert_eq!(key.epoch, key_epoch);
+    assert_eq!(key.flag, key_flag);
+    assert_eq!(obs.clock, clock);
+}
