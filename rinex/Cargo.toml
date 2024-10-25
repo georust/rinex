@@ -16,10 +16,8 @@ rust-version = "1.64"
 # To understand the lib features, please read the following comments.
 # 
 # Other features that exist:
-# - rtcm: RINEX/RTCM serdes
-# - binex: RINEX/BINEX serdes
-# - serde: internal structures serdes
 # - log: unlocks debug traces
+# - serde: internal structures serdes
 #####################################################################
 
 ################################################################
@@ -66,10 +64,14 @@ antex = []
 doris = []
 
 # BINEX RNX2BIN and BIN2RNX serdes
-binex = []
+binex = [
+    "dep:binex"
+]
 
 # RTCM RTCM2RNX and RNX2RTCM serdes
-rtcm = []
+rtcm = [
+    "dep:rtcm-rs",
+]
 
 # Unlock Quality Check and TEQC like methods & traits.
 # Mostly file management (like Merging) and HTML reporting.
@@ -146,6 +148,12 @@ gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = 
 # RINEX QC dedicated traits
 maud = { version = "0.26", optional = true }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.2.1", optional = true }
+
+# BINEX serde
+binex = { path = "../binex", version = "0.2.0", optional = true }
+
+# RTCM serde
+rtcm-rs = { version = "0.11", optional = true }
 
 [dev-dependencies]
 serde_json = "1"

@@ -2,6 +2,7 @@
 use std::io::Read;
 
 use crate::prelude::Rinex;
+use binex::prelude::Decoder;
 
 /// BIN2RNX can deserialize a BINEX stream to RINEX Tokens.
 pub struct BIN2RNX<R: Read> {
@@ -9,17 +10,17 @@ pub struct BIN2RNX<R: Read> {
     decoder: Decoder<R>,
 }
 
-impl Iterator for BIN2RNX {
+impl<R: Read> Iterator for BIN2RNX<R> {
     type Item = Option<String>;
     fn next(&mut self) -> Option<Self::Item> {
         None
     }
 }
 
-impl BIN2RNX {
+impl<R: Read> BIN2RNX<R> {
     /// Creates a new [BIN2RNX] working from [Read]able interface.
     /// It will stream Tokens as long as the interface is alive.
-    pub fn new<R: Read>(r: R) -> Self {
+    pub fn new(r: R) -> Self {
         Self {
             decoder: Decoder::new(r),
         }

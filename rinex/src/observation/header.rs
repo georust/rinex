@@ -11,7 +11,7 @@ use std::{collections::HashMap, str::FromStr};
 use itertools::Itertools;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

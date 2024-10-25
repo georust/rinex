@@ -8,9 +8,7 @@ use std::str::FromStr;
 use crate::Bibliography;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 /*
  * When formatting floating point number in Navigation RINEX,

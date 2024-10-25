@@ -3,23 +3,54 @@ use std::io::Read;
 
 use crate::prelude::Rinex;
 
+use rtcm_rs::next_msg_frame as next_rtcm_msg_frame;
+
 /// RTCM2RNX can deserialize a RTCM stream to RINEX Tokens.
 pub struct RTCM2RNX<R: Read> {
-    /// RTCMEX decoder
-    decoder: Decoder<R>,
+    /// internal buffer
+    buf: Vec<u8>,
+    /// True when EOS has been reached
+    eos: bool,
+    /// pointer
+    ptr: usize,
+    /// [Read]able interface
+    reader: R,
 }
 
-impl Iterator for RTCM2RNX {
-    type Item = Option<String>;
+impl<R: Read> Iterator for RTCM2RNX<R> {
+    type Item = Option<Result<(), Error>>;
     fn next(&mut self) -> Option<Self::Item> {
+        if !self.eos {
+            if self.ptr < self.buf.len() {
+                // try filling with new bytes
+                let size = self.reader.read(&mut self.buf)?;
+                if size == 0 {
+                    self.eos = true;
+                }
+            }
+        } else {
+            if self.ptr == 0 {
+                // done consuming the last bytes
+                return None;
+            }
+        }
+
+        match next_rtcm_msg_frame(&self.buf[self.ptr..]) {
+            Ok(_) => {},
+            Err(e) => {},
+        }
+
         None
     }
 }
 
-impl RTCM2RNX {
-    pub fn new<R: Read>(r: R) -> Self {
+impl<R: Read> RTCM2RNX<R> {
+    pub fn new(r: R) -> Self {
         Self {
-            decoder: Decoder::new(r),
+            ptr: 0,
+            reader: r,
+            eos: false,
+            buf: Vec::with_capacity(1024),
         }
     }
 }

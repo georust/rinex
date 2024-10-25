@@ -3,6 +3,8 @@ use std::io::Read;
 
 use crate::prelude::Rinex;
 
+use rtcm_rs::msg::message::Message;
+
 /// RNX2RTCM can serialize a RINEX to a stream of RTCM Messages.
 pub struct RNX2RTCM<W: Write> {
     /// RTCM encoder
