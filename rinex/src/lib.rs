@@ -131,6 +131,14 @@ pub mod prod {
 #[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
 mod qc;
 
+#[cfg(feature = "rtcm")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]
+mod rtcm;
+
+#[cfg(feature = "binex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
+mod binex;
+
 #[cfg(feature = "processing")]
 use qc_traits::{
     Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing, Repair, RepairTrait,

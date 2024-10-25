@@ -12,57 +12,79 @@ edition = "2021"
 readme = "README.md"
 rust-version = "1.64"
 
+#####################################################################
+# To understand the lib features, please read the following comments.
+# 
+# Other features that exist:
+# - rtcm: RINEX/RTCM serdes
+# - binex: RINEX/BINEX serdes
+# - serde: internal structures serdes
+# - log: unlocks debug traces
+#####################################################################
+
+################################################################
+# Note for devs:
+#
+# remove ground_position.rs: replace by Orbit
+#
+# [Dependencies] see if we can get rid of
+# - geo
+# - wkt
+# - strum/macros
+# - map_3d: replaced by ANISE
+# - regex
+# - num/num-integer (.div_ceil)
+################################################################
+
 [features]
 default = []
 
-# Unlock OBS RINEX full support.
-# Unlocks dedicated browsing methods and post processing algorithms.
+# OBSERVATION RINEX Iterators & methods. Unlocks signal combinations.
 obs = []
 
-# NAV RINEX full support. 
-# Unlocks BRDC calculations, including Keplerian calculations (Ephemeris),
-# all NAV RINEX iteration and exploitation, including Ut1Provider.
+# NAVIGATION RINEX (decoded radio messages) Iterators & methods.
+# Unlocks navigation calculations including Kepler solver and Ut1Provider.
 nav = [
     "nalgebra",
     "hifitime/ut1",
     "anise",
 ]
 
-# Unlock METEO RINEX full support.
-# Unlocks dedicated browsing methods and dedicated analysis.
+# METEO RINEX dedicated Iterators & methods.
 meteo = []
 
-# Unlock IONEX full support.
-# Unlocks dedicated browsing methods and dedicated analysis.
+# IONEX (special RINEX) dedicated Iterators & methods.
 ionex = []
 
-# Unlock CLOCK RINEX full support.
-# Unlocks dedicated browsing methods and dedicated analysis.
+# CLOCK (Special RINEX) dedicated Iterators & methods.
 clock = []
 
-# Unlock ANTEX full support.
-# Unlocks dedicated browsing methods and antenna compensation methods.
+# ANTEX for accurate antenna characteristics: dedicated Iterators & methods.
 antex = []
 
-# Unlock support of DORIS RINEX file format, DORIS special measurements
-# wrapped as RINEX observation file.
+# DORIS (Special Observation RINEX) specific Iterators & methods.
 doris = []
 
-# Unlock Quality Check (QC) methods and traits.
-# Allows to generate complete QC reports for RINEX or entire contexts.
+# BINEX RNX2BIN and BIN2RNX serdes
+binex = []
+
+# RTCM RTCM2RNX and RNX2RTCM serdes
+rtcm = []
+
+# Unlock Quality Check and TEQC like methods & traits.
+# Mostly file management (like Merging) and HTML reporting.
 qc = [
     "maud",
     "rinex-qc-traits", 
 ] 
 
-# Unlock Processing package.
-# Unlocks the preprocessing toolkit, Filtering methods and preprocessing algorithms.
+# Unlocks the Filter designer, pre and post processing algorithms.
 processing = [
     "qc",
     "rinex-qc-traits/processing",
 ]
 
-# Unlock all features, all at once
+# Unlock all features, at once
 full = [
     "antex",
     "clock",
@@ -75,6 +97,8 @@ full = [
     "processing",
     "qc",
     "serde",
+    "binex",
+    "rtcm",
 ]
 
 [package.metadata.docs.rs]
