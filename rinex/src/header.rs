@@ -780,7 +780,7 @@ impl Header {
                 if rinex_type == Type::DORIS {
                     doris.time_of_first_obs = Some(time_of_first_obs);
                 } else {
-                    observation = observation.with_time_of_first_obs(time_of_first_obs);
+                    observation = observation.with_timeof_first_obs(time_of_first_obs);
                 }
             } else if marker.contains("TIME OF LAST OBS") {
                 let mut time_of_last_obs = Self::parse_time_of_obs(content)?;
@@ -797,7 +797,7 @@ impl Header {
                 if rinex_type == Type::DORIS {
                     doris.time_of_last_obs = Some(time_of_last_obs);
                 } else {
-                    observation = observation.with_time_of_last_obs(time_of_last_obs);
+                    observation = observation.with_timeof_last_obs(time_of_last_obs);
                 }
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX

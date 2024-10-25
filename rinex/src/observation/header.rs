@@ -35,13 +35,13 @@ pub struct HeaderFields {
 
 impl HeaderFields {
     /// Add "TIME OF FIRST OBS" field
-    pub(crate) fn with_time_of_first_obs(&self, epoch: Epoch) -> Self {
+    pub(crate) fn with_timeof_first_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
         s.timeof_first_obs = Some(epoch);
         s
     }
     /// Add "TIME OF LAST OBS" field
-    pub(crate) fn with_time_of_last_obs(&self, epoch: Epoch) -> Self {
+    pub(crate) fn with_timeof_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
         s.timeof_last_obs = Some(epoch);
         s

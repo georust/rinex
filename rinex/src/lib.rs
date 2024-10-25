@@ -4,9 +4,16 @@
 #![allow(clippy::type_complexity)]
 
 extern crate gnss_rs as gnss;
+extern crate num;
 
 #[cfg(feature = "qc")]
 extern crate rinex_qc_traits as qc_traits;
+
+#[macro_use]
+extern crate num_derive;
+
+#[macro_use]
+extern crate lazy_static;
 
 pub mod antex;
 pub mod carrier;
@@ -38,19 +45,19 @@ mod production; // RINEX production infrastructure // physical observations
 #[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
 mod qc;
 
+#[cfg(feature = "binex")]
+#[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
+mod binex;
+
+#[cfg(feature = "rtcm")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]
+mod rtcm;
+
 #[cfg(test)]
 mod tests;
 
 #[macro_use]
 mod macros;
-
-extern crate num;
-
-#[macro_use]
-extern crate num_derive;
-
-#[macro_use]
-extern crate lazy_static;
 
 pub mod reader;
 use reader::BufferedReader;
@@ -82,11 +89,15 @@ use hifitime::Unit;
 /// Package to include all basic structures
 pub mod prelude {
     #[cfg(feature = "antex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "antex")))]
     pub use crate::antex::AntennaMatcher;
-    #[cfg(feature = "obs")]
+
     pub use crate::carrier::Carrier;
+
     #[cfg(feature = "clock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "clock")))]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
+
     pub use crate::doris::Station;
     pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
@@ -100,6 +111,12 @@ pub mod prelude {
     pub use crate::types::Type as RinexType;
     pub use crate::version::Version;
     pub use crate::{Error, Rinex};
+
+    #[cfg(feature = "binex")]
+    pub use crate::binex::{BIN2RNX, RNX2BIN};
+
+    #[cfg(feature = "rtcm")]
+    pub use crate::rtcm::RTCM2RNX;
 
     // pub re-export
     #[cfg(feature = "nav")]
@@ -129,14 +146,6 @@ pub mod prod {
         DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU,
     };
 }
-
-#[cfg(feature = "rtcm")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]
-mod rtcm;
-
-#[cfg(feature = "binex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
-mod binex;
 
 #[cfg(feature = "processing")]
 use qc_traits::{

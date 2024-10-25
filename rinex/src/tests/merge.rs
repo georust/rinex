@@ -1,11 +1,10 @@
 #[cfg(test)]
 mod test {
     use crate::{
-        merge::Merge,
-        prelude::Rinex,
+        prelude::{Merge, Rinex},
         tests::toolkit::{generic_observation_rinex_test, TimeFrame},
     };
-    use std::{fs::remove_file as fs_remove_file, path::PathBuf, str::FromStr};
+    use std::{fs::remove_file as fs_remove_file, path::PathBuf};
 
     #[test]
     fn fail_on_type_mismatch() {
@@ -27,6 +26,7 @@ mod test {
         let r2 = Rinex::from_file(&path2.to_string_lossy()).unwrap();
         assert!(r1.merge_mut(&r2).is_err())
     }
+
     #[test]
     fn merge_nav() {
         let test_resources = PathBuf::new()
@@ -173,10 +173,10 @@ mod test {
         let _ = fs_remove_file("merge.txt"); // cleanup
     }
 
-    #[cfg(feature = "antex")]
-    use crate::antex::antenna::AntennaMatcher;
-    #[cfg(feature = "antex")]
-    use crate::Carrier;
+    // #[cfg(feature = "antex")]
+    // use crate::antex::antenna::AntennaMatcher;
+    // #[cfg(feature = "antex")]
+    // use crate::Carrier;
 
     // TODO
     // #[test]

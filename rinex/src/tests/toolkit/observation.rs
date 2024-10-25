@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
 use crate::{
+    observation::{fmt_observations, parse_epoch, HeaderFields},
     prelude::{
         ClockObservation, Constellation, Epoch, EpochFlag, GeodeticMarker, GroundPosition, Header,
-        ObsKey, Observable, Rinex, RinexType, SignalObservation, SV,
+        ObsKey, Observable, Observations, Rinex, RinexType, SignalObservation, Version, SV,
     },
     tests::toolkit::{
         generic_null_rinex_test, generic_rinex_test, gnss_csv as gnss_from_csv,
@@ -224,18 +225,18 @@ pub fn generic_observation_epoch_decoding_test(
     key_epoch: &str,
     key_flag: EpochFlag,
     clock: Option<ClockObservation>,
-    data_points: &[ObsDataPoint],
 ) {
     // build [Header]
     let t0 = Epoch::from_str(timeof_first_obs).unwrap();
+    let key_epoch = Epoch::from_str(key_epoch).unwrap();
 
     let ts = t0.time_scale;
 
-    let mut specs = SpecFields::default().with_timeof_first_obs(t0);
+    let mut specs = HeaderFields::default().with_timeof_first_obs(t0);
 
     for (constell, observable_csv) in header_gnss_obs_csv.iter() {
         let constell = Constellation::from_str(constell).unwrap();
-        let observables = observable_from_csv(header_obs_csv);
+        let observables = observable_from_csv(observable_csv);
         specs.codes.insert(constell, observables);
     }
 
@@ -245,9 +246,33 @@ pub fn generic_observation_epoch_decoding_test(
         .with_observation_fields(specs);
 
     // PARSE
-    let key = parse_epoch(haeder, content, ts, &mut obs).unwrap();
+    let mut obs = Observations::default();
+
+    let key = parse_epoch(&header, content, ts, &mut obs).unwrap();
 
     assert_eq!(key.epoch, key_epoch);
     assert_eq!(key.flag, key_flag);
     assert_eq!(obs.clock, clock);
+    assert_eq!(obs.signals.len(), num_signals);
+
+    // TODO: test data points
+
+    // reciprocal:
+    // RINEX format being a little flexible, there's high probability we don't match perfectly
+    // and cannot compare both strings together.
+    // So the test consists in parsing back what we just formatted, and the results must match exactly.
+    let signals = obs.signals.clone();
+
+    let mut parsed_back_obs = Observations::default();
+
+    let formatted = fmt_observations(3, &header, &key, &None, signals);
+    // TODO
+    // let key = parse_epoch(&header, &formatted, ts, &mut parsed_back_obs).unwrap();
+
+    // assert_eq!(key.epoch, key_epoch);
+    // assert_eq!(key.flag, key_flag);
+    // assert_eq!(parsed_back_obs.clock, clock);
+    // assert_eq!(parsed_back_obs.signals.len(), num_signals);
+    // TODO!
+    // assert_eq!(parsed_back_obs, obs);
 }

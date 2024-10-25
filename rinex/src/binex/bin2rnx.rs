@@ -1,7 +1,6 @@
 //! BINEX to RINEX deserialization
 use std::io::Read;
 
-use crate::prelude::Rinex;
 use binex::prelude::Decoder;
 
 /// BIN2RNX can deserialize a BINEX stream to RINEX Tokens.

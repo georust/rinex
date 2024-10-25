@@ -5,8 +5,8 @@ use rand::{distributions::Alphanumeric, Rng};
 /* OBS RINEX dedicated tools */
 mod observation;
 pub use observation::{
-    generic_observation_rinex_against_model, generic_observation_rinex_test, ClockDataPoint,
-    SignalDataPoint,
+    generic_observation_epoch_decoding_test, generic_observation_rinex_against_model,
+    generic_observation_rinex_test, ClockDataPoint, SignalDataPoint,
 };
 
 /* NAV RINEX dedicated tools */

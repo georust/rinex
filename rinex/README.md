@@ -4,19 +4,20 @@
 [![rustc](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
 
-*RINEX* is a crate in the *GeoRust* ecosystem that aims at supporting
-most common RINEX formats, that means:
+*RINEX* is a *GeoRust* crate that aims at supporting all RINEX formats,
+enabling advanced GNSS post processing. That means:
 
 - Parsing: text file and datasets decoding
-- Analysis: what *RINEX* may offer and permit
-- Production: text file formatting (mirror operation).
+- Analysis: *RINEX* data post processing, navigation, etc..
+- Production: text file formatting
 
 Several RINEX formats exist, nowadays we support all of them, at least on the parsing side.   
-Exotic formats may still lack some features.  
+Exotic formats may still lack some features. File production is not fully operational either:
+we are focused on post processing.
 
 The main objective of this library is to be a complete toolbox that offers a credible
-option to process *RINEX* data. Several file operations and algorithms exist now,
-most of them being historically supported by `TEQc` or `RTKlib`.
+option to process *RINEX* data. The library offers high level operations and algorithms,
+many of them being historically supported by `TEQc` or `RTKlib`.
 
 ## Parser versus file naming conventions
 
@@ -57,8 +58,7 @@ Note that, parsing a Gzip compressed files requires that filename to be terminat
 ## CRINEX compression algorithm
 
 The CRINEX (Compact RINEX) compression algorithm is supported both ways.
-We don't have options to unlock this feature: it is naturaly supported at all times. 
-You can safely parse your CRINEX.
+We don't have options to unlock this feature: it is builtin.
 
 ## Crate features
 
@@ -72,7 +72,7 @@ on specific Iterators.
 
 ## QC feature
 
-The `qc` toolbox (other libraries within this crate) allows the basis of GNSS processing
+The `qc` toolbox (other libraries within this repository) allows the basis of GNSS processing
 and specific RINEX features. If you compile *RINEX* with this option, you get a couple of
 methods that enable File operation and processing (basic). The historical `TEQc` methods
 are wrapped in this feature: for example, File Merging.

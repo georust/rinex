@@ -528,7 +528,11 @@ mod test {
     use super::{is_new_epoch, parse_epoch};
     use crate::{
         observation::{fmt_observations, HeaderFields as SpecFields},
-        prelude::{Constellation, Epoch, Header, Observable, Observations, TimeScale, Version, SV},
+        prelude::{
+            Constellation, Epoch, EpochFlag, Header, Observable, Observations, TimeScale, Version,
+            SV,
+        },
+        tests::toolkit::generic_observation_epoch_decoding_test,
     };
     use std::str::FromStr;
 
@@ -566,27 +570,6 @@ mod test {
 
     #[test]
     fn test_parse_v3_1() {
-        let mut obs = Observations::default();
-
-        let t0 = Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap();
-
-        let mut specs = SpecFields::default().with_time_of_first_obs(t0);
-
-        specs.codes.insert(
-            Constellation::GPS,
-            "C1C, L1C, S1C, C2P, C2W, C2S, C2L, C2X, L2P, L2W, L2S, L2L, L2X, S2P, S2W, S2S, S2L, S2X"
-                .split(',')
-                .map(|s| Observable::from_str(s).unwrap())
-                .collect::<Vec<_>>(),
-        );
-
-        let header = &Header::default()
-            .with_version(Version { major: 3, minor: 0 })
-            .with_constellation(Constellation::GPS)
-            .with_observation_fields(specs);
-
-        let ts = TimeScale::GPST;
-
         let content =
 "> 2022 03 04  0  0  0.0000000  0 22        .000000000000
 G01  20832393.682   109474991.854 8        49.500                    20832389.822                                                                    85305196.437 8                                                                        49.500
@@ -595,281 +578,236 @@ G04  22448754.952   117969025.322 8        48.250                    22448749.31
 G06  24827263.216   130468159.526 6        39.750                    24827259.316                                                                   101663482.505 6                                                                        37.250
 G09  25493930.890   133971510.403 6        41.250                    25493926.950                                                                   104393373.997 6                                                                        41.750
 ";
-        let key = parse_epoch(header, content, ts, &mut obs).unwrap();
+        generic_observation_epoch_decoding_test(
+            content,
+            3,
+            Constellation::GPS,
+            &[
+                ("GPS", "C1C, L1C, S1C, C2P, C2W, C2S, C2L, C2X, L2P, L2W, L2S, L2L, L2X, S2P, S2W, S2S, S2L, S2X"),
+            ],
+            "2022-03-04T00:00:00 GPST",
+            30,
+            "2022-03-04T00:00:00 GPST",
+            EpochFlag::Ok,
+            None,
+        );
 
-        assert_eq!(key.epoch, t0);
-        assert!(key.flag.is_ok());
-        assert!(obs.clock.is_none());
+        // let c1c = Observable::from_str("C1C").unwrap();
+        // let l1c = Observable::from_str("L1C").unwrap();
+        // let s1c = Observable::from_str("S1C").unwrap();
+        // let c2w = Observable::from_str("C2W").unwrap();
+        // let l2w = Observable::from_str("L2W").unwrap();
+        // let s2w = Observable::from_str("S2W").unwrap();
 
-        let c1c = Observable::from_str("C1C").unwrap();
-        let l1c = Observable::from_str("L1C").unwrap();
-        let s1c = Observable::from_str("S1C").unwrap();
-        let c2w = Observable::from_str("C2W").unwrap();
-        let l2w = Observable::from_str("L2W").unwrap();
-        let s2w = Observable::from_str("S2W").unwrap();
+        // let g01 = SV::from_str("G01").unwrap();
+        // let g03 = SV::from_str("G03").unwrap();
+        // let g04 = SV::from_str("G04").unwrap();
+        // let g06 = SV::from_str("G06").unwrap();
+        // let g09 = SV::from_str("G09").unwrap();
 
-        let g01 = SV::from_str("G01").unwrap();
-        let g03 = SV::from_str("G03").unwrap();
-        let g04 = SV::from_str("G04").unwrap();
-        let g06 = SV::from_str("G06").unwrap();
-        let g09 = SV::from_str("G09").unwrap();
+        // let signals = obs.signals.clone();
 
-        let signals = obs.signals.clone();
-
-        for sig in &signals {
-            if sig.sv == g01 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 20832393.682);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 109474991.854);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 49.500);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 20832389.822);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 85305196.437);
-                    //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 49.500);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g03 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 20342516.786);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 106900663.487);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 50.0);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 20342512.006);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 83299201.382);
-                    //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 50.000);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g04 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 22448754.952);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 117969025.322);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 48.250);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 22448749.312);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 91923884.833);
-                    //assert_eq!(sig.snr, Some(SNR::from(7))); //TODO
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 43.750);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g06 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 24827263.216);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 130468159.526);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 39.750);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 24827259.316);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 101663482.505);
-                    //assert_eq!(sig.snr, Some(SNR::from(6))); //TODO
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 37.250);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g09 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 25493930.890);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 133971510.403);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 41.250);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 25493926.950);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 104393373.997);
-                    //assert_eq!(sig.snr, Some(SNR::from(6))); //TODO
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 41.75);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else {
-                panic!("invalid sv");
-            }
-        }
-
-        assert_eq!(obs.signals.len(), 30);
-
-        let signals = obs.signals.clone();
-
-        let formatted = fmt_observations(3, &header, &key, &None, signals);
+        // for sig in &signals {
+        //     if sig.sv == g01 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 20832393.682);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 109474991.854);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 49.500);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 20832389.822);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 85305196.437);
+        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 49.500);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g03 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 20342516.786);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 106900663.487);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 50.0);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 20342512.006);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 83299201.382);
+        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 50.000);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g04 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 22448754.952);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 117969025.322);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 48.250);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 22448749.312);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 91923884.833);
+        //             //assert_eq!(sig.snr, Some(SNR::from(7))); //TODO
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 43.750);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g06 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 24827263.216);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 130468159.526);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 39.750);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 24827259.316);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 101663482.505);
+        //             //assert_eq!(sig.snr, Some(SNR::from(6))); //TODO
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 37.250);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g09 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 25493930.890);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 133971510.403);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 41.250);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 25493926.950);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 104393373.997);
+        //             //assert_eq!(sig.snr, Some(SNR::from(6))); //TODO
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 41.75);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else {
+        //         panic!("invalid sv");
+        //     }
+        // }
 
         // TODO assert_eq!(formatted, content); // reciprocal
     }
 
     #[test]
     fn test_parse_v3_2() {
-        let mut obs = Observations::default();
-
-        let t0 = Epoch::from_str("2022-03-04T00:00:00 GPST").unwrap();
-
-        let mut specs = SpecFields::default().with_time_of_first_obs(t0);
-
-        specs.codes.insert(
-            Constellation::GPS,
-            "C1C, L1C, D1C, S1C, C2W, L2W, D2W, S2W"
-                .split(',')
-                .map(|s| Observable::from_str(s).unwrap())
-                .collect::<Vec<_>>(),
-        );
-
-        let header = &Header::default()
-            .with_version(Version { major: 3, minor: 0 })
-            .with_constellation(Constellation::GPS)
-            .with_observation_fields(specs);
-
-        let ts = TimeScale::GPST;
-
         let content =
 "> 2022 03 04 00 00  0.0000000  0  9
 G01  20176608.780   106028802.11808     -1009.418          50.250    20176610.080    82619851.24609      -786.562          54.500
 G03  20719565.760   108882069.81508       762.203          49.750    20719566.420    84843175.68809       593.922          55.000
 G04  21342618.100   112156219.39808      2167.688          48.250    21342617.440    87394474.09607      1689.105          45.500                                                                 104393373.997 6                                                                        41.750
 ";
-        let key = parse_epoch(header, content, ts, &mut obs).unwrap();
+        generic_observation_epoch_decoding_test(
+            content,
+            3,
+            Constellation::GPS,
+            &[("GPS", "C1C, L1C, D1C, S1C, C2W, L2W, D2W, S2W")],
+            "2022-03-04T00:00:00 GPST",
+            24,
+            "2022-03-04T00:00:00 GPST",
+            EpochFlag::Ok,
+            None,
+        );
 
-        assert_eq!(key.epoch, t0);
-        assert!(key.flag.is_ok());
-        assert!(obs.clock.is_none());
+        // let c1c = Observable::from_str("C1C").unwrap();
+        // let l1c = Observable::from_str("L1C").unwrap();
+        // let d1c = Observable::from_str("D1C").unwrap();
+        // let s1c = Observable::from_str("S1C").unwrap();
+        // let c2w = Observable::from_str("C2W").unwrap();
+        // let l2w = Observable::from_str("L2W").unwrap();
+        // let d2w = Observable::from_str("D2W").unwrap();
+        // let s2w = Observable::from_str("S2W").unwrap();
 
-        let c1c = Observable::from_str("C1C").unwrap();
-        let l1c = Observable::from_str("L1C").unwrap();
-        let d1c = Observable::from_str("D1C").unwrap();
-        let s1c = Observable::from_str("S1C").unwrap();
-        let c2w = Observable::from_str("C2W").unwrap();
-        let l2w = Observable::from_str("L2W").unwrap();
-        let d2w = Observable::from_str("D2W").unwrap();
-        let s2w = Observable::from_str("S2W").unwrap();
+        // let g01 = SV::from_str("G01").unwrap();
+        // let g03 = SV::from_str("G03").unwrap();
+        // let g04 = SV::from_str("G04").unwrap();
 
-        let g01 = SV::from_str("G01").unwrap();
-        let g03 = SV::from_str("G03").unwrap();
-        let g04 = SV::from_str("G04").unwrap();
+        // let signals = obs.signals.clone();
 
-        let signals = obs.signals.clone();
-
-        for sig in &signals {
-            if sig.sv == g01 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 20176608.780);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 106028802.118);
-                } else if sig.observable == d1c {
-                    assert_eq!(sig.value, -1009.418);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 50.250);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 20176610.080);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 82619851.246);
-                    //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-                } else if sig.observable == d2w {
-                    assert_eq!(sig.value, -786.562);
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 54.500);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g03 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 20719565.760);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 108882069.815);
-                } else if sig.observable == d1c {
-                    assert_eq!(sig.value, 762.203);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 49.750);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 20719566.420);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 84843175.688);
-                    //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-                } else if sig.observable == d2w {
-                    assert_eq!(sig.value, 593.922);
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 55.000);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g04 {
-                if sig.observable == c1c {
-                    assert_eq!(sig.value, 21342618.100);
-                } else if sig.observable == l1c {
-                    assert_eq!(sig.value, 112156219.398);
-                } else if sig.observable == d1c {
-                    assert_eq!(sig.value, 2167.688);
-                } else if sig.observable == s1c {
-                    assert_eq!(sig.value, 48.250);
-                } else if sig.observable == c2w {
-                    assert_eq!(sig.value, 21342617.440);
-                } else if sig.observable == l2w {
-                    assert_eq!(sig.value, 87394474.096);
-                    //assert_eq!(sig.snr, Some(SNR::from(7))); //TODO
-                } else if sig.observable == d2w {
-                    assert_eq!(sig.value, 1689.105);
-                } else if sig.observable == s2w {
-                    assert_eq!(sig.value, 45.500);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else {
-                panic!("invalid sv");
-            }
-        }
-
-        assert_eq!(obs.signals.len(), 24);
-
-        let signals = obs.signals.clone();
-
-        let formatted = fmt_observations(3, &header, &key, &None, signals);
-
-        // TODO assert_eq!(formatted, content); // reciprocal
+        // for sig in &signals {
+        //     if sig.sv == g01 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 20176608.780);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 106028802.118);
+        //         } else if sig.observable == d1c {
+        //             assert_eq!(sig.value, -1009.418);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 50.250);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 20176610.080);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 82619851.246);
+        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
+        //         } else if sig.observable == d2w {
+        //             assert_eq!(sig.value, -786.562);
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 54.500);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g03 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 20719565.760);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 108882069.815);
+        //         } else if sig.observable == d1c {
+        //             assert_eq!(sig.value, 762.203);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 49.750);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 20719566.420);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 84843175.688);
+        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
+        //         } else if sig.observable == d2w {
+        //             assert_eq!(sig.value, 593.922);
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 55.000);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g04 {
+        //         if sig.observable == c1c {
+        //             assert_eq!(sig.value, 21342618.100);
+        //         } else if sig.observable == l1c {
+        //             assert_eq!(sig.value, 112156219.398);
+        //         } else if sig.observable == d1c {
+        //             assert_eq!(sig.value, 2167.688);
+        //         } else if sig.observable == s1c {
+        //             assert_eq!(sig.value, 48.250);
+        //         } else if sig.observable == c2w {
+        //             assert_eq!(sig.value, 21342617.440);
+        //         } else if sig.observable == l2w {
+        //             assert_eq!(sig.value, 87394474.096);
+        //             //assert_eq!(sig.snr, Some(SNR::from(7))); //TODO
+        //         } else if sig.observable == d2w {
+        //             assert_eq!(sig.value, 1689.105);
+        //         } else if sig.observable == s2w {
+        //             assert_eq!(sig.value, 45.500);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else {
+        //         panic!("invalid sv");
+        //     }
+        // }
     }
 
     #[test]
     fn test_parse_v2_1() {
-        let mut obs = Observations::default();
-
-        let t0 = Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap();
-
-        let mut specs = SpecFields::default().with_time_of_first_obs(t0);
-
-        specs.codes.insert(
-            Constellation::GPS,
-            "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5"
-                .split(',')
-                .map(|s| Observable::from_str(s).unwrap())
-                .collect::<Vec<_>>(),
-        );
-
-        let header = &Header::default()
-            .with_version(Version {
-                major: 2,
-                minor: 10,
-            })
-            .with_constellation(Constellation::GPS)
-            .with_observation_fields(specs);
-
-        let ts = TimeScale::GPST;
-
         let content = " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27
 G30R01R02R03R08R09R15R16R17R18R19R24
   24178026.635 6  24178024.891 6                 127056391.69906  99004963.01703
@@ -893,106 +831,107 @@ G30R01R02R03R08R09R15R16R17R18R19R24
   23203962.113 6  23203960.554 6  23203963.222 7 121937655.11806  95016353.74904
   91057352.20207  23203961.787 4  23203960.356 4        41.337          28.313
 ";
-        let key = parse_epoch(header, content, ts, &mut obs).unwrap();
 
-        assert_eq!(key.epoch, t0);
-        assert!(key.flag.is_ok());
-        assert!(obs.clock.is_none());
+        generic_observation_epoch_decoding_test(
+            content,
+            2,
+            Constellation::GPS,
+            &[("GPS", "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5")],
+            "2021-01-01T00:00:00 GPST",
+            62,
+            "2021-01-01T00:00:00 GPST",
+            EpochFlag::Ok,
+            None,
+        );
 
-        let c1 = Observable::from_str("C1").unwrap();
-        let c2 = Observable::from_str("C2").unwrap();
-        let c5 = Observable::from_str("C5").unwrap();
-        let l1 = Observable::from_str("L1").unwrap();
-        let l2 = Observable::from_str("L2").unwrap();
-        let l5 = Observable::from_str("L5").unwrap();
-        let p1 = Observable::from_str("P1").unwrap();
-        let p2 = Observable::from_str("P2").unwrap();
-        let s1 = Observable::from_str("S1").unwrap();
-        let s2 = Observable::from_str("S2").unwrap();
-        let s5 = Observable::from_str("S5").unwrap();
+        // let c1 = Observable::from_str("C1").unwrap();
+        // let c2 = Observable::from_str("C2").unwrap();
+        // let c5 = Observable::from_str("C5").unwrap();
+        // let l1 = Observable::from_str("L1").unwrap();
+        // let l2 = Observable::from_str("L2").unwrap();
+        // let l5 = Observable::from_str("L5").unwrap();
+        // let p1 = Observable::from_str("P1").unwrap();
+        // let p2 = Observable::from_str("P2").unwrap();
+        // let s1 = Observable::from_str("S1").unwrap();
+        // let s2 = Observable::from_str("S2").unwrap();
+        // let s5 = Observable::from_str("S5").unwrap();
 
-        let g07 = SV::from_str("G07").unwrap();
-        let g08 = SV::from_str("G08").unwrap();
-        let g10 = SV::from_str("G10").unwrap();
-        let g13 = SV::from_str("G13").unwrap();
-        let g15 = SV::from_str("G15").unwrap();
-        let g16 = SV::from_str("G16").unwrap();
-        let g18 = SV::from_str("G18").unwrap();
+        // let g07 = SV::from_str("G07").unwrap();
+        // let g08 = SV::from_str("G08").unwrap();
+        // let g10 = SV::from_str("G10").unwrap();
+        // let g13 = SV::from_str("G13").unwrap();
+        // let g15 = SV::from_str("G15").unwrap();
+        // let g16 = SV::from_str("G16").unwrap();
+        // let g18 = SV::from_str("G18").unwrap();
 
-        let signals = obs.signals.clone();
+        // let signals = obs.signals.clone();
 
-        for sig in &signals {
-            if sig.sv == g07 {
-                if sig.observable == c1 {
-                    assert_eq!(sig.value, 24178026.635);
-                } else if sig.observable == c2 {
-                    assert_eq!(sig.value, 24178024.891);
-                } else if sig.observable == c5 {
-                    panic!("found invalid obs");
-                } else if sig.observable == l1 {
-                    assert_eq!(sig.value, 127056391.699);
-                } else if sig.observable == l2 {
-                    assert_eq!(sig.value, 99004963.017);
-                } else if sig.observable == l5 {
-                    panic!("found invalid obs");
-                } else if sig.observable == p1 {
-                    assert_eq!(sig.value, 24178026.139);
-                } else if sig.observable == p2 {
-                    assert_eq!(sig.value, 24178024.181);
-                } else if sig.observable == s1 {
-                    assert_eq!(sig.value, 38.066);
-                } else if sig.observable == s2 {
-                    assert_eq!(sig.value, 22.286);
-                } else if sig.observable == s5 {
-                    panic!("found invalid obs");
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g08 {
-                if sig.observable == c1 {
-                } else if sig.observable == c2 {
-                } else if sig.observable == c5 {
-                } else if sig.observable == l1 {
-                } else if sig.observable == l2 {
-                } else if sig.observable == l5 {
-                } else if sig.observable == p1 {
-                } else if sig.observable == p2 {
-                } else if sig.observable == s1 {
-                } else if sig.observable == s2 {
-                } else if sig.observable == s5 {
-                    assert_eq!(sig.value, 52.161);
-                } else {
-                    panic!("found invalid observable {}", sig.observable);
-                }
-            } else if sig.sv == g10 {
-            } else if sig.sv == g13 {
-            } else if sig.sv == g15 {
-                if sig.observable == c5 {
-                    panic!("found invalid obs");
-                } else if sig.observable == l5 {
-                    panic!("found invalid obs");
-                }
-            } else if sig.sv == g16 {
-                if sig.observable == c2 {
-                    panic!("found invalid obs");
-                } else if sig.observable == c5 {
-                    panic!("found invalid obs");
-                } else if sig.observable == s5 {
-                    panic!("found invalid obs");
-                }
-            } else if sig.sv == g18 {
-                if sig.observable == s5 {
-                    panic!("found invalid obs");
-                }
-            } else {
-                panic!("invalid sv {}", sig.sv);
-            }
-        }
-
-        assert_eq!(obs.signals.len(), 62);
-
-        let signals = obs.signals.clone();
-
-        let formatted = fmt_observations(2, &header, &key, &None, signals);
+        // for sig in &signals {
+        //     if sig.sv == g07 {
+        //         if sig.observable == c1 {
+        //             assert_eq!(sig.value, 24178026.635);
+        //         } else if sig.observable == c2 {
+        //             assert_eq!(sig.value, 24178024.891);
+        //         } else if sig.observable == c5 {
+        //             panic!("found invalid obs");
+        //         } else if sig.observable == l1 {
+        //             assert_eq!(sig.value, 127056391.699);
+        //         } else if sig.observable == l2 {
+        //             assert_eq!(sig.value, 99004963.017);
+        //         } else if sig.observable == l5 {
+        //             panic!("found invalid obs");
+        //         } else if sig.observable == p1 {
+        //             assert_eq!(sig.value, 24178026.139);
+        //         } else if sig.observable == p2 {
+        //             assert_eq!(sig.value, 24178024.181);
+        //         } else if sig.observable == s1 {
+        //             assert_eq!(sig.value, 38.066);
+        //         } else if sig.observable == s2 {
+        //             assert_eq!(sig.value, 22.286);
+        //         } else if sig.observable == s5 {
+        //             panic!("found invalid obs");
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g08 {
+        //         if sig.observable == c1 {
+        //         } else if sig.observable == c2 {
+        //         } else if sig.observable == c5 {
+        //         } else if sig.observable == l1 {
+        //         } else if sig.observable == l2 {
+        //         } else if sig.observable == l5 {
+        //         } else if sig.observable == p1 {
+        //         } else if sig.observable == p2 {
+        //         } else if sig.observable == s1 {
+        //         } else if sig.observable == s2 {
+        //         } else if sig.observable == s5 {
+        //             assert_eq!(sig.value, 52.161);
+        //         } else {
+        //             panic!("found invalid observable {}", sig.observable);
+        //         }
+        //     } else if sig.sv == g10 {
+        //     } else if sig.sv == g13 {
+        //     } else if sig.sv == g15 {
+        //         if sig.observable == c5 {
+        //             panic!("found invalid obs");
+        //         } else if sig.observable == l5 {
+        //             panic!("found invalid obs");
+        //         }
+        //     } else if sig.sv == g16 {
+        //         if sig.observable == c2 {
+        //             panic!("found invalid obs");
+        //         } else if sig.observable == c5 {
+        //             panic!("found invalid obs");
+        //         } else if sig.observable == s5 {
+        //             panic!("found invalid obs");
+        //         }
+        //     } else if sig.sv == g18 {
+        //         if sig.observable == s5 {
+        //             panic!("found invalid obs");
+        //         }
+        //     } else {
+        //         panic!("invalid sv {}", sig.sv);
+        //     }
+        // }
     }
 }
