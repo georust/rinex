@@ -5,12 +5,10 @@ mod crinex;
 mod formatting; // formatter
 mod header;
 mod lli;
-mod merge; // merge implementation
 mod parsing; // parser
 mod rinex; // high level methods
 mod signal;
 mod snr;
-mod split; // split implementation
 
 pub use header::HeaderFields;
 pub use signal::SignalObservation;

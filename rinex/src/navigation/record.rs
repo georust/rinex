@@ -4,6 +4,13 @@ use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+use crate::{epoch, prelude::*, types::Type, version::Version};
+
+use super::{
+    orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
+    StoMessage,
+};
+
 #[cfg(docsrs)]
 use crate::Bibliography;
 
@@ -35,15 +42,6 @@ fn double_exponent_digits(content: &str) -> String {
 
     lines.to_string()
 }
-
-use crate::{epoch, merge, preMerge, prelude::*, types::Type, version::Version};
-
-use super::{
-    orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
-    StoMessage,
-};
-
-use hifitime::Duration;
 
 /// Navigation Message Types.
 /// Refer to [Bibliography::RINEX4] definitions.
@@ -537,62 +535,6 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
     }
     lines = fmt_rework(4, &lines);
     Ok(lines)
-}
-
-impl Merge for Record {
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        for (rhs_epoch, rhs_frames) in rhs {
-            if let Some(frames) = self.get_mut(rhs_epoch) {
-                // this epoch already exists
-                for fr in rhs_frames {
-                    if !frames.contains(fr) {
-                        frames.push(fr.clone()); // insert new NavFrame
-                    }
-                }
-            } else {
-                // insert new epoch
-                self.insert(*rhs_epoch, rhs_frames.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> (Self, Self) {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k < &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k >= &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_mut(&mut self, t: Epoch) -> Self {
-        Self::default()
-    }
-    fn split_even_dt(&self, _duration: Duration) -> Vec<Self> {
-        Ok(Vec::new())
-    }
 }
 
 #[cfg(feature = "processing")]

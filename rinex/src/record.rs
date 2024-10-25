@@ -4,14 +4,11 @@ use super::{
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_rinex_comment, meteo, navigation,
     navigation::record::parse_epoch as parse_nav_epoch,
-    observation,
     observation::{
-        fmt_observations as format_observations, is_new_epoch as is_new_observation_epoch,
-        parse_epoch as parse_observation_epoch, Record as ObservationRecord,
+        is_new_epoch as is_new_observation_epoch, parse_epoch as parse_observation_epoch,
+        Record as ObservationRecord,
     },
-    prelude::Duration,
     reader::BufferedReader,
-    split,
     types::Type,
     writer::BufferedWriter,
     *,
@@ -522,11 +519,12 @@ pub fn parse_record(
                                 observations.signals.clear(); // for next time, avoids re-alloc
                                 comment_ts = key.epoch; // for temporal comment indexing
                             },
+                            #[cfg(feature = "log")]
                             Err(e) => {
-                                // notify (debugger) non vital problems (slight/temporary formatting issues
-                                #[cfg(feature = "log")]
                                 error!("parsing: {}", e);
                             },
+                            #[cfg(not(feature = "log"))]
+                            Err(_) => {},
                         }
                     },
                     Type::DORIS => {
@@ -630,9 +628,11 @@ pub fn parse_record(
                     observations.signals.clear(); // for next time, avoids re-alloc
                     comment_ts = key.epoch; // for temporal comment storage
                 },
+                #[cfg(not(feature = "log"))]
+                Err(_) => {},
+                #[cfg(feature = "log")]
                 Err(e) => {
                     // notify (debugger) non vital problems (slight/temporary formatting issues
-                    #[cfg(feature = "log")]
                     error!("parsing: {}", e);
                 },
             }
@@ -710,71 +710,4 @@ pub fn parse_record(
         Type::DORIS => Record::DorisRecord(dor_rec),
     };
     Ok((record, comments))
-}
-
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        if let Some(lhs) = self.as_mut_nav() {
-            if let Some(rhs) = rhs.as_nav() {
-                lhs.merge_mut(rhs)?;
-            }
-        } else if let Some(lhs) = self.as_mut_obs() {
-            if let Some(rhs) = rhs.as_obs() {
-                lhs.merge_mut(rhs)?;
-            }
-        } else if let Some(lhs) = self.as_mut_meteo() {
-            if let Some(rhs) = rhs.as_meteo() {
-                lhs.merge_mut(rhs)?;
-            }
-        /*} else if let Some(lhs) = self.as_mut_ionex() {
-        if let Some(rhs) = rhs.as_ionex() {
-            lhs.merge_mut(&rhs)?;
-        }*/
-        } else if let Some(lhs) = self.as_mut_antex() {
-            if let Some(rhs) = rhs.as_antex() {
-                lhs.merge_mut(rhs)?;
-            }
-        } else if let Some(lhs) = self.as_mut_clock() {
-            if let Some(rhs) = rhs.as_clock() {
-                lhs.merge_mut(rhs)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> (Self, Self) {
-        if let Some(r) = self.as_obs() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::ObsRecord(r0), Self::ObsRecord(r1)))
-        } else if let Some(r) = self.as_nav() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::NavRecord(r0), Self::NavRecord(r1)))
-        } else if let Some(r) = self.as_meteo() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::MeteoRecord(r0), Self::MeteoRecord(r1)))
-        } else if let Some(r) = self.as_ionex() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::IonexRecord(r0), Self::IonexRecord(r1)))
-        } else if let Some(r) = self.as_clock() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::ClockRecord(r0), Self::ClockRecord(r1)))
-        } else {
-            panic!("bad op");
-        }
-    }
-    fn split_mut(&mut self, epoch: Epoch) -> Self {
-        Self::default()
-    }
-    fn split_even_dt(&self, _dt: Duration) -> Vec<Self> {
-        Ok(Vec::new())
-    }
 }

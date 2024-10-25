@@ -1,6 +1,4 @@
-use crate::{epoch, prelude::Duration, prelude::*, types::Type, version, Observable};
-
-use crate::prelude::{Merge, MergeError, Split};
+use crate::{epoch, prelude::*, types::Type, version, Observable};
 
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -136,62 +134,6 @@ pub(crate) fn fmt_epoch(
     }
     lines.push('\n');
     Ok(lines)
-}
-
-impl Merge for Record {
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        for (epoch, observations) in rhs.iter() {
-            if let Some(oobservations) = self.get_mut(epoch) {
-                for (observation, data) in observations.iter() {
-                    if !oobservations.contains_key(observation) {
-                        // new observation
-                        oobservations.insert(observation.clone(), *data);
-                    }
-                }
-            } else {
-                // new epoch
-                self.insert(*epoch, observations.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> (Self, Self) {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k < &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k >= &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_mut(&mut self, t: Epoch) -> Self {
-        Self::default()
-    }
-    fn split_even_dt(&self, _duration: Duration) -> Vec<Self> {
-        Ok(Vec::new())
-    }
 }
 
 #[cfg(feature = "processing")]

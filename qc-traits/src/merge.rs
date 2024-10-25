@@ -22,6 +22,13 @@ pub enum Error {
     /// by the same data provider.
     #[error("data provider mismatch")]
     DataProviderMismatch,
+    /// Some file formats may require to have strictly the same dimensions
+    /// for [Merge] to be feasible.
+    #[error("dimensions mismatch")]
+    DimensionMismatch,
+    /// Other error that happend during [Merge] operation
+    #[error("other error")]
+    Other,
 }
 
 /// Merge Trait is impleted to extend Data Contexts.

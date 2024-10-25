@@ -234,34 +234,6 @@ impl std::str::FromStr for ProductionAttributes {
     }
 }
 
-use crate::merge::merge_mut_option;
-use crate::prelude::{Merge, MergeError};
-
-impl Merge for ProductionAttributes {
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        merge_mut_option(&mut self.region, &rhs.region);
-        merge_mut_option(&mut self.details, &rhs.details);
-        if let Some(lhs) = &mut self.details {
-            if let Some(rhs) = &rhs.details {
-                merge_mut_option(&mut lhs.ffu, &rhs.ffu);
-                /*
-                 * Data source is downgraded to "Unknown"
-                 * in case we wind up cross mixing data sources
-                 */
-                if lhs.data_src != rhs.data_src {
-                    lhs.data_src = DataSource::Unknown;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::DetailedProductionAttributes;

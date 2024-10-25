@@ -1,10 +1,9 @@
 use crate::{
-    merge,
-    prelude::*,
-    prelude::{Duration, Merge, MergeError, Split},
+    epoch::{parse_utc as parse_utc_epoch, ParsingError as EpochParsingError},
+    linspace::Error as LinspaceError,
+    prelude::{Epoch, Header},
 };
 
-use crate::epoch;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
@@ -71,11 +70,11 @@ pub enum Error {
     #[error("faulty epoch description")]
     EpochDescriptionError,
     #[error("bad grid definition")]
-    BadGridDefinition(#[from] crate::linspace::Error),
+    BadGridDefinition(#[from] LinspaceError),
     #[error("failed to parse {0} coordinates from \"{1}\"")]
     CoordinatesParsing(String, String),
     #[error("failed to parse epoch")]
-    EpochParsing(#[from] epoch::ParsingError),
+    EpochParsing(#[from] EpochParsingError),
 }
 
 /*
@@ -177,7 +176,7 @@ pub(crate) fn parse_plane(
                 // debug
                 // println!("NEW GRID : h: {} lat : {} lon : {}, dlon: {}", altitude, latitude, longitude, dlon);
             } else if marker.contains("EPOCH OF CURRENT MAP") {
-                epoch = epoch::parse_utc(content)?;
+                epoch = parse_utc_epoch(content)?;
             } else if marker.contains("EXPONENT") {
                 // update current scaling
                 if let Ok(e) = content.trim().parse::<i8>() {
@@ -244,68 +243,6 @@ pub(crate) fn parse_plane(
         }
     }
     Ok((epoch, altitude, plane))
-}
-
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        for (eh, plane) in rhs {
-            if let Some(lhs_plane) = self.get_mut(eh) {
-                for (latlon, plane) in plane {
-                    if let Some(tec) = lhs_plane.get_mut(latlon) {
-                        if let Some(rms) = plane.rms {
-                            if tec.rms.is_none() {
-                                tec.rms = Some(rms);
-                            }
-                        }
-                    } else {
-                        lhs_plane.insert(*latlon, plane.clone());
-                    }
-                }
-            } else {
-                self.insert(*eh, plane.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> (Self, Self) {
-        let before = self
-            .iter()
-            .flat_map(|((e, h), plane)| {
-                if *e < epoch {
-                    Some(((*e, *h), plane.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let after = self
-            .iter()
-            .flat_map(|((e, h), plane)| {
-                if *e >= epoch {
-                    Some(((*e, *h), plane.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((before, after))
-    }
-    fn split_mut(&mut self, t: Epoch) -> Self {
-        Self::default()
-    }
-    fn split_even_dt(&self, _duration: Duration) -> Vec<Self> {
-        Ok(Vec::new())
-    }
 }
 
 #[cfg(feature = "processing")]

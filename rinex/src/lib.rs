@@ -34,7 +34,9 @@ mod observable;
 mod observation;
 mod production; // RINEX production infrastructure // physical observations
 
-pub(crate) mod merge;
+#[cfg(feature = "qc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
+mod qc;
 
 #[cfg(test)]
 mod tests;
@@ -93,6 +95,7 @@ pub mod prelude {
     pub use crate::observation::{
         ClockObservation, EpochFlag, LliFlags, ObsKey, Observations, SignalObservation, SNR,
     };
+    pub use crate::prod::ProductionAttributes;
     pub use crate::record::{Comments, Record};
     pub use crate::types::Type as RinexType;
     pub use crate::version::Version;
@@ -126,10 +129,6 @@ pub mod prod {
         DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU,
     };
 }
-
-#[cfg(feature = "qc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
-mod qc;
 
 #[cfg(feature = "rtcm")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]
