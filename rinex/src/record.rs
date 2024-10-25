@@ -2,9 +2,7 @@ use super::{
     antex, clock,
     clock::{ClockKey, ClockProfile},
     hatanaka::{Compressor, Decompressor},
-    header, ionex, is_rinex_comment, merge,
-    merge::Merge,
-    meteo, navigation,
+    header, ionex, is_rinex_comment, meteo, navigation,
     navigation::record::parse_epoch as parse_nav_epoch,
     observation,
     observation::{
@@ -14,7 +12,6 @@ use super::{
     prelude::Duration,
     reader::BufferedReader,
     split,
-    split::Split,
     types::Type,
     writer::BufferedWriter,
     *,
@@ -28,6 +25,9 @@ use log::error;
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
+
+#[cfg(feature = "qc")]
+use qc_traits::{Merge, MergeError, Split};
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -714,13 +714,13 @@ pub fn parse_record(
 
 impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if let Some(lhs) = self.as_mut_nav() {
             if let Some(rhs) = rhs.as_nav() {
                 lhs.merge_mut(rhs)?;
@@ -751,7 +751,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> (Self, Self) {
         if let Some(r) = self.as_obs() {
             let (r0, r1) = r.split(epoch)?;
             Ok((Self::ObsRecord(r0), Self::ObsRecord(r1)))
@@ -768,10 +768,13 @@ impl Split for Record {
             let (r0, r1) = r.split(epoch)?;
             Ok((Self::ClockRecord(r0), Self::ClockRecord(r1)))
         } else {
-            Err(split::Error::NoEpochIteration)
+            panic!("bad op");
         }
     }
-    fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_mut(&mut self, epoch: Epoch) -> Self {
+        Self::default()
+    }
+    fn split_even_dt(&self, _dt: Duration) -> Vec<Self> {
         Ok(Vec::new())
     }
 }

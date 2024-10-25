@@ -5,19 +5,14 @@ use std::collections::BTreeMap;
 use strum_macros::EnumString;
 
 use crate::{
-    epoch, merge,
-    merge::Merge,
+    epoch,
     prelude::*,
     prelude::{Duration, SV},
-    split,
-    split::Split,
     version::Version,
 };
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 /// [`ClockKey`] describes each [`ClockProfile`] at a specific [Epoch].
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
@@ -324,13 +319,13 @@ use crate::merge::merge_mut_option;
 
 impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         for (rhs_epoch, rhs_content) in rhs.iter() {
             if let Some(lhs_content) = self.get_mut(rhs_epoch) {
                 for (rhs_key, rhs_prof) in rhs_content.iter() {
@@ -356,7 +351,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> (Self, Self) {
         let r0 = self
             .iter()
             .flat_map(|(k, v)| {
@@ -379,7 +374,10 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_mut(&mut self, t: Epoch) -> Self {
+        Self::default()
+    }
+    fn split_even_dt(&self, _duration: Duration) -> Vec<Self> {
         Ok(Vec::new())
     }
 }

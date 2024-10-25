@@ -19,11 +19,9 @@ pub mod hatanaka;
 pub mod header;
 pub mod ionex;
 pub mod marker;
-pub mod merge;
 pub mod meteo;
 pub mod navigation;
 pub mod record;
-pub mod split;
 pub mod types;
 pub mod version;
 
@@ -35,6 +33,8 @@ mod linspace; // grid and linear spacing
 mod observable;
 mod observation;
 mod production; // RINEX production infrastructure // physical observations
+
+pub(crate) mod merge;
 
 #[cfg(test)]
 mod tests;
@@ -160,8 +160,6 @@ use crate::{
 
 use carrier::Carrier;
 use prelude::*;
-
-pub use split::Split;
 
 #[cfg(feature = "serde")]
 #[macro_use]

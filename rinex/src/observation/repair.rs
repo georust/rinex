@@ -1,7 +1,7 @@
 //! Observation RINEX repair implementation
 use crate::observation::Record;
 
-use qc_traits::processing::Repair;
+use qc_traits::Repair;
 
 /// Repairs all Zero (=null) values in [Record]
 fn repair_zero_mut(rec: &mut Record) {

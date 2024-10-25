@@ -1,4 +1,8 @@
-use crate::{merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split};
+use crate::{
+    merge,
+    prelude::*,
+    prelude::{Duration, Merge, MergeError, Split},
+};
 
 use crate::epoch;
 use std::collections::{BTreeMap, HashMap};
@@ -244,13 +248,13 @@ pub(crate) fn parse_plane(
 
 impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         for (eh, plane) in rhs {
             if let Some(lhs_plane) = self.get_mut(eh) {
                 for (latlon, plane) in plane {
@@ -273,7 +277,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> (Self, Self) {
         let before = self
             .iter()
             .flat_map(|((e, h), plane)| {
@@ -296,7 +300,10 @@ impl Split for Record {
             .collect();
         Ok((before, after))
     }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_mut(&mut self, t: Epoch) -> Self {
+        Self::default()
+    }
+    fn split_even_dt(&self, _duration: Duration) -> Vec<Self> {
         Ok(Vec::new())
     }
 }

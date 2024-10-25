@@ -18,12 +18,12 @@ pub struct RTCM2RNX<R: Read> {
 }
 
 impl<R: Read> Iterator for RTCM2RNX<R> {
-    type Item = Option<Result<(), Error>>;
+    type Item = Option<()>;
     fn next(&mut self) -> Option<Self::Item> {
         if !self.eos {
             if self.ptr < self.buf.len() {
                 // try filling with new bytes
-                let size = self.reader.read(&mut self.buf)?;
+                let size = self.reader.read(&mut self.buf).ok()?;
                 if size == 0 {
                     self.eos = true;
                 }
@@ -36,8 +36,8 @@ impl<R: Read> Iterator for RTCM2RNX<R> {
         }
 
         match next_rtcm_msg_frame(&self.buf[self.ptr..]) {
-            Ok(_) => {},
-            Err(e) => {},
+            (size, Some(fr)) => {},
+            (_, None) => {},
         }
 
         None

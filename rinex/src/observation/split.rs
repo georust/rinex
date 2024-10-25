@@ -1,12 +1,11 @@
 //! Split implementation
 use crate::{
     observation::Record,
-    prelude::{Duration, Epoch},
-    split::{Error as SplitError, Split},
+    prelude::{Duration, Epoch, Split},
 };
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
+    fn split(&self, epoch: Epoch) -> (Self, Self) {
         let before = self
             .iter()
             .filter_map(|(key, sig)| {
@@ -31,7 +30,10 @@ impl Split for Record {
 
         Ok((Self::from_iter(before), Self::from_iter(after)))
     }
-    fn split_dt(&self, _: Duration) -> Result<Vec<Self>, SplitError> {
-        Err(SplitError::NoEpochIteration)
+    fn split_mut(&mut self, t: Epoch) -> Self {
+        Self::default()
+    }
+    fn split_even_dt(&self, _: Duration) -> Vec<Self> {
+        Default::default()
     }
 }

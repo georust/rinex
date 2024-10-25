@@ -5,7 +5,7 @@ use crate::{
     prelude::{Constellation, Observable, SNR},
 };
 
-use rinex_qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+use rinex_qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 use std::str::FromStr;
 

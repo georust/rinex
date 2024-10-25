@@ -234,7 +234,8 @@ impl std::str::FromStr for ProductionAttributes {
     }
 }
 
-use crate::merge::{merge_mut_option, Error as MergeError, Merge};
+use crate::merge::merge_mut_option;
+use crate::prelude::{Merge, MergeError};
 
 impl Merge for ProductionAttributes {
     fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {

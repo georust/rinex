@@ -1,5 +1,5 @@
 //! RINEX to BINEX serialization
-use std::io::Read;
+use std::io::Write;
 
 use crate::prelude::Rinex;
 
@@ -11,18 +11,18 @@ pub struct RNX2BIN<W: Write> {
     encoder: Encoder<W>,
 }
 
-impl Iterator for RNX2BIN {
+impl<W: Write> Iterator for RNX2BIN<W> {
     type Item = Option<Message>;
     fn next(&mut self) -> Option<Self::Item> {
         None
     }
 }
 
-impl RNX2BIN {
+impl<W: Write> RNX2BIN<W> {
     /// Creates a new [RNX2BIN].
-    pub fn new<W: Write>(w: W) -> Self {
+    pub fn new(w: W) -> Self {
         Self {
-            encoder: Encoder::new(r),
+            encoder: Encoder::new(w),
         }
     }
 }

@@ -1,7 +1,6 @@
-use crate::{
-    epoch, merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split, types::Type,
-    version, Observable,
-};
+use crate::{epoch, prelude::Duration, prelude::*, types::Type, version, Observable};
+
+use crate::prelude::{Merge, MergeError, Split};
 
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -140,12 +139,12 @@ pub(crate) fn fmt_epoch(
 }
 
 impl Merge for Record {
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         for (epoch, observations) in rhs.iter() {
             if let Some(oobservations) = self.get_mut(epoch) {
                 for (observation, data) in observations.iter() {
@@ -164,7 +163,7 @@ impl Merge for Record {
 }
 
 impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> (Self, Self) {
         let r0 = self
             .iter()
             .flat_map(|(k, v)| {
@@ -187,7 +186,10 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+    fn split_mut(&mut self, t: Epoch) -> Self {
+        Self::default()
+    }
+    fn split_even_dt(&self, _duration: Duration) -> Vec<Self> {
         Ok(Vec::new())
     }
 }

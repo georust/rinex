@@ -14,14 +14,14 @@ use crate::{
     marker::{GeodeticMarker, MarkerType},
     merge::{
         merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
-        merge_time_of_first_obs, merge_time_of_last_obs, Error as MergeError, Merge,
+        merge_time_of_first_obs, merge_time_of_last_obs,
     },
     meteo,
     meteo::HeaderFields as MeteoHeader,
     navigation::{IonMessage, KbModel},
     observable::{Observable, ParsingError as ObsParsingError},
     observation::{Crinex, HeaderFields as ObservationHeader},
-    prelude::{Constellation, Duration, Epoch, TimeScale, COSPAR, DOMES, SV},
+    prelude::{Constellation, Duration, Epoch, Merge, MergeError, TimeScale, COSPAR, DOMES, SV},
     reader::BufferedReader,
     types::Type,
     version::Version,
@@ -45,7 +45,7 @@ use serde::Serialize;
 use maud::{html, Markup, Render};
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{FilterItem, MaskFilter, MaskOperand};
+use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 /// DCB compensation description
 #[derive(Debug, Clone, Default, PartialEq)]

@@ -74,7 +74,7 @@ impl Split for Rinex {
         Self {
             record: r,
             header: self.header.clone(),
-            coments: self.comments.clone(),    // TODO: rework
+            comments: self.comments.clone(),   // TODO: rework
             prod_attr: self.prod_attr.clone(), // TODO: crosscheck
         }
     }

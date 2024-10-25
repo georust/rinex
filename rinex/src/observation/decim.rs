@@ -1,7 +1,7 @@
 //! Observation RINEX decimation
 use crate::{observation::Record, prelude::Epoch};
 
-use qc_traits::processing::{DecimationFilter, DecimationFilterType};
+use qc_traits::{DecimationFilter, DecimationFilterType};
 
 pub(crate) fn decim_mut(rec: &mut Record, decim: &DecimationFilter) {
     if decim.item.is_some() {

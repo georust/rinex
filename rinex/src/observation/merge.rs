@@ -1,7 +1,7 @@
 //! Merge implementation
 use crate::{
-    merge::{Error as MergeError, Merge},
     observation::Record,
+    prelude::{Merge, MergeError},
 };
 
 impl Merge for Record {
