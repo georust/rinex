@@ -1,7 +1,4 @@
-use crate::{
-    epoch, merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split, types::Type,
-    version, FormattingError, Observable, ParsingError,
-};
+use crate::{epoch, prelude::*, types::Type, version, Observable};
 
 use std::{
     collections::{BTreeMap, HashMap},
@@ -9,9 +6,7 @@ use std::{
 };
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 /*
  * Meteo RINEX specific record type.
@@ -127,59 +122,6 @@ pub(crate) fn fmt_epoch(
     }
     lines.push('\n');
     Ok(lines)
-}
-
-impl Merge for Record {
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (epoch, observations) in rhs.iter() {
-            if let Some(oobservations) = self.get_mut(epoch) {
-                for (observation, data) in observations.iter() {
-                    if !oobservations.contains_key(observation) {
-                        // new observation
-                        oobservations.insert(observation.clone(), *data);
-                    }
-                }
-            } else {
-                // new epoch
-                self.insert(*epoch, observations.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k < &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k >= &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
-    }
 }
 
 #[cfg(feature = "processing")]

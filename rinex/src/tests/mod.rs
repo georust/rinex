@@ -6,9 +6,11 @@ mod compression;
 mod decompression;
 mod filename;
 mod hatanaka;
-mod merge;
 mod parsing;
 mod production;
+
+#[cfg(feature = "qc")]
+mod merge;
 
 #[cfg(feature = "clock")]
 mod clock;

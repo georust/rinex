@@ -1,3 +1,3 @@
 #! /bin/sh
-RUSTDOCFLAGS="--cfg docrs" \
+RUSTDOCFLAGS="--cfg docsrs" \
     cargo +nightly doc --all-features

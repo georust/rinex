@@ -1,29 +1,30 @@
-#[cfg(feature = "serde")]
-use serde::Serialize;
-
 use super::{
     antex, clock,
     clock::{ClockKey, ClockProfile},
-    error::{FormattingError, ParsingError},
-    header,
-    header::Header,
-    ionex, is_rinex_comment,
-    merge::{Error as MergeError, Merge},
-    meteo, navigation,
+    hatanaka::{Compressor, Decompressor},
+    header, ionex, is_rinex_comment, meteo, navigation,
     navigation::record::parse_epoch as parse_nav_epoch,
-    observation,
-    prelude::Duration,
+    observation::{
+        is_new_epoch as is_new_observation_epoch, parse_epoch as parse_observation_epoch,
+        Record as ObservationRecord,
+    },
     reader::BufferedReader,
-    split::{Error as SplitError, Split},
     types::Type,
     writer::BufferedWriter,
     *,
 };
 
-use std::{
-    collections::BTreeMap,
-    io::{BufRead, Read, Write},
-};
+use std::io::BufRead;
+use thiserror::Error;
+
+#[cfg(feature = "log")]
+use log::error;
+
+#[cfg(feature = "serde")]
+use serde::Serialize;
+
+#[cfg(feature = "qc")]
+use qc_traits::{Merge, MergeError, Split};
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -38,8 +39,8 @@ pub enum Record {
     MeteoRecord(meteo::Record),
     /// Navigation record, see [navigation::record::Record]
     NavRecord(navigation::Record),
-    /// Observation record, see [observation::record::Record]
-    ObsRecord(observation::Record),
+    /// Observation record [ObservationRecord]
+    ObsRecord(ObservationRecord),
     /// DORIS RINEX, special DORIS measurements wraped as observations
     DorisRecord(doris::Record),
 }
@@ -121,14 +122,14 @@ impl Record {
         }
     }
     /// Unwraps self as OBS record
-    pub fn as_obs(&self) -> Option<&observation::Record> {
+    pub fn as_obs(&self) -> Option<&ObservationRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Observation record
-    pub fn as_mut_obs(&mut self) -> Option<&mut observation::Record> {
+    pub fn as_mut_obs(&mut self) -> Option<&mut ObservationRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
@@ -154,6 +155,9 @@ impl Record {
         header: &header::Header,
         writer: &mut BufferedWriter<W>,
     ) -> Result<(), FormattingError> {
+        let major = header.version.major;
+        let constell = header.constellation;
+
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo().unwrap();
@@ -166,26 +170,6 @@ impl Record {
             Type::ObservationData => {
                 let record = self.as_obs().unwrap();
                 let obs_fields = &header.obs.as_ref().unwrap();
-                for ((epoch, flag), (clock_offset, data)) in record.iter() {
-                    let epoch =
-                        observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);
-                    if obs_fields.crinex.is_some() {
-                        // let major = header.version.major;
-                        // let constell = &header.constellation.as_ref().unwrap();
-                        for line in epoch.lines() {
-                            let line = line.to_owned() + "\n"; // helps the following .lines() iterator
-                                                               // embedded in compression method
-                                                               //if let Ok(compressed) =
-                                                               //    compressor.compress(major, &obs_fields.codes, constell, &line)
-                                                               //{
-                                                               //    // println!("compressed \"{}\"", compressed); // DEBUG
-                                                               //    writeln!(writer, "{}", compressed)?;
-                                                               //}
-                        }
-                    } else {
-                        writeln!(writer, "{}", epoch)?;
-                    }
-                }
             },
             Type::NavigationData => {
                 let record = self.as_nav().unwrap();
@@ -265,7 +249,7 @@ pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
             ionex::record::is_new_tec_plane(line) || ionex::record::is_new_rms_plane(line)
         },
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version),
-        Type::ObservationData => observation::record::is_new_epoch(line, header.version),
+        Type::ObservationData => is_new_observation_epoch(line, header.version),
         Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
         Type::DORIS => doris::record::is_new_epoch(line),
     }
@@ -285,26 +269,38 @@ pub fn parse_record<const M: usize, R: Read>(
     let mut comment_ts = Epoch::default();
     let mut comment_content: Vec<String> = Vec::with_capacity(4);
 
-    // record
-    let mut atx_rec = antex::Record::new(); // ATX
-    let mut nav_rec = navigation::Record::new(); // NAV
-    let mut obs_rec = observation::Record::new(); // OBS
-    let mut met_rec = meteo::Record::new(); // MET
-    let mut clk_rec = clock::Record::new(); // CLK
-    let mut dor_rec = doris::Record::new(); // DORIS
+    // ANTEX
+    let mut atx_rec = antex::Record::new();
+    // NAV
+    let mut nav_rec = navigation::Record::new();
+    // OBS
+    let mut obs_rec = ObservationRecord::new();
+    let mut observations = Observations::default();
 
-    // OBSERVATION case
-    //  timescale is defined either
-    //    [+] by TIME OF FIRST header field
-    //    [+] fixed system in case of old GPS/GLO Observation Data
+    // MET
+    let mut met_rec = meteo::Record::new();
+    // CLK
+    let mut clk_rec = clock::Record::new();
+    // DORIS
+    let mut dor_rec = doris::Record::new();
+
+    // OBSERVATION case: timescale is either defined by
+    //    [+] TIME OF FIRST header field
+    //    [+] TIME OF LAST header field (flexibility, actually invalid according to specs)
+    //    [+] GNSS system in case of single GNSS old RINEX
     let mut obs_ts = TimeScale::default();
+
     if let Some(obs) = &header.obs {
         match header.constellation {
             Some(Constellation::Mixed) | None => {
-                let time_of_first_obs = obs
-                    .time_of_first_obs
-                    .ok_or(ParsingError::BadObsBadTimescaleDefinition)?;
-                obs_ts = time_of_first_obs.time_scale;
+                if let Some(t) = obs.timeof_first_obs {
+                    obs_ts = t.time_scale;
+                } else {
+                    let t = obs
+                        .timeof_last_obs
+                        .ok_or(Error::ObservationDataTimescaleIdentification)?;
+                    obs_ts = t.time_scale;
+                }
             },
             Some(constellation) => {
                 obs_ts = constellation
@@ -383,11 +379,23 @@ pub fn parse_record<const M: usize, R: Read>(
                         }
                     },
                     Type::ObservationData => {
-                        if let Ok((e, ck_offset, map)) =
-                            observation::record::parse_epoch(header, &epoch_content, obs_ts)
-                        {
-                            obs_rec.insert(e, (ck_offset, map));
-                            comment_ts = e.0; // for comments classification & management
+                        match parse_observation_epoch(
+                            header,
+                            &epoch_content,
+                            obs_ts,
+                            &mut observations,
+                        ) {
+                            Ok(key) => {
+                                obs_rec.insert(key, observations.clone());
+                                observations.signals.clear(); // for next time, avoids re-alloc
+                                comment_ts = key.epoch; // for temporal comment indexing
+                            },
+                            #[cfg(feature = "log")]
+                            Err(e) => {
+                                error!("parsing: {}", e);
+                            },
+                            #[cfg(not(feature = "log"))]
+                            Err(_) => {},
                         }
                     },
                     Type::DORIS => {
@@ -485,11 +493,19 @@ pub fn parse_record<const M: usize, R: Read>(
             }
         },
         Type::ObservationData => {
-            if let Ok((e, ck_offset, map)) =
-                observation::record::parse_epoch(header, &epoch_content, obs_ts)
-            {
-                obs_rec.insert(e, (ck_offset, map));
-                comment_ts = e.0; // for comments classification + management
+            match parse_observation_epoch(header, &epoch_content, obs_ts, &mut observations) {
+                Ok(key) => {
+                    obs_rec.insert(key, observations.clone());
+                    observations.signals.clear(); // for next time, avoids re-alloc
+                    comment_ts = key.epoch; // for temporal comment storage
+                },
+                #[cfg(not(feature = "log"))]
+                Err(_) => {},
+                #[cfg(feature = "log")]
+                Err(e) => {
+                    // notify (debugger) non vital problems (slight/temporary formatting issues
+                    error!("parsing: {}", e);
+                },
             }
         },
         Type::DORIS => {
@@ -565,68 +581,4 @@ pub fn parse_record<const M: usize, R: Read>(
         Type::DORIS => Record::DorisRecord(dor_rec),
     };
     Ok((record, comments))
-}
-
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        if let Some(lhs) = self.as_mut_nav() {
-            if let Some(rhs) = rhs.as_nav() {
-                lhs.merge_mut(rhs)?;
-            }
-        } else if let Some(lhs) = self.as_mut_obs() {
-            if let Some(rhs) = rhs.as_obs() {
-                lhs.merge_mut(rhs)?;
-            }
-        } else if let Some(lhs) = self.as_mut_meteo() {
-            if let Some(rhs) = rhs.as_meteo() {
-                lhs.merge_mut(rhs)?;
-            }
-        /*} else if let Some(lhs) = self.as_mut_ionex() {
-        if let Some(rhs) = rhs.as_ionex() {
-            lhs.merge_mut(&rhs)?;
-        }*/
-        } else if let Some(lhs) = self.as_mut_antex() {
-            if let Some(rhs) = rhs.as_antex() {
-                lhs.merge_mut(rhs)?;
-            }
-        } else if let Some(lhs) = self.as_mut_clock() {
-            if let Some(rhs) = rhs.as_clock() {
-                lhs.merge_mut(rhs)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
-        if let Some(r) = self.as_obs() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::ObsRecord(r0), Self::ObsRecord(r1)))
-        } else if let Some(r) = self.as_nav() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::NavRecord(r0), Self::NavRecord(r1)))
-        } else if let Some(r) = self.as_meteo() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::MeteoRecord(r0), Self::MeteoRecord(r1)))
-        } else if let Some(r) = self.as_ionex() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::IonexRecord(r0), Self::IonexRecord(r1)))
-        } else if let Some(r) = self.as_clock() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::ClockRecord(r0), Self::ClockRecord(r1)))
-        } else {
-            Err(split::Error::NoEpochIteration)
-        }
-    }
-    fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, SplitError> {
-        Ok(Vec::new())
-    }
 }

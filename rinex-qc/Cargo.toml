@@ -52,7 +52,7 @@ hifitime = "4.0.0-beta"
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 
 rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
-rinex-qc-traits = { path = "../qc-traits", version = "=0.2.0", features = ["processing"] }
+rinex-qc-traits = { path = "../qc-traits", version = "=0.2.1", features = ["processing"] }
 
 sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["qc", "processing", "serde"], optional = true }
 

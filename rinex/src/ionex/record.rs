@@ -1,8 +1,6 @@
 use crate::{
     epoch::parse_utc as parse_utc_epoch,
-    merge::{Error as MergeError, Merge},
-    prelude::{Duration, Epoch, Header, ParsingError},
-    split::{Error as SplitError, Split},
+    prelude::{Epoch, Header, ParsingError},
 };
 
 use std::{
@@ -11,9 +9,7 @@ use std::{
 };
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 pub(crate) fn is_new_tec_plane(line: &str) -> bool {
     line.contains("START OF TEC MAP")
@@ -66,15 +62,6 @@ pub type TECPlane = HashMap<(i32, i32), TEC>;
 /// }
 /// ```
 pub type Record = BTreeMap<(Epoch, i32), TECPlane>;
-
-/// Merge rhs [TECPlane] into lhs
-fn merge_plane_mut(lhs: &mut TECPlane, rhs: &TECPlane) {
-    for (coord, tec) in rhs {
-        if lhs.get(coord).is_none() {
-            lhs.insert(*coord, tec.clone());
-        }
-    }
-}
 
 /*
  * Parses following map, which can either be
@@ -221,65 +208,6 @@ pub(crate) fn parse_plane(
         }
     }
     Ok((epoch, altitude, plane))
-}
-
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        for (eh, plane) in rhs {
-            if let Some(lhs_plane) = self.get_mut(eh) {
-                for (latlon, plane) in plane {
-                    if let Some(tec) = lhs_plane.get_mut(latlon) {
-                        if let Some(rms) = plane.rms {
-                            if tec.rms.is_none() {
-                                tec.rms = Some(rms);
-                            }
-                        }
-                    } else {
-                        lhs_plane.insert(*latlon, plane.clone());
-                    }
-                }
-            } else {
-                self.insert(*eh, plane.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
-        let before = self
-            .iter()
-            .flat_map(|((e, h), plane)| {
-                if *e < epoch {
-                    Some(((*e, *h), plane.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let after = self
-            .iter()
-            .flat_map(|((e, h), plane)| {
-                if *e >= epoch {
-                    Some(((*e, *h), plane.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((before, after))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, SplitError> {
-        Ok(Vec::new())
-    }
 }
 
 #[cfg(feature = "processing")]

@@ -2,7 +2,7 @@
 mod test {
     use crate::prelude::*;
     use itertools::Itertools;
-    use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+    use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
     use std::str::FromStr;
     #[test]
     fn obs_gnss_v3_esbcdnk() {
@@ -55,11 +55,13 @@ mod test {
     #[test]
     fn meteo_obsrv_v2_clar0020() {
         let rnx = Rinex::from_file::<5>("../test_resources/MET/V2/clar0020.00m").unwrap();
+        assert_eq!(rnx.observable().count(), 3);
 
         let pressure = Filter::mask(
             MaskOperand::Equals,
             FilterItem::ComplexItem(vec!["PR".to_string()]),
         );
+
         let dut = rnx.filter(&pressure);
         assert_eq!(dut.observable().count(), 1);
 
@@ -195,7 +197,7 @@ mod test {
         let total = rinex.carrier().count();
         assert_eq!(total, 4);
 
-        let carriers = rinex.carrier().sorted().collect::<Vec<_>>();
+        let carriers = rinex.carrier_iter().sorted().collect::<Vec<_>>();
         assert_eq!(
             carriers,
             vec![
@@ -211,20 +213,19 @@ mod test {
             FilterItem::ComplexItem(vec!["C1C".to_string(), "D1C".to_string()]),
         );
         let dut = rinex.filter(&l1_only);
-        assert_eq!(dut.carrier().count(), 2);
         assert_eq!(dut.constellation().count(), 2);
-        assert_eq!(
-            dut.carrier().collect::<Vec<_>>(),
-            vec![Carrier::L1, Carrier::G1(None)]
-        );
+
+        let carriers = dut.carrier_iter().sorted().collect::<Vec<_>>();
+        assert_eq!(carriers, vec![Carrier::L1, Carrier::G1(None)]);
 
         let glo_l2_only = Filter::mask(
             MaskOperand::Equals,
             FilterItem::ComplexItem(vec!["D2P".to_string()]),
         );
         let dut = rinex.filter(&glo_l2_only);
-        assert_eq!(dut.carrier().count(), 1);
         assert_eq!(dut.constellation().count(), 1);
-        assert_eq!(dut.carrier().collect::<Vec<_>>(), vec![Carrier::G2(None)]);
+
+        let carriers = dut.carrier_iter().sorted().collect::<Vec<_>>();
+        assert_eq!(carriers, vec![Carrier::G2(None)]);
     }
 }

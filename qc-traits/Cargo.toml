@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc-traits"
-version = "0.2.0"
+version = "0.2.1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX quality analysis specific traits"
@@ -11,7 +11,7 @@ categories = ["science", "science::geo", "parsing"]
 edition = "2021"
 
 [features]
-default = [] # no features by default
+default = []
 
 # Unlock processing features
 # - Filter designer: design and apply filter ops to GNSS datasets

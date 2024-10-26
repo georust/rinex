@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use crate::tests::toolkit::is_null_rinex;
     use std::path::PathBuf;
     #[test]
     fn test_parser() {
@@ -90,8 +89,7 @@ mod test {
 
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
-                            assert!(rinex.observation().count() > 0); // all files have content
-                            is_null_rinex(&rinex.substract(&rinex), 1.0E-9); // Self - Self should always be null
+                            assert!(rinex.signal_observations_iter().count() > 0); // all files have content
                             if data == "OBS" {
                                 let compressed = rinex.rnx2crnx();
                                 assert!(
@@ -107,9 +105,9 @@ mod test {
                             }
 
                             /* Timescale validity */
-                            for ((e, _), _) in rinex.observation() {
-                                let ts = e.time_scale;
-                                if let Some(e0) = obs_header.time_of_first_obs {
+                            for k in rinex.observation_keys() {
+                                let ts = k.epoch.time_scale;
+                                if let Some(e0) = obs_header.timeof_first_obs {
                                     assert!(
                                         e0.time_scale == ts,
                                         "interpreted wrong timescale: expecting \"{}\", got \"{}\"",

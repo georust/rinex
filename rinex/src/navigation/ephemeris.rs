@@ -17,7 +17,7 @@ use anise::{
 };
 
 use std::{collections::HashMap, str::FromStr};
-
+#[cfg(feature = "log")]
 use log::{error, warn};
 
 #[cfg(feature = "nav")]
@@ -220,6 +220,7 @@ impl EphemerisHelper {
                 }
             },
             _ => {
+                #[cfg(feature = "log")]
                 warn!("{} is not supported", self.sv.constellation);
                 None
             },
@@ -236,6 +237,7 @@ impl EphemerisHelper {
                     Some(self.ecef_pv())
                 },
                 _ => {
+                    #[cfg(feature = "log")]
                     warn!("{} is not supported", self.sv.constellation);
                     None
                 },
@@ -361,6 +363,7 @@ impl Ephemeris {
             },
             TimeScale::BDT => Some(Epoch::from_bdt_duration(week_dur + sec_dur)),
             _ => {
+                #[cfg(feature = "log")]
                 error!("{} is not supported", sv_ts);
                 None
             },
@@ -579,7 +582,9 @@ impl Ephemeris {
 
         let t_k = self.t_k(sv, t)?;
         if t_k < 0.0 {
+            #[cfg(feature = "log")]
             error!("t_k < 0.0: bad op");
+
             return None;
         }
 
@@ -610,6 +615,7 @@ impl Ephemeris {
         }
 
         if i >= Constants::MAX_KEPLER_ITER {
+            #[cfg(feature = "log")]
             error!("{} kepler iteration overflow", sv);
         }
 
@@ -745,6 +751,7 @@ impl Ephemeris {
         let t_sv = t.to_time_scale(sv_ts);
         let toc_sv = toc.to_time_scale(sv_ts);
         if t_sv < toc_sv {
+            #[cfg(feature = "log")]
             error!("t < t_oc: bad op!");
             None
         } else {
@@ -836,15 +843,18 @@ impl Ephemeris {
                 if let Some(toe) = self.toe(sv_ts) {
                     t > toe && (t - toe) < max_dt
                 } else {
-                    error!("{}({}): failed to determine ToE", t, sv);
+                    #[cfg(feature = "log")]
+                    error!("{}({}): failed to determine toe", t, sv);
                     false
                 }
             } else {
-                error!("{} constellation is not supported", sv.constellation);
+                #[cfg(feature = "log")]
+                error!("{} not fully supported", sv.constellation);
                 false
             }
         } else {
-            error!("{} constellation is not supported", sv.constellation);
+            #[cfg(feature = "log")]
+            error!("{} not fully supported", sv.constellation);
             false
         }
     }

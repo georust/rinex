@@ -7,9 +7,7 @@ use crate::{
 };
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

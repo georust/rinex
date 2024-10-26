@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use crate::tests::toolkit::{random_name, test_against_model};
-    use std::path::PathBuf;
+    use crate::tests::toolkit::random_name;
+    use std::{fs::remove_file as fs_remove_file, path::PathBuf};
     #[test]
     #[ignore]
     fn crinex1() {
@@ -51,16 +51,6 @@ mod test {
                 "failed to parse test file \"{}\"",
                 crnx_path.to_string_lossy()
             );
-
-            // compare to CRINEX1 model
-            let model = model.unwrap();
-            let epsilon = 1.0E-3; // CRNX2RNX is not a lossless compression
-            test_against_model(
-                &dut,
-                &model,
-                &format!("compression::crinx1::{}", rnx_path.to_string_lossy()),
-                epsilon,
-            );
         }
     }
     #[test]
@@ -106,7 +96,7 @@ mod test {
             );
 
             // remove generated file
-            let _ = std::fs::remove_file(&tmp_path);
+            let _ = fs_remove_file(&tmp_path);
         }
     }
     #[test]
@@ -161,16 +151,6 @@ mod test {
                 "failed to parse test file \"{}\"",
                 crnx_path.to_string_lossy()
             );
-
-            // compare
-            let model = model.unwrap();
-            let epsilon = 1.0E-3; // CRNX2RNX is not a lossless compression
-            test_against_model(
-                &dut,
-                &model,
-                &format!("compression::crinx3::{}", rnx_path.to_string_lossy()),
-                epsilon,
-            );
         }
     }
     #[test]
@@ -210,7 +190,7 @@ mod test {
             );
 
             // remove generated file
-            let _ = std::fs::remove_file(&tmp_path);
+            let _ = fs_remove_file(&tmp_path);
         }
     }
 }

@@ -5,13 +5,18 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use crate::navigation::FrameClass;
 
+use crate::{epoch, prelude::*, types::Type, version::Version};
+
+use super::{
+    orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
+    StoMessage,
+};
+
 #[cfg(docsrs)]
 use crate::Bibliography;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 /*
  * When formatting floating point number in Navigation RINEX,
@@ -38,17 +43,6 @@ fn double_exponent_digits(content: &str) -> String {
 
     lines.to_string()
 }
-
-use crate::{
-    epoch, merge, merge::Merge, prelude::*, split, split::Split, types::Type, version::Version,
-};
-
-use super::{
-    orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
-    StoMessage,
-};
-
-use hifitime::Duration;
 
 /// Navigation Message Types.
 /// Refer to [Bibliography::RINEX4] definitions.
@@ -550,61 +544,6 @@ fn fmt_epoch_v4(
     }
     lines = fmt_rework(4, &lines);
     Ok(lines)
-}
-
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (rhs_epoch, rhs_frames) in rhs {
-            if let Some(frames) = self.get_mut(rhs_epoch) {
-                // this epoch already exists
-                for fr in rhs_frames {
-                    if !frames.contains(fr) {
-                        frames.push(fr.clone()); // insert new NavFrame
-                    }
-                }
-            } else {
-                // insert new epoch
-                self.insert(*rhs_epoch, rhs_frames.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k < &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k >= &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
-    }
 }
 
 #[cfg(feature = "processing")]
