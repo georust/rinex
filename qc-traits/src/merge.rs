@@ -7,6 +7,9 @@ use hifitime::TimeScale;
 /// [Merge] specific Errors.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Some File formats do not support the [Merge] operation
+    #[error("file type mismatch")]
+    MergeNotSupported,
     /// You can only [Merge] two compatible files toghether.
     #[error("file type mismatch")]
     FileTypeMismatch,

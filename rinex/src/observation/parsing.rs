@@ -309,12 +309,12 @@ fn parse_signals_v2(
         }
 
         let line_width = line.len();
+        let trimmed_len = line.trim().len();
 
-        if line_width < MIN_LINE_WIDTH {
+        if trimmed_len == 0 {
             #[cfg(feature = "log")]
-            debug!("empty line: \"{}\"", line);
+            println!("empty line: \"{}\"", line);
 
-            // => increment by maximal number of vehicles that may remain
             obs_ptr += MAX_OBSERVABLES_LINE;
 
             // this concludes this vehicle

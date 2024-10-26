@@ -112,27 +112,39 @@ impl Merge for Rinex {
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if let Some(lhs) = self.record.as_mut_nav() {
             if let Some(rhs) = rhs.record.as_nav() {
-                merge_mut_nav(lhs, rhs)?;
+                return merge_mut_nav(lhs, rhs);
+            } else {
+                return Err(MergeError::FileTypeMismatch);
             }
         } else if let Some(lhs) = self.record.as_mut_obs() {
             if let Some(rhs) = rhs.record.as_obs() {
-                merge_mut_obs(lhs, rhs)?;
+                return merge_mut_obs(lhs, rhs);
+            } else {
+                return Err(MergeError::FileTypeMismatch);
             }
         } else if let Some(lhs) = self.record.as_mut_meteo() {
             if let Some(rhs) = rhs.record.as_meteo() {
-                merge_mut_meteo(lhs, rhs)?;
+                return merge_mut_meteo(lhs, rhs);
+            } else {
+                return Err(MergeError::FileTypeMismatch);
             }
         } else if let Some(lhs) = self.record.as_mut_ionex() {
             if let Some(rhs) = rhs.record.as_ionex() {
-                merge_mut_ionex(lhs, rhs)?;
+                return merge_mut_ionex(lhs, rhs);
+            } else {
+                return Err(MergeError::FileTypeMismatch);
             }
         } else if let Some(lhs) = self.record.as_mut_antex() {
             if let Some(rhs) = rhs.record.as_antex() {
-                merge_mut_antex(lhs, rhs)?;
+                return merge_mut_antex(lhs, rhs);
+            } else {
+                return Err(MergeError::FileTypeMismatch);
             }
         } else if let Some(lhs) = self.record.as_mut_clock() {
             if let Some(rhs) = rhs.record.as_clock() {
-                merge_mut_clock(lhs, rhs)?;
+                return merge_mut_clock(lhs, rhs);
+            } else {
+                return Err(MergeError::FileTypeMismatch);
             }
         }
         Ok(())

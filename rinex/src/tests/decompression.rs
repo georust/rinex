@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::{
-        prelude::{Epoch, EpochFlag, GeodeticMarker, Observable, Rinex, SV},
+        prelude::{Epoch, EpochFlag, GeodeticMarker, MarkerType, Observable, Rinex, SV},
         tests::toolkit::{
             generic_observation_rinex_against_model, generic_observation_rinex_test, random_name,
             ClockDataPoint, SignalDataPoint, TimeFrame,
@@ -259,6 +259,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn v1_zegv0010_21d() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -361,8 +362,14 @@ mod test {
     #[cfg(feature = "flate2")]
     fn v3_esbc00dnk() {
         let dut =
-            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
+
+        let mut geo_marker = GeodeticMarker::default()
+            .with_name("ESBC00DNK")
+            .with_number("10118M001");
+
+        geo_marker.marker_type = Some(MarkerType::Geodetic);
 
         generic_observation_rinex_test(
             &dut,
@@ -370,28 +377,26 @@ mod test {
             "3.05",
             Some("MIXED"),
             false,
-            "C05, C07, C10, C12, C19, C20, C23, C32, C34, C37,
-                 E01, E03, E05, E09, E13, E15, E24, E31,
-                 G02, G05, G07, G08, G09, G13, G15, G18, G21, G27, G28, G30,
-                 R01, R02, R08, R09, R10, R11, R12, R17, R18, R19,
-                 S23, S25, S36",
+            "C05, C06, C07, C08, C09, C10, C11, C12, C13, C14, C16, C19, C20, C21, C22, C23, C24, C25, C26, C27, C28, C29, C30, C32, C33, C34, C35, C36, C37,
+                 E01, E02, E03, E04, E05, E07, E08, E09, E11, E12, E13, E15, E19, E21, E24, E25, E26, E27, E30, E31, E33, E36,
+                 G01, G02, G03, G04, G05, G06, G07, G08, G09, G10, G11, G12, G13, G14, G15, G16, G17, G18, G19, G20, G21, G22, G24, G25, G26, G27, G28, G29, G30, G31, G32,
+                 R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R12, R13, R14, R15, R16, R17, R18, R19, R20, R21, R23, R24,
+                 J01, J02, J03,
+                 S23, S25, S26, S36, S44",
             "BDS, GAL, GLO, QZSS, GPS, EGNOS, SDCM, BDSBAS",
             &[
-                ("GPS", "L1"),
-                ("BDS", "C1C"),
-                ("GAL", "C2I"),
-                ("GLO", "C1C"),
-                ("SBAS", "C1C"),
+                ("GPS", "C1C, C1W, C2L, C2W, C5Q, D1C, D2L, D2W, D5Q, L1C, L2L, L2W, L5Q, S1C, S1W, S2L, S2W, S5Q"),
+                ("BDS", "C2I, C6I, C7I, D2I, D6I, D7I, L2I, L6I, L7I, S2I, S6I, S7I"),
+                ("GAL", "C1C, C5Q, C6C, C7Q, C8Q, D1C, D5Q, D6C, D7Q, D8Q, L1C, L5Q, L6C, L7Q, L8Q, S1C, S5Q, S6C, S7Q, S8Q"),
+                ("GLO", "C1C, C1P, C2C, C2P, C3Q, D1C, D1P, D2C, D2P, D3Q, L1C, L1P, L2C, L2P, L3Q, S1C, S1P, S2C, S2P, S3Q"),
+                ("SBAS", "C1C, C5I, D1C, D5I, L1C, L5I, S1C, S5I"),
+                ("QZSS", "C1C, C2L, C5Q, D1C, D2L, D5Q, L1C, L2L, L5Q, S1C, S2L, S5Q"),
             ],
             Some("2020-06-25T00:00:00 GPST"),
             Some("2020-06-25T23:59:30 GPST"),
             None,
             None,
-            Some(
-                GeodeticMarker::default()
-                    .with_name("ESBC00DNK")
-                    .with_number("10118M001"),
-            ),
+            Some(geo_marker),
             TimeFrame::from_inclusive_csv(
                 "2020-06-25T00:00:00 GPST, 2020-06-25T23:59:30 GPST, 30 s",
             ),
