@@ -1556,10 +1556,9 @@ impl Header {
             Ok(grid)
         }
     }
-    /*
-     * Parse list of observables (V2)
-     */
-    fn parse_v2_observables(
+
+    /// Parse list of [Observable]s which applies to both METEO and OBS RINEX
+    pub(crate) fn parse_v2_observables(
         line: &str,
         constell: Option<Constellation>,
         meteo: &mut MeteoHeader,
@@ -1601,9 +1600,8 @@ impl Header {
             }
         }
     }
-    /*
-     * Parse list of observables (V3)
-     */
+
+    /// Parse list of [Observable]s which applies to both METEO and OBS RINEX
     fn parse_v3_observables(
         line: &str,
         current_constell: &mut Option<Constellation>,
