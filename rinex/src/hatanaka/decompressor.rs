@@ -179,8 +179,12 @@ pub struct Decompressor<const M: usize, R: Read> {
     /// whether we're still inside the Header section (algorithm is not active),
     /// or inside file body (algorithm is active).
     state: State,
+    /// For internal logic
     prev_state: State,
-    /// [R]
+    /// CRINEX header that we did identify.
+    /// You should wait until State != State::InsideHeader to consider this field.
+    pub crinex: CRINEX,
+    /// [Read]able interface
     reader: R,
     /// Internal buffer
     buf: [u8; 4096],
@@ -197,19 +201,12 @@ pub struct Decompressor<const M: usize, R: Read> {
     obs_ptr: usize, // inside epoch
     /// [TextDiff] that works on entire Epoch line
     epoch_diff: TextDiff,
-    /// Current recovered epoch description
+    /// Epoch descriptor, for single allocation
     epoch_descriptor: String,
-    /// Current readable buffer
-    buf_ascii: String,
-    /// Unformatted Readable Internal buffer.
-    epoch_ascii: String,
     /// Clock offset differentiator
     clock_diff: NumDiff<M>,
     /// Observation differentiators
-    obs_diff: HashMap<SV, ObsDiff<M>>,
-    /// CRINEX header that we did identify.
-    /// You should wait until State != State::InsideHeader to consider this field.
-    pub crinex: CRINEX,
+    obs_diff: HashMap<(SV, usize), ObsDiff<M>>,
     /// [Constellation] described in Header field
     constellation: Constellation,
     /// [Observable]s specs for each [Constellation]
@@ -237,6 +234,9 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             let v3 = self.crinex.version.major == 3;
 
             let mut min_size = self.state.fixed_size(v3, numsat);
+
+            let sv_constell = self.sv.constellation; // constellation of current SV
+            let sv_observables = self.gnss_observables.get(&sv_constell);
 
             // complex states for which data quantity is not known ahead of time
             if min_size.is_none() {
@@ -428,7 +428,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     println!("recovered descriptor: \"{}\"", self.epoch_descriptor);
 
                     self.sv = SV::from_str(&self.epoch_descriptor[32..32 + 3])
-                        .expect("invalid SV description");
+                        .expect("bad sv description");
 
                     println!("first sv: {}", self.sv);
                     self.sv_ptr = 0;
@@ -452,10 +452,24 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     println!("sv_ptr={}/{}", self.sv_ptr, self.numsat);
                     println!("obs_ptr={}/{}", self.obs_ptr, self.numobs);
 
-                    if let Ok(val) = ascii.trim().parse::<i64>() {
-                        let kernel = self.obs_diff.get_mut(&self.sv).unwrap();
+                    let level = ascii[0..1]
+                        .parse::<u8>()
+                        .expect("invalid compression level")
+                        as usize;
 
-                        kernel.data_diff.decompress(val);
+                    let reset = ascii[1..2].eq("&");
+
+                    let val = ascii[2..].trim().parse::<i64>().expect("invalid i64 data");
+
+                    if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                        if reset {
+                            kernel.data_diff.force_init(val, level);
+                        } else {
+                            kernel.data_diff.decompress(val);
+                        }
+                    } else {
+                        let kernel = ObsDiff::<M>::new(val, level, "", "");
+                        self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                     }
 
                     self.obs_ptr += 1;
@@ -468,12 +482,14 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     }
                 },
                 State::LLI => {
-                    next_state = State::SNR;
-                    let kernel = self.obs_diff.get_mut(&self.sv).unwrap();
+                    let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
+
                     kernel.lli_diff.decompress(&ascii[..1]);
+
+                    next_state = State::SNR;
                 },
                 State::SNR => {
-                    let kernel = self.obs_diff.get_mut(&self.sv).unwrap();
+                    let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
 
                     kernel.snr_diff.decompress(&ascii[..1]);
 
@@ -729,8 +745,6 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             epoch_diff: TextDiff::new(""),
             clock_diff: NumDiff::<M>::new(0, M),
             obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
-            buf_ascii: String::with_capacity(128),
-            epoch_ascii: String::with_capacity(256),
             epoch_descriptor: String::with_capacity(256),
             constellation: Constellation::default(),
             gnss_observables: HashMap::with_capacity(4),
