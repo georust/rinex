@@ -5,6 +5,7 @@ mod test {
         tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
     };
     use std::{fs::remove_file as fs_remove_file, path::Path, str::FromStr};
+
     #[test]
     fn testbench_v1() {
         let pool = vec![

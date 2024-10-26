@@ -1,7 +1,7 @@
 //! CRINEX decompression module
 use crate::{
     hatanaka::{Error, NumDiff, ObsDiff, TextDiff, CRINEX},
-    prelude::{Version, SV},
+    prelude::{Epoch, EpochFlag, Version, SV},
 };
 
 use std::{
@@ -22,8 +22,12 @@ pub enum State {
     ProgDate,
     /// Waiting for "END OF HEADER" marker
     EndofHeader,
-    /// Reading Epoch timestamp
+    /// [State::NewEpoch] preceeds [State::Timestamp]
+    NewEpoch,
+    /// About to decode an [Epoch]
     Timestamp,
+    /// About to decode [EpochFlag]
+    EpochFlag,
     /// Reading Numsat
     NumSat,
     /// Reading Satellites
@@ -36,8 +40,10 @@ pub enum State {
     LLI,
     /// SNR
     SNR,
-    /// Separator
+    /// Gathering a whitespace Separator
     Separator,
+    /// Gathering a line termination
+    EOL,
     /// Content is discarded until a new Epoch starts.
     /// This will create a data gap. But we are resilient to boggus part
     /// of the data stream. This currently only happens when the Numsat description is boggus.
@@ -54,29 +60,36 @@ impl State {
         !matches!(self, Self::Version | Self::ProgDate | Self::EndofHeader)
     }
 
+    pub fn line_terminated(&self) -> bool {
+        matches!(self, Self::Version | Self::ProgDate | Self::EndofHeader)
+    }
+
     /// CRINEX specs are not forwarded & kept internally
-    pub(crate) fn skip(&self) -> bool {
+    pub fn skip(&self) -> bool {
         matches!(self, Self::Version | Self::ProgDate)
     }
 
-    /// Buffer size needed to attempt progressing to next [State].
-    pub(crate) fn size(&self, v3: bool, numsat: usize) -> usize {
-        match *self {
-            Self::Version => 81,
-            Self::ProgDate | Self::EndofHeader => 80,
+    /// Returns expected fixed size, when it applies.
+    /// For simpler [State]s we know the expected amount of bytes ahead of time.
+    /// For complex [State]s it is impossible to predetermine.
+    pub fn fixed_size(&self, v3: bool, numsat: usize) -> Option<usize> {
+        match self {
+            Self::NewEpoch => Some(1),
+            Self::Version => Some(80),
+            Self::ProgDate => Some(78),
             Self::Timestamp => {
                 if v3 {
-                    10
+                    Some(28) // YEAR on 4 digits
                 } else {
-                    12 // Y2000
+                    Some(26) // YEAR on 2 digits
                 }
             },
-            Self::NumSat => 3,
-            Self::Satellites => 3 * numsat,
-            Self::Clock => 17,
-            Self::Observation => 17,
-            Self::LLI | Self::SNR | Self::Separator => 1,
-            Self::Garbage => 0, // not applicable
+            Self::EpochFlag => Some(3),
+            Self::NumSat => Some(3),
+            Self::Observation => Some(10),
+            Self::Satellites => Some(3 * numsat),
+            Self::LLI | Self::SNR | Self::Separator => Some(1),
+            _ => None,
         }
     }
 }
@@ -145,18 +158,43 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             let mut force_skip = false;
             let mut next_state = self.state;
 
-            let mut size = self.state.size(self.crinex.version.major == 3, 0);
+            let numsat = self.numsat;
+            let v3 = self.crinex.version.major == 3;
 
-            // need more data to proceed
-            if self.avail < size {
-                if total > 0 {
-                    // we did process something though
-                    return Ok(total);
-                } else {
-                    // nothing was processed
-                    return Err(Error::NeedMoreData.to_stdio());
+            let mut min_size = self.state.fixed_size(v3, numsat);
+
+            // complex States for which data quantity is not known ahead of time
+            if min_size.is_none() {
+                match self.state {
+                    State::EndofHeader => {
+                        // Header pass -through:
+                        //  all we know is the line is at least 60 byte long and \n terminated.
+                        //  Here we're waiting for complete lines to pass through & proceed
+                        if self.avail > 120 {
+                            // RINEX header lines will never be this long, this is almost 2 complete lines
+                            if let Some(eol) =
+                                Self::find(&self.buf[..120], Self::END_OF_LINE_TERMINATOR)
+                            {
+                                min_size = Some(eol + 1);
+                            }
+                        }
+                    },
+                    State::Garbage | State::EOL => panic!("not yet"),
+                    others => unreachable!("{:?}", others),
                 }
             }
+
+            if min_size.is_none() {
+                // end of pointer has not been resolved: we can't proceed
+                // because buffer does not contain enought data.
+                if total > 0 {
+                    return Ok(total); // expose what we did process though
+                } else {
+                    return Err(Error::NeedMoreData.to_stdio()); // we need more data from I/O
+                }
+            }
+
+            let min_size = min_size.unwrap();
 
             #[cfg(feature = "log")]
             println!(
@@ -164,19 +202,20 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 self.crinex.version.major, self.state, self.avail, total
             );
 
-            let ascii = from_utf8(&self.buf[..size]).map_err(|_| Error::BadUtf8Data.to_stdio())?;
+            let ascii = from_utf8(&self.buf[..min_size])
+                .map_err(|_| Error::BadUtf8Data.to_stdio())?
+                .trim_end();
 
-            let ascii = ascii.trim_end();
             let ascii_len = ascii.len();
-
             let bytes = ascii.as_bytes();
 
             #[cfg(feature = "log")]
-            println!("ASCII: \"{}\"\n", ascii);
+            println!("ASCII: \"{}\" [{}]", ascii, ascii_len);
 
             // next step would not fit in user buffer
             // exit: return processed data
             if total + ascii_len + 1 > buf_len {
+                println!("early break: would not fit");
                 return Ok(total);
             }
 
@@ -198,31 +237,69 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 },
                 State::EndofHeader => {
                     if ascii.ends_with("END OF HEADER") {
-                        next_state = State::Timestamp;
+                        next_state = State::NewEpoch;
                     }
                 },
+                State::NewEpoch => {
+                    if ascii[0..1].eq("&") {
+                        // TODO: core reset
+                        println!("core reset!");
+                    }
+                    next_state = State::Timestamp;
+                },
                 State::Timestamp => {
-                    panic!("!!!NOT YET!:!!!!!!");
+                    next_state = State::EpochFlag;
+                },
+                State::EpochFlag => {
+                    if let Ok(flag) = ascii.trim().parse::<EpochFlag>() {
+                        next_state = State::NumSat;
+                    } else {
+                        next_state = State::Garbage;
+                    }
+                },
+                State::NumSat => {
+                    if let Ok(numsat) = ascii.trim().parse::<u8>() {
+                        self.numsat = numsat as usize;
+                        next_state = State::Satellites;
+                    } else {
+                        next_state = State::Garbage;
+                    }
+                },
+                State::Satellites => {
+                    next_state = State::Clock;
+                },
+                State::Clock => {
+                    if ascii.len() == 0 {
+                    } else {
+                        panic!("clock parsing !!");
+                    }
+                    panic!("clock state");
+                },
+                State::Garbage => {
+                    unimplemented!("gargage state");
                 },
                 _ => {
                     panic!("INVALID!");
                 },
             }
 
+            // content is passed on to user
             if !self.state.skip() {
                 buf[total..total + ascii_len].copy_from_slice(&bytes[..ascii_len]);
-
                 buf[total + ascii_len] = b'\n'; // \n
                 total += ascii_len + 1;
+            }
+
+            let mut end = ascii_len;
+            if self.state.line_terminated() {
+                end += 1; // discard EOL
             }
 
             // roll left
             // TODO : this is time consuming
             //        we should move on to a double pointer scheme ?
-            self.buf.copy_within(ascii_len + 1.., 0);
-
-            self.avail -= ascii_len - 1;
-
+            self.buf.copy_within(end.., 0);
+            self.avail -= end;
             self.state = next_state;
         }
 
@@ -388,6 +465,14 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 // }
 
 impl<const M: usize, R: Read> Decompressor<M, R> {
+    /// EOL is used in the decoding process
+    const END_OF_LINE_TERMINATOR: u8 = b'\n';
+
+    /// Locates byte in given slice
+    fn find(slice: &[u8], byte: u8) -> Option<usize> {
+        slice.iter().position(|b| *b == byte)
+    }
+
     /// Creates a new [Decompressor] working from [Read]
     pub fn new(reader: R) -> Self {
         Self {
@@ -863,4 +948,29 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     //       //println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
     //     Ok(result)
     // }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Decompressor;
+    use std::{fs::File, io::Read};
+
+    #[test]
+    fn test_decompress_v1() {
+        // Test the lowest level Decompressor seamless reader.
+        // Other testing then move on to tests::reader (BufferedReader) which provides
+        //  .lines() Iteratation, which is more suited for indepth testing and easier interfacing.
+        let fd = File::open("../test_resources/CRNX/V1/AJAC3550.21D").unwrap();
+
+        let mut decompressor = Decompressor::<5, File>::new(fd);
+
+        let mut buf = Vec::<u8>::with_capacity(100000);
+
+        let size = decompressor.read_to_end(&mut buf).unwrap();
+
+        assert!(size > 0);
+
+        let string =
+            String::from_utf8(buf).expect("decompressed CRINEX does not containt valid utf8");
+    }
 }

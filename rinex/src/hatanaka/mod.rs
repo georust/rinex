@@ -8,17 +8,17 @@ use thiserror::Error;
 
 mod compressor;
 mod crinex;
+mod decompressor;
 mod numdiff;
 mod obs;
 mod textdiff;
 
 pub use crinex::CRINEX;
-pub use numdiff::NumDiff;
-pub use obs::ObsDiff;
-pub use textdiff::TextDiff;
 
-pub mod decompressor;
-pub use decompressor::Decompressor;
+pub(crate) use decompressor::Decompressor;
+pub(crate) use numdiff::NumDiff;
+pub(crate) use obs::ObsDiff;
+pub(crate) use textdiff::TextDiff;
 
 use std::io::{Error as IoError, ErrorKind};
 
