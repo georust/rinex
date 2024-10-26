@@ -1411,7 +1411,13 @@ impl Rinex {
                     .map(|(k, v)| &v.observable)
                     .unique(),
             )
-        // } else if self.record.as_meteo().is_some() {
+        } else if let Some(record) = self.record.as_meteo() {
+            Box::new(
+                record
+                    .iter()
+                    .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
+                    .unique(),
+            )
         //     Box::new(
         //         self.meteo()
         //             .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))

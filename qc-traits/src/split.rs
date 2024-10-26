@@ -1,7 +1,7 @@
 //! Split trait
 use hifitime::{Duration, Epoch};
 
-/// Split is implemented to split data sets timewise.
+/// Implement [Split] to rearrange datasets timewise.
 pub trait Split {
     fn split(&self, t: Epoch) -> (Self, Self)
     where

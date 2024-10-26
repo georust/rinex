@@ -54,6 +54,7 @@ mod test {
     #[test]
     fn meteo_obsrv_v2_clar0020() {
         let rnx = Rinex::from_file("../test_resources/MET/V2/clar0020.00m").unwrap();
+        assert_eq!(rnx.observable().count(), 3);
 
         let pressure = Filter::mask(
             MaskOperand::Equals,

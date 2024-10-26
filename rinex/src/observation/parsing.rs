@@ -305,7 +305,7 @@ fn parse_signals_v2(
             obs_identified = true;
 
             #[cfg(feature = "log")]
-            println!("{}: {:?}", sv, observables);
+            debug!("{}: {:?}", sv, observables);
         }
 
         let line_width = line.len();
@@ -313,7 +313,7 @@ fn parse_signals_v2(
 
         if trimmed_len == 0 {
             #[cfg(feature = "log")]
-            println!("empty line: \"{}\"", line);
+            debug!("empty line: \"{}\"", line);
 
             obs_ptr += MAX_OBSERVABLES_LINE;
 
@@ -330,7 +330,7 @@ fn parse_signals_v2(
         let num_obs = div_ceil(line_width, OBSERVABLE_WIDTH); //TODO: get rid of .div_ceil
 
         #[cfg(feature = "log")]
-        println!("line: \"{}\" [={}]", line, num_obs);
+        debug!("line: \"{}\" [={}]", line, num_obs);
 
         let mut offset = 0;
 
@@ -345,7 +345,7 @@ fn parse_signals_v2(
             let slice = &line[offset..end];
 
             #[cfg(feature = "log")]
-            println!("observation: \"{}\" {}", slice, observables[obs_ptr]);
+            debug!("observation: \"{}\" {}", slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
