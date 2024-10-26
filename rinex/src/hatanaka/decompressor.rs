@@ -10,6 +10,9 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
+#[cfg(feature = "log")]
+use log::debug;
+
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub enum State {
     #[default]
@@ -155,10 +158,11 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 }
             }
 
+            #[cfg(feature = "log")]
             println!(
                 "[V{}] {:?} avail={}/total={}",
                 self.crinex.version.major, self.state, self.avail, total
-            ); // TODO: debug
+            );
 
             let ascii = from_utf8(&self.buf[..size]).map_err(|_| Error::BadUtf8Data.to_stdio())?;
 
@@ -167,7 +171,8 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
             let bytes = ascii.as_bytes();
 
-            println!("ASCII: \"{}\"\n", ascii); // TODO: debug
+            #[cfg(feature = "log")]
+            println!("ASCII: \"{}\"\n", ascii);
 
             // next step would not fit in user buffer
             // exit: return processed data

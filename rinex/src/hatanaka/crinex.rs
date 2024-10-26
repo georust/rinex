@@ -169,6 +169,7 @@ impl std::str::FromStr for CRINEX {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut crinex = Self::default();
+
         // We expect one line separator.
         // Content should follow standard odering (specs)
         for (index, line) in s.lines().enumerate() {
@@ -176,9 +177,9 @@ impl std::str::FromStr for CRINEX {
                 if line.len() < 60 {
                     return Err(ParsingError::HeaderLineTooShort);
                 }
-                let vers = line.split_at(20).0;
+                let vers = line.split_at(20).0.trim();
                 let version = Version::from_str(vers)?;
-                crinex.with_version(version);
+                crinex = crinex.with_version(version);
             } else {
                 if line.len() < 60 {
                     return Err(ParsingError::HeaderLineTooShort);
@@ -196,32 +197,39 @@ mod test {
     use std::str::FromStr;
 
     #[test]
-    fn test_encode_decode() {
+    fn test_crinex_1() {
         let crinex = CRINEX {
-            version: Version::new(3, 1),
-            prog: "test".to_string(),
-            date: Epoch::from_str("2010-10-09T00:30:45 UTC").unwrap(),
+            version: Version::new(3, 0),
+            prog: "RNX2CRX ver.4.0.7".to_string(),
+            date: Epoch::from_str("2021-01-02T00:01:00 UTC").unwrap(),
         };
 
         let formatted = crinex.to_string();
         let lines = formatted.lines().collect::<Vec<_>>();
+
         assert_eq!(lines.len(), 2, "formatted CRINEX should span 2 lines");
 
         assert_eq!(
             lines[0],
-            "3.1                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE"
+            "3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE"
         );
 
-        assert_eq!(lines[1], "");
+        assert_eq!(
+            lines[1],
+            "RNX2CRX ver.4.0.7                       02-Jan-21 00:01     CRINEX PROG / DATE",
+        );
 
+        // parse back + reciprocal
         let decoded = CRINEX::from_str(&formatted).unwrap();
-
         assert_eq!(decoded, crinex);
+    }
 
+    #[test]
+    fn test_crinex_2() {
         let crinex = CRINEX {
-            version: Version::new(2, 11),
+            version: Version::new(1, 0),
             prog: "test".to_string(),
-            date: Epoch::from_str("2015-20-10T09:08:07 UTC").unwrap(),
+            date: Epoch::from_str("2015-10-20T09:08:00 UTC").unwrap(),
         };
 
         let formatted = crinex.to_string();
@@ -230,10 +238,17 @@ mod test {
         assert_eq!(lines.len(), 2, "formatted CRINEX should span 2 lines");
         assert_eq!(
             lines[0],
-            "3.1                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE",
+            "1.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE",
         );
 
-        assert_eq!(lines[1], "");
+        assert_eq!(
+            lines[1],
+            "test                                    20-Oct-15 09:08     CRINEX PROG / DATE",
+        );
+
+        // parse back + reciprocal
+        let decoded = CRINEX::from_str(&formatted).unwrap();
+        assert_eq!(decoded, crinex);
     }
 
     #[test]
