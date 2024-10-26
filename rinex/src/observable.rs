@@ -411,24 +411,24 @@ mod test {
         assert!(Observable::from_str("TODO").is_err());
 
         assert_eq!(
-            Observable::from_str("L1"),
-            Ok(Observable::PhaseRange(String::from("L1")))
+            Observable::from_str("L1").unwrap(),
+            Observable::PhaseRange(String::from("L1"))
         );
 
         assert!(Observable::from_str("L1").unwrap().code().is_none());
 
         assert_eq!(
-            Observable::from_str("L2"),
-            Ok(Observable::PhaseRange(String::from("L2")))
+            Observable::from_str("L2").unwrap(),
+            Observable::PhaseRange(String::from("L2"))
         );
 
         assert_eq!(
-            Observable::from_str("L5"),
-            Ok(Observable::PhaseRange(String::from("L5")))
+            Observable::from_str("L5").unwrap(),
+            Observable::PhaseRange(String::from("L5"))
         );
         assert_eq!(
-            Observable::from_str("L6Q"),
-            Ok(Observable::PhaseRange(String::from("L6Q")))
+            Observable::from_str("L6Q").unwrap(),
+            Observable::PhaseRange(String::from("L6Q"))
         );
         assert_eq!(
             Observable::from_str("L6Q").unwrap().code(),
@@ -436,26 +436,26 @@ mod test {
         );
 
         assert_eq!(
-            Observable::from_str("L1C"),
-            Ok(Observable::PhaseRange(String::from("L1C")))
+            Observable::from_str("L1C").unwrap(),
+            Observable::PhaseRange(String::from("L1C"))
         );
         assert_eq!(
-            Observable::from_str("L1P"),
-            Ok(Observable::PhaseRange(String::from("L1P")))
+            Observable::from_str("L1P").unwrap(),
+            Observable::PhaseRange(String::from("L1P"))
         );
         assert_eq!(
-            Observable::from_str("L8X"),
-            Ok(Observable::PhaseRange(String::from("L8X")))
+            Observable::from_str("L8X").unwrap(),
+            Observable::PhaseRange(String::from("L8X"))
         );
 
         assert_eq!(
             Observable::from_str("L1P").unwrap(),
-            Observable::Phase(String::from("L1P"))
+            Observable::PhaseRange(String::from("L1P"))
         );
 
         assert_eq!(
             Observable::from_str("L8X").unwrap(),
-            Observable::Phase(String::from("L8X"))
+            Observable::PhaseRange(String::from("L8X"))
         );
 
         assert_eq!(

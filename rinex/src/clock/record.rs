@@ -4,9 +4,7 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use crate::{
     epoch::parse_in_timescale as parse_epoch_in_timescale,
-    
     prelude::{Epoch, ParsingError, TimeScale, Version, SV},
-    
 };
 
 #[cfg(feature = "processing")]

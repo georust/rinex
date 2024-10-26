@@ -18,10 +18,7 @@ use crate::{
     meteo::{sensor::Sensor as MeteoSensor, HeaderFields as MeteoHeader},
     navigation::{IonMessage, KbModel},
     observable::Observable,
-    observation::{
-        HeaderFields as ObservationHeader,
-        Crinex,
-    },
+    observation::HeaderFields as ObservationHeader,
     prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, COSPAR, DOMES, SV},
     reader::BufferedReader,
     types::Type,

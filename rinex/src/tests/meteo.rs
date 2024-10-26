@@ -193,7 +193,7 @@
 // //             "
 // //             ),
 // //         );
-// 
+//
 // //         let labels = [
 // //             "pressure",
 // //             "temp",
@@ -254,9 +254,9 @@
 // //                 vec![1019.8, 25.8, 72.8, 4.8, 4.0, 0.0],
 // //             ),
 // //         ];
-// 
+//
 // //         let epochs = rinex.epoch().collect::<Vec<Epoch>>();
-// 
+//
 // //         let record_values: Vec<Vec<(Epoch, f64)>> = vec![
 // //             rinex.pressure().collect(),
 // //             rinex.temperature().collect(),
@@ -265,14 +265,14 @@
 // //             rinex.wind_direction().collect(),
 // //             rinex.rain_increment().collect(),
 // //         ];
-// 
+//
 // //         for expected_values in expected {
 // //             let (index, epoch, expected_values) = expected_values;
 // //             let epoch = epoch.unwrap();
-// 
+//
 // //             let content = epochs.get(index as usize);
 // //             assert!(content.is_some(), "missing epoch {}", epoch);
-// 
+//
 // //             //let content = content.unwrap();
 // //             for (field_index, expected_value) in expected_values.iter().enumerate() {
 // //                 let label = labels[field_index];
@@ -294,7 +294,7 @@
 // //                 );
 // //             }
 // //         }
-// 
+//
 // //         let meteo_iters = vec![
 // //             ("temperature", rinex.temperature(), 74),
 // //             ("pressure", rinex.pressure(), 74),
@@ -303,7 +303,7 @@
 // //             ("zenith (wet)", rinex.zenith_wet_delay(), 0),
 // //             ("zenith (tot)", rinex.zenith_delay(), 0),
 // //         ];
-// 
+//
 // <<<<<<< HEAD
 //         for (test, iter, expected) in meteo_iters {
 //             assert!(
@@ -360,12 +360,12 @@
 // //             "PR, TD, HR",
 // //             evenly_spaced_time_frame!("2021-01-07T00:00:00 UTC", "2021-01-07T00:02:00 UTC", "30 s"),
 // //         );
-// 
+//
 // //         let record = rinex.record.as_meteo();
 // //         assert!(record.is_some());
 // //         let record = record.unwrap();
 // //         assert_eq!(record.len(), 5);
-// 
+//
 // //         // test epoch content
 // //         for (_, obs) in record.iter() {
 // //             for (obs, data) in obs.iter() {

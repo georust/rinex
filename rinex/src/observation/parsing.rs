@@ -1,10 +1,9 @@
 //! Observation RINEX parsing
 use crate::{
     epoch::{parse_in_timescale as parse_epoch_in_timescale, parse_utc as parse_utc_epoch},
-    observation::ParsingError,
     prelude::{
         ClockObservation, Constellation, EpochFlag, Header, LliFlags, ObsKey, Observable,
-        Observations, SignalObservation, TimeScale, Version, SNR, SV,
+        Observations, ParsingError, SignalObservation, TimeScale, Version, SNR, SV,
     },
 };
 
@@ -150,7 +149,7 @@ pub fn parse_epoch(
         },
         _ => {
             // Hardware events are not supported yet (coming soon)
-            return Err(ParsingError::Event);
+            return Err(ParsingError::ObsHardwareEvent);
         },
     }
 
@@ -356,10 +355,12 @@ fn parse_signals_v2(
                     Ok(unsigned) => {
                         lli = LliFlags::from_bits(unsigned);
                     },
+                    #[cfg(feature = "log")]
                     Err(e) => {
-                        #[cfg(feature = "log")]
                         error!("lli: {}", e);
                     },
+                    #[cfg(not(feature = "log"))]
+                    Err(_) => {},
                 }
             }
 
@@ -372,10 +373,12 @@ fn parse_signals_v2(
                     Ok(found) => {
                         snr = Some(found);
                     },
+                    #[cfg(feature = "log")]
                     Err(e) => {
-                        #[cfg(feature = "log")]
                         error!("snr: {:?}", e);
                     },
+                    #[cfg(not(feature = "log"))]
+                    Err(_) => {},
                 }
             }
 
@@ -423,7 +426,7 @@ fn parse_signals_v3(
     const OBSERVABLE_F14_WIDTH: usize = 14;
     const OBSERVABLE_WIDTH: usize = 16; // F14 +2 flags
 
-    let mut sv = SV::default(); // single alloc
+    let mut sv; // single alloc
 
     // browse all lines
     for line in lines {
@@ -436,9 +439,13 @@ fn parse_signals_v3(
             Ok(found) => {
                 sv = found;
             },
+            #[cfg(feature = "log")]
             Err(e) => {
-                #[cfg(feature = "log")]
                 error!("sv parsing: {}", e);
+                continue;
+            },
+            #[cfg(not(feature = "log"))]
+            Err(_) => {
                 continue;
             },
         }
@@ -525,16 +532,11 @@ fn parse_signals_v3(
 
 #[cfg(test)]
 mod test {
-    use super::{is_new_epoch, parse_epoch};
+    use super::is_new_epoch;
     use crate::{
-        observation::{fmt_observations, HeaderFields as SpecFields},
-        prelude::{
-            Constellation, Epoch, EpochFlag, Header, Observable, Observations, TimeScale, Version,
-            SV,
-        },
+        prelude::{Constellation, EpochFlag, Version},
         tests::toolkit::generic_observation_epoch_decoding_test,
     };
-    use std::str::FromStr;
 
     #[test]
     fn test_new_epoch() {

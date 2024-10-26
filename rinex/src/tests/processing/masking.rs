@@ -194,7 +194,7 @@ mod test {
     #[test]
     fn obs_signals_v3_duth0630() {
         let rinex = Rinex::from_file::<5>("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
-        let total = rinex.carrier().count();
+        let total = rinex.carrier_iter().count();
         assert_eq!(total, 4);
 
         let carriers = rinex.carrier_iter().sorted().collect::<Vec<_>>();

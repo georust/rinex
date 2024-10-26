@@ -3,7 +3,6 @@ use std::{collections::HashMap, str::FromStr};
 use crate::{
     antex::{Antenna, AntennaSpecific, Calibration, CalibrationMethod, RxAntenna, SvAntenna},
     linspace::Linspace,
-    merge::{Error as MergeError, Merge},
     prelude::{Carrier, Epoch, ParsingError, COSPAR, SV},
 };
 

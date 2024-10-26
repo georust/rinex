@@ -87,7 +87,6 @@ use hatanaka::CRINEX;
 use ionex::TECPlane;
 use navigation::NavFrame;
 use observable::Observable;
-use observation::Crinex;
 use version::Version;
 
 use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
@@ -106,8 +105,6 @@ pub mod prelude {
         header::Header,
         leap::Leap,
         observable::Observable,
-        observation::EpochFlag,
-        observation::SNR,
         types::Type as RinexType,
         version::Version,
         Rinex,
@@ -117,26 +114,19 @@ pub mod prelude {
     #[cfg_attr(docsrs, doc(cfg(feature = "antex")))]
     pub use crate::antex::AntennaMatcher;
 
-    pub use crate::carrier::Carrier;
-
     #[cfg(feature = "clock")]
     #[cfg_attr(docsrs, doc(cfg(feature = "clock")))]
     pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
 
     // re-export
-    pub use crate::doris::Station;
-    pub use crate::ground_position::GroundPosition;
-    pub use crate::header::Header;
     pub use crate::marker::{GeodeticMarker, MarkerType};
-    pub use crate::observable::Observable;
+
     pub use crate::observation::{
         ClockObservation, EpochFlag, LliFlags, ObsKey, Observations, SignalObservation, SNR,
     };
+
     pub use crate::prod::ProductionAttributes;
     pub use crate::record::{Comments, Record};
-    pub use crate::types::Type as RinexType;
-    pub use crate::version::Version;
-    pub use crate::{Error, Rinex};
 
     #[cfg(feature = "binex")]
     pub use crate::binex::{BIN2RNX, RNX2BIN};
@@ -1041,26 +1031,26 @@ impl Rinex {
         false
     }
 
-    /// Writes self into given file.   
-    /// Both header + record will strictly follow RINEX standards.   
-    /// Record: refer to supported RINEX types.
-    /// ```
-    /// // Read a RINEX and dump it without any modifications
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///   .unwrap();
-    /// assert!(rnx.to_file("test.rnx").is_ok());
-    /// ```
-    /// Other useful links are:
-    ///   * [Self::standard_filename] to generate a standardized filename
-    ///   * [Self::guess_production_attributes] helps generate standardized filenames for
-    ///     files that do not follow naming conventions
-    pub fn to_file(&self, path: &str) -> Result<(), Error> {
-        let mut writer = BufferedWriter::new(path)?;
-        write!(writer, "{}", self.header)?;
-        self.record.to_file(&self.header, &mut writer)?;
-        Ok(())
-    }
+    // /// Writes self into given file.
+    // /// Both header + record will strictly follow RINEX standards.
+    // /// Record: refer to supported RINEX types.
+    // /// ```
+    // /// // Read a RINEX and dump it without any modifications
+    // /// use rinex::prelude::*;
+    // /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    // ///   .unwrap();
+    // /// assert!(rnx.to_file("test.rnx").is_ok());
+    // /// ```
+    // /// Other useful links are:
+    // ///   * [Self::standard_filename] to generate a standardized filename
+    // ///   * [Self::guess_production_attributes] helps generate standardized filenames for
+    // ///     files that do not follow naming conventions
+    // pub fn to_file(&self, path: &str) -> Result<(), Error> {
+    //     let mut writer = BufferedWriter::new(path)?;
+    //     write!(writer, "{}", self.header)?;
+    //     self.record.to_file(&self.header, &mut writer)?;
+    //     Ok(())
+    // }
 }
 
 /*

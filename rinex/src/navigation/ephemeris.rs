@@ -16,9 +16,9 @@ use anise::{
     prelude::{Frame, Orbit},
 };
 
-use std::{collections::HashMap, str::FromStr};
 #[cfg(feature = "log")]
 use log::{error, warn};
+use std::{collections::HashMap, str::FromStr};
 
 #[cfg(feature = "nav")]
 use nalgebra::{self as na, Matrix3, Rotation, Rotation3, Vector4};

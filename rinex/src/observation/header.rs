@@ -1,7 +1,7 @@
 //! Observation Record specific header fields
 
 use crate::{
-    observation::Crinex,
+    hatanaka::CRINEX,
     prelude::{Constellation, Epoch, Observable, TimeScale},
 };
 
@@ -17,7 +17,7 @@ use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Optional CRINEX information
-    pub crinex: Option<Crinex>,
+    pub crinex: Option<CRINEX>,
     /// [Epoch] of first observation. Following content should match.
     /// Defines [TimeScale] of following content.
     pub timeof_first_obs: Option<Epoch>,

@@ -1,6 +1,6 @@
 //! Observation RINEX module
 mod clock;
-mod crinex;
+mod flag;
 mod formatting; // formatter
 mod header;
 mod lli;
@@ -8,7 +8,6 @@ mod parsing; // parser
 mod rinex; // high level methods
 mod signal;
 mod snr;
-mod flag;
 
 #[cfg(feature = "processing")]
 pub(crate) mod mask; // mask Trait implementation
@@ -23,42 +22,23 @@ pub(crate) mod repair; // repair Trait implementation
 use serde::{Deserialize, Serialize};
 
 pub use clock::ClockObservation;
-pub use header::HeaderFields;
-pub use signal::SignalObservation;
-pub use crinex::Crinex;
 pub use flag::EpochFlag;
+pub use header::HeaderFields;
 pub use lli::LliFlags;
+pub use signal::SignalObservation;
 pub use snr::SNR;
+
+pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 #[cfg(docsrs)]
 use crate::Bibliography;
 
+#[cfg(test)]
+pub use formatting::fmt_observations;
+
 use std::collections::BTreeMap;
-use thiserror::Error;
 
-use crate::{prelude::Epoch,
-};
-
-use gnss::{
-    constellation::ParsingError as ConstellationParsingError, sv::ParsingError as SVParsingError,
-};
-
-/// Observation RINEX specific [ParsingError]
-#[derive(Error, Debug)]
-pub enum ParsingError {
-    #[error("observation events are not supported yet")]
-    Event,
-    #[error("constellation parsing error")]
-    ConstellationParsing(#[from] ConstellationParsingError),
-    #[error("sv parsing error")]
-    SvParsing(#[from] SVParsingError),
-    #[error("bad v2 satellites description")]
-    BadV2SatellitesDescription,
-    #[error("epoch is empty")]
-    EmptyEpoch,
-    #[error("failed to parse numsat")]
-    NumSatParsing,
-}
+use crate::prelude::Epoch;
 
 /// [Observations] describes all the content an Observation Epoch
 /// indexed by [ObsKey] may contain.

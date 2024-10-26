@@ -17,11 +17,7 @@ mod test {
             .join("aopr0010.17o");
 
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
-        assert!(rinex.is_ok());
-        let rinex = rinex.unwrap();
-
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -57,8 +53,7 @@ mod test {
             .join("npaz3550.21o");
         let fullpath = path.to_string_lossy();
 
-        let dut = Rinex::from_file::<5>(fullpath.as_ref())
-            .unwrap();
+        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -97,8 +92,7 @@ mod test {
 
         let fullpath = path.to_string_lossy();
 
-        let dut = Rinex::from_file::<5>(fullpath.as_ref())
-            .unwrap();
+        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -114,11 +108,20 @@ mod test {
                 ("GLO", "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5"),
             ],
             Some("2021-01-01T00:00:00 GPST"), 
-            Some("2021-01-01T23:59:30 GPST"), 
+            Some("2021-01-01T23:59:30 GPST"),  
             Some((3859571.8076,  413007.6749, 5044091.5729)),
             Some("Hans van der Marel"),
             Some(GeodeticMarker::default().with_name("ROVN").with_number("13544M001")),
-            vec![],
+
+            TimeFrame::from_erratic_csv("
+                2021-01-01T00:00:00 GPST,
+                2021-01-01T00:00:30 GPST,
+                2021-01-01T01:10:00 GPST,
+                2021-01-01T02:25:00 GPST,
+                2021-01-01T02:25:30 GPST,
+                2021-01-01T02:26:00 GPST
+            ",
+            ),
             vec![],
             vec![],
         );
@@ -136,11 +139,7 @@ mod test {
             .join("DUTH0630.22O");
 
         let fullpath = path.to_string_lossy();
-        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
-        assert!(rinex.is_ok());
-        let rinex = rinex.unwrap();
-
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -169,9 +168,8 @@ mod test {
     fn v4_kms300dnk_r_2022_v3crx() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx";
-        
-        let dut = Rinex::from_file::<5>(&test_resource)
-            .unwrap();
+
+        let dut = Rinex::from_file::<5>(&test_resource).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -308,11 +306,11 @@ mod test {
             None,
             None,
             None,
-            TimeFrame::erratic(
+            TimeFrame::from_erratic_csv(
                 "2022-03-04T00:00:00 GPST,
                 2022-03-04T00:00:30 GPST,
                 2022-03-04T00:01:00 GPST,
-                2022-03-04T00:52:30 GPST"
+                2022-03-04T00:52:30 GPST",
             ),
             vec![],
             vec![],

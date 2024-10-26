@@ -144,6 +144,12 @@ pub enum ParsingError {
     IonexModel,
     #[error("antex: calibration method")]
     AntexCalibrationMethod,
+    #[error("obs: hardware events not supported yet")]
+    ObsHardwareEvent,
+    #[error("obs: bad v2 satellites description")]
+    BadV2SatellitesDescription,
+    #[error("obs: numsat parsing")]
+    NumSatParsing,
 }
 
 /// Errors that may rise in Formatting process
