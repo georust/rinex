@@ -415,11 +415,21 @@ mod test {
         generic_observation_rinex_test(
             &dut,
             None,
-            "3.10",
+            "3.05",
             Some("MIXED"),
             false,
-            "G01, G02",
-            "GPS, GLO",
+            "
+                G01, G02, G03, G04, G05, G06, G07, G08, G09, G10, G11, G12, G13, G14, G15, G16, G17, G18, G19, G20, G21, G22, G24, 
+                G25, G26, G27, G28, G29, G30, G31, G32,
+                C05, C06, C07, C08, C09, C10, C11, C12, C13, C14, C16, C19, C20, C21, C22, C23, C24, C25, C26, C27, C28, C29, C30, 
+                C32, C33, C34, C35, C36, C37,
+                R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R12, R13, R14, R15, R16, R17, R18, R19, R20, R21, R23, R24,
+                E01, E02, E03, E04, E05, E07, E08, E09, E11, E12, E13, E15, E19, E21, E24, E25, E26, E27, E30, E31, E33, E36,
+                J01, J02, J03,
+                I01, I02, I04, I05, I06, I09,
+                S23, S25, S26, S27, S36, S44
+            ",
+            "GPS, GLO, BDS, GAL, QZSS, IRNSS, EGNOS, GAGAN, BDSBAS, SDCM",
             &[
                 ("GPS", "C1C, C1W, C2L, C2W, C5Q, D1C, D2L, D2W, D5Q, L1C, L2L, L2W, L5Q, S1C, S1W, S2L, S2W, S5Q"),
                 ("BDS", "C2I, C6I, C7I, D2I, D6I, D7I, L2I, L6I, L7I, S2I, S6I, S7I"),
@@ -429,12 +439,12 @@ mod test {
                 ("GLO", "C1C, C1P, C2C, C2P, C3Q, D1C, D1P, D2C, D2P, D3Q, L1C, L1P, L2C, L2P, L3Q, S1C, S1P, S2C, S2P, S3Q"),
                 ("SBAS", "C1C, C5I, D1C, D5I, L1C, L5I, S1C, S5I"),
             ],
-            Some("2021-01-01T00:00:00 GPST"),
-            Some("2021-01-01T00:00:00 GPST"),
+            Some("2020-06-25T00:00:00 GPST"),
+            Some("2020-06-25T23:59:30 GPST"),
             None,
             None,
             None,
-            TimeFrame::from_inclusive_csv("2021-01-01T00:00:00 GPST, 2021-01-01T00:00:00GPST, 30 s"),
+            TimeFrame::from_inclusive_csv("2020-06-25T00:00:00 GPST, 2020-06-25T23:59:30 GPST, 30 s"),
             vec![],
             vec![]
         );
