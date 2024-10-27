@@ -1,4 +1,4 @@
-use crate::{meteo::Record, prelude::MergeError};
+use crate::{meteo::Record, prelude::qc::MergeError};
 
 pub fn merge_mut(rec: &mut Record, rhs: &Record) -> Result<(), MergeError> {
     for (epoch, observations) in rhs.iter() {

@@ -1,4 +1,4 @@
-use crate::{clock::Record, prelude::MergeError};
+use crate::{clock::Record, prelude::qc::MergeError};
 
 use super::merge_mut_option;
 

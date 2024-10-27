@@ -1,4 +1,4 @@
-use crate::{navigation::Record, prelude::MergeError};
+use crate::{navigation::Record, prelude::qc::MergeError};
 
 pub fn merge_mut(rec: &mut Record, rhs: &Record) -> Result<(), MergeError> {
     for (rhs_epoch, rhs_frames) in rhs {

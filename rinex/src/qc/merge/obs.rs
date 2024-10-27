@@ -1,4 +1,4 @@
-use crate::{observation::Record, prelude::MergeError};
+use crate::{observation::Record, prelude::qc::MergeError};
 
 pub fn merge_mut(rec: &mut Record, rhs: &Record) -> Result<(), MergeError> {
     for (k, rhs) in rhs.iter() {

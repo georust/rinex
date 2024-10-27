@@ -1,4 +1,4 @@
-use crate::prelude::{Duration, Record, Rinex, Split};
+use crate::prelude::{qc::Split, Duration, Record, Rinex};
 
 mod clock;
 mod doris;

@@ -1,5 +1,8 @@
 //! RINEX File merging (combination)
-use crate::prelude::{Epoch, Merge, MergeError, Rinex};
+use crate::prelude::{
+    qc::{Merge, MergeError},
+    Epoch, Rinex,
+};
 
 mod antex;
 mod clock;

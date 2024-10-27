@@ -1,4 +1,4 @@
-use crate::{ionex::Record, prelude::MergeError};
+use crate::{ionex::Record, prelude::qc::MergeError};
 
 pub fn merge_mut(rec: &mut Record, rhs: &Record) -> Result<(), MergeError> {
     for (eh, plane) in rhs {

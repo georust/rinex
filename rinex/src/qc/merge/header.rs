@@ -1,4 +1,7 @@
-use crate::prelude::{Constellation, Epoch, Header, Merge, MergeError};
+use crate::prelude::{
+    qc::{Merge, MergeError},
+    Constellation, Epoch, Header,
+};
 
 use super::{
     merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,

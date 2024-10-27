@@ -1,5 +1,5 @@
 use crate::{
-    prelude::{Merge, MergeError},
+    prelude::qc::{Merge, MergeError},
     prod::{DataSource, ProductionAttributes},
 };
 

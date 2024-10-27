@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::antex::pcv::Pcv;
+    use crate::antex::AntennaMatcher;
     use crate::antex::CalibrationMethod;
     use crate::carrier::Carrier;
     use crate::linspace::Linspace;

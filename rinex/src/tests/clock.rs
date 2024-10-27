@@ -1,6 +1,13 @@
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::prelude::{
+        clock::*,
+        qc::{Merge, MergeError},
+        Rinex, Constellation,
+        DOMES, DOMESTrackingPoint,
+        SV,
+        Epoch,
+    };
     use std::str::FromStr;
     #[test]
     fn clk_v2_cod20352() {
