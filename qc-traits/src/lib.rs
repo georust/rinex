@@ -5,9 +5,6 @@
 mod merge;
 pub use merge::{Error as MergeError, Merge};
 
-mod split;
-pub use split::Split;
-
 #[cfg(feature = "processing")]
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 mod processing;
@@ -16,4 +13,5 @@ mod processing;
 pub use processing::{
     Decimate, DecimationError, DecimationFilter, DecimationFilterType, Filter, FilterItem,
     MaskError, MaskFilter, MaskOperand, Masking, Preprocessing, Repair, RepairTrait,
+    Split,
 };
