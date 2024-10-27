@@ -16,6 +16,22 @@ use log::debug;
 #[cfg(docsrs)]
 use crate::hatanaka::Compressor;
 
+/// Locates byte in given slice
+fn find(slice: &[u8], byte: u8) -> Option<usize> {
+    slice.iter().position(|b| *b == byte)
+}
+
+/// Finds last whitespace byte in slice
+fn find_last_whitespace(slice: &[u8]) -> Option<usize> {
+    let mut offset = Option::<usize>::None;
+    for (nth, byte) in slice.iter().enumerate() {
+        if *byte == b' ' {
+            offset = Some(nth);
+        }
+    }
+    offset
+}
+
 // TODO
 // The current implementation is not really flexible towards invalid CRINEX.
 // Which is totally fine ! but high level applications could benefit a little flexibility ?
@@ -35,31 +51,35 @@ pub enum State {
     HeaderSpecs,
     /// Waiting for "END OF HEADER" special marker
     EndofHeader,
-    /// [State::NewEpoch] preceeds [State::Timestamp]
-    NewEpoch,
-    /// About to decode an [Epoch]
-    Timestamp,
-    /// About to decode [EpochFlag]
-    EpochFlag,
-    /// Reading Numsat
-    NumSat,
-    /// Reading Satellites
-    Satellites,
-    /// Reading Clock
-    Clock,
-    /// Observation
+    /// In [State::EpochGathering] we're trying to gather a complete
+    /// Epoch description.
+    EpochGathering,
+    /// In [State::EpochGathered] we actually decode the descriptor we just
+    /// gathered or recovered.
+    EpochGathered,
+    /// Trying to gather a complete observation
     Observation,
     /// LLI
     LLI,
     /// SNR
     SNR,
-    /// Gathering a whitespace Separator
-    Separator,
     /// Gathering a line termination
     EOL,
 }
 
 impl State {
+    /// Minimal size of a valid [Epoch] description in V2 revision    
+    /// - Timestamp: Year uses 2 digits
+    /// - Flag
+    /// - Numsat
+    const MIN_V2_EPOCH_DESCRIPTION_SIZE: usize = 26 + 3 + 3;
+
+    /// Minimal size of a valid [Epoch] description in V3 revision  
+    /// - Timestamp: Year uses 4 digits
+    /// - Flag
+    /// - Numsat
+    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = 28 + 3 + 3;
+
     /// Returns true if we're inside the File Body.
     /// Use this to grab the [CRINEX] definition if you have to.
     pub fn file_body(&self) -> bool {
@@ -69,38 +89,39 @@ impl State {
         )
     }
 
-    pub fn line_terminated(&self) -> bool {
+    /// Returns true if we're inside the File Header.
+    /// Use this to determine it is not safe to grab the [CRINEX] definition yet.
+    pub fn file_header(&self) -> bool {
+        !self.file_body()
+    }
+
+    /// True if this [State] is \n terminated
+    fn line_terminated(&self) -> bool {
         matches!(
             self,
-            Self::Version | Self::ProgDate | Self::EndofHeader | Self::Clock | Self::HeaderSpecs
+            Self::Version
+                | Self::ProgDate
+                | Self::EndofHeader
+                | Self::HeaderSpecs
+                | Self::EpochGathered
+                | Self::EpochGathering
         )
     }
 
-    /// CRINEX specs are not forwarded & kept internally
-    pub fn skip(&self) -> bool {
-        matches!(self, Self::Version | Self::ProgDate)
+    /// True if the current buffer content should not be forwarded to user.
+    pub fn skipped(&self) -> bool {
+        matches!(self, Self::Version | Self::ProgDate | Self::EpochGathering)
     }
 
     /// Returns expected fixed size, when it applies.
     /// For simpler [State]s we know the expected amount of bytes ahead of time.
     /// For complex [State]s it is impossible to predetermine.
-    pub fn fixed_size(&self, v3: bool, numsat: usize) -> Option<usize> {
+    pub fn fixed_size(&self) -> Option<usize> {
         match self {
-            Self::NewEpoch => Some(1),
             Self::Version => Some(80),
             Self::ProgDate => Some(78),
-            Self::Timestamp => {
-                if v3 {
-                    Some(28) // YEAR on 4 digits
-                } else {
-                    Some(26) // YEAR on 2 digits
-                }
-            },
-            Self::EpochFlag => Some(3),
-            Self::NumSat => Some(3),
-            Self::Observation => Some(14),
-            Self::Satellites => Some(3 * numsat),
-            Self::LLI | Self::SNR | Self::Separator => Some(1),
+            Self::LLI | Self::SNR => Some(1),
+            Self::EpochGathered => Some(1),
             _ => None,
         }
     }
@@ -181,6 +202,9 @@ pub struct Decompressor<const M: usize, R: Read> {
     state: State,
     /// For internal logic
     prev_state: State,
+    /// For internal logic: remains true until
+    /// first [Epoch] description was decoded.
+    first_epoch: bool,
     /// CRINEX header that we did identify.
     /// You should wait until State != State::InsideHeader to consider this field.
     pub crinex: CRINEX,
@@ -227,13 +251,13 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
         // Run FSM
         loop {
-            let mut force_skip = false;
             let mut next_state = self.state;
+            let mut skipped = self.state.skipped();
 
             let numsat = self.numsat;
             let v3 = self.crinex.version.major == 3;
 
-            let mut min_size = self.state.fixed_size(v3, numsat);
+            let mut min_size = self.state.fixed_size();
 
             let sv_constell = self.sv.constellation; // constellation of current SV
             let sv_observables = self.gnss_observables.get(&sv_constell);
@@ -241,17 +265,42 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             // complex states for which data quantity is not known ahead of time
             if min_size.is_none() {
                 match self.state {
-                    State::HeaderSpecs | State::EndofHeader | State::Clock => {
+                    State::HeaderSpecs | State::EndofHeader => {
                         // Header pass -through:
                         //  all we know is the line is at least 60 byte long and \n terminated.
                         //  Here we're waiting for complete lines to pass through & proceed
-                        if self.avail > 120 {
-                            // RINEX header lines will never be this long, this is almost 2 complete lines
-                            if let Some(eol) =
-                                Self::find(&self.buf[..120], Self::END_OF_LINE_TERMINATOR)
-                            {
-                                min_size = Some(eol + 1);
-                            }
+                        if self.avail < 128 {
+                            // protection not to attempt for nothing
+                            // RINEX header lines will never be this long (this is most certainly 2 complete lines)
+                            continue;
+                        }
+
+                        if let Some(eol) = find(&self.buf[..128], Self::END_OF_LINE_TERMINATOR) {
+                            min_size = Some(eol + 1);
+                        }
+                    },
+                    State::EpochGathering => {
+                        // Once first epoch is decoded we cannot predict the expected length
+                        // and it might actually be kind of small on big compression factor
+                        // and encoders that remove tailing white spaces.
+                        // The only option is to search for EOL
+                        if self.avail < 256 {
+                            // protection not to attempt for nothing
+                            continue;
+                        }
+                        if let Some(eol) = find(&self.buf, Self::END_OF_LINE_TERMINATOR) {
+                            min_size = Some(eol + 1);
+                        }
+                    },
+                    State::Observation => {
+                        // collecting next observation
+                        if self.avail < 4 {
+                            // protection not to attempt for nothing
+                            // observations will never be this short
+                            continue;
+                        }
+                        if let Some(wsp) = find_last_whitespace(&self.buf[..4]) {
+                            min_size = Some(wsp + 1);
                         }
                     },
                     State::EOL => panic!("eol"),
@@ -269,14 +318,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 }
             }
 
-            let mut min_size = min_size.unwrap();
-
-            // special case for obs payload
-            if self.state == State::Observation {
-                if self.obs_ptr > 0 {
-                    min_size += 2;
-                }
-            }
+            let min_size = min_size.unwrap();
 
             #[cfg(feature = "log")]
             println!(
@@ -290,6 +332,8 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
             let ascii_len = ascii.len();
             let bytes = ascii.as_bytes();
+
+            let mut roll_start = ascii_len;
 
             #[cfg(feature = "log")]
             println!("ASCII: \"{}\" [{}]", ascii, ascii_len);
@@ -319,8 +363,11 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 },
                 State::HeaderSpecs => {
                     if ascii.ends_with("END OF HEADER") {
+                        // Reached END_OF_HEADER and HeaderSpecs were not identified.
+                        // We would not be able to proceed to decode data.
                         panic!("bad crinex: no observation specs");
                     }
+
                     if ascii.contains("TYPES OF OBS") {
                         // V2 special marker
                         if v3 {
@@ -383,144 +430,185 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         println!("==== END OF HEADER ====");
                         println!("Specs: {:?}", self.gnss_observables);
 
-                        next_state = State::NewEpoch;
+                        next_state = State::EpochGathering;
                         self.epoch_descriptor.clear(); // prepare for decoding
                     }
                 },
-                State::NewEpoch => {
-                    if ascii[0..1].eq("&") {
-                        // TODO: core reset
-                        println!("core reset!");
+                State::EpochGathering => {
+                    if self.first_epoch {
+                        self.epoch_diff.force_init(&ascii);
+                        self.epoch_descriptor = ascii.to_string();
+                    } else {
+                        if v3 {
+                            if ascii[..1].eq(">") {
+                                // V3 kernel reset
+                                self.epoch_diff.force_init(&ascii);
+                                self.epoch_descriptor = ascii.to_string();
+                            }
+                        } else {
+                            if ascii[..1].eq("&") {
+                                // V2 kernel reset
+                                self.epoch_diff.force_init(&ascii);
+                                self.epoch_descriptor = ascii.to_string();
+                            }
+                        }
                     }
 
-                    self.epoch_descriptor.push_str(ascii);
-                    next_state = State::Timestamp;
+                    next_state = State::EpochGathered;
                 },
-                State::Timestamp => {
-                    self.epoch_descriptor.push_str(ascii);
-                    next_state = State::EpochFlag;
-                },
-                State::EpochFlag => {
-                    let flag = ascii.trim().parse::<EpochFlag>().expect("bad flag data");
+                State::EpochGathered => {
+                    // Trying to interprate what is latched in epoch descriptor
+                    // any failures lead back to previous state
+                    if self.first_epoch {
+                        if v3 {
+                            // line must start with '>'
+                            if !self.epoch_descriptor[..1].eq(">") {
+                                self.state = State::EpochGathering;
+                                continue;
+                            }
+                        } else {
+                            // line must start with '&'
+                            if !self.epoch_descriptor[..1].eq("&") {
+                                self.state = State::EpochGathering;
+                                continue;
+                            }
+                        }
+                    }
 
-                    next_state = State::NumSat;
-                    self.epoch_descriptor.push_str(ascii);
-                },
-                State::NumSat => {
-                    let numsat = ascii.trim().parse::<u8>().unwrap();
+                    // note that we do not verify timestamp correctness
+                    // it is not required by the decompression algorithm
 
-                    self.numsat = numsat as usize;
-                    self.sv_ptr = 0;
-                    next_state = State::Satellites;
-                    self.epoch_descriptor.push_str(ascii);
-                },
-                State::Satellites => {
-                    next_state = State::Clock;
+                    // decode numsat
+                    let numsat_slice = if v3 {
+                        &self.epoch_descriptor
+                            [Self::V3_TIMESTAMP_SIZE + 3..Self::V3_TIMESTAMP_SIZE + 6]
+                    } else {
+                        &self.epoch_descriptor
+                            [Self::V2_TIMESTAMP_SIZE + 3..Self::V2_TIMESTAMP_SIZE + 6]
+                    };
 
-                    self.epoch_descriptor.push_str(ascii);
+                    let numsat = numsat_slice
+                        .trim()
+                        .parse::<u8>()
+                        .expect("invalid numsat (bad digits)")
+                        as usize;
 
-                    // we've gathered the complete descriptor: uncompress it
-                    self.epoch_descriptor = self
-                        .epoch_diff
-                        .decompress(&self.epoch_descriptor)
-                        .to_string();
+                    self.numsat = numsat;
+                    println!("NUMSAT: {}", numsat);
 
-                    println!("recovered descriptor: \"{}\"", self.epoch_descriptor);
+                    // verify satellites correctness, this avoids proceeding to epoch decoding for nothing
+                    for i in 0..numsat {
+                        let start = if v3 {
+                            Self::V3_TIMESTAMP_SIZE + 6 + 3 * i
+                        } else {
+                            Self::V2_TIMESTAMP_SIZE + 6 + 3 * i
+                        };
 
-                    self.sv = SV::from_str(&self.epoch_descriptor[32..32 + 3])
-                        .expect("bad sv description");
+                        let sv = SV::from_str(&self.epoch_descriptor[start..start + 3].trim())
+                            .expect("bad sv");
 
-                    println!("first sv: {}", self.sv);
+                        if i == 0 {
+                            self.sv = sv;
+                        }
+                    }
+
+                    // TODO: clock state decompression !
+
+                    // move on to first observation
+                    // Here we might have a problem if the first field is already BLANKED OBS
+                    // and this work around may fail in case of clock presence: TODO double check
+
                     self.sv_ptr = 0;
                     self.obs_ptr = 0;
-                },
-                State::Clock => {
-                    if ascii.len() == 0 {
-                        next_state = State::Observation;
-                    } else {
-                        unimplemented!("compressed clock decoding!");
-                    }
+                    self.first_epoch = false;
 
-                    // identify specs for next SV
-                    if let Some(codes) = self.gnss_observables.get(&Constellation::GPS) {
-                        self.numobs = codes.len();
-                    } else {
-                        panic!("missing specs for {}", Constellation::GPS);
-                    }
+                    self.numobs = self
+                        .gnss_observables
+                        .get(&self.sv.constellation)
+                        .expect("missing observables")
+                        .len();
+
+                    next_state = State::Observation;
                 },
                 State::Observation => {
                     println!("sv_ptr={}/{}", self.sv_ptr, self.numsat);
                     println!("obs_ptr={}/{}", self.obs_ptr, self.numobs);
 
-                    let level = ascii[0..1]
-                        .parse::<u8>()
-                        .expect("invalid compression level")
-                        as usize;
-
-                    let reset = ascii[1..2].eq("&");
-
-                    let val = ascii[2..].trim().parse::<i64>().expect("invalid i64 data");
-
-                    if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
-                        if reset {
-                            kernel.data_diff.force_init(val, level);
-                        } else {
-                            kernel.data_diff.decompress(val);
-                        }
+                    if ascii_len == 0 {
+                        // BLANK field
+                        roll_start += 1; // force consumption
+                    } else if ascii[..1].eq(" ") {
+                        // BLANK field
+                        roll_start = 1; // force consumption
                     } else {
-                        let kernel = ObsDiff::<M>::new(val, level, "", "");
-                        self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                        let offset = ascii.find(Self::KERNEL_RESET_MARKER_CHAR);
+
+                        if let Some(offset) = offset {
+                            // observation kernel (re-)initialization
+                            let level = ascii[0..offset]
+                                .trim()
+                                .parse::<u8>()
+                                .expect("bad compression level digit")
+                                as usize;
+
+                            let val = ascii[offset + 1..].trim().parse::<i64>().expect("bad i64");
+
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                                kernel.data_diff.force_init(val, level);
+                            } else {
+                                let kernel = ObsDiff::<M>::new(val, level, "", "");
+                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                            }
+                        } else {
+                            // observation decompression
+                            let val = ascii.trim().parse::<i64>().expect("bad i64");
+
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                                kernel.data_diff.decompress(val);
+                            }
+                        }
                     }
 
                     self.obs_ptr += 1;
-
                     if self.obs_ptr == self.numobs {
                         self.obs_ptr = 0;
                         next_state = State::LLI;
-                    } else {
-                        next_state = State::Separator;
                     }
                 },
                 State::LLI => {
                     let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
 
-                    kernel.lli_diff.decompress(&ascii[..1]);
+                    if ascii_len == 0 {
+                        kernel.lli_diff.decompress("");
+                    } else {
+                        kernel.lli_diff.decompress(&ascii[..1]);
+                    }
 
                     next_state = State::SNR;
                 },
                 State::SNR => {
                     let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
 
-                    kernel.snr_diff.decompress(&ascii[..1]);
+                    if ascii_len == 0 {
+                        kernel.lli_diff.decompress("");
+                    } else {
+                        kernel.lli_diff.decompress(&ascii[..1]);
+                    }
 
                     self.obs_ptr += 1;
                     if self.obs_ptr == self.numobs {
+                        panic!("END OF OBSs");
                         self.obs_ptr = 0;
                         self.sv_ptr += 1;
                         if self.sv_ptr == self.numsat {
                             self.sv_ptr = 0;
-                            next_state = State::Timestamp;
+                            next_state = State::EpochGathering;
                         } else {
                             next_state = State::Observation;
                         }
                     } else {
-                        next_state = State::Observation;
+                        next_state = State::LLI;
                     }
-                },
-                State::Separator => match self.prev_state {
-                    State::Observation => {
-                        next_state = State::Observation;
-
-                        if self.obs_ptr == self.numobs {
-                            self.sv_ptr += 1;
-                            self.obs_ptr = 0;
-                            if self.sv_ptr == self.numsat {
-                                self.sv_ptr = 0;
-                                next_state = State::Timestamp;
-                            }
-                        }
-                    },
-                    others => unreachable!("{:?}", others),
                 },
                 _ => {
                     panic!("INVALID!");
@@ -528,113 +616,42 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             }
 
             // content is passed on to user
-            if !self.state.skip() {
-                buf[total..total + ascii_len].copy_from_slice(&bytes[..ascii_len]);
-                buf[total + ascii_len] = b'\n'; // \n
-                total += ascii_len + 1;
-            }
-
-            let mut end = ascii_len;
-            if self.state.line_terminated() {
-                end += 1; // discard EOL
-            }
-
-            // special case: empty clock (omitted)
-            if self.state == State::Clock && ascii_len == 0 {
-                end += 1;
+            if !skipped {
+                // special cases
+                match self.state {
+                    State::EpochGathered => {
+                        // format and forward
+                        let len = self.epoch_descriptor.len();
+                        buf[total..total + len].copy_from_slice(&self.epoch_descriptor.as_bytes());
+                        buf[total + total + len] = b'\n'; // \n
+                        total += len + 1;
+                    },
+                    State::Observation | State::LLI => {
+                        // observations cannot be passed, because we need to decompress the incoming flags
+                    },
+                    State::SNR => {},
+                    _ => {
+                        // pass through
+                        buf[total..total + ascii_len].copy_from_slice(&bytes[..ascii_len]);
+                        buf[total + ascii_len] = b'\n'; // \n
+                        total += ascii_len + 1;
+                    },
+                }
             }
 
             // roll left
             // TODO : this is time consuming
             //        we should move on to a double pointer scheme ?
-            self.buf.copy_within(end.., 0);
-            self.avail -= end;
+            if self.state.line_terminated() {
+                roll_start += 1; // discard EOL
+            }
+
+            self.buf.copy_within(roll_start.., 0);
+            self.avail -= roll_start;
+
             self.prev_state = self.state;
             self.state = next_state;
         }
-
-        //     // For any state, we don't proceed if User can't accept the potential results.
-        //     // It reduces the I/O performance, but simplifies internal logic.
-        //     // Otherwise, we would need two separate FSM
-        //     //   1. one for decypher process (with its own buffer)
-        //     //   2. one for what was forwarded by the decyphering process (with its own buffer)
-
-        //     // FSM
-        //     match self.state {
-        //         State::Timestamp => {
-        //             next_state = State::NumSat;
-        //         },
-        //         State::NumSat => {
-        //             next_state = State::Satellites;
-        //         },
-        //         State::Satellites => {
-        //             next_state = State::Clock;
-        //         },
-        //         State::Clock => {
-        //             // TODO: handle clock presence
-
-        //             // Reached end of line
-        //             //  - We proceed to run the textdiff and clock.numdiff
-        //             //  - Numsat must be valid integer otherwise
-        //             //  we can't progress and following decypher would panic (hard to debug).
-        //             //  It is possible that the sat descriptor is invalid (on boggus encoder),
-        //             //  but that we handle in the decyphering process individually.
-        //             //  If NumSat is faulty (too boggus): we move on to the special
-        //             //  [State::Garbage] state.
-        //             let epoch_ascii = from_utf8(&self.buf[self.ptr..self.ptr+required_size])?;
-        //             println!("epoch ascii: \"{}\"", epoch_ascii); // TODO: debug!
-
-        //             // Forward input as is to the kernel (it is very important
-        //             // otherwise we would bias the results)
-        //             self.epoch_descriptor = self.epoch_diff
-        //                 .decompress(&ascii);
-
-        //             // It facilitates everything if we keep clean internal content
-        //             self.epoch_descriptor = self.epoch_descriptor.trim();
-
-        //             // Recover the clock offset
-
-        //             // parse actual numsat
-        //             // we don't need more th
-        //             println!("descriptor: \"{}\"", self.epoch_descriptor); // TODO: debug!
-
-        //             next_state = State::Observation;
-        //         },
-        //         State::Observation => {
-
-        //         },
-        //         State::LLI => {
-
-        //         },
-        //         State::SNR => {
-
-        //         },
-        //         State::Separator => {
-        //             match self.prev_state {
-        //                 State::Timestamp => {
-        //                     next_state = State::NumSat;
-        //                 },
-        //                 State::NumSat => {
-        //                     next_state = State::Satellites;
-        //                 },
-        //                 State::Satellites => {
-        //                     next_state = State::Clock;
-        //                 },
-        //                 State::Clock => {
-        //                     next_state = State::Observation;
-        //                 },
-        //                 State::LLI => {
-        //                     next_state = State::SNR;
-        //                 },
-        //                 State::SNR => {
-        //                     panic!("todo");
-        //                 },
-        //             }
-        //         },
-        //     }
-
-        //     self.prev_state = self.state;
-        //     self.state = next_state;
     }
 }
 
@@ -718,12 +735,24 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     /// EOL is used in the decoding process
     const END_OF_LINE_TERMINATOR: u8 = b'\n';
 
+    /// Special marker to reset decompression kernels
+    const ENCODED_WHITESPACE_CHAR: char = '&';
+    /// Special marker to reset decompression kernels
+    const KERNEL_RESET_MARKER_CHAR: char = '&';
+    /// Whitespace char
+    const WHITESPACE_CHAR: char = ' ';
+
+    /// Minimal timestamp length in V2 revision
+    const V2_TIMESTAMP_SIZE: usize = 26;
+    /// Minimal timestamp length in V3 revision
+    const V3_TIMESTAMP_SIZE: usize = 28;
+
     // /// Max. number of [Observable]s described in a single [State::HeaderSpecs] line
     // const NAX_SPECS_PER_LINE :usize = 9;
 
-    /// Locates byte in given slice
-    fn find(slice: &[u8], byte: u8) -> Option<usize> {
-        slice.iter().position(|b| *b == byte)
+    /// Locates first non whitespace within slice
+    fn find_non_whitespace(slice: &str) -> Option<usize> {
+        slice.chars().position(|b| b != Self::WHITESPACE_CHAR)
     }
 
     /// Creates a new [Decompressor] working from [Read]
@@ -738,6 +767,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             obs_ptr: 0,
             buf: [0; 4096],
             eos: false,
+            first_epoch: true,
             sv: Default::default(),
             state: Default::default(),
             prev_state: Default::default(),
@@ -1205,8 +1235,32 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
 #[cfg(test)]
 mod test {
-    use super::Decompressor;
+    use super::{find, find_last_whitespace, Decompressor};
+
     use std::{fs::File, io::Read};
+
+    #[test]
+    fn test_byte_locator() {
+        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7];
+        assert_eq!(find(&slice, 3), Some(3));
+        assert_eq!(find(&slice, 0), Some(0));
+        assert_eq!(find(&slice, 8), None);
+    }
+
+    #[test]
+    fn test_whitespace_locator() {
+        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7];
+        assert_eq!(find_last_whitespace(&slice), None);
+
+        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', 9, 10];
+        assert_eq!(find_last_whitespace(&slice), Some(8));
+
+        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', 9, b' ', 11, 12];
+        assert_eq!(find_last_whitespace(&slice), Some(10));
+
+        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', b' ', 10, 11];
+        assert_eq!(find_last_whitespace(&slice), Some(9));
+    }
 
     #[test]
     fn test_decompress_v1() {
