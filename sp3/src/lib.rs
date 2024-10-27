@@ -16,8 +16,11 @@ use gnss_rs::constellation::ParsingError as ConstellationParsingError;
 use std::str::FromStr;
 use thiserror::Error;
 
+#[cfg(feature = "qc")]
+mod qc;
+
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
+use qc_traits::{
     Decimate, DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Masking,
     Preprocessing,
 };

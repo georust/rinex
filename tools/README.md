@@ -24,5 +24,5 @@ that typically sort GNSS data by DOY.
 Set to development and testing tools.
 
 - `parse_crit_benchmark.py` Python script to parse the results of our Criterion benchmarks (CI/dev purposes). Originally writen by Christopher Rabotin.
-- `builddoc.sh` builds the API doc exactly how publication with cargo does
-- `testlib.sh` tests the API built with several different options
+- `build-doc.sh` builds the API doc exactly how publication with cargo does
+- `build-lib.sh` builds all libraries with many compilation options
