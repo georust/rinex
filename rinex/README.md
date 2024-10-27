@@ -3,6 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/rinex.svg)](https://crates.io/crates/rinex)
 [![rustc](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
+[![Rust](https://github.com/georust/rinex/actions/workflows/daily.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/daily.yml)
 
 *RINEX* is a *GeoRust* crate that aims at supporting all RINEX formats, enabling advanced GNSS post processing. That means:
 
@@ -11,43 +12,42 @@
 - Production: text file formatting (encoding), which is currently
 limited because we're still actively working on the Parsing/Analysis steps.
 
-Several RINEX formats exist, among those we support the follwing list:
+Several RINEX formats exist, among those we support:
 
 * Observation RINEX (all revs.)
 * CRINEX (all revs.)
 * Meteo RINEX (all revs.)
-* Navigation RINEX (all Revs.)
+* Navigation RINEX (all revs.)
 * IONEX (all revs.)
-* Clock RINEX (All revs.)
+* Clock RINEX (all revs.)
 * ANTEX
 
-This library was built to support RINEX V4 completely.  
-[Refer the front-page table for more detail](https://github.com/georust/rinex).
+[Refer to the front-page table](https://github.com/georust/rinex?tab=readme-ov-file#formats--revisions)
+for more details on supported formats.
 
-The main objective of this library is to be a complete toolbox that offers a credible
-option to process *RINEX* data. The library offers high level operations and algorithms,
-many of them being historically supported or introduced by `TEQc` or `RTKlib`.
+The main objective of this library is to be a complete and credible toolbox.
+Nowadays it supports high level operations and algorithms, many of them being historically
+introduced either by `TEQc` or `RTKlib`.
 
 ## Crate features
 
-The current philosophy is to support all RINEX formats natively.  
-You don't have to customize the library to parse any of the supported formats.  
-The CRINEX compression algorithm is also supported natively.
+The RINEX library supports all RINEX formats and revisions natively,
+that includes the CRINEX compression algorithm.
 
 We have one crate feature per RINEX format, to either unlock specific methods
-or specific Iterators. For example, the `obs` feature is related to Observation RINEX
+or Iterators. For example, the `obs` feature is related to Observation RINEX
 format, it unlocks signal combination (which is post processing oriented) 
 and detailed Iterator to iterate GNSS signals. Another example would be `meteo` which
 unlocks `[Rinex::rain_detected]` which is a direct consequence of a specific Iterator.
 
-## RINEX and GZIP
+## RINEX and Gzip compression
 
 The great `flate2` library allows us to support Gzip compression and decompression.  
 Compile our library with this option for seamless support (both ways).  
 
 Note that, parsing a Gzip compressed files requires that filename to be terminated by `.gz`.
 
-## QC feature
+## QC feature
 
 The `qc` feature allows:
 
@@ -56,12 +56,15 @@ The `qc` feature allows:
 
 It is the root base of our post processing capabilities
 
-## Navigation feature
+## Navigation feature
 
 The `nav` feature is tied to the Navigation RINEX format.  
-It not only unlocks specific Iteration method, and also integrate
-Ephemeris interpretation and related calculations. That includes the
-Kepler equation solver, to be able to actually process the Radio messages.
+It not only unlocks specific Iteration methods, but also integrates Ephemeris
+interpretation and related calculations. Most importantly, the Kepler solver to navigate
+from radio messages. It is the root base of navigation using RINEX and GNSS in general.  
+
+If you're interested in post processed navigation using the RINEX library, you will
+need to activate this feature.
 
 ## Post processing feature(s)
 
@@ -70,22 +73,22 @@ RINEX datasets are complex and can rarely be processed "as is".
 
 We have a `processing` feature that is `qc` dependent and goes deeper
 in the post processing operations. For example, it unlocks
-a Filter designer, to completely rework, repair or reshap prior post processing.
+[Preprocessing], which allows reshaping and reworking datasets easily, prior actual processing. [Repair] is another useful traits that is very often needed when surveying in the real world.
 
 A post processing pipeline will most likely require this feature to be activated.
 
-The RINEX lib stops at the RINEX level, anything that requires any external topic
-is out of scope. For that purpose, we developped the `RINEX-QC` library 
-in this very repository, which for example, combines the RINEX and SP3 libraries
-to permit post processed high precision navigation. If you're interested in
-post processing and advanced operations, you are probably more interested by using
-this library directly and should move to its dedicated documentation.
+Although *RINEX* knows how to physically interprate these datasets, anything
+that is beyond that is out of scope of this library. The `RINEX-QC` library,
+which is also part of this *GeoRust* repository was developped for that very purpose.
+It allows actual consumption of the datasets and knows how to handle more than RINEX.
+For example, SP3 datasets are needed in precise applications. If you're interested
+in post processed Navigation and advanced operations, you are probably more interested in
+using `RINEX-QC` instead of simply *RINEX*. 
 
-## SBAS feature
+## SBAS and Geostationary :artificial_satellite:
 
-We don't have much SBAS dedicated features as of yet.  
-This option, currenly unlocks a SBAS selection method, that helps you select the appropriate
-SBAS system, based on given coordinates on the ground.
+There is no feature related to geostationary satellites. The RINEX file format treats them
+like any other satellite vehicle. Therefore, the `nav` feature will support them like any other.
 
 ## Full feature
 

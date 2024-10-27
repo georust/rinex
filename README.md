@@ -120,19 +120,19 @@ In otherwords, this is how this particular type of dataset is sorted and iterate
 *Timescale* gives the general Hifitime Timescale the Epochs are expressed in.  
 It is important to understand that as well.
 
-| Type                       | Parser            | Writer              |  CLI                 |      Content         | Record Indexing | Record Iteration     | Timescale  |
-|----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
-| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | Epoch | SV System time broadcasting this message |
-| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | Epoch | UTC | 
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states |  Epoch | GNSS (any) |
-|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   | Precise RX/SV Antenna calibration | `antex::Antenna` | :heavy_minus_sign: |
-|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density | Epoch | UTC |
-|  DORIS RINEX               | :heavy_check_mark:|  :construction:     | :heavy_check_mark:   | Temperature, Moisture, Pseudo Range and Phase observations | Epoch | TAI |
-|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch | :question: |
-|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: |
-|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: |
+| Type                      | Parser             | Writer                                                  | CLI                                            | Content                                                                         | Record Indexing  | Record Iteration                         | Timescale |
+| ------------------------- | ------------------ | ------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- | ---------------- | ---------------------------------------- |
+| Navigation  (NAV)         | :heavy_check_mark: | :construction:                                          | :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models                                                  | Epoch            | SV System time broadcasting this message |
+| Observation (OBS)         | :heavy_check_mark: | :heavy_check_mark:                                      | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI                                               | Epoch            | GNSS (any)                               |
+| CRINEX  (Compressed OBS)  | :heavy_check_mark: | RNX2CRX1 :heavy_check_mark: RNX2CRX3 :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI                                               | Epoch            | GNSS (any)                               |
+| Meteorological data (MET) | :heavy_check_mark: | :heavy_check_mark:                                      | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..)                                    | Epoch            | UTC                                      |
+| Clocks (CLK)              | :heavy_check_mark: | :construction:                                          | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states                                           | Epoch            | GNSS (any)                               |
+| Antenna (ATX)             | :heavy_check_mark: | :construction:                                          | :construction:                                 | Precise RX/SV Antenna calibration                                               | `antex::Antenna` | :heavy_minus_sign:                       |
+| Ionosphere Maps  (IONEX)  | :heavy_check_mark: | :construction:                                          | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density                                                     | Epoch            | UTC                                      |
+| DORIS RINEX               | :heavy_check_mark: | :construction:                                          | :heavy_check_mark:                             | Temperature, Moisture, Pseudo Range and Phase observations                      | Epoch            | TAI                                      |
+| SINEX  (SNX)              | :construction:     | :construction:                                          | :heavy_minus_sign:                             | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch            | :question:                               |
+| Troposphere  (TRO)        | :construction:     | :construction:                                          | :question:                                     | Troposphere modeling                                                            | Epoch            | :question:                               |
+| Bias  (BIA)               | :heavy_check_mark: | :construction:                                          | :question:                                     | Bias estimates, like DCB..                                                      | Epoch            | :question:                               |
 
 :heavy_check_mark: all revisions are supported   
 :construction: : Work in Progress   
@@ -146,30 +146,43 @@ Other formats
 
 `RINEX-Cli` accepts more than RINEX data.  
 
-| Type                       | Parser            | Writer              |  CLI                 |      Content         | Record Iteration     | Timescale  |
-|----------------------------|-------------------|---------------------|----------------------|----------------------| ---------------------| ---------- |
-| SP3                        | :heavy_check_mark:| :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend:  | High precision SV orbital state | Epoch | GNSS (any) |
+| Type | Parser             | Writer                          | CLI                                           | Content                         | Record Iteration | Timescale  |
+| ---- | ------------------ | ------------------------------- | --------------------------------------------- | ------------------------------- | ---------------- | ---------- |
+| SP3  | :heavy_check_mark: | :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend: | High precision SV orbital state | Epoch            | GNSS (any) |
 
-File formats
-============
+File name Restrictions
+======================
 
-| Format                 | File name restrictions            |    Support                         |
-|------------------------|-----------------------------------|------------------------------------|
-| RINEX                  | :heavy_minus_sign:                | :heavy_check_mark:                 |
-| CRINEX                 | :heavy_minus_sign:                | :heavy_check_mark:                 | 
-| gzip compressed RINEX  | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| .Z compressed RINEX    | Not supported                     | Not supported                      |
-| DORIS RINEX            | :heavy_minus_sign:                | :construction: Work in progress    |
-| gzip compressed DORIS  | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| .Z compressed DORIS    | Not supported                     | Not supported                      |
-| SP3                    | :heavy_minus_sign:                | :heavy_check_mark:                 | 
-| gzip compressed SP3    | Name must end with `.gz`          | `--flate2` feature must be enabled | 
-| .Z compressed SP3      | Not supported                     | Not supported                      |
-| BINEX                  | :heavy_minus_sign:                | :heavy_minus_sign: We do not support proprietary formats |
-| UBX                    | :heavy_minus_sign:                | :construction: Work in progress    |
+| Format                 | Restriction              |
+| ---------------------- | ------------------------ |
+| RINEX                  | :heavy_minus_sign:       |
+| CRINEX                 | :heavy_minus_sign:       |
+| gzip compressed RINEX  | Name must end with `.gz` |
+| gzip compressed CRINEX | Name must end with `.gz` |
+| .Z compressed RINEX    | Not supported            |
+| DORIS RINEX            | :heavy_minus_sign:       |
+| gzip compressed DORIS  | Name must end with `.gz` |
+| .Z compressed DORIS    | Not supported            |
+| SP3                    | :heavy_minus_sign:       |
+| gzip compressed SP3    | Name must end with `.gz` |
+| .Z compressed SP3      | Not supported            |
+| BINEX                  | :heavy_minus_sign:       |
+| UBX                    | :heavy_minus_sign:       |
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
+
+Non readable formats :construction:
+===================================
+
+`RINEX-Cli` will soon accept more than readable data.
+
+| Format |     Status     |                     Application                      |
+| :----: | :------------: | :--------------------------------------------------: |
+|  UBX   | :construction: | Convert your UBX data to RINEX to later post process |
+|        | :construction: | Convert your GNSS context to UBX (efficient storage) |
+| BINEX  | :construction: |    Convert BINEX streams to readable RINEX files     |
+|        | :construction: |  Encode RINEX datasets to BINEX (efficient storage)  |
+|  RTCM  | :construction: |     Serve your RINEX/SP3 datasets over RTCM I/O      |
 
 Special Thanks
 ==============
