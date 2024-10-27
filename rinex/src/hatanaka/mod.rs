@@ -13,9 +13,10 @@ mod numdiff;
 mod obs;
 mod textdiff;
 
+pub use compressor::Compressor;
 pub use crinex::CRINEX;
+pub use decompressor::Decompressor;
 
-pub(crate) use decompressor::Decompressor;
 pub(crate) use numdiff::NumDiff;
 pub(crate) use obs::ObsDiff;
 pub(crate) use textdiff::TextDiff;
