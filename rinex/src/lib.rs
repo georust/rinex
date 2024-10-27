@@ -66,9 +66,6 @@ use reader::BufferedReader;
 mod writer;
 use writer::BufferedWriter;
 
-#[cfg(feature = "flate2")]
-use flate2::bufread::GzDecoder;
-
 use std::{
     collections::{BTreeMap, HashMap},
     fs::File,
@@ -80,7 +77,7 @@ use std::{
 use itertools::Itertools;
 use thiserror::Error;
 
-use antex::{Antenna, AntennaSpecific, FrequencyDependentData};
+use antex::{Antenna, AntennaMatcher, AntennaSpecific, FrequencyDependentData};
 use doris::record::ObservationData as DorisObservationData;
 use epoch::epoch_decompose;
 use hatanaka::CRINEX;
@@ -110,15 +107,6 @@ pub mod prelude {
         Rinex,
     };
 
-    #[cfg(feature = "antex")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "antex")))]
-    pub use crate::antex::AntennaMatcher;
-
-    #[cfg(feature = "clock")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "clock")))]
-    pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
-
-    // re-export
     pub use crate::marker::{GeodeticMarker, MarkerType};
 
     pub use crate::observation::{
@@ -128,32 +116,54 @@ pub mod prelude {
     pub use crate::prod::ProductionAttributes;
     pub use crate::record::{Comments, Record};
 
+    // pub re-export
+    pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
+    pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
+
+    #[cfg(feature = "antex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "antex")))]
+    pub mod antex {
+        pub use crate::antex::AntennaMatcher;
+    }
+
+    #[cfg(feature = "clock")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "clock")))]
+    pub mod clock {
+        pub use crate::clock::{ClockKey, ClockProfile, ClockProfileType, ClockType, WorkClock};
+    }
+
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    pub mod nav {
+        pub use anise::{
+            astro::AzElRange,
+            errors::AlmanacResult,
+            prelude::{Almanac, Frame, Orbit},
+        };
+        pub use hifitime::ut1::DeltaTaiUt1;
+    }
+
+    #[cfg(feature = "qc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
+    pub mod qc {
+        pub use qc_traits::{Merge, MergeError, Split};
+    }
+
+    #[cfg(feature = "processing")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
+    pub mod processing {
+        pub use qc_traits::{
+            Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
+        };
+    }
+
     #[cfg(feature = "binex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
     pub use crate::binex::{BIN2RNX, RNX2BIN};
 
     #[cfg(feature = "rtcm")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]
     pub use crate::rtcm::RTCM2RNX;
-
-    // pub re-export
-    #[cfg(feature = "nav")]
-    pub use anise::{
-        astro::AzElRange,
-        errors::AlmanacResult,
-        prelude::{Almanac, Frame, Orbit},
-    };
-
-    pub use gnss::prelude::{Constellation, DOMESTrackingPoint, COSPAR, DOMES, SV};
-
-    #[cfg(feature = "nav")]
-    pub use hifitime::ut1::DeltaTaiUt1;
-
-    pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
-
-    #[cfg(feature = "qc")]
-    pub use qc_traits::{Merge, MergeError, Split};
-
-    #[cfg(feature = "processing")]
-    pub use qc_traits::{Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing};
 }
 
 /// Package dedicated to file production.
@@ -181,6 +191,12 @@ use crate::{
         repair::repair_mut as observation_repair_mut,
     },
 };
+
+#[cfg(feature = "nav")]
+use crate::nav::{Almanac, AzElRange, DeltaTaiUt1, Orbit};
+
+#[cfg(feature = "flate2")]
+use flate2::bufread::GzDecoder;
 
 use carrier::Carrier;
 use prelude::*;
@@ -229,15 +245,7 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-/// [Rinex] comprises a [Header] section and a [Record] section (AKA File Body).
-/// This parser can also store comments encountered while parsing the file body,
-/// stored as [record::Comments], without much application other than presenting
-/// all encountered data at the moment.   
-/// Following is an example of high level usage (mainly header fields).  
-/// For each RINEX type you get a method named after that type, which exposes
-/// the whole dataset, for example [`Self::meteo`] for Meteo RINEX.
-/// Other (high level information, calculations) are type dependent and
-/// contained in a specific crate feature.
+/// [Rinex] comprises a [Header] and a [Record] section.
 /// ```
 /// use rinex::prelude::*;
 /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
