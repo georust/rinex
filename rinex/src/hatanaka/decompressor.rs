@@ -21,12 +21,16 @@ fn find(slice: &[u8], byte: u8) -> Option<usize> {
     slice.iter().position(|b| *b == byte)
 }
 
-/// Finds last whitespace byte in slice
-fn find_last_whitespace(slice: &[u8]) -> Option<usize> {
+/// Special observation locator
+fn find_end_of_observation(slice: &[u8]) -> Option<usize> {
     let mut offset = Option::<usize>::None;
     for (nth, byte) in slice.iter().enumerate() {
         if *byte == b' ' {
             offset = Some(nth);
+        } else {
+            if offset.is_some() {
+                return offset;
+            }
         }
     }
     offset
@@ -223,6 +227,8 @@ pub struct Decompressor<const M: usize, R: Read> {
     /// pointers
     numobs: usize, // total
     obs_ptr: usize, // inside epoch
+    /// Helps identifying BLANK fields
+    last_was_blank: bool,
     /// [TextDiff] that works on entire Epoch line
     epoch_diff: TextDiff,
     /// Epoch descriptor, for single allocation
@@ -294,12 +300,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     },
                     State::Observation => {
                         // collecting next observation
-                        if self.avail < 4 {
-                            // protection not to attempt for nothing
-                            // observations will never be this short
-                            continue;
-                        }
-                        if let Some(wsp) = find_last_whitespace(&self.buf[..4]) {
+                        if let Some(wsp) = find(&self.buf, Self::WHITESPACE_BYTE) {
                             min_size = Some(wsp + 1);
                         }
                     },
@@ -521,6 +522,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     self.sv_ptr = 0;
                     self.obs_ptr = 0;
                     self.first_epoch = false;
+                    self.last_was_blank = false;
 
                     self.numobs = self
                         .gnss_observables
@@ -532,15 +534,21 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 },
                 State::Observation => {
                     println!("sv_ptr={}/{}", self.sv_ptr, self.numsat);
-                    println!("obs_ptr={}/{}", self.obs_ptr, self.numobs);
+                    println!(
+                        "obs_ptr={}/{} [{}]",
+                        self.obs_ptr, self.numobs, self.last_was_blank
+                    );
 
                     if ascii_len == 0 {
-                        // BLANK field
-                        roll_start += 1; // force consumption
-                    } else if ascii[..1].eq(" ") {
-                        // BLANK field
-                        roll_start = 1; // force consumption
+                        if self.last_was_blank {
+                            // BLANK field spotted: consume & move on to next
+                            self.obs_ptr += 1;
+                        }
+
+                        roll_start += 1; // consume
+                        self.last_was_blank = true;
                     } else {
+                        // parse value
                         let offset = ascii.find(Self::KERNEL_RESET_MARKER_CHAR);
 
                         if let Some(offset) = offset {
@@ -559,17 +567,23 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                                 let kernel = ObsDiff::<M>::new(val, level, "", "");
                                 self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                             }
+
+                            let val = val as f64 / 1000.0;
                         } else {
-                            // observation decompression
+                            // regular decompression
+
                             let val = ascii.trim().parse::<i64>().expect("bad i64");
 
-                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
-                                kernel.data_diff.decompress(val);
-                            }
+                            let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
+
+                            let val = kernel.data_diff.decompress(val);
+                            let val = val as f64 / 1000.0;
                         }
+
+                        self.obs_ptr += 1;
+                        self.last_was_blank = false;
                     }
 
-                    self.obs_ptr += 1;
                     if self.obs_ptr == self.numobs {
                         self.obs_ptr = 0;
                         next_state = State::LLI;
@@ -587,6 +601,8 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     next_state = State::SNR;
                 },
                 State::SNR => {
+                    println!("snr {}/{}", self.obs_ptr, self.numobs);
+
                     let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
 
                     if ascii_len == 0 {
@@ -596,6 +612,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     }
 
                     self.obs_ptr += 1;
+
                     if self.obs_ptr == self.numobs {
                         panic!("END OF OBSs");
                         self.obs_ptr = 0;
@@ -734,6 +751,8 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 impl<const M: usize, R: Read> Decompressor<M, R> {
     /// EOL is used in the decoding process
     const END_OF_LINE_TERMINATOR: u8 = b'\n';
+    /// Whitespace char
+    const WHITESPACE_BYTE: u8 = b' ';
 
     /// Special marker to reset decompression kernels
     const ENCODED_WHITESPACE_CHAR: char = '&';
@@ -768,6 +787,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             buf: [0; 4096],
             eos: false,
             first_epoch: true,
+            last_was_blank: false,
             sv: Default::default(),
             state: Default::default(),
             prev_state: Default::default(),
@@ -1235,12 +1255,12 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
 #[cfg(test)]
 mod test {
-    use super::{find, find_last_whitespace, Decompressor};
+    use super::{find, find_end_of_observation, Decompressor};
 
     use std::{fs::File, io::Read};
 
     #[test]
-    fn test_byte_locator() {
+    fn test_find_byte() {
         let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7];
         assert_eq!(find(&slice, 3), Some(3));
         assert_eq!(find(&slice, 0), Some(0));
@@ -1248,18 +1268,21 @@ mod test {
     }
 
     #[test]
-    fn test_whitespace_locator() {
+    fn test_find_observation() {
         let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7];
-        assert_eq!(find_last_whitespace(&slice), None);
+        assert_eq!(find_end_of_observation(&slice), None);
 
         let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', 9, 10];
-        assert_eq!(find_last_whitespace(&slice), Some(8));
+        assert_eq!(find_end_of_observation(&slice), Some(8));
 
         let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', 9, b' ', 11, 12];
-        assert_eq!(find_last_whitespace(&slice), Some(10));
+        assert_eq!(find_end_of_observation(&slice), Some(8));
 
         let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', b' ', 10, 11];
-        assert_eq!(find_last_whitespace(&slice), Some(9));
+        assert_eq!(find_end_of_observation(&slice), Some(9));
+
+        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', b' ', 10, 11, 12, 13];
+        assert_eq!(find_end_of_observation(&slice), Some(9));
     }
 
     #[test]
