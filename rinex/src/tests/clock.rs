@@ -3,10 +3,7 @@ mod test {
     use crate::prelude::{
         clock::*,
         qc::{Merge, MergeError},
-        Rinex, Constellation,
-        DOMES, DOMESTrackingPoint,
-        SV,
-        Epoch,
+        Constellation, DOMESTrackingPoint, Epoch, Rinex, DOMES, SV,
     };
     use std::str::FromStr;
     #[test]

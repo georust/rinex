@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::{
-        prelude::{Rinex, qc::Merge},
+        prelude::{qc::Merge, Rinex},
         tests::toolkit::{generic_observation_rinex_test, TimeFrame},
     };
     use std::{fs::remove_file as fs_remove_file, path::PathBuf};
