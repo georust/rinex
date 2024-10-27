@@ -1,5 +1,5 @@
 #[cfg(feature = "nav")]
-use crate::prelude::Almanac;
+use crate::prelude::nav::Almanac;
 
 use crate::{
     constants::{Constants, Omega},
