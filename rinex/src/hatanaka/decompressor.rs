@@ -51,6 +51,8 @@ pub enum State {
     Version,
     /// Expecting "CRINEX PROG / DATE"
     ProgDate,
+    /// Expecting RINEX VERSION / TYPE
+    VersionType,
     /// Waiting for observable specifications
     HeaderSpecs,
     /// Waiting for "END OF HEADER" special marker
@@ -89,7 +91,11 @@ impl State {
     pub fn file_body(&self) -> bool {
         !matches!(
             self,
-            Self::Version | Self::ProgDate | Self::EndofHeader | Self::HeaderSpecs
+            Self::Version
+                | Self::ProgDate
+                | Self::VersionType
+                | Self::HeaderSpecs
+                | Self::EndofHeader
         )
     }
 
@@ -106,6 +112,7 @@ impl State {
             Self::Version
                 | Self::ProgDate
                 | Self::EndofHeader
+                | Self::VersionType
                 | Self::HeaderSpecs
                 | Self::EpochGathered
                 | Self::EpochGathering
@@ -126,6 +133,7 @@ impl State {
             Self::ProgDate => Some(78),
             Self::LLI | Self::SNR => Some(1),
             Self::EpochGathered => Some(1),
+            Self::VersionType => Some(80),
             _ => None,
         }
     }
@@ -360,7 +368,28 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         .with_prog_date(&ascii.trim_end())
                         .map_err(|_| Error::CrinexParsing.to_stdio())?;
 
-                    next_state = State::HeaderSpecs;
+                    next_state = State::VersionType;
+                },
+                State::VersionType => {
+                    if ascii.ends_with("END OF HEADER") {
+                        // Reached END_OF_HEADER and HeaderSpecs were not identified.
+                        // We would not be able to proceed to decode data.
+                        panic!("bad crinex: no observation specs");
+                    }
+                    if ascii.contains("TYPES OF OBS") {
+                        // Reached next specs without specifying a constellation system !
+                        panic!("bad crinex: no constellation specs");
+                    }
+                    if ascii.contains("SYS / # / OBS TYPES") {
+                        // Reached next specs without specifying a constellation system !
+                        panic!("bad crinex: no constellation specs");
+                    }
+                    if ascii.contains("RINEX VERSION / TYPE") {
+                        self.constellation = Constellation::from_str(ascii[40..60].trim())
+                            .expect("bad crinex: invalid constellation");
+
+                        next_state = State::HeaderSpecs;
+                    }
                 },
                 State::HeaderSpecs => {
                     if ascii.ends_with("END OF HEADER") {
@@ -418,6 +447,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         }
 
                         // observable identification
+
                         if self.numobs == 0 {
                             // first encounter ever
                             if let Ok(numobs) = ascii[..10].trim().parse::<u8>() {
@@ -511,6 +541,16 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         if i == 0 {
                             self.sv = sv;
                         }
+
+                        // add one kernel for each new satellite
+                        let numobs = self.get_observables(&sv.constellation).unwrap().len();
+
+                        for i in 0..numobs {
+                            if self.obs_diff.get(&(sv, i)).is_none() {
+                                let kernel = ObsDiff::<M>::new(0, 0, "", "");
+                                self.obs_diff.insert((sv, i), kernel);
+                            }
+                        }
                     }
 
                     // TODO: clock state decompression !
@@ -525,8 +565,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     self.last_was_blank = false;
 
                     self.numobs = self
-                        .gnss_observables
-                        .get(&self.sv.constellation)
+                        .get_observables(&self.sv.constellation)
                         .expect("missing observables")
                         .len();
 
@@ -549,10 +588,10 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         self.last_was_blank = true;
                     } else {
                         // parse value
-                        let offset = ascii.find(Self::KERNEL_RESET_MARKER_CHAR);
+                        let mut kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
 
-                        if let Some(offset) = offset {
-                            // observation kernel (re-)initialization
+                        if let Some(offset) = ascii.find(Self::KERNEL_RESET_MARKER_CHAR) {
+                            // kernel (re-)initialization
                             let level = ascii[0..offset]
                                 .trim()
                                 .parse::<u8>()
@@ -561,21 +600,13 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
                             let val = ascii[offset + 1..].trim().parse::<i64>().expect("bad i64");
 
-                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
-                                kernel.data_diff.force_init(val, level);
-                            } else {
-                                let kernel = ObsDiff::<M>::new(val, level, "", "");
-                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                            }
+                            kernel.data_diff.force_init(val, level);
 
                             let val = val as f64 / 1000.0;
                         } else {
                             // regular decompression
 
                             let val = ascii.trim().parse::<i64>().expect("bad i64");
-
-                            let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
-
                             let val = kernel.data_diff.decompress(val);
                             let val = val as f64 / 1000.0;
                         }
@@ -614,7 +645,6 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     self.obs_ptr += 1;
 
                     if self.obs_ptr == self.numobs {
-                        panic!("END OF OBSs");
                         self.obs_ptr = 0;
                         self.sv_ptr += 1;
                         if self.sv_ptr == self.numsat {
@@ -793,11 +823,21 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             prev_state: Default::default(),
             crinex: Default::default(),
             epoch_diff: TextDiff::new(""),
+            constellation: Constellation::Mixed,
             clock_diff: NumDiff::<M>::new(0, M),
             obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
             epoch_descriptor: String::with_capacity(256),
-            constellation: Constellation::default(),
             gnss_observables: HashMap::with_capacity(4),
+        }
+    }
+
+    /// Helper to retrieve observable for given system
+    fn get_observables(&self, constell: &Constellation) -> Option<&Vec<Observable>> {
+        // We use mixed to store a single value for single definitions
+        if let Some(mixed) = self.gnss_observables.get(&Constellation::Mixed) {
+            Some(mixed)
+        } else {
+            self.gnss_observables.get(constell)
         }
     }
 
