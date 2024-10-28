@@ -65,12 +65,10 @@ pub enum State {
     EpochGathered,
     /// Trying to gather a complete observation
     Observation,
-    /// LLI
-    LLI,
-    /// SNR
-    SNR,
-    /// Gathering a line termination
-    EOL,
+    /// Saparator between observations and flags
+    Separator,
+    /// Flags
+    Flags,
 }
 
 impl State {
@@ -131,7 +129,7 @@ impl State {
         match self {
             Self::Version => Some(80),
             Self::ProgDate => Some(78),
-            Self::LLI | Self::SNR => Some(1),
+            Self::Separator => Some(1),
             Self::EpochGathered => Some(1),
             Self::VersionType => Some(80),
             _ => None,
@@ -241,10 +239,15 @@ pub struct Decompressor<const M: usize, R: Read> {
     epoch_diff: TextDiff,
     /// Epoch descriptor, for single allocation
     epoch_descriptor: String,
+    epoch_desc_len: usize, // for internal logic
+    /// [TextDiff] for observation flags
+    flags_diff: TextDiff,
+    /// Recovered flags
+    flags_descriptor: String,
     /// Clock offset differentiator
     clock_diff: NumDiff<M>,
     /// Observation differentiators
-    obs_diff: HashMap<(SV, usize), ObsDiff<M>>,
+    obs_diff: HashMap<(SV, usize), NumDiff<M>>,
     /// [Constellation] described in Header field
     constellation: Constellation,
     /// [Observable]s specs for each [Constellation]
@@ -306,13 +309,20 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                             min_size = Some(eol + 1);
                         }
                     },
+                    State::Flags => {
+                        if self.avail < 64 {
+                            continue;
+                        }
+                        if let Some(eol) = find(&self.buf, Self::END_OF_LINE_TERMINATOR) {
+                            min_size = Some(eol + 1);
+                        }
+                    },
                     State::Observation => {
                         // collecting next observation
                         if let Some(wsp) = find(&self.buf, Self::WHITESPACE_BYTE) {
                             min_size = Some(wsp + 1);
                         }
                     },
-                    State::EOL => panic!("eol"),
                     others => unreachable!("{:?}", others),
                 }
             }
@@ -463,23 +473,27 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
                         next_state = State::EpochGathering;
                         self.epoch_descriptor.clear(); // prepare for decoding
+                        self.epoch_desc_len = 0;
                     }
                 },
                 State::EpochGathering => {
                     if self.first_epoch {
                         self.epoch_diff.force_init(&ascii);
                         self.epoch_descriptor = ascii.to_string();
+                        self.epoch_desc_len = ascii_len;
                     } else {
                         if v3 {
                             if ascii[..1].eq(">") {
                                 // V3 kernel reset
                                 self.epoch_diff.force_init(&ascii);
+                                self.epoch_desc_len = ascii_len;
                                 self.epoch_descriptor = ascii.to_string();
                             }
                         } else {
                             if ascii[..1].eq("&") {
                                 // V2 kernel reset
                                 self.epoch_diff.force_init(&ascii);
+                                self.epoch_desc_len = ascii_len;
                                 self.epoch_descriptor = ascii.to_string();
                             }
                         }
@@ -487,6 +501,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
                     next_state = State::EpochGathered;
                 },
+
                 State::EpochGathered => {
                     // Trying to interprate what is latched in epoch descriptor
                     // any failures lead back to previous state
@@ -510,31 +525,14 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     // it is not required by the decompression algorithm
 
                     // decode numsat
-                    let numsat_slice = if v3 {
-                        &self.epoch_descriptor
-                            [Self::V3_TIMESTAMP_SIZE + 3..Self::V3_TIMESTAMP_SIZE + 6]
-                    } else {
-                        &self.epoch_descriptor
-                            [Self::V2_TIMESTAMP_SIZE + 3..Self::V2_TIMESTAMP_SIZE + 6]
-                    };
+                    self.numsat = self.epoch_numsat().expect("invalid epoch: numsat");
 
-                    let numsat = numsat_slice
-                        .trim()
-                        .parse::<u8>()
-                        .expect("invalid numsat (bad digits)")
-                        as usize;
-
-                    self.numsat = numsat;
-                    println!("NUMSAT: {}", numsat);
+                    println!("NUMSAT: {}", self.numsat);
 
                     // verify satellites correctness, this avoids proceeding to epoch decoding for nothing
-                    for i in 0..numsat {
-                        let start = if v3 {
-                            Self::V3_TIMESTAMP_SIZE + 6 + 3 * i
-                        } else {
-                            Self::V2_TIMESTAMP_SIZE + 6 + 3 * i
-                        };
-
+                    for i in 0..self.numsat {
+                        // TODO: this will panic in very old files that ommit the constellation
+                        let start = Self::sv_slice_start(i, v3);
                         let sv = SV::from_str(&self.epoch_descriptor[start..start + 3].trim())
                             .expect("bad sv");
 
@@ -547,7 +545,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
                         for i in 0..numobs {
                             if self.obs_diff.get(&(sv, i)).is_none() {
-                                let kernel = ObsDiff::<M>::new(0, 0, "", "");
+                                let kernel = NumDiff::<M>::new(0, 0);
                                 self.obs_diff.insert((sv, i), kernel);
                             }
                         }
@@ -585,7 +583,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         }
 
                         roll_start += 1; // consume
-                        self.last_was_blank = true;
+                        self.last_was_blank = !self.last_was_blank;
                     } else {
                         // parse value
                         let mut kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
@@ -600,14 +598,14 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
                             let val = ascii[offset + 1..].trim().parse::<i64>().expect("bad i64");
 
-                            kernel.data_diff.force_init(val, level);
+                            kernel.force_init(val, level);
 
                             let val = val as f64 / 1000.0;
                         } else {
                             // regular decompression
 
                             let val = ascii.trim().parse::<i64>().expect("bad i64");
-                            let val = kernel.data_diff.decompress(val);
+                            let val = kernel.decompress(val);
                             let val = val as f64 / 1000.0;
                         }
 
@@ -617,44 +615,26 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
                     if self.obs_ptr == self.numobs {
                         self.obs_ptr = 0;
-                        next_state = State::LLI;
+                        next_state = State::Separator;
                     }
                 },
-                State::LLI => {
-                    let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
-
-                    if ascii_len == 0 {
-                        kernel.lli_diff.decompress("");
-                    } else {
-                        kernel.lli_diff.decompress(&ascii[..1]);
-                    }
-
-                    next_state = State::SNR;
+                State::Separator => {
+                    next_state = State::Flags;
                 },
-                State::SNR => {
-                    println!("snr {}/{}", self.obs_ptr, self.numobs);
+                State::Flags => {
+                    self.sv_ptr += 1;
+                    println!("END OF {}", self.sv);
 
-                    let kernel = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)).unwrap();
-
-                    if ascii_len == 0 {
-                        kernel.lli_diff.decompress("");
+                    if self.sv_ptr == self.numsat {
+                        self.sv_ptr = 0;
+                        next_state = State::EpochGathering;
                     } else {
-                        kernel.lli_diff.decompress(&ascii[..1]);
-                    }
+                        // grab next SV
+                        let mut start = self.sv_slice_start(self.sv_ptr, v3);
+                        self.sv = SV::from_str(&self.epoch_descriptor[start..start + 3].trim())
+                            .expect("bad sv");
 
-                    self.obs_ptr += 1;
-
-                    if self.obs_ptr == self.numobs {
-                        self.obs_ptr = 0;
-                        self.sv_ptr += 1;
-                        if self.sv_ptr == self.numsat {
-                            self.sv_ptr = 0;
-                            next_state = State::EpochGathering;
-                        } else {
-                            next_state = State::Observation;
-                        }
-                    } else {
-                        next_state = State::LLI;
+                        next_state = State::Observation;
                     }
                 },
                 _ => {
@@ -673,10 +653,13 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         buf[total + total + len] = b'\n'; // \n
                         total += len + 1;
                     },
-                    State::Observation | State::LLI => {
+                    State::Observation => {
+                        // TODO
                         // observations cannot be passed, because we need to decompress the incoming flags
                     },
-                    State::SNR => {},
+                    State::Flags => {
+                        // TODO
+                    },
                     _ => {
                         // pass through
                         buf[total..total + ascii_len].copy_from_slice(&bytes[..ascii_len]);
@@ -804,6 +787,50 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         slice.chars().position(|b| b != Self::WHITESPACE_CHAR)
     }
 
+    /// Returns beginning of this SV (starting from 0th)
+    /// in the recovered epoch description
+    fn sv_slice_start(nth: usize, v3: bool) {
+        let mut start = 6 + 3 * sv_ptr;
+        if v3 {
+            start += Self::V3_TIMESTAMP_SIZE;
+        } else {
+            start += Self::V2_TIMESTAMP_SIZE;
+        }
+    }
+
+    /// Next SV decoding attempt
+    fn next_sv(&self, v3: bool) -> Option<SV> {
+        let slice_start = Self::sv_slice_start(self.sv_ptr, v3);
+        if self.epoch_desc_len < slice_start + 3 {
+            return None;
+        }
+
+        //TODO: this might fail on old rinex single constell format
+        if let Ok(sv) = SV::from_str(&self.epoch_desc[start..start + 3]) {
+            Some(sv)
+        } else {
+            None
+        }
+    }
+
+    fn epoch_numsat(&self, v3: bool) -> Option<usize> {
+        let mut offset = 3;
+        if v3 {
+            offset += Self::V3_TIMESTAMP_SIZE;
+        } else {
+            offset += Self::V2_TIMESTAMP_SIZE;
+        }
+
+        if let Ok(numsat) = &self.epoch_descriptor[offset..offset + 3]
+            .trim()
+            .parse::<u8>()
+        {
+            Some(numsat as usize)
+        } else {
+            None
+        }
+    }
+
     /// Creates a new [Decompressor] working from [Read]
     pub fn new(reader: R) -> Self {
         Self {
@@ -822,11 +849,13 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             state: Default::default(),
             prev_state: Default::default(),
             crinex: Default::default(),
+            flags_diff: TextDiff::new(""),
             epoch_diff: TextDiff::new(""),
             constellation: Constellation::Mixed,
             clock_diff: NumDiff::<M>::new(0, M),
             obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
             epoch_descriptor: String::with_capacity(256),
+            flags_descriptor: String::with_capacity(128),
             gnss_observables: HashMap::with_capacity(4),
         }
     }
@@ -1330,7 +1359,7 @@ mod test {
         // Test the lowest level Decompressor seamless reader.
         // Other testing then move on to tests::reader (BufferedReader) which provides
         //  .lines() Iteratation, which is more suited for indepth testing and easier interfacing.
-        let fd = File::open("../test_resources/CRNX/V1/AJAC3550.21D").unwrap();
+        let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
 
         let mut decompressor = Decompressor::<5, File>::new(fd);
 
@@ -1343,4 +1372,8 @@ mod test {
         let string =
             String::from_utf8(buf).expect("decompressed CRINEX does not containt valid utf8");
     }
+
+    // TODO add more V1 tests
+    // TODO add V3 tests
+    // TODO add test with CLOCK fields
 }
