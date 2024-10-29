@@ -168,7 +168,7 @@ impl MonumentGeoRecord {
             ptr += offs;
         }
 
-        Ok(self.encoding_size())
+        Ok(size)
     }
 
     /// Returns total length (bytewise) required to fully encode [Self].

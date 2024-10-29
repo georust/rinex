@@ -17,6 +17,18 @@ pub enum Record {
     EphemerisFrame(EphemerisFrame),
 }
 
+impl From<MonumentGeoRecord> for Record {
+    fn from(geo: MonumentGeoRecord) -> Self {
+        Self::MonumentGeo(geo)
+    }
+}
+
+impl From<EphemerisFrame> for Record {
+    fn from(fr: EphemerisFrame) -> Self {
+        Self::EphemerisFrame(fr)
+    }
+}
+
 impl Default for Record {
     fn default() -> Self {
         Self::MonumentGeo(Default::default())

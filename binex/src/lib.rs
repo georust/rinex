@@ -49,6 +49,10 @@ pub enum Error {
     UnknownRecordFieldId,
     #[error("utf8 error")]
     Utf8Error,
-    #[error("Incomplete message")]
+    #[error("missing crc bytes")]
+    MissingCRC,
+    #[error("received invalid crc")]
+    BadCRC,
+    #[error("incomplete message")]
     IncompleteMessage(usize),
 }

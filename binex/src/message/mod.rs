@@ -1,6 +1,7 @@
+mod checksum;
 mod mid; // message ID
 mod record; // Record: message content
-mod time; // Epoch encoding/decoding
+mod time; // Epoch encoding/decoding // checksum calc.
 
 pub use record::{
     EphemerisFrame, GPSEphemeris, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record,
@@ -9,6 +10,8 @@ pub use record::{
 pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
+
+use checksum::Checksum;
 
 use crate::{constants::Constants, utils::Utils, Error};
 
@@ -57,17 +60,21 @@ impl Message {
         let mid = self.record.to_message_id() as u32;
         total += Self::bnxi_encoding_size(mid);
 
-        let mlen = self.record.encoding_size() as u32;
-        total += Self::bnxi_encoding_size(mlen);
+        let mlen = self.record.encoding_size();
+        total += Self::bnxi_encoding_size(mlen as u32);
 
         total += self.record.encoding_size();
-        total += 1; // CRC: TODO!
+
+        let ck = Checksum::from_len(mlen, self.enhanced_crc);
+        total += ck.len();
+
         total
     }
 
     /// Decoding attempt from buffered content.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
         let sync_off;
+        let buf_len = buf.len();
         let mut big_endian = true;
         let mut reversed = false;
         let mut enhanced_crc = false;
@@ -123,7 +130,7 @@ impl Message {
         }
 
         // make sure we can parse up to 4 byte MID
-        if buf.len() - sync_off < 4 {
+        if buf_len - sync_off < 4 {
             return Err(Error::NotEnoughBytes);
         }
 
@@ -136,7 +143,7 @@ impl Message {
         ptr += size;
 
         // make sure we can parse up to 4 byte MLEN
-        if buf.len() - ptr < 4 {
+        if buf_len - ptr < 4 {
             return Err(Error::NotEnoughBytes);
         }
 
@@ -144,7 +151,7 @@ impl Message {
         let (mlen, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mlen = mlen as usize;
 
-        if buf.len() - ptr < mlen {
+        if buf_len - ptr < mlen {
             // buffer does not contain complete message!
             return Err(Error::IncompleteMessage(mlen));
         }
@@ -173,16 +180,32 @@ impl Message {
             },
         };
 
-        // 5. CRC verification
+        // 5. CRC
+        let ck_offset = mlen + 3;
+        let checksum = Checksum::from_len(mlen, enhanced_crc);
+        let ck_len = checksum.len();
+        if buf_len < ck_offset + ck_len {
+            return Err(Error::MissingCRC);
+        }
 
-        Ok(Self {
-            mid,
-            record,
-            reversed,
-            time_res,
-            big_endian,
-            enhanced_crc,
-        })
+        // decode
+        let ck = checksum.decode(&buf[ck_offset..], ck_len, big_endian);
+
+        // verify
+        let expected = checksum.calc(&buf[sync_off + 1..], mlen + 2);
+
+        if expected != ck {
+            Err(Error::BadCRC)
+        } else {
+            Ok(Self {
+                mid,
+                record,
+                reversed,
+                time_res,
+                big_endian,
+                enhanced_crc,
+            })
+        }
     }
 
     /// [Message] encoding attempt into buffer.
@@ -203,22 +226,27 @@ impl Message {
         ptr += Self::encode_bnxi(mid, self.big_endian, &mut buf[ptr..])?;
 
         // Encode MLEN
-        let mlen = self.record.encoding_size() as u32;
-        ptr += Self::encode_bnxi(mlen, self.big_endian, &mut buf[ptr..])?;
+        let mlen = self.record.encoding_size();
+        ptr += Self::encode_bnxi(mlen as u32, self.big_endian, &mut buf[ptr..])?;
 
         // Encode message
         match &self.record {
             Record::EphemerisFrame(fr) => {
-                fr.encode(self.big_endian, &mut buf[ptr..])?;
+                ptr += fr.encode(self.big_endian, &mut buf[ptr..])?;
             },
             Record::MonumentGeo(geo) => {
-                geo.encode(self.big_endian, &mut buf[ptr..])?;
+                ptr += geo.encode(self.big_endian, &mut buf[ptr..])?;
             },
         }
 
-        // TODO: encode CRC
+        // encode CRC
+        let ck = Checksum::from_len(mlen, self.enhanced_crc);
+        let ck_len = ck.len();
+        let crc_u128 = ck.calc(&buf[1..], mlen + 2);
+        let crc_bytes = crc_u128.to_le_bytes();
 
-        Ok(ptr)
+        buf[ptr..ptr + ck_len].copy_from_slice(&crc_bytes[..ck_len]);
+        Ok(ptr + ck_len)
     }
 
     /// Returns the SYNC byte we expect for [Self]
@@ -367,8 +395,9 @@ impl Message {
 mod test {
     use super::Message;
     use crate::message::TimeResolution;
-    use crate::message::{EphemerisFrame, GPSRaw, Record};
+    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoRecord, Record};
     use crate::{constants::Constants, Error};
+
     #[test]
     fn big_endian_bnxi_1() {
         let bytes = [0x7a];
@@ -527,6 +556,7 @@ mod test {
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
     fn decode_fwd_enhancedcrc_stream() {
         let buf = [Constants::FWDSYNC_BE_ENHANCED_CRC, 0, 0, 0];
@@ -536,6 +566,7 @@ mod test {
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
     fn decode_fwd_le_stream() {
         let buf = [Constants::FWDSYNC_LE_STANDARD_CRC, 0, 0, 0];
@@ -545,6 +576,7 @@ mod test {
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
     fn decode_reversed_stream() {
         let buf = [Constants::REVSYNC_BE_STANDARD_CRC, 0, 0, 0];
@@ -572,12 +604,64 @@ mod test {
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
-    fn test_gps_raw() {
-        let record = Record::new_ephemeris_frame(EphemerisFrame::GPSRaw(GPSRaw::default()));
-        let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
+    fn test_monument_geo() {
+        let big_endian = true;
+        let enhanced_crc = false;
+        let reversed = false;
+
+        let geo = MonumentGeoRecord::default().with_comment("simple");
+
+        let geo_len = geo.encoding_size();
+
+        let record = Record::new_monument_geo(geo);
+
+        let msg = Message::new(
+            big_endian,
+            TimeResolution::QuarterSecond,
+            enhanced_crc,
+            reversed,
+            record,
+        );
+
+        // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
+        assert_eq!(msg.encoding_size(), 1 + 1 + 1 + geo_len + 1);
 
         let mut encoded = [0; 256];
         msg.encode(&mut encoded).unwrap();
+
+        assert_eq!(encoded[17], 7);
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
+    }
+
+    #[test]
+    fn test_gps_raw() {
+        let big_endian = true;
+        let enhanced_crc = false;
+        let reversed = false;
+
+        let gps_raw = EphemerisFrame::GPSRaw(GPSRaw::default());
+        let gps_raw_len = gps_raw.encoding_size();
+        let record = Record::new_ephemeris_frame(gps_raw);
+
+        let msg = Message::new(
+            big_endian,
+            TimeResolution::QuarterSecond,
+            enhanced_crc,
+            reversed,
+            record,
+        );
+
+        // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
+        assert_eq!(msg.encoding_size(), 1 + 1 + 1 + gps_raw_len + 1);
+
+        let mut encoded = [0; 256];
+        msg.encode(&mut encoded).unwrap();
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
     }
 }

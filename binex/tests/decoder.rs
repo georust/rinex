@@ -17,7 +17,7 @@ fn mfle20190130() {
             Some(Err(e)) => match e {
                 Error::IoError(e) => panic!("i/o error: {}", e),
                 e => {
-                    //println!("err={}", e);
+                    println!("err={}", e);
                 },
             },
             None => {

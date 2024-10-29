@@ -217,7 +217,7 @@ impl<R: Read> Iterator for Decoder<R> {
                         // especially the signal sampling that we do not support yet.
                         // In this case, we simply trash the remaning amount of bytes,
                         // message is lost and we move on to the next SYNC
-                        warn!("library limitation: unprocessed message");
+                        //println!("library limitation: unprocessed message");
                         self.state = State::IncompleteTrashing;
                         //println!("need to trash {} bytes", self.size_to_complete);
                     }
