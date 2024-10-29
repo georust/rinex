@@ -58,21 +58,25 @@ enum State {
 }
 
 /// [BINEX] Stream Decoder. Use this structure to decode all messages streamed
-/// on a readable interface.
-pub struct Decoder<R: Read> {
+/// on a [Read]able interface. M represents the internal buffer depth:
+/// * the larger M the less constrain on the I/O interface (less frequent access)
+/// * but the larger the (initial) memory allocation
+pub struct Decoder<const M: usize, R: Read> {
     /// Internal state
     state: State,
+    /// Write pointer
+    wr_ptr: usize,
     /// Read pointer
     rd_ptr: usize,
+    /// Reached EOS
+    eos: bool,
     /// Internal buffer
-    buffer: Vec<u8>,
+    buf: [u8; M],
     /// [R]
     reader: Reader<R>,
-    /// Used when partial frame is saved within Buffer
-    size_to_complete: usize,
 }
 
-impl<R: Read> Decoder<R> {
+impl<const M: usize, R: Read> Decoder<M, R> {
     /// Creates a new BINEX [Decoder] from [R] readable interface,
     /// ready to parse incoming bytes.
     /// ```
@@ -85,7 +89,8 @@ impl<R: Read> Decoder<R> {
     /// let mut fd = File::open("../test_resources/BIN/mfle20190130.bnx")
     ///     .unwrap();
     ///
-    /// let mut decoder = Decoder::new(fd);
+    /// // Two generics: with M the internal buffer depth
+    /// let mut decoder = Decoder::<1024, File>::new(fd);
     ///
     /// // Consume data stream
     /// loop {
@@ -118,11 +123,12 @@ impl<R: Read> Decoder<R> {
     /// ```
     pub fn new(reader: R) -> Self {
         Self {
-            rd_ptr: 1024,
-            size_to_complete: 0,
+            eos: false,
+            rd_ptr: 0,
+            wr_ptr: 0,
+            buf: [0; M],
             reader: reader.into(),
             state: State::default(),
-            buffer: [0; 1024].to_vec(),
         }
     }
 
@@ -140,7 +146,8 @@ impl<R: Read> Decoder<R> {
     /// let mut fd = File::open("../test_resources/BIN/mfle20200105.bnx.gz")
     ///     .unwrap();
     ///
-    /// let mut decoder = Decoder::new(fd);
+    /// // two generics: with M the internal buffer depth
+    /// let mut decoder = Decoder::<1024, File>::new(fd);
     ///
     /// // Consume data stream
     /// loop {
@@ -173,108 +180,51 @@ impl<R: Read> Decoder<R> {
     /// ```
     pub fn new_gzip(reader: R) -> Self {
         Self {
-            rd_ptr: 1024,
-            size_to_complete: 0,
+            eos: false,
+            rd_ptr: 0,
+            wr_ptr: 0,
+            buf: [0; M],
             state: State::default(),
-            buffer: [0; 1024].to_vec(),
             reader: GzDecoder::new(reader).into(),
         }
     }
 }
 
-impl<R: Read> Iterator for Decoder<R> {
+impl<const M: usize, R: Read> Iterator for Decoder<M, R> {
     type Item = Result<Message, Error>;
     /// Parse next message contained in stream
     fn next(&mut self) -> Option<Self::Item> {
-        // parse internal buffer
-        while self.rd_ptr < 1024 && self.state == State::Parsing {
-            //println!("parsing: rd={}/wr={}", self.rd_ptr, 1024);
-            //println!("workbuf: {:?}", &self.buffer[self.rd_ptr..]);
-
-            match Message::decode(&self.buffer[self.rd_ptr..]) {
-                Ok(msg) => {
-                    // one message fully decoded
-                    //   - increment pointer so we can move on to the next
-                    //   - and expose to User.
-                    self.rd_ptr += msg.encoding_size();
-                    return Some(Ok(msg));
-                },
-                Err(Error::IncompleteMessage(mlen)) => {
-                    //print!("INCOMPLETE: rd_ptr={}/mlen={}", self.rd_ptr, mlen);
-                    // buffer contains partial message
-
-                    // [IF] mlen (size to complete) fits in self.buffer
-                    self.size_to_complete = mlen - self.rd_ptr;
-                    if self.size_to_complete < 1024 {
-                        // Then next .read() will complete this message
-                        // and we will then be able to complete the parsing.
-                        // Shift current content (rd_ptr=>0) and preserve then move on to Reading.
-                        self.buffer.copy_within(self.rd_ptr..1024, 0);
-                        self.state = State::IncompleteMessage;
-                    } else {
-                        // OR
-                        // NB: some messages can be very lengthy (some MB)
-                        // especially the signal sampling that we do not support yet.
-                        // In this case, we simply trash the remaning amount of bytes,
-                        // message is lost and we move on to the next SYNC
-                        //println!("library limitation: unprocessed message");
-                        self.state = State::IncompleteTrashing;
-                        //println!("need to trash {} bytes", self.size_to_complete);
-                    }
-                },
-                Err(Error::NoSyncByte) => {
-                    // no SYNC in entire buffer
-                    //println!(".decode no-sync");
-                    // prepare for next read
-                    self.rd_ptr = 1024;
-                    //self.buffer.clear();
-                    self.buffer = [0; 1024].to_vec();
-                },
-                Err(_) => {
-                    // decoding error: unsupported message
-                    // Keep iterating the buffer
-                    self.rd_ptr += 1;
-                },
-            }
+        // always try to fill in buffer
+        let size = self.reader.read(&mut self.buf[self.wr_ptr..]).ok()?;
+        self.wr_ptr += size;
+        if size == 0 {
+            self.eos = true;
         }
-
-        // read data: fill in buffer
-        match self.reader.read_exact(&mut self.buffer) {
-            Ok(_) => {
-                match self.state {
-                    State::Parsing => {},
-                    State::IncompleteMessage => {
-                        // complete frame, move on to parsing
-                        self.state = State::Parsing;
-                    },
-                    State::IncompleteTrashing => {
-                        if self.size_to_complete == 0 {
-                            // trashed completely.
-                            self.state = State::Parsing;
-                            //println!("back to parsing");
-                        } else {
-                            if self.size_to_complete < 1024 {
-                                //println!("shiting {} bytes", self.size_to_complete);
-
-                                // discard remaning bytes from buffer
-                                // and move on to parsing to analyze new content
-                                self.buffer.copy_within(self.size_to_complete.., 0);
-                                self.state = State::Parsing;
-                                //println!("back to parsing");
-                            } else {
-                                self.size_to_complete =
-                                    self.size_to_complete.saturating_add_signed(-1024);
-                                //println!("size to trash: {}", self.size_to_complete);
-                            }
+        // try to consume one message
+        match Message::decode(&self.buf[self.rd_ptr..]) {
+            Ok(msg) => {
+                // one message fully decoded
+                //  - increment pointer
+                //  - expose to user
+                self.rd_ptr += msg.encoding_size();
+                Some(Ok(msg))
+            },
+            Err(e) => {
+                match e {
+                    Error::NoSyncByte => {
+                        // we can safely discard all internal content
+                        self.wr_ptr = 0;
+                        self.rd_ptr = 0;
+                        if self.eos == true {
+                            // consumed everything and EOS has been reached
+                            return None;
                         }
                     },
+                    _ => {
+                        self.rd_ptr += 1;
+                    },
                 }
-                // read success
-                self.rd_ptr = 0; // reset pointer & prepare for next Iter
-                Some(Err(Error::NotEnoughBytes))
-            },
-            Err(_) => {
-                None // EOS
+                Some(Err(e))
             },
         }
     }

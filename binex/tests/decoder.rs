@@ -6,7 +6,7 @@ fn mfle20190130() {
     let mut found = 0;
     let fd = File::open("../test_resources/BIN/mfle20190130.bnx").unwrap();
 
-    let mut decoder = Decoder::new(fd);
+    let mut decoder = Decoder::<1024, File>::new(fd);
 
     loop {
         match decoder.next() {
@@ -35,7 +35,7 @@ fn gziped_files() {
     for fp in ["mfle20200105.bnx.gz", "mfle20200113.bnx.gz"] {
         let fp = format!("../test_resources/BIN/{}", fp);
         let fd = File::open(fp).unwrap();
-        let mut decoder = Decoder::new_gzip(fd);
+        let mut decoder = Decoder::<1024, File>::new_gzip(fd);
 
         loop {
             match decoder.next() {
