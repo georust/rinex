@@ -3,10 +3,9 @@ mod record; // Record: message content
 mod time; // Epoch encoding/decoding
 
 pub use record::{
-    EphemerisFrame, GPSEphemeris, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record,
+    EphemerisFrame, GPSEphemeris, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d,
+    PositionGeo3d, Record, Solutions, TemporalSolution, Velocity3d, VelocityNED3d,
 };
-
-pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
 
@@ -25,24 +24,15 @@ pub struct Message {
     pub reversed: bool,
     /// [Record]
     pub record: Record,
-    /// Time Resolution in use
-    time_res: TimeResolution,
 }
 
 impl Message {
     /// Creates new [Message] from given specs, ready to encode.
-    pub fn new(
-        big_endian: bool,
-        time_res: TimeResolution,
-        enhanced_crc: bool,
-        reversed: bool,
-        record: Record,
-    ) -> Self {
+    pub fn new(big_endian: bool, enhanced_crc: bool, reversed: bool, record: Record) -> Self {
         let mid = record.to_message_id();
         Self {
             mid,
             record,
-            time_res,
             reversed,
             big_endian,
             enhanced_crc,
@@ -71,7 +61,6 @@ impl Message {
         let mut big_endian = true;
         let mut reversed = false;
         let mut enhanced_crc = false;
-        let time_res = TimeResolution::QuarterSecond;
 
         // 1. locate SYNC byte
         if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
@@ -155,19 +144,21 @@ impl Message {
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec =
-                    MonumentGeoRecord::decode(mlen as usize, time_res, big_endian, &buf[ptr..])?;
+                let rec = MonumentGeoRecord::decode(mlen as usize, big_endian, &buf[ptr..])?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Ephemeris => {
                 let fr = EphemerisFrame::decode(big_endian, &buf[ptr..])?;
                 Record::new_ephemeris_frame(fr)
             },
+            MessageID::ProcessedSolutions => {
+                let solutions = Solutions::decode(mlen as usize, big_endian, &buf[ptr..])?;
+                Record::new_solutions(solutions)
+            },
             MessageID::Unknown => {
-                //println!("id=0xffffffff");
                 return Err(Error::UnknownMessage);
             },
-            id => {
+            _ => {
                 //println!("found unsupported msg id={:?}", id);
                 return Err(Error::UnknownMessage);
             },
@@ -179,7 +170,6 @@ impl Message {
             mid,
             record,
             reversed,
-            time_res,
             big_endian,
             enhanced_crc,
         })
@@ -213,6 +203,9 @@ impl Message {
             },
             Record::MonumentGeo(geo) => {
                 geo.encode(self.big_endian, &mut buf[ptr..])?;
+            },
+            Record::Solutions(fr) => {
+                fr.encode(self.big_endian, &mut buf[ptr..])?;
             },
         }
 
@@ -366,7 +359,6 @@ impl Message {
 #[cfg(test)]
 mod test {
     use super::Message;
-    use crate::message::TimeResolution;
     use crate::message::{EphemerisFrame, GPSRaw, Record};
     use crate::{constants::Constants, Error};
     #[test]
@@ -575,7 +567,7 @@ mod test {
     #[test]
     fn test_gps_raw() {
         let record = Record::new_ephemeris_frame(EphemerisFrame::GPSRaw(GPSRaw::default()));
-        let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
+        let msg = Message::new(true, false, false, record);
 
         let mut encoded = [0; 256];
         msg.encode(&mut encoded).unwrap();

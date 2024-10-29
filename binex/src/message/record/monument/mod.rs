@@ -100,19 +100,14 @@ impl MonumentGeoRecord {
     /// ## Outputs
     ///    - Ok: [Self]
     ///    - Err: [Error]
-    pub fn decode(
-        mlen: usize,
-        time_res: TimeResolution,
-        big_endian: bool,
-        buf: &[u8],
-    ) -> Result<Self, Error> {
+    pub fn decode(mlen: usize, big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if mlen < Self::MIN_SIZE {
             // does not look good
             return Err(Error::NotEnoughBytes);
         }
 
         // decode timestamp
-        let epoch = decode_gpst_epoch(big_endian, time_res, &buf)?;
+        let epoch = decode_gpst_epoch(big_endian, TimeResolution::QuarterSecond, &buf)?;
 
         // decode source meta
         let source_meta = MonumentGeoMetadata::from(buf[5]);
@@ -156,7 +151,8 @@ impl MonumentGeoRecord {
         }
 
         // encode tstamp
-        let mut ptr = encode_epoch(self.epoch.to_time_scale(TimeScale::GPST), big_endian, buf)?;
+        let t = self.epoch.to_time_scale(TimeScale::GPST);
+        let mut ptr = encode_epoch(t, TimeResolution::QuarterSecond, big_endian, buf)?;
 
         // encode source meta
         buf[ptr] = self.source_meta.into();
@@ -226,8 +222,7 @@ mod test {
     #[test]
     fn monument_marker_bnx00_error() {
         let buf = [0, 0, 0, 0];
-        let time_res = TimeResolution::QuarterSecond;
-        let monument = MonumentGeoRecord::decode(4, time_res, true, &buf);
+        let monument = MonumentGeoRecord::decode(4, true, &buf);
         assert!(monument.is_err());
     }
 
@@ -235,14 +230,13 @@ mod test {
     fn monument_geo_comments_decoding() {
         let mlen = 17;
         let big_endian = true;
-        let time_res = TimeResolution::QuarterSecond;
 
         let buf = [
             0, 0, 1, 1, 41, 2, 0, 9, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8,
             ' ' as u8, 'G' as u8, 'E' as u8, 'O' as u8,
         ];
 
-        match MonumentGeoRecord::decode(mlen, time_res, big_endian, &buf) {
+        match MonumentGeoRecord::decode(mlen, big_endian, &buf) {
             Ok(monument) => {
                 assert_eq!(
                     monument.epoch,

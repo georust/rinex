@@ -251,10 +251,7 @@ impl MonumentGeoFrame {
                         | FieldID::AntennaGeo3D
                         | FieldID::Unknown => Err(Error::UnknownMessage),
                     },
-                    Err(e) => {
-                        println!("bnx00-str: utf8 error {}", e);
-                        Err(Error::Utf8Error)
-                    },
+                    Err(e) => Err(Error::Utf8Error),
                 }
             },
             _ => Err(Error::UnknownRecordFieldId),

@@ -17,12 +17,13 @@ pub mod prelude {
         encoder::Encoder,
         message::{
             EphemerisFrame, GPSEphemeris, GPSRaw, Message, MonumentGeoMetadata, MonumentGeoRecord,
-            Record, TimeResolution,
+            PositionEcef3d, PositionGeo3d, Record, Solutions, TemporalSolution, Velocity3d,
+            VelocityNED3d,
         },
         Error,
     };
     // re-export
-    pub use hifitime::Epoch;
+    pub use hifitime::{Epoch, TimeScale};
 }
 
 #[derive(Error, Debug)]

@@ -1,8 +1,5 @@
 //! Raw GPS Ephemeris
-use crate::{
-    //utils::Utils,
-    Error,
-};
+use crate::Error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GPSRaw {

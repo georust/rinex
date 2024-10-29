@@ -1,6 +1,4 @@
-use binex::prelude::{
-    Epoch, Message, MonumentGeoMetadata, MonumentGeoRecord, Record, TimeResolution,
-};
+use binex::prelude::{Epoch, Message, MonumentGeoMetadata, MonumentGeoRecord, Record};
 
 #[test]
 fn geo_message() {
@@ -8,12 +6,11 @@ fn geo_message() {
     let reversed = false;
     let enhanced_crc = false;
     let t = Epoch::from_gpst_seconds(10.0 + 0.75);
-    let time_res = TimeResolution::QuarterSecond;
 
     let geo = MonumentGeoRecord::new(t, MonumentGeoMetadata::IGS).with_comment("Hello");
 
     let record = Record::new_monument_geo(geo);
-    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
+    let msg = Message::new(big_endian, enhanced_crc, reversed, record);
 
     let mut buf = [0; 24];
     msg.encode(&mut buf).unwrap();
@@ -28,7 +25,7 @@ fn geo_message() {
         .with_comment("World");
 
     let record = Record::new_monument_geo(geo);
-    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
+    let msg = Message::new(big_endian, enhanced_crc, reversed, record);
 
     let mut buf = [0; 32];
     msg.encode(&mut buf).unwrap();
@@ -46,7 +43,7 @@ fn geo_message() {
         .with_comment("World");
 
     let record = Record::new_monument_geo(geo);
-    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
+    let msg = Message::new(big_endian, enhanced_crc, reversed, record);
 
     let mut buf = [0; 32];
     msg.encode(&mut buf).unwrap();
@@ -64,7 +61,7 @@ fn geo_message() {
         .with_climatic_info("Clim");
 
     let record = Record::new_monument_geo(geo);
-    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
+    let msg = Message::new(big_endian, enhanced_crc, reversed, record);
 
     let mut buf = [0; 32];
     msg.encode(&mut buf).unwrap();
