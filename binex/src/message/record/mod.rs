@@ -5,7 +5,10 @@ use crate::message::MessageID;
 mod ephemeris; // ephemeris frames
 mod monument; // geodetic marker // ephemeris frames
 
-pub use ephemeris::{EphemerisFrame, GPSEphemeris, GPSRaw};
+pub use ephemeris::{
+    EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, SBASEphemeris,
+};
+
 pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
 
 #[derive(Debug, Clone, PartialEq)]

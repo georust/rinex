@@ -11,6 +11,8 @@ mod message;
 pub(crate) mod constants;
 pub(crate) mod utils;
 
+include!(concat!(env!("OUT_DIR"), "/crc16.rs"));
+
 pub mod prelude {
     pub use crate::{
         decoder::Decoder,

@@ -77,6 +77,18 @@ impl EphemerisFrame {
                 let fr = GPSEphemeris::decode(big_endian, &buf[size..])?;
                 Ok(Self::GPS(fr))
             },
+            FieldID::GLO => {
+                let fr = GLOEphemeris::decode(big_endian, &buf[size..])?;
+                Ok(Self::GLO(fr))
+            },
+            FieldID::SBAS => {
+                let fr = SBASEphemeris::decode(big_endian, &buf[size..])?;
+                Ok(Self::SBAS(fr))
+            },
+            FieldID::GAL => {
+                let fr: GALEphemeris = GALEphemeris::decode(big_endian, &buf[size..])?;
+                Ok(Self::GAL(fr))
+            },
             _ => Err(Error::UnknownRecordFieldId),
         }
     }
@@ -102,27 +114,27 @@ impl EphemerisFrame {
     }
 
     /// Creates new [GPSRaw] frame
-    pub fn new_gps_raw(&self, raw: GPSRaw) -> Self {
+    pub fn new_gps_raw(raw: GPSRaw) -> Self {
         Self::GPSRaw(raw)
     }
 
     /// Creates new [GPSEphemeris] frame
-    pub fn new_gps(&self, gps: GPSEphemeris) -> Self {
+    pub fn new_gps(gps: GPSEphemeris) -> Self {
         Self::GPS(gps)
     }
 
     /// Creates new [GLOEphemeris] frame
-    pub fn new_glonass(&self, glo: GLOEphemeris) -> Self {
+    pub fn new_glonass(glo: GLOEphemeris) -> Self {
         Self::GLO(glo)
     }
 
     /// Creates new [SBASEphemeris] frame
-    pub fn new_sbas(&self, sbas: SBASEphemeris) -> Self {
+    pub fn new_sbas(sbas: SBASEphemeris) -> Self {
         Self::SBAS(sbas)
     }
 
     /// Creates new [GALEphemeris] frame
-    pub fn new_galileo(&self, gal: GALEphemeris) -> Self {
+    pub fn new_galileo(gal: GALEphemeris) -> Self {
         Self::GAL(gal)
     }
 }
@@ -130,40 +142,133 @@ impl EphemerisFrame {
 #[cfg(test)]
 mod test {
     use super::*;
-    #[test]
-    fn gps_raw() {
-        let mut eph = GPSEphemeris::default();
-        eph.sv_prn = 10;
-        eph.cic = 10.0;
-        eph.cus = 12.0;
-        eph.m0_rad = 100.0;
-        eph.clock_offset = 123.0;
 
-        assert_eq!(GPSEphemeris::encoding_size(), 153);
+    #[test]
+    fn gps_eph() {
+        let eph = GPSEphemeris {
+            sqrt_a: 1.0,
+            sv_health: 2,
+            sv_prn: 3,
+            toe: 4,
+            tow: 5,
+            toc: 6,
+            tgd: 7.0,
+            iodc: 8,
+            clock_drift: 9.0,
+            clock_drift_rate: 10.0,
+            clock_offset: 11.0,
+            iode: 13,
+            delta_n_rad_s: 14.0,
+            m0_rad: 15.0,
+            e: 16.0,
+            cic: 17.0,
+            crc: 18.0,
+            cis: 19.0,
+            crs: 20.0,
+            cuc: 21.0,
+            cus: 22.0,
+            omega_0_rad: 23.0,
+            omega_dot_rad_s: 24.0,
+            omega_rad: 25.0,
+            i0_rad: 27.0,
+            i_dot_rad_s: 28.0,
+            ura_m: 29.0,
+            uint2: 30,
+        };
+
+        assert_eq!(GPSEphemeris::encoding_size(), 128);
 
         let big_endian = true;
 
         let mut encoded = [0; 77];
         assert!(eph.encode(big_endian, &mut encoded).is_err());
 
-        let mut encoded = [0; 153];
+        let mut encoded = [0; 128];
         let size = eph.encode(big_endian, &mut encoded).unwrap();
-        assert_eq!(size, 153);
+        assert_eq!(size, 128);
 
         let decoded = GPSEphemeris::decode(big_endian, &encoded).unwrap();
 
         assert_eq!(decoded, eph);
     }
+
     #[test]
-    fn gps_eph() {
-        let raw: GPSRaw = GPSRaw::new();
-        assert_eq!(GPSRaw::encoding_size(), 1 + 4 + 72);
+    fn gps_raw() {
+        let raw: GPSRaw = GPSRaw::default();
+        assert_eq!(GPSRaw::encoding_size(), 1 + 1 + 4 + 72);
 
         let big_endian = true;
-        let mut buf = [0; 77];
+
+        let mut buf = [0; 78];
         let size = raw.encode(big_endian, &mut buf).unwrap();
 
         assert_eq!(size, GPSRaw::encoding_size());
-        assert_eq!(buf, [0; 77]);
+        assert_eq!(buf, [0; 78]);
+
+        let decoded = GPSRaw::decode(big_endian, &buf).unwrap();
+        assert_eq!(decoded, raw);
+    }
+
+    #[test]
+    fn gal() {
+        let gal = GALEphemeris {
+            toe_s: 1,
+            sv_health: 2,
+            sv_prn: 3,
+            toe_week: 4,
+            tow: 5,
+            bgd_e5a_e1_s: 6.0,
+            bgd_e5b_e1_s: 7.0,
+            iodnav: 8,
+            clock_drift: 9.0,
+            clock_drift_rate: 10.0,
+            clock_offset: 11.0,
+            delta_n_semi_circles_s: 12.0,
+            m0_rad: 12.0,
+            e: 13.0,
+            sqrt_a: 14.0,
+            cic: 15.0,
+            crc: 16.0,
+            cis: 17.0,
+            crs: 18.0,
+            cus: 19.0,
+            cuc: 20.0,
+            omega_0_rad: 21.0,
+            omega_dot_semi_circles: 22.0,
+            omega_rad: 23.0,
+            i0_rad: 25.0,
+            idot_semi_circles_s: 26.0,
+            sisa: 33.0,
+            source: 34,
+        };
+
+        assert_eq!(GALEphemeris::encoding_size(), 128);
+
+        let big_endian = true;
+
+        let mut buf = [0; 128];
+        let size = gal.encode(big_endian, &mut buf).unwrap();
+
+        assert_eq!(size, GALEphemeris::encoding_size());
+
+        let decoded = GALEphemeris::decode(big_endian, &buf).unwrap();
+        assert_eq!(decoded, gal);
+    }
+
+    #[test]
+    fn sbas() {
+        let sbas = SBASEphemeris::default();
+        assert_eq!(SBASEphemeris::encoding_size(), 98);
+
+        let big_endian = true;
+
+        let mut buf = [0; 98];
+        let size = sbas.encode(big_endian, &mut buf).unwrap();
+
+        assert_eq!(size, SBASEphemeris::encoding_size());
+        assert_eq!(buf, [0; 98]);
+
+        let decoded = SBASEphemeris::decode(big_endian, &buf).unwrap();
+        assert_eq!(decoded, sbas);
     }
 }

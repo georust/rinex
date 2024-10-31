@@ -1,6 +1,8 @@
 //! Checksum calculator
 use md5::{Digest, Md5};
 
+use crate::CRC16_TABLE;
+
 /// Checksum caculator
 #[derive(Debug, Copy, Clone)]
 pub enum Checksum {
@@ -106,7 +108,13 @@ impl Checksum {
     }
     /// Calculates expected Checksum using XOR16 algorithm
     fn xor16_calc(bytes: &[u8]) -> u128 {
-        0
+        let mut crc = 0xffff_u16;
+        for byte in bytes.iter() {
+            let tmp = (*byte as u16) ^ crc;
+            crc >>= 8;
+            crc ^= CRC16_TABLE[(tmp as usize) % 256];
+        }
+        crc as u128
     }
     /// Calculates expected Checksum using XO32 algorithm
     fn xor32_calc(bytes: &[u8]) -> u128 {
