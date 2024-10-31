@@ -29,6 +29,7 @@ fn mfle20190130() {
 }
 
 #[cfg(feature = "flate2")]
+#[test]
 fn gziped_files() {
     let mut found = 0;
     for fp in ["mfle20200105.bnx.gz", "mfle20200113.bnx.gz"] {
