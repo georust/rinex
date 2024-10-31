@@ -55,4 +55,6 @@ pub enum Error {
     BadCRC,
     #[error("incomplete message")]
     IncompleteMessage(usize),
+    #[error("non supported message")]
+    NonSupportedMesssage,
 }

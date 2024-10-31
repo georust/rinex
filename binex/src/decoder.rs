@@ -197,9 +197,12 @@ impl<const M: usize, R: Read> Iterator for Decoder<M, R> {
         // always try to fill in buffer
         let size = self.reader.read(&mut self.buf[self.wr_ptr..]).ok()?;
         self.wr_ptr += size;
+        //println!("wr_ptr={}", self.wr_ptr);
+
         if size == 0 {
             self.eos = true;
         }
+
         // try to consume one message
         match Message::decode(&self.buf[self.rd_ptr..]) {
             Ok(msg) => {
@@ -212,12 +215,30 @@ impl<const M: usize, R: Read> Iterator for Decoder<M, R> {
             Err(e) => {
                 match e {
                     Error::NoSyncByte => {
-                        // we can safely discard all internal content
+                        // buffer does not even contain the sync byte:
+                        // we can safely discard everything
                         self.wr_ptr = 0;
                         self.rd_ptr = 0;
                         if self.eos == true {
                             // consumed everything and EOS has been reached
                             return None;
+                        }
+                    },
+                    Error::IncompleteMessage(mlen) => {
+                        // buffer does not contain the entire message
+                        // preserve content and shift: to permit refilling the buffer
+                        // two cases:
+                        if mlen + 2 < M {
+                            // - if that message would fit in buffer, shift and prepare to refill for completion
+                            self.wr_ptr -= self.rd_ptr;
+                            self.buf.copy_within(self.rd_ptr.., 0);
+                            return Some(Err(Error::IncompleteMessage(mlen)));
+                        } else {
+                            // - or, we don't support messages that do not fit in the local buffer (yet)
+                            self.buf = [0; M];
+                            self.wr_ptr = 0;
+                            self.rd_ptr = 0;
+                            return Some(Err(Error::NonSupportedMesssage));
                         }
                     },
                     _ => {
