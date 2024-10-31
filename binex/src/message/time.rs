@@ -101,6 +101,7 @@ pub(crate) fn decode_gpst_epoch(
 #[cfg(test)]
 mod test {
     use super::*;
+
     #[test]
     fn epoch_fail() {
         let buf = [0];
@@ -108,6 +109,7 @@ mod test {
         let buf = [0, 0, 0];
         assert!(decode_gpst_epoch(true, TimeResolution::QuarterSecond, &buf).is_err());
     }
+
     #[test]
     fn gpst_sub_minute() {
         let big_endian = true;
@@ -157,6 +159,7 @@ mod test {
 
         assert_eq!(decoded, t);
     }
+
     #[test]
     fn gpst_epoch_decoding() {
         // test QSEC
