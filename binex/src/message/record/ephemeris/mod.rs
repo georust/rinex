@@ -67,7 +67,6 @@ impl EphemerisFrame {
         // decode FID
         let (bnxi, size) = Message::decode_bnxi(&buf, big_endian);
         let fid = FieldID::from(bnxi);
-        println!("bnx01-eph fid={:?}", fid);
 
         match fid {
             FieldID::GPSRaw => {
