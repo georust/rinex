@@ -1,82 +1,83 @@
 //! Monument Geodetic marker specific frames
-
 use crate::{
     message::{record::monument::FieldID, Message},
     Error,
 };
 
+use core::str::from_utf8;
+
 // use log::error;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MonumentGeoFrame {
+pub enum MonumentGeoFrame<'a> {
     /// Comment
-    Comment(String),
+    Comment(&'a str),
     /// Software (Program) name
-    SoftwareName(String),
+    SoftwareName(&'a str),
     /// Agency Name
-    AgencyName(String),
+    AgencyName(&'a str),
     /// Name of person or entity operating [MonumentGeoFrame::SoftwareName]
     /// employed by [MonumentGeoFrame::AgencyName].
-    OperatorName(String),
+    OperatorName(&'a str),
     /// Site Location
-    SiteLocation(String),
+    SiteLocation(&'a str),
     /// Site Number
-    SiteNumber(String),
+    SiteNumber(&'a str),
     /// Site name
-    SiteName(String),
+    SiteName(&'a str),
     /// Site Operator
-    SiteOperator(String),
+    SiteOperator(&'a str),
     /// Site Operator Contact
-    SiteOperatorContact(String),
+    SiteOperatorContact(&'a str),
     /// Site Operator Agency
-    SiteOperatorAgency(String),
+    SiteOperatorAgency(&'a str),
     /// Observer Name
-    ObserverName(String),
+    ObserverName(&'a str),
     /// Observer Contact
-    ObserverContact(String),
+    ObserverContact(&'a str),
     /// Geodetic Marker Name
-    MarkerName(String),
+    MarkerName(&'a str),
     /// Geodetic Monument Name
-    MonumentName(String),
+    MonumentName(&'a str),
     /// Geodetic Monument Number
-    MonumentNumber(String),
+    MonumentNumber(&'a str),
     /// Geodetic Marker Number (DOMES)
-    MarkerNumber(String),
+    MarkerNumber(&'a str),
     /// Project Name
-    ProjectName(String),
+    ProjectName(&'a str),
     /// Reference Name
-    ReferenceName(String),
+    ReferenceName(&'a str),
     /// Reference Date
-    ReferenceDate(String),
+    ReferenceDate(&'a str),
     /// Reference Number
-    ReferenceNumber(String),
+    ReferenceNumber(&'a str),
     /// Local meteorological model/information at site location
-    Climatic(String),
+    Climatic(&'a str),
     /// Geophysical information at site location (like tectonic plate)
-    Geophysical(String),
+    Geophysical(&'a str),
     /// Antenna Type
-    AntennaType(String),
+    AntennaType(&'a str),
     /// Antenna Radome Type
-    AntennaRadomeType(String),
+    AntennaRadomeType(&'a str),
     /// Antenna Mount information
-    AntennaMount(String),
+    AntennaMount(&'a str),
     /// Antenna Number
-    AntennaNumber(String),
+    AntennaNumber(&'a str),
     /// Antenna Radome Number
-    AntennaRadomeNumber(String),
+    AntennaRadomeNumber(&'a str),
     /// Receiver Firmware Version
-    ReceiverFirmwareVersion(String),
+    ReceiverFirmwareVersion(&'a str),
     /// Receiver Type
-    ReceiverType(String),
+    ReceiverType(&'a str),
     /// Receiver (Serial) Number
-    ReceiverNumber(String),
+    ReceiverNumber(&'a str),
     /// User defined ID
-    UserID(String),
+    UserID(&'a str),
     /// Extra information about production site
-    Extra(String),
+    Extra(&'a str),
 }
 
-impl MonumentGeoFrame {
+impl<'a> MonumentGeoFrame<'a> {
     /// Returns total length (bytewise) required to fully encode [Self].
     /// Use this to fulfill [Self::encode] requirements.
     pub(crate) fn encoding_size(&self) -> usize {
@@ -204,46 +205,40 @@ impl MonumentGeoFrame {
                     return Err(Error::NotEnoughBytes); // can't parse entire string
                 }
 
-                match std::str::from_utf8(&buf[ptr..ptr + s_len]) {
+                match from_utf8(&buf[ptr..ptr + s_len]) {
                     Ok(s) => match fid {
-                        FieldID::Comment => Ok(Self::Comment(s.to_string())),
-                        FieldID::MonumentName => Ok(Self::MonumentName(s.to_string())),
-                        FieldID::MonumentNumber => Ok(Self::MonumentNumber(s.to_string())),
-                        FieldID::ProjectName => Ok(Self::ProjectName(s.to_string())),
-                        FieldID::ObserverName => Ok(Self::ObserverName(s.to_string())),
-                        FieldID::ObserverContact => Ok(Self::ObserverContact(s.to_string())),
-                        FieldID::SoftwareName => Ok(Self::SoftwareName(s.to_string())),
-                        FieldID::MarkerName => Ok(Self::MarkerName(s.to_string())),
-                        FieldID::MarkerNumber => Ok(Self::MarkerNumber(s.to_string())),
-                        FieldID::Extra => Ok(Self::Extra(s.to_string())),
-                        FieldID::Climatic => Ok(Self::Climatic(s.to_string())),
-                        FieldID::Geophysical => Ok(Self::Geophysical(s.to_string())),
-                        FieldID::AgencyName => Ok(Self::AgencyName(s.to_string())),
-                        FieldID::AntennaType => Ok(Self::AntennaType(s.to_string())),
-                        FieldID::AntennaMount => Ok(Self::AntennaMount(s.to_string())),
-                        FieldID::AntennaNumber => Ok(Self::AntennaNumber(s.to_string())),
-                        FieldID::AntennaRadomeType => Ok(Self::AntennaRadomeType(s.to_string())),
-                        FieldID::AntennaRadomeNumber => {
-                            Ok(Self::AntennaRadomeNumber(s.to_string()))
-                        },
-                        FieldID::ReceiverFirmwareVersion => {
-                            Ok(Self::ReceiverFirmwareVersion(s.to_string()))
-                        },
-                        FieldID::ReceiverNumber => Ok(Self::ReceiverNumber(s.to_string())),
-                        FieldID::ReceiverType => Ok(Self::ReceiverType(s.to_string())),
-                        FieldID::OperatorName => Ok(Self::OperatorName(s.to_string())),
-                        FieldID::SiteLocation => Ok(Self::SiteLocation(s.to_string())),
-                        FieldID::SiteName => Ok(Self::SiteName(s.to_string())),
-                        FieldID::SiteNumber => Ok(Self::SiteNumber(s.to_string())),
-                        FieldID::ReferenceDate => Ok(Self::ReferenceDate(s.to_string())),
-                        FieldID::ReferenceName => Ok(Self::ReferenceName(s.to_string())),
-                        FieldID::ReferenceNumber => Ok(Self::ReferenceNumber(s.to_string())),
-                        FieldID::UserID => Ok(Self::UserID(s.to_string())),
-                        FieldID::SiteOperator => Ok(Self::SiteOperator(s.to_string())),
-                        FieldID::SiteOperatorAgency => Ok(Self::SiteOperatorAgency(s.to_string())),
-                        FieldID::SiteOperatorContact => {
-                            Ok(Self::SiteOperatorContact(s.to_string()))
-                        },
+                        FieldID::Comment => Ok(Self::Comment(s)),
+                        FieldID::MonumentName => Ok(Self::MonumentName(s)),
+                        FieldID::MonumentNumber => Ok(Self::MonumentNumber(s)),
+                        FieldID::ProjectName => Ok(Self::ProjectName(s)),
+                        FieldID::ObserverName => Ok(Self::ObserverName(s)),
+                        FieldID::ObserverContact => Ok(Self::ObserverContact(s)),
+                        FieldID::SoftwareName => Ok(Self::SoftwareName(s)),
+                        FieldID::MarkerName => Ok(Self::MarkerName(s)),
+                        FieldID::MarkerNumber => Ok(Self::MarkerNumber(s)),
+                        FieldID::Extra => Ok(Self::Extra(s)),
+                        FieldID::Climatic => Ok(Self::Climatic(s)),
+                        FieldID::Geophysical => Ok(Self::Geophysical(s)),
+                        FieldID::AgencyName => Ok(Self::AgencyName(s)),
+                        FieldID::AntennaType => Ok(Self::AntennaType(s)),
+                        FieldID::AntennaMount => Ok(Self::AntennaMount(s)),
+                        FieldID::AntennaNumber => Ok(Self::AntennaNumber(s)),
+                        FieldID::AntennaRadomeType => Ok(Self::AntennaRadomeType(s)),
+                        FieldID::AntennaRadomeNumber => Ok(Self::AntennaRadomeNumber(s)),
+                        FieldID::ReceiverFirmwareVersion => Ok(Self::ReceiverFirmwareVersion(s)),
+                        FieldID::ReceiverNumber => Ok(Self::ReceiverNumber(s)),
+                        FieldID::ReceiverType => Ok(Self::ReceiverType(s)),
+                        FieldID::OperatorName => Ok(Self::OperatorName(s)),
+                        FieldID::SiteLocation => Ok(Self::SiteLocation(s)),
+                        FieldID::SiteName => Ok(Self::SiteName(s)),
+                        FieldID::SiteNumber => Ok(Self::SiteNumber(s)),
+                        FieldID::ReferenceDate => Ok(Self::ReferenceDate(s)),
+                        FieldID::ReferenceName => Ok(Self::ReferenceName(s)),
+                        FieldID::ReferenceNumber => Ok(Self::ReferenceNumber(s)),
+                        FieldID::UserID => Ok(Self::UserID(s)),
+                        FieldID::SiteOperator => Ok(Self::SiteOperator(s)),
+                        FieldID::SiteOperatorAgency => Ok(Self::SiteOperatorAgency(s)),
+                        FieldID::SiteOperatorContact => Ok(Self::SiteOperatorContact(s)),
                         // TODO
                         FieldID::AntennaEcef3D
                         | FieldID::Geocode

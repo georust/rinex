@@ -170,7 +170,7 @@ impl Message {
                 Record::new_ephemeris_frame(fr)
             },
             id => {
-                println!("found unsupported msg id={:?}", id);
+                // println!("found unsupported msg id={:?}", id);
                 return Err(Error::NonSupportedMesssage(mlen));
             },
         };

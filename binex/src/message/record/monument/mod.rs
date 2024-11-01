@@ -18,20 +18,21 @@ use fid::FieldID;
 pub use frame::MonumentGeoFrame;
 pub use src::MonumentGeoMetadata;
 
+/// [MonumentGeoRecord] with M [MonumentGeoFrame] storage capacity.
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct MonumentGeoRecord {
+pub struct MonumentGeoRecord<'a, const M: usize> {
     /// [Epoch]
     pub epoch: Epoch,
     /// Source of this information
     pub source_meta: MonumentGeoMetadata,
     /// Frames also refered to as Subrecords
-    pub frames: Vec<MonumentGeoFrame>,
+    pub frames: [MonumentGeoFrame; M],
 }
 
-impl Iterator for MonumentGeoRecord {
-    type Item = MonumentGeoFrame;
+impl<'a, const M: usize> Iterator for MonumentGeoRecord<'a, M> {
+    type Item = &'a MonumentGeoFrame;
     fn next(&mut self) -> Option<Self::Item> {
-        self.frames.iter().next().cloned()
+        self.frames.iter().next()
     }
 }
 
@@ -87,7 +88,7 @@ impl MonumentGeoRecord {
         Self {
             epoch,
             source_meta: meta,
-            frames: Vec::with_capacity(8),
+            frames: Default::default(),
         }
     }
 
@@ -185,8 +186,7 @@ impl MonumentGeoRecord {
     /// You can add as many as needed.
     pub fn with_comment(&self, comment: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(MonumentGeoFrame::Comment(comment.to_string()));
+        s.frames.push(MonumentGeoFrame::Comment(comment));
         s
     }
 
@@ -195,8 +195,7 @@ impl MonumentGeoRecord {
     /// otherwise, the message will not respect the standard definitions.
     pub fn with_geophysical_info(&self, info: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(MonumentGeoFrame::Geophysical(info.to_string()));
+        s.frames.push(MonumentGeoFrame::Geophysical(info));
         s
     }
 
@@ -205,7 +204,7 @@ impl MonumentGeoRecord {
     /// the message will not respect the standard definitions.
     pub fn with_climatic_info(&self, info: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(MonumentGeoFrame::Climatic(info.to_string()));
+        s.frames.push(MonumentGeoFrame::Climatic(info));
         s
     }
 
@@ -214,7 +213,7 @@ impl MonumentGeoRecord {
     /// the message will not respect the standard definitions.
     pub fn with_user_id(&self, userid: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(MonumentGeoFrame::Comment(userid.to_string()));
+        s.frames.push(MonumentGeoFrame::Comment(userid));
         s
     }
 }

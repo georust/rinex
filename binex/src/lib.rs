@@ -1,10 +1,13 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 use thiserror::Error;
 
+#[cfg(feature = "std")]
 mod decoder;
+
 mod message;
 mod stream;
 
@@ -12,8 +15,9 @@ pub(crate) mod constants;
 pub(crate) mod utils;
 
 pub mod prelude {
+    #[cfg(feature = "std")]
+    pub use crate::decoder::Decoder;
     pub use crate::{
-        decoder::Decoder,
         message::{
             EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message,
             MonumentGeoMetadata, MonumentGeoRecord, Record, SBASEphemeris, TimeResolution,
@@ -25,40 +29,30 @@ pub mod prelude {
     pub use hifitime::Epoch;
 }
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
-    #[error("not enough bytes available")]
     NotEnoughBytes,
-    #[error("i/o error")]
-    IoError(#[from] std::io::Error),
-    #[error("invalid start of stream")]
+    // #[error("i/o error")]
+    // IoError(#[from] std::io::Error),
     InvalidStartofStream,
-    #[error("no sync byte")]
     NoSyncByte,
-    #[error("reversed streams are not supported yet")]
     ReversedStream,
-    #[error("little endian encoded streams not supported yet")]
     LittleEndianStream,
-    #[error("enhanced crc is not supported yet")]
     EnhancedCrc,
-    #[error("non supported timescale")]
     NonSupportedTimescale,
-    // #[error("unknown message")]
-    // UnknownMessage,
-    #[error("unknown record field id")]
+    /// Non recognized Field ID
     UnknownRecordFieldId,
-    #[error("utf8 error")]
+    /// Bad UTF-8 Data
     Utf8Error,
-    #[error("missing crc bytes")]
+    /// No CRC provided
     MissingCRC,
-    #[error("received invalid crc")]
+    /// Invalid CRC decoded
     BadCRC,
-    #[error("incomplete: need more data")]
+    /// Incomplete frame (missing n bytes)
     IncompleteMessage(usize),
-    #[error("non supported message: library limitation")]
+    /// Non supported (unknown message) due to library limitation
     NonSupportedMesssage(usize),
-    #[error("message too large: library limitation")]
-    // This message should never happen: library is to be designed
-    // to support largest open source (fully disclosed) message frame
+    /// This message should never happen: library is to be designed
+    /// to support largest open source (fully disclosed) message frame
     TooLargeInternalLimitation,
 }

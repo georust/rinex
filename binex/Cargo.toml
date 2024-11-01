@@ -6,13 +6,17 @@ authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "BINEX Binary RINEX encoder and decoder"
 homepage = "https://github.com/georust/rinex"
 repository = "https://github.com/georust/rinex"
-keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
-categories = ["science", "science::geo", "parsing"]
+keywords = ["timing", "gps", "galileo", "science", "no-std"]
+categories = ["science", "science::geo", "no-std"]
 edition = "2021"
 rust-version = "1.64"
 
 [features]
-default = ["flate2"]
+# activate std:: support
+# Provides convenient I/O stream reader
+std = []
+
+default = []
 
 [package.metadata.docs.rs]
 all-features = true
