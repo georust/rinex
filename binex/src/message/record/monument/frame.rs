@@ -252,7 +252,7 @@ impl MonumentGeoFrame {
                         | FieldID::Unknown => Err(Error::UnknownMessage),
                     },
                     Err(e) => {
-                        println!("bnx00-str: utf8 error {}", e);
+                        // println!("bnx00-str: utf8 error {}", e);
                         Err(Error::Utf8Error)
                     },
                 }

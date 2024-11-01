@@ -3,14 +3,6 @@ use crate::Error;
 pub struct Utils;
 
 impl Utils {
-    /// Simple usize min() comparison to avoid `std` dependency.
-    pub fn min_usize(a: usize, b: usize) -> usize {
-        if a <= b {
-            a
-        } else {
-            b
-        }
-    }
     /// u16 decoding attempt, as specified by
     /// [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html#uint2]
     pub fn decode_u16(big_endian: bool, buf: &[u8]) -> Result<u16, Error> {
