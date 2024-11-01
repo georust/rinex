@@ -14,31 +14,13 @@ pub(crate) use mid::MessageID;
 
 use checksum::Checksum;
 
-use crate::{constants::Constants, utils::Utils, Error};
-
-/// [Message] [Provider]
-#[derive(Debug, Clone, PartialEq, Default)]
-pub enum Provider {
-    /// Used for any general public data.
-    /// Only general public [Message]s are garanteed
-    /// to be decyphered by this parser.
-    #[default]
-    PublicDomain,
-    /// JPL for internal needs or prototyping.
-    JPL,
-    /// CU Boulder for internal needs or prototyping.
-    ColoradoUnivBoulder,
-    /// NRCan for internal needs or prototyping.
-    NRCan,
-}
+use crate::{constants::Constants, Error};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
     /// Endianness used when encoding current message,
     /// defined by SYNC byte
     pub big_endian: bool,
-    /// Provider
-    pub provider: Provider,
     /// MID byte stored as [MessageID]
     mid: MessageID,
     /// True when using enhanced CRC
@@ -52,8 +34,7 @@ pub struct Message {
 }
 
 impl Message {
-    /// Creates a new [Message] that will follow [Provider::PublicDomain]
-    /// specifications, ready to encode.
+    /// Creates a new [Message] ready to be encoded.
     pub fn new(
         big_endian: bool,
         time_res: TimeResolution,
@@ -69,70 +50,6 @@ impl Message {
             reversed,
             big_endian,
             enhanced_crc,
-            provider: Provider::PublicDomain,
-        }
-    }
-
-    /// Builds new [Provider::JPL] [Message] prototype,
-    /// that most likely only this organization can fully interprate.
-    pub fn new_jpl_prototype(
-        big_endian: bool,
-        time_res: TimeResolution,
-        enhanced_crc: bool,
-        reversed: bool,
-        record: Record,
-    ) -> Self {
-        let mid = record.to_message_id();
-        Self {
-            mid,
-            record,
-            time_res,
-            reversed,
-            big_endian,
-            enhanced_crc,
-            provider: Provider::JPL,
-        }
-    }
-
-    /// Builds new [Provider::ColoradoUnivBoulder] [Message] prototype,
-    /// that most likely only this organization can fully interprate.
-    pub fn new_cu_boulder_prototype(
-        big_endian: bool,
-        time_res: TimeResolution,
-        enhanced_crc: bool,
-        reversed: bool,
-        record: Record,
-    ) -> Self {
-        let mid = record.to_message_id();
-        Self {
-            mid,
-            record,
-            time_res,
-            reversed,
-            big_endian,
-            enhanced_crc,
-            provider: Provider::ColoradoUnivBoulder,
-        }
-    }
-
-    /// Builds new [Provider::NRCan] [Message] prototype,
-    /// that most likely only this organization can fully interprate.
-    pub fn new_nrcan_prototype(
-        big_endian: bool,
-        time_res: TimeResolution,
-        enhanced_crc: bool,
-        reversed: bool,
-        record: Record,
-    ) -> Self {
-        let mid = record.to_message_id();
-        Self {
-            mid,
-            record,
-            time_res,
-            reversed,
-            big_endian,
-            enhanced_crc,
-            provider: Provider::NRCan,
         }
     }
 
@@ -252,9 +169,9 @@ impl Message {
                 let fr = EphemerisFrame::decode(big_endian, &buf[ptr..])?;
                 Record::new_ephemeris_frame(fr)
             },
-            _ => {
-                //println!("found unsupported msg id={:?}", id);
-                return Err(Error::UnknownMessage);
+            id => {
+                println!("found unsupported msg id={:?}", id);
+                return Err(Error::NonSupportedMesssage(mlen));
             },
         };
 
@@ -282,7 +199,6 @@ impl Message {
             time_res,
             big_endian,
             enhanced_crc,
-            provider: Provider::PublicDomain,
         })
         // }
     }
@@ -407,7 +323,7 @@ impl Message {
 
         // multi byte case
         let (val, size) = if buf[1] & Constants::BNXI_KEEP_GOING_MASK == 0 {
-            let mut val = 0_u32;
+            let mut val;
 
             let (byte0, byte1) = if big_endian {
                 (buf[0], buf[1])
@@ -421,7 +337,7 @@ impl Message {
 
             (val, 2)
         } else if buf[2] & Constants::BNXI_KEEP_GOING_MASK == 0 {
-            let mut val = 0_u32;
+            let mut val;
 
             let (byte0, byte1, byte2) = if big_endian {
                 (buf[0], buf[1], buf[2])
@@ -438,7 +354,7 @@ impl Message {
             val |= byte2 as u32;
             (val, 3)
         } else {
-            let mut val = 0_u32;
+            let mut val;
 
             let (byte0, byte1, byte2, byte3) = if big_endian {
                 (buf[0], buf[1], buf[2], buf[3])

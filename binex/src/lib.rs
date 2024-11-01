@@ -5,8 +5,8 @@
 use thiserror::Error;
 
 mod decoder;
-mod encoder;
 mod message;
+mod stream;
 
 pub(crate) mod constants;
 pub(crate) mod utils;
@@ -14,11 +14,11 @@ pub(crate) mod utils;
 pub mod prelude {
     pub use crate::{
         decoder::Decoder,
-        encoder::Encoder,
         message::{
-            EphemerisFrame, GPSEphemeris, GPSRaw, Message, MonumentGeoMetadata, MonumentGeoRecord,
-            Record, TimeResolution,
+            EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message,
+            MonumentGeoMetadata, MonumentGeoRecord, Record, SBASEphemeris, TimeResolution,
         },
+        stream::{ClosedSourceElement, Provider, StreamElement},
         Error,
     };
     // re-export
@@ -33,7 +33,7 @@ pub enum Error {
     IoError(#[from] std::io::Error),
     #[error("invalid start of stream")]
     InvalidStartofStream,
-    #[error("no SYNC byte found")]
+    #[error("no sync byte")]
     NoSyncByte,
     #[error("reversed streams are not supported yet")]
     ReversedStream,
@@ -43,8 +43,8 @@ pub enum Error {
     EnhancedCrc,
     #[error("non supported timescale")]
     NonSupportedTimescale,
-    #[error("unknown message")]
-    UnknownMessage,
+    // #[error("unknown message")]
+    // UnknownMessage,
     #[error("unknown record field id")]
     UnknownRecordFieldId,
     #[error("utf8 error")]
@@ -53,8 +53,12 @@ pub enum Error {
     MissingCRC,
     #[error("received invalid crc")]
     BadCRC,
-    #[error("incomplete message")]
+    #[error("incomplete: need more data")]
     IncompleteMessage(usize),
-    #[error("non supported message")]
-    NonSupportedMesssage,
+    #[error("non supported message: library limitation")]
+    NonSupportedMesssage(usize),
+    #[error("message too large: library limitation")]
+    // This message should never happen: library is to be designed
+    // to support largest open source (fully disclosed) message frame
+    TooLargeInternalLimitation,
 }
