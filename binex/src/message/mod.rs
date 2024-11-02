@@ -142,9 +142,9 @@ impl Message {
         let mut ptr = sync_off + 1;
 
         // 2. parse MID
-        let (bnxi, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
+        let (bnxi, mid_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mid = MessageID::from(bnxi);
-        ptr += size;
+        ptr += mid_1_4;
 
         // make sure we can parse up to 4 byte MLEN
         if buf_len - ptr < 4 {
@@ -152,7 +152,7 @@ impl Message {
         }
 
         // 3. parse MLEN
-        let (mlen, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
+        let (mlen, mlen_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mlen = mlen as usize;
         // println!("mlen={}", mlen);
 
@@ -160,7 +160,8 @@ impl Message {
             // buffer does not contain complete message!
             return Err(Error::IncompleteMessage(mlen));
         }
-        ptr += size;
+
+        ptr += mlen_1_4;
 
         // 4. parse RECORD
         let record = match mid {
@@ -174,7 +175,7 @@ impl Message {
                 Record::new_ephemeris_frame(fr)
             },
             _ => {
-                // verify this is not a closed source message
+                // check whether this message is undisclosed or not
                 if let Some(provider) = Provider::match_any(mid.into()) {
                     return Err(Error::ClosedSourceMessage(ClosedSourceMeta {
                         mlen,
@@ -201,7 +202,7 @@ impl Message {
         let ck = checksum.decode(&buf[ptr + mlen..], ck_len, big_endian);
 
         // verify
-        let expected = checksum.calc(&buf[sync_off + 1..], mlen + 2);
+        let expected = checksum.calc(&buf[sync_off + 1..], mlen + mid_1_4 + mlen_1_4);
 
         if expected != ck {
             Err(Error::CorrupctBadCRC)
@@ -232,11 +233,13 @@ impl Message {
 
         // Encode MID
         let mid = self.record.to_message_id() as u32;
-        ptr += Self::encode_bnxi(mid, self.big_endian, &mut buf[ptr..])?;
+        let mid_1_4 = Self::encode_bnxi(mid, self.big_endian, &mut buf[ptr..])?;
+        ptr += mid_1_4;
 
         // Encode MLEN
         let mlen = self.record.encoding_size();
-        ptr += Self::encode_bnxi(mlen as u32, self.big_endian, &mut buf[ptr..])?;
+        let mlen_1_4 = Self::encode_bnxi(mlen as u32, self.big_endian, &mut buf[ptr..])?;
+        ptr += mlen_1_4;
 
         // Encode message
         match &self.record {
@@ -251,13 +254,38 @@ impl Message {
         // encode CRC
         let ck = Checksum::from_len(mlen, self.enhanced_crc);
         let ck_len = ck.len();
-        let crc_u128 = ck.calc(&buf[1..], mlen + 2);
-        let crc_bytes = crc_u128.to_le_bytes();
+        let crc_u128 = ck.calc(&buf[1..], mlen + mid_1_4 + mlen_1_4);
 
         if ck_len == 1 {
             buf[ptr] = crc_u128 as u8;
+        } else if ck_len == 2 {
+            let crc_bytes = if self.big_endian {
+                (crc_u128 as u16).to_be_bytes()
+            } else {
+                (crc_u128 as u16).to_le_bytes()
+            };
+
+            for i in 0..ck_len {
+                buf[ptr + i] = crc_bytes[i];
+            }
+        } else if ck_len == 4 {
+            let crc_bytes = if self.big_endian {
+                (crc_u128 as u32).to_be_bytes()
+            } else {
+                (crc_u128 as u32).to_le_bytes()
+            };
+            for i in 0..ck_len {
+                buf[ptr + i] = crc_bytes[i];
+            }
         } else {
-            buf[ptr..ptr + ck_len].copy_from_slice(&crc_bytes[..ck_len]);
+            let crc_bytes = if self.big_endian {
+                crc_u128.to_be_bytes()
+            } else {
+                crc_u128.to_le_bytes()
+            };
+            for i in 0..ck_len {
+                buf[ptr + i] = crc_bytes[i];
+            }
         }
 
         Ok(ptr + ck_len)
@@ -732,7 +760,7 @@ mod test {
         let gps_eph_len = gps_eph.encoding_size();
         let record = Record::new_ephemeris_frame(gps_eph);
 
-        assert_eq!(gps_eph_len, 128);
+        assert_eq!(gps_eph_len, 129);
 
         let msg = Message::new(
             big_endian,
@@ -763,7 +791,7 @@ mod test {
         let eph_len = eph.encoding_size();
         let record = Record::new_ephemeris_frame(eph);
 
-        assert_eq!(eph_len, 128);
+        assert_eq!(eph_len, 129);
 
         let msg = Message::new(
             big_endian,
