@@ -8,11 +8,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let t0 = Epoch::from_gpst_seconds(10.0);
     let meta = MonumentGeoMetadata::RNX2BIN;
 
-    let record = MonumentGeoRecord::new(t0, meta)
+    let mut record = MonumentGeoRecord::default()
         .with_comment("This is a test")
         .with_climatic_info("basic info")
         .with_geophysical_info("another field")
         .with_user_id("Test");
+
+    record.epoch = t0;
+    record.meta = meta;
 
     let record = Record::new_monument_geo(record);
     let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);

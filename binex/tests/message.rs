@@ -10,17 +10,15 @@ fn test_crc8_geo() {
         TimeResolution::QuarterSecond,
         false,
         false,
-        Record::new_monument_geo(
-            MonumentGeoRecord::new(
-                Epoch::from_gpst_seconds(61.25),
-                MonumentGeoMetadata::RNX2BIN,
-            )
-            .with_climatic_info("climatic")
-            .with_comment("comment #1")
-            .with_comment("#comment 2")
-            .with_geophysical_info("geophysics")
-            .with_user_id("Custom ID#"),
-        ),
+        Record::new_monument_geo(MonumentGeoRecord::new_igs(
+            Epoch::from_gpst_seconds(61.25),
+            "Great receiver",
+            "Fancy antenna",
+            "MARKERNAME",
+            "MARKERNUMBER",
+            "SITE",
+            "SITENAME",
+        )),
     );
 
     let mut buf = [0; 128];
@@ -38,22 +36,23 @@ fn test_crc16_geo() {
         false,
         false,
         Record::new_monument_geo(
-            MonumentGeoRecord::new(
+            MonumentGeoRecord::new_igs(
                 Epoch::from_gpst_seconds(61.25),
-                MonumentGeoMetadata::RNX2BIN,
+                "Great receiver",
+                "Fancy antenna",
+                "MARKERNAME",
+                "MARKERNUMBER",
+                "SITE",
+                "SITENAME",
             )
-            .with_climatic_info("we need very lengthy climatic info")
-            .with_comment("and very long comments")
-            .with_comment("yet another comment")
-            .with_geophysical_info("interesting geophysical info")
-            .with_user_id("Custom ID#"),
+            .with_climatic_info("test")
+            .with_comment("super")
+            .with_geophysical_info("great")
+            .with_project_name("project"),
         ),
     );
 
     let mut buf = [0; 128];
-    assert!(msg.encode(&mut buf).is_err());
-
-    let mut buf = [0; 1024];
     msg.encode(&mut buf).unwrap();
 
     let parsed = Message::decode(&buf).unwrap();

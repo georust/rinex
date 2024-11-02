@@ -445,7 +445,7 @@ impl Message {
 #[cfg(test)]
 mod test {
     use super::Message;
-    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoRecord, Record};
+    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record};
     use crate::message::{GALEphemeris, GPSEphemeris, TimeResolution};
     use crate::prelude::Epoch;
     use crate::{constants::Constants, Error};
@@ -648,14 +648,12 @@ mod test {
         let enhanced_crc = false;
         let reversed = false;
 
-        let geo: MonumentGeoRecord = MonumentGeoRecord::new(
-            Epoch::from_gpst_seconds(1.0),
-            crate::message::MonumentGeoMetadata::RNX2BIN,
-        )
-        .with_comment("simple");
+        let mut geo = MonumentGeoRecord::default().with_comment("simple");
+
+        geo.epoch = Epoch::from_gpst_seconds(1.0);
+        geo.meta = MonumentGeoMetadata::RNX2BIN;
 
         let geo_len = geo.encoding_size();
-
         let record = Record::new_monument_geo(geo);
 
         let msg = Message::new(
