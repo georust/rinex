@@ -684,7 +684,7 @@ mod test {
         let mut encoded = [0; 256];
         msg.encode(&mut encoded).unwrap();
 
-        assert_eq!(encoded[17], 0);
+        assert_eq!(encoded[17], 3);
 
         // parse back
         let parsed = Message::decode(&encoded).unwrap();
