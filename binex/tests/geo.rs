@@ -4,76 +4,45 @@ use binex::prelude::{
 
 #[test]
 fn geo_message() {
-    let big_endian = false;
+    let big_endian = true;
     let reversed = false;
     let enhanced_crc = false;
     let t = Epoch::from_gpst_seconds(10.0 + 0.75);
+
     let time_res = TimeResolution::QuarterSecond;
 
-    let geo = MonumentGeoRecord::new(t, MonumentGeoMetadata::IGS).with_comment("Hello");
+    let mut geo = MonumentGeoRecord::default().with_comment("simple");
+
+    geo.epoch = t;
+    geo.meta = MonumentGeoMetadata::RNX2BIN;
+    let record = Record::new_monument_geo(geo);
+    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
+
+    let mut encoded = [0; 128];
+    msg.encode(&mut encoded).unwrap();
+
+    let decoded = Message::decode(&encoded).unwrap();
+    assert_eq!(decoded, msg);
+
+    let geo = MonumentGeoRecord::new_igs(
+        t,
+        "Receiver Model",
+        "Antenna Model",
+        "Geodetic MARKER",
+        "MARKER NUMBER",
+        "Site location",
+        "Site name",
+    );
 
     let record = Record::new_monument_geo(geo);
     let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
 
-    let mut buf = [0; 24];
-    msg.encode(&mut buf).unwrap();
+    let mut encoded = [0; 128];
+    msg.encode(&mut encoded).unwrap();
 
-    assert_eq!(
-        buf,
-        [0xC2, 0, 13, 0, 0, 0, 0, 43, 2, 0, 5, 72, 101, 108, 108, 111, 0, 0, 0, 0, 0, 0, 0, 0]
-    );
+    assert_eq!(encoded[0], 226);
+    assert_eq!(encoded[1], 0);
 
-    let geo = MonumentGeoRecord::new(t, MonumentGeoMetadata::IGS)
-        .with_comment("Hello")
-        .with_comment("World");
-
-    let record = Record::new_monument_geo(geo);
-    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
-
-    let mut buf = [0; 32];
-    msg.encode(&mut buf).unwrap();
-
-    assert_eq!(
-        buf,
-        [
-            0xC2, 0, 20, 0, 0, 0, 0, 43, 2, 0, 5, 72, 101, 108, 108, 111, 0, 5, 87, 111, 114, 108,
-            100, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        ]
-    );
-
-    let geo = MonumentGeoRecord::new(t, MonumentGeoMetadata::IGS)
-        .with_comment("Hello")
-        .with_comment("World");
-
-    let record = Record::new_monument_geo(geo);
-    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
-
-    let mut buf = [0; 32];
-    msg.encode(&mut buf).unwrap();
-
-    assert_eq!(
-        buf,
-        [
-            0xC2, 0, 20, 0, 0, 0, 0, 43, 2, 0, 5, 72, 101, 108, 108, 111, 0, 5, 87, 111, 114, 108,
-            100, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        ]
-    );
-
-    let geo = MonumentGeoRecord::new(t, MonumentGeoMetadata::IGS)
-        .with_comment("Hello")
-        .with_climatic_info("Clim");
-
-    let record = Record::new_monument_geo(geo);
-    let msg = Message::new(big_endian, time_res, enhanced_crc, reversed, record);
-
-    let mut buf = [0; 32];
-    msg.encode(&mut buf).unwrap();
-
-    assert_eq!(
-        buf,
-        [
-            0xC2, 0, 19, 0, 0, 0, 0, 43, 2, 0, 5, 72, 101, 108, 108, 111, 14, 4, 67, 108, 105, 109,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        ]
-    );
+    let decoded = Message::decode(&encoded).unwrap();
+    assert_eq!(decoded, msg);
 }

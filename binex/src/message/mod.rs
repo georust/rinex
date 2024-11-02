@@ -1,16 +1,20 @@
+mod checksum;
 mod mid; // message ID
 mod record; // Record: message content
-mod time; // Epoch encoding/decoding
+mod time; // Epoch encoding/decoding // checksum calc.
 
 pub use record::{
-    EphemerisFrame, GPSEphemeris, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record,
+    EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, MonumentGeoMetadata,
+    MonumentGeoRecord, Record, SBASEphemeris,
 };
 
 pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
 
-use crate::{constants::Constants, utils::Utils, Error};
+use checksum::Checksum;
+
+use crate::{constants::Constants, stream::Provider, ClosedSourceMeta, Error};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
@@ -30,7 +34,7 @@ pub struct Message {
 }
 
 impl Message {
-    /// Creates new [Message] from given specs, ready to encode.
+    /// Creates a new [Message] ready to be encoded.
     pub fn new(
         big_endian: bool,
         time_res: TimeResolution,
@@ -57,21 +61,30 @@ impl Message {
         let mid = self.record.to_message_id() as u32;
         total += Self::bnxi_encoding_size(mid);
 
-        let mlen = self.record.encoding_size() as u32;
-        total += Self::bnxi_encoding_size(mlen);
+        let mlen = self.record.encoding_size();
+        total += Self::bnxi_encoding_size(mlen as u32);
 
         total += self.record.encoding_size();
-        total += 1; // CRC: TODO!
+
+        let ck = Checksum::from_len(mlen, self.enhanced_crc);
+        total += ck.len();
+
         total
     }
 
-    /// Decoding attempt from buffered content.
+    /// [Message] decoding attempt from buffered content.
+    /// Buffer must contain sync byte and the following frame must match
+    /// the specification if an open source BINEX [Message].
+    /// For closed source [Message]s, we return [Error::ClosedSourceMessage]
+    /// with header information.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
         let sync_off;
+        let buf_len = buf.len();
         let mut big_endian = true;
         let mut reversed = false;
         let mut enhanced_crc = false;
         let time_res = TimeResolution::QuarterSecond;
+        let mut closed_provider = Option::<Provider>::None;
 
         // 1. locate SYNC byte
         if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
@@ -123,7 +136,7 @@ impl Message {
         }
 
         // make sure we can parse up to 4 byte MID
-        if buf.len() - sync_off < 4 {
+        if buf_len - sync_off < 4 {
             return Err(Error::NotEnoughBytes);
         }
 
@@ -132,24 +145,22 @@ impl Message {
         // 2. parse MID
         let (bnxi, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mid = MessageID::from(bnxi);
-        //println!("mid={:?}", mid);
         ptr += size;
 
         // make sure we can parse up to 4 byte MLEN
-        if buf.len() - ptr < 4 {
+        if buf_len - ptr < 4 {
             return Err(Error::NotEnoughBytes);
         }
 
         // 3. parse MLEN
         let (mlen, size) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mlen = mlen as usize;
+        // println!("mlen={}", mlen);
 
-        if buf.len() - ptr < mlen {
+        if buf_len - ptr < mlen {
             // buffer does not contain complete message!
             return Err(Error::IncompleteMessage(mlen));
         }
-
-        //println!("mlen={:?}", mlen);
         ptr += size;
 
         // 4. parse RECORD
@@ -163,18 +174,39 @@ impl Message {
                 let fr = EphemerisFrame::decode(big_endian, &buf[ptr..])?;
                 Record::new_ephemeris_frame(fr)
             },
-            MessageID::Unknown => {
-                //println!("id=0xffffffff");
-                return Err(Error::UnknownMessage);
-            },
             id => {
-                //println!("found unsupported msg id={:?}", id);
-                return Err(Error::UnknownMessage);
+                // verify this is not a closed source message
+                if let Some(provider) = Provider::match_any(mid.into()) {
+                    return Err(Error::ClosedSourceMessage(ClosedSourceMeta {
+                        mid: mid.into(),
+                        mlen: mlen as u32,
+                        offset: ptr,
+                        provider,
+                    }));
+                } else {
+                    println!("found unsupported msg id={:?}", id);
+                    return Err(Error::NonSupportedMesssage(mlen));
+                }
             },
         };
 
-        // 5. CRC verification
+        // 5. CRC
+        let checksum = Checksum::from_len(mlen, enhanced_crc);
+        let ck_len = checksum.len();
 
+        if ptr + mlen + ck_len > buf_len {
+            return Err(Error::MissingCRC);
+        }
+
+        // decode
+        let ck = checksum.decode(&buf[ptr + mlen..], ck_len, big_endian);
+
+        // verify
+        let expected = checksum.calc(&buf[sync_off + 1..], mlen + 2);
+
+        // if expected != ck {
+        //     Err(Error::BadCRC)
+        // } else {
         Ok(Self {
             mid,
             record,
@@ -183,6 +215,7 @@ impl Message {
             big_endian,
             enhanced_crc,
         })
+        // }
     }
 
     /// [Message] encoding attempt into buffer.
@@ -203,22 +236,32 @@ impl Message {
         ptr += Self::encode_bnxi(mid, self.big_endian, &mut buf[ptr..])?;
 
         // Encode MLEN
-        let mlen = self.record.encoding_size() as u32;
-        ptr += Self::encode_bnxi(mlen, self.big_endian, &mut buf[ptr..])?;
+        let mlen = self.record.encoding_size();
+        ptr += Self::encode_bnxi(mlen as u32, self.big_endian, &mut buf[ptr..])?;
 
         // Encode message
         match &self.record {
             Record::EphemerisFrame(fr) => {
-                fr.encode(self.big_endian, &mut buf[ptr..])?;
+                ptr += fr.encode(self.big_endian, &mut buf[ptr..])?;
             },
             Record::MonumentGeo(geo) => {
-                geo.encode(self.big_endian, &mut buf[ptr..])?;
+                ptr += geo.encode(self.big_endian, &mut buf[ptr..])?;
             },
         }
 
-        // TODO: encode CRC
+        // encode CRC
+        let ck = Checksum::from_len(mlen, self.enhanced_crc);
+        let ck_len = ck.len();
+        let crc_u128 = ck.calc(&buf[1..], mlen + 2);
+        let crc_bytes = crc_u128.to_le_bytes();
 
-        Ok(ptr)
+        // if ck_len == 1 {
+        //     buf[ptr] = crc_u128 as u8;
+        // } else {
+        //     buf[ptr..ptr + ck_len].copy_from_slice(&crc_bytes[..ck_len]);
+        // }
+
+        Ok(ptr + ck_len)
     }
 
     /// Returns the SYNC byte we expect for [Self]
@@ -259,12 +302,20 @@ impl Message {
         buf.iter().position(|b| *b == to_find)
     }
 
-    // /// Evaluates CRC for [Self]
-    // pub(crate) fn eval_crc(&self) -> u32 {
-    //     0
-    // }
+    /// Number of bytes to encode U32 using the 1-4 BNXI algorithm.
+    pub(crate) const fn bnxi_encoding_size(val: u32) -> usize {
+        if val < 128 {
+            1
+        } else if val < 16384 {
+            2
+        } else if val < 2097152 {
+            3
+        } else {
+            4
+        }
+    }
 
-    /// Decodes BNXI encoded unsigned U32 integer with selected endianness,
+    /// Decodes 1-4 BNXI encoded unsigned U32 integer with selected endianness,
     /// according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details].
     /// ## Outputs
     ///    * u32: decoded U32 integer
@@ -272,244 +323,274 @@ impl Message {
     ///       ie., last byte contributing to the BNXI encoding.
     ///       The next byte is the following content.
     pub(crate) fn decode_bnxi(buf: &[u8], big_endian: bool) -> (u32, usize) {
-        let mut last_preserved = 0;
+        let min_size = buf.len().min(4);
 
-        // handles invalid case
-        if buf.len() == 1 {
-            if buf[0] & Constants::BNXI_KEEP_GOING_MASK > 0 {
-                return (0, 0);
-            }
+        // handle bad op
+        if min_size == 0 {
+            return (0, 0);
         }
 
-        for i in 0..Utils::min_usize(buf.len(), 4) {
-            if i < 3 {
-                if buf[i] & Constants::BNXI_KEEP_GOING_MASK == 0 {
-                    last_preserved = i;
-                    break;
-                }
+        // single byte case
+        if buf[0] & Constants::BNXI_KEEP_GOING_MASK == 0 {
+            let val32 = buf[0] as u32;
+            return (val32 & 0x7f, 1);
+        }
+
+        // multi byte case
+        let (val, size) = if buf[1] & Constants::BNXI_KEEP_GOING_MASK == 0 {
+            let mut val;
+
+            let (byte0, byte1) = if big_endian {
+                (buf[0], buf[1])
             } else {
-                last_preserved = i;
-            }
-        }
+                (buf[1], buf[0])
+            };
 
-        // apply mask
-        let masked = buf
-            .iter()
-            .enumerate()
-            .map(|(j, b)| {
-                if j == 3 {
-                    *b
-                } else {
-                    *b & Constants::BNXI_BYTE_MASK
-                }
-            })
-            .collect::<Vec<_>>();
+            val = (byte0 & Constants::BNXI_BYTE_MASK) as u32;
+            val <<= 7;
+            val |= byte1 as u32;
 
-        let mut ret = 0_u32;
+            (val, 2)
+        } else if buf[2] & Constants::BNXI_KEEP_GOING_MASK == 0 {
+            let mut val;
 
-        // interprate as desired
-        if big_endian {
-            for i in 0..=last_preserved {
-                ret += (masked[i] as u32) << (8 * i);
-            }
+            let (byte0, byte1, byte2) = if big_endian {
+                (buf[0], buf[1], buf[2])
+            } else {
+                (buf[2], buf[1], buf[0])
+            };
+
+            val = (byte0 & Constants::BNXI_BYTE_MASK) as u32;
+            val <<= 8;
+
+            val |= (byte1 & Constants::BNXI_BYTE_MASK) as u32;
+            val <<= 7;
+
+            val |= byte2 as u32;
+            (val, 3)
         } else {
-            for i in 0..=last_preserved {
-                ret += (masked[i] as u32) << ((4 - i) * 8);
-            }
-        }
+            let mut val;
 
-        (ret, last_preserved + 1)
-    }
+            let (byte0, byte1, byte2, byte3) = if big_endian {
+                (buf[0], buf[1], buf[2], buf[3])
+            } else {
+                (buf[3], buf[2], buf[1], buf[0])
+            };
 
-    /// Number of bytes to encode U32 unsigned integer
-    /// following the 1-4 BNXI encoding algorithm
-    pub(crate) fn bnxi_encoding_size(val: u32) -> usize {
-        let bytes = (val as f64).log2().ceil() as usize / 8 + 1;
-        Utils::min_usize(bytes, 4)
+            val = (byte0 & Constants::BNXI_BYTE_MASK) as u32;
+            val <<= 8;
+
+            val |= (byte1 & Constants::BNXI_BYTE_MASK) as u32;
+            val <<= 8;
+
+            val |= (byte2 & Constants::BNXI_BYTE_MASK) as u32;
+            val <<= 7;
+
+            val |= byte3 as u32;
+            (val, 4)
+        };
+
+        (val, size)
     }
 
     /// U32 to BNXI encoder according to [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details].
     /// Encodes into given buffer, returns encoding size.
     /// Will fail if buffer is too small.
     pub(crate) fn encode_bnxi(val: u32, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
-        let bytes = Self::bnxi_encoding_size(val);
-        if buf.len() < bytes {
+        let size = Self::bnxi_encoding_size(val);
+        if buf.len() < size {
             return Err(Error::NotEnoughBytes);
         }
 
-        for i in 0..bytes {
-            if big_endian {
-                buf[i] = (val >> (8 * i)) as u8;
-                if i < 3 {
-                    buf[i] &= Constants::BNXI_BYTE_MASK;
-                }
-            } else {
-                buf[bytes - 1 - i] = (val >> (8 * i)) as u8;
-                if i < 3 {
-                    buf[bytes - 1 - i] &= Constants::BNXI_BYTE_MASK;
-                }
-            }
+        // single byte case
+        if size == 1 {
+            buf[0] = (val as u8) & 0x7f;
+            return Ok(1);
+        }
 
-            if i > 0 {
-                if big_endian {
-                    buf[i - 1] |= Constants::BNXI_KEEP_GOING_MASK;
-                } else {
-                    buf[bytes - 1 - i - 1] |= Constants::BNXI_KEEP_GOING_MASK;
-                }
+        // multi byte case
+        let mut val32 = (val & 0xffffff80) << 1;
+        val32 |= val & 0xff;
+
+        if size == 2 {
+            val32 |= 0x8000;
+            val32 &= 0xff7f;
+
+            if big_endian {
+                buf[0] = ((val32 & 0xff00) >> 8) as u8;
+                buf[1] = val32 as u8;
+            } else {
+                buf[1] = ((val32 & 0xff00) >> 8) as u8;
+                buf[0] = val32 as u8;
+            }
+        } else if size == 3 {
+            val32 |= 0x808000;
+            val32 &= 0xffff7f;
+
+            if big_endian {
+                buf[0] = ((val32 & 0xffff00) >> 16) as u8;
+                buf[1] = ((val32 & 0xff00) >> 8) as u8;
+                buf[2] = val32 as u8;
+            } else {
+                buf[2] = ((val32 & 0xffff00) >> 16) as u8;
+                buf[1] = ((val32 & 0xff00) >> 8) as u8;
+                buf[0] = val32 as u8;
+            }
+        } else {
+            val32 |= 0x80808000;
+            val32 &= 0xffffff7f;
+
+            if big_endian {
+                buf[0] = ((val32 & 0xffffff00) >> 24) as u8;
+                buf[1] = ((val32 & 0xffff00) >> 16) as u8;
+                buf[2] = ((val32 & 0xff00) >> 8) as u8;
+                buf[3] = val32 as u8;
+            } else {
+                buf[3] = ((val32 & 0xffffff00) >> 24) as u8;
+                buf[2] = ((val32 & 0xffff00) >> 16) as u8;
+                buf[1] = ((val32 & 0xff00) >> 8) as u8;
+                buf[0] = val32 as u8;
             }
         }
 
-        return Ok(bytes);
+        Ok(size)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::Message;
-    use crate::message::TimeResolution;
-    use crate::message::{EphemerisFrame, GPSRaw, Record};
+    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record};
+    use crate::message::{GALEphemeris, GPSEphemeris, TimeResolution};
+    use crate::prelude::Epoch;
     use crate::{constants::Constants, Error};
-    #[test]
-    fn big_endian_bnxi_1() {
-        let bytes = [0x7a];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 1);
-        assert_eq!(val, 0x7a);
-
-        // test mirror op
-        let mut buf = [0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 1);
-        assert_eq!(buf, [0x7a]);
-
-        let mut buf = [0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 1);
-        assert_eq!(buf, [0x7a, 0, 0, 0]);
-
-        // invalid case
-        let bytes = [0x81];
-        let (_, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 0);
-    }
 
     #[test]
-    fn big_endian_bnxi_2() {
-        let bytes = [0x7a, 0x81];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
+    fn big_endian_bnxi() {
+        let buf = [0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
         assert_eq!(size, 1);
-        assert_eq!(val, 0x7a);
+        assert_eq!(decoded, 0);
 
-        // test mirror op
-        let mut buf = [0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
         assert_eq!(size, 1);
-        assert_eq!(buf, [0x7a, 0]);
+        assert_eq!(encoded, [0, 0, 0, 0]);
 
-        let bytes = [0x83, 0x7a];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
+        let buf = [0, 0, 0, 0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
+        assert_eq!(size, 1);
+        assert_eq!(decoded, 0);
+
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
+        assert_eq!(size, 1);
+        assert_eq!(encoded, [0, 0, 0, 0]);
+
+        let buf = [1, 0, 0, 0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
+        assert_eq!(size, 1);
+        assert_eq!(decoded, 1);
+
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
+        assert_eq!(size, 1);
+        assert_eq!(encoded, [1, 0, 0, 0]);
+
+        let buf = [2, 0, 0, 0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
+        assert_eq!(size, 1);
+        assert_eq!(decoded, 2);
+
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
+        assert_eq!(size, 1);
+        assert_eq!(encoded, [2, 0, 0, 0]);
+
+        let buf = [127, 0, 0, 0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
+        assert_eq!(size, 1);
+        assert_eq!(decoded, 127);
+
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
+        assert_eq!(size, 1);
+        assert_eq!(encoded, [127, 0, 0, 0]);
+
+        let buf = [129, 0, 0, 0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
         assert_eq!(size, 2);
-        assert_eq!(val, 0x7a03);
+        assert_eq!(decoded, 128);
 
-        // test mirror op
-        let mut buf = [0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
         assert_eq!(size, 2);
-        assert_eq!(buf, [0x83, 0x7a]);
+        assert_eq!(encoded, buf);
+
+        let buf = [0x83, 0x7a, 0, 0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
+        assert_eq!(size, 2);
+        assert_eq!(decoded, 0x1fa);
+
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
+        assert_eq!(size, 2);
+        assert_eq!(encoded, buf);
+
+        let buf = [0x83, 0x83, 0x7a, 0];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
+        assert_eq!(size, 3);
+        assert_eq!(decoded, 0x181fa);
+
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
+        assert_eq!(size, 3);
+        assert_eq!(encoded, buf);
+
+        let buf = [0x83, 0x83, 0x83, 0x7a];
+        let (decoded, size) = Message::decode_bnxi(&buf, true);
+        assert_eq!(size, 4);
+        assert_eq!(decoded, 0x18181fa);
+
+        let mut encoded = [0; 4];
+        let size = Message::encode_bnxi(decoded, true, &mut encoded).unwrap();
+
+        assert_eq!(size, 4);
+        assert_eq!(encoded, buf);
     }
 
     #[test]
-    fn big_endian_bnxi_3() {
-        let bytes = [0x83, 0x84, 0x7a];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 3);
-        assert_eq!(val, 0x7a0403);
+    fn bigend_bnxi_1() {
+        for val in [0, 1, 10, 120, 122, 127] {
+            let mut buf = [0; 1];
+            let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
 
-        let bytes = [0x83, 0x84, 0x7a, 0];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 3);
-        assert_eq!(val, 0x7a0403);
+            assert_eq!(size, 1);
+            assert_eq!(buf[0], val as u8);
 
-        let bytes = [0x83, 0x84, 0x7a, 0, 0];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 3);
-        assert_eq!(val, 0x7a0403);
+            let mut buf = [0; 4];
 
-        // test mirror op
-        let mut buf = [0, 0, 0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 3);
-        assert_eq!(buf, [0x83, 0x84, 0x7a, 0, 0, 0]);
-    }
+            let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
 
-    #[test]
-    fn big_endian_bnxi_4() {
-        let bytes = [0x7f, 0x81, 0x7f, 0xab];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 1);
-        assert_eq!(val, 0x7f);
+            assert_eq!(size, 1);
 
-        // test mirror
-        let mut buf = [0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 1);
-        assert_eq!(buf, [0x7f, 0, 0, 0]);
+            assert_eq!(buf[0], val as u8);
+            assert_eq!(buf[1], 0);
+            assert_eq!(buf[2], 0);
+            assert_eq!(buf[3], 0);
 
-        let bytes = [0x81, 0xaf, 0x7f, 0xab];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 3);
-        assert_eq!(val, 0x7f2f01);
-
-        // test mirror
-        let mut buf = [0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 3);
-        assert_eq!(buf, [0x81, 0xaf, 0x7f]);
-
-        // test mirror
-        let mut buf = [0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 3);
-        assert_eq!(buf, [0x81, 0xaf, 0x7f, 0]);
-
-        let bytes = [0x81, 0xaf, 0x8f, 1];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 4);
-        assert_eq!(val, 0x10f2f01);
-
-        // test mirror
-        let mut buf = [0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 4);
-        assert_eq!(buf, [0x81, 0xaf, 0x8f, 1]);
-
-        // test mirror
-        let mut buf = [0, 0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 4);
-        assert_eq!(buf, [0x81, 0xaf, 0x8f, 1, 0]);
-
-        let bytes = [0x81, 0xaf, 0x8f, 0x7f];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 4);
-        assert_eq!(val, 0x7f0f2f01);
-
-        // test mirror
-        let mut buf = [0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 4);
-        assert_eq!(buf, [0x81, 0xaf, 0x8f, 0x7f]);
-
-        let bytes = [0x81, 0xaf, 0x8f, 0x80];
-        let (val, size) = Message::decode_bnxi(&bytes, true);
-        assert_eq!(size, 4);
-        assert_eq!(val, 0x800f2f01);
-
-        // test mirror
-        let mut buf = [0, 0, 0, 0];
-        let size = Message::encode_bnxi(val, true, &mut buf).unwrap();
-        assert_eq!(size, 4);
-        assert_eq!(buf, [0x81, 0xaf, 0x8f, 0x80]);
+            let (decoded, size) = Message::decode_bnxi(&buf, true);
+            assert_eq!(size, 1);
+            assert_eq!(decoded, val);
+        }
     }
 
     #[test]
@@ -517,67 +598,190 @@ mod test {
         let buf = [0, 0, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::NoSyncByte) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [0, 0, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::NoSyncByte) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
     fn decode_fwd_enhancedcrc_stream() {
         let buf = [Constants::FWDSYNC_BE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::EnhancedCrc) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
     fn decode_fwd_le_stream() {
         let buf = [Constants::FWDSYNC_LE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::LittleEndianStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
     fn decode_reversed_stream() {
         let buf = [Constants::REVSYNC_BE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_BE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_LE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_LE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
+
     #[test]
-    fn test_gps_raw() {
-        let record = Record::new_ephemeris_frame(EphemerisFrame::GPSRaw(GPSRaw::default()));
-        let msg = Message::new(true, TimeResolution::QuarterSecond, false, false, record);
+    fn test_monument_geo() {
+        let big_endian = true;
+        let enhanced_crc = false;
+        let reversed = false;
+
+        let mut geo = MonumentGeoRecord::default().with_comment("simple");
+
+        geo.epoch = Epoch::from_gpst_seconds(1.0);
+        geo.meta = MonumentGeoMetadata::RNX2BIN;
+
+        let geo_len = geo.encoding_size();
+        let record = Record::new_monument_geo(geo);
+
+        let msg = Message::new(
+            big_endian,
+            TimeResolution::QuarterSecond,
+            enhanced_crc,
+            reversed,
+            record,
+        );
+
+        // SYNC + MID(1) +FID + MLEN + CRC(8)
+        assert_eq!(msg.encoding_size(), 1 + 1 + 1 + geo_len + 1);
 
         let mut encoded = [0; 256];
         msg.encode(&mut encoded).unwrap();
+
+        assert_eq!(encoded[17], 0);
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
+        assert_eq!(parsed, msg);
+    }
+
+    #[test]
+    fn test_gps_raw() {
+        let big_endian = true;
+        let enhanced_crc = false;
+        let reversed = false;
+
+        let gps_raw = EphemerisFrame::GPSRaw(GPSRaw::default());
+        let gps_raw_len = gps_raw.encoding_size();
+        let record = Record::new_ephemeris_frame(gps_raw);
+
+        let msg = Message::new(
+            big_endian,
+            TimeResolution::QuarterSecond,
+            enhanced_crc,
+            reversed,
+            record,
+        );
+
+        // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
+        assert_eq!(msg.encoding_size(), 1 + 1 + 1 + gps_raw_len + 1);
+
+        let mut encoded = [0; 256];
+        msg.encode(&mut encoded).unwrap();
+
+        assert_eq!(encoded[78 + 1 + 1 + 1], 0);
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
+        assert_eq!(parsed, msg);
+    }
+
+    #[test]
+    fn test_gps_eph() {
+        let big_endian = true;
+        let enhanced_crc = false;
+        let reversed = false;
+
+        let gps_eph = EphemerisFrame::GPS(GPSEphemeris::default());
+        let gps_eph_len = gps_eph.encoding_size();
+        let record = Record::new_ephemeris_frame(gps_eph);
+
+        assert_eq!(gps_eph_len, 128);
+
+        let msg = Message::new(
+            big_endian,
+            TimeResolution::QuarterSecond,
+            enhanced_crc,
+            reversed,
+            record,
+        );
+
+        // SYNC + MID(1) + MLEN(2) + RLEN + CRC(2)
+        assert_eq!(msg.encoding_size(), 1 + 1 + 2 + gps_eph_len + 2);
+
+        let mut encoded = [0; 256];
+        msg.encode(&mut encoded).unwrap();
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
+        assert_eq!(parsed, msg);
+    }
+
+    #[test]
+    fn test_gal_eph() {
+        let big_endian = true;
+        let enhanced_crc = false;
+        let reversed = false;
+
+        let eph = EphemerisFrame::GAL(GALEphemeris::default());
+        let eph_len = eph.encoding_size();
+        let record = Record::new_ephemeris_frame(eph);
+
+        assert_eq!(eph_len, 128);
+
+        let msg = Message::new(
+            big_endian,
+            TimeResolution::QuarterSecond,
+            enhanced_crc,
+            reversed,
+            record,
+        );
+
+        // SYNC + MID(1) + MLEN(2) + RLEN + CRC(2)
+        assert_eq!(msg.encoding_size(), 1 + 1 + 2 + eph_len + 2);
+
+        let mut encoded = [0; 256];
+        msg.encode(&mut encoded).unwrap();
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
+        assert_eq!(parsed, msg);
     }
 }

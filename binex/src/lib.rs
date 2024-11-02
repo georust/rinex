@@ -5,8 +5,8 @@
 use thiserror::Error;
 
 mod decoder;
-mod encoder;
 mod message;
+mod stream;
 
 pub(crate) mod constants;
 pub(crate) mod utils;
@@ -14,41 +14,66 @@ pub(crate) mod utils;
 pub mod prelude {
     pub use crate::{
         decoder::Decoder,
-        encoder::Encoder,
         message::{
-            EphemerisFrame, GPSEphemeris, GPSRaw, Message, MonumentGeoMetadata, MonumentGeoRecord,
-            Record, TimeResolution,
+            EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message,
+            MonumentGeoMetadata, MonumentGeoRecord, Record, SBASEphemeris, TimeResolution,
         },
+        stream::{ClosedSourceElement, Provider, StreamElement},
         Error,
     };
     // re-export
     pub use hifitime::Epoch;
 }
 
-#[derive(Error, Debug)]
+use crate::stream::Provider;
+
+/// [ClosedSourceMeta] helps identify a closed source message we cannot interprate.
+#[derive(Debug)]
+pub struct ClosedSourceMeta {
+    // decoded MID (as is)
+    pub mid: u32,
+    // decoded MLEN (as is)
+    pub mlen: u32,
+    // payload offset in buffer
+    pub offset: usize,
+    // [Provider] of this message. Only this organization may continue the decoding process.
+    pub provider: Provider,
+}
+
+#[derive(Debug)]
 pub enum Error {
-    #[error("not enough bytes available")]
+    /// Not enough bytes available to continue decoding process
     NotEnoughBytes,
-    #[error("i/o error")]
-    IoError(#[from] std::io::Error),
-    #[error("invalid start of stream")]
-    InvalidStartofStream,
-    #[error("no SYNC byte found")]
+    /// I/O error
+    IoError,
+    /// Missing SYNC byte
     NoSyncByte,
-    #[error("reversed streams are not supported yet")]
+    // InvalidStartofStream,
+    /// Library limitation: reversed streams are not supported
     ReversedStream,
-    #[error("little endian encoded streams not supported yet")]
+    /// Library limitation: little endian streams are not verified yet
     LittleEndianStream,
-    #[error("enhanced crc is not supported yet")]
+    /// Library limitation: enhanced CRC is not supported yet
     EnhancedCrc,
-    #[error("non supported timescale")]
+    /// Found an unsupported timescale that we cannot interprate.
     NonSupportedTimescale,
-    #[error("unknown message")]
+    /// Found unknown message ID
     UnknownMessage,
-    #[error("unknown record field id")]
-    UnknownRecordFieldId,
-    #[error("utf8 error")]
+    /// Error while attempting to interprate UTF-8 (invalid ASCII)
     Utf8Error,
-    #[error("Incomplete message")]
+    /// Message is missing CRC field and cannot be verified
+    MissingCRC,
+    /// Message corrupt: received CRC does not match expected CRC
+    CorrupctBadCRC,
+    /// Incomplete message: need more data to complete
     IncompleteMessage(usize),
+    /// Library limitation: not all open source [Message]s supported yet
+    NonSupportedMesssage(usize),
+    /// Library limtation: should never happen, because this library
+    /// will be designed to parse all open source [Message]s.
+    /// This may happen as either we're still in development (bad internal design)
+    /// or for format that we still do not support (temporarily "ok")
+    TooLargeInternalLimitation,
+    /// Found closed source message
+    ClosedSourceMessage(ClosedSourceMeta),
 }

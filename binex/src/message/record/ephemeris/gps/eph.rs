@@ -57,7 +57,7 @@ pub struct GPSEphemeris {
 
 impl GPSEphemeris {
     pub(crate) const fn encoding_size() -> usize {
-        153
+        128
     }
     pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = Self::encoding_size();
@@ -81,7 +81,7 @@ impl GPSEphemeris {
             self.tow.to_le_bytes()
         };
 
-        buf[4..8].copy_from_slice(&tow);
+        buf[3..7].copy_from_slice(&tow);
 
         let toc = if big_endian {
             self.toc.to_be_bytes()
@@ -89,7 +89,7 @@ impl GPSEphemeris {
             self.toc.to_le_bytes()
         };
 
-        buf[9..13].copy_from_slice(&toc);
+        buf[7..11].copy_from_slice(&toc);
 
         let tgd = if big_endian {
             self.tgd.to_be_bytes()
@@ -97,7 +97,7 @@ impl GPSEphemeris {
             self.tgd.to_le_bytes()
         };
 
-        buf[14..18].copy_from_slice(&tgd);
+        buf[11..15].copy_from_slice(&tgd);
 
         let iodc = if big_endian {
             self.iodc.to_be_bytes()
@@ -105,7 +105,7 @@ impl GPSEphemeris {
             self.iodc.to_le_bytes()
         };
 
-        buf[19..23].copy_from_slice(&iodc);
+        buf[15..19].copy_from_slice(&iodc);
 
         let af2 = if big_endian {
             self.clock_drift_rate.to_be_bytes()
@@ -113,7 +113,7 @@ impl GPSEphemeris {
             self.clock_drift_rate.to_le_bytes()
         };
 
-        buf[24..28].copy_from_slice(&af2);
+        buf[19..23].copy_from_slice(&af2);
 
         let af1 = if big_endian {
             self.clock_drift.to_be_bytes()
@@ -121,7 +121,7 @@ impl GPSEphemeris {
             self.clock_drift.to_le_bytes()
         };
 
-        buf[29..33].copy_from_slice(&af1);
+        buf[23..27].copy_from_slice(&af1);
 
         let af0 = if big_endian {
             self.clock_offset.to_be_bytes()
@@ -129,7 +129,7 @@ impl GPSEphemeris {
             self.clock_offset.to_le_bytes()
         };
 
-        buf[34..38].copy_from_slice(&af0);
+        buf[27..31].copy_from_slice(&af0);
 
         let iode = if big_endian {
             self.iode.to_be_bytes()
@@ -137,7 +137,7 @@ impl GPSEphemeris {
             self.iode.to_le_bytes()
         };
 
-        buf[39..43].copy_from_slice(&iode);
+        buf[31..35].copy_from_slice(&iode);
 
         let delta_n = if big_endian {
             (self.delta_n_rad_s / Pi32).to_be_bytes()
@@ -145,7 +145,7 @@ impl GPSEphemeris {
             (self.delta_n_rad_s / Pi32).to_le_bytes()
         };
 
-        buf[44..48].copy_from_slice(&delta_n);
+        buf[35..39].copy_from_slice(&delta_n);
 
         let m0 = if big_endian {
             self.m0_rad.to_be_bytes()
@@ -153,7 +153,7 @@ impl GPSEphemeris {
             self.m0_rad.to_le_bytes()
         };
 
-        buf[49..57].copy_from_slice(&m0);
+        buf[39..47].copy_from_slice(&m0);
 
         let e = if big_endian {
             self.e.to_be_bytes()
@@ -161,7 +161,7 @@ impl GPSEphemeris {
             self.e.to_le_bytes()
         };
 
-        buf[58..66].copy_from_slice(&e);
+        buf[47..55].copy_from_slice(&e);
 
         let sqrt_a = if big_endian {
             self.sqrt_a.to_be_bytes()
@@ -169,7 +169,7 @@ impl GPSEphemeris {
             self.sqrt_a.to_le_bytes()
         };
 
-        buf[67..75].copy_from_slice(&sqrt_a);
+        buf[55..63].copy_from_slice(&sqrt_a);
 
         let cic = if big_endian {
             self.cic.to_be_bytes()
@@ -177,7 +177,7 @@ impl GPSEphemeris {
             self.cic.to_le_bytes()
         };
 
-        buf[76..80].copy_from_slice(&cic);
+        buf[63..67].copy_from_slice(&cic);
 
         let crc = if big_endian {
             self.crc.to_be_bytes()
@@ -185,7 +185,7 @@ impl GPSEphemeris {
             self.crc.to_le_bytes()
         };
 
-        buf[81..85].copy_from_slice(&crc);
+        buf[67..71].copy_from_slice(&crc);
 
         let cis = if big_endian {
             self.cis.to_be_bytes()
@@ -193,7 +193,7 @@ impl GPSEphemeris {
             self.cis.to_le_bytes()
         };
 
-        buf[86..90].copy_from_slice(&cis);
+        buf[71..75].copy_from_slice(&cis);
 
         let crs = if big_endian {
             self.crs.to_be_bytes()
@@ -201,7 +201,7 @@ impl GPSEphemeris {
             self.crs.to_le_bytes()
         };
 
-        buf[91..95].copy_from_slice(&crs);
+        buf[75..79].copy_from_slice(&crs);
 
         let cuc = if big_endian {
             self.cuc.to_be_bytes()
@@ -209,7 +209,7 @@ impl GPSEphemeris {
             self.cuc.to_le_bytes()
         };
 
-        buf[96..100].copy_from_slice(&cuc);
+        buf[79..83].copy_from_slice(&cuc);
 
         let cus = if big_endian {
             self.cus.to_be_bytes()
@@ -217,7 +217,7 @@ impl GPSEphemeris {
             self.cus.to_le_bytes()
         };
 
-        buf[101..105].copy_from_slice(&cus);
+        buf[83..87].copy_from_slice(&cus);
 
         let omega_0_rad = if big_endian {
             self.omega_0_rad.to_be_bytes()
@@ -225,7 +225,7 @@ impl GPSEphemeris {
             self.omega_0_rad.to_le_bytes()
         };
 
-        buf[106..114].copy_from_slice(&omega_0_rad);
+        buf[87..95].copy_from_slice(&omega_0_rad);
 
         let omega_rad = if big_endian {
             self.omega_rad.to_be_bytes()
@@ -233,7 +233,7 @@ impl GPSEphemeris {
             self.omega_rad.to_le_bytes()
         };
 
-        buf[115..123].copy_from_slice(&omega_rad);
+        buf[95..103].copy_from_slice(&omega_rad);
 
         let i0_rad = if big_endian {
             self.i0_rad.to_be_bytes()
@@ -241,7 +241,7 @@ impl GPSEphemeris {
             self.i0_rad.to_le_bytes()
         };
 
-        buf[124..132].copy_from_slice(&i0_rad);
+        buf[103..111].copy_from_slice(&i0_rad);
 
         let omega_dot_rad_s = if big_endian {
             (self.omega_dot_rad_s / Pi32).to_be_bytes()
@@ -249,7 +249,7 @@ impl GPSEphemeris {
             (self.omega_dot_rad_s / Pi32).to_le_bytes()
         };
 
-        buf[133..137].copy_from_slice(&omega_dot_rad_s);
+        buf[111..115].copy_from_slice(&omega_dot_rad_s);
 
         let i_dot_rad_s = if big_endian {
             (self.i_dot_rad_s / Pi32).to_be_bytes()
@@ -257,7 +257,7 @@ impl GPSEphemeris {
             (self.i_dot_rad_s / Pi32).to_le_bytes()
         };
 
-        buf[138..142].copy_from_slice(&i_dot_rad_s);
+        buf[115..119].copy_from_slice(&i_dot_rad_s);
 
         let ura_m = if big_endian {
             (self.ura_m / 0.1).to_be_bytes()
@@ -265,7 +265,7 @@ impl GPSEphemeris {
             (self.ura_m / 0.1).to_le_bytes()
         };
 
-        buf[143..147].copy_from_slice(&ura_m);
+        buf[119..123].copy_from_slice(&ura_m);
 
         let sv_health = if big_endian {
             self.sv_health.to_be_bytes()
@@ -273,7 +273,7 @@ impl GPSEphemeris {
             self.sv_health.to_le_bytes()
         };
 
-        buf[148..150].copy_from_slice(&sv_health);
+        buf[123..125].copy_from_slice(&sv_health);
 
         let uint2 = if big_endian {
             self.uint2.to_be_bytes()
@@ -281,8 +281,7 @@ impl GPSEphemeris {
             self.uint2.to_le_bytes()
         };
 
-        buf[151..153].copy_from_slice(&uint2);
-
+        buf[125..127].copy_from_slice(&uint2);
         Ok(size)
     }
     pub fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
@@ -294,57 +293,57 @@ impl GPSEphemeris {
         // 2. TOE
         let toe = Utils::decode_u16(big_endian, &buf[1..3])?;
         // 3. TOW
-        let tow = Utils::decode_i32(big_endian, &buf[4..8])?;
+        let tow = Utils::decode_i32(big_endian, &buf[3..7])?;
         // 4. TOC
-        let toc = Utils::decode_i32(big_endian, &buf[9..13])?;
+        let toc = Utils::decode_i32(big_endian, &buf[7..11])?;
         // 4. TGD
-        let tgd = Utils::decode_f32(big_endian, &buf[14..18])?;
+        let tgd = Utils::decode_f32(big_endian, &buf[11..15])?;
         // 5. IODC
-        let iodc = Utils::decode_i32(big_endian, &buf[19..23])?;
+        let iodc = Utils::decode_i32(big_endian, &buf[15..19])?;
         // 6. Af2
-        let af2 = Utils::decode_f32(big_endian, &buf[24..28])?;
+        let af2 = Utils::decode_f32(big_endian, &buf[19..23])?;
         // 7. Af1
-        let af1 = Utils::decode_f32(big_endian, &buf[29..33])?;
+        let af1 = Utils::decode_f32(big_endian, &buf[23..27])?;
         // 8. Af0
-        let af0 = Utils::decode_f32(big_endian, &buf[34..38])?;
+        let af0 = Utils::decode_f32(big_endian, &buf[27..31])?;
         // 9: IODE
-        let iode = Utils::decode_i32(big_endian, &buf[39..43])?;
+        let iode = Utils::decode_i32(big_endian, &buf[31..35])?;
         // 10: delta_n
-        let delta_n_rad_s = Utils::decode_f32(big_endian, &buf[44..48])? * Pi32;
+        let delta_n_rad_s = Utils::decode_f32(big_endian, &buf[35..39])? * Pi32;
         // 11: m0
-        let m0_rad = Utils::decode_f64(big_endian, &buf[49..57])?;
+        let m0_rad = Utils::decode_f64(big_endian, &buf[39..47])?;
         // 12: e
-        let e = Utils::decode_f64(big_endian, &buf[58..66])?;
+        let e = Utils::decode_f64(big_endian, &buf[47..55])?;
         // 13: sqrt_a
-        let sqrt_a = Utils::decode_f64(big_endian, &buf[67..75])?;
+        let sqrt_a = Utils::decode_f64(big_endian, &buf[55..63])?;
         // 14: cic
-        let cic = Utils::decode_f32(big_endian, &buf[76..80])?;
+        let cic = Utils::decode_f32(big_endian, &buf[63..67])?;
         // 15: crc
-        let crc = Utils::decode_f32(big_endian, &buf[81..85])?;
+        let crc = Utils::decode_f32(big_endian, &buf[67..71])?;
         // 16: cis
-        let cis = Utils::decode_f32(big_endian, &buf[86..90])?;
+        let cis = Utils::decode_f32(big_endian, &buf[71..75])?;
         // 17: crs
-        let crs = Utils::decode_f32(big_endian, &buf[91..95])?;
+        let crs = Utils::decode_f32(big_endian, &buf[75..79])?;
         // 18: cuc
-        let cuc = Utils::decode_f32(big_endian, &buf[96..100])?;
+        let cuc = Utils::decode_f32(big_endian, &buf[79..83])?;
         // 19: cus
-        let cus = Utils::decode_f32(big_endian, &buf[101..105])?;
+        let cus = Utils::decode_f32(big_endian, &buf[83..87])?;
         // 20: omega0
-        let omega_0_rad = Utils::decode_f64(big_endian, &buf[106..114])?;
+        let omega_0_rad = Utils::decode_f64(big_endian, &buf[87..95])?;
         // 21: omega
-        let omega_rad = Utils::decode_f64(big_endian, &buf[115..123])?;
+        let omega_rad = Utils::decode_f64(big_endian, &buf[95..103])?;
         // 22: i0
-        let i0_rad = Utils::decode_f64(big_endian, &buf[124..132])?;
+        let i0_rad = Utils::decode_f64(big_endian, &buf[103..111])?;
         // 23: omega_dot
-        let omega_dot_rad_s = Utils::decode_f32(big_endian, &buf[133..137])? * Pi32;
+        let omega_dot_rad_s = Utils::decode_f32(big_endian, &buf[111..115])? * Pi32;
         // 24: idot
-        let i_dot_rad_s = Utils::decode_f32(big_endian, &buf[138..142])? * Pi32;
+        let i_dot_rad_s = Utils::decode_f32(big_endian, &buf[115..119])? * Pi32;
         // 25: ura
-        let ura_m = Utils::decode_f32(big_endian, &buf[143..147])? * 0.1;
+        let ura_m = Utils::decode_f32(big_endian, &buf[119..123])? * 0.1;
         // 26: sv_health
-        let sv_health = Utils::decode_u16(big_endian, &buf[148..150])?;
+        let sv_health = Utils::decode_u16(big_endian, &buf[123..125])?;
         // 27: uint2
-        let uint2 = Utils::decode_u16(big_endian, &buf[151..153])?;
+        let uint2 = Utils::decode_u16(big_endian, &buf[125..127])?;
 
         Ok(Self {
             sv_prn,
@@ -391,7 +390,7 @@ mod test {
 
     #[test]
     fn gps_ephemeris() {
-        let buf = [0; 153];
+        let buf = [0; 128];
 
         let eph = GPSEphemeris::decode(true, &buf).unwrap();
 
@@ -399,9 +398,9 @@ mod test {
         let mut target = [0; 100];
         assert!(eph.encode(true, &mut target).is_err());
 
-        let mut target = [0; 153];
+        let mut target = [0; 128];
         let size = eph.encode(true, &mut target).unwrap();
-        assert_eq!(size, 153);
+        assert_eq!(size, 128);
         assert_eq!(buf, target);
 
         let eph = GPSEphemeris {
