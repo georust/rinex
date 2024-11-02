@@ -10,8 +10,8 @@ def generate_crc32_look_up_table():
                     crc = (crc << 1) ^ polynomial
                 else:
                     crc = crc << 1
-           
             crc &= 0xffffffff
+            
             fd.write("0x{:04X}, ".format(crc))
             if (i+1) % 8 == 0 :
                 fd.write("\n")

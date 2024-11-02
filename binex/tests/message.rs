@@ -1,6 +1,5 @@
 use binex::prelude::{
-    EphemerisFrame, Epoch, GPSEphemeris, GPSRaw, Message, MonumentGeoMetadata, MonumentGeoRecord,
-    Record, TimeResolution,
+    EphemerisFrame, Epoch, GPSEphemeris, GPSRaw, Message, MonumentGeoRecord, Record, TimeResolution,
 };
 
 #[test]
@@ -60,7 +59,7 @@ fn test_crc16_geo() {
 }
 
 #[test]
-fn test_crc8_eph() {
+fn test_crc8_gps() {
     let msg = Message::new(
         true,
         TimeResolution::QuarterSecond,
@@ -74,15 +73,14 @@ fn test_crc8_eph() {
 
     assert_eq!(buf[0], 226); // SYNC
     assert_eq!(buf[1], 1); // MID
-    assert_eq!(buf[2], 78); // RLEN
-                            // assert_eq!(buf[3 + 78], 79); // CRC TODO
+    assert_eq!(buf[2], 79); // RLEN
 
     let parsed = Message::decode(&buf).unwrap();
     assert_eq!(msg, parsed);
 }
 
 #[test]
-fn test_crc16_eph() {
+fn test_crc16_gps() {
     let msg = Message::new(
         true,
         TimeResolution::QuarterSecond,
@@ -91,12 +89,12 @@ fn test_crc16_eph() {
         Record::new_ephemeris_frame(EphemerisFrame::new_gps(GPSEphemeris::default())),
     );
 
-    let mut buf = [0; 128];
-    assert!(msg.encode(&mut buf).is_err());
+    let mut encoded = [0; 128];
+    assert!(msg.encode(&mut encoded).is_err());
 
-    let mut buf = [0; 256];
-    msg.encode(&mut buf).unwrap();
+    let mut encoded = [0; 256];
+    msg.encode(&mut encoded).unwrap();
 
-    let parsed = Message::decode(&buf).unwrap();
+    let parsed = Message::decode(&encoded).unwrap();
     assert_eq!(msg, parsed);
 }

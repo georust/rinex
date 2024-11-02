@@ -19,7 +19,7 @@ pub mod prelude {
             MonumentGeoMetadata, MonumentGeoRecord, Record, SBASEphemeris, TimeResolution,
         },
         stream::{ClosedSourceElement, Provider, StreamElement},
-        Error,
+        ClosedSourceMeta, Error,
     };
     // re-export
     pub use hifitime::Epoch;
@@ -32,12 +32,18 @@ use crate::stream::Provider;
 pub struct ClosedSourceMeta {
     // decoded MID (as is)
     pub mid: u32,
-    // decoded MLEN (as is)
-    pub mlen: u32,
-    // payload offset in buffer
-    pub offset: usize,
-    // [Provider] of this message. Only this organization may continue the decoding process.
+    /// decoded MLEN (as is)
+    pub mlen: usize,
+    /// Whether this item is reversed or not
+    pub reversed: bool,
+    /// Whether this item uses enhanced CRC or not
+    pub enhanced_crc: bool,
+    /// Whether this is big endian encoded or not
+    pub big_endian: bool,
+    /// [Provider] of this message. Only this organization may continue the decoding process.
     pub provider: Provider,
+    // payload offset in buffer
+    offset: usize,
 }
 
 #[derive(Debug)]
@@ -67,7 +73,7 @@ pub enum Error {
     CorrupctBadCRC,
     /// Incomplete message: need more data to complete
     IncompleteMessage(usize),
-    /// Library limitation: not all open source [Message]s supported yet
+    /// Library limitation: not all open source Messages supported yet
     NonSupportedMesssage(usize),
     /// Library limtation: should never happen, because this library
     /// will be designed to parse all open source [Message]s.
