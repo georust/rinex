@@ -7,15 +7,11 @@
 
 BINEX is a simple library to decode and encode BINEX messages.  
 BINEX stands for BINary EXchange and is the "real time" stream oriented
-version of the RINEX format.
+version of the RINEX format. It is to this day, the only open source protocol
+to encode GNSS and navigation data.
 
-RINEX is a readable text format which is based on line termination and allows describing
-from the minimum requirement for GNSS navigation up to very precise navigation and
-other side GNSS applications.
-
-BINEX is a binary stream (non readable) conversion to that, dedicated to GNSS receivers and hardware interfacing.  
-Like RINEX, it is an open source format, the specifications are described by
-[UNAVCO here](https://www.unavco.org/data/gps-gnss/data-formats/binex).
+While RINEX is readable and based on line termination, BINEX is real-time and
+hardware orientated (at the GNSS receiver firmware level).
 
 This library allows easy message encoding and decoding, and aims at providing seamless
 convertion from RINEX back and forth.

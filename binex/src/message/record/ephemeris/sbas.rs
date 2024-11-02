@@ -26,7 +26,7 @@ pub struct SBASEphemeris {
 
 impl SBASEphemeris {
     pub(crate) const fn encoding_size() -> usize {
-        111
+        98
     }
     pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = Self::encoding_size();
@@ -50,7 +50,7 @@ impl SBASEphemeris {
             self.tow.to_le_bytes()
         };
 
-        buf[4..8].copy_from_slice(&tow);
+        buf[3..7].copy_from_slice(&tow);
 
         let clock_offset = if big_endian {
             self.clock_offset.to_be_bytes()
@@ -58,7 +58,7 @@ impl SBASEphemeris {
             self.clock_offset.to_le_bytes()
         };
 
-        buf[9..17].copy_from_slice(&clock_offset);
+        buf[7..15].copy_from_slice(&clock_offset);
 
         let clock_drift = if big_endian {
             self.clock_drift.to_be_bytes()
@@ -66,7 +66,7 @@ impl SBASEphemeris {
             self.clock_drift.to_le_bytes()
         };
 
-        buf[18..26].copy_from_slice(&clock_drift);
+        buf[15..23].copy_from_slice(&clock_drift);
 
         let x_km = if big_endian {
             self.x_km.to_be_bytes()
@@ -74,7 +74,7 @@ impl SBASEphemeris {
             self.x_km.to_le_bytes()
         };
 
-        buf[27..35].copy_from_slice(&x_km);
+        buf[23..31].copy_from_slice(&x_km);
 
         let vel_x_km = if big_endian {
             self.vel_x_km.to_be_bytes()
@@ -82,7 +82,7 @@ impl SBASEphemeris {
             self.vel_x_km.to_le_bytes()
         };
 
-        buf[36..44].copy_from_slice(&vel_x_km);
+        buf[31..39].copy_from_slice(&vel_x_km);
 
         let acc_x_km = if big_endian {
             self.acc_x_km.to_be_bytes()
@@ -90,7 +90,7 @@ impl SBASEphemeris {
             self.acc_x_km.to_le_bytes()
         };
 
-        buf[45..53].copy_from_slice(&acc_x_km);
+        buf[39..47].copy_from_slice(&acc_x_km);
 
         let y_km = if big_endian {
             self.y_km.to_be_bytes()
@@ -98,7 +98,7 @@ impl SBASEphemeris {
             self.y_km.to_le_bytes()
         };
 
-        buf[54..62].copy_from_slice(&y_km);
+        buf[47..55].copy_from_slice(&y_km);
 
         let vel_y_km = if big_endian {
             self.vel_y_km.to_be_bytes()
@@ -106,7 +106,7 @@ impl SBASEphemeris {
             self.vel_y_km.to_le_bytes()
         };
 
-        buf[63..71].copy_from_slice(&vel_y_km);
+        buf[55..63].copy_from_slice(&vel_y_km);
 
         let acc_y_km = if big_endian {
             self.acc_y_km.to_be_bytes()
@@ -114,7 +114,7 @@ impl SBASEphemeris {
             self.acc_y_km.to_le_bytes()
         };
 
-        buf[72..80].copy_from_slice(&acc_y_km);
+        buf[63..71].copy_from_slice(&acc_y_km);
 
         let z_km = if big_endian {
             self.z_km.to_be_bytes()
@@ -122,7 +122,7 @@ impl SBASEphemeris {
             self.z_km.to_le_bytes()
         };
 
-        buf[81..89].copy_from_slice(&z_km);
+        buf[71..79].copy_from_slice(&z_km);
 
         let vel_z_km = if big_endian {
             self.vel_z_km.to_be_bytes()
@@ -130,7 +130,7 @@ impl SBASEphemeris {
             self.vel_z_km.to_le_bytes()
         };
 
-        buf[90..98].copy_from_slice(&vel_z_km);
+        buf[79..87].copy_from_slice(&vel_z_km);
 
         let acc_z_km = if big_endian {
             self.acc_z_km.to_be_bytes()
@@ -138,13 +138,13 @@ impl SBASEphemeris {
             self.acc_z_km.to_le_bytes()
         };
 
-        buf[99..107].copy_from_slice(&acc_z_km);
+        buf[87..95].copy_from_slice(&acc_z_km);
 
-        buf[108] = self.uint1;
-        buf[109] = self.ura;
-        buf[110] = self.iodn;
+        buf[95] = self.uint1;
+        buf[96] = self.ura;
+        buf[97] = self.iodn;
 
-        Ok(111)
+        Ok(Self::encoding_size())
     }
     pub fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if buf.len() < Self::encoding_size() {
@@ -155,26 +155,26 @@ impl SBASEphemeris {
         // 2. TOE
         let toe = Utils::decode_u16(big_endian, &buf[1..3])?;
         // 3. TOW
-        let tow = Utils::decode_i32(big_endian, &buf[4..8])?;
+        let tow = Utils::decode_i32(big_endian, &buf[3..7])?;
         // 4. Clock
-        let clock_offset = Utils::decode_f64(big_endian, &buf[9..17])?;
-        let clock_drift = Utils::decode_f64(big_endian, &buf[18..26])?;
+        let clock_offset = Utils::decode_f64(big_endian, &buf[7..15])?;
+        let clock_drift = Utils::decode_f64(big_endian, &buf[15..23])?;
         // 5. x
-        let x_km = Utils::decode_f64(big_endian, &buf[27..35])?;
-        let vel_x_km = Utils::decode_f64(big_endian, &buf[36..44])?;
-        let acc_x_km = Utils::decode_f64(big_endian, &buf[45..53])?;
+        let x_km = Utils::decode_f64(big_endian, &buf[23..31])?;
+        let vel_x_km = Utils::decode_f64(big_endian, &buf[31..39])?;
+        let acc_x_km = Utils::decode_f64(big_endian, &buf[39..47])?;
         // 6: y
-        let y_km = Utils::decode_f64(big_endian, &buf[54..62])?;
-        let vel_y_km = Utils::decode_f64(big_endian, &buf[63..71])?;
-        let acc_y_km = Utils::decode_f64(big_endian, &buf[72..80])?;
+        let y_km = Utils::decode_f64(big_endian, &buf[47..55])?;
+        let vel_y_km = Utils::decode_f64(big_endian, &buf[55..63])?;
+        let acc_y_km = Utils::decode_f64(big_endian, &buf[63..71])?;
         // 6: z
-        let z_km = Utils::decode_f64(big_endian, &buf[81..89])?;
-        let vel_z_km = Utils::decode_f64(big_endian, &buf[90..98])?;
-        let acc_z_km = Utils::decode_f64(big_endian, &buf[99..107])?;
+        let z_km = Utils::decode_f64(big_endian, &buf[71..79])?;
+        let vel_z_km = Utils::decode_f64(big_endian, &buf[79..87])?;
+        let acc_z_km = Utils::decode_f64(big_endian, &buf[87..95])?;
         // 7: bits
-        let uint1 = buf[108];
-        let ura = buf[109];
-        let iodn = buf[110];
+        let uint1 = buf[95];
+        let ura = buf[96];
+        let iodn = buf[97];
 
         Ok(Self {
             sbas_prn,
@@ -204,23 +204,22 @@ mod test {
 
     #[test]
     fn eph_x00_x03_error() {
-        let buf = [0; 100];
+        let buf = [0; 64];
         assert!(SBASEphemeris::decode(true, &buf).is_err());
     }
 
     #[test]
     fn sbas_ephemeris() {
-        let buf = [0; 111];
-
+        let buf = [0; 100];
         let eph = SBASEphemeris::decode(true, &buf).unwrap();
 
         // test mirror
-        let mut target = [0; 100];
+        let mut target = [0; 64];
         assert!(eph.encode(true, &mut target).is_err());
 
-        let mut target = [0; 111];
+        let mut target = [0; 100];
         let size = eph.encode(true, &mut target).unwrap();
-        assert_eq!(size, 111);
+        assert_eq!(size, 98);
         assert_eq!(buf, target);
 
         let eph = SBASEphemeris {
@@ -243,7 +242,7 @@ mod test {
             iodn: 6,
         };
 
-        let mut target = [0; 111];
+        let mut target = [0; 100];
         eph.encode(true, &mut target).unwrap();
 
         let decoded = SBASEphemeris::decode(true, &target).unwrap();

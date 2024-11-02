@@ -7,7 +7,7 @@ pub enum FieldID {
     /// Comment: simple comment (readable string)
     /// about the Geodetic marker. Several RINEX comments
     /// are described by several BINEX Geodetic comments (repeated frames).
-    Comment = 0,
+    Comments = 0,
     /// Software (=Program) name used in the creation of this BINEX Geodetic Record.   
     /// Must be unique in any BINEX Geodetic Record. Field length (bytewise) must follow
     SoftwareName = 1,
@@ -122,7 +122,7 @@ pub enum FieldID {
 impl From<u32> for FieldID {
     fn from(val: u32) -> Self {
         match val {
-            0 => Self::Comment,
+            0 => Self::Comments,
             1 => Self::SoftwareName,
             2 => Self::OperatorName,
             3 => Self::SiteLocation,
@@ -166,7 +166,7 @@ impl From<u32> for FieldID {
 impl From<FieldID> for u32 {
     fn from(val: FieldID) -> u32 {
         match val {
-            FieldID::Comment => 0,
+            FieldID::Comments => 0,
             FieldID::SoftwareName => 1,
             FieldID::OperatorName => 2,
             FieldID::SiteLocation => 3,
