@@ -49,24 +49,22 @@ impl Provider {
 /// Closed source frame that we can encode but not interprate.
 /// This particular [StreamElement] can be either a part of a continuous serie or self sustainable.
 pub struct ClosedSourceElement<'a> {
+    /// Message ID as decoded
+    pub mid: u32,
     /// Provider of this frame.
     /// Only this organization may have capabilities to interprate this frame.
     pub provider: Provider,
-    /// Size of this element. Use this to determine the packet index
-    /// in a continuous stream of undisclosed [StreamElement]s.
+    /// Total size of this [StreamElement] as it may be part of a continuous
+    /// serie of [StreamElement]s.
     pub size: usize,
-    /// Total size of this undisclosed message. Use this to determine the packet index
-    /// in a continuous stream of undisclosed [StreamElement]s.
-    pub total: usize,
+    /// Total message size (not the size of this element)
+    pub mlen: usize,
     /// Raw data content that we can encode, decode but not interprate.
     pub raw: &'a [u8],
 }
 
 impl<'a> ClosedSourceElement<'a> {
     /// Interprate this [ClosedSourceElement] using custom undisclosed method.
-    /// ```
-    ///
-    /// ```
     pub fn interprate(&self, f: &dyn Fn(&[u8])) {
         f(&self.raw[..self.size])
     }
@@ -104,12 +102,19 @@ impl<'a> StreamElement<'a> {
     /// - provider: specific [Provider]
     /// - raw: content we can encode, decode but not interprate   
     /// - size: size of this [StreamElement]
-    /// - total: total size of the [StreamElement] serie
-    pub fn new_prototype(provider: Provider, raw: &'a [u8], size: usize, total: usize) -> Self {
+    /// - mlen: total message lenth
+    pub fn new_prototype(
+        provider: Provider,
+        mid: u32,
+        raw: &'a [u8],
+        size: usize,
+        mlen: usize,
+    ) -> Self {
         Self::ClosedSource(ClosedSourceElement {
             raw,
-            total,
+            mlen,
             size,
+            mid,
             provider,
         })
     }
@@ -120,8 +125,8 @@ impl<'a> StreamElement<'a> {
     /// - raw: content we can encode, decode but not interprate
     /// - size: size of the provided buffer (bytewise)
     /// - total: total size of the closed source Message (bytewise)
-    pub fn jpl_prototype(raw: &'a [u8], size: usize, total: usize) -> Self {
-        Self::new_prototype(Provider::JPL, raw, size, total)
+    pub fn jpl_prototype(raw: &'a [u8], mid: u32, size: usize, total: usize) -> Self {
+        Self::new_prototype(Provider::JPL, mid, raw, size, total)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::JPL].
@@ -130,8 +135,8 @@ impl<'a> StreamElement<'a> {
     /// - raw: content we can encode, decode but not interprate
     /// - size: size of the provided buffer (bytewise)
     /// - total: total size of the closed source Message (bytewise)
-    pub fn igs_prototype(raw: &'a [u8], size: usize, total: usize) -> Self {
-        Self::new_prototype(Provider::IGS, raw, size, total)
+    pub fn igs_prototype(raw: &'a [u8], mid: u32, size: usize, total: usize) -> Self {
+        Self::new_prototype(Provider::IGS, mid, raw, size, total)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::ColoradoUnivBoulder].
@@ -140,8 +145,8 @@ impl<'a> StreamElement<'a> {
     /// - raw: content we can encode, decode but not interprate
     /// - size: size of the provided buffer (bytewise)
     /// - total: total size of the closed source Message (bytewise)
-    pub fn cuboulder_prototype(raw: &'a [u8], size: usize, total: usize) -> Self {
-        Self::new_prototype(Provider::ColoradoUnivBoulder, raw, size, total)
+    pub fn cuboulder_prototype(raw: &'a [u8], mid: u32, size: usize, total: usize) -> Self {
+        Self::new_prototype(Provider::ColoradoUnivBoulder, mid, raw, size, total)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::NRCan].
@@ -150,8 +155,8 @@ impl<'a> StreamElement<'a> {
     /// - raw: content we can encode, decode but not interprate
     /// - size: size of the provided buffer (bytewise)
     /// - total: total size of the closed source Message (bytewise)
-    pub fn nrcan_prototype(raw: &'a [u8], size: usize, total: usize) -> Self {
-        Self::new_prototype(Provider::NRCan, raw, size, total)
+    pub fn nrcan_prototype(raw: &'a [u8], mid: u32, size: usize, total: usize) -> Self {
+        Self::new_prototype(Provider::NRCan, mid, raw, size, total)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::UCAR].
@@ -160,7 +165,7 @@ impl<'a> StreamElement<'a> {
     /// - raw: content we can encode, decode but not interprate
     /// - size: size of the provided buffer (bytewise)
     /// - total: total size of the closed source Message (bytewise)
-    pub fn ucar_prototype(raw: &'a [u8], size: usize, total: usize) -> Self {
-        Self::new_prototype(Provider::UCAR, raw, size, total)
+    pub fn ucar_prototype(raw: &'a [u8], mid: u32, size: usize, total: usize) -> Self {
+        Self::new_prototype(Provider::UCAR, mid, raw, size, total)
     }
 }

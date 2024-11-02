@@ -19,7 +19,7 @@ pub mod prelude {
             MonumentGeoMetadata, MonumentGeoRecord, Record, SBASEphemeris, TimeResolution,
         },
         stream::{ClosedSourceElement, Provider, StreamElement},
-        Error,
+        ClosedSourceMeta, Error,
     };
     // re-export
     pub use hifitime::Epoch;

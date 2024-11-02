@@ -22,13 +22,92 @@ You have two scenarios to approach a BINEX stream:
 and can represent a stream of continuous of either [Message]s (open source)
 or undisclosed elements. (private prototypes)
 
-* use Message::decode to work on your own buffer directly.
+* or use Message::decode to work on your own buffer directly.
 
 ## Message Decoding
 
-Use the BINEX `Decoder` to decode messages from a `Readable` interface:
+Use the BINEX `Decoder` to decode a `Readable` interface streaming
+BINEX messages. [Decoder] exposes open source [Message] that
+it fully interprated:
 
 ```rust
+use std::fs::File;
+use binex::prelude::{OpenSourceDecoder, Error};
+
+let fd = File::open("../test_resources/BIN/mfle20190130.bnx")
+    .unwrap();
+
+let mut decoder = OpenSourceDecoder::new(fd);
+
+loop {
+    match decoder.next() {
+        Some(Ok(msg)) => {
+            // process decoded [Message]
+        },
+        Some(Err(e)) => {
+            // it is possible that some frames may not
+            // be supported yet.
+            // Any I/O error should not happen.
+        },
+        None => {
+            // end of stream
+            break;
+        },
+    }
+}
+```
+
+The [OpenSourceDecoder] will solely decode documented
+open source [Message]s that the stream contains.
+But BINEX is flexiblea and allows the description of closed
+source messages, not realesed to the general public yet.
+
+You can use the [Decoder] object that will decode
+both disclosed [Message] and undisclosed frames in form of
+[ClosedSourceElement]s of the data stream. It is then up to you
+to complete the stream interpretation:
+
+```rust
+use std::fs::File;
+use binex::prelude::{Decoder, Provider, StreamElement, Error};
+
+let fd = File::open("../test_resources/BIN/mfle20190130.bnx")
+    .unwrap();
+
+let mut decoder = Decoder::new(fd);
+
+loop {
+    match decoder.next() {
+        Some(Ok(StreamElement::OpenSource(msg))) => {
+            // fully interprated element
+        },
+        Some(Ok(StreamElement::ClosedSource(element))) => {
+            // verify this is your organization
+            if element.provider == Provider::JPL {
+                // MID and MLEN should follow the BINEX specs
+                // and are provided as decoded
+                let mid = element.mid;
+                let mlen = element.mlen;
+                // now proceed to custom interpratetion
+                element.interprate(|data| {
+                    match mid {
+                        // process custom mid and custom data
+                        // using undisclosed method
+                    }
+                });
+            }
+        },
+        Some(Err(e)) => {
+            // it is possible that some frames may not
+            // be supported yet.
+            // Any I/O error should not happen.
+        },
+        None => {
+            // end of stream
+            break;
+        },
+    }
+}
 ```
 
 ## Message forging
