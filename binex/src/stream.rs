@@ -59,7 +59,7 @@ pub struct ClosedSourceElement<'a> {
     /// in a continuous stream of undisclosed [StreamElement]s.
     pub total: usize,
     /// Raw data content that we can encode, decode but not interprate.
-    raw: &'a [u8],
+    pub raw: &'a [u8],
 }
 
 impl<'a> ClosedSourceElement<'a> {

@@ -33,7 +33,7 @@ pub struct ClosedSourceMeta {
     // decoded MID (as is)
     pub mid: u32,
     // decoded MLEN (as is)
-    pub mlen: u32,
+    pub mlen: usize,
     // payload offset in buffer
     pub offset: usize,
     // [Provider] of this message. Only this organization may continue the decoding process.
