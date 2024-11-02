@@ -24,10 +24,10 @@ pub use src::MonumentGeoMetadata;
 /// [GeoStringFrame] helps us encode / decode
 /// readable [MonumentGeoRecord] entries, which makes
 /// the vast majority of supported frames
-struct GeoStringFrame {
+pub struct GeoStringFrame {
     /// [FieldID] frame identifier
-    pub fid: FieldID,
-    /// readable string
+    pub(crate) fid: FieldID,
+    /// Readable string
     pub string: String,
 }
 
@@ -37,13 +37,6 @@ impl GeoStringFrame {
             fid,
             string: s.to_string(),
         }
-    }
-    pub fn encoding_size(&self) -> usize {
-        let mut size = 2; // FID + FID_1_4 (will never exceed 1)
-        let s_len = self.string.len();
-        size += Message::bnxi_encoding_size(s_len as u32);
-        size += s_len;
-        size
     }
 }
 
@@ -56,7 +49,7 @@ pub struct MonumentGeoRecord {
     /// Readable comments (if any), repeat as needed.
     pub comments: Vec<String>,
     /// Readable frames that we expose with high level methods
-    frames: Vec<GeoStringFrame>,
+    pub frames: Vec<GeoStringFrame>,
 }
 
 impl MonumentGeoRecord {
@@ -276,7 +269,19 @@ impl MonumentGeoRecord {
                         // bad ID: debug trace ?
                     },
                     _ => {
-                        ret.frames.push(GeoStringFrame::new(fid, s));
+                        // reflect uniqueness of this information
+                        // if stream badly encodes many of these, we only lacth the latest one
+                        if let Some(fr) = ret
+                            .frames
+                            .iter_mut()
+                            .filter(|fr| fr.fid == fid)
+                            .reduce(|k, _| k)
+                        {
+                            fr.string = s.to_string(); // overwrite with latest
+                        } else {
+                            // store new readable element
+                            ret.frames.push(GeoStringFrame::new(fid, s));
+                        }
                     },
                 }
             }
@@ -383,97 +388,103 @@ impl MonumentGeoRecord {
         s
     }
 
+    // reflect uniqueness of this information
+    // if stream badly encodes many of these, we only lacth the latest one
+    fn push_or_update(&mut self, fid: FieldID, value: &str) {
+        if let Some(fr) = self
+            .frames
+            .iter_mut()
+            .filter(|fr| fr.fid == fid)
+            .reduce(|k, _| k)
+        {
+            fr.string = value.to_string(); // overwrite / update
+        } else {
+            // store new readable element
+            self.frames.push(GeoStringFrame::new(fid, value));
+        }
+    }
+
     /// Define receiver model.
     pub fn with_receiver_model(&self, model: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::ReceiverType, model));
+        s.push_or_update(FieldID::ReceiverType, model);
         s
     }
+
     /// Define receiver serial number (if known).
     pub fn with_receiver_serial_number(&self, sn: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::ReceiverNumber, sn));
+        s.push_or_update(FieldID::ReceiverNumber, sn);
         s
     }
+
     /// Define receiver firmware version (if known).
     pub fn with_receiver_firm_version(&self, version: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(GeoStringFrame::new(
-            FieldID::ReceiverFirmwareVersion,
-            version,
-        ));
+        s.push_or_update(FieldID::ReceiverFirmwareVersion, version);
         s
     }
 
     /// Define name of observer
     pub fn with_observer(&self, observer: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::ObserverName, observer));
+        s.push_or_update(FieldID::ObserverName, observer);
         s
     }
 
     /// Define observer's contact (email address)
     pub fn with_observer_contact(&self, contact: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::ObserverContact, contact));
+        s.push_or_update(FieldID::ObserverContact, contact);
         s
     }
+
     /// Define Geodetic marker name
     pub fn with_geodetic_marker_name(&self, name: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::MarkerName, name));
+        s.push_or_update(FieldID::MarkerName, name);
         s
     }
 
     /// Define Geodetic marker number (DOMES)
     pub fn with_geodetic_marker_number(&self, domes: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::MarkerNumber, domes));
+        s.push_or_update(FieldID::MarkerNumber, domes);
         s
     }
 
     /// Define Locatio of this geodetic site
     pub fn with_site_location(&self, location: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::SiteLocation, location));
+        s.push_or_update(FieldID::SiteLocation, location);
         s
     }
 
     /// Define Agency (Organization)
     pub fn with_agency(&self, agency: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::AgencyName, agency));
+        s.push_or_update(FieldID::AgencyName, agency);
         s
     }
 
     /// Define Antenna model (if known)
     pub fn with_antenna_model(&self, model: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::AntennaType, model));
+        s.push_or_update(FieldID::AntennaType, model);
         s
     }
 
     /// Define Antenna serial number (if known)
     pub fn with_antenna_serial_number(&self, sn: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::AntennaNumber, sn));
+        s.push_or_update(FieldID::AntennaNumber, sn);
         s
     }
 
     /// Define name of Geodetic site
     pub fn with_site_name(&self, name: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(GeoStringFrame::new(FieldID::SiteName, name));
+        s.push_or_update(FieldID::SiteName, name);
         s
     }
 
@@ -482,8 +493,7 @@ impl MonumentGeoRecord {
     /// otherwise, the message will not respect the standard definitions.
     pub fn with_geophysical_info(&self, info: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::Geophysical, info));
+        s.push_or_update(FieldID::Geophysical, info);
         s
     }
 
@@ -492,7 +502,7 @@ impl MonumentGeoRecord {
     /// the message will not respect the standard definitions.
     pub fn with_climatic_info(&self, info: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(GeoStringFrame::new(FieldID::Climatic, info));
+        s.push_or_update(FieldID::Climatic, info);
         s
     }
 
@@ -501,15 +511,14 @@ impl MonumentGeoRecord {
     /// the message will not respect the standard definitions.
     pub fn with_user_id(&self, userid: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(GeoStringFrame::new(FieldID::UserID, userid));
+        s.push_or_update(FieldID::UserID, userid);
         s
     }
 
     /// Provide the name of this Geodetic project (if any).
     pub fn with_project_name(&self, name: &str) -> Self {
         let mut s = self.clone();
-        s.frames
-            .push(GeoStringFrame::new(FieldID::ProjectName, name));
+        s.push_or_update(FieldID::ProjectName, name);
         s
     }
 
@@ -517,7 +526,7 @@ impl MonumentGeoRecord {
     /// or experiment)
     pub fn with_extra_info(&self, extra: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(GeoStringFrame::new(FieldID::Extra, extra));
+        s.push_or_update(FieldID::Extra, extra);
         s
     }
 }
