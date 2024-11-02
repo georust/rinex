@@ -89,7 +89,7 @@ impl EphemerisFrame {
                 let fr: GALEphemeris = GALEphemeris::decode(big_endian, &buf[size..])?;
                 Ok(Self::GAL(fr))
             },
-            _ => Err(Error::UnknownRecordFieldId),
+            _ => Err(Error::NonSupportedMesssage(0)),
         }
     }
 

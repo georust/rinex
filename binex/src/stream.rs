@@ -22,6 +22,30 @@ pub enum Provider {
     Topcon,
 }
 
+impl Provider {
+    /// Identify potential closed source [Provider]
+    /// from parsed MID (u32)
+    pub(crate) fn match_any(mid: u32) -> Option<Self> {
+        if mid >= 0x80 && mid <= 0x87 {
+            Some(Self::UCAR)
+        } else if mid >= 0x88 && mid <= 0xa7 {
+            Some(Self::Ashtech)
+        } else if mid >= 0xa8 && mid <= 0xaf {
+            Some(Self::Topcon)
+        } else if mid >= 0xb0 && mid <= 0xb3 {
+            Some(Self::GPSSolutions)
+        } else if mid >= 0xb4 && mid <= 0xb7 {
+            Some(Self::NRCan)
+        } else if mid >= 0xb8 && mid <= 0xbf {
+            Some(Self::JPL)
+        } else if mid >= 0xc0 && mid <= 0xc3 {
+            Some(Self::ColoradoUnivBoulder)
+        } else {
+            None
+        }
+    }
+}
+
 /// Closed source frame that we can encode but not interprate.
 /// This particular [StreamElement] can be either a part of a continuous serie or self sustainable.
 pub struct ClosedSourceElement<'a> {

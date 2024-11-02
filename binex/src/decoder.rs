@@ -80,7 +80,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///             // do something
     ///         },
     ///         Some(Err(e)) => match e {
-    ///             Error::IoError(e) => {
+    ///             Error::IoError => {
     ///                 // any I/O error should be handled
     ///                 // and user should react accordingly,
     ///                 break;
@@ -89,9 +89,6 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet
-    ///             },
-    ///             Error::InvalidStartofStream => {
-    ///                 // other errors give meaningful information
     ///             },
     ///             _ => {},
     ///         },
@@ -136,7 +133,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///             // do something
     ///         },
     ///         Some(Err(e)) => match e {
-    ///             Error::IoError(e) => {
+    ///             Error::IoError => {
     ///                 // any I/O error should be handled
     ///                 // and user should react accordingly,
     ///                 break;
@@ -145,9 +142,6 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet
-    ///             },
-    ///             Error::InvalidStartofStream => {
-    ///                 // other errors give meaningful information
     ///             },
     ///             _ => {},
     ///         },

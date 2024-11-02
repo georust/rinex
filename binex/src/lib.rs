@@ -25,40 +25,55 @@ pub mod prelude {
     pub use hifitime::Epoch;
 }
 
-#[derive(Error, Debug)]
+use crate::stream::Provider;
+
+/// [ClosedSourceMeta] helps identify a closed source message we cannot interprate.
+#[derive(Debug)]
+pub struct ClosedSourceMeta {
+    // decoded MID (as is)
+    pub mid: u32,
+    // decoded MLEN (as is)
+    pub mlen: u32,
+    // payload offset in buffer
+    pub offset: usize,
+    // [Provider] of this message. Only this organization may continue the decoding process.
+    pub provider: Provider,
+}
+
+#[derive(Debug)]
 pub enum Error {
-    #[error("not enough bytes available")]
+    /// Not enough bytes available to continue decoding process
     NotEnoughBytes,
-    #[error("i/o error")]
-    IoError(#[from] std::io::Error),
-    #[error("invalid start of stream")]
-    InvalidStartofStream,
-    #[error("no sync byte")]
+    /// I/O error
+    IoError,
+    /// Missing SYNC byte
     NoSyncByte,
-    #[error("reversed streams are not supported yet")]
+    // InvalidStartofStream,
+    /// Library limitation: reversed streams are not supported
     ReversedStream,
-    #[error("little endian encoded streams not supported yet")]
+    /// Library limitation: little endian streams are not verified yet
     LittleEndianStream,
-    #[error("enhanced crc is not supported yet")]
+    /// Library limitation: enhanced CRC is not supported yet
     EnhancedCrc,
-    #[error("non supported timescale")]
+    /// Found an unsupported timescale that we cannot interprate.
     NonSupportedTimescale,
-    // #[error("unknown message")]
-    // UnknownMessage,
-    #[error("unknown record field id")]
-    UnknownRecordFieldId,
-    #[error("utf8 error")]
+    /// Found unknown message ID
+    UnknownMessage,
+    /// Error while attempting to interprate UTF-8 (invalid ASCII)
     Utf8Error,
-    #[error("missing crc bytes")]
+    /// Message is missing CRC field and cannot be verified
     MissingCRC,
-    #[error("received invalid crc")]
-    BadCRC,
-    #[error("incomplete: need more data")]
+    /// Message corrupt: received CRC does not match expected CRC
+    CorrupctBadCRC,
+    /// Incomplete message: need more data to complete
     IncompleteMessage(usize),
-    #[error("non supported message: library limitation")]
+    /// Library limitation: not all open source [Message]s supported yet
     NonSupportedMesssage(usize),
-    #[error("message too large: library limitation")]
-    // This message should never happen: library is to be designed
-    // to support largest open source (fully disclosed) message frame
+    /// Library limtation: should never happen, because this library
+    /// will be designed to parse all open source [Message]s.
+    /// This may happen as either we're still in development (bad internal design)
+    /// or for format that we still do not support (temporarily "ok")
     TooLargeInternalLimitation,
+    /// Found closed source message
+    ClosedSourceMessage(ClosedSourceMeta),
 }

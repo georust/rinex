@@ -14,7 +14,7 @@ pub(crate) use mid::MessageID;
 
 use checksum::Checksum;
 
-use crate::{constants::Constants, Error};
+use crate::{constants::Constants, stream::Provider, ClosedSourceMeta, Error};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
@@ -72,7 +72,11 @@ impl Message {
         total
     }
 
-    /// Decoding attempt from buffered content.
+    /// [Message] decoding attempt from buffered content.
+    /// Buffer must contain sync byte and the following frame must match
+    /// the specification if an open source BINEX [Message].
+    /// For closed source [Message]s, we return [Error::ClosedSourceMessage]
+    /// with header information.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
         let sync_off;
         let buf_len = buf.len();
@@ -80,6 +84,7 @@ impl Message {
         let mut reversed = false;
         let mut enhanced_crc = false;
         let time_res = TimeResolution::QuarterSecond;
+        let mut closed_provider = Option::<Provider>::None;
 
         // 1. locate SYNC byte
         if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
@@ -170,8 +175,18 @@ impl Message {
                 Record::new_ephemeris_frame(fr)
             },
             id => {
-                println!("found unsupported msg id={:?}", id);
-                return Err(Error::NonSupportedMesssage(mlen));
+                // verify this is not a closed source message
+                if let Some(provider) = Provider::match_any(mid.into()) {
+                    return Err(Error::ClosedSourceMessage(ClosedSourceMeta {
+                        mid: mid.into(),
+                        mlen: mlen as u32,
+                        offset: ptr,
+                        provider,
+                    }));
+                } else {
+                    println!("found unsupported msg id={:?}", id);
+                    return Err(Error::NonSupportedMesssage(mlen));
+                }
             },
         };
 
@@ -583,13 +598,13 @@ mod test {
         let buf = [0, 0, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::NoSyncByte) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [0, 0, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::NoSyncByte) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
@@ -599,7 +614,7 @@ mod test {
         let buf = [Constants::FWDSYNC_BE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::EnhancedCrc) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
@@ -609,7 +624,7 @@ mod test {
         let buf = [Constants::FWDSYNC_LE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::LittleEndianStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
@@ -619,25 +634,25 @@ mod test {
         let buf = [Constants::REVSYNC_BE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_BE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_LE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_LE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
