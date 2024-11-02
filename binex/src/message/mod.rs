@@ -86,32 +86,32 @@ impl Message {
         let time_res = TimeResolution::QuarterSecond;
 
         // 1. locate SYNC byte
-        if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
+        if let Some(offset) = Self::find(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
             big_endian = true;
             sync_off = offset;
-        } else if let Some(offset) = Self::locate(Constants::FWDSYNC_LE_STANDARD_CRC, buf) {
+        } else if let Some(offset) = Self::find(Constants::FWDSYNC_LE_STANDARD_CRC, buf) {
             sync_off = offset;
             big_endian = false;
-        } else if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_ENHANCED_CRC, buf) {
+        } else if let Some(offset) = Self::find(Constants::FWDSYNC_BE_ENHANCED_CRC, buf) {
             big_endian = true;
             enhanced_crc = true;
             sync_off = offset;
-        } else if let Some(offset) = Self::locate(Constants::FWDSYNC_LE_ENHANCED_CRC, buf) {
+        } else if let Some(offset) = Self::find(Constants::FWDSYNC_LE_ENHANCED_CRC, buf) {
             enhanced_crc = true;
             sync_off = offset;
-        } else if let Some(offset) = Self::locate(Constants::REVSYNC_LE_STANDARD_CRC, buf) {
+        } else if let Some(offset) = Self::find(Constants::REVSYNC_LE_STANDARD_CRC, buf) {
             reversed = true;
             sync_off = offset;
-        } else if let Some(offset) = Self::locate(Constants::REVSYNC_BE_STANDARD_CRC, buf) {
+        } else if let Some(offset) = Self::find(Constants::REVSYNC_BE_STANDARD_CRC, buf) {
             reversed = true;
             big_endian = true;
             sync_off = offset;
-        } else if let Some(offset) = Self::locate(Constants::REVSYNC_BE_ENHANCED_CRC, buf) {
+        } else if let Some(offset) = Self::find(Constants::REVSYNC_BE_ENHANCED_CRC, buf) {
             reversed = true;
             big_endian = true;
             enhanced_crc = true;
             sync_off = offset;
-        } else if let Some(offset) = Self::locate(Constants::REVSYNC_LE_ENHANCED_CRC, buf) {
+        } else if let Some(offset) = Self::find(Constants::REVSYNC_LE_ENHANCED_CRC, buf) {
             reversed = true;
             enhanced_crc = true;
             sync_off = offset;
@@ -144,6 +144,11 @@ impl Message {
         // 2. parse MID
         let (bnxi, mid_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mid = MessageID::from(bnxi);
+
+        if mid == MessageID::Unknown {
+            return Err(Error::UnknownMessage);
+        }
+
         ptr += mid_1_4;
 
         // make sure we can parse up to 4 byte MLEN
@@ -154,9 +159,9 @@ impl Message {
         // 3. parse MLEN
         let (mlen, mlen_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mlen = mlen as usize;
-        // println!("mlen={}", mlen);
+        //println!("mid={:?}/mlen={}/ptr={}", mid, mlen, ptr);
 
-        if buf_len - ptr < mlen {
+        if ptr + mlen > buf_len {
             // buffer does not contain complete message!
             return Err(Error::IncompleteMessage(mlen));
         }
@@ -325,7 +330,7 @@ impl Message {
     }
 
     /// Tries to locate desired byte within buffer
-    fn locate(to_find: u8, buf: &[u8]) -> Option<usize> {
+    fn find(to_find: u8, buf: &[u8]) -> Option<usize> {
         buf.iter().position(|b| *b == to_find)
     }
 

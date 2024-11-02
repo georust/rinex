@@ -255,6 +255,10 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                         }
                         return Some(Err(Error::IncompleteMessage(meta.mlen)));
                     },
+                    Error::UnknownMessage => {
+                        // panic!("unknown message\nrd_ptr={}\nbuf={:?}", self.rd_ptr, &self.buf[self.rd_ptr-1..self.rd_ptr+4]);
+                        self.rd_ptr += 1;
+                    },
                     _ => {
                         // bad content that does not look like valid BINEX.
                         // This is very inefficient. If returned error would increment

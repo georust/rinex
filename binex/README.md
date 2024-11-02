@@ -26,49 +26,13 @@ Message Decoding
 ================
 
 Use the BINEX `Decoder` to decode a `Readable` interface streaming
-BINEX messages. Decoder exposes open source Message that
-it fully interprated:
+BINEX messages. Decoder exposes both open source Messages that
+were fully interprated and closed source Messages (undisclosed prototypes)
+that it cannot interprate:
 
 ```rust
 use std::fs::File;
-use binex::prelude::{OpenSourceDecoder, Error};
-
-let fd = File::open("../test_resources/BIN/mfle20190130.bnx")
-    .unwrap();
-
-let mut decoder = OpenSourceDecoder::new(fd);
-
-loop {
-    match decoder.next() {
-        Some(Ok(msg)) => {
-            // process decoded [Message]
-        },
-        Some(Err(e)) => {
-            // it is possible that some frames may not
-            // be supported yet.
-            // Any I/O error should not happen.
-        },
-        None => {
-            // end of stream
-            break;
-        },
-    }
-}
-```
-
-The [OpenSourceDecoder] will solely decode documented
-open source [Message]s that the stream contains.
-But BINEX is flexiblea and allows the description of closed
-source messages, not realesed to the general public yet.
-
-You can use the [Decoder] object that will decode
-both disclosed [Message] and undisclosed frames in form of
-[ClosedSourceElement]s of the data stream. It is then up to you
-to complete the stream interpretation:
-
-```rust
-use std::fs::File;
-use binex::prelude::{Decoder, Provider, StreamElement, Error};
+use binex::prelude::{Decoder, StreamElement, Provider, Error};
 
 let fd = File::open("../test_resources/BIN/mfle20190130.bnx")
     .unwrap();
@@ -88,15 +52,16 @@ loop {
                 let mid = element.mid;
                 let mlen = element.mlen;
                 // now proceed to custom interpratetion
-                element.interprate(|data| {
+                element.interprate(&|data| {
                     match mid {
                         // process custom mid and custom data
                         // using undisclosed method
+                        _ => {},
                     }
                 });
             }
         },
-        Some(Err(e)) => {
+        Some(Err(e)) => {
             // it is possible that some frames may not
             // be supported yet.
             // Any I/O error should not happen.
