@@ -16,6 +16,14 @@ hardware orientated (at the GNSS receiver firmware level).
 This library allows easy message encoding and decoding, and aims at providing seamless
 convertion from RINEX back and forth.
 
+You have two scenarios to approach a BINEX stream:
+
+* use our Decoder object, which works on I/O interface directly
+and can represent a stream of continuous of either [Message]s (open source)
+or undisclosed elements. (private prototypes)
+
+* use Message::decode to work on your own buffer directly.
+
 ## Message Decoding
 
 Use the BINEX `Decoder` to decode messages from a `Readable` interface:
