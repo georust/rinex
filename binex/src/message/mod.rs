@@ -84,7 +84,6 @@ impl Message {
         let mut reversed = false;
         let mut enhanced_crc = false;
         let time_res = TimeResolution::QuarterSecond;
-        let mut closed_provider = Option::<Provider>::None;
 
         // 1. locate SYNC byte
         if let Some(offset) = Self::locate(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
@@ -174,17 +173,17 @@ impl Message {
                 let fr = EphemerisFrame::decode(big_endian, &buf[ptr..])?;
                 Record::new_ephemeris_frame(fr)
             },
-            id => {
+            _ => {
                 // verify this is not a closed source message
                 if let Some(provider) = Provider::match_any(mid.into()) {
                     return Err(Error::ClosedSourceMessage(ClosedSourceMeta {
-                        mid: mid.into(),
-                        mlen: mlen as u32,
-                        offset: ptr,
+                        mlen,
                         provider,
+                        offset: ptr,
+                        mid: mid.into(),
                     }));
                 } else {
-                    println!("found unsupported msg id={:?}", id);
+                    // println!("found unsupported msg id={:?}", id);
                     return Err(Error::NonSupportedMesssage(mlen));
                 }
             },
@@ -204,18 +203,18 @@ impl Message {
         // verify
         let expected = checksum.calc(&buf[sync_off + 1..], mlen + 2);
 
-        // if expected != ck {
-        //     Err(Error::BadCRC)
-        // } else {
-        Ok(Self {
-            mid,
-            record,
-            reversed,
-            time_res,
-            big_endian,
-            enhanced_crc,
-        })
-        // }
+        if expected != ck {
+            Err(Error::CorrupctBadCRC)
+        } else {
+            Ok(Self {
+                mid,
+                record,
+                reversed,
+                time_res,
+                big_endian,
+                enhanced_crc,
+            })
+        }
     }
 
     /// [Message] encoding attempt into buffer.
@@ -255,11 +254,11 @@ impl Message {
         let crc_u128 = ck.calc(&buf[1..], mlen + 2);
         let crc_bytes = crc_u128.to_le_bytes();
 
-        // if ck_len == 1 {
-        //     buf[ptr] = crc_u128 as u8;
-        // } else {
-        //     buf[ptr..ptr + ck_len].copy_from_slice(&crc_bytes[..ck_len]);
-        // }
+        if ck_len == 1 {
+            buf[ptr] = crc_u128 as u8;
+        } else {
+            buf[ptr..ptr + ck_len].copy_from_slice(&crc_bytes[..ck_len]);
+        }
 
         Ok(ptr + ck_len)
     }
