@@ -80,7 +80,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///             // do something
     ///         },
     ///         Some(Err(e)) => match e {
-    ///             Error::IoError(e) => {
+    ///             Error::IoError => {
     ///                 // any I/O error should be handled
     ///                 // and user should react accordingly,
     ///                 break;
@@ -89,9 +89,6 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet
-    ///             },
-    ///             Error::InvalidStartofStream => {
-    ///                 // other errors give meaningful information
     ///             },
     ///             _ => {},
     ///         },
@@ -136,7 +133,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///             // do something
     ///         },
     ///         Some(Err(e)) => match e {
-    ///             Error::IoError(e) => {
+    ///             Error::IoError => {
     ///                 // any I/O error should be handled
     ///                 // and user should react accordingly,
     ///                 break;
@@ -145,9 +142,6 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet
-    ///             },
-    ///             Error::InvalidStartofStream => {
-    ///                 // other errors give meaningful information
     ///             },
     ///             _ => {},
     ///         },
@@ -241,6 +235,25 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                             self.rd_ptr = 0;
                             return Some(Err(Error::IncompleteMessage(mlen)));
                         }
+                    },
+                    Error::ClosedSourceMessage(meta) => {
+                        // determine whether
+                        // - this element is self sustained (ie., fully described by this meta)
+                        // - the followup of previous elements
+                        // - or the last element of a serie
+                        if self.rd_ptr + meta.mlen < 4096 {
+                            // content is fully wrapped in buffer: expose as is
+                            // self.past_element = Some(ClosedSourceElement {
+                            //     provider: meta.provider,
+                            //     size: meta.mlen,
+                            //     total: meta.mlen,
+                            //     raw: self.buf[self.rd_ptr..self.rd_ptr +meta.mlen],
+                            // });
+                        } else {
+                            // content is not fully wrapped up here;
+                            // initiate or continue a serie of undisclosed element
+                        }
+                        return Some(Err(Error::IncompleteMessage(meta.mlen)));
                     },
                     _ => {
                         // bad content that does not look like valid BINEX.

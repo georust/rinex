@@ -2,7 +2,7 @@
 
 def generate_crc16_look_up_table():
     with open("output.txt", "w") as fd:
-        polynomial = 0x1021
+        polynomial = 0x8161
         for i in range(256):
             crc = i << 8
             for _ in range(8):
@@ -13,7 +13,7 @@ def generate_crc16_look_up_table():
            
             crc &= 0xffff
             fd.write("0x{:04X}, ".format(crc))
-            if (i+1) % 4 == 0 :
+            if (i+1) % 8 == 0 :
                 fd.write("\n")
 
 if __name__ == "__main__":

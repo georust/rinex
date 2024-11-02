@@ -16,9 +16,9 @@ fn mfle20190130() {
             },
             Some(Ok(StreamElement::ClosedSource(element))) => {},
             Some(Err(e)) => match e {
-                Error::IoError(e) => panic!("i/o error: {}", e),
+                Error::IoError => panic!("i/o error"),
                 e => {
-                    println!("err={}", e);
+                    println!("err={:?}", e);
                 },
             },
             None => {
@@ -46,9 +46,9 @@ fn gziped_files() {
                 },
                 Some(Ok(StreamElement::ClosedSource(element))) => {},
                 Some(Err(e)) => match e {
-                    Error::IoError(e) => panic!("i/o error: {}", e),
+                    Error::IoError => panic!("i/o error"),
                     e => {
-                        println!("err={}", e);
+                        println!("err={:?}", e);
                     },
                 },
                 None => {

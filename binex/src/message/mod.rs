@@ -14,7 +14,7 @@ pub(crate) use mid::MessageID;
 
 use checksum::Checksum;
 
-use crate::{constants::Constants, Error};
+use crate::{constants::Constants, stream::Provider, ClosedSourceMeta, Error};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
@@ -72,7 +72,11 @@ impl Message {
         total
     }
 
-    /// Decoding attempt from buffered content.
+    /// [Message] decoding attempt from buffered content.
+    /// Buffer must contain sync byte and the following frame must match
+    /// the specification if an open source BINEX [Message].
+    /// For closed source [Message]s, we return [Error::ClosedSourceMessage]
+    /// with header information.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
         let sync_off;
         let buf_len = buf.len();
@@ -169,9 +173,19 @@ impl Message {
                 let fr = EphemerisFrame::decode(big_endian, &buf[ptr..])?;
                 Record::new_ephemeris_frame(fr)
             },
-            id => {
-                // println!("found unsupported msg id={:?}", id);
-                return Err(Error::NonSupportedMesssage(mlen));
+            _ => {
+                // verify this is not a closed source message
+                if let Some(provider) = Provider::match_any(mid.into()) {
+                    return Err(Error::ClosedSourceMessage(ClosedSourceMeta {
+                        mlen,
+                        provider,
+                        offset: ptr,
+                        mid: mid.into(),
+                    }));
+                } else {
+                    // println!("found unsupported msg id={:?}", id);
+                    return Err(Error::NonSupportedMesssage(mlen));
+                }
             },
         };
 
@@ -189,18 +203,18 @@ impl Message {
         // verify
         let expected = checksum.calc(&buf[sync_off + 1..], mlen + 2);
 
-        // if expected != ck {
-        //     Err(Error::BadCRC)
-        // } else {
-        Ok(Self {
-            mid,
-            record,
-            reversed,
-            time_res,
-            big_endian,
-            enhanced_crc,
-        })
-        // }
+        if expected != ck {
+            Err(Error::CorrupctBadCRC)
+        } else {
+            Ok(Self {
+                mid,
+                record,
+                reversed,
+                time_res,
+                big_endian,
+                enhanced_crc,
+            })
+        }
     }
 
     /// [Message] encoding attempt into buffer.
@@ -240,11 +254,11 @@ impl Message {
         let crc_u128 = ck.calc(&buf[1..], mlen + 2);
         let crc_bytes = crc_u128.to_le_bytes();
 
-        // if ck_len == 1 {
-        //     buf[ptr] = crc_u128 as u8;
-        // } else {
-        //     buf[ptr..ptr + ck_len].copy_from_slice(&crc_bytes[..ck_len]);
-        // }
+        if ck_len == 1 {
+            buf[ptr] = crc_u128 as u8;
+        } else {
+            buf[ptr..ptr + ck_len].copy_from_slice(&crc_bytes[..ck_len]);
+        }
 
         Ok(ptr + ck_len)
     }
@@ -445,7 +459,7 @@ impl Message {
 #[cfg(test)]
 mod test {
     use super::Message;
-    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoRecord, Record};
+    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record};
     use crate::message::{GALEphemeris, GPSEphemeris, TimeResolution};
     use crate::prelude::Epoch;
     use crate::{constants::Constants, Error};
@@ -583,13 +597,13 @@ mod test {
         let buf = [0, 0, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::NoSyncByte) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [0, 0, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::NoSyncByte) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
@@ -599,7 +613,7 @@ mod test {
         let buf = [Constants::FWDSYNC_BE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::EnhancedCrc) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
@@ -609,7 +623,7 @@ mod test {
         let buf = [Constants::FWDSYNC_LE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::LittleEndianStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
@@ -619,25 +633,25 @@ mod test {
         let buf = [Constants::REVSYNC_BE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_BE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_LE_STANDARD_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
         let buf = [Constants::REVSYNC_LE_ENHANCED_CRC, 0, 0, 0];
         match Message::decode(&buf) {
             Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {}", e),
+            Err(e) => panic!("returned unexpected error: {:?}", e),
             _ => panic!("should have paniced"),
         }
     }
@@ -648,14 +662,12 @@ mod test {
         let enhanced_crc = false;
         let reversed = false;
 
-        let geo: MonumentGeoRecord = MonumentGeoRecord::new(
-            Epoch::from_gpst_seconds(1.0),
-            crate::message::MonumentGeoMetadata::RNX2BIN,
-        )
-        .with_comment("simple");
+        let mut geo = MonumentGeoRecord::default().with_comment("simple");
+
+        geo.epoch = Epoch::from_gpst_seconds(1.0);
+        geo.meta = MonumentGeoMetadata::RNX2BIN;
 
         let geo_len = geo.encoding_size();
-
         let record = Record::new_monument_geo(geo);
 
         let msg = Message::new(
