@@ -1,9 +1,7 @@
 # BINEX
 
 [![Rust](https://github.com/georust/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/rust.yml)
-[![Rust](https://github.com/georust/rinex/actions/workflows/daily.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/daily.yml)
-[![crates.io](https://img.shields.io/crates/v/binex.svg)](https://crates.io/crates/binex)
-[![crates.io](https://docs.rs/binex/badge.svg)](https://docs.rs/binex/badge.svg)
+[![Rust](https://github.com/georust/rinex/actions/workflows/daily.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/daily.yml) [![crates.io](https://img.shields.io/crates/v/binex.svg)](https://crates.io/crates/binex) [![crates.io](https://docs.rs/binex/badge.svg)](https://docs.rs/binex/badge.svg)
 
 BINEX is a simple library to decode and encode BINEX messages.  
 BINEX stands for BINary EXchange and is the "real time" stream oriented
@@ -19,15 +17,16 @@ convertion from RINEX back and forth.
 You have two scenarios to approach a BINEX stream:
 
 * use our Decoder object, which works on I/O interface directly
-and can represent a stream of continuous of either [Message]s (open source)
+and can represent a stream of continuous of either Messages (open source)
 or undisclosed elements. (private prototypes)
 
 * or use Message::decode to work on your own buffer directly.
 
-## Message Decoding
+Message Decoding
+================
 
 Use the BINEX `Decoder` to decode a `Readable` interface streaming
-BINEX messages. [Decoder] exposes open source [Message] that
+BINEX messages. Decoder exposes open source Message that
 it fully interprated:
 
 ```rust
@@ -110,7 +109,8 @@ loop {
 }
 ```
 
-## Message forging
+Message Forging
+===============
 
 The BINEX library allows easy message forging. Each message can be easily encoded and then
 streamed into a `Writable` interface:

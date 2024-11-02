@@ -83,8 +83,8 @@ impl MonumentGeoRecord {
     /// );
     ///
     /// // customize as you need
-    /// let record = record.
-    ///     with_comment("you can add")
+    /// let record = record
+    ///     .with_comment("you can add")
     ///     .with_comment("as many as you need")
     ///     .with_extra_info("Experiment or setup context")
     ///     .with_geophysical_info("Eurasian plate")

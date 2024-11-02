@@ -67,7 +67,7 @@ pub enum Error {
     CorrupctBadCRC,
     /// Incomplete message: need more data to complete
     IncompleteMessage(usize),
-    /// Library limitation: not all open source [Message]s supported yet
+    /// Library limitation: not all open source Messages supported yet
     NonSupportedMesssage(usize),
     /// Library limtation: should never happen, because this library
     /// will be designed to parse all open source [Message]s.

@@ -12,7 +12,7 @@ pub enum Provider {
     ColoradoUnivBoulder,
     /// NRCan for internal needs or prototyping.
     NRCan,
-    /// UCAR COSMIC [https://www.cosmic.ucar.edu]
+    /// UCAR COSMIC <https://www.cosmic.ucar.edu>
     UCAR,
     /// GPS Solutions Inc.
     GPSSolutions,

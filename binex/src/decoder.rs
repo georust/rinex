@@ -8,7 +8,7 @@ use flate2::read::GzDecoder;
 
 use crate::prelude::{ClosedSourceElement, Error, Message, StreamElement};
 
-/// Abstraction for Plain or Compressed [R]
+/// Abstraction for Plain or Compressed [Read]able I/O
 enum Reader<R: Read> {
     Plain(R),
     #[cfg(feature = "flate2")]
@@ -70,7 +70,6 @@ impl<'a, R: Read> Decoder<'a, R> {
     /// let mut fd = File::open("../test_resources/BIN/mfle20190130.bnx")
     ///     .unwrap();
     ///
-    /// // Two generics: with M the internal buffer depth
     /// let mut decoder = Decoder::new(fd);
     ///
     /// // Consume data stream
