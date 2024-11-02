@@ -37,13 +37,17 @@ impl EphemerisFrame {
     /// Returns total length (bytewise) required to fully encode [Self].
     /// Use this to fulfill [Self::encode] requirements.
     pub fn encoding_size(&self) -> usize {
-        match self {
+        let fid_1_4 = Message::bnxi_encoding_size(self.to_field_id() as u32);
+
+        let size = match self {
             Self::GPSRaw(_) => GPSRaw::encoding_size(),
             Self::GPS(_) => GPSEphemeris::encoding_size(),
             Self::GLO(_) => GLOEphemeris::encoding_size(),
             Self::SBAS(_) => SBASEphemeris::encoding_size(),
             Self::GAL(_) => GALEphemeris::encoding_size(),
-        }
+        };
+
+        size + fid_1_4
     }
 
     /// Returns expected [FieldID] for [Self]
@@ -104,13 +108,15 @@ impl EphemerisFrame {
         let fid = self.to_field_id() as u32;
         let offset = Message::encode_bnxi(fid, big_endian, buf)?;
 
-        match self {
-            Self::GPSRaw(r) => r.encode(big_endian, &mut buf[offset..]),
-            Self::GPS(r) => r.encode(big_endian, &mut buf[offset..]),
-            Self::GLO(r) => r.encode(big_endian, &mut buf[offset..]),
-            Self::GAL(r) => r.encode(big_endian, &mut buf[offset..]),
-            Self::SBAS(r) => r.encode(big_endian, &mut buf[offset..]),
-        }
+        let size = match self {
+            Self::GPSRaw(r) => r.encode(big_endian, &mut buf[offset..])?,
+            Self::GPS(r) => r.encode(big_endian, &mut buf[offset..])?,
+            Self::GLO(r) => r.encode(big_endian, &mut buf[offset..])?,
+            Self::GAL(r) => r.encode(big_endian, &mut buf[offset..])?,
+            Self::SBAS(r) => r.encode(big_endian, &mut buf[offset..])?,
+        };
+
+        Ok(size + offset)
     }
 
     /// Creates new [GPSRaw] frame

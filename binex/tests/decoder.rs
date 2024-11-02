@@ -14,7 +14,7 @@ fn mfle20190130() {
                 found += 1;
                 println!("parsed: {:?}", msg);
             },
-            Some(Ok(StreamElement::ClosedSource(element))) => {},
+            Some(Ok(StreamElement::ClosedSource(_))) => {},
             Some(Err(e)) => match e {
                 Error::IoError => panic!("i/o error"),
                 e => {
@@ -44,7 +44,7 @@ fn gziped_files() {
                     found += 1;
                     println!("parsed: {:?}", msg);
                 },
-                Some(Ok(StreamElement::ClosedSource(element))) => {},
+                Some(Ok(StreamElement::ClosedSource(_))) => {},
                 Some(Err(e)) => match e {
                     Error::IoError => panic!("i/o error"),
                     e => {

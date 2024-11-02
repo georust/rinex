@@ -1,9 +1,7 @@
 # BINEX
 
 [![Rust](https://github.com/georust/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/rust.yml)
-[![Rust](https://github.com/georust/rinex/actions/workflows/daily.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/daily.yml)
-[![crates.io](https://img.shields.io/crates/v/binex.svg)](https://crates.io/crates/binex)
-[![crates.io](https://docs.rs/binex/badge.svg)](https://docs.rs/binex/badge.svg)
+[![Rust](https://github.com/georust/rinex/actions/workflows/daily.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/daily.yml) [![crates.io](https://img.shields.io/crates/v/binex.svg)](https://crates.io/crates/binex) [![crates.io](https://docs.rs/binex/badge.svg)](https://docs.rs/binex/badge.svg)
 
 BINEX is a simple library to decode and encode BINEX messages.  
 BINEX stands for BINary EXchange and is the "real time" stream oriented
@@ -16,14 +14,70 @@ hardware orientated (at the GNSS receiver firmware level).
 This library allows easy message encoding and decoding, and aims at providing seamless
 convertion from RINEX back and forth.
 
-## Message Decoding
+You have two scenarios to approach a BINEX stream:
 
-Use the BINEX `Decoder` to decode messages from a `Readable` interface:
+* use our Decoder object, which works on I/O interface directly
+and can represent a stream of continuous of either Messages (open source)
+or undisclosed elements. (private prototypes)
+
+* or use Message::decode to work on your own buffer directly.
+
+Message Decoding
+================
+
+Use the BINEX `Decoder` to decode a `Readable` interface streaming
+BINEX messages. Decoder exposes both open source Messages that
+were fully interprated and closed source Messages (undisclosed prototypes)
+that it cannot interprate:
 
 ```rust
+use std::fs::File;
+use binex::prelude::{Decoder, StreamElement, Provider, Error};
+
+let fd = File::open("../test_resources/BIN/mfle20190130.bnx")
+    .unwrap();
+
+let mut decoder = Decoder::new(fd);
+
+loop {
+    match decoder.next() {
+        Some(Ok(StreamElement::OpenSource(msg))) => {
+            // fully interprated element
+        },
+        Some(Ok(StreamElement::ClosedSource(element))) => {
+            // verify this is your organization
+            if element.meta.provider == Provider::JPL {
+                // grab fields that you probably need to decode
+                let mid = element.meta.mid;
+                let mlen = element.meta.mlen;
+                let big_endian = element.meta.big_endian;
+                let is_reversed = element.meta.reversed;
+                let enhanced_crc = element.meta.enhanced_crc;
+
+                // now, proceed to interpretation of this element,
+                // using undisclosed method
+                element.interprate(&|data| {
+                    match mid {
+                        _ => {},
+                    }
+                });
+            }
+        },
+        Some(Err(e)) => {
+            // it is possible that some frames may not
+            // be supported yet.
+            // Any I/O error should not happen.
+        },
+        None => {
+            // end of stream
+            break;
+        },
+    }
+}
 ```
 
-## Message forging
+Message Forging
+===============
 
 The BINEX library allows easy message forging. Each message can be easily encoded and then
 streamed into a `Writable` interface:
