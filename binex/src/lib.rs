@@ -32,12 +32,18 @@ use crate::stream::Provider;
 pub struct ClosedSourceMeta {
     // decoded MID (as is)
     pub mid: u32,
-    // decoded MLEN (as is)
+    /// decoded MLEN (as is)
     pub mlen: usize,
-    // payload offset in buffer
-    pub offset: usize,
-    // [Provider] of this message. Only this organization may continue the decoding process.
+    /// Whether this item is reversed or not
+    pub reversed: bool,
+    /// Whether this item uses enhanced CRC or not
+    pub enhanced_crc: bool,
+    /// Whether this is big endian encoded or not
+    pub big_endian: bool,
+    /// [Provider] of this message. Only this organization may continue the decoding process.
     pub provider: Provider,
+    // payload offset in buffer
+    offset: usize,
 }
 
 #[derive(Debug)]

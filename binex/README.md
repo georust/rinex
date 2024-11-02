@@ -46,16 +46,18 @@ loop {
         },
         Some(Ok(StreamElement::ClosedSource(element))) => {
             // verify this is your organization
-            if element.provider == Provider::JPL {
-                // MID and MLEN should follow the BINEX specs
-                // and are provided as decoded
-                let mid = element.mid;
-                let mlen = element.mlen;
-                // now proceed to custom interpratetion
+            if element.meta.provider == Provider::JPL {
+                // grab fields that you probably need to decode
+                let mid = element.meta.mid;
+                let mlen = element.meta.mlen;
+                let big_endian = element.meta.big_endian;
+                let is_reversed = element.meta.reversed;
+                let enhanced_crc = element.meta.enhanced_crc;
+
+                // now, proceed to interpretation of this element,
+                // using undisclosed method
                 element.interprate(&|data| {
                     match mid {
-                        // process custom mid and custom data
-                        // using undisclosed method
                         _ => {},
                     }
                 });

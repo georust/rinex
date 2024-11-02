@@ -186,6 +186,9 @@ impl Message {
                         mlen,
                         provider,
                         offset: ptr,
+                        big_endian,
+                        reversed,
+                        enhanced_crc,
                         mid: mid.into(),
                     }));
                 } else {
