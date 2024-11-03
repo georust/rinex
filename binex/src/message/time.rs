@@ -14,8 +14,8 @@ pub enum TimeResolution {
 impl TimeResolution {
     pub fn encoding_size(&self) -> usize {
         match self {
-            Self::QuarterSecond => 5,
             Self::MilliSecond => 6,
+            Self::QuarterSecond => 5,
         }
     }
 }
@@ -33,6 +33,7 @@ pub fn decode_epoch(
     }
 
     let min = Utils::decode_u32(big_endian, buf)?;
+
     match time_res {
         TimeResolution::QuarterSecond => {
             let qsec = buf[4];
@@ -237,29 +238,33 @@ mod test {
 
     #[test]
     fn gpst_msec() {
-        let t = Epoch::from_gpst_seconds(60.0);
         let mut buf = [0, 0, 0, 0, 0, 0];
-
+        let t = Epoch::from_gpst_seconds(60.0);
         encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 1, 0, 0]);
 
         let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
         assert_eq!(parsed, t);
 
-        let t = Epoch::from_gpst_seconds(61.0);
         let mut buf = [0, 0, 0, 0, 0, 0];
-
+        let t = Epoch::from_gpst_seconds(61.0);
         encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 1, 0x3, 0xe8]);
 
         let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
         assert_eq!(parsed, t);
 
-        let t = Epoch::from_gpst_seconds(71.0);
         let mut buf = [0, 0, 0, 0, 0, 0];
-
+        let t = Epoch::from_gpst_seconds(71.0);
         encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 1, 0x2a, 0xf8]);
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
+        let mut buf = [0, 0, 0, 0, 0, 0];
+        let t = Epoch::from_gpst_seconds(60.100);
+        encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
 
         let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
         assert_eq!(parsed, t);

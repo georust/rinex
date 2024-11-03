@@ -428,7 +428,7 @@ impl Message {
 mod test {
     use super::Message;
     use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record};
-    use crate::message::{GALEphemeris, GPSEphemeris, Meta};
+    use crate::message::{GALEphemeris, GPSEphemeris, Meta, Solutions, TemporalSolution};
     use crate::prelude::Epoch;
     use crate::Error;
 
@@ -679,6 +679,46 @@ mod test {
 
         // SYNC + MID(1) + MLEN(2) + RLEN + CRC(2)
         assert_eq!(msg.encoding_size(), 1 + 1 + 2 + eph_len + 2);
+
+        let mut encoded = [0; 256];
+        msg.encode(&mut encoded, 256).unwrap();
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
+        assert_eq!(parsed, msg);
+    }
+
+    #[test]
+    fn test_pvt() {
+        let mut meta = Meta::default();
+
+        meta.reversed = false;
+        meta.big_endian = true;
+        meta.enhanced_crc = false;
+
+        let solutions = Solutions::new(Epoch::from_gpst_seconds(1.100)).with_pvt_ecef_wgs84(
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            5.0,
+            6.0,
+            TemporalSolution {
+                offset_s: 7.0,
+                drift_s_s: None,
+            },
+        );
+
+        let sol_len = solutions.encoding_size();
+        let record = Record::new_solutions(solutions);
+        let msg = Message::new(meta, record);
+
+        // x3 (3 * 8)
+        // TODO
+        //assert_eq!(sol_len, 6+ 2*(3*8) +1 +8);
+
+        // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
+        assert_eq!(msg.encoding_size(), 1 + 1 + 1 + sol_len + 1);
 
         let mut encoded = [0; 256];
         msg.encode(&mut encoded, 256).unwrap();

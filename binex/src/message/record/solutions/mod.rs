@@ -81,15 +81,13 @@ impl Solutions {
         }
     }
 
-    /// [Self] decoding attempt from buffered content.
+    /// [Solutions] decoding attempt from buffered content.
     /// ## Inputs
     ///    - mlen: message length in bytes
-    ///    - time_res: [TimeResolution]
     ///    - big_endian: endianness
     ///    - buf: buffered content
     /// ## Outputs
-    ///    - Ok: [Self]
-    ///    - Err: [Error]
+    ///    - Result<[Solutions], [Error]>
     pub fn decode(mlen: usize, big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if mlen < Self::MIN_SIZE {
             // does not look good
@@ -104,7 +102,7 @@ impl Solutions {
         let mut frames = Vec::<SolutionsFrame>::with_capacity(8);
 
         while ptr < mlen {
-            // decode field id
+            // decode frame
             match SolutionsFrame::decode(big_endian, &buf[ptr..]) {
                 Ok(fr) => {
                     ptr += fr.encoding_size();
@@ -124,8 +122,8 @@ impl Solutions {
         Ok(Self { epoch, frames })
     }
 
-    /// Encodes [Self] into buffer, returns encoded size (total bytes).
-    /// [Self] must fit in preallocated buffer.
+    /// Encodes [Solutions] into buffer, returns encoded size (total bytes).
+    /// [Solutions] must fit in preallocated buffer.
     pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = self.encoding_size();
         if buf.len() < size {
@@ -138,8 +136,8 @@ impl Solutions {
 
         // encode subrecords
         for fr in self.frames.iter() {
-            let offs = fr.encode(big_endian, &mut buf[ptr..])?;
-            ptr += offs;
+            let size = fr.encode(big_endian, &mut buf[ptr..])?;
+            ptr += size;
         }
 
         Ok(size)
@@ -148,7 +146,7 @@ impl Solutions {
     /// Returns total length (bytewise) required to fully encode [Self].
     /// Use this to fulfill [Self::encode] requirements.
     pub(crate) fn encoding_size(&self) -> usize {
-        let mut size = 6; // tstamp + source_meta
+        let mut size = 6; // tstamp
         for fr in self.frames.iter() {
             size += fr.encoding_size(); // content
         }
@@ -224,6 +222,10 @@ mod test {
             ]
         );
 
+        let decoded = Solutions::decode(size, big_endian, &buf).unwrap();
+
+        assert_eq!(decoded, solutions);
+
         let solutions = solutions.with_pvt_ecef_wgs84(
             1.0,
             2.0,
@@ -251,5 +253,9 @@ mod test {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             ]
         );
+
+        let decoded = Solutions::decode(size, big_endian, &buf).unwrap();
+
+        assert_eq!(decoded, solutions);
     }
 }
