@@ -1,70 +1,107 @@
 use binex::prelude::{
-    EphemerisFrame, Epoch, Message, MonumentGeoMetadata, MonumentGeoRecord, Record, Solutions,
-    TemporalSolution,
+    EphemerisFrame, Epoch, GPSEphemeris, GPSRaw, Message, Meta, MonumentGeoRecord, Record,
 };
 
 #[test]
-fn big_endian_message() {
-    for msg in [
-        Message::new(
-            true,
-            false,
-            false,
-            Record::new_monument_geo(
-                MonumentGeoRecord::new(
-                    Epoch::from_gpst_seconds(61.75),
-                    MonumentGeoMetadata::RNX2BIN,
-                )
-                .with_climatic_info("climatic")
-                .with_comment("comment #1")
-                .with_comment("#comment 2")
-                .with_geophysical_info("geophysics")
-                .with_user_id("Custom ID#"),
-            ),
-        ),
-        Message::new(
-            true,
-            false,
-            false,
-            Record::new_solutions(
-                Solutions::new(Epoch::from_gpst_seconds(60.100)).with_pvt_ecef_wgs84(
-                    1.0,
-                    2.0,
-                    3.0,
-                    4.0,
-                    5.0,
-                    6.0,
-                    TemporalSolution {
-                        offset_s: 1.0,
-                        drift_s_s: None,
-                    },
-                ),
-            ),
-        ),
-        Message::new(
-            true,
-            false,
-            false,
-            Record::new_solutions(
-                Solutions::new(Epoch::from_gpst_seconds(60.100)).with_pvt_ecef_wgs84(
-                    1.0,
-                    2.0,
-                    3.0,
-                    4.0,
-                    5.0,
-                    6.0,
-                    TemporalSolution {
-                        offset_s: 1.0,
-                        drift_s_s: Some(2.0),
-                    },
-                ),
-            ),
-        ),
-    ] {
-        let mut buf = [0; 1024];
-        msg.encode(&mut buf).unwrap();
+fn test_crc8_geo() {
+    let mut meta = Meta::default();
+    meta.big_endian = true;
+    meta.reversed = false;
+    meta.enhanced_crc = false;
 
-        let parsed = Message::decode(&buf).unwrap();
-        assert_eq!(parsed, msg);
-    }
+    let msg = Message::new(
+        meta,
+        Record::new_monument_geo(MonumentGeoRecord::new_igs(
+            Epoch::from_gpst_seconds(61.25),
+            "Great receiver",
+            "Fancy antenna",
+            "MARKERNAME",
+            "MARKERNUMBER",
+            "SITE",
+            "SITENAME",
+        )),
+    );
+
+    let mut buf = [0; 128];
+    msg.encode(&mut buf, 128).unwrap();
+
+    let parsed = Message::decode(&buf).unwrap();
+    assert_eq!(msg, parsed);
+}
+
+#[test]
+fn test_crc16_geo() {
+    let mut meta = Meta::default();
+    meta.big_endian = true;
+    meta.reversed = false;
+    meta.enhanced_crc = false;
+
+    let msg = Message::new(
+        meta,
+        Record::new_monument_geo(
+            MonumentGeoRecord::new_igs(
+                Epoch::from_gpst_seconds(61.25),
+                "Great receiver",
+                "Fancy antenna",
+                "MARKERNAME",
+                "MARKERNUMBER",
+                "SITE",
+                "SITENAME",
+            )
+            .with_climatic_info("test")
+            .with_comment("super")
+            .with_geophysical_info("great")
+            .with_project_name("project"),
+        ),
+    );
+
+    let mut buf = [0; 128];
+    msg.encode(&mut buf, 128).unwrap();
+
+    let parsed = Message::decode(&buf).unwrap();
+    assert_eq!(msg, parsed);
+}
+
+#[test]
+fn test_crc8_gps() {
+    let mut meta = Meta::default();
+    meta.big_endian = true;
+    meta.reversed = false;
+    meta.enhanced_crc = false;
+
+    let msg = Message::new(
+        meta,
+        Record::new_ephemeris_frame(EphemerisFrame::new_gps_raw(GPSRaw::default())),
+    );
+
+    let mut buf = [0; 128];
+    msg.encode(&mut buf, 128).unwrap();
+
+    assert_eq!(buf[0], 226); // SYNC
+    assert_eq!(buf[1], 1); // MID
+    assert_eq!(buf[2], 79); // RLEN
+
+    let parsed = Message::decode(&buf).unwrap();
+    assert_eq!(msg, parsed);
+}
+
+#[test]
+fn test_crc16_gps() {
+    let mut meta = Meta::default();
+    meta.big_endian = true;
+    meta.reversed = false;
+    meta.enhanced_crc = false;
+    let msg = Message::new(
+        meta,
+        Record::new_ephemeris_frame(EphemerisFrame::new_gps(GPSEphemeris::default())),
+    );
+
+    let mut encoded = [0; 128];
+    assert!(msg.encode(&mut encoded, 128).is_err());
+
+    let mut encoded = [0; 256];
+    msg.encode(&mut encoded, 256).unwrap();
+
+    let parsed = Message::decode(&encoded).unwrap();
+    assert_eq!(msg, parsed);
 }

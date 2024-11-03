@@ -6,7 +6,10 @@ mod ephemeris; // ephemeris frames
 mod monument; // geodetic marker // ephemeris frames
 mod solutions; // solutions frames
 
-pub use ephemeris::{EphemerisFrame, GPSEphemeris, GPSRaw};
+pub use ephemeris::{
+    EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, SBASEphemeris,
+};
+
 pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
 pub use solutions::{
     PositionEcef3d, PositionGeo3d, Solutions, TemporalSolution, Velocity3d, VelocityNED3d,
@@ -21,6 +24,18 @@ pub enum Record {
     EphemerisFrame(EphemerisFrame),
     /// Solutions frame
     Solutions(Solutions),
+}
+
+impl From<MonumentGeoRecord> for Record {
+    fn from(geo: MonumentGeoRecord) -> Self {
+        Self::MonumentGeo(geo)
+    }
+}
+
+impl From<EphemerisFrame> for Record {
+    fn from(fr: EphemerisFrame) -> Self {
+        Self::EphemerisFrame(fr)
+    }
 }
 
 impl Default for Record {

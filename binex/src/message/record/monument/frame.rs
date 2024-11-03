@@ -7,6 +7,7 @@ use crate::{
 
 // use log::error;
 
+<<<<<<< HEAD
 #[derive(Debug, Clone, PartialEq)]
 pub enum MonumentGeoFrame {
     /// Comment
@@ -316,6 +317,8 @@ impl MonumentGeoFrame {
     }
 }
 
+=======
+>>>>>>> binex
 #[cfg(test)]
 mod test {
     use super::*;

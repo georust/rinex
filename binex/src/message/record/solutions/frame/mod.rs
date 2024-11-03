@@ -243,7 +243,7 @@ impl SolutionsFrame {
                 let sol = TemporalSolution::decode_with_drift(big_endian, &buf[1..])?;
                 Ok(Self::TemporalSolution(sol))
             },
-            _ => Err(Error::UnknownRecordFieldId),
+            _ => Err(Error::NonSupportedSubRecord),
         }
     }
 

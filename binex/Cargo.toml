@@ -1,6 +1,6 @@
 [package]
 name = "binex"
-version = "0.2.0"
+version = "0.3.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "BINEX Binary RINEX encoder and decoder"
@@ -20,7 +20,9 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
 log = "0.4"
+md-5 = "0.10"
 thiserror = "1"
+lazy_static = "1.4"
 flate2 = { version = "1.0.34", optional = true }
 hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
 

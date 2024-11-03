@@ -133,6 +133,7 @@ pub(crate) fn decode_gpst_epoch(
 #[cfg(test)]
 mod test {
     use super::*;
+
     #[test]
     fn epoch_fail() {
         let buf = [0];
