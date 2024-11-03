@@ -16,7 +16,7 @@ pub(crate) use mid::MessageID;
 
 use checksum::Checksum;
 
-use crate::{constants::Constants, stream::Provider, ClosedSourceMeta, Error};
+use crate::{stream::Provider, ClosedSourceMeta, Error};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
@@ -29,6 +29,14 @@ pub struct Message {
 }
 
 impl Message {
+    /// Keep going byte mask in the BNXI algorithm,
+    /// as per [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
+    const BNXI_KEEP_GOING_MASK: u8 = 0x80;
+
+    /// Data byte mask in the BNXI algorithm,
+    /// as per [https://www.unavco.org/data/gps-gnss/data-formats/binex/conventions.html/#ubnxi_details]
+    const BNXI_BYTE_MASK: u8 = 0x7f;
+
     /// Creates a new [Message] ready to be encoded.
     pub fn new(meta: Meta, time_res: TimeResolution, record: Record) -> Self {
         Self {
@@ -295,13 +303,13 @@ impl Message {
         }
 
         // single byte case
-        if buf[0] & Constants::BNXI_KEEP_GOING_MASK == 0 {
+        if buf[0] & Self::BNXI_KEEP_GOING_MASK == 0 {
             let val32 = buf[0] as u32;
             return (val32 & 0x7f, 1);
         }
 
         // multi byte case
-        let (val, size) = if buf[1] & Constants::BNXI_KEEP_GOING_MASK == 0 {
+        let (val, size) = if buf[1] & Self::BNXI_KEEP_GOING_MASK == 0 {
             let mut val;
 
             let (byte0, byte1) = if big_endian {
@@ -310,12 +318,12 @@ impl Message {
                 (buf[1], buf[0])
             };
 
-            val = (byte0 & Constants::BNXI_BYTE_MASK) as u32;
+            val = (byte0 & Self::BNXI_BYTE_MASK) as u32;
             val <<= 7;
             val |= byte1 as u32;
 
             (val, 2)
-        } else if buf[2] & Constants::BNXI_KEEP_GOING_MASK == 0 {
+        } else if buf[2] & Self::BNXI_KEEP_GOING_MASK == 0 {
             let mut val;
 
             let (byte0, byte1, byte2) = if big_endian {
@@ -324,10 +332,10 @@ impl Message {
                 (buf[2], buf[1], buf[0])
             };
 
-            val = (byte0 & Constants::BNXI_BYTE_MASK) as u32;
+            val = (byte0 & Self::BNXI_BYTE_MASK) as u32;
             val <<= 8;
 
-            val |= (byte1 & Constants::BNXI_BYTE_MASK) as u32;
+            val |= (byte1 & Self::BNXI_BYTE_MASK) as u32;
             val <<= 7;
 
             val |= byte2 as u32;
@@ -341,13 +349,13 @@ impl Message {
                 (buf[3], buf[2], buf[1], buf[0])
             };
 
-            val = (byte0 & Constants::BNXI_BYTE_MASK) as u32;
+            val = (byte0 & Self::BNXI_BYTE_MASK) as u32;
             val <<= 8;
 
-            val |= (byte1 & Constants::BNXI_BYTE_MASK) as u32;
+            val |= (byte1 & Self::BNXI_BYTE_MASK) as u32;
             val <<= 8;
 
-            val |= (byte2 & Constants::BNXI_BYTE_MASK) as u32;
+            val |= (byte2 & Self::BNXI_BYTE_MASK) as u32;
             val <<= 7;
 
             val |= byte3 as u32;
