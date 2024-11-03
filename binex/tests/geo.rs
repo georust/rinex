@@ -1,6 +1,4 @@
-use binex::prelude::{
-    Epoch, Message, Meta, MonumentGeoMetadata, MonumentGeoRecord, Record,
-};
+use binex::prelude::{Epoch, Message, Meta, MonumentGeoMetadata, MonumentGeoRecord, Record};
 
 #[test]
 fn geo_message() {
@@ -11,7 +9,6 @@ fn geo_message() {
     meta.enhanced_crc = false;
 
     let t = Epoch::from_gpst_seconds(10.0 + 0.75);
-
 
     let mut geo = MonumentGeoRecord::default().with_comment("simple");
 

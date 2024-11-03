@@ -243,16 +243,25 @@ mod test {
         encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 1, 0, 0]);
 
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
         let t = Epoch::from_gpst_seconds(61.0);
         let mut buf = [0, 0, 0, 0, 0, 0];
 
         encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 1, 0x3, 0xe8]);
 
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
         let t = Epoch::from_gpst_seconds(71.0);
         let mut buf = [0, 0, 0, 0, 0, 0];
 
         encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 1, 0x2a, 0xf8]);
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
     }
 }

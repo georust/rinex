@@ -35,10 +35,7 @@ impl Message {
 
     /// Creates a new [Message] ready to be encoded.
     pub fn new(meta: Meta, record: Record) -> Self {
-        Self {
-            meta,
-            record,
-        }
+        Self { meta, record }
     }
 
     /// Returns total size required to encode this [Message].
