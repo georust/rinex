@@ -236,12 +236,12 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                             return Some(Err(Error::IncompleteMessage(mlen)));
                         }
                     },
-                    Error::ClosedSourceMessage(meta) => {
+                    Error::ClosedSourceMessage(closed_source) => {
                         // determine whether
                         // - this element is self sustained (ie., fully described by this meta)
                         // - the followup of previous elements
                         // - or the last element of a serie
-                        if self.rd_ptr + meta.mlen < 4096 {
+                        if self.rd_ptr + closed_source.size < 4096 {
                             // content is fully wrapped in buffer: expose as is
                             // self.past_element = Some(ClosedSourceElement {
                             //     provider: meta.provider,
@@ -253,7 +253,7 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                             // content is not fully wrapped up here;
                             // initiate or continue a serie of undisclosed element
                         }
-                        return Some(Err(Error::IncompleteMessage(meta.mlen)));
+                        return Some(Err(Error::IncompleteMessage(closed_source.size)));
                     },
                     Error::UnknownMessage => {
                         // panic!("unknown message\nrd_ptr={}\nbuf={:?}", self.rd_ptr, &self.buf[self.rd_ptr-1..self.rd_ptr+4]);

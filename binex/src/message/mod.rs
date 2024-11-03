@@ -1,4 +1,5 @@
 mod checksum;
+mod meta; // message Meta Data
 mod mid; // message ID
 mod record; // Record: message content
 mod time; // Epoch encoding/decoding // checksum calc.
@@ -8,6 +9,7 @@ pub use record::{
     MonumentGeoRecord, Record, SBASEphemeris,
 };
 
+pub use meta::Meta;
 pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
@@ -18,15 +20,8 @@ use crate::{constants::Constants, stream::Provider, ClosedSourceMeta, Error};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
-    /// Endianness used when encoding current message,
-    /// defined by SYNC byte
-    pub big_endian: bool,
-    /// MID byte stored as [MessageID]
-    mid: MessageID,
-    /// True when using enhanced CRC
-    pub enhanced_crc: bool,
-    /// True when reversible stream
-    pub reversed: bool,
+    /// [Meta] data
+    pub meta: Meta,
     /// [Record]
     pub record: Record,
     /// Time Resolution in use
@@ -35,21 +30,11 @@ pub struct Message {
 
 impl Message {
     /// Creates a new [Message] ready to be encoded.
-    pub fn new(
-        big_endian: bool,
-        time_res: TimeResolution,
-        enhanced_crc: bool,
-        reversed: bool,
-        record: Record,
-    ) -> Self {
-        let mid = record.to_message_id();
+    pub fn new(meta: Meta, time_res: TimeResolution, record: Record) -> Self {
         Self {
-            mid,
+            meta,
             record,
             time_res,
-            reversed,
-            big_endian,
-            enhanced_crc,
         }
     }
 
@@ -66,7 +51,7 @@ impl Message {
 
         total += self.record.encoding_size();
 
-        let ck = Checksum::from_len(mlen, self.enhanced_crc);
+        let ck = Checksum::from_len(mlen, self.meta.enhanced_crc);
         total += ck.len();
 
         total
@@ -78,59 +63,36 @@ impl Message {
     /// For closed source [Message]s, we return [Error::ClosedSourceMessage]
     /// with header information.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
-        let sync_off;
         let buf_len = buf.len();
-        let mut big_endian = true;
-        let mut reversed = false;
-        let mut enhanced_crc = false;
+
         let time_res = TimeResolution::QuarterSecond;
 
         // 1. locate SYNC byte
-        if let Some(offset) = Self::find(Constants::FWDSYNC_BE_STANDARD_CRC, buf) {
-            big_endian = true;
-            sync_off = offset;
-        } else if let Some(offset) = Self::find(Constants::FWDSYNC_LE_STANDARD_CRC, buf) {
-            sync_off = offset;
-            big_endian = false;
-        } else if let Some(offset) = Self::find(Constants::FWDSYNC_BE_ENHANCED_CRC, buf) {
-            big_endian = true;
-            enhanced_crc = true;
-            sync_off = offset;
-        } else if let Some(offset) = Self::find(Constants::FWDSYNC_LE_ENHANCED_CRC, buf) {
-            enhanced_crc = true;
-            sync_off = offset;
-        } else if let Some(offset) = Self::find(Constants::REVSYNC_LE_STANDARD_CRC, buf) {
-            reversed = true;
-            sync_off = offset;
-        } else if let Some(offset) = Self::find(Constants::REVSYNC_BE_STANDARD_CRC, buf) {
-            reversed = true;
-            big_endian = true;
-            sync_off = offset;
-        } else if let Some(offset) = Self::find(Constants::REVSYNC_BE_ENHANCED_CRC, buf) {
-            reversed = true;
-            big_endian = true;
-            enhanced_crc = true;
-            sync_off = offset;
-        } else if let Some(offset) = Self::find(Constants::REVSYNC_LE_ENHANCED_CRC, buf) {
-            reversed = true;
-            enhanced_crc = true;
-            sync_off = offset;
-        } else {
-            // no SYNC byte found
+        let meta = Meta::find_and_parse(buf, buf_len);
+        if meta.is_none() {
             return Err(Error::NoSyncByte);
         }
 
-        // <!> TODO: non supported cases <!>
-        //    * Rev Streams are not supported
-        //    * Only basic CRC is managed
-        //    * Little Endianness not tested yet!
+        let (meta, sync_off) = meta.unwrap();
+
+        let reversed = meta.reversed;
+        let big_endian = meta.big_endian;
+        let enhanced_crc = meta.enhanced_crc;
+
+        /////////////////////////////////////
+        // TODO: current library limitations
+        /////////////////////////////////////
+
         if reversed {
+            // Reversed streams: not understood
             return Err(Error::ReversedStream);
         }
         if enhanced_crc {
+            // Enhanced CRC scheme not implemented
             return Err(Error::EnhancedCrc);
         }
         if !big_endian {
+            // Little endianess not tested
             return Err(Error::LittleEndianStream);
         }
 
@@ -143,8 +105,8 @@ impl Message {
 
         // 2. parse MID
         let (bnxi, mid_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
-        let mid = MessageID::from(bnxi);
 
+        let mid = MessageID::from(bnxi);
         if mid == MessageID::Unknown {
             return Err(Error::UnknownMessage);
         }
@@ -185,10 +147,9 @@ impl Message {
                     return Err(Error::ClosedSourceMessage(ClosedSourceMeta {
                         mlen,
                         provider,
+                        size: mlen,
                         offset: ptr,
-                        big_endian,
-                        reversed,
-                        enhanced_crc,
+                        open_meta: meta,
                         mid: mid.into(),
                     }));
                 } else {
@@ -216,58 +177,64 @@ impl Message {
             Err(Error::CorrupctBadCRC)
         } else {
             Ok(Self {
-                mid,
+                meta,
                 record,
-                reversed,
                 time_res,
-                big_endian,
-                enhanced_crc,
             })
         }
     }
 
-    /// [Message] encoding attempt into buffer.
-    /// [Self] must fit in preallocated size.
+    /// Tries to encode [Message] into provided buffer.
     /// Returns total encoded size, which is equal to the message size (in bytes).
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, Error> {
+    /// ## Inputs:
+    ///  - buf: byte slice
+    ///  - size: size of this byte slice.
+    ///  [Self::encoding_size] must fit in
+    pub fn encode(&self, buf: &mut [u8], buf_size: usize) -> Result<usize, Error> {
         let total = self.encoding_size();
-        if buf.len() < total {
+
+        if buf_size < total {
             return Err(Error::NotEnoughBytes);
         }
 
+        // grab meta definitions
+        let big_endian = self.meta.big_endian;
+        // let reversed = self.meta.reversed;
+        let enhanced_crc = self.meta.enhanced_crc;
+
         // Encode SYNC byte
-        buf[0] = self.sync_byte();
+        buf[0] = self.meta.sync_byte();
         let mut ptr = 1;
 
         // Encode MID
         let mid = self.record.to_message_id() as u32;
-        let mid_1_4 = Self::encode_bnxi(mid, self.big_endian, &mut buf[ptr..])?;
+        let mid_1_4 = Self::encode_bnxi(mid, big_endian, &mut buf[ptr..])?;
         ptr += mid_1_4;
 
         // Encode MLEN
         let mlen = self.record.encoding_size();
-        let mlen_1_4 = Self::encode_bnxi(mlen as u32, self.big_endian, &mut buf[ptr..])?;
+        let mlen_1_4 = Self::encode_bnxi(mlen as u32, big_endian, &mut buf[ptr..])?;
         ptr += mlen_1_4;
 
         // Encode message
         match &self.record {
             Record::EphemerisFrame(fr) => {
-                ptr += fr.encode(self.big_endian, &mut buf[ptr..])?;
+                ptr += fr.encode(big_endian, &mut buf[ptr..])?;
             },
             Record::MonumentGeo(geo) => {
-                ptr += geo.encode(self.big_endian, &mut buf[ptr..])?;
+                ptr += geo.encode(big_endian, &mut buf[ptr..])?;
             },
         }
 
         // encode CRC
-        let ck = Checksum::from_len(mlen, self.enhanced_crc);
+        let ck = Checksum::from_len(mlen, enhanced_crc);
         let ck_len = ck.len();
         let crc_u128 = ck.calc(&buf[1..], mlen + mid_1_4 + mlen_1_4);
 
         if ck_len == 1 {
             buf[ptr] = crc_u128 as u8;
         } else if ck_len == 2 {
-            let crc_bytes = if self.big_endian {
+            let crc_bytes = if big_endian {
                 (crc_u128 as u16).to_be_bytes()
             } else {
                 (crc_u128 as u16).to_le_bytes()
@@ -277,7 +244,7 @@ impl Message {
                 buf[ptr + i] = crc_bytes[i];
             }
         } else if ck_len == 4 {
-            let crc_bytes = if self.big_endian {
+            let crc_bytes = if big_endian {
                 (crc_u128 as u32).to_be_bytes()
             } else {
                 (crc_u128 as u32).to_le_bytes()
@@ -286,7 +253,7 @@ impl Message {
                 buf[ptr + i] = crc_bytes[i];
             }
         } else {
-            let crc_bytes = if self.big_endian {
+            let crc_bytes = if big_endian {
                 crc_u128.to_be_bytes()
             } else {
                 crc_u128.to_le_bytes()
@@ -297,44 +264,6 @@ impl Message {
         }
 
         Ok(ptr + ck_len)
-    }
-
-    /// Returns the SYNC byte we expect for [Self]
-    pub(crate) fn sync_byte(&self) -> u8 {
-        if self.reversed {
-            if self.big_endian {
-                if self.enhanced_crc {
-                    Constants::REVSYNC_BE_ENHANCED_CRC
-                } else {
-                    Constants::REVSYNC_BE_STANDARD_CRC
-                }
-            } else {
-                if self.enhanced_crc {
-                    Constants::REVSYNC_LE_ENHANCED_CRC
-                } else {
-                    Constants::REVSYNC_LE_STANDARD_CRC
-                }
-            }
-        } else {
-            if self.big_endian {
-                if self.enhanced_crc {
-                    Constants::FWDSYNC_BE_ENHANCED_CRC
-                } else {
-                    Constants::FWDSYNC_BE_STANDARD_CRC
-                }
-            } else {
-                if self.enhanced_crc {
-                    Constants::FWDSYNC_LE_ENHANCED_CRC
-                } else {
-                    Constants::FWDSYNC_LE_STANDARD_CRC
-                }
-            }
-        }
-    }
-
-    /// Tries to locate desired byte within buffer
-    fn find(to_find: u8, buf: &[u8]) -> Option<usize> {
-        buf.iter().position(|b| *b == to_find)
     }
 
     /// Number of bytes to encode U32 using the 1-4 BNXI algorithm.
@@ -496,9 +425,9 @@ impl Message {
 mod test {
     use super::Message;
     use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record};
-    use crate::message::{GALEphemeris, GPSEphemeris, TimeResolution};
+    use crate::message::{GALEphemeris, GPSEphemeris, Meta, TimeResolution};
     use crate::prelude::Epoch;
-    use crate::{constants::Constants, Error};
+    use crate::Error;
 
     #[test]
     fn big_endian_bnxi() {
@@ -645,58 +574,12 @@ mod test {
     }
 
     #[test]
-    fn decode_fwd_enhancedcrc_stream() {
-        let buf = [Constants::FWDSYNC_BE_ENHANCED_CRC, 0, 0, 0];
-        match Message::decode(&buf) {
-            Err(Error::EnhancedCrc) => {},
-            Err(e) => panic!("returned unexpected error: {:?}", e),
-            _ => panic!("should have paniced"),
-        }
-    }
-
-    #[test]
-    fn decode_fwd_le_stream() {
-        let buf = [Constants::FWDSYNC_LE_STANDARD_CRC, 0, 0, 0];
-        match Message::decode(&buf) {
-            Err(Error::LittleEndianStream) => {},
-            Err(e) => panic!("returned unexpected error: {:?}", e),
-            _ => panic!("should have paniced"),
-        }
-    }
-
-    #[test]
-    fn decode_reversed_stream() {
-        let buf = [Constants::REVSYNC_BE_STANDARD_CRC, 0, 0, 0];
-        match Message::decode(&buf) {
-            Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {:?}", e),
-            _ => panic!("should have paniced"),
-        }
-        let buf = [Constants::REVSYNC_BE_ENHANCED_CRC, 0, 0, 0];
-        match Message::decode(&buf) {
-            Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {:?}", e),
-            _ => panic!("should have paniced"),
-        }
-        let buf = [Constants::REVSYNC_LE_STANDARD_CRC, 0, 0, 0];
-        match Message::decode(&buf) {
-            Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {:?}", e),
-            _ => panic!("should have paniced"),
-        }
-        let buf = [Constants::REVSYNC_LE_ENHANCED_CRC, 0, 0, 0];
-        match Message::decode(&buf) {
-            Err(Error::ReversedStream) => {},
-            Err(e) => panic!("returned unexpected error: {:?}", e),
-            _ => panic!("should have paniced"),
-        }
-    }
-
-    #[test]
     fn test_monument_geo() {
-        let big_endian = true;
-        let enhanced_crc = false;
-        let reversed = false;
+        let mut meta = Meta::default();
+
+        meta.reversed = false;
+        meta.big_endian = true;
+        meta.enhanced_crc = false;
 
         let mut geo = MonumentGeoRecord::default().with_comment("simple");
 
@@ -706,19 +589,13 @@ mod test {
         let geo_len = geo.encoding_size();
         let record = Record::new_monument_geo(geo);
 
-        let msg = Message::new(
-            big_endian,
-            TimeResolution::QuarterSecond,
-            enhanced_crc,
-            reversed,
-            record,
-        );
+        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
 
         // SYNC + MID(1) +FID + MLEN + CRC(8)
         assert_eq!(msg.encoding_size(), 1 + 1 + 1 + geo_len + 1);
 
         let mut encoded = [0; 256];
-        msg.encode(&mut encoded).unwrap();
+        msg.encode(&mut encoded, 256).unwrap();
 
         assert_eq!(encoded[17], 3);
 
@@ -729,27 +606,23 @@ mod test {
 
     #[test]
     fn test_gps_raw() {
-        let big_endian = true;
-        let enhanced_crc = false;
-        let reversed = false;
+        let mut meta = Meta::default();
+
+        meta.reversed = false;
+        meta.big_endian = true;
+        meta.enhanced_crc = false;
 
         let gps_raw = EphemerisFrame::GPSRaw(GPSRaw::default());
         let gps_raw_len = gps_raw.encoding_size();
         let record = Record::new_ephemeris_frame(gps_raw);
 
-        let msg = Message::new(
-            big_endian,
-            TimeResolution::QuarterSecond,
-            enhanced_crc,
-            reversed,
-            record,
-        );
+        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
 
         // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
         assert_eq!(msg.encoding_size(), 1 + 1 + 1 + gps_raw_len + 1);
 
         let mut encoded = [0; 256];
-        msg.encode(&mut encoded).unwrap();
+        msg.encode(&mut encoded, 256).unwrap();
 
         assert_eq!(encoded[78 + 1 + 1 + 1], 0);
 
@@ -760,9 +633,11 @@ mod test {
 
     #[test]
     fn test_gps_eph() {
-        let big_endian = true;
-        let enhanced_crc = false;
-        let reversed = false;
+        let mut meta = Meta::default();
+
+        meta.reversed = false;
+        meta.big_endian = true;
+        meta.enhanced_crc = false;
 
         let gps_eph = EphemerisFrame::GPS(GPSEphemeris::default());
         let gps_eph_len = gps_eph.encoding_size();
@@ -770,19 +645,13 @@ mod test {
 
         assert_eq!(gps_eph_len, 129);
 
-        let msg = Message::new(
-            big_endian,
-            TimeResolution::QuarterSecond,
-            enhanced_crc,
-            reversed,
-            record,
-        );
+        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
 
         // SYNC + MID(1) + MLEN(2) + RLEN + CRC(2)
         assert_eq!(msg.encoding_size(), 1 + 1 + 2 + gps_eph_len + 2);
 
         let mut encoded = [0; 256];
-        msg.encode(&mut encoded).unwrap();
+        msg.encode(&mut encoded, 256).unwrap();
 
         // parse back
         let parsed = Message::decode(&encoded).unwrap();
@@ -791,9 +660,11 @@ mod test {
 
     #[test]
     fn test_gal_eph() {
-        let big_endian = true;
-        let enhanced_crc = false;
-        let reversed = false;
+        let mut meta = Meta::default();
+
+        meta.reversed = false;
+        meta.big_endian = true;
+        meta.enhanced_crc = false;
 
         let eph = EphemerisFrame::GAL(GALEphemeris::default());
         let eph_len = eph.encoding_size();
@@ -801,19 +672,13 @@ mod test {
 
         assert_eq!(eph_len, 129);
 
-        let msg = Message::new(
-            big_endian,
-            TimeResolution::QuarterSecond,
-            enhanced_crc,
-            reversed,
-            record,
-        );
+        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
 
         // SYNC + MID(1) + MLEN(2) + RLEN + CRC(2)
         assert_eq!(msg.encoding_size(), 1 + 1 + 2 + eph_len + 2);
 
         let mut encoded = [0; 256];
-        msg.encode(&mut encoded).unwrap();
+        msg.encode(&mut encoded, 256).unwrap();
 
         // parse back
         let parsed = Message::decode(&encoded).unwrap();
