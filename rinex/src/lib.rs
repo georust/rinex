@@ -159,7 +159,7 @@ pub mod prelude {
 
     #[cfg(feature = "binex")]
     #[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
-    pub use crate::binex::{BIN2RNX, RNX2BIN};
+    pub use crate::binex::BIN2RNX;
 
     #[cfg(feature = "rtcm")]
     #[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]

@@ -508,13 +508,13 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     if self.first_epoch {
                         if v3 {
                             // line must start with '>'
-                            if !self.epoch_descriptor[..1].eq(">") {
+                            if !self.epoch_descriptor.starts_with('>') {
                                 self.state = State::EpochGathering;
                                 continue;
                             }
                         } else {
                             // line must start with '&'
-                            if !self.epoch_descriptor[..1].eq("&") {
+                            if !self.epoch_descriptor.starts_with('&') {
                                 self.state = State::EpochGathering;
                                 continue;
                             }
@@ -525,22 +525,23 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                     // it is not required by the decompression algorithm
 
                     // decode numsat
-                    self.numsat = self.epoch_numsat().expect("invalid epoch: numsat");
+                    self.numsat = self.epoch_numsat(v3).expect("invalid epoch: numsat");
 
                     println!("NUMSAT: {}", self.numsat);
 
                     // verify satellites correctness, this avoids proceeding to epoch decoding for nothing
-                    for i in 0..self.numsat {
+                    for sv_index in 0..self.numsat {
+                        let start = Self::sv_slice_start(v3, sv_index);
+
                         // TODO: this will panic in very old files that ommit the constellation
-                        let start = Self::sv_slice_start(i, v3);
                         let sv = SV::from_str(&self.epoch_descriptor[start..start + 3].trim())
                             .expect("bad sv");
 
-                        if i == 0 {
-                            self.sv = sv;
+                        if sv_index == 0 {
+                            self.sv = sv; // store first SV
                         }
 
-                        // add one kernel for each new satellite
+                        // adds one kernel for each new satellite
                         let numobs = self.get_observables(&sv.constellation).unwrap().len();
 
                         for i in 0..numobs {
@@ -630,9 +631,9 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         next_state = State::EpochGathering;
                     } else {
                         // grab next SV
-                        let mut start = self.sv_slice_start(self.sv_ptr, v3);
-                        self.sv = SV::from_str(&self.epoch_descriptor[start..start + 3].trim())
-                            .expect("bad sv");
+                        if let Some(sv) = self.next_sv(v3) {
+                            self.sv = sv;
+                        }
 
                         next_state = State::Observation;
                     }
@@ -787,26 +788,27 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         slice.chars().position(|b| b != Self::WHITESPACE_CHAR)
     }
 
-    /// Returns beginning of this SV (starting from 0th)
-    /// in the recovered epoch description
-    fn sv_slice_start(nth: usize, v3: bool) {
-        let mut start = 6 + 3 * sv_ptr;
+    /// Returns pointer offset to parse this sv
+    fn sv_slice_start(v3: bool, sv_index: usize) -> usize {
+        let mut offset = 6 + 3 * sv_index;
         if v3 {
-            start += Self::V3_TIMESTAMP_SIZE;
+            offset += Self::V3_TIMESTAMP_SIZE;
         } else {
-            start += Self::V2_TIMESTAMP_SIZE;
+            offset += Self::V2_TIMESTAMP_SIZE;
         }
+        offset
     }
 
-    /// Next SV decoding attempt
+    /// Returns next [SV]
     fn next_sv(&self, v3: bool) -> Option<SV> {
-        let slice_start = Self::sv_slice_start(self.sv_ptr, v3);
-        if self.epoch_desc_len < slice_start + 3 {
+        let offset = Self::sv_slice_start(v3, self.sv_ptr);
+
+        if self.epoch_desc_len < offset + 3 {
             return None;
         }
 
-        //TODO: this might fail on old rinex single constell format
-        if let Ok(sv) = SV::from_str(&self.epoch_desc[start..start + 3]) {
+        // TODO: this might fail on old rinex single constell that ommit the constellation
+        if let Ok(sv) = SV::from_str(&self.epoch_descriptor[offset..offset + 3].trim()) {
             Some(sv)
         } else {
             None
@@ -825,7 +827,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             .trim()
             .parse::<u8>()
         {
-            Some(numsat as usize)
+            Some(*numsat as usize)
         } else {
             None
         }
@@ -854,6 +856,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             constellation: Constellation::Mixed,
             clock_diff: NumDiff::<M>::new(0, M),
             obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
+            epoch_desc_len: 0,
             epoch_descriptor: String::with_capacity(256),
             flags_descriptor: String::with_capacity(128),
             gnss_observables: HashMap::with_capacity(4),
