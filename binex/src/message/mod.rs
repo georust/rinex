@@ -7,7 +7,7 @@ mod time; // Epoch encoding/decoding // checksum calc.
 pub use record::{
     EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, MonumentGeoMetadata,
     MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record, SBASEphemeris, Solutions,
-    TemporalSolution, Velocity3d, VelocityNED3d,
+    SolutionsFrame, TemporalSolution, Velocity3d, VelocityNED3d,
 };
 
 pub use meta::Meta;
@@ -103,12 +103,10 @@ impl Message {
 
         // 2. parse MID
         let (bnxi, mid_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
-
         let mid = MessageID::from(bnxi);
         if mid == MessageID::Unknown {
             return Err(Error::UnknownMessage);
         }
-
         ptr += mid_1_4;
 
         // make sure we can parse up to 4 byte MLEN
@@ -125,7 +123,6 @@ impl Message {
             // buffer does not contain complete message!
             return Err(Error::IncompleteMessage(mlen));
         }
-
         ptr += mlen_1_4;
 
         // 4. parse RECORD
@@ -427,7 +424,10 @@ impl Message {
 #[cfg(test)]
 mod test {
     use super::Message;
-    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record};
+    use crate::message::{
+        EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, Record,
+        SolutionsFrame,
+    };
     use crate::message::{GALEphemeris, GPSEphemeris, Meta, Solutions, TemporalSolution};
     use crate::prelude::Epoch;
     use crate::Error;
@@ -689,33 +689,24 @@ mod test {
     }
 
     #[test]
-    fn test_pvt() {
+    fn test_pvt_wgs84() {
         let mut meta = Meta::default();
 
         meta.reversed = false;
         meta.big_endian = true;
         meta.enhanced_crc = false;
 
-        let solutions = Solutions::new(Epoch::from_gpst_seconds(1.100)).with_pvt_ecef_wgs84(
-            1.0,
-            2.0,
-            3.0,
-            4.0,
-            5.0,
-            6.0,
-            TemporalSolution {
-                offset_s: 7.0,
-                drift_s_s: None,
-            },
-        );
+        let mut solutions = Solutions::new(Epoch::from_gpst_seconds(1.100));
+
+        solutions.frames.push(SolutionsFrame::AntennaEcefPosition(
+            PositionEcef3d::new_wgs84(1.0, 2.0, 3.0),
+        ));
 
         let sol_len = solutions.encoding_size();
+        assert_eq!(sol_len, 6 + 1 + 3 * 8 + 1); // ts | fid | 3*8 | wgs
+
         let record = Record::new_solutions(solutions);
         let msg = Message::new(meta, record);
-
-        // x3 (3 * 8)
-        // TODO
-        //assert_eq!(sol_len, 6+ 2*(3*8) +1 +8);
 
         // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
         assert_eq!(msg.encoding_size(), 1 + 1 + 1 + sol_len + 1);

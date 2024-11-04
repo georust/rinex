@@ -168,7 +168,7 @@ impl Solutions {
         s
     }
 
-    /// Define a new PVT solution in ECEF
+    /// Define PVT solution update, in ECEF
     pub fn with_pvt_ecef_wgs84(
         &self,
         x_ecef_m: f64,
@@ -183,6 +183,37 @@ impl Solutions {
         s.frames.push(SolutionsFrame::AntennaEcefPosition(
             PositionEcef3d::new_wgs84(x_ecef_m, y_ecef_m, z_ecef_m),
         ));
+        s.frames
+            .push(SolutionsFrame::AntennaEcefVelocity(Velocity3d {
+                x_m_s: velx_ecef_m_s,
+                y_m_s: vely_ecef_m_s,
+                z_m_s: velz_ecef_m_s,
+            }));
+        s.frames
+            .push(SolutionsFrame::TemporalSolution(temporal_sol));
+        s
+    }
+
+    /// Define PVT solution update, in ellipsoid of your choice
+    pub fn with_pvt_ecef(
+        &self,
+        x_ecef_m: f64,
+        y_ecef_m: f64,
+        z_ecef_m: f64,
+        velx_ecef_m_s: f64,
+        vely_ecef_m_s: f64,
+        velz_ecef_m_s: f64,
+        temporal_sol: TemporalSolution,
+        ellipsoid: &str,
+    ) -> Self {
+        let mut s = self.clone();
+        s.frames
+            .push(SolutionsFrame::AntennaEcefPosition(PositionEcef3d {
+                x_ecef_m,
+                y_ecef_m,
+                z_ecef_m,
+                ellipsoid: ellipsoid.to_string(),
+            }));
         s.frames
             .push(SolutionsFrame::AntennaEcefVelocity(Velocity3d {
                 x_m_s: velx_ecef_m_s,

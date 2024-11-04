@@ -12,7 +12,8 @@ pub use ephemeris::{
 
 pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
 pub use solutions::{
-    PositionEcef3d, PositionGeo3d, Solutions, TemporalSolution, Velocity3d, VelocityNED3d,
+    PositionEcef3d, PositionGeo3d, Solutions, SolutionsFrame, TemporalSolution, Velocity3d,
+    VelocityNED3d,
 };
 
 #[derive(Debug, Clone, PartialEq)]
