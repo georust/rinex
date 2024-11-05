@@ -82,4 +82,8 @@ pub enum Error {
     TooLargeInternalLimitation,
     /// Found closed source message
     ClosedSourceMessage(ClosedSourceMeta),
+    /// Asked mGFZi decoding on incorrect number of bytes (bad internal op)
+    mGfziInvalidDecodeSize,
+    /// No mGFZi compatible MSB during mGFZi decompression attempt
+    mGfziLeadingByte,
 }

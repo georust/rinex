@@ -1,3 +1,5 @@
+use crate::prelude::{Error, Message};
+
 impl Message {
     /// Number of bytes to encode U32 using the 1-4 BNXI algorithm.
     pub const fn bnxi_encoding_size(val: u32) -> usize {
@@ -150,4 +152,4 @@ impl Message {
 
         (val, size)
     }
-
+}

@@ -1,11 +1,10 @@
+mod bnxi; // 1-4 bnxi encoding / decoding
 mod checksum;
 mod meta; // message Meta Data
+mod mgfzi;
 mod mid; // message ID
 mod record; // Record: message content
-mod time; // Epoch encoding/decoding // checksum calc.
-
-pub(crate) mod bnxi; // 1-4 bnxi encoding / decoding
-pub(crate) mod mgfzi; // mGFZi encoding / decoding
+mod time; // Epoch encoding/decoding // checksum calc. // mGFZi encoding / decoding
 
 pub use record::{
     EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, MonumentGeoMetadata,
