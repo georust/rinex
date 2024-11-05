@@ -15,13 +15,14 @@ pub mod prelude {
         decoder::Decoder,
         message::{
             EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message, Meta,
-            MonumentGeoMetadata, MonumentGeoRecord, Record, SBASEphemeris, TimeResolution,
+            MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record,
+            SBASEphemeris, Solutions, TemporalSolution, Velocity3d, VelocityNED3d,
         },
         stream::{ClosedSourceElement, Provider, StreamElement},
         ClosedSourceMeta, Error,
     };
     // re-export
-    pub use hifitime::Epoch;
+    pub use hifitime::{Epoch, TimeScale};
 }
 
 use crate::message::Meta;
@@ -75,6 +76,8 @@ pub enum Error {
     IncompleteMessage(usize),
     /// Library limitation: not all open source Messages supported yet
     NonSupportedMesssage(usize),
+    /// Library limtation: not all subrecords supported yet
+    NonSupportedSubRecord,
     /// Library limtation: should never happen, because this library
     /// will be designed to parse all open source [Message]s.
     /// This may happen as either we're still in development (bad internal design)

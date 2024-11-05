@@ -26,11 +26,11 @@ impl GPSRaw {
         Self::default()
     }
 
-    pub const fn encoding_size() -> usize {
+    pub(crate) const fn encoding_size() -> usize {
         78
     }
 
-    pub fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+    pub(crate) fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if buf.len() < Self::encoding_size() {
             return Err(Error::NotEnoughBytes);
         }
@@ -55,7 +55,7 @@ impl GPSRaw {
         })
     }
 
-    pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+    pub(crate) fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = Self::encoding_size();
         if buf.len() < size {
             Err(Error::NotEnoughBytes)

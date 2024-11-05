@@ -40,7 +40,7 @@ impl GeoStringFrame {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MonumentGeoRecord {
     /// [Epoch]
     pub epoch: Epoch,
@@ -50,6 +50,17 @@ pub struct MonumentGeoRecord {
     pub comments: Vec<String>,
     /// Readable frames that we expose with high level methods
     pub frames: Vec<GeoStringFrame>,
+}
+
+impl Default for MonumentGeoRecord {
+    fn default() -> Self {
+        Self {
+            epoch: Epoch::from_gpst_seconds(0.0),
+            meta: MonumentGeoMetadata::RNX2BIN,
+            comments: Default::default(),
+            frames: Default::default(),
+        }
+    }
 }
 
 impl MonumentGeoRecord {
@@ -69,11 +80,15 @@ impl MonumentGeoRecord {
     ///     Error,
     ///     MonumentGeoRecord,
     ///     MonumentGeoMetadata,
+    ///     Message,
+    ///     Meta,
+    ///     Record,
     /// };
     ///     
-    /// let t = Epoch::from_gpst_seconds(60.0 + 0.75);
+    /// // forge geodetic monument message
+    /// let t = Epoch::from_gpst_seconds(60.0);
     ///
-    /// let record = MonumentGeoRecord::new(
+    /// let geo = MonumentGeoRecord::new(
     ///     t,
     ///     MonumentGeoMetadata::RNX2BIN,
     ///     "Fancy GNSS receiver",
@@ -83,32 +98,38 @@ impl MonumentGeoRecord {
     /// );
     ///
     /// // customize as you need
-    /// let record = record
+    /// let geo = geo
     ///     .with_comment("you can add")
     ///     .with_comment("as many as you need")
     ///     .with_extra_info("Experiment or setup context")
     ///     .with_geophysical_info("Eurasian plate")
     ///     .with_climatic_info("Climatic Model XXXX");
     ///
-    /// // define your preference,
-    /// // which really impacts the decoder's end
-    /// let big_endian = true;
+    /// // Build Monument Geodetic message
+    /// let geo = Record::new_monument_geo(geo);
     ///
-    /// // buffer is too small!
-    /// // you should always use .encoding_size()
-    /// // to double check the size you need
-    /// let mut buf = [0; 8];
-    /// assert!(record.encode(big_endian, &mut buf).is_err());
+    /// let meta = Meta {
+    ///     reversed: false,
+    ///     enhanced_crc: false,
+    ///     big_endian: true,
+    /// };
     ///
-    /// let mut buf = [0; 256];
-    /// record.encode(true, &mut buf)
+    /// let msg = Message::new(meta, geo);
+    ///
+    /// // encode
+    /// let mut encoded = [0; 256];
+    /// msg.encode(&mut encoded, msg.encoding_size()).unwrap();
+    ///
+    /// // decode
+    /// let decoded = Message::decode(&encoded)
     ///     .unwrap();
+    ///
+    /// assert_eq!(decoded, msg);
     /// ```
     ///
-    /// Another option is to use the Default constructor.
-    /// But in this case you must pay attention to at least add
-    /// one custom field (like one comments) otherwise the resulting
-    /// frame would not be valid
+    /// Another option is to use the Default constructor, but you have to be careful:
+    /// - Epoch is set to t0 GPST, which is probably not what you intend
+    /// - Message body is empty, so not ready to encode into a valid message.
     /// ```
     /// use binex::prelude::{
     ///     Epoch,
@@ -127,10 +148,6 @@ impl MonumentGeoRecord {
     ///
     /// record.epoch = t;
     /// record.meta = MonumentGeoMetadata::RNX2BIN;
-    ///
-    /// let mut buf = [0; 64];
-    /// record.encode(true, &mut buf)
-    ///     .unwrap();
     /// ```
     pub fn new(
         epoch: Epoch,
@@ -211,18 +228,12 @@ impl MonumentGeoRecord {
     /// [Self] decoding attempt from buffered content.
     /// ## Inputs
     ///    - mlen: message length in bytes
-    ///    - time_res: [TimeResolution]
     ///    - big_endian: endianness
     ///    - buf: buffered content
     /// ## Outputs
     ///    - Ok: [Self]
     ///    - Err: [Error]
-    pub fn decode(
-        mlen: usize,
-        time_res: TimeResolution,
-        big_endian: bool,
-        buf: &[u8],
-    ) -> Result<Self, Error> {
+    pub(crate) fn decode(mlen: usize, big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         let mut ret = Self::default();
 
         if mlen < Self::MIN_SIZE {
@@ -231,7 +242,7 @@ impl MonumentGeoRecord {
         }
 
         // decode timestamp
-        ret.epoch = decode_gpst_epoch(big_endian, time_res, &buf)?;
+        ret.epoch = decode_gpst_epoch(big_endian, TimeResolution::QuarterSecond, &buf)?;
 
         // decode source meta
         ret.meta = MonumentGeoMetadata::from(buf[5]);
@@ -297,14 +308,15 @@ impl MonumentGeoRecord {
     //  - AntennaECEF3D
     //  - AntennaGeo3D
     //  - AntennaOffset3D
-    pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+    pub(crate) fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = self.encoding_size();
         if buf.len() < size {
             return Err(Error::NotEnoughBytes);
         }
 
         // encode tstamp
-        let mut ptr = encode_epoch(self.epoch.to_time_scale(TimeScale::GPST), big_endian, buf)?;
+        let t = self.epoch.to_time_scale(TimeScale::GPST);
+        let mut ptr = encode_epoch(t, TimeResolution::QuarterSecond, big_endian, buf)?;
 
         // encode source meta
         buf[ptr] = self.meta.into();
@@ -538,8 +550,7 @@ mod test {
     #[test]
     fn monument_marker_bnx00_error() {
         let buf = [0, 0, 0, 0];
-        let time_res = TimeResolution::QuarterSecond;
-        let monument = MonumentGeoRecord::decode(4, time_res, true, &buf);
+        let monument = MonumentGeoRecord::decode(4, true, &buf);
         assert!(monument.is_err());
     }
 
@@ -547,14 +558,13 @@ mod test {
     fn monument_geo_comments_decoding() {
         let mlen = 17;
         let big_endian = true;
-        let time_res = TimeResolution::QuarterSecond;
 
         let buf = [
             0, 0, 1, 1, 41, 2, 0, 9, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8,
             ' ' as u8, 'G' as u8, 'E' as u8, 'O' as u8,
         ];
 
-        let geo = MonumentGeoRecord::decode(mlen, time_res, big_endian, &buf).unwrap();
+        let geo = MonumentGeoRecord::decode(mlen, big_endian, &buf).unwrap();
 
         assert_eq!(
             geo.epoch,

@@ -1,6 +1,5 @@
 use binex::prelude::{
     EphemerisFrame, Epoch, Message, Meta, MonumentGeoMetadata, MonumentGeoRecord, Record,
-    TimeResolution,
 };
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -24,7 +23,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     record.meta = geo_meta;
 
     let record = Record::new_monument_geo(record);
-    let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
+    let msg = Message::new(meta, record);
 
     c.bench_function("encoding-00", |b| {
         b.iter(|| {
@@ -33,7 +32,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 
     let record = Record::new_ephemeris_frame(EphemerisFrame::GPSRaw(Default::default()));
-    let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
+    let msg = Message::new(meta, record);
 
     c.bench_function("encoding-01-00", |b| {
         b.iter(|| {
@@ -42,7 +41,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 
     let record = Record::new_ephemeris_frame(EphemerisFrame::GPS(Default::default()));
-    let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
+    let msg = Message::new(meta, record);
 
     c.bench_function("encoding-01-01", |b| {
         b.iter(|| {

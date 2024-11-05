@@ -6,7 +6,8 @@ mod time; // Epoch encoding/decoding // checksum calc.
 
 pub use record::{
     EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, MonumentGeoMetadata,
-    MonumentGeoRecord, Record, SBASEphemeris,
+    MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record, SBASEphemeris, Solutions,
+    SolutionsFrame, TemporalSolution, Velocity3d, VelocityNED3d,
 };
 
 pub use meta::Meta;
@@ -14,9 +15,8 @@ pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
 
-use checksum::Checksum;
-
 use crate::{stream::Provider, ClosedSourceMeta, Error};
+use checksum::Checksum;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
@@ -24,8 +24,6 @@ pub struct Message {
     pub meta: Meta,
     /// [Record]
     pub record: Record,
-    /// Time Resolution in use
-    time_res: TimeResolution,
 }
 
 impl Message {
@@ -38,12 +36,8 @@ impl Message {
     const BNXI_BYTE_MASK: u8 = 0x7f;
 
     /// Creates a new [Message] ready to be encoded.
-    pub fn new(meta: Meta, time_res: TimeResolution, record: Record) -> Self {
-        Self {
-            meta,
-            record,
-            time_res,
-        }
+    pub fn new(meta: Meta, record: Record) -> Self {
+        Self { meta, record }
     }
 
     /// Returns total size required to encode this [Message].
@@ -72,8 +66,6 @@ impl Message {
     /// with header information.
     pub fn decode(buf: &[u8]) -> Result<Self, Error> {
         let buf_len = buf.len();
-
-        let time_res = TimeResolution::QuarterSecond;
 
         // 1. locate SYNC byte
         let meta = Meta::find_and_parse(buf, buf_len);
@@ -113,12 +105,11 @@ impl Message {
 
         // 2. parse MID
         let (bnxi, mid_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
-
         let mid = MessageID::from(bnxi);
+
         if mid == MessageID::Unknown {
             return Err(Error::UnknownMessage);
         }
-
         ptr += mid_1_4;
 
         // make sure we can parse up to 4 byte MLEN
@@ -135,19 +126,24 @@ impl Message {
             // buffer does not contain complete message!
             return Err(Error::IncompleteMessage(mlen));
         }
-
         ptr += mlen_1_4;
 
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec =
-                    MonumentGeoRecord::decode(mlen as usize, time_res, big_endian, &buf[ptr..])?;
+                let rec = MonumentGeoRecord::decode(mlen as usize, big_endian, &buf[ptr..])?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Ephemeris => {
                 let fr = EphemerisFrame::decode(big_endian, &buf[ptr..])?;
                 Record::new_ephemeris_frame(fr)
+            },
+            MessageID::ProcessedSolutions => {
+                let solutions = Solutions::decode(mlen as usize, big_endian, &buf[ptr..])?;
+                Record::new_solutions(solutions)
+            },
+            MessageID::Unknown => {
+                return Err(Error::UnknownMessage);
             },
             _ => {
                 // check whether this message is undisclosed or not
@@ -184,11 +180,7 @@ impl Message {
         if expected != ck {
             Err(Error::CorrupctBadCRC)
         } else {
-            Ok(Self {
-                meta,
-                record,
-                time_res,
-            })
+            Ok(Self { meta, record })
         }
     }
 
@@ -231,6 +223,9 @@ impl Message {
             },
             Record::MonumentGeo(geo) => {
                 ptr += geo.encode(big_endian, &mut buf[ptr..])?;
+            },
+            Record::Solutions(fr) => {
+                ptr += fr.encode(big_endian, &mut buf[ptr..])?;
             },
         }
 
@@ -432,8 +427,10 @@ impl Message {
 #[cfg(test)]
 mod test {
     use super::Message;
-    use crate::message::{EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, Record};
-    use crate::message::{GALEphemeris, GPSEphemeris, Meta, TimeResolution};
+    use crate::message::{
+        EphemerisFrame, GALEphemeris, GPSEphemeris, GPSRaw, Meta, MonumentGeoMetadata,
+        MonumentGeoRecord, PositionEcef3d, Record, Solutions, SolutionsFrame, Velocity3d,
+    };
     use crate::prelude::Epoch;
     use crate::Error;
 
@@ -597,7 +594,7 @@ mod test {
         let geo_len = geo.encoding_size();
         let record = Record::new_monument_geo(geo);
 
-        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
+        let msg = Message::new(meta, record);
 
         // SYNC + MID(1) +FID + MLEN + CRC(8)
         assert_eq!(msg.encoding_size(), 1 + 1 + 1 + geo_len + 1);
@@ -624,7 +621,7 @@ mod test {
         let gps_raw_len = gps_raw.encoding_size();
         let record = Record::new_ephemeris_frame(gps_raw);
 
-        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
+        let msg = Message::new(meta, record);
 
         // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
         assert_eq!(msg.encoding_size(), 1 + 1 + 1 + gps_raw_len + 1);
@@ -653,7 +650,7 @@ mod test {
 
         assert_eq!(gps_eph_len, 129);
 
-        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
+        let msg = Message::new(meta, record);
 
         // SYNC + MID(1) + MLEN(2) + RLEN + CRC(2)
         assert_eq!(msg.encoding_size(), 1 + 1 + 2 + gps_eph_len + 2);
@@ -680,7 +677,7 @@ mod test {
 
         assert_eq!(eph_len, 129);
 
-        let msg = Message::new(meta, TimeResolution::QuarterSecond, record);
+        let msg = Message::new(meta, record);
 
         // SYNC + MID(1) + MLEN(2) + RLEN + CRC(2)
         assert_eq!(msg.encoding_size(), 1 + 1 + 2 + eph_len + 2);
@@ -691,5 +688,81 @@ mod test {
         // parse back
         let parsed = Message::decode(&encoded).unwrap();
         assert_eq!(parsed, msg);
+    }
+
+    #[test]
+    fn test_pvt_wgs84() {
+        let mut meta = Meta::default();
+
+        meta.reversed = false;
+        meta.big_endian = true;
+        meta.enhanced_crc = false;
+
+        let mut solutions = Solutions::new(Epoch::from_gpst_seconds(1.100));
+
+        solutions.frames.push(SolutionsFrame::AntennaEcefPosition(
+            PositionEcef3d::new_wgs84(1.0, 2.0, 3.0),
+        ));
+
+        let sol_len = solutions.encoding_size();
+        assert_eq!(sol_len, 6 + 1 + 3 * 8 + 1); // ts | fid | 3*8 | wgs
+
+        let mut buf = [0; 32];
+        let size = solutions.encode(true, &mut buf).unwrap();
+        assert_eq!(size, 6 + 1 + 3 * 8 + 1);
+
+        assert_eq!(
+            buf,
+            [
+                0, 0, 0, 0, 4, 76, 1, 0, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 64, 8,
+                0, 0, 0, 0, 0, 0
+            ]
+        );
+
+        let record = Record::new_solutions(solutions.clone());
+        let msg = Message::new(meta, record);
+
+        // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
+        let mlen = 1 + 1 + 1 + sol_len + 1;
+        assert_eq!(msg.encoding_size(), mlen);
+
+        let mut encoded = [0; 40];
+        msg.encode(&mut encoded, 40).unwrap();
+
+        assert_eq!(
+            encoded,
+            [
+                226, 5, 32, 0, 0, 0, 0, 4, 76, 1, 0, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0,
+                0, 0, 64, 8, 0, 0, 0, 0, 0, 0, 171, 0, 0, 0, 0
+            ]
+        );
+
+        // parse back
+        let parsed = Message::decode(&encoded).unwrap();
+        assert_eq!(parsed, msg);
+
+        // add velocity
+        solutions
+            .frames
+            .push(SolutionsFrame::AntennaEcefVelocity(Velocity3d {
+                x_m_s: 1.0,
+                y_m_s: 1.0,
+                z_m_s: 1.0,
+            }));
+
+        let sol_len = solutions.encoding_size();
+        assert_eq!(sol_len, 6 + 1 + 3 * 8 + 1 + 3 * 8 + 1);
+
+        let mut buf = [0; 64];
+        let size = solutions.encode(true, &mut buf).unwrap();
+        assert_eq!(size, sol_len);
+
+        let record = Record::new_solutions(solutions.clone());
+        let msg = Message::new(meta, record);
+
+        // add temporal
+        // add system time
+        // add comment
+        // add extra
     }
 }

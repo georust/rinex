@@ -1,6 +1,5 @@
 use binex::prelude::{
     EphemerisFrame, Epoch, GPSEphemeris, GPSRaw, Message, Meta, MonumentGeoRecord, Record,
-    TimeResolution,
 };
 
 #[test]
@@ -12,7 +11,6 @@ fn test_crc8_geo() {
 
     let msg = Message::new(
         meta,
-        TimeResolution::QuarterSecond,
         Record::new_monument_geo(MonumentGeoRecord::new_igs(
             Epoch::from_gpst_seconds(61.25),
             "Great receiver",
@@ -40,7 +38,6 @@ fn test_crc16_geo() {
 
     let msg = Message::new(
         meta,
-        TimeResolution::QuarterSecond,
         Record::new_monument_geo(
             MonumentGeoRecord::new_igs(
                 Epoch::from_gpst_seconds(61.25),
@@ -74,7 +71,6 @@ fn test_crc8_gps() {
 
     let msg = Message::new(
         meta,
-        TimeResolution::QuarterSecond,
         Record::new_ephemeris_frame(EphemerisFrame::new_gps_raw(GPSRaw::default())),
     );
 
@@ -97,7 +93,6 @@ fn test_crc16_gps() {
     meta.enhanced_crc = false;
     let msg = Message::new(
         meta,
-        TimeResolution::QuarterSecond,
         Record::new_ephemeris_frame(EphemerisFrame::new_gps(GPSEphemeris::default())),
     );
 
