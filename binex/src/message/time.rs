@@ -255,6 +255,14 @@ mod test {
         assert_eq!(parsed, t);
 
         let mut buf = [0, 0, 0, 0, 0, 0];
+        let t = Epoch::from_gpst_seconds(1.1);
+        encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
+        assert_eq!(buf, [0, 0, 0, 0, 4, 76]);
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
+        let mut buf = [0, 0, 0, 0, 0, 0];
         let t = Epoch::from_gpst_seconds(71.0);
         encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 1, 0x2a, 0xf8]);

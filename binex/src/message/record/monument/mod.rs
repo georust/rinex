@@ -73,7 +73,7 @@ impl MonumentGeoRecord {
     ///     
     /// let t = Epoch::from_gpst_seconds(60.0 + 0.75);
     ///
-    /// let record = MonumentGeoRecord::new(
+    /// let geo = MonumentGeoRecord::new(
     ///     t,
     ///     MonumentGeoMetadata::RNX2BIN,
     ///     "Fancy GNSS receiver",
@@ -83,7 +83,7 @@ impl MonumentGeoRecord {
     /// );
     ///
     /// // customize as you need
-    /// let record = record
+    /// let geo = geo
     ///     .with_comment("you can add")
     ///     .with_comment("as many as you need")
     ///     .with_extra_info("Experiment or setup context")
@@ -97,12 +97,17 @@ impl MonumentGeoRecord {
     /// // buffer is too small!
     /// // you should always use .encoding_size()
     /// // to double check the size you need
-    /// let mut buf = [0; 8];
-    /// assert!(record.encode(big_endian, &mut buf).is_err());
+    /// let mut encoded = [0; 8];
+    /// assert!(geo.encode(big_endian, &mut encoded).is_err());
     ///
-    /// let mut buf = [0; 256];
-    /// record.encode(true, &mut buf)
+    /// let mut encoded = [0; 256];
+    /// geo.encode(true, &mut encoded)
     ///     .unwrap();
+    ///
+    /// let decoded = MonumentGeoMetadata::decode(big_endian, &buf)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(decoded, geo);
     /// ```
     ///
     /// Another option is to use the Default constructor.

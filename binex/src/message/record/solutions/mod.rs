@@ -45,34 +45,34 @@ impl Solutions {
     /// Use other method to customize it!
     /// ```
     /// use binex::prelude::{
-    ///     Epoch,
+    ///     Epoch, Solutions, TemporalSolution,
     /// };
     ///     
+    /// let big_endian = true;
     /// let t = Epoch::from_gpst_seconds(60.0 + 0.75);
     ///
-    /// let record = Solutions::new(t)
-    ///     .with_position_ecef((1.0, 2.0, 3.0)) // x(t), y(t), z(t)
-    ///     .with_velocity_ecef((1.0, 2.0, 3.0)) // vx(t), vy(t), vz(t)
-    ///     .with_comments("Simple comment")
-    ///     .with_extra_info("Extra note");
+    /// // Position Velocity Time (PVT) solution update
+    /// let solutions = Solutions::new(t)
+    ///     .with_pvt_ecef_wgs84(
+    ///         1.0, // x(t) [m/s]
+    ///         2.0, // y(t) [m/s]
+    ///         3.0, // z(t) [m/s]
+    ///         4.0, // dx(t)/dt [m/s^2]
+    ///         5.0, // dy(t)/dt [m/s^2]
+    ///         6.0, // dz(t)/dt [m/s^2]
+    ///         TemporalSolution {
+    ///             offset_s: 7.0, // [s]
+    ///             drift_s_s: Some(8.0), // [s/s]
+    ///         });
     ///
-    /// let mut buf = [0; 16];
-    /// match record.encode(true, &mut buf) {
-    ///     Ok(_) => {
-    ///         panic!("encoding should have failed!");
-    ///     },
-    ///     Err(Error::NotEnoughBytes) => {
-    ///         // This frame does not fit in this pre allocated buffer.
-    ///         // You should always tie your allocations to .encoding_size() !
-    ///     },
-    ///     Err(e) => {
-    ///         panic!("{} error should not have happened!", e);
-    ///     },
-    /// }
-    ///
-    /// let mut buf = [0; 128];
-    /// let _ = record.encode(true, &mut buf)
+    /// let mut encoded = [0; 128];
+    /// let _ = solutions.encode(true, &mut encoded)
     ///     .unwrap();
+    ///
+    /// let decoded = Solutions::decode(128, big_endian, &encoded)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(decoded, solutions);
     /// ```
     pub fn new(epoch: Epoch) -> Self {
         Self {

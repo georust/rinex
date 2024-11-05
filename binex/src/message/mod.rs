@@ -222,7 +222,7 @@ impl Message {
                 ptr += geo.encode(big_endian, &mut buf[ptr..])?;
             },
             Record::Solutions(fr) => {
-                fr.encode(big_endian, &mut buf[ptr..])?;
+                ptr += fr.encode(big_endian, &mut buf[ptr..])?;
             },
         }
 
@@ -426,7 +426,7 @@ mod test {
     use super::Message;
     use crate::message::{
         EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, Record,
-        SolutionsFrame,
+        SolutionsFrame, Velocity3d,
     };
     use crate::message::{GALEphemeris, GPSEphemeris, Meta, Solutions, TemporalSolution};
     use crate::prelude::Epoch;
@@ -705,17 +705,62 @@ mod test {
         let sol_len = solutions.encoding_size();
         assert_eq!(sol_len, 6 + 1 + 3 * 8 + 1); // ts | fid | 3*8 | wgs
 
-        let record = Record::new_solutions(solutions);
+        let mut buf = [0; 32];
+        let size = solutions.encode(true, &mut buf).unwrap();
+        assert_eq!(size, 6 + 1 + 3 * 8 + 1);
+
+        assert_eq!(
+            buf,
+            [
+                0, 0, 0, 0, 4, 76, 1, 0, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 64, 8,
+                0, 0, 0, 0, 0, 0
+            ]
+        );
+
+        let record = Record::new_solutions(solutions.clone());
         let msg = Message::new(meta, record);
 
         // SYNC + MID(1) + MLEN(1) + RLEN + CRC(1)
-        assert_eq!(msg.encoding_size(), 1 + 1 + 1 + sol_len + 1);
+        let mlen = 1 + 1 + 1 + sol_len + 1;
+        assert_eq!(msg.encoding_size(), mlen);
 
-        let mut encoded = [0; 256];
-        msg.encode(&mut encoded, 256).unwrap();
+        let mut encoded = [0; 40];
+        msg.encode(&mut encoded, 40).unwrap();
+
+        assert_eq!(
+            encoded,
+            [
+                226, 5, 32, 0, 0, 0, 0, 4, 76, 1, 0, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0,
+                0, 0, 64, 8, 0, 0, 0, 0, 0, 0, 171, 0, 0, 0, 0
+            ]
+        );
 
         // parse back
         let parsed = Message::decode(&encoded).unwrap();
         assert_eq!(parsed, msg);
+
+        // add velocity
+        solutions
+            .frames
+            .push(SolutionsFrame::AntennaEcefVelocity(Velocity3d {
+                x_m_s: 1.0,
+                y_m_s: 1.0,
+                z_m_s: 1.0,
+            }));
+
+        let sol_len = solutions.encoding_size();
+        assert_eq!(sol_len, 6 + 1 + 3 * 8 + 1 + 3 * 8 + 1);
+
+        let mut buf = [0; 64];
+        let size = solutions.encode(true, &mut buf).unwrap();
+        assert_eq!(size, sol_len);
+
+        let record = Record::new_solutions(solutions.clone());
+        let msg = Message::new(meta, record);
+
+        // add temporal
+        // add system time
+        // add comment
+        // add extra
     }
 }
