@@ -11,6 +11,8 @@ pub use record::{
 };
 
 pub use meta::Meta;
+pub use time::TimeResolution;
+
 pub(crate) use mid::MessageID;
 
 use crate::{stream::Provider, ClosedSourceMeta, Error};
@@ -104,6 +106,7 @@ impl Message {
         // 2. parse MID
         let (bnxi, mid_1_4) = Self::decode_bnxi(&buf[ptr..], big_endian);
         let mid = MessageID::from(bnxi);
+
         if mid == MessageID::Unknown {
             return Err(Error::UnknownMessage);
         }
@@ -425,10 +428,9 @@ impl Message {
 mod test {
     use super::Message;
     use crate::message::{
-        EphemerisFrame, GPSRaw, MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, Record,
-        SolutionsFrame, Velocity3d,
+        EphemerisFrame, GALEphemeris, GPSEphemeris, GPSRaw, Meta, MonumentGeoMetadata,
+        MonumentGeoRecord, PositionEcef3d, Record, Solutions, SolutionsFrame, Velocity3d,
     };
-    use crate::message::{GALEphemeris, GPSEphemeris, Meta, Solutions, TemporalSolution};
     use crate::prelude::Epoch;
     use crate::Error;
 

@@ -11,14 +11,22 @@ pub struct Meta {
 }
 
 impl Meta {
+    // Forward stream +LE +standard
     const FWD_SYNC_LE_STANDARD_CRC: u8 = 0xc2;
+    // Forward stream +BE +standard
     const FWD_SYNC_BE_STANDARD_CRC: u8 = 0xe2;
+    // Forward stream +LE +enhanced
     const FWD_SYNC_LE_ENHANCED_CRC: u8 = 0xc8;
+    // Forward stream +BE +enhanced
     const FWD_SYNC_BE_ENHANCED_CRC: u8 = 0xe8;
 
+    // Reversed stream +LE +standard
     const REV_SYNC_LE_STANDARD_CRC: u8 = 0xd2;
+    // Reversed stream +BE +standard
     const REV_SYNC_BE_STANDARD_CRC: u8 = 0xf2;
+    // Reversed stream +LE +enhanced
     const REV_SYNC_LE_ENHANCED_CRC: u8 = 0xd8;
+    // Reversed stream +BE +enhanced
     const REV_SYNC_BE_ENHANCED_CRC: u8 = 0xf8;
 }
 
