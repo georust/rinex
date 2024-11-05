@@ -11,23 +11,6 @@ pub struct Meta {
 }
 
 impl Meta {
-    // // Reversed stream marker
-    // const REV_SYNC_MASK: u8 = 0xD0;
-    // // Forward stream marker
-    // const FWD_SYNC_MASK: u8 = 0xC0;
-
-    // // Standard CRC marker
-    // const STANDARD_CRC_MASK: u8 = 0x02;
-    // // Enhanced CRC marker
-    // const ENHANCED_CRC_MASK: u8 = 0x08;
-
-    // // Big endianness marker
-    // const BIG_ENDIAN_MASK: u8 = 0x20;
-
-    // // SYNC marker
-    // const SYNC_MSB_MASK: u8 = 0xc0;
-    // const SYNC_LSB_MASK: u8 = 0x05;
-
     const FWD_SYNC_LE_STANDARD_CRC: u8 = 0xc2;
     const FWD_SYNC_BE_STANDARD_CRC: u8 = 0xe2;
     const FWD_SYNC_LE_ENHANCED_CRC: u8 = 0xc8;

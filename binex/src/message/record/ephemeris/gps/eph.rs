@@ -59,7 +59,7 @@ impl GPSEphemeris {
     pub(crate) const fn encoding_size() -> usize {
         128
     }
-    pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+    pub(crate) fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = Self::encoding_size();
         if buf.len() < size {
             return Err(Error::NotEnoughBytes);
@@ -284,7 +284,7 @@ impl GPSEphemeris {
         buf[125..127].copy_from_slice(&uint2);
         Ok(size)
     }
-    pub fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+    pub(crate) fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if buf.len() < Self::encoding_size() {
             return Err(Error::NotEnoughBytes);
         }

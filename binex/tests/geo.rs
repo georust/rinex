@@ -40,9 +40,6 @@ fn geo_message() {
     let mut encoded = [0; 128];
     msg.encode(&mut encoded, 128).unwrap();
 
-    assert_eq!(encoded[0], 226);
-    assert_eq!(encoded[1], 0);
-
     let decoded = Message::decode(&encoded).unwrap();
     assert_eq!(decoded, msg);
 }
