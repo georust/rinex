@@ -292,35 +292,44 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                             continue;
                         }
 
-                        if let Some(eol) = find(&self.buf[..128], Self::END_OF_LINE_TERMINATOR) {
+                        if let Some(eol) = find(&self.buf[..128], Self::EOL_BYTE) {
                             min_size = Some(eol + 1);
                         }
                     },
                     State::EpochGathering => {
-                        // Once first epoch is decoded we cannot predict the expected length
-                        // and it might actually be kind of small on big compression factor
-                        // and encoders that remove tailing white spaces.
-                        // The only option is to search for EOL
+                        // Gather until next EOL
                         if self.avail < 256 {
                             // protection not to attempt for nothing
                             continue;
                         }
-                        if let Some(eol) = find(&self.buf, Self::END_OF_LINE_TERMINATOR) {
+                        if let Some(eol) = find(&self.buf, Self::EOL_BYTE) {
                             min_size = Some(eol + 1);
                         }
                     },
                     State::Flags => {
+                        // Gather until next EOL
                         if self.avail < 64 {
                             continue;
                         }
-                        if let Some(eol) = find(&self.buf, Self::END_OF_LINE_TERMINATOR) {
+                        if let Some(eol) = find(&self.buf, Self::EOL_BYTE) {
                             min_size = Some(eol + 1);
                         }
                     },
                     State::Observation => {
-                        // collecting next observation
+                        // collecting next observation: collect until next " ".
                         if let Some(wsp) = find(&self.buf, Self::WHITESPACE_BYTE) {
-                            min_size = Some(wsp + 1);
+                            // This might collect part of the following line
+                            // in case of early SV termination (missing obs + no flags modification ?)
+                            // and trimmed (pretty) formatter.
+                            if let Some(offset) = find(&self.buf[1..wsp], Self::EOL_BYTE) {
+                                if offset < wsp {
+                                    // case detected:
+                                    // remove this content, notify early SV termination
+                                    panic!("early stop");
+                                }
+                            } else {
+                                min_size = Some(wsp + 1);
+                            }
                         }
                     },
                     others => unreachable!("{:?}", others),
@@ -341,8 +350,8 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
             #[cfg(feature = "log")]
             println!(
-                "[V{}] {:?} avail={}/total={}",
-                self.crinex.version.major, self.state, self.avail, total
+                "[V{}/{}] {:?} avail={}/total={}",
+                self.crinex.version.major, self.constellation, self.state, self.avail, total
             );
 
             let ascii = from_utf8(&self.buf[..min_size])
@@ -468,9 +477,6 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 },
                 State::EndofHeader => {
                     if ascii.ends_with("END OF HEADER") {
-                        println!("==== END OF HEADER ====");
-                        println!("Specs: {:?}", self.gnss_observables);
-
                         next_state = State::EpochGathering;
                         self.epoch_descriptor.clear(); // prepare for decoding
                         self.epoch_desc_len = 0;
@@ -481,25 +487,27 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                         self.epoch_diff.force_init(&ascii);
                         self.epoch_descriptor = ascii.to_string();
                         self.epoch_desc_len = ascii_len;
+                        next_state = State::EpochGathered;
                     } else {
-                        if v3 {
-                            if ascii[..1].eq(">") {
-                                // V3 kernel reset
-                                self.epoch_diff.force_init(&ascii);
-                                self.epoch_desc_len = ascii_len;
-                                self.epoch_descriptor = ascii.to_string();
+                        if ascii_len > 1 {
+                            if v3 {
+                                if ascii[..1].eq(">") {
+                                    // V3 kernel reset
+                                    self.epoch_diff.force_init(&ascii);
+                                    self.epoch_desc_len = ascii_len;
+                                    self.epoch_descriptor = ascii.to_string();
+                                }
+                            } else {
+                                if ascii[..1].eq("&") {
+                                    // V2 kernel reset
+                                    self.epoch_diff.force_init(&ascii);
+                                    self.epoch_desc_len = ascii_len;
+                                    self.epoch_descriptor = ascii.to_string();
+                                }
                             }
-                        } else {
-                            if ascii[..1].eq("&") {
-                                // V2 kernel reset
-                                self.epoch_diff.force_init(&ascii);
-                                self.epoch_desc_len = ascii_len;
-                                self.epoch_descriptor = ascii.to_string();
-                            }
+                            next_state = State::EpochGathered;
                         }
                     }
-
-                    next_state = State::EpochGathered;
                 },
 
                 State::EpochGathered => {
@@ -624,7 +632,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 },
                 State::Flags => {
                     self.sv_ptr += 1;
-                    println!("END OF {}", self.sv);
+                    println!("END OF {}\n", self.sv);
 
                     if self.sv_ptr == self.numsat {
                         self.sv_ptr = 0;
@@ -764,7 +772,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
 impl<const M: usize, R: Read> Decompressor<M, R> {
     /// EOL is used in the decoding process
-    const END_OF_LINE_TERMINATOR: u8 = b'\n';
+    const EOL_BYTE: u8 = b'\n';
     /// Whitespace char
     const WHITESPACE_BYTE: u8 = b' ';
 
@@ -1359,7 +1367,7 @@ mod test {
 
     #[test]
     fn test_decompress_v1() {
-        // Test the lowest level Decompressor seamless reader.
+        // lowest level seamless V1 decompression
         // Other testing then move on to tests::reader (BufferedReader) which provides
         //  .lines() Iteratation, which is more suited for indepth testing and easier interfacing.
         let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
