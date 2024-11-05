@@ -104,7 +104,7 @@ impl MonumentGeoRecord {
     /// geo.encode(true, &mut encoded)
     ///     .unwrap();
     ///
-    /// let decoded = MonumentGeoMetadata::decode(big_endian, &buf)
+    /// let decoded = MonumentGeoRecord::decode(256, big_endian, &encoded)
     ///     .unwrap();
     ///
     /// assert_eq!(decoded, geo);

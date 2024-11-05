@@ -164,7 +164,20 @@ impl Solutions {
     /// Attach readable Extra information to the solutions (like context description).
     pub fn with_extra_info(&self, info: &str) -> Self {
         let mut s = self.clone();
-        s.frames.push(SolutionsFrame::Extra(info.to_string()));
+        // preserve unique item
+        if let Some(info) = s
+            .frames
+            .iter_mut()
+            .filter_map(|fr| match fr {
+                SolutionsFrame::Extra(info) => Some(info),
+                _ => None,
+            })
+            .reduce(|k, _| k)
+        {
+            *info = info.to_string(); // overwrite ; replace
+        } else {
+            s.frames.push(SolutionsFrame::Extra(info.to_string()));
+        }
         s
     }
 
