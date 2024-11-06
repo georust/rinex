@@ -46,14 +46,15 @@ impl Message {
         let mut total = 1; // SYNC
 
         let mid = self.record.to_message_id() as u32;
-        total += Self::bnxi_encoding_size(mid);
+        let mid_1_4 = Self::bnxi_encoding_size(mid);
+        total += mid_1_4;
 
         let mlen = self.record.encoding_size();
-        total += Self::bnxi_encoding_size(mlen as u32);
+        let mlen_1_4 = Self::bnxi_encoding_size(mlen as u32);
+        total += mlen_1_4;
+        total += mlen;
 
-        total += self.record.encoding_size();
-
-        let ck = Checksum::from_len(mlen, self.meta.enhanced_crc);
+        let ck = Checksum::from_len(mlen_1_4 + mlen + mid_1_4, self.meta.enhanced_crc);
         total += ck.len();
 
         total

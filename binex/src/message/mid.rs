@@ -9,20 +9,20 @@ pub enum MessageID {
     SiteMonumentMarker = 0,
     /// Decode Ephemeris frame
     Ephemeris = 1,
-    /// Observation time tag and receiver info
-    ObservationTimeTagRxInfo = 2,
+    /// Observation, time tag and receiver info
+    Observation = 2,
     /// Local Meteorological and Geophysical information
     Meteo = 3,
     /// Receiver info: BINEX specific
     ReceiverInfo = 4,
     /// Processed Solutions like PVT
     ProcessedSolutions = 5,
-    // Receiver info prototyping: BINEX specific
-    ReceiverInfoPrototyping = 125,
-    /// Meteo prototyping: BINEX specific
-    MeteoPrototyping = 126,
-    /// Observation time tag prototyping: BINEX specific
-    ObservationTimeTagRxPrototyping = 127,
+    // Receiver info prototype: BINEX specific
+    ReceiverInfoPrototype = 125,
+    /// Meteo prototype: BINEX specific
+    MeteoPrototype = 126,
+    /// Observation, time tag and receiver info prototype
+    ObservationPrototype = 127,
     // Unknown / unsupported message
     #[default]
     Unknown = 0xffffffff,
@@ -33,13 +33,13 @@ impl From<u32> for MessageID {
         match val {
             0 => Self::SiteMonumentMarker,
             1 => Self::Ephemeris,
-            2 => Self::ObservationTimeTagRxInfo,
+            2 => Self::Observation,
             3 => Self::Meteo,
             4 => Self::ReceiverInfo,
             5 => Self::ProcessedSolutions,
-            125 => Self::ReceiverInfoPrototyping,
-            126 => Self::MeteoPrototyping,
-            127 => Self::ObservationTimeTagRxPrototyping,
+            125 => Self::ReceiverInfoPrototype,
+            126 => Self::MeteoPrototype,
+            127 => Self::ObservationPrototype,
             _ => Self::Unknown,
         }
     }
@@ -50,14 +50,14 @@ impl From<MessageID> for u32 {
         match val {
             MessageID::SiteMonumentMarker => 0,
             MessageID::Ephemeris => 1,
-            // MessageID::ObservationTimeTagRxInfo => 0x02,
-            // MessageID::Meteo => 0x03,
-            // MessageID::ReceiverInfo => 0x04,
-            // MessageID::ProcessedSolutions => 0x05,
-            // MessageID::ReceiverInfoPrototyping => 0x7d,
-            // MessageID::MeteoPrototyping => 0x7e,
-            // MessageID::ObservationTimeTagRxPrototyping => 0x7f,
-            _ => 0xffffffff,
+            MessageID::Observation => 2,
+            MessageID::Meteo => 3,
+            MessageID::ReceiverInfo => 4,
+            MessageID::ProcessedSolutions => 5,
+            MessageID::ReceiverInfoPrototype => 125,
+            MessageID::MeteoPrototype => 126,
+            MessageID::ObservationPrototype => 127,
+            _ => 0xff,
         }
     }
 }
