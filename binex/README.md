@@ -22,6 +22,14 @@ or undisclosed elements. (private prototypes)
 
 * or use Message::decode to work on your own buffer directly.
 
+Current limitations
+===================
+
++ Big endian streams are fully validated & tested
++ Little endian streams are tested & verified but we don't have examples yet
++ Enhanced CRC is not supported yet
++ MD5 checksum is implemented but not verified yet
+
 Message Decoding
 ================
 
