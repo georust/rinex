@@ -176,6 +176,8 @@ impl State {
 ///
 /// ```
 pub struct Decompressor<const M: usize, R: Read> {
+    /// Whether this is a V3 parser or not
+    v3: bool,
     /// Internal [State]. Use this to determine
     /// whether we're still inside the Header section (algorithm is not active),
     /// or inside file body (algorithm is active).
@@ -244,7 +246,6 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             if offset.is_none() {
                 // fail to locate data of interest
                 // need to grab more bytes from interface
-                println!("offset: is none!");
                 break;
             }
 
@@ -269,7 +270,13 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             );
 
             if let Ok((next, size)) = self.consume_execute_fsm(offset, buf, user_ptr, user_len) {
-                self.rd_ptr += offset + 1; // advance pointer
+                self.rd_ptr += offset; // advance pointer
+
+                if self.state.eol_terminated() {
+                    // consume \n
+                    self.rd_ptr += 1;
+                }
+
                 self.state = next;
                 user_ptr += size;
             } else {
@@ -278,7 +285,15 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             }
         }
 
-        Ok(user_ptr)
+        if user_ptr == 0 {
+            if self.eos {
+                Ok(0)
+            } else {
+                Err(Error::NeedMoreData.to_stdio())
+            }
+        } else {
+            Ok(user_ptr)
+        }
     }
 }
 
@@ -303,11 +318,6 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     // /// Max. number of [Observable]s described in a single [State::HeaderSpecs] line
     // const NAX_SPECS_PER_LINE :usize = 9;
 
-    /// Locates first non whitespace within slice
-    fn find_non_whitespace(slice: &str) -> Option<usize> {
-        slice.chars().position(|b| b != Self::WHITESPACE_CHAR)
-    }
-
     /// Locates first given caracther
     fn find_next(&self, byte: u8) -> Option<usize> {
         self.buf[self.rd_ptr..].iter().position(|b| *b == byte)
@@ -325,8 +335,8 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     }
 
     /// Returns next [SV]
-    fn next_sv(&self, v3: bool) -> Option<SV> {
-        let offset = Self::sv_slice_start(v3, self.sv_ptr);
+    fn next_sv(&self) -> Option<SV> {
+        let offset = Self::sv_slice_start(self.v3, self.sv_ptr);
 
         if self.epoch_desc_len < offset + 3 {
             return None;
@@ -340,9 +350,10 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         }
     }
 
-    fn epoch_numsat(&self, v3: bool) -> Option<usize> {
+    /// Macro to directly parse numsat from recovered descriptor
+    fn epoch_numsat(&self) -> Option<usize> {
         let mut offset = 3;
-        if v3 {
+        if self.v3 {
             offset += Self::V3_TIMESTAMP_SIZE;
         } else {
             offset += Self::V2_TIMESTAMP_SIZE;
@@ -358,8 +369,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         }
     }
 
-    /// Collect & gather data we're interested by advancing
-    /// the internal read pointer
+    /// Collect & gather data we're interested starting at current pointer
     fn collect_gather(&mut self) -> Option<usize> {
         if self.state.eol_terminated() {
             self.find_next(b'\n')
@@ -367,7 +377,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             if self.state == State::Observation {
                 self.find_next(b' ')
             } else if self.state == State::ObservationSeparator {
-                self.find_next(b' ')
+                Some(1)
             } else {
                 panic!("collect_gather()");
             }
@@ -387,7 +397,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             State::ClockGathering => true,
             State::Observation => true,
             State::ObservationSeparator => true,
-            _ => false,
+            State::Flags => true,
         }
     }
 
@@ -422,6 +432,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     .map_err(|_| Error::VersionParsing.to_stdio())?;
 
                 self.crinex = self.crinex.with_version(version);
+                self.v3 = version.major == 3;
                 next_state = State::ProgDate;
             },
 
@@ -452,7 +463,63 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     self.constellation = Constellation::from_str(ascii[40..60].trim())
                         .expect("bad crinex: invalid constellation");
 
+                    self.numobs = 0;
+                    self.obs_ptr = 0;
                     next_state = State::HeaderSpecs;
+                }
+
+                // forward as is
+                user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
+                forwarded += ascii_len;
+            },
+
+            State::HeaderSpecs => {
+                if ascii.ends_with("END OF HEADER") {
+                    // Reached next specs without specifying observables !
+                    panic!("bad crinex: no observable specs");
+                }
+
+                if ascii.contains("TYPES OF OBS") {
+                    // V2 parsing
+                    if self.v3 {
+                        panic!("bad v3 crinex definition");
+                    }
+
+                    if self.numobs == 0 {
+                        // first encounter
+                        if let Ok(numobs) = ascii[..10].trim().parse::<u8>() {
+                            self.numobs = numobs as usize;
+                        }
+                    }
+
+                    let num = ascii_len / 6;
+                    for i in 0..num {
+                        let start = i * 6;
+                        if let Ok(obs) = Observable::from_str(&ascii[start..start + 6]) {
+                            println!("found {}", obs);
+                            if let Some(specs) = self.gnss_observables.get_mut(&self.constellation)
+                            {
+                                specs.push(obs);
+                            } else {
+                                self.gnss_observables.insert(self.constellation, vec![obs]);
+                            }
+                            self.obs_ptr += 1;
+                        }
+                    }
+
+                    if self.obs_ptr == self.numobs {
+                        self.obs_ptr = 0;
+                        self.numobs = 0;
+                        next_state = State::EndofHeader;
+                    }
+                }
+
+                if ascii.ends_with("SYS / # / OBS TYPES") {
+                    if !self.v3 {
+                        panic!("bad v1 crinex definition");
+                    } else {
+                        panic!("v3: not yet");
+                    }
                 }
 
                 // forward as is
@@ -473,32 +540,41 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 forwarded += ascii_len;
             },
 
-            State::HeaderSpecs => {
-                if ascii.ends_with("END OF HEADER") {
-                    // move on to next state: prepare for decoding
-                    next_state = State::EpochGathering;
-                    self.epoch_desc_len = 0;
-                    self.epoch_descriptor.clear();
-                }
-
-                // forward as is
-                user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
-                forwarded += ascii_len;
-            },
-
             State::EpochGathering => {
                 if ascii.starts_with('&') {
                     self.epoch_desc_len = ascii_len;
                     self.epoch_diff.force_init(&ascii);
                     self.epoch_descriptor = ascii.to_string();
+                } else if ascii.starts_with('>') {
+                    self.epoch_desc_len = ascii_len;
+                    self.epoch_diff.force_init(&ascii);
+                    self.epoch_descriptor = ascii.to_string();
                 } else {
                     if self.first_epoch {
-                        panic!("bad crinex: first epoch not correctly marked with '&'");
+                        panic!("bad crinex: first epoch not correctly marked");
                     }
                     self.epoch_descriptor = self.epoch_diff.decompress(&ascii).to_string();
+
+                    println!("RECOVERED: \"{}\"", self.epoch_descriptor);
                 }
 
-                // forward to user
+                // parsing & verification
+                self.numsat = self.epoch_numsat().expect("bad epoch recovered (numsat)");
+
+                // grab first SV
+                self.sv = self.next_sv().expect("fail to determine sv definition");
+
+                self.obs_ptr = 0;
+                // grab first specs
+                let obs = self
+                    .get_observables(&self.sv.constellation)
+                    .expect("fail to determine sv definition");
+
+                self.numobs = obs.len();
+
+                // TODO forward to user
+
+                // move on to next state
                 self.first_epoch = false;
                 next_state = State::ClockGathering;
             },
@@ -513,17 +589,33 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 } else {
                 }
 
-                if self.obs_ptr == self.obs_size {
-                    next_state = State::Flags;
-                } else {
-                }
+                self.obs_ptr += 1;
+                println!("obs={}/{}", self.obs_ptr, self.numobs);
+                next_state = State::ObservationSeparator;
             },
 
             State::ObservationSeparator => {
-                next_state = State::Observation;
+                if self.obs_ptr == self.numobs {
+                    self.obs_ptr = 0;
+                    next_state = State::Flags;
+                } else {
+                    next_state = State::Observation;
+                }
             },
 
-            _ => panic!("not yet"),
+            State::Flags => {
+                self.sv_ptr += 1;
+                println!("COMPLETED {}", self.sv);
+
+                if self.sv_ptr == self.numsat {
+                    self.sv_ptr = 0;
+                    next_state = State::EpochGathering;
+                } else {
+                    self.sv = self.next_sv().expect("failed to determine next vehicle");
+
+                    next_state = State::Observation;
+                }
+            },
         }
 
         Ok((next_state, forwarded))
@@ -532,6 +624,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     /// Creates a new [Decompressor] working from [Read]
     pub fn new(reader: R) -> Self {
         Self {
+            v3: false,
             reader,
             wr_ptr: 0,
             rd_ptr: 0,
