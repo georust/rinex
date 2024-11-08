@@ -198,7 +198,7 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                         // we can safely discard everything
                         self.wr_ptr = 0;
                         self.rd_ptr = 0;
-                        if self.eos == true {
+                        if self.eos {
                             // consumed everything and EOS has been reached
                             return None;
                         }
@@ -211,7 +211,7 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                             self.wr_ptr = 0;
                         }
 
-                        if self.eos == true {
+                        if self.eos {
                             // consumed everything and EOS has been reached
                             return None;
                         }

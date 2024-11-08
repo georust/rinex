@@ -64,12 +64,12 @@ impl EphemerisFrame {
     /// [EphemerisFrame] decoding attempt from given [FieldID]
     pub(crate) fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         // cant decode 1-4b
-        if buf.len() < 1 {
+        if buf.is_empty() {
             return Err(Error::NotEnoughBytes);
         }
 
         // decode FID
-        let (bnxi, size) = Message::decode_bnxi(&buf, big_endian);
+        let (bnxi, size) = Message::decode_bnxi(buf, big_endian);
         let fid = FieldID::from(bnxi);
 
         match fid {

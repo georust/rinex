@@ -242,7 +242,7 @@ impl MonumentGeoRecord {
         }
 
         // decode timestamp
-        ret.epoch = decode_gpst_epoch(big_endian, TimeResolution::QuarterSecond, &buf)?;
+        ret.epoch = decode_gpst_epoch(big_endian, TimeResolution::QuarterSecond, buf)?;
 
         // decode source meta
         ret.meta = MonumentGeoMetadata::from(buf[5]);
@@ -616,17 +616,17 @@ mod test {
                         MonumentGeoMetadata::IGS as u8,
                         0,
                         5,
-                        'H' as u8,
-                        'e' as u8,
-                        'l' as u8,
-                        'l' as u8,
-                        'o' as u8,
+                        b'H',
+                        b'e',
+                        b'l',
+                        b'l',
+                        b'o',
                         14,
                         4,
-                        'C' as u8,
-                        'l' as u8,
-                        'i' as u8,
-                        'm' as u8,
+                        b'C',
+                        b'l',
+                        b'i',
+                        b'm',
                     ]
                 );
             }

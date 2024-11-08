@@ -28,7 +28,7 @@ pub struct Solutions {
 impl Iterator for Solutions {
     type Item = SolutionsFrame;
     fn next(&mut self) -> Option<Self::Item> {
-        self.frames.iter().next().cloned()
+        self.frames.first().cloned()
     }
 }
 
@@ -105,7 +105,7 @@ impl Solutions {
         }
 
         // decode timestamp
-        let epoch = decode_gpst_epoch(big_endian, TimeResolution::MilliSecond, &buf)?;
+        let epoch = decode_gpst_epoch(big_endian, TimeResolution::MilliSecond, buf)?;
 
         // parse inner frames (= subrecords)
         let mut ptr = 6;

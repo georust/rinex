@@ -26,19 +26,19 @@ impl Provider {
     /// Identify potential closed source [Provider]
     /// from parsed MID (u32)
     pub(crate) fn match_any(mid: u32) -> Option<Self> {
-        if mid >= 0x80 && mid <= 0x87 {
+        if (0x80..=0x87).contains(&mid) {
             Some(Self::UCAR)
-        } else if mid >= 0x88 && mid <= 0xa7 {
+        } else if (0x88..=0xa7).contains(&mid) {
             Some(Self::Ashtech)
-        } else if mid >= 0xa8 && mid <= 0xaf {
+        } else if (0xa8..=0xaf).contains(&mid) {
             Some(Self::Topcon)
-        } else if mid >= 0xb0 && mid <= 0xb3 {
+        } else if (0xb0..=0xb3).contains(&mid) {
             Some(Self::GPSSolutions)
-        } else if mid >= 0xb4 && mid <= 0xb7 {
+        } else if (0xb4..=0xb7).contains(&mid) {
             Some(Self::NRCan)
-        } else if mid >= 0xb8 && mid <= 0xbf {
+        } else if (0xb8..=0xbf).contains(&mid) {
             Some(Self::JPL)
-        } else if mid >= 0xc0 && mid <= 0xc3 {
+        } else if (0xc0..=0xc3).contains(&mid) {
             Some(Self::ColoradoUnivBoulder)
         } else {
             None

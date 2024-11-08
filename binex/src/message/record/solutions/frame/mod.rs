@@ -154,7 +154,7 @@ impl SolutionsFrame {
         }
 
         // decode FID
-        let (fid, mut ptr) = Message::decode_bnxi(&buf, big_endian);
+        let (fid, mut ptr) = Message::decode_bnxi(buf, big_endian);
         let fid = FieldID::from(fid);
 
         match fid {
@@ -372,10 +372,7 @@ mod test {
         let size = frame.encode(big_endian, &mut buf).unwrap();
 
         assert_eq!(size, frame.encoding_size());
-        assert_eq!(
-            buf,
-            [0, 5, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0, 0, 0, 0]
-        );
+        assert_eq!(buf, [0, 5, b'H', b'e', b'l', b'l', b'o', 0, 0, 0, 0, 0, 0]);
 
         let decoded = SolutionsFrame::decode(big_endian, &buf).unwrap();
         assert_eq!(decoded, frame);

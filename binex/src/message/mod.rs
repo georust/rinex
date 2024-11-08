@@ -126,7 +126,7 @@ impl Message {
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec = MonumentGeoRecord::decode(mlen as usize, big_endian, &buf[ptr..])?;
+                let rec = MonumentGeoRecord::decode(mlen, big_endian, &buf[ptr..])?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Ephemeris => {
@@ -134,7 +134,7 @@ impl Message {
                 Record::new_ephemeris_frame(fr)
             },
             MessageID::ProcessedSolutions => {
-                let solutions = Solutions::decode(mlen as usize, big_endian, &buf[ptr..])?;
+                let solutions = Solutions::decode(mlen, big_endian, &buf[ptr..])?;
                 Record::new_solutions(solutions)
             },
             MessageID::Unknown => {

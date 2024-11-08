@@ -40,27 +40,21 @@ impl Meta {
                 } else {
                     Self::REV_SYNC_BE_STANDARD_CRC
                 }
+            } else if self.enhanced_crc {
+                Self::REV_SYNC_LE_ENHANCED_CRC
             } else {
-                if self.enhanced_crc {
-                    Self::REV_SYNC_LE_ENHANCED_CRC
-                } else {
-                    Self::REV_SYNC_LE_STANDARD_CRC
-                }
+                Self::REV_SYNC_LE_STANDARD_CRC
             }
+        } else if self.big_endian {
+            if self.enhanced_crc {
+                Self::FWD_SYNC_BE_ENHANCED_CRC
+            } else {
+                Self::FWD_SYNC_BE_STANDARD_CRC
+            }
+        } else if self.enhanced_crc {
+            Self::FWD_SYNC_LE_ENHANCED_CRC
         } else {
-            if self.big_endian {
-                if self.enhanced_crc {
-                    Self::FWD_SYNC_BE_ENHANCED_CRC
-                } else {
-                    Self::FWD_SYNC_BE_STANDARD_CRC
-                }
-            } else {
-                if self.enhanced_crc {
-                    Self::FWD_SYNC_LE_ENHANCED_CRC
-                } else {
-                    Self::FWD_SYNC_LE_STANDARD_CRC
-                }
-            }
+            Self::FWD_SYNC_LE_STANDARD_CRC
         }
     }
     /// Locate SYNC byte in provided buffer
@@ -192,65 +186,65 @@ mod test {
                     // FWD +LE +STANDARD
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, false);
-                    assert_eq!(meta.big_endian, false);
-                    assert_eq!(meta.enhanced_crc, false);
+                    assert!(!meta.reversed);
+                    assert!(!meta.big_endian);
+                    assert!(!meta.enhanced_crc);
                 },
                 0xe2 => {
                     // FWD +BE +STANDARD
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, false);
-                    assert_eq!(meta.big_endian, true);
-                    assert_eq!(meta.enhanced_crc, false);
+                    assert!(!meta.reversed);
+                    assert!(meta.big_endian);
+                    assert!(!meta.enhanced_crc);
                 },
                 0xc8 => {
                     // FWD +LE +ENHANCED
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, false);
-                    assert_eq!(meta.big_endian, false);
-                    assert_eq!(meta.enhanced_crc, true);
+                    assert!(!meta.reversed);
+                    assert!(!meta.big_endian);
+                    assert!(meta.enhanced_crc);
                 },
                 0xe8 => {
                     // FWD +BE +ENHANCED
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, false);
-                    assert_eq!(meta.big_endian, true);
-                    assert_eq!(meta.enhanced_crc, true);
+                    assert!(!meta.reversed);
+                    assert!(meta.big_endian);
+                    assert!(meta.enhanced_crc);
                 },
                 0xd2 => {
                     // REV +LE +STANDARD
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, true);
-                    assert_eq!(meta.big_endian, false);
-                    assert_eq!(meta.enhanced_crc, false);
+                    assert!(meta.reversed);
+                    assert!(!meta.big_endian);
+                    assert!(!meta.enhanced_crc);
                 },
                 0xf2 => {
                     // REV +BE + STANDARD
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, true);
-                    assert_eq!(meta.big_endian, true);
-                    assert_eq!(meta.enhanced_crc, false);
+                    assert!(meta.reversed);
+                    assert!(meta.big_endian);
+                    assert!(!meta.enhanced_crc);
                 },
                 0xd8 => {
                     // REV +LE +ENHANCED
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, true);
-                    assert_eq!(meta.big_endian, false);
-                    assert_eq!(meta.enhanced_crc, true);
+                    assert!(meta.reversed);
+                    assert!(!meta.big_endian);
+                    assert!(meta.enhanced_crc);
                 },
                 0xf8 => {
                     // REV +BE +ENHANCED
                     let (meta, size) = meta.expect("did not detect sync byte");
                     assert_eq!(size, 1);
-                    assert_eq!(meta.reversed, true);
-                    assert_eq!(meta.big_endian, true);
-                    assert_eq!(meta.enhanced_crc, true);
+                    assert!(meta.reversed);
+                    assert!(meta.big_endian);
+                    assert!(meta.enhanced_crc);
                 },
                 _ => {
                     assert!(meta.is_none(), "found invalid sync byte for 0x{:01x}", val8);
