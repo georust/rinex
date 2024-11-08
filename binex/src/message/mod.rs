@@ -11,7 +11,6 @@ pub use record::{
 };
 
 pub use meta::Meta;
-pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
 
@@ -83,7 +82,6 @@ impl Message {
         /////////////////////////////////////
         // TODO: current library limitations
         /////////////////////////////////////
-
         if reversed {
             // Reversed streams: not understood
             return Err(Error::ReversedStream);
@@ -91,10 +89,6 @@ impl Message {
         if enhanced_crc {
             // Enhanced CRC scheme not implemented
             return Err(Error::EnhancedCrc);
-        }
-        if !big_endian {
-            // Little endianess not tested
-            return Err(Error::LittleEndianStream);
         }
 
         // make sure we can parse up to 4 byte MID

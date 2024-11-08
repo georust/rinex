@@ -564,11 +564,9 @@ mod test {
             geo.meta = MonumentGeoMetadata::IGS;
 
             let mut encoded = [0; 64];
-
             geo.encode(big_endian, &mut encoded).unwrap();
-            let decoded = MonumentGeoRecord::decode(11, big_endian, &encoded).unwrap();
+            let decoded = MonumentGeoRecord::decode(mlen, big_endian, &encoded).unwrap();
             assert_eq!(decoded, geo);
-            let geo = MonumentGeoRecord::decode(mlen, big_endian, &encoded).unwrap();
         }
     }
 
