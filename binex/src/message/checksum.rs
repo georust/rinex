@@ -132,17 +132,15 @@ impl Checksum {
         } else {
             let val_u128 = if big_endian {
                 u128::from_be_bytes([
-                    slice[0], slice[1], slice[2], slice[3],
-                    slice[4], slice[5], slice[6], slice[7],
-                    slice[8], slice[9], slice[10], slice[11],
-                    slice[12], slice[13], slice[14], slice[15],
+                    slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7],
+                    slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14],
+                    slice[15],
                 ])
             } else {
                 u128::from_le_bytes([
-                    slice[0], slice[1], slice[2], slice[3],
-                    slice[4], slice[5], slice[6], slice[7],
-                    slice[8], slice[9], slice[10], slice[11],
-                    slice[12], slice[13], slice[14], slice[15],
+                    slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7],
+                    slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14],
+                    slice[15],
                 ])
             };
             val_u128
@@ -291,12 +289,7 @@ mod test {
     #[test]
     fn test_md5() {
         let ck = Checksum::MD5;
-        let bytes = [
-            0, 1, 2, 3,
-            4, 5, 6, 7,
-            8, 9, 10, 11,
-            12, 13, 14, 15,
-        ];
+        let bytes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let _ = ck.calc(&bytes, bytes.len());
     }
 }
