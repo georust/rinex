@@ -16,26 +16,6 @@ use log::debug;
 #[cfg(docsrs)]
 use crate::hatanaka::Compressor;
 
-/// Locates byte in given slice
-fn find(slice: &[u8], byte: u8) -> Option<usize> {
-    slice.iter().position(|b| *b == byte)
-}
-
-/// Special observation locator
-fn find_end_of_observation(slice: &[u8]) -> Option<usize> {
-    let mut offset = Option::<usize>::None;
-    for (nth, byte) in slice.iter().enumerate() {
-        if *byte == b' ' {
-            offset = Some(nth);
-        } else {
-            if offset.is_some() {
-                return offset;
-            }
-        }
-    }
-    offset
-}
-
 // TODO
 // The current implementation is not really flexible towards invalid CRINEX.
 // Which is totally fine ! but high level applications could benefit a little flexibility ?
@@ -53,14 +33,19 @@ pub enum State {
     ProgDate,
     /// Expecting RINEX VERSION / TYPE
     VersionType,
-    /// Waiting for observable specifications
+    /// Expecting SYS TYPES OF OBS
     HeaderSpecs,
-    /// Waiting for "END OF HEADER" special marker
+    /// Wait for END OF HEADER
     EndofHeader,
+    /// Collecting Epoch description
     EpochGathering,
+    /// Collecting clock data
     ClockGathering,
+    /// Collecting new observation
     Observation,
+    /// Collecting observation separator
     ObservationSeparator,
+    /// Collecting observation flags
     Flags,
 }
 
@@ -182,8 +167,6 @@ pub struct Decompressor<const M: usize, R: Read> {
     /// whether we're still inside the Header section (algorithm is not active),
     /// or inside file body (algorithm is active).
     state: State,
-    /// For internal logic
-    prev_state: State,
     /// For internal logic: remains true until
     /// first [Epoch] description was decoded.
     first_epoch: bool,
@@ -197,7 +180,6 @@ pub struct Decompressor<const M: usize, R: Read> {
     /// Pointers
     rd_ptr: usize,
     wr_ptr: usize,
-    avail: usize,
     eos: bool,
     /// pointers
     numsat: usize, // total
@@ -206,8 +188,6 @@ pub struct Decompressor<const M: usize, R: Read> {
     /// pointers
     numobs: usize, // total
     obs_ptr: usize, // inside epoch
-    /// Helps identifying BLANK fields
-    last_was_blank: bool,
     /// [TextDiff] that works on entire Epoch line
     epoch_diff: TextDiff,
     /// Epoch descriptor, for single allocation
@@ -269,7 +249,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 user_len,
             );
 
-            if let Ok((next, size)) = self.consume_execute_fsm(offset, buf, user_ptr, user_len) {
+            if let Ok((next, size)) = self.consume_execute_fsm(offset, buf, user_ptr) {
                 self.rd_ptr += offset; // advance pointer
 
                 if self.state.eol_terminated() {
@@ -303,17 +283,10 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     /// Whitespace char
     const WHITESPACE_BYTE: u8 = b' ';
 
-    /// Special marker to reset decompression kernels
-    const ENCODED_WHITESPACE_CHAR: char = '&';
-    /// Special marker to reset decompression kernels
-    const KERNEL_RESET_MARKER_CHAR: char = '&';
-    /// Whitespace char
-    const WHITESPACE_CHAR: char = ' ';
-
     /// Minimal timestamp length in V2 revision
-    const V2_TIMESTAMP_SIZE: usize = 26;
+    const V2_TIMESTAMP_SIZE: usize = 25;
     /// Minimal timestamp length in V3 revision
-    const V3_TIMESTAMP_SIZE: usize = 28;
+    const V3_TIMESTAMP_SIZE: usize = 27;
 
     // /// Max. number of [Observable]s described in a single [State::HeaderSpecs] line
     // const NAX_SPECS_PER_LINE :usize = 9;
@@ -372,10 +345,10 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     /// Collect & gather data we're interested starting at current pointer
     fn collect_gather(&mut self) -> Option<usize> {
         if self.state.eol_terminated() {
-            self.find_next(b'\n')
+            self.find_next(Self::EOL_BYTE)
         } else {
             if self.state == State::Observation {
-                self.find_next(b' ')
+                self.find_next(Self::WHITESPACE_BYTE)
             } else if self.state == State::ObservationSeparator {
                 Some(1)
             } else {
@@ -410,7 +383,6 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         offset: usize,
         user_buf: &mut [u8],
         user_ptr: usize,
-        user_len: usize,
     ) -> Result<(State, usize)> {
         let mut forwarded = 0;
         let mut next_state = self.state;
@@ -468,9 +440,10 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     next_state = State::HeaderSpecs;
                 }
 
-                // forward as is
+                // copy to user
                 user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
-                forwarded += ascii_len;
+                user_buf[user_ptr + ascii_len] = b'\n';
+                forwarded += ascii_len + 1;
             },
 
             State::HeaderSpecs => {
@@ -522,9 +495,10 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     }
                 }
 
-                // forward as is
+                // copy to user
                 user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
-                forwarded += ascii_len;
+                user_buf[user_ptr + ascii_len] = b'\n';
+                forwarded += ascii_len + 1;
             },
 
             State::EndofHeader => {
@@ -535,25 +509,32 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     self.epoch_descriptor.clear();
                 }
 
-                // forward as is
+                // copy to user
                 user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
-                forwarded += ascii_len;
+                user_buf[user_ptr + ascii_len] = b'\n';
+                forwarded += ascii_len + 1;
             },
 
             State::EpochGathering => {
                 if ascii.starts_with('&') {
-                    self.epoch_desc_len = ascii_len;
-                    self.epoch_diff.force_init(&ascii);
-                    self.epoch_descriptor = ascii.to_string();
+                    self.epoch_desc_len = ascii_len - 1;
+                    self.epoch_diff.force_init(&ascii[1..]);
+                    self.epoch_descriptor = ascii[1..].to_string();
                 } else if ascii.starts_with('>') {
-                    self.epoch_desc_len = ascii_len;
-                    self.epoch_diff.force_init(&ascii);
-                    self.epoch_descriptor = ascii.to_string();
+                    self.epoch_desc_len = ascii_len - 1;
+                    self.epoch_diff.force_init(&ascii[1..]);
+                    self.epoch_descriptor = ascii[1..].to_string();
                 } else {
                     if self.first_epoch {
                         panic!("bad crinex: first epoch not correctly marked");
                     }
-                    self.epoch_descriptor = self.epoch_diff.decompress(&ascii).to_string();
+
+                    if ascii_len > 1 {
+                        self.epoch_descriptor = self.epoch_diff.decompress(&ascii[1..]).to_string();
+                    } else {
+                        self.epoch_descriptor = self.epoch_diff.decompress("").to_string();
+                    }
+                    self.epoch_desc_len = self.epoch_descriptor.len();
 
                     println!("RECOVERED: \"{}\"", self.epoch_descriptor);
                 }
@@ -562,9 +543,10 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 self.numsat = self.epoch_numsat().expect("bad epoch recovered (numsat)");
 
                 // grab first SV
-                self.sv = self.next_sv().expect("fail to determine sv definition");
+                self.sv = self.next_sv().expect("failed to determine sv definition");
 
                 self.obs_ptr = 0;
+
                 // grab first specs
                 let obs = self
                     .get_observables(&self.sv.constellation)
@@ -572,22 +554,64 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
                 self.numobs = obs.len();
 
-                // TODO forward to user
-
                 // move on to next state
                 self.first_epoch = false;
                 next_state = State::ClockGathering;
             },
 
             State::ClockGathering => {
+                // copy epoch description to user
+                // TODO: need to squeeze clock offset @ appropriate location
+                user_buf[user_ptr..user_ptr + self.epoch_desc_len]
+                    .copy_from_slice(self.epoch_descriptor.as_bytes());
+                user_buf[user_ptr + self.epoch_desc_len] = b'\n';
+                forwarded += self.epoch_desc_len + 1;
+
                 next_state = State::Observation;
             },
 
             State::Observation => {
-                if ascii.starts_with('&') {
-                    let order = ascii[1..2].parse::<usize>().unwrap();
+                let formatted = if ascii[1..2].eq("&") {
+                    let order = ascii[0..1]
+                        .parse::<usize>()
+                        .expect("bad crinex compression level");
+
+                    if let Ok(val) = ascii[2..].trim().parse::<i64>() {
+                        let val =
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                                kernel.force_init(val, order);
+                                val as f64 / 1.0E3
+                            } else {
+                                let kernel = NumDiff::new(val, order);
+                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                val as f64 / 1.0E3
+                            };
+                        format!("{:14.3}", val).to_string()
+                    } else {
+                        // bad i64 value
+                        "              ".to_string()
+                    }
                 } else {
-                }
+                    if let Ok(val) = ascii.trim().parse::<i64>() {
+                        let val =
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                                kernel.compress(val) as f64 / 1.0E3
+                            } else {
+                                let kernel = NumDiff::new(val, M);
+                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                val as f64 / 1.0E3
+                            };
+                        format!("{:14.3}", val)
+                    } else {
+                        // bad i64 value
+                        "              ".to_string()
+                    }
+                };
+
+                // copy to user
+                let start = 1 + self.obs_ptr * 14;
+                user_buf[user_ptr + start..user_ptr + start + 14]
+                    .copy_from_slice(formatted.as_bytes());
 
                 self.obs_ptr += 1;
                 println!("obs={}/{}", self.obs_ptr, self.numobs);
@@ -604,6 +628,25 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             },
 
             State::Flags => {
+                // recover flags
+                self.flags_descriptor = self.flags_diff.decompress(&ascii).to_string();
+                let len = self.flags_descriptor.len();
+                println!("RECOVERED: \"{}\"", self.flags_descriptor);
+
+                for i in 0..len / 2 {
+                    if !self.flags_descriptor[i..i + 1].eq(" ") {
+                        let start = i * 15;
+                        user_buf[user_ptr + start] = b'x';
+                    }
+                    if !self.flags_descriptor[i + 1..i + 2].eq(" ") {
+                        let start = i * 16;
+                        user_buf[user_ptr + start] = b'x';
+                    }
+                }
+
+                forwarded += 1 + self.numobs * 17;
+                user_buf[user_ptr + self.numobs * 17 + 1] = b'\n';
+
                 self.sv_ptr += 1;
                 println!("COMPLETED {}", self.sv);
 
@@ -612,7 +655,6 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     next_state = State::EpochGathering;
                 } else {
                     self.sv = self.next_sv().expect("failed to determine next vehicle");
-
                     next_state = State::Observation;
                 }
             },
@@ -628,7 +670,6 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             reader,
             wr_ptr: 0,
             rd_ptr: 0,
-            avail: 0,
             numsat: 0,
             sv_ptr: 0,
             numobs: 0,
@@ -636,10 +677,8 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             buf: [0; 4096],
             eos: false,
             first_epoch: true,
-            last_was_blank: false,
             sv: Default::default(),
             state: Default::default(),
-            prev_state: Default::default(),
             crinex: Default::default(),
             flags_diff: TextDiff::new(""),
             epoch_diff: TextDiff::new(""),
@@ -666,53 +705,66 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
 #[cfg(test)]
 mod test {
-    use super::{find, find_end_of_observation, Decompressor};
-
+    use super::Decompressor;
     use std::{fs::File, io::Read};
 
     #[test]
-    fn test_find_byte() {
-        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7];
-        assert_eq!(find(&slice, 3), Some(3));
-        assert_eq!(find(&slice, 0), Some(0));
-        assert_eq!(find(&slice, 8), None);
-    }
-
-    #[test]
-    fn test_find_observation() {
-        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7];
-        assert_eq!(find_end_of_observation(&slice), None);
-
-        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', 9, 10];
-        assert_eq!(find_end_of_observation(&slice), Some(8));
-
-        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', 9, b' ', 11, 12];
-        assert_eq!(find_end_of_observation(&slice), Some(8));
-
-        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', b' ', 10, 11];
-        assert_eq!(find_end_of_observation(&slice), Some(9));
-
-        let slice = [0_u8, 1, 2, 3, 4, 5, 6, 7, b' ', b' ', 10, 11, 12, 13];
-        assert_eq!(find_end_of_observation(&slice), Some(9));
-    }
-
-    #[test]
-    fn test_decompress_v1() {
-        // lowest level seamless V1 decompression
-        // Other testing then move on to tests::reader (BufferedReader) which provides
-        //  .lines() Iteratation, which is more suited for indepth testing and easier interfacing.
+    fn test_v1_aopr0017d_raw() {
         let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
-
         let mut decompressor = Decompressor::<5, File>::new(fd);
 
-        let mut buf = Vec::<u8>::with_capacity(100000);
-
+        let mut buf = Vec::<u8>::with_capacity(65536);
         let size = decompressor.read_to_end(&mut buf).unwrap();
 
         assert!(size > 0);
 
         let string =
             String::from_utf8(buf).expect("decompressed CRINEX does not containt valid utf8");
+
+        for (nth, line) in string.lines().enumerate() {
+            match nth {
+                0 => {
+                    assert_eq!(line, "     2.10           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE");
+                },
+                1 => {
+                    assert_eq!(line, "teqc  2002Mar14     Arecibo Observatory 20170102 06:00:02UTCPGM / RUN BY / DATE");
+                },
+                2 => {
+                    assert_eq!(
+                        line,
+                        "Linux 2.0.36|Pentium II|gcc|Linux|486/DX+                   COMMENT"
+                    );
+                },
+                12 => {
+                    assert_eq!(line, "     5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV");
+                },
+                13 => {
+                    assert_eq!(
+                        line,
+                        "Version: Version:                                           COMMENT"
+                    );
+                },
+                17 => {
+                    assert_eq!(line, "  2017     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
+                },
+                18 => {
+                    assert_eq!(
+                        line,
+                        "                                                            END OF HEADER"
+                    );
+                },
+                19 => {
+                    assert_eq!(
+                        line,
+                        "17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
+                    );
+                },
+                20 => {
+                    assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704");
+                },
+                _ => {},
+            }
+        }
     }
 
     // TODO add more V1 tests
