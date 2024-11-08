@@ -288,4 +288,15 @@ mod test {
 
         assert_eq!(Checksum::XOR16.calc(&buf, buf.len()), 0x5376);
     }
+    #[test]
+    fn test_md5() {
+        let ck = Checksum::MD5;
+        let bytes = [
+            0, 1, 2, 3,
+            4, 5, 6, 7,
+            8, 9, 10, 11,
+            12, 13, 14, 15,
+        ];
+        let _ = ck.calc(&bytes, bytes.len());
+    }
 }
