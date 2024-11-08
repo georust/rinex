@@ -130,7 +130,22 @@ impl Checksum {
             };
             val_u32 as u128
         } else {
-            unimplemented!("md5");
+            let val_u128 = if big_endian {
+                u128::from_be_bytes([
+                    slice[0], slice[1], slice[2], slice[3],
+                    slice[4], slice[5], slice[6], slice[7],
+                    slice[8], slice[9], slice[10], slice[11],
+                    slice[12], slice[13], slice[14], slice[15],
+                ])
+            } else {
+                u128::from_le_bytes([
+                    slice[0], slice[1], slice[2], slice[3],
+                    slice[4], slice[5], slice[6], slice[7],
+                    slice[8], slice[9], slice[10], slice[11],
+                    slice[12], slice[13], slice[14], slice[15],
+                ])
+            };
+            val_u128
         }
     }
     /// Calculates expected Checksum for this msg
