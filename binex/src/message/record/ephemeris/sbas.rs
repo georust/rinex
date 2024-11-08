@@ -210,43 +210,44 @@ mod test {
 
     #[test]
     fn sbas_ephemeris() {
-        let buf = [0; 100];
-        let eph = SBASEphemeris::decode(true, &buf).unwrap();
+        for big_endian in [true, false] {
+            let buf = [0; 100];
+            let eph = SBASEphemeris::decode(big_endian, &buf).unwrap();
 
-        // test mirror
-        let mut target = [0; 64];
-        assert!(eph.encode(true, &mut target).is_err());
+            // test mirror
+            let mut target = [0; 64];
+            assert!(eph.encode(big_endian, &mut target).is_err());
 
-        let mut target = [0; 100];
-        let size = eph.encode(true, &mut target).unwrap();
-        assert_eq!(size, 98);
-        assert_eq!(buf, target);
+            let mut target = [0; 100];
+            let size = eph.encode(big_endian, &mut target).unwrap();
+            assert_eq!(size, 98);
+            assert_eq!(buf, target);
 
-        let eph = SBASEphemeris {
-            sbas_prn: 10,
-            toe: 11,
-            tow: 12,
-            clock_drift: 0.1,
-            clock_offset: 0.2,
-            x_km: 1.4,
-            vel_x_km: 1.5,
-            acc_x_km: 1.6,
-            y_km: 2.4,
-            vel_y_km: 2.5,
-            acc_y_km: 2.6,
-            z_km: 3.1,
-            vel_z_km: 3.2,
-            acc_z_km: 3.3,
-            uint1: 4,
-            ura: 5,
-            iodn: 6,
-        };
+            let eph = SBASEphemeris {
+                sbas_prn: 10,
+                toe: 11,
+                tow: 12,
+                clock_drift: 0.1,
+                clock_offset: 0.2,
+                x_km: 1.4,
+                vel_x_km: 1.5,
+                acc_x_km: 1.6,
+                y_km: 2.4,
+                vel_y_km: 2.5,
+                acc_y_km: 2.6,
+                z_km: 3.1,
+                vel_z_km: 3.2,
+                acc_z_km: 3.3,
+                uint1: 4,
+                ura: 5,
+                iodn: 6,
+            };
 
-        let mut target = [0; 100];
-        eph.encode(true, &mut target).unwrap();
+            let mut target = [0; 100];
+            eph.encode(big_endian, &mut target).unwrap();
 
-        let decoded = SBASEphemeris::decode(true, &target).unwrap();
-
-        assert_eq!(eph, decoded);
+            let decoded = SBASEphemeris::decode(big_endian, &target).unwrap();
+            assert_eq!(eph, decoded);
+        }
     }
 }

@@ -47,7 +47,7 @@ impl TemporalSolution {
         if buf.len() < 8 {
             return Err(Error::NotEnoughBytes);
         }
-        let offset_s = Utils::decode_f64(big_endian, &buf)?;
+        let offset_s = Utils::decode_f64(big_endian, buf)?;
         Ok(Self {
             offset_s,
             drift_s_s: None,
@@ -58,7 +58,7 @@ impl TemporalSolution {
         if buf.len() < 16 {
             return Err(Error::NotEnoughBytes);
         }
-        let offset_s = Utils::decode_f64(big_endian, &buf)?;
+        let offset_s = Utils::decode_f64(big_endian, buf)?;
         let drift_s_s = Utils::decode_f64(big_endian, &buf[8..])?;
         Ok(Self {
             offset_s,

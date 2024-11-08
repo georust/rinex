@@ -16,7 +16,7 @@ pub mod prelude {
         message::{
             EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message, Meta,
             MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record,
-            SBASEphemeris, Solutions, TemporalSolution, Velocity3d, VelocityNED3d,
+            SBASEphemeris, Solutions, SolutionsFrame, TemporalSolution, Velocity3d, VelocityNED3d,
         },
         stream::{ClosedSourceElement, Provider, StreamElement},
         ClosedSourceMeta, Error,
@@ -58,8 +58,6 @@ pub enum Error {
     // InvalidStartofStream,
     /// Library limitation: reversed streams are not supported
     ReversedStream,
-    /// Library limitation: little endian streams are not verified yet
-    LittleEndianStream,
     /// Library limitation: enhanced CRC is not supported yet
     EnhancedCrc,
     /// Found an unsupported timescale that we cannot interprate.

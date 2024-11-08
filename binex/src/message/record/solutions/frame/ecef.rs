@@ -85,7 +85,7 @@ impl PositionEcef3d {
             return Err(Error::NotEnoughBytes);
         }
 
-        let (str_len, mut ptr) = Message::decode_bnxi(&buf, big_endian);
+        let (str_len, mut ptr) = Message::decode_bnxi(buf, big_endian);
         let str_len = str_len as usize;
 
         let ellipsoid = if str_len == 0 {
