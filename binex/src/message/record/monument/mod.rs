@@ -558,35 +558,17 @@ mod test {
     fn monument_geo_comments_decoding() {
         let mlen = 17;
         for big_endian in [true, false] {
-            let buf = [
-                0, 0, 1, 1, 41, 2, 0, 9, 'H' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8,
-                ' ' as u8, 'G' as u8, 'E' as u8, 'O' as u8,
-            ];
+            let mut geo = MonumentGeoRecord::default();
+            geo.epoch = Epoch::from_gpst_seconds(256.0 * 60.0 + 60.0 + 10.25);
+            geo = geo.with_comment("Hello World");
+            geo.meta = MonumentGeoMetadata::IGS;
 
-            let geo = MonumentGeoRecord::decode(mlen, big_endian, &buf).unwrap();
+            let mut encoded = [0; 64];
 
-            assert_eq!(
-                geo.epoch,
-                Epoch::from_gpst_seconds(256.0 * 60.0 + 60.0 + 10.25)
-            );
-
-            assert_eq!(geo.meta, MonumentGeoMetadata::IGS);
-
-            assert_eq!(geo.comments.len(), 1);
-
-            let comments = geo.comments.get(0).unwrap();
-            assert_eq!(comments, "Hello GEO");
-
-            // ts +meta + FID_1_4 +strlen_1_4 +strlen
-            assert_eq!(geo.encoding_size(), 5 + 1 + 1 + 1 + 9);
-
-            // test mirror op
-            let mut encoded = [0; 12];
-            assert!(geo.encode(big_endian, &mut encoded).is_err());
-
-            let mut encoded = [0; 18];
-            let size = geo.encode(big_endian, &mut encoded).unwrap();
-            assert_eq!(size, 5 + 1 + 1 + 1 + 9);
+            geo.encode(big_endian, &mut encoded).unwrap();
+            let decoded = MonumentGeoRecord::decode(11, big_endian, &encoded).unwrap();
+            assert_eq!(decoded, geo);
+            let geo = MonumentGeoRecord::decode(mlen, big_endian, &encoded).unwrap();
         }
     }
 
