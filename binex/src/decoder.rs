@@ -85,7 +85,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // and user should react accordingly,
     ///                 break;
     ///             },
-    ///             Error::ReversedStream | Error::LittleEndianStream => {
+    ///             Error::ReversedStream => {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet
@@ -138,7 +138,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // and user should react accordingly,
     ///                 break;
     ///             },
-    ///             Error::ReversedStream | Error::LittleEndianStream => {
+    ///             Error::ReversedStream => {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet

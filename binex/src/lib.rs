@@ -58,8 +58,6 @@ pub enum Error {
     // InvalidStartofStream,
     /// Library limitation: reversed streams are not supported
     ReversedStream,
-    /// Library limitation: little endian streams are not verified yet
-    LittleEndianStream,
     /// Library limitation: enhanced CRC is not supported yet
     EnhancedCrc,
     /// Found an unsupported timescale that we cannot interprate.
