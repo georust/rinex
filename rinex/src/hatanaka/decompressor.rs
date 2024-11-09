@@ -601,15 +601,22 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             State::ClockGathering => {
                 // copy epoch description to user
                 // TODO: need to squeeze clock offset @ appropriate location
-                user_buf[user_ptr..user_ptr + self.epoch_desc_len]
+                user_buf[user_ptr] = b' ';
+                user_buf[user_ptr+1..user_ptr +1 + self.epoch_desc_len]
                     .copy_from_slice(self.epoch_descriptor.as_bytes());
-                user_buf[user_ptr + self.epoch_desc_len] = b'\n';
-                forwarded += self.epoch_desc_len + 1;
+                user_buf[user_ptr+1 + self.epoch_desc_len] = b'\n';
+                forwarded += self.epoch_desc_len + 2;
 
                 next_state = State::Observation;
             },
 
             State::Observation => {
+                if ascii_len > 14 {
+                    // on trimmed lines with early epoch termination (= no flag update, all remaning obs blanked)
+                    // the whitespace search winds up picking up the following line
+                    // That we should not process yet
+                    //panic!("oops: \"{}\"", ascii);
+                }
                 let formatted = if ascii_len == 0 {
                     // Missing observation (=BLANK)
                     "                ".to_string()
@@ -641,7 +648,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                             let val = if let Some(kernel) =
                                 self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
                             {
-                                kernel.compress(val) as f64 / 1.0E3
+                                kernel.decompress(val) as f64 / 1.0E3
                             } else {
                                 let kernel = NumDiff::new(val, M);
                                 self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
@@ -786,72 +793,87 @@ mod test {
             String::from_utf8(buf).expect("decompressed CRINEX does not containt valid utf8");
 
         for (nth, line) in string.lines().enumerate() {
-            match nth {
-                0 => {
+            match nth+1 {
+                1 => {
                     assert_eq!(line, "     2.10           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE");
                 },
-                1 => {
+                2 => {
                     assert_eq!(line, "teqc  2002Mar14     Arecibo Observatory 20170102 06:00:02UTCPGM / RUN BY / DATE");
                 },
-                2 => {
+                3 => {
                     assert_eq!(
                         line,
                         "Linux 2.0.36|Pentium II|gcc|Linux|486/DX+                   COMMENT"
                     );
                 },
-                12 => {
+                13 => {
                     assert_eq!(line, "     5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV");
                 },
-                13 => {
+                14 => {
                     assert_eq!(
                         line,
                         "Version: Version:                                           COMMENT"
                     );
                 },
-                17 => {
+                18 => {
                     assert_eq!(line, "  2017     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
                 },
-                18 => {
+                19 => {
                     assert_eq!(
                         line,
                         "                                                            END OF HEADER"
                     );
                 },
-                19 => {
+                20 => {
                     assert_eq!(
                         line,
-                        "17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
+                        " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
                     );
                 },
-                20 => {
+                21 => {
                     assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ");
                 },
-                21 => {
+                22 => {
                     assert_eq!(line, " -19651355.72649 -15259372.67949  21319698.6624   21319698.7504   21319703.7964 ");
                 },
-                22 => {
+                23 => {
                     assert_eq!(line, "  -9440000.26548  -7293824.59347  23189944.5874   23189944.9994   23189951.4644 ");
                 },
-                23 => {
+                24 => {
                     assert_eq!(line, " -11141744.16748  -8631423.58147  23553953.9014   23553953.6364   23553960.7164 ");
                 },
-                24 => {
+                25 => {
                     assert_eq!(line, " -21846711.60849 -16970657.69649  20528865.5524   20528865.0214   20528868.5944 ");
                 },
-                25 => {
+                26 => {
                     assert_eq!(line, "  -2919082.75648  -2211037.84947  24165234.9594   24165234.7844   24165241.6424 ");
                 },
-                26 => {
+                27 => {
                     assert_eq!(line, " -20247177.70149 -15753542.44648  21289883.9064   21289883.7434   21289887.2614 ");
                 },
-                27 => {
+                28 => {
                     assert_eq!(line, " -15110614.77049 -11762797.21948  23262395.0794   23262394.3684   23262395.3424 ");
                 },
-                28 => {
+                29 => {
                     assert_eq!(line, " -16331314.56648 -12447068.51348  22920988.2144   22920987.5494   22920990.0634 ");
                 },
-                29 => {
+                30 => {
                     assert_eq!(line, " -15834397.66049 -12290568.98049  21540206.1654   21540206.1564   21540211.9414 ");
+                },
+                31 => {
+                    assert_eq!(line, " 17  1  1  3 33 40.0000000  0  9G30G27G11G16G 8G 7G23G 9G 1   ");
+                },
+                32 => {
+                    assert_eq!(line, "  -4980733.18548  -3805623.87347  24352349.1684   24352347.9244   24352356.1564 ");
+                },
+                33 => {
+                    assert_eq!(line, "  -9710828.79748  -7513506.68548  23211317.1574   23211317.5034   23211324.2834 ");
+                },
+                34 => {
+                    assert_eq!(line, " -26591640.60049 -20663619.71349  20668830.8234   20668830.4204   20668833.2334 ");
+                },
+                41 => {
+                   assert_eq!(line, " 17  1  1  6  9 10.0000000  0 11G30G17G 3G11G19G 8G 7G 6G22G28G 1");
                 },
                 _ => {},
             }
