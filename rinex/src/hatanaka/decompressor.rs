@@ -187,7 +187,8 @@ pub struct Decompressor<const M: usize, R: Read> {
     sv: SV,
     /// pointers
     numobs: usize, // total
-    obs_ptr: usize, // inside epoch
+    obs_ptr: usize,      // inside epoch
+    pending_copy: usize, // pending copy to user
     /// [TextDiff] that works on entire Epoch line
     epoch_diff: TextDiff,
     /// Epoch descriptor, for single allocation
@@ -238,6 +239,14 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 break;
             }
 
+            // verify that user buffer has enough capacity:
+            // we only proceed if we can actually copy the total amount to be produced
+            // to simplify internal logic
+            if user_len - user_ptr < self.size_to_produce() {
+                println!("user_len: not enough capacity");
+                break;
+            }
+
             // #[cfg(feature = "log")]
             println!(
                 "[V{}/{}] {:?} wr={}/rd={}/user={}",
@@ -260,7 +269,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 self.state = next;
                 user_ptr += size;
             } else {
-                println!("consum_exec: error!");
+                println!("consume_exec_fsm: error!");
                 break;
             }
         }
@@ -371,6 +380,35 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             State::Observation => true,
             State::ObservationSeparator => true,
             State::Flags => true,
+        }
+    }
+
+    /// Calculates total pending copy to user size
+    fn size_to_produce(&self) -> usize {
+        if self.state.file_header() {
+            80
+        } else {
+            match self.state {
+                State::EpochGathering => {
+                    // we cannot copy the epoch descriptor
+                    // until clock data has not been gathered
+                    0
+                },
+                State::ClockGathering => {
+                    // total epoch description + potential clock description
+                    self.epoch_desc_len
+                },
+                State::Observation => {
+                    // we cannot copy until flags have been recovered
+                    0
+                },
+                State::ObservationSeparator => {
+                    // we cannot copy until flags have been recovered
+                    0
+                },
+                State::Flags => 1 + (self.numobs - 1) * (16 + 1) + 16,
+                _ => unreachable!("internal error"),
+            }
         }
     }
 
@@ -534,8 +572,8 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     } else {
                         self.epoch_descriptor = self.epoch_diff.decompress("").to_string();
                     }
-                    self.epoch_desc_len = self.epoch_descriptor.len();
 
+                    self.epoch_desc_len = self.epoch_descriptor.len();
                     println!("RECOVERED: \"{}\"", self.epoch_descriptor);
                 }
 
@@ -546,6 +584,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 self.sv = self.next_sv().expect("failed to determine sv definition");
 
                 self.obs_ptr = 0;
+                self.pending_copy = 1; // initial whitespace
 
                 // grab first specs
                 let obs = self
@@ -571,14 +610,20 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             },
 
             State::Observation => {
-                let formatted = if ascii[1..2].eq("&") {
-                    let order = ascii[0..1]
-                        .parse::<usize>()
-                        .expect("bad crinex compression level");
+                let formatted = if ascii_len == 0 {
+                    // Missing observation (=BLANK)
+                    "                ".to_string()
+                } else {
+                    // Decoding
+                    if ascii[1..2].eq("&") {
+                        let order = ascii[0..1]
+                            .parse::<usize>()
+                            .expect("bad crinex compression level");
 
-                    if let Ok(val) = ascii[2..].trim().parse::<i64>() {
-                        let val =
-                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                        if let Ok(val) = ascii[2..].trim().parse::<i64>() {
+                            let val = if let Some(kernel) =
+                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                            {
                                 kernel.force_init(val, order);
                                 val as f64 / 1.0E3
                             } else {
@@ -586,35 +631,41 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                                 self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                                 val as f64 / 1.0E3
                             };
-                        format!("{:14.3}", val).to_string()
+                            format!("{:14.3}  ", val).to_string()
+                        } else {
+                            // bad i64 value
+                            "                ".to_string()
+                        }
                     } else {
-                        // bad i64 value
-                        "              ".to_string()
-                    }
-                } else {
-                    if let Ok(val) = ascii.trim().parse::<i64>() {
-                        let val =
-                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                        if let Ok(val) = ascii.trim().parse::<i64>() {
+                            let val = if let Some(kernel) =
+                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                            {
                                 kernel.compress(val) as f64 / 1.0E3
                             } else {
                                 let kernel = NumDiff::new(val, M);
                                 self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                                 val as f64 / 1.0E3
                             };
-                        format!("{:14.3}", val)
-                    } else {
-                        // bad i64 value
-                        "              ".to_string()
+                            format!("{:14.3}  ", val)
+                        } else {
+                            // bad i64 value
+                            "                ".to_string()
+                        }
                     }
                 };
 
                 // copy to user
-                let start = 1 + self.obs_ptr * 14;
-                user_buf[user_ptr + start..user_ptr + start + 14]
+                let start = self.obs_ptr * 16;
+
+                user_buf[user_ptr + start..user_ptr + start + 16]
                     .copy_from_slice(formatted.as_bytes());
 
                 self.obs_ptr += 1;
+                self.pending_copy += 15;
+
                 println!("obs={}/{}", self.obs_ptr, self.numobs);
+
                 next_state = State::ObservationSeparator;
             },
 
@@ -630,25 +681,35 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             State::Flags => {
                 // recover flags
                 self.flags_descriptor = self.flags_diff.decompress(&ascii).to_string();
-                let len = self.flags_descriptor.len();
+                let flags_len = self.flags_descriptor.len();
                 println!("RECOVERED: \"{}\"", self.flags_descriptor);
 
-                for i in 0..len / 2 {
-                    if !self.flags_descriptor[i..i + 1].eq(" ") {
-                        let start = i * 15;
+                // copy all flags to user
+                for i in 0..self.numobs {
+                    let start = 14 + i * 16;
+                    if flags_len > 2 * i {
+                        //if !self.flags_descriptor[i..i + 1].eq(" ") {
                         user_buf[user_ptr + start] = b'x';
+                        //}
                     }
-                    if !self.flags_descriptor[i + 1..i + 2].eq(" ") {
-                        let start = i * 16;
-                        user_buf[user_ptr + start] = b'x';
+
+                    let start = 15 + i * 16;
+                    if flags_len > 2 * i + 1 {
+                        //if !self.flags_descriptor[i + 1..i + 2].eq(" ") {
+                        user_buf[user_ptr + start] = b'y';
+                        //}
                     }
                 }
 
-                forwarded += 1 + self.numobs * 17;
-                user_buf[user_ptr + self.numobs * 17 + 1] = b'\n';
+                // publish this paylad & reset for next time
+                user_buf[user_ptr + self.pending_copy + 1] = b'\n';
+                forwarded += self.pending_copy + 1; // \n
 
                 self.sv_ptr += 1;
+                self.pending_copy = 1; // initial whitespace
                 println!("COMPLETED {}", self.sv);
+
+                return Ok((next_state, forwarded));
 
                 if self.sv_ptr == self.numsat {
                     self.sv_ptr = 0;
@@ -674,6 +735,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             sv_ptr: 0,
             numobs: 0,
             obs_ptr: 0,
+            pending_copy: 1, // initial whitespace
             buf: [0; 4096],
             eos: false,
             first_epoch: true,
