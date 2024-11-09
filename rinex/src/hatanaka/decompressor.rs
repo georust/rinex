@@ -662,8 +662,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     .copy_from_slice(formatted.as_bytes());
 
                 self.obs_ptr += 1;
-                self.pending_copy += 15;
-
+                self.pending_copy += 14;
                 println!("obs={}/{}", self.obs_ptr, self.numobs);
 
                 next_state = State::ObservationSeparator;
@@ -684,32 +683,35 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 let flags_len = self.flags_descriptor.len();
                 println!("RECOVERED: \"{}\"", self.flags_descriptor);
 
+                let flags_bytes = self.flags_descriptor.as_bytes();
+
                 // copy all flags to user
                 for i in 0..self.numobs {
                     let start = 14 + i * 16;
-                    if flags_len > 2 * i {
-                        //if !self.flags_descriptor[i..i + 1].eq(" ") {
-                        user_buf[user_ptr + start] = b'x';
-                        //}
+                    let lli_idx = i * 2;
+                    let snr_idx = lli_idx + 1;
+
+                    if flags_len > lli_idx {
+                        //user_buf[user_ptr + start] = b'x';
+                        user_buf[user_ptr + start] = flags_bytes[lli_idx];
+                        self.pending_copy += 1;
                     }
 
                     let start = 15 + i * 16;
-                    if flags_len > 2 * i + 1 {
-                        //if !self.flags_descriptor[i + 1..i + 2].eq(" ") {
-                        user_buf[user_ptr + start] = b'y';
-                        //}
+                    if flags_len > snr_idx {
+                        // user_buf[user_ptr + start] = b'y';
+                        user_buf[user_ptr + start] = flags_bytes[snr_idx];
+                        self.pending_copy += 1;
                     }
                 }
 
                 // publish this paylad & reset for next time
-                user_buf[user_ptr + self.pending_copy + 1] = b'\n';
+                user_buf[user_ptr + self.pending_copy] = b'\n';
                 forwarded += self.pending_copy + 1; // \n
 
                 self.sv_ptr += 1;
                 self.pending_copy = 1; // initial whitespace
                 println!("COMPLETED {}", self.sv);
-
-                return Ok((next_state, forwarded));
 
                 if self.sv_ptr == self.numsat {
                     self.sv_ptr = 0;
@@ -822,7 +824,34 @@ mod test {
                     );
                 },
                 20 => {
-                    assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704");
+                    assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ");
+                },
+                21 => {
+                    assert_eq!(line, " -19651355.72649 -15259372.67949  21319698.6624   21319698.7504   21319703.7964 ");
+                },
+                22 => {
+                    assert_eq!(line, "  -9440000.26548  -7293824.59347  23189944.5874   23189944.9994   23189951.4644 ");
+                },
+                23 => {
+                    assert_eq!(line, " -11141744.16748  -8631423.58147  23553953.9014   23553953.6364   23553960.7164 ");
+                },
+                24 => {
+                    assert_eq!(line, " -21846711.60849 -16970657.69649  20528865.5524   20528865.0214   20528868.5944 ");
+                },
+                25 => {
+                    assert_eq!(line, "  -2919082.75648  -2211037.84947  24165234.9594   24165234.7844   24165241.6424 ");
+                },
+                26 => {
+                    assert_eq!(line, " -20247177.70149 -15753542.44648  21289883.9064   21289883.7434   21289887.2614 ");
+                },
+                27 => {
+                    assert_eq!(line, " -15110614.77049 -11762797.21948  23262395.0794   23262394.3684   23262395.3424 ");
+                },
+                28 => {
+                    assert_eq!(line, " -16331314.56648 -12447068.51348  22920988.2144   22920987.5494   22920990.0634 ");
+                },
+                29 => {
+                    assert_eq!(line, " -15834397.66049 -12290568.98049  21540206.1654   21540206.1564   21540211.9414 ");
                 },
                 _ => {},
             }
