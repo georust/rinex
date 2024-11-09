@@ -430,12 +430,14 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             .map_err(|_| Error::BadUtf8Data.to_stdio())?
             .trim_end(); // clean up
 
-        let ascii_len = ascii.len();
-
         // we'll consume this ASCII length (total) in most cases
         // except in rare scenarios, mostly in Observation state
-        // where actually the read size cannot be predicted ahead of time
-        let mut consumed = ascii_len;
+        // where actual read size cannot be predicted ahead of time.
+        // For such scenarios, check where this variable is modified.
+        // The .max(1) is here to consume at least one byte (always)
+        // which is not discarded in empty lines, and this block must pass through the \n termination.
+        let mut ascii_len = ascii.len();
+        let mut consumed = ascii_len.max(1);
 
         // #[cfg(feature = "log")]
         println!("ASCII: \"{}\" [{}]", ascii, ascii_len);
@@ -626,7 +628,8 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                         // we grabbed part of the following lines
                         // this happens in case all data flags remain identical (100% compression factor)
                         // we must postpone part of this buffer
-                        consumed -= ascii_len - eol_offset;
+                        ascii_len = eol_offset;
+                        consumed = eol_offset;
                         early_termination = true;
                     } else {
                         // this case should never happen
@@ -658,6 +661,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                             format!("{:14.3}  ", val).to_string()
                         } else {
                             // bad i64 value
+                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
                             "                ".to_string()
                         }
                     } else {
@@ -674,6 +678,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                             format!("{:14.3}  ", val)
                         } else {
                             // bad i64 value
+                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
                             "                ".to_string()
                         }
                     }
@@ -813,7 +818,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             },
         }
 
-        if self.state.eol_terminated() {
+        if ascii_len > 1 && self.state.eol_terminated() {
             // ascii is trimed to facilitate the parsing & internal analysis
             // but it discards the possible \n termination
             // that this module must pass through

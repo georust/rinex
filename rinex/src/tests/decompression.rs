@@ -547,7 +547,13 @@ mod test {
                     assert_eq!(line, " -26591640.60049 -20663619.71349  20668830.8234   20668830.4204   20668833.2334 ");
                 },
                 38 => {
-                    assert_eq!(line, " -18143490.68049 -14126079.68448  22685259.0754   22685258.3664   22685261.2134");
+                    assert_eq!(line, " -18143490.68049 -14126079.68448  22685259.0754   22685258.3664   22685261.2134 ");
+                },
+                39 => {
+                    assert_eq!(line, " -16594887.53049 -12883140.10148  22336785.6934   22336785.4334   22336790.8924 ");
+                },
+                40 => {
+                    assert_eq!(line, " -19095445.86249 -14826971.50648  21708306.6584   21708306.5704   21708312.9414 ");
                 },
                 41 => {
                     assert_eq!(
@@ -555,8 +561,77 @@ mod test {
                         " 17  1  1  6  9 10.0000000  0 11G30G17G 3G11G19G 8G 7G 6G22G28G 1"
                     );
                 },
+                42 => {
+                    assert_eq!(line, " -23668184.66249 -18367274.15149  20796245.2334   20796244.8234   20796250.6334 ");
+                },
+                43 => {
+                    assert_eq!(line, "  -5877878.73348  -4575160.53248  23410058.5724   23410059.2714   23410062.1064 ");
+                },
+                52 => {
+                    assert_eq!(line, " -21848286.72849 -16972039.81549  21184456.3894   21184456.9144   21184462.1224 ");
+                },
                 _ => {},
             }
         }
+    }
+
+    #[test]
+    fn v1_zegv0010_raw() {
+        let mut nth = 1;
+        let mut next = String::with_capacity(80);
+        let mut buf = [0; 100000];
+        let fd = File::open("../test_resources/CRNX/V1/zegv0010.21d").unwrap();
+        let mut decompressor = Decompressor::<5, File>::new(fd);
+
+        loop {
+            match decompressor.read(&mut buf) {
+                Ok(size) => {
+                    if size == 0 {
+                        break; // EOS
+                    }
+
+                    let buf_str = String::from_utf8_lossy(&buf);
+                    let eol = buf_str.find('\n').unwrap();
+
+                    let mut content = next.to_string();
+                    content.push_str(&buf_str[..eol]);
+
+                    println!("content \"{}\"", content);
+
+                    match nth {
+                        1 => {
+                            assert_eq!(content, "     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
+                        },
+                        2 => {
+                            assert_eq!(content, "ssrcrin-13.4.4x                         20210101 000000 UTC PGM / RUN BY / DATE");
+                        },
+                        10 => {
+                            assert_eq!(content, "-------------------------------------                       COMMENT");
+                        },
+                        11 => {
+                            assert_eq!(content, "    11    C1    C2    C5    L1    L2    L5    P1    P2    S1# / TYPES OF OBSERV");
+                        },
+                        12 => {
+                            assert_eq!(content, "          S2    S5                                          # / TYPES OF OBSERV");
+                        },
+                        125 => {
+                            assert_eq!(content, "                                                            END OF HEADER");
+                        },
+                        126 => {
+                            assert_eq!(content, " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27");
+                        },
+                        _ => {},
+                    }
+
+                    next.clear();
+                    next = buf_str[eol + 1..].to_string();
+                    nth += 1;
+                },
+                Err(e) => {
+                    println!("i/o error: {}", e);
+                },
+            }
+        }
+        assert_eq!(nth, 1495);
     }
 }
