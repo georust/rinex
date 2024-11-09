@@ -1,10 +1,16 @@
 #[cfg(test)]
 mod test {
     use crate::{
+        hatanaka::Decompressor,
         prelude::{Epoch, EpochFlag, GeodeticMarker, MarkerType, Observable, Rinex, SV},
         tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
     };
-    use std::{fs::remove_file as fs_remove_file, path::Path, str::FromStr};
+    use std::{
+        fs::{remove_file as fs_remove_file, File},
+        io::Read,
+        path::Path,
+        str::FromStr,
+    };
 
     #[test]
     fn testbench_v1() {
@@ -442,5 +448,115 @@ mod test {
             vec![],
             vec![]
         );
+    }
+
+    #[test]
+    fn v1_aopr0017d_raw() {
+        let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
+        let mut decompressor = Decompressor::<5, File>::new(fd);
+
+        let mut buf = Vec::<u8>::with_capacity(65536);
+        let size = decompressor.read_to_end(&mut buf).unwrap();
+
+        assert!(size > 0);
+
+        let string =
+            String::from_utf8(buf).expect("decompressed CRINEX does not containt valid utf8");
+
+        for (nth, line) in string.lines().enumerate() {
+            match nth + 1 {
+                1 => {
+                    assert_eq!(line, "     2.10           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE");
+                },
+                2 => {
+                    assert_eq!(line, "teqc  2002Mar14     Arecibo Observatory 20170102 06:00:02UTCPGM / RUN BY / DATE");
+                },
+                3 => {
+                    assert_eq!(
+                        line,
+                        "Linux 2.0.36|Pentium II|gcc|Linux|486/DX+                   COMMENT"
+                    );
+                },
+                13 => {
+                    assert_eq!(line, "     5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV");
+                },
+                14 => {
+                    assert_eq!(
+                        line,
+                        "Version: Version:                                           COMMENT"
+                    );
+                },
+                18 => {
+                    assert_eq!(line, "  2017     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
+                },
+                19 => {
+                    assert_eq!(
+                        line,
+                        "                                                            END OF HEADER"
+                    );
+                },
+                20 => {
+                    assert_eq!(
+                        line,
+                        " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
+                    );
+                },
+                21 => {
+                    assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ");
+                },
+                22 => {
+                    assert_eq!(line, " -19651355.72649 -15259372.67949  21319698.6624   21319698.7504   21319703.7964 ");
+                },
+                23 => {
+                    assert_eq!(line, "  -9440000.26548  -7293824.59347  23189944.5874   23189944.9994   23189951.4644 ");
+                },
+                24 => {
+                    assert_eq!(line, " -11141744.16748  -8631423.58147  23553953.9014   23553953.6364   23553960.7164 ");
+                },
+                25 => {
+                    assert_eq!(line, " -21846711.60849 -16970657.69649  20528865.5524   20528865.0214   20528868.5944 ");
+                },
+                26 => {
+                    assert_eq!(line, "  -2919082.75648  -2211037.84947  24165234.9594   24165234.7844   24165241.6424 ");
+                },
+                27 => {
+                    assert_eq!(line, " -20247177.70149 -15753542.44648  21289883.9064   21289883.7434   21289887.2614 ");
+                },
+                28 => {
+                    assert_eq!(line, " -15110614.77049 -11762797.21948  23262395.0794   23262394.3684   23262395.3424 ");
+                },
+                29 => {
+                    assert_eq!(line, " -16331314.56648 -12447068.51348  22920988.2144   22920987.5494   22920990.0634 ");
+                },
+                30 => {
+                    assert_eq!(line, " -15834397.66049 -12290568.98049  21540206.1654   21540206.1564   21540211.9414 ");
+                },
+                31 => {
+                    assert_eq!(
+                        line,
+                        " 17  1  1  3 33 40.0000000  0  9G30G27G11G16G 8G 7G23G 9G 1   "
+                    );
+                },
+                32 => {
+                    assert_eq!(line, "  -4980733.18548  -3805623.87347  24352349.1684   24352347.9244   24352356.1564 ");
+                },
+                33 => {
+                    assert_eq!(line, "  -9710828.79748  -7513506.68548  23211317.1574   23211317.5034   23211324.2834 ");
+                },
+                34 => {
+                    assert_eq!(line, " -26591640.60049 -20663619.71349  20668830.8234   20668830.4204   20668833.2334 ");
+                },
+                38 => {
+                    assert_eq!(line, " -18143490.68049 -14126079.68448  22685259.0754   22685258.3664   22685261.2134");
+                },
+                41 => {
+                    assert_eq!(
+                        line,
+                        " 17  1  1  6  9 10.0000000  0 11G30G17G 3G11G19G 8G 7G 6G22G28G 1"
+                    );
+                },
+                _ => {},
+            }
+        }
     }
 }

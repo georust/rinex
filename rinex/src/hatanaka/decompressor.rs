@@ -45,6 +45,8 @@ pub enum State {
     Observation,
     /// Collecting observation separator
     ObservationSeparator,
+    /// We wind up here when early line termination (all blankings) is spotted
+    ObservationEarlyTermination,
     /// Collecting observation flags
     Flags,
 }
@@ -258,16 +260,12 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 user_len,
             );
 
-            if let Ok((next, size)) = self.consume_execute_fsm(offset, buf, user_ptr) {
-                self.rd_ptr += offset; // advance pointer
-
-                if self.state.eol_terminated() {
-                    // consume \n
-                    self.rd_ptr += 1;
-                }
-
+            if let Ok((next, consumed_size, produced_size)) =
+                self.consume_execute_fsm(offset, buf, user_ptr)
+            {
                 self.state = next;
-                user_ptr += size;
+                self.rd_ptr += consumed_size;
+                user_ptr += produced_size;
             } else {
                 println!("consume_exec_fsm: error!");
                 break;
@@ -356,12 +354,11 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
         if self.state.eol_terminated() {
             self.find_next(Self::EOL_BYTE)
         } else {
-            if self.state == State::Observation {
-                self.find_next(Self::WHITESPACE_BYTE)
-            } else if self.state == State::ObservationSeparator {
-                Some(1)
-            } else {
-                panic!("collect_gather()");
+            match self.state {
+                State::Observation => self.find_next(Self::WHITESPACE_BYTE),
+                State::ObservationEarlyTermination => Some(1),
+                State::ObservationSeparator => Some(1),
+                _ => unreachable!("internal error"),
             }
         }
     }
@@ -370,16 +367,17 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     fn check_length(&self, size: usize) -> bool {
         println!("\n{:?}: check len={}", self.state, size);
         match self.state {
-            State::ProgDate => size > 60,
             State::Version => size > 60,
+            State::ProgDate => size > 60,
             State::EndofHeader => size > 60,
             State::VersionType => size > 60,
             State::HeaderSpecs => size > 60,
+            State::Flags => true,
+            State::Observation => true,
             State::EpochGathering => true,
             State::ClockGathering => true,
-            State::Observation => true,
             State::ObservationSeparator => true,
-            State::Flags => true,
+            State::ObservationEarlyTermination => true,
         }
     }
 
@@ -407,6 +405,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     0
                 },
                 State::Flags => 1 + (self.numobs - 1) * (16 + 1) + 16,
+                State::ObservationEarlyTermination => 1 + (self.numobs - 1) * (16 + 1) + 16,
                 _ => unreachable!("internal error"),
             }
         }
@@ -415,14 +414,15 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
     /// Process collected bytes that need to be valid UTF-8.
     /// Returns
     /// - next [State]
-    /// - consumed forwarded size (bytewise)
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
     fn consume_execute_fsm(
         &mut self,
         offset: usize,
         user_buf: &mut [u8],
         user_ptr: usize,
-    ) -> Result<(State, usize)> {
-        let mut forwarded = 0;
+    ) -> Result<(State, usize, usize)> {
+        let mut produced = 0;
         let mut next_state = self.state;
 
         // always interprate new content as ASCII UTF-8
@@ -431,6 +431,11 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             .trim_end(); // clean up
 
         let ascii_len = ascii.len();
+
+        // we'll consume this ASCII length (total) in most cases
+        // except in rare scenarios, mostly in Observation state
+        // where actually the read size cannot be predicted ahead of time
+        let mut consumed = ascii_len;
 
         // #[cfg(feature = "log")]
         println!("ASCII: \"{}\" [{}]", ascii, ascii_len);
@@ -481,7 +486,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 // copy to user
                 user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
                 user_buf[user_ptr + ascii_len] = b'\n';
-                forwarded += ascii_len + 1;
+                produced += ascii_len + 1;
             },
 
             State::HeaderSpecs => {
@@ -536,7 +541,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 // copy to user
                 user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
                 user_buf[user_ptr + ascii_len] = b'\n';
-                forwarded += ascii_len + 1;
+                produced += ascii_len + 1;
             },
 
             State::EndofHeader => {
@@ -550,7 +555,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 // copy to user
                 user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
                 user_buf[user_ptr + ascii_len] = b'\n';
-                forwarded += ascii_len + 1;
+                produced += ascii_len + 1;
             },
 
             State::EpochGathering => {
@@ -602,21 +607,33 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 // copy epoch description to user
                 // TODO: need to squeeze clock offset @ appropriate location
                 user_buf[user_ptr] = b' ';
-                user_buf[user_ptr+1..user_ptr +1 + self.epoch_desc_len]
+                user_buf[user_ptr + 1..user_ptr + 1 + self.epoch_desc_len]
                     .copy_from_slice(self.epoch_descriptor.as_bytes());
-                user_buf[user_ptr+1 + self.epoch_desc_len] = b'\n';
-                forwarded += self.epoch_desc_len + 2;
+                user_buf[user_ptr + 1 + self.epoch_desc_len] = b'\n';
+                produced += self.epoch_desc_len + 2;
 
                 next_state = State::Observation;
             },
 
             State::Observation => {
+                let mut early_termination = false;
+
                 if ascii_len > 14 {
-                    // on trimmed lines with early epoch termination (= no flag update, all remaning obs blanked)
-                    // the whitespace search winds up picking up the following line
-                    // That we should not process yet
-                    //panic!("oops: \"{}\"", ascii);
+                    // content looks suspicious:
+                    // this happens when all remaining flags are omitted (=BLANKING).
+                    // We have two cases
+                    if let Some(eol_offset) = ascii.find('\n') {
+                        // we grabbed part of the following lines
+                        // this happens in case all data flags remain identical (100% compression factor)
+                        // we must postpone part of this buffer
+                        consumed -= ascii_len - eol_offset;
+                        early_termination = true;
+                    } else {
+                        // this case should never happen
+                        unreachable!("internal error");
+                    }
                 }
+
                 let formatted = if ascii_len == 0 {
                     // Missing observation (=BLANK)
                     "                ".to_string()
@@ -627,7 +644,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                             .parse::<usize>()
                             .expect("bad crinex compression level");
 
-                        if let Ok(val) = ascii[2..].trim().parse::<i64>() {
+                        if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
                             let val = if let Some(kernel) =
                                 self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
                             {
@@ -644,7 +661,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                             "                ".to_string()
                         }
                     } else {
-                        if let Ok(val) = ascii.trim().parse::<i64>() {
+                        if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
                             let val = if let Some(kernel) =
                                 self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
                             {
@@ -672,7 +689,11 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 self.pending_copy += 14;
                 println!("obs={}/{}", self.obs_ptr, self.numobs);
 
-                next_state = State::ObservationSeparator;
+                if early_termination {
+                    next_state = State::ObservationEarlyTermination;
+                } else {
+                    next_state = State::ObservationSeparator;
+                }
             },
 
             State::ObservationSeparator => {
@@ -712,10 +733,72 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     }
                 }
 
+                // publish this payload & reset for next time
+                user_buf[user_ptr + self.pending_copy] = b'\n';
+                produced += self.pending_copy + 1; // \n
+
+                self.sv_ptr += 1;
+                self.pending_copy = 1; // initial whitespace
+                println!("COMPLETED {}", self.sv);
+
+                if self.sv_ptr == self.numsat {
+                    self.sv_ptr = 0;
+                    next_state = State::EpochGathering;
+                } else {
+                    self.sv = self.next_sv().expect("failed to determine next vehicle");
+                    next_state = State::Observation;
+                }
+            },
+
+            State::ObservationEarlyTermination => {
+                // Special case where line is abruptly terminated
+                // - all remaining observations have been blanked (=missing)
+                // - all flags were omitted (= to remain identical 100% compressed)
+
+                // we need to fill the blanks
+                for ptr in self.obs_ptr..self.numobs {
+                    println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
+                    let blanking = "                ".to_string();
+
+                    // copy to user
+                    let start = ptr * 16;
+
+                    user_buf[user_ptr + start..user_ptr + start + 16]
+                        .copy_from_slice(blanking.as_bytes());
+
+                    self.pending_copy += 14;
+                }
+
+                // we need to maintain all data flags
+                let flags_len = self.flags_descriptor.len();
+                let flags_bytes = self.flags_descriptor.as_bytes();
+                println!("RECOVERED: \"{}\"", self.flags_descriptor);
+
+                // copy all flags to user
+                for i in 0..self.numobs {
+                    let start = 14 + i * 16;
+                    let lli_idx = i * 2;
+                    let snr_idx = lli_idx + 1;
+
+                    if flags_len > lli_idx {
+                        //user_buf[user_ptr + start] = b'x';
+                        user_buf[user_ptr + start] = flags_bytes[lli_idx];
+                        self.pending_copy += 1;
+                    }
+
+                    let start = 15 + i * 16;
+                    if flags_len > snr_idx {
+                        // user_buf[user_ptr + start] = b'y';
+                        user_buf[user_ptr + start] = flags_bytes[snr_idx];
+                        self.pending_copy += 1;
+                    }
+                }
+
                 // publish this paylad & reset for next time
                 user_buf[user_ptr + self.pending_copy] = b'\n';
-                forwarded += self.pending_copy + 1; // \n
+                produced += self.pending_copy + 1; // \n
 
+                self.obs_ptr = 0;
                 self.sv_ptr += 1;
                 self.pending_copy = 1; // initial whitespace
                 println!("COMPLETED {}", self.sv);
@@ -730,7 +813,14 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             },
         }
 
-        Ok((next_state, forwarded))
+        if self.state.eol_terminated() {
+            // ascii is trimed to facilitate the parsing & internal analysis
+            // but it discards the possible \n termination
+            // that this module must pass through
+            consumed += 1; // consume \n
+        }
+
+        Ok((next_state, consumed, produced))
     }
 
     /// Creates a new [Decompressor] working from [Read]
@@ -772,115 +862,4 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             self.gnss_observables.get(constell)
         }
     }
-}
-
-#[cfg(test)]
-mod test {
-    use super::Decompressor;
-    use std::{fs::File, io::Read};
-
-    #[test]
-    fn test_v1_aopr0017d_raw() {
-        let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
-        let mut decompressor = Decompressor::<5, File>::new(fd);
-
-        let mut buf = Vec::<u8>::with_capacity(65536);
-        let size = decompressor.read_to_end(&mut buf).unwrap();
-
-        assert!(size > 0);
-
-        let string =
-            String::from_utf8(buf).expect("decompressed CRINEX does not containt valid utf8");
-
-        for (nth, line) in string.lines().enumerate() {
-            match nth+1 {
-                1 => {
-                    assert_eq!(line, "     2.10           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE");
-                },
-                2 => {
-                    assert_eq!(line, "teqc  2002Mar14     Arecibo Observatory 20170102 06:00:02UTCPGM / RUN BY / DATE");
-                },
-                3 => {
-                    assert_eq!(
-                        line,
-                        "Linux 2.0.36|Pentium II|gcc|Linux|486/DX+                   COMMENT"
-                    );
-                },
-                13 => {
-                    assert_eq!(line, "     5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV");
-                },
-                14 => {
-                    assert_eq!(
-                        line,
-                        "Version: Version:                                           COMMENT"
-                    );
-                },
-                18 => {
-                    assert_eq!(line, "  2017     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
-                },
-                19 => {
-                    assert_eq!(
-                        line,
-                        "                                                            END OF HEADER"
-                    );
-                },
-                20 => {
-                    assert_eq!(
-                        line,
-                        " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
-                    );
-                },
-                21 => {
-                    assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ");
-                },
-                22 => {
-                    assert_eq!(line, " -19651355.72649 -15259372.67949  21319698.6624   21319698.7504   21319703.7964 ");
-                },
-                23 => {
-                    assert_eq!(line, "  -9440000.26548  -7293824.59347  23189944.5874   23189944.9994   23189951.4644 ");
-                },
-                24 => {
-                    assert_eq!(line, " -11141744.16748  -8631423.58147  23553953.9014   23553953.6364   23553960.7164 ");
-                },
-                25 => {
-                    assert_eq!(line, " -21846711.60849 -16970657.69649  20528865.5524   20528865.0214   20528868.5944 ");
-                },
-                26 => {
-                    assert_eq!(line, "  -2919082.75648  -2211037.84947  24165234.9594   24165234.7844   24165241.6424 ");
-                },
-                27 => {
-                    assert_eq!(line, " -20247177.70149 -15753542.44648  21289883.9064   21289883.7434   21289887.2614 ");
-                },
-                28 => {
-                    assert_eq!(line, " -15110614.77049 -11762797.21948  23262395.0794   23262394.3684   23262395.3424 ");
-                },
-                29 => {
-                    assert_eq!(line, " -16331314.56648 -12447068.51348  22920988.2144   22920987.5494   22920990.0634 ");
-                },
-                30 => {
-                    assert_eq!(line, " -15834397.66049 -12290568.98049  21540206.1654   21540206.1564   21540211.9414 ");
-                },
-                31 => {
-                    assert_eq!(line, " 17  1  1  3 33 40.0000000  0  9G30G27G11G16G 8G 7G23G 9G 1   ");
-                },
-                32 => {
-                    assert_eq!(line, "  -4980733.18548  -3805623.87347  24352349.1684   24352347.9244   24352356.1564 ");
-                },
-                33 => {
-                    assert_eq!(line, "  -9710828.79748  -7513506.68548  23211317.1574   23211317.5034   23211324.2834 ");
-                },
-                34 => {
-                    assert_eq!(line, " -26591640.60049 -20663619.71349  20668830.8234   20668830.4204   20668833.2334 ");
-                },
-                41 => {
-                   assert_eq!(line, " 17  1  1  6  9 10.0000000  0 11G30G17G 3G11G19G 8G 7G 6G22G28G 1");
-                },
-                _ => {},
-            }
-        }
-    }
-
-    // TODO add more V1 tests
-    // TODO add V3 tests
-    // TODO add test with CLOCK fields
 }
