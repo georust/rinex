@@ -83,32 +83,32 @@ mod test {
 
     #[test]
     fn gps_raw() {
-        let big_endian = true;
+        for big_endian in [true, false] {
+            let buf = [0; 64];
+            let decode = GPSRaw::decode(big_endian, &buf);
+            assert!(decode.is_err());
 
-        let buf = [0; 64];
-        let decode = GPSRaw::decode(big_endian, &buf);
-        assert!(decode.is_err());
+            let mut buf = [0; 78];
+            buf[0] = 10;
+            buf[1] = 1;
+            buf[6] = 10;
+            buf[7] = 11;
+            buf[6 + 71] = 123;
 
-        let mut buf = [0; 78];
-        buf[0] = 10;
-        buf[1] = 1;
-        buf[6] = 10;
-        buf[7] = 11;
-        buf[6 + 71] = 123;
+            let decoded = GPSRaw::decode(big_endian, &buf).unwrap();
 
-        let decoded = GPSRaw::decode(big_endian, &buf).unwrap();
+            assert_eq!(decoded.svid1, 10);
+            assert_eq!(decoded.uint1, 1);
+            assert_eq!(decoded.bytes.len(), 72);
 
-        assert_eq!(decoded.svid1, 10);
-        assert_eq!(decoded.uint1, 1);
-        assert_eq!(decoded.bytes.len(), 72);
+            assert_eq!(decoded.bytes[0], 10);
+            assert_eq!(decoded.bytes[1], 11);
+            assert_eq!(decoded.bytes[71], 123);
 
-        assert_eq!(decoded.bytes[0], 10);
-        assert_eq!(decoded.bytes[1], 11);
-        assert_eq!(decoded.bytes[71], 123);
-
-        let mut encoded = [0; 78];
-        let size = decoded.encode(big_endian, &mut encoded).unwrap();
-        assert_eq!(size, 78);
-        assert_eq!(buf, encoded)
+            let mut encoded = [0; 78];
+            let size = decoded.encode(big_endian, &mut encoded).unwrap();
+            assert_eq!(size, 78);
+            assert_eq!(buf, encoded)
+        }
     }
 }

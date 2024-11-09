@@ -85,7 +85,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // and user should react accordingly,
     ///                 break;
     ///             },
-    ///             Error::ReversedStream | Error::LittleEndianStream => {
+    ///             Error::ReversedStream => {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet
@@ -138,7 +138,7 @@ impl<'a, R: Read> Decoder<'a, R> {
     ///                 // and user should react accordingly,
     ///                 break;
     ///             },
-    ///             Error::ReversedStream | Error::LittleEndianStream => {
+    ///             Error::ReversedStream => {
     ///                 // this library is currently limited:
     ///                 //  - reversed streams are not supported yet
     ///                 //  - little endian streams are not supported yet
@@ -198,7 +198,7 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                         // we can safely discard everything
                         self.wr_ptr = 0;
                         self.rd_ptr = 0;
-                        if self.eos == true {
+                        if self.eos {
                             // consumed everything and EOS has been reached
                             return None;
                         }
@@ -211,7 +211,7 @@ impl<'a, R: Read> Iterator for Decoder<'a, R> {
                             self.wr_ptr = 0;
                         }
 
-                        if self.eos == true {
+                        if self.eos {
                             // consumed everything and EOS has been reached
                             return None;
                         }

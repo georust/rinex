@@ -390,55 +390,56 @@ mod test {
 
     #[test]
     fn gps_ephemeris() {
-        let buf = [0; 128];
+        for big_endian in [true, false] {
+            let buf = [0; 128];
 
-        let eph = GPSEphemeris::decode(true, &buf).unwrap();
+            let eph = GPSEphemeris::decode(big_endian, &buf).unwrap();
 
-        // test mirror
-        let mut target = [0; 100];
-        assert!(eph.encode(true, &mut target).is_err());
+            // test mirror
+            let mut target = [0; 100];
+            assert!(eph.encode(big_endian, &mut target).is_err());
 
-        let mut target = [0; 128];
-        let size = eph.encode(true, &mut target).unwrap();
-        assert_eq!(size, 128);
-        assert_eq!(buf, target);
+            let mut target = [0; 128];
+            let size = eph.encode(big_endian, &mut target).unwrap();
+            assert_eq!(size, 128);
+            assert_eq!(buf, target);
 
-        let eph = GPSEphemeris {
-            sv_prn: 10,
-            toe: 1000,
-            tow: 120,
-            toc: 130,
-            tgd: 10.0,
-            iodc: 24,
-            clock_offset: 123.0,
-            clock_drift_rate: 130.0,
-            clock_drift: 150.0,
-            sqrt_a: 56.0,
-            iode: -2000,
-            delta_n_rad_s: 12.0,
-            m0_rad: 0.1,
-            e: 0.2,
-            cic: 0.3,
-            crc: 0.4,
-            cis: 0.5,
-            crs: 0.6,
-            cuc: 0.7,
-            cus: 0.8,
-            omega_0_rad: 0.9,
-            omega_rad: 59.0,
-            i0_rad: 61.0,
-            omega_dot_rad_s: 62.0,
-            i_dot_rad_s: 74.0,
-            ura_m: 75.0,
-            sv_health: 16,
-            uint2: 17,
-        };
+            let eph = GPSEphemeris {
+                sv_prn: 10,
+                toe: 1000,
+                tow: 120,
+                toc: 130,
+                tgd: 10.0,
+                iodc: 24,
+                clock_offset: 123.0,
+                clock_drift_rate: 130.0,
+                clock_drift: 150.0,
+                sqrt_a: 56.0,
+                iode: -2000,
+                delta_n_rad_s: 12.0,
+                m0_rad: 0.1,
+                e: 0.2,
+                cic: 0.3,
+                crc: 0.4,
+                cis: 0.5,
+                crs: 0.6,
+                cuc: 0.7,
+                cus: 0.8,
+                omega_0_rad: 0.9,
+                omega_rad: 59.0,
+                i0_rad: 61.0,
+                omega_dot_rad_s: 62.0,
+                i_dot_rad_s: 74.0,
+                ura_m: 75.0,
+                sv_health: 16,
+                uint2: 17,
+            };
 
-        let mut target = [0; 153];
-        eph.encode(true, &mut target).unwrap();
+            let mut target = [0; 153];
+            eph.encode(big_endian, &mut target).unwrap();
 
-        let decoded = GPSEphemeris::decode(true, &target).unwrap();
-
-        assert_eq!(eph, decoded);
+            let decoded = GPSEphemeris::decode(big_endian, &target).unwrap();
+            assert_eq!(eph, decoded);
+        }
     }
 }

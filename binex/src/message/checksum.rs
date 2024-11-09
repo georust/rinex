@@ -84,21 +84,19 @@ impl Checksum {
         if enhanced {
             if mlen < 128 {
                 Self::XOR16
-            } else if mlen < 1048575 {
+            } else if mlen < 1048576 {
                 Self::XOR32
             } else {
                 Self::MD5
             }
+        } else if mlen < 128 {
+            Self::XOR8
+        } else if mlen < 4096 {
+            Self::XOR16
+        } else if mlen < 1048576 {
+            Self::XOR32
         } else {
-            if mlen < 128 {
-                Self::XOR8
-            } else if mlen < 4096 {
-                Self::XOR16
-            } else if mlen < 1048575 {
-                Self::XOR32
-            } else {
-                Self::MD5
-            }
+            Self::MD5
         }
     }
     /// Length we need to decode/encode this type of Checksum
@@ -129,8 +127,18 @@ impl Checksum {
                 u32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]])
             };
             val_u32 as u128
+        } else if big_endian {
+            u128::from_be_bytes([
+                slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7],
+                slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14],
+                slice[15],
+            ])
         } else {
-            unimplemented!("md5");
+            u128::from_le_bytes([
+                slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7],
+                slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14],
+                slice[15],
+            ])
         }
     }
     /// Calculates expected Checksum for this msg
@@ -272,5 +280,11 @@ mod test {
         ];
 
         assert_eq!(Checksum::XOR16.calc(&buf, buf.len()), 0x5376);
+    }
+    #[test]
+    fn test_md5() {
+        let ck = Checksum::MD5;
+        let bytes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+        let _ = ck.calc(&bytes, bytes.len());
     }
 }

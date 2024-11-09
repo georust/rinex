@@ -11,7 +11,6 @@ pub use record::{
 };
 
 pub use meta::Meta;
-pub use time::TimeResolution;
 
 pub(crate) use mid::MessageID;
 
@@ -46,14 +45,15 @@ impl Message {
         let mut total = 1; // SYNC
 
         let mid = self.record.to_message_id() as u32;
-        total += Self::bnxi_encoding_size(mid);
+        let mid_1_4 = Self::bnxi_encoding_size(mid);
+        total += mid_1_4;
 
         let mlen = self.record.encoding_size();
-        total += Self::bnxi_encoding_size(mlen as u32);
+        let mlen_1_4 = Self::bnxi_encoding_size(mlen as u32);
+        total += mlen_1_4;
+        total += mlen;
 
-        total += self.record.encoding_size();
-
-        let ck = Checksum::from_len(mlen, self.meta.enhanced_crc);
+        let ck = Checksum::from_len(mlen_1_4 + mlen + mid_1_4, self.meta.enhanced_crc);
         total += ck.len();
 
         total
@@ -82,7 +82,6 @@ impl Message {
         /////////////////////////////////////
         // TODO: current library limitations
         /////////////////////////////////////
-
         if reversed {
             // Reversed streams: not understood
             return Err(Error::ReversedStream);
@@ -90,10 +89,6 @@ impl Message {
         if enhanced_crc {
             // Enhanced CRC scheme not implemented
             return Err(Error::EnhancedCrc);
-        }
-        if !big_endian {
-            // Little endianess not tested
-            return Err(Error::LittleEndianStream);
         }
 
         // make sure we can parse up to 4 byte MID
@@ -131,7 +126,7 @@ impl Message {
         // 4. parse RECORD
         let record = match mid {
             MessageID::SiteMonumentMarker => {
-                let rec = MonumentGeoRecord::decode(mlen as usize, big_endian, &buf[ptr..])?;
+                let rec = MonumentGeoRecord::decode(mlen, big_endian, &buf[ptr..])?;
                 Record::new_monument_geo(rec)
             },
             MessageID::Ephemeris => {
@@ -139,7 +134,7 @@ impl Message {
                 Record::new_ephemeris_frame(fr)
             },
             MessageID::ProcessedSolutions => {
-                let solutions = Solutions::decode(mlen as usize, big_endian, &buf[ptr..])?;
+                let solutions = Solutions::decode(mlen, big_endian, &buf[ptr..])?;
                 Record::new_solutions(solutions)
             },
             MessageID::Unknown => {
