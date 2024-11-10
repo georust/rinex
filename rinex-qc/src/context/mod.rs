@@ -20,6 +20,7 @@ use anise::{
 };
 
 mod rinex_ctx;
+mod iter;
 
 #[cfg(feature = "sp3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
@@ -436,12 +437,16 @@ impl QcContext {
             data.filter_mut(filter);
         }
     }
+
+
     /// Fix given [Repair] condition
     pub fn repair_mut(&mut self, r: Repair) {
         if let Some(rinex) = self.observation_mut() {
             rinex.repair_mut(r);
         }
     }
+
+    
 }
 
 impl std::fmt::Debug for QcContext {
