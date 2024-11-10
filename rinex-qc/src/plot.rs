@@ -1,3 +1,5 @@
+//! Plot context, used in report illustration
+
 use hifitime::Epoch;
 use maud::{html, Markup, PreEscaped, Render};
 use plotly::{

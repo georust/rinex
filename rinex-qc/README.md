@@ -1,9 +1,17 @@
 RINEX / GNSS QC
 ===============
 
-The QC library was created to analyze complex GNSS datasets.  
-It currently accepts RINEX (all supported formats) and/or SP3 files, which are the
-basic requirements to precise navigation.
+A single library to provide abstraction and functions to post process GNSS data
+and navigate with high precision.
+
+## Input
+
+The QC library generates synthesizes a report from many input
+
+- RINEX filesets
+- SP3 filesets (optional): for precise navigation
+
+## Output 
 
 The Qc library generates a `QcReport` (also refered to as output product), from the input context.
 The report content depends on the provided combination of input files (also refered
