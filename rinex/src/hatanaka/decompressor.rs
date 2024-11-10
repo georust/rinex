@@ -10,6 +10,8 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
+use num_integer::div_ceil;
+
 #[cfg(feature = "log")]
 use log::debug;
 
@@ -91,6 +93,36 @@ impl State {
                 self,
                 Self::EpochGathering | Self::ClockGathering | Self::Flags
             )
+    }
+    /// Calculates number of bytes this state will forward to user
+    fn size_to_produce(&self, v3: bool, numsat: usize, numobs: usize) -> usize {
+        if self.file_header() {
+            80
+        } else {
+            match self {
+                Self::ClockGathering => {
+                    // total epoch description + potential clock description
+                    if v3 {
+                        Self::MIN_V3_EPOCH_DESCRIPTION_SIZE
+                    } else {
+                        let mut size = Self::MIN_V2_EPOCH_DESCRIPTION_SIZE;
+                        let num_extra = div_ceil(numsat, 12) - 1;
+                        size += num_extra * 17; // padding
+                        size += numsat * 3; // formatted
+                        size
+                    }
+                },
+                Self::Observation | Self::Flags | Self::ObservationEarlyTermination => {
+                    let mut size = 1;
+                    size += numobs - 1; // separator
+                    size += 15 * numobs; // formatted
+                    let num_extra = div_ceil(numobs, 5) - 1;
+                    size += num_extra * 15; // padding
+                    size
+                },
+                _ => 0,
+            }
+        }
     }
 }
 
@@ -271,10 +303,15 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 break;
             }
 
-            // verify user buffer has enough capacity:
-            // we only proceed if user can absorb total mount to be produced,
-            // to simplify internal logic
-            if user_ptr + self.size_to_produce() >= user_len {
+            // verify user buffer has enough capacity.
+            // we only proceed for each state, if user can absorb total mount to be produced.
+            // This vastly simplifies internal logic.
+            if user_ptr
+                + self
+                    .state
+                    .size_to_produce(self.v3, self.numsat, self.numobs)
+                >= user_len
+            {
                 println!("user_len: not enough capacity | user={}", user_ptr);
                 self.wr_ptr = 0;
                 self.rd_ptr = 0;
@@ -424,35 +461,6 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             State::ClockGathering => true,
             State::ObservationSeparator => true,
             State::ObservationEarlyTermination => true,
-        }
-    }
-
-    /// Calculates total pending copy to user size
-    fn size_to_produce(&self) -> usize {
-        if self.state.file_header() {
-            80
-        } else {
-            match self.state {
-                State::EpochGathering => {
-                    // we cannot copy the epoch descriptor
-                    // until clock data has not been gathered
-                    0
-                },
-                State::ClockGathering => {
-                    // total epoch description + potential clock description
-                    self.epoch_desc_len
-                },
-                State::Observation => {
-                    // we cannot copy until flags have been recovered
-                    0
-                },
-                State::ObservationSeparator => {
-                    // we cannot copy until flags have been recovered
-                    0
-                },
-                State::Flags | State::ObservationEarlyTermination => 1 + 32 * self.numobs,
-                _ => unreachable!("internal error"),
-            }
         }
     }
 
@@ -666,9 +674,11 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     ptr += 1;
 
                     // push first (up to 68) line
-                    let first_len = self.epoch_desc_len.min(68);
+                    let first_len = self.epoch_desc_len.min(67);
+
                     user_buf[user_ptr + ptr..user_ptr + ptr + first_len]
                         .copy_from_slice(&bytes[..first_len]);
+
                     ptr += first_len;
 
                     // first eol
@@ -677,24 +687,32 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
 
                     // if more  than 1 line is required;
                     // append as many, with "standardized" padding
-                    let nb_lines = self.epoch_desc_len / 68;
+                    let nb_extra_lines = self.epoch_desc_len / 68;
 
-                    // for i in 1..nb_lines {
-                    //     // extra padding
-                    //     user_buf[ptr..ptr + 10].copy_from_slice(&[b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ']);
-                    //     ptr += 10;
+                    for i in 0..nb_extra_lines {
+                        // extra padding
+                        user_buf[user_ptr + ptr..user_ptr + ptr + 32].copy_from_slice(&[
+                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+                        ]);
 
-                    //     // copy appropriate slice
-                    //     let start = i*68;
-                    //     let end = (start + 68).min(self.epoch_desc_len);
-                    //     let size = end - start;
-                    //     user_buf[ptr..ptr + size].copy_from_slice(&bytes[start..end]);
-                    //     ptr += size;
+                        ptr += 32;
 
-                    //     // terminate this line
-                    //     user_buf[ptr] = b'\n';
-                    //     ptr += 1;
-                    // }
+                        // copy appropriate slice
+                        let start = (i + 1) * 67;
+                        let end = (start + 68).min(self.epoch_desc_len);
+                        let size = end - start;
+
+                        user_buf[user_ptr + ptr..user_ptr + ptr + size]
+                            .copy_from_slice(&bytes[start..end]);
+
+                        ptr += size;
+
+                        // terminate this line
+                        user_buf[user_ptr + ptr] = b'\n';
+                        ptr += 1;
+                    }
                 }
 
                 produced += ptr;
@@ -771,11 +789,32 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 // copy to user
                 let start = self.obs_ptr * 16;
 
+                println!("len={}", formatted.as_bytes().len());
+
                 user_buf[user_ptr + start..user_ptr + start + 16]
                     .copy_from_slice(formatted.as_bytes());
 
-                self.obs_ptr += 1;
                 self.pending_copy += 14;
+                self.obs_ptr += 1;
+
+                // // v2 case: need to wrapp in several lines
+                if !self.v3 {
+                    if self.obs_ptr % 5 == 0 {
+                        println!("EOL + PADDING!!");
+                        user_buf[user_ptr + start + 16 + 1] = b'\n';
+                        self.pending_copy += 1;
+
+                        // TODO: padding
+                        user_buf[user_ptr + start + 16 + 1..user_ptr + start + 16 + 1 + 15]
+                            .copy_from_slice(&[
+                                b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+                                b' ', b' ', b' ', b' ',
+                            ]);
+
+                        self.pending_copy += 15;
+                    }
+                }
+
                 println!("obs={}/{}", self.obs_ptr, self.numobs);
 
                 // We have three cases
@@ -966,6 +1005,103 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             Some(mixed)
         } else {
             self.gnss_observables.get(constell)
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::State;
+    #[test]
+    fn epoch_size_to_produce_v2() {
+        for (numsat, expected) in [
+            (
+                9,
+                " 17  1  1  3 33 40.0000000  0  9G30G27G11G16G 8G 7G23G 9G 1",
+            ),
+            (
+                10,
+                " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26",
+            ),
+            (
+                11,
+                " 17  1  1  0  0  0.0000000  0 11G31G27G 3G32G16G 8G14G23G22G26G27",
+            ),
+            (
+                12,
+                " 17  1  1  0  0  0.0000000  0 12G31G27G 3G32G16G 8G14G23G22G26G27G28",
+            ),
+            (
+                13,
+                " 21 01 01 00 00 00.0000000  0 13G07G08G10G13G15G16G18G20G21G23G26G27
+                G29",
+            ),
+            (
+                14,
+                " 21 01 01 00 00 00.0000000  0 14G07G08G10G13G15G16G18G20G21G23G26G27
+                G29G30",
+            ),
+            (
+                24,
+                " 21 12 21  0  0  0.0000000  0 24G07G08G10G16G18G21G23G26G32R04R05R10
+                R12R19R20R21E04E11E12E19E24E25E31E33",
+            ),
+            (
+                25,
+                " 21 12 21  0  0  0.0000000  0 25G07G08G10G16G18G21G23G26G32R04R05R10
+                R12R19R20R21E04E11E12E19E24E25E31E33
+                S23",
+            ),
+            (
+                26,
+                " 21 12 21  0  0  0.0000000  0 26G07G08G10G16G18G21G23G26G32R04R05R10
+                R12R19R20R21E04E11E12E19E24E25E31E33
+                S23S36",
+            ),
+        ] {
+            let size = State::ClockGathering.size_to_produce(false, numsat, 0);
+            assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
+        }
+    }
+
+    #[test]
+    fn data_size_to_produce_v2() {
+        for (numobs, expected) in [
+            (1, " 110158976.908 8"),
+            (2, " 110158976.908 8  85838153.10248"),
+            (3, " 110158976.908 8  85838153.10248  20962551.380  "),
+            (
+                4,
+                " 119147697.073 7  92670417.710 7  22249990.480    22249983.480  ",
+            ),
+            (
+                5,
+                "  24017462.340       -3054.209       -2379.903          43.650          41.600  ",
+            ),
+            (
+                6,
+                "  24017462.340       -3054.209       -2379.903          43.650          41.600  
+                25509828.140  ",
+            ),
+            (
+                9,
+                "  24017462.340       -3054.209       -2379.903          43.650          41.600  
+                25509828.140        2836.327        2210.128          41.600  ",
+            ),
+            (
+                10,
+                "  24017462.340       -3054.209       -2379.903          43.650          41.600  
+                25509828.140        2836.327        2210.128          41.600          41.650  ",
+            ),
+            (
+                14,
+                "  24017462.340       -3054.209       -2379.903          43.650          41.600  
+                25509828.140        2836.327        2210.128          41.600          41.650  
+               100106048.706 6  25509827.540        2118.232          39.550  ",
+            ),
+        ] {
+            let size = State::Flags.size_to_produce(false, 0, numobs);
+            assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
 }

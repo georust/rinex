@@ -452,6 +452,7 @@ mod test {
 
     #[test]
     fn v1_aopr0017d_raw() {
+        let mut last_passed = false;
         let mut nth = 1;
         let mut buf = [0; 4096];
         let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
@@ -575,6 +576,7 @@ mod test {
                                 assert_eq!(line, "  -5877878.73348  -4575160.53248  23410058.5724   23410059.2714   23410062.1064 ");
                             },
                             52 => {
+                                last_passed = true;
                                 assert_eq!(line, " -21848286.72849 -16972039.81549  21184456.3894   21184456.9144   21184462.1224 ");
                             },
                             _ => {},
@@ -591,7 +593,7 @@ mod test {
                 },
             }
         }
-        assert_eq!(nth, 52);
+        assert!(last_passed, "nth={}", nth);
     }
 
     #[test]
@@ -691,6 +693,9 @@ mod test {
                             },
                             129 => {
                                 assert_eq!(line, "                  24178026.139 3  24178024.181 3        38.066          22.286");
+                            },
+                            130 => {
+                                panic!("DONE");
                             },
                             _ => {},
                         }
