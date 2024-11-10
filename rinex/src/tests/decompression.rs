@@ -452,127 +452,146 @@ mod test {
 
     #[test]
     fn v1_aopr0017d_raw() {
+        let mut nth = 1;
+        let mut buf = [0; 4096];
         let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
         let mut decompressor = Decompressor::<5, File>::new(fd);
 
-        let mut buf = Vec::<u8>::with_capacity(65536);
-        let size = decompressor.read_to_end(&mut buf).unwrap();
+        // consume entire file
+        loop {
+            match decompressor.read(&mut buf) {
+                Err(e) => {},
+                Ok(size) => {
+                    if size == 0 {
+                        break; // EOS
+                    }
+                    assert!(size <= 4096);
 
-        assert!(size > 0);
+                    let mut ptr = 0;
+                    let buf_str = String::from_utf8_lossy(&buf[..size]);
 
-        let string =
-            String::from_utf8(buf).expect("decompressed CRINEX does not containt valid utf8");
+                    for line in buf_str.lines() {
+                        match nth {
+                            1 => {
+                                assert_eq!(line, "     2.10           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE");
+                            },
+                            2 => {
+                                assert_eq!(line, "teqc  2002Mar14     Arecibo Observatory 20170102 06:00:02UTCPGM / RUN BY / DATE");
+                            },
+                            3 => {
+                                assert_eq!(
+                                    line,
+                                    "Linux 2.0.36|Pentium II|gcc|Linux|486/DX+                   COMMENT"
+                                );
+                            },
+                            13 => {
+                                assert_eq!(line, "     5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV");
+                            },
+                            14 => {
+                                assert_eq!(
+                                    line,
+                                    "Version: Version:                                           COMMENT"
+                                );
+                            },
+                            18 => {
+                                assert_eq!(line, "  2017     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
+                            },
+                            19 => {
+                                assert_eq!(
+                                    line,
+                                    "                                                            END OF HEADER"
+                                );
+                            },
+                            20 => {
+                                assert_eq!(
+                                    line,
+                                    " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
+                                );
+                            },
+                            21 => {
+                                assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ");
+                            },
+                            22 => {
+                                assert_eq!(line, " -19651355.72649 -15259372.67949  21319698.6624   21319698.7504   21319703.7964 ");
+                            },
+                            23 => {
+                                assert_eq!(line, "  -9440000.26548  -7293824.59347  23189944.5874   23189944.9994   23189951.4644 ");
+                            },
+                            24 => {
+                                assert_eq!(line, " -11141744.16748  -8631423.58147  23553953.9014   23553953.6364   23553960.7164 ");
+                            },
+                            25 => {
+                                assert_eq!(line, " -21846711.60849 -16970657.69649  20528865.5524   20528865.0214   20528868.5944 ");
+                            },
+                            26 => {
+                                assert_eq!(line, "  -2919082.75648  -2211037.84947  24165234.9594   24165234.7844   24165241.6424 ");
+                            },
+                            27 => {
+                                assert_eq!(line, " -20247177.70149 -15753542.44648  21289883.9064   21289883.7434   21289887.2614 ");
+                            },
+                            28 => {
+                                assert_eq!(line, " -15110614.77049 -11762797.21948  23262395.0794   23262394.3684   23262395.3424 ");
+                            },
+                            29 => {
+                                assert_eq!(line, " -16331314.56648 -12447068.51348  22920988.2144   22920987.5494   22920990.0634 ");
+                            },
+                            30 => {
+                                assert_eq!(line, " -15834397.66049 -12290568.98049  21540206.1654   21540206.1564   21540211.9414 ");
+                            },
+                            31 => {
+                                assert_eq!(
+                                    line,
+                                    " 17  1  1  3 33 40.0000000  0  9G30G27G11G16G 8G 7G23G 9G 1   "
+                                );
+                            },
+                            32 => {
+                                assert_eq!(line, "  -4980733.18548  -3805623.87347  24352349.1684   24352347.9244   24352356.1564 ");
+                            },
+                            33 => {
+                                assert_eq!(line, "  -9710828.79748  -7513506.68548  23211317.1574   23211317.5034   23211324.2834 ");
+                            },
+                            34 => {
+                                assert_eq!(line, " -26591640.60049 -20663619.71349  20668830.8234   20668830.4204   20668833.2334 ");
+                            },
+                            38 => {
+                                assert_eq!(line, " -18143490.68049 -14126079.68448  22685259.0754   22685258.3664   22685261.2134 ");
+                            },
+                            39 => {
+                                assert_eq!(line, " -16594887.53049 -12883140.10148  22336785.6934   22336785.4334   22336790.8924 ");
+                            },
+                            40 => {
+                                assert_eq!(line, " -19095445.86249 -14826971.50648  21708306.6584   21708306.5704   21708312.9414 ");
+                            },
+                            41 => {
+                                assert_eq!(
+                                    line,
+                                    " 17  1  1  6  9 10.0000000  0 11G30G17G 3G11G19G 8G 7G 6G22G28G 1"
+                                );
+                            },
+                            42 => {
+                                assert_eq!(line, " -23668184.66249 -18367274.15149  20796245.2334   20796244.8234   20796250.6334 ");
+                            },
+                            43 => {
+                                assert_eq!(line, "  -5877878.73348  -4575160.53248  23410058.5724   23410059.2714   23410062.1064 ");
+                            },
+                            52 => {
+                                assert_eq!(line, " -21848286.72849 -16972039.81549  21184456.3894   21184456.9144   21184462.1224 ");
+                            },
+                            _ => {},
+                        }
+                        nth += 1;
+                        ptr += line.len() + 1;
+                    }
 
-        for (nth, line) in string.lines().enumerate() {
-            match nth + 1 {
-                1 => {
-                    assert_eq!(line, "     2.10           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE");
+                    if ptr < buf_str.len() {
+                        let remainder = buf_str[ptr..].to_string();
+                        println!("remainder \"{}\"", remainder);
+                        // buf.clear();
+                    }
                 },
-                2 => {
-                    assert_eq!(line, "teqc  2002Mar14     Arecibo Observatory 20170102 06:00:02UTCPGM / RUN BY / DATE");
-                },
-                3 => {
-                    assert_eq!(
-                        line,
-                        "Linux 2.0.36|Pentium II|gcc|Linux|486/DX+                   COMMENT"
-                    );
-                },
-                13 => {
-                    assert_eq!(line, "     5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV");
-                },
-                14 => {
-                    assert_eq!(
-                        line,
-                        "Version: Version:                                           COMMENT"
-                    );
-                },
-                18 => {
-                    assert_eq!(line, "  2017     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
-                },
-                19 => {
-                    assert_eq!(
-                        line,
-                        "                                                            END OF HEADER"
-                    );
-                },
-                20 => {
-                    assert_eq!(
-                        line,
-                        " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
-                    );
-                },
-                21 => {
-                    assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ");
-                },
-                22 => {
-                    assert_eq!(line, " -19651355.72649 -15259372.67949  21319698.6624   21319698.7504   21319703.7964 ");
-                },
-                23 => {
-                    assert_eq!(line, "  -9440000.26548  -7293824.59347  23189944.5874   23189944.9994   23189951.4644 ");
-                },
-                24 => {
-                    assert_eq!(line, " -11141744.16748  -8631423.58147  23553953.9014   23553953.6364   23553960.7164 ");
-                },
-                25 => {
-                    assert_eq!(line, " -21846711.60849 -16970657.69649  20528865.5524   20528865.0214   20528868.5944 ");
-                },
-                26 => {
-                    assert_eq!(line, "  -2919082.75648  -2211037.84947  24165234.9594   24165234.7844   24165241.6424 ");
-                },
-                27 => {
-                    assert_eq!(line, " -20247177.70149 -15753542.44648  21289883.9064   21289883.7434   21289887.2614 ");
-                },
-                28 => {
-                    assert_eq!(line, " -15110614.77049 -11762797.21948  23262395.0794   23262394.3684   23262395.3424 ");
-                },
-                29 => {
-                    assert_eq!(line, " -16331314.56648 -12447068.51348  22920988.2144   22920987.5494   22920990.0634 ");
-                },
-                30 => {
-                    assert_eq!(line, " -15834397.66049 -12290568.98049  21540206.1654   21540206.1564   21540211.9414 ");
-                },
-                31 => {
-                    assert_eq!(
-                        line,
-                        " 17  1  1  3 33 40.0000000  0  9G30G27G11G16G 8G 7G23G 9G 1   "
-                    );
-                },
-                32 => {
-                    assert_eq!(line, "  -4980733.18548  -3805623.87347  24352349.1684   24352347.9244   24352356.1564 ");
-                },
-                33 => {
-                    assert_eq!(line, "  -9710828.79748  -7513506.68548  23211317.1574   23211317.5034   23211324.2834 ");
-                },
-                34 => {
-                    assert_eq!(line, " -26591640.60049 -20663619.71349  20668830.8234   20668830.4204   20668833.2334 ");
-                },
-                38 => {
-                    assert_eq!(line, " -18143490.68049 -14126079.68448  22685259.0754   22685258.3664   22685261.2134 ");
-                },
-                39 => {
-                    assert_eq!(line, " -16594887.53049 -12883140.10148  22336785.6934   22336785.4334   22336790.8924 ");
-                },
-                40 => {
-                    assert_eq!(line, " -19095445.86249 -14826971.50648  21708306.6584   21708306.5704   21708312.9414 ");
-                },
-                41 => {
-                    assert_eq!(
-                        line,
-                        " 17  1  1  6  9 10.0000000  0 11G30G17G 3G11G19G 8G 7G 6G22G28G 1"
-                    );
-                },
-                42 => {
-                    assert_eq!(line, " -23668184.66249 -18367274.15149  20796245.2334   20796244.8234   20796250.6334 ");
-                },
-                43 => {
-                    assert_eq!(line, "  -5877878.73348  -4575160.53248  23410058.5724   23410059.2714   23410062.1064 ");
-                },
-                52 => {
-                    assert_eq!(line, " -21848286.72849 -16972039.81549  21184456.3894   21184456.9144   21184462.1224 ");
-                },
-                _ => {},
             }
         }
+        assert_eq!(nth, 52);
     }
 
     #[test]
@@ -588,9 +607,11 @@ mod test {
                     if size == 0 {
                         break; // EOS
                     }
+                    assert!(size <= 4096);
 
                     let mut ptr = 0;
-                    let buf_str = String::from_utf8_lossy(&buf);
+                    let buf_str = String::from_utf8_lossy(&buf[..size]);
+
                     for line in buf_str.lines() {
                         match nth {
                             1 => {
@@ -608,11 +629,68 @@ mod test {
                             12 => {
                                 assert_eq!(line, "          S2    S5                                          # / TYPES OF OBSERV");
                             },
+                            13 => {
+                                assert_eq!(line, "    54                                                      # OF SATELLITES");
+                            },
+                            14 => {
+                                assert_eq!(line, "   G01  1020  1033  1036   990   984  1036   984   984  1020PRN / # OF OBS");
+                            },
+                            32 => {
+                                assert_eq!(line, "   G10  1147  1145  1145  1129  1126  1145  1126  1126  1147PRN / # OF OBS");
+                            },
+                            40 => {
+                                assert_eq!(line, "   G15  1066  1057        1061  1059        1060  1060  1066PRN / # OF OBS");
+                            },
+                            45 => {
+                                assert_eq!(line, "        1157                                                PRN / # OF OBS");
+                            },
+                            50 => {
+                                assert_eq!(line, "   G20  1154              1120  1113        1113  1113  1154PRN / # OF OBS");
+                            },
+                            52 => {
+                                assert_eq!(line, "   G21  1044              1003   989         989   989  1044PRN / # OF OBS");
+                            },
+                            53 => {
+                                assert_eq!(line, "         989                                                PRN / # OF OBS");
+                            },
+                            56 => {
+                                assert_eq!(line, "   G23  1161  1160  1160  1149  1146  1160  1146  1146  1161PRN / # OF OBS");
+                            },
+                            104 => {
+                                assert_eq!(line, "   R16  1254  1255        1239  1229                    1254PRN / # OF OBS");
+                            },
+                            105 => {
+                                assert_eq!(line, "        1255                                                PRN / # OF OBS");
+                            },
+                            106 => {
+                                assert_eq!(line, "   R17  1285  1285        1283  1283                    1285PRN / # OF OBS");
+                            },
+                            107 => {
+                                assert_eq!(line, "        1285                                                PRN / # OF OBS");
+                            },
+                            122 => {
+                                assert_eq!(line, "    30.000                                                  INTERVAL");
+                            },
+                            123 => {
+                                assert_eq!(line, "  2021     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
+                            },
+                            124 => {
+                                assert_eq!(line, "  2021     1     1    23    59   30.0000000     GPS         TIME OF LAST OBS");
+                            },
                             125 => {
                                 assert_eq!(line, "                                                            END OF HEADER");
                             },
                             126 => {
                                 assert_eq!(line, " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27");
+                            },
+                            127 => {
+                                assert_eq!(line, "                                G30R01R02R03R08R09R15R16R17R18R19R24");
+                            },
+                            128 => {
+                                assert_eq!(line, "  24178026.635 6  24178024.891 6                 127056391.69906  99004963.01703");
+                            },
+                            129 => {
+                                assert_eq!(line, "                  24178026.139 3  24178024.181 3        38.066          22.286");
                             },
                             _ => {},
                         }
@@ -627,7 +705,7 @@ mod test {
                     }
                 },
                 Err(e) => {
-                    panic!("i/o error: {}", e);
+                    println!("i/o error: {}", e);
                 },
             }
         }

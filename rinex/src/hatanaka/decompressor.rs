@@ -105,6 +105,8 @@ impl State {
 ///
 /// [Decompressor] is very powerful and will remove trailing whitespaces,
 /// which facilitates the parsing process to come right after decompression.
+/// It currently has one limitation: it requires the user buffer (.read(buf)) to
+/// be at least 4096 byte deep.
 ///
 /// You can use the [Decompressor] in your own applications, especially
 /// noting that it can work on any [Read]able I/O interface: it does not have to
@@ -215,38 +217,68 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
         let mut user_ptr = 0;
         let user_len = buf.len();
 
-        // we only allow a refill when everything has been analyzed
-        if self.wr_ptr < 80 {
+        // always try to grab new content
+        if self.wr_ptr < 4096 {
             // try to fill internal buffer
             let size = self.reader.read(&mut self.buf[self.wr_ptr..])?;
             self.eos = size == 0;
             self.wr_ptr += size;
+            println!("new read: {}", self.wr_ptr);
+
+            if size == 0 {
+                // did not grab anything new
+                if self.rd_ptr == 0 {
+                    // no pending analysis: mark EOS
+                    return Ok(0);
+                }
+            }
         }
 
-        // Run FSM
+        // run FSM
         loop {
-            // collect next data of interest
-            let offset = self.collect_gather();
-
-            if offset.is_none() {
-                println!("pattern not found!");
-                break;
+            if self.rd_ptr >= self.wr_ptr {
+                // analyzed everything: need to grab new content
+                println!(
+                    "consumed everything rd={}|wr={}|user={}",
+                    self.rd_ptr, self.wr_ptr, user_ptr
+                );
+                self.rd_ptr = 0;
+                self.wr_ptr = 0;
+                return Ok(user_ptr);
             }
 
-            let offset = offset.unwrap();
+            // collect next data of interest
+            let offset = self.collect_gather();
+            if offset.is_none() {
+                // failed to locate interesting content:
+                // need to grab new content while preserving pending data
+                //let ascii = from_utf8(&self.buf[self.rd_ptr..]).unwrap();
+                //println!("pattern not found!rd_ptr={} | \"{}\"", self.rd_ptr, ascii);
+                println!(
+                    "pattern not found! rd_ptr={}/wr_ptr={}",
+                    self.rd_ptr, self.wr_ptr
+                );
+                self.buf.copy_within(self.rd_ptr.., 0);
+                self.wr_ptr -= self.rd_ptr;
+                self.rd_ptr = 0;
+                return Ok(user_ptr);
+            }
 
-            // verify that there is actually enough content to proceed
+            // verify there is actually enough content to proceed
+            let offset = offset.unwrap();
             if !self.check_length(offset) {
                 println!("check_len: not enough bytes!");
                 break;
             }
 
-            // verify that user buffer has enough capacity:
-            // we only proceed if we can actually copy the total amount to be produced
+            // verify user buffer has enough capacity:
+            // we only proceed if user can absorb total mount to be produced,
             // to simplify internal logic
-            if user_len - user_ptr < self.size_to_produce() {
-                println!("user_len: not enough capacity");
-                break;
+            if user_ptr + self.size_to_produce() >= user_len {
+                println!("user_len: not enough capacity | user={}", user_ptr);
+                self.wr_ptr = 0;
+                self.rd_ptr = 0;
+                return Ok(user_ptr);
             }
 
             // #[cfg(feature = "log")]
@@ -257,7 +289,7 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 self.state,
                 self.wr_ptr,
                 self.rd_ptr,
-                user_len,
+                user_ptr,
             );
 
             if let Ok((next, consumed_size, produced_size)) =
@@ -272,20 +304,24 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
             }
         }
 
-        // we're done analyzing,
-        // we conclude publication to user.
-        // We need to update wr_ptr to reflect what has been consumed
-        if self.rd_ptr > 4096 - 80 {
-            self.buf.copy_within(self.rd_ptr.., 0);
-            self.wr_ptr = 4096 - self.rd_ptr; // preserve pending analysis
-            self.rd_ptr = 0; // restart analysis
-            println!("leftovers: {}", self.wr_ptr);
-        }
+        // // we're done analyzing: concluding publication to user.
+        // // If all vast majority of size available has been analyzed:
+        // // we allow for a new read (I/O). It will most likely
+        // // split in the middle of a line that we need to preversed for next analysis.
+        // if self.rd_ptr > self.wr_ptr - 256 {
+        //     self.buf.copy_within(self.rd_ptr.., 0);
+        //     self.wr_ptr -= self.rd_ptr; // preserve pending analysis
+        //     self.rd_ptr = 0; // restart analysis
+        //     println!("leftovers: {}/user={}", self.wr_ptr, user_ptr);
+        // }
 
         if user_ptr == 0 {
+            // we have not produced a single byte
             if self.eos {
+                // because EOS has been reached
                 Ok(0)
             } else {
+                // we need other I/O access
                 Err(Error::NeedMoreData.to_stdio())
             }
         } else {
@@ -414,8 +450,7 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                     // we cannot copy until flags have been recovered
                     0
                 },
-                State::Flags => 1 + (self.numobs - 1) * (16 + 1) + 16,
-                State::ObservationEarlyTermination => 1 + (self.numobs - 1) * (16 + 1) + 16,
+                State::Flags | State::ObservationEarlyTermination => 1 + 32 * self.numobs,
                 _ => unreachable!("internal error"),
             }
         }
@@ -616,14 +651,53 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
             },
 
             State::ClockGathering => {
-                // copy epoch description to user
-                // TODO: need to squeeze clock offset @ appropriate location
-                user_buf[user_ptr] = b' ';
-                user_buf[user_ptr + 1..user_ptr + 1 + self.epoch_desc_len]
-                    .copy_from_slice(self.epoch_descriptor.as_bytes());
-                user_buf[user_ptr + 1 + self.epoch_desc_len] = b'\n';
-                produced += self.epoch_desc_len + 2;
+                // copy & format epoch description to user
+                // TODO: this misses the clock offset @ appropriate location
 
+                let mut ptr = 0;
+                let bytes = self.epoch_descriptor.as_bytes();
+
+                // format according to standards
+                if self.v3 {
+                    // easy format
+                } else {
+                    // tedious format
+                    user_buf[user_ptr + ptr] = b' '; // single whitespace
+                    ptr += 1;
+
+                    // push first (up to 68) line
+                    let first_len = self.epoch_desc_len.min(68);
+                    user_buf[user_ptr + ptr..user_ptr + ptr + first_len]
+                        .copy_from_slice(&bytes[..first_len]);
+                    ptr += first_len;
+
+                    // first eol
+                    user_buf[user_ptr + ptr] = b'\n';
+                    ptr += 1;
+
+                    // if more  than 1 line is required;
+                    // append as many, with "standardized" padding
+                    let nb_lines = self.epoch_desc_len / 68;
+
+                    // for i in 1..nb_lines {
+                    //     // extra padding
+                    //     user_buf[ptr..ptr + 10].copy_from_slice(&[b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ']);
+                    //     ptr += 10;
+
+                    //     // copy appropriate slice
+                    //     let start = i*68;
+                    //     let end = (start + 68).min(self.epoch_desc_len);
+                    //     let size = end - start;
+                    //     user_buf[ptr..ptr + size].copy_from_slice(&bytes[start..end]);
+                    //     ptr += size;
+
+                    //     // terminate this line
+                    //     user_buf[ptr] = b'\n';
+                    //     ptr += 1;
+                    // }
+                }
+
+                produced += ptr;
                 next_state = State::Observation;
             },
 
