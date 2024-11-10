@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::{
-        hatanaka::Decompressor,
+        hatanaka::{Decompressor, Error},
         prelude::{Epoch, EpochFlag, GeodeticMarker, MarkerType, Observable, Rinex, SV},
         tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
     };
@@ -578,8 +578,7 @@ mod test {
     #[test]
     fn v1_zegv0010_raw() {
         let mut nth = 1;
-        let mut next = String::with_capacity(80);
-        let mut buf = [0; 100000];
+        let mut buf = [0; 4096];
         let fd = File::open("../test_resources/CRNX/V1/zegv0010.21d").unwrap();
         let mut decompressor = Decompressor::<5, File>::new(fd);
 
@@ -590,45 +589,45 @@ mod test {
                         break; // EOS
                     }
 
+                    let mut ptr = 0;
                     let buf_str = String::from_utf8_lossy(&buf);
-                    let eol = buf_str.find('\n').unwrap();
-
-                    let mut content = next.to_string();
-                    content.push_str(&buf_str[..eol]);
-
-                    println!("content \"{}\"", content);
-
-                    match nth {
-                        1 => {
-                            assert_eq!(content, "     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
-                        },
-                        2 => {
-                            assert_eq!(content, "ssrcrin-13.4.4x                         20210101 000000 UTC PGM / RUN BY / DATE");
-                        },
-                        10 => {
-                            assert_eq!(content, "-------------------------------------                       COMMENT");
-                        },
-                        11 => {
-                            assert_eq!(content, "    11    C1    C2    C5    L1    L2    L5    P1    P2    S1# / TYPES OF OBSERV");
-                        },
-                        12 => {
-                            assert_eq!(content, "          S2    S5                                          # / TYPES OF OBSERV");
-                        },
-                        125 => {
-                            assert_eq!(content, "                                                            END OF HEADER");
-                        },
-                        126 => {
-                            assert_eq!(content, " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27");
-                        },
-                        _ => {},
+                    for line in buf_str.lines() {
+                        match nth {
+                            1 => {
+                                assert_eq!(line, "     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
+                            },
+                            2 => {
+                                assert_eq!(line, "ssrcrin-13.4.4x                         20210101 000000 UTC PGM / RUN BY / DATE");
+                            },
+                            10 => {
+                                assert_eq!(line, "-------------------------------------                       COMMENT");
+                            },
+                            11 => {
+                                assert_eq!(line, "    11    C1    C2    C5    L1    L2    L5    P1    P2    S1# / TYPES OF OBSERV");
+                            },
+                            12 => {
+                                assert_eq!(line, "          S2    S5                                          # / TYPES OF OBSERV");
+                            },
+                            125 => {
+                                assert_eq!(line, "                                                            END OF HEADER");
+                            },
+                            126 => {
+                                assert_eq!(line, " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27");
+                            },
+                            _ => {},
+                        }
+                        nth += 1;
+                        ptr += line.len() + 1;
                     }
 
-                    next.clear();
-                    next = buf_str[eol + 1..].to_string();
-                    nth += 1;
+                    if ptr < buf_str.len() {
+                        let remainder = buf_str[ptr..].to_string();
+                        println!("remainder \"{}\"", remainder);
+                        // buf.clear();
+                    }
                 },
                 Err(e) => {
-                    println!("i/o error: {}", e);
+                    panic!("i/o error: {}", e);
                 },
             }
         }

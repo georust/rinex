@@ -215,7 +215,8 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
         let mut user_ptr = 0;
         let user_len = buf.len();
 
-        if self.wr_ptr < 4096 {
+        // we only allow a refill when everything has been analyzed
+        if self.wr_ptr < 80 {
             // try to fill internal buffer
             let size = self.reader.read(&mut self.buf[self.wr_ptr..])?;
             self.eos = size == 0;
@@ -226,9 +227,9 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
         loop {
             // collect next data of interest
             let offset = self.collect_gather();
+
             if offset.is_none() {
-                // fail to locate data of interest
-                // need to grab more bytes from interface
+                println!("pattern not found!");
                 break;
             }
 
@@ -236,7 +237,6 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
 
             // verify that there is actually enough content to proceed
             if !self.check_length(offset) {
-                // TODO trace:
                 println!("check_len: not enough bytes!");
                 break;
             }
@@ -270,6 +270,16 @@ impl<const M: usize, R: Read> Read for Decompressor<M, R> {
                 println!("consume_exec_fsm: error!");
                 break;
             }
+        }
+
+        // we're done analyzing,
+        // we conclude publication to user.
+        // We need to update wr_ptr to reflect what has been consumed
+        if self.rd_ptr > 4096 - 80 {
+            self.buf.copy_within(self.rd_ptr.., 0);
+            self.wr_ptr = 4096 - self.rd_ptr; // preserve pending analysis
+            self.rd_ptr = 0; // restart analysis
+            println!("leftovers: {}", self.wr_ptr);
         }
 
         if user_ptr == 0 {
@@ -694,10 +704,27 @@ impl<const M: usize, R: Read> Decompressor<M, R> {
                 self.pending_copy += 14;
                 println!("obs={}/{}", self.obs_ptr, self.numobs);
 
+                // We have three cases
+                //  1. weird case where line is early terminated
+                //     where we need to provide BLANKING and proceed to flags
+                //     with actually re-using the previous flag description (all compressed =100%)
+                //  2. this is a regular BLANK, we need to determine whether this terminates
+                //     the observation serie or not
+                //  3. regular observation
                 if early_termination {
                     next_state = State::ObservationEarlyTermination;
                 } else {
-                    next_state = State::ObservationSeparator;
+                    if ascii_len == 0 {
+                        // BLANKING
+                        if self.obs_ptr == self.numobs {
+                            self.obs_ptr = 0;
+                            next_state = State::Flags;
+                        } else {
+                            next_state = State::Observation;
+                        }
+                    } else {
+                        next_state = State::ObservationSeparator;
+                    }
                 }
             },
 
