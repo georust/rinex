@@ -835,7 +835,8 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
             State::ObservationV2 => {
                 let mut early_termination = false;
-                if ascii_len > 14 {
+
+                if ascii_len > 13 {
                     // content looks suspicious:
                     // this happens when all remaining flags are omitted (=BLANKING).
                     // We have two cases
@@ -854,34 +855,39 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                     }
                 }
 
-                let formatted = if ascii_len == 0 {
-                    // Missing observation (=BLANK)
-                    "                ".to_string()
-                } else {
-                    // Decoding
-                    if ascii[1..2].eq("&") {
-                        let order = ascii[0..1]
-                            .parse::<usize>()
-                            .expect("bad crinex compression level");
+                // default is BLANK
+                let mut formatted = "                ".to_string();
 
-                        if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
-                            let val = if let Some(kernel) =
-                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                            {
-                                kernel.force_init(val, order);
-                                val as f64 / 1.0E3
-                            } else {
-                                let kernel = NumDiff::new(val, order);
-                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                val as f64 / 1.0E3
-                            };
-                            format!("{:14.3}  ", val).to_string()
-                        } else {
-                            // bad i64 value
-                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
-                            "                ".to_string()
+                // Decoding attempt
+                if ascii_len > 0 {
+                    let mut kernel_reset = false;
+
+                    if ascii_len > 2 {
+                        if ascii[1..2].eq("&") {
+                            kernel_reset = false;
+
+                            let order = ascii[0..1]
+                                .parse::<usize>()
+                                .expect("bad crinex compression level");
+
+                            if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
+                                let val = if let Some(kernel) =
+                                    self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                                {
+                                    kernel.force_init(val, order);
+                                    val as f64 / 1.0E3
+                                } else {
+                                    let kernel = NumDiff::new(val, order);
+                                    self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                    val as f64 / 1.0E3
+                                };
+                                formatted = format!("{:14.3}  ", val).to_string();
+                            }
                         }
-                    } else {
+                    }
+
+                    if !kernel_reset {
+                        // regular compression
                         if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
                             let val = if let Some(kernel) =
                                 self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
@@ -892,14 +898,10 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                                 self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                                 val as f64 / 1.0E3
                             };
-                            format!("{:14.3}  ", val)
-                        } else {
-                            // bad i64 value
-                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
-                            "                ".to_string()
+                            formatted = format!("{:14.3}  ", val);
                         }
                     }
-                };
+                }
 
                 // copy to user
                 let mut ptr = self.obs_ptr * 16;
@@ -961,53 +963,50 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             State::ObservationV3 => {
                 let mut early_termination = false;
 
-                if ascii_len > 14 {
-                    // content looks suspicious:
-                    // this happens when all remaining flags are omitted (=BLANKING).
-                    // We have two cases
-                    if let Some(eol_offset) = ascii.find('\n') {
-                        // we grabbed part of the following lines
+                if let Some(eol_offset) = ascii.find('\n') {
+                    if eol_offset < ascii_len - 1 {
+                        // we grabbed part of the following line
                         // this happens in case all data flags remain identical (100% compression factor)
                         // we must postpone part of this buffer
                         ascii_len = eol_offset;
                         consumed = eol_offset;
                         early_termination = true;
-                    } else {
-                        // This case should never happen.
-                        // If we wind up here, the collect_gather and relationship with
-                        // the consumed size, is not robust enough
-                        unreachable!("internal error");
                     }
                 }
 
-                let formatted = if ascii_len == 0 {
-                    // Missing observation (=BLANK)
-                    "                ".to_string()
-                } else {
-                    // Decoding
-                    if ascii[1..2].eq("&") {
-                        let order = ascii[0..1]
-                            .parse::<usize>()
-                            .expect("bad crinex compression level");
+                // default is BLANK
+                let mut formatted = "                ".to_string();
 
-                        if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
-                            let val = if let Some(kernel) =
-                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                            {
-                                kernel.force_init(val, order);
-                                val as f64 / 1.0E3
-                            } else {
-                                let kernel = NumDiff::new(val, order);
-                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                val as f64 / 1.0E3
-                            };
-                            format!("{:14.3}  ", val).to_string()
-                        } else {
-                            // bad i64 value
-                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
-                            "                ".to_string()
+                // Decoding attempt
+                if ascii_len > 0 {
+                    let mut kernel_reset = false;
+
+                    if ascii_len > 2 {
+                        if ascii[1..2].eq("&") {
+                            kernel_reset = false;
+
+                            let order = ascii[0..1]
+                                .parse::<usize>()
+                                .expect("bad crinex compression level");
+
+                            if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
+                                let val = if let Some(kernel) =
+                                    self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                                {
+                                    kernel.force_init(val, order);
+                                    val as f64 / 1.0E3
+                                } else {
+                                    let kernel = NumDiff::new(val, order);
+                                    self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                    val as f64 / 1.0E3
+                                };
+                                formatted = format!("{:14.3}  ", val).to_string();
+                            }
                         }
-                    } else {
+                    }
+
+                    if !kernel_reset {
+                        // regular compression
                         if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
                             let val = if let Some(kernel) =
                                 self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
@@ -1018,14 +1017,10 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                                 self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                                 val as f64 / 1.0E3
                             };
-                            format!("{:14.3}  ", val)
-                        } else {
-                            // bad i64 value
-                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
-                            "                ".to_string()
+                            formatted = format!("{:14.3}  ", val);
                         }
                     }
-                };
+                }
 
                 // copy to user
                 let mut ptr = self.obs_ptr * 16;
