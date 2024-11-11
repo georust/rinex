@@ -113,8 +113,10 @@ pub enum State {
     ObservationV3,
     /// Collecting observation separator
     ObservationSeparator,
-    /// We wind up here when early line termination (all blankings) is spotted
-    ObservationEarlyTermination,
+    /// We wind up here on early line terminations (all blankings)
+    EarlyTerminationV2,
+    /// We wind up here on early line terminations (all blankings)
+    EarlyTerminationV3,
     /// Collecting observation flags
     Flags,
 }
@@ -127,10 +129,11 @@ impl State {
     const MIN_V2_EPOCH_DESCRIPTION_SIZE: usize = 26 + 3 + 3;
 
     /// Minimal size of a valid [Epoch] description in V3 revision  
+    /// - >
     /// - Timestamp: Year uses 4 digits
     /// - Flag
     /// - Numsat
-    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = 28 + 3 + 3;
+    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = 28 + 3 + 3 + 1;
 
     /// Returns true if we're inside the File Body.
     /// Use this to grab the [CRINEX] definition if you have to.
@@ -178,16 +181,33 @@ impl State {
                         size
                     }
                 },
-                Self::ObservationV2
-                | Self::ObservationV3
-                | Self::Flags
-                | Self::ObservationEarlyTermination => {
+                Self::ObservationV2 => {
                     let mut size = 1;
                     size += numobs - 1; // separator
                     size += 15 * numobs; // formatted
                     let num_extra = div_ceil(numobs, 5) - 1;
                     size += num_extra * 15; // padding
                     size
+                },
+                Self::ObservationV3 => {
+                    let size = 3; // SVNN
+                    size + numobs * 16
+                },
+                // In the following states, we're about to produce data.
+                // We mark the pending size to the user so the user buffer is locked
+                // and cannot be modified.
+                Self::Flags => {
+                    if v3 {
+                        Self::ObservationV3.size_to_produce(true, numsat, numobs)
+                    } else {
+                        Self::ObservationV2.size_to_produce(false, numsat, numobs)
+                    }
+                },
+                Self::EarlyTerminationV2 => {
+                    Self::ObservationV2.size_to_produce(false, numsat, numobs)
+                },
+                Self::EarlyTerminationV3 => {
+                    Self::ObservationV3.size_to_produce(true, numsat, numobs)
                 },
                 _ => 0,
             }
@@ -230,8 +250,7 @@ pub struct DecompressorExpert<const M: usize, R: Read> {
     sv: SV,
     /// pointers
     numobs: usize, // total
-    obs_ptr: usize,      // inside epoch
-    pending_copy: usize, // pending copy to user
+    obs_ptr: usize, // inside epoch
     /// [TextDiff] that works on entire Epoch line
     epoch_diff: TextDiff,
     /// Epoch descriptor, for single allocation
@@ -281,6 +300,8 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
                     "consumed everything rd={}|wr={}|user={}",
                     self.rd_ptr, self.wr_ptr, user_ptr
                 );
+
+                // reset pointers for next time
                 self.rd_ptr = 0;
                 self.wr_ptr = 0;
                 return Ok(user_ptr);
@@ -291,19 +312,22 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
             if offset.is_none() {
                 // failed to locate interesting content:
                 // need to grab new content while preserving pending data
-                //let ascii = from_utf8(&self.buf[self.rd_ptr..]).unwrap();
-                //println!("pattern not found!rd_ptr={} | \"{}\"", self.rd_ptr, ascii);
                 println!(
                     "pattern not found! rd_ptr={}/wr_ptr={}",
                     self.rd_ptr, self.wr_ptr
                 );
+
+                // need to preserve data that is yet to analyze
+                // shift left, and make room for new read
                 self.buf.copy_within(self.rd_ptr.., 0);
                 self.wr_ptr -= self.rd_ptr;
                 self.rd_ptr = 0;
                 return Ok(user_ptr);
             }
 
-            // verify there is actually enough content to proceed
+            // internal verification that located content seems OK
+            // could be avoided if collect_gather is robust enough ?
+            // is this really needed ?
             let offset = offset.unwrap();
             if !self.check_length(offset) {
                 println!("check_len: not enough bytes!");
@@ -311,7 +335,7 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
             }
 
             // verify user buffer has enough capacity.
-            // we only proceed for each state, if user can absorb total mount to be produced.
+            // for each state, we only proceed if user can absorb next amount of data to be produced.
             // This vastly simplifies internal logic.
             if user_ptr
                 + self
@@ -320,8 +344,13 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
                 >= user_len
             {
                 println!("user_len: not enough capacity | user={}", user_ptr);
-                self.wr_ptr = 0;
+
+                // need to preserve data that is yet to analyze
+                // shift left, and make room for new read
+                self.buf.copy_within(self.rd_ptr.., 0);
+                self.wr_ptr -= self.rd_ptr;
                 self.rd_ptr = 0;
+
                 return Ok(user_ptr);
             }
 
@@ -442,8 +471,9 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             self.find_next(Self::EOL_BYTE)
         } else {
             match self.state {
+                State::EarlyTerminationV2 => Some(1),
+                State::EarlyTerminationV3 => Some(1),
                 State::ObservationSeparator => Some(1),
-                State::ObservationEarlyTermination => Some(1),
                 State::ObservationV2 | State::ObservationV3 => {
                     self.find_next(Self::WHITESPACE_BYTE)
                 },
@@ -466,8 +496,9 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             State::ObservationV3 => true,
             State::EpochGathering => true,
             State::ClockGathering => true,
+            State::EarlyTerminationV2 => true,
+            State::EarlyTerminationV3 => true,
             State::ObservationSeparator => true,
-            State::ObservationEarlyTermination => true,
         }
     }
 
@@ -714,17 +745,15 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                 self.sv = self.next_sv().expect("failed to determine sv definition");
 
                 self.obs_ptr = 0;
-                self.pending_copy = 1; // initial whitespace
+                self.first_epoch = false;
 
                 // grab first specs
                 let obs = self
                     .get_observables(&self.sv.constellation)
                     .expect("fail to determine sv definition");
 
-                self.numobs = obs.len();
-
                 // move on to next state
-                self.first_epoch = false;
+                self.numobs = obs.len();
                 next_state = State::ClockGathering;
             },
 
@@ -806,6 +835,131 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
             State::ObservationV2 => {
                 let mut early_termination = false;
+                if ascii_len > 14 {
+                    // content looks suspicious:
+                    // this happens when all remaining flags are omitted (=BLANKING).
+                    // We have two cases
+                    if let Some(eol_offset) = ascii.find('\n') {
+                        // we grabbed part of the following lines
+                        // this happens in case all data flags remain identical (100% compression factor)
+                        // we must postpone part of this buffer
+                        ascii_len = eol_offset;
+                        consumed = eol_offset;
+                        early_termination = true;
+                    } else {
+                        // This case should never happen.
+                        // If we wind up here, the collect_gather and relationship with
+                        // the consumed size, is not robust enough
+                        unreachable!("internal error");
+                    }
+                }
+
+                let formatted = if ascii_len == 0 {
+                    // Missing observation (=BLANK)
+                    "                ".to_string()
+                } else {
+                    // Decoding
+                    if ascii[1..2].eq("&") {
+                        let order = ascii[0..1]
+                            .parse::<usize>()
+                            .expect("bad crinex compression level");
+
+                        if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
+                            let val = if let Some(kernel) =
+                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                            {
+                                kernel.force_init(val, order);
+                                val as f64 / 1.0E3
+                            } else {
+                                let kernel = NumDiff::new(val, order);
+                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                val as f64 / 1.0E3
+                            };
+                            format!("{:14.3}  ", val).to_string()
+                        } else {
+                            // bad i64 value
+                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
+                            "                ".to_string()
+                        }
+                    } else {
+                        if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
+                            let val = if let Some(kernel) =
+                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                            {
+                                kernel.decompress(val) as f64 / 1.0E3
+                            } else {
+                                let kernel = NumDiff::new(val, M);
+                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                val as f64 / 1.0E3
+                            };
+                            format!("{:14.3}  ", val)
+                        } else {
+                            // bad i64 value
+                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
+                            "                ".to_string()
+                        }
+                    }
+                };
+
+                // copy to user
+                let mut ptr = self.obs_ptr * 16;
+                println!("fmt_len={}", formatted.as_bytes().len());
+
+                // push decompressed content
+                user_buf[user_ptr + ptr..user_ptr + ptr + 16].copy_from_slice(formatted.as_bytes());
+                ptr += 16;
+                self.obs_ptr += 1;
+
+                // v2 case: need to wrapp into several lines....
+                if !self.v3 {
+                    if self.obs_ptr % 5 == 0 {
+                        // line wrapping
+                        user_buf[user_ptr + ptr] = b'\n';
+                        ptr += 1;
+
+                        // special V2 start of line padding ...
+                        user_buf[user_ptr + ptr..user_ptr + ptr + 15].copy_from_slice(&[
+                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+                            b' ', b' ', b' ',
+                        ]);
+
+                        ptr += 15;
+                    }
+                }
+
+                println!("obs={}/{}", self.obs_ptr, self.numobs);
+
+                // End of this observation: we have three cases
+                //  1. weird case where line is early terminated
+                //     due to the combination of Blanking (missing signals) and all flags being fully compressed.
+                //     In this scenario, we enter special case to push the necessary blanking
+                //     and re-use the past flag description (100% compression)
+                //  2. this is a regular BLANK, we need to determine whether this terminates
+                //     the observation serie or not
+                //  3. regular observation: need to progress to the next one
+                if early_termination {
+                    // Early termination case
+                    next_state = State::EarlyTerminationV2;
+                } else {
+                    if ascii_len == 0 {
+                        // BLANKING case
+                        if self.obs_ptr == self.numobs {
+                            // Last blanking
+                            self.obs_ptr = 0;
+                            next_state = State::Flags;
+                        } else {
+                            // regular progression in case of blanking
+                            next_state = State::ObservationV2;
+                        }
+                    } else {
+                        // regular progression
+                        next_state = State::ObservationSeparator;
+                    }
+                }
+            },
+
+            State::ObservationV3 => {
+                let mut early_termination = false;
 
                 if ascii_len > 14 {
                     // content looks suspicious:
@@ -875,136 +1029,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
                 // copy to user
                 let mut ptr = self.obs_ptr * 16;
-
-                println!("fmt_len={}", formatted.as_bytes().len());
-
-                if self.v3 {
-                    if self.obs_ptr == 0 {
-                        // need to squeeze SVNN at beginning of each line
-                        let bytes = self.epoch_descriptor.as_bytes();
-                        let start = Self::sv_slice_start(self.v3, self.sv_ptr);
-
-                        user_buf[user_ptr + ptr..user_ptr + ptr + 3]
-                            .copy_from_slice(&bytes[start..start + 3]);
-
-                        ptr += 3;
-
-                        // whitespace
-                        user_buf[user_ptr + ptr] = b' ';
-                        ptr += 1;
-                    } else {
-                        ptr += 4;
-                    }
-                }
-
-                // push decompressed content
-                user_buf[user_ptr + ptr..user_ptr + ptr + 16].copy_from_slice(formatted.as_bytes());
-
-                ptr += 16;
-                self.obs_ptr += 1;
-                self.pending_copy += 14; // TODO: why not account for flags already ??
-
-                // v2 case: need to wrapp into several lines....
-                if !self.v3 {
-                    if self.obs_ptr % 5 == 0 {
-                        // line wrapping
-                        user_buf[user_ptr + ptr] = b'\n';
-                        ptr += 1;
-                        self.pending_copy += 1;
-
-                        // special V2 start of line padding ...
-                        user_buf[user_ptr + ptr..user_ptr + ptr + 15].copy_from_slice(&[
-                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-                            b' ', b' ', b' ',
-                        ]);
-
-                        ptr += 15;
-                        self.pending_copy += 15;
-                    }
-                }
-
-                println!("obs={}/{}", self.obs_ptr, self.numobs);
-
-                // End of this observation: we have three cases
-                //  1. weird case where line is early terminated
-                //     due to the combination of Blanking (missing signals) and all flags being fully compressed.
-                //     In this scenario, we enter special case to push the necessary blanking
-                //     and re-use the past flag description (100% compression)
-                //  2. this is a regular BLANK, we need to determine whether this terminates
-                //     the observation serie or not
-                //  3. regular observation: need to progress to the next one
-                if early_termination {
-                    // Early termination case
-                    next_state = State::ObservationEarlyTermination;
-                } else {
-                    if ascii_len == 0 {
-                        // BLANKING case
-                        if self.obs_ptr == self.numobs {
-                            // Last blanking
-                            self.obs_ptr = 0;
-                            next_state = State::Flags;
-                        } else {
-                            // regular progression in case of blanking
-                            next_state = State::ObservationV2;
-                        }
-                    } else {
-                        // regular progression
-                        next_state = State::ObservationSeparator;
-                    }
-                }
-            },
-
-            State::ObservationV3 => {
-                let formatted = if ascii_len == 0 {
-                    // Missing observation (=BLANK)
-                    "                ".to_string()
-                } else {
-                    // Decoding
-                    if ascii[1..2].eq("&") {
-                        let order = ascii[0..1]
-                            .parse::<usize>()
-                            .expect("bad crinex compression level");
-
-                        if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
-                            let val = if let Some(kernel) =
-                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                            {
-                                kernel.force_init(val, order);
-                                val as f64 / 1.0E3
-                            } else {
-                                let kernel = NumDiff::new(val, order);
-                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                val as f64 / 1.0E3
-                            };
-                            format!("{:14.3}  ", val).to_string()
-                        } else {
-                            // bad i64 value
-                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
-                            "               ".to_string()
-                        }
-                    } else {
-                        if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
-                            let val = if let Some(kernel) =
-                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                            {
-                                kernel.decompress(val) as f64 / 1.0E3
-                            } else {
-                                let kernel = NumDiff::new(val, M);
-                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                val as f64 / 1.0E3
-                            };
-                            format!("{:14.3}  ", val)
-                        } else {
-                            // bad i64 value
-                            println!("BAD i64 \"{}\"", &ascii[2..ascii_len]);
-                            "               ".to_string()
-                        }
-                    }
-                };
-
-                // copy to user
-                let mut ptr = self.obs_ptr * 16;
-                println!("fmt_len={}", formatted.as_bytes().len());
+                println!("formatted={}[{}]", formatted, formatted.as_bytes().len());
 
                 if self.obs_ptr == 0 {
                     // need to squeeze SVNN at beginning of each line
@@ -1024,8 +1049,6 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
                 ptr += 16;
                 self.obs_ptr += 1;
-                self.pending_copy += 14; // TODO: why not account for flags already ??
-
                 println!("obs={}/{}", self.obs_ptr, self.numobs);
 
                 // End of this observation: we have three cases
@@ -1036,19 +1059,25 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                 //  2. this is a regular BLANK, we need to determine whether this terminates
                 //     the observation serie or not
                 //  3. regular observation: need to progress to the next one
-                if ascii_len == 0 {
-                    // BLANKING case
-                    if self.obs_ptr == self.numobs {
-                        // Last blanking
-                        self.obs_ptr = 0;
-                        next_state = State::Flags;
-                    } else {
-                        // regular progression in case of blanking
-                        next_state = State::ObservationV3;
-                    }
+
+                if early_termination {
+                    // Early termination case
+                    next_state = State::EarlyTerminationV3;
                 } else {
-                    // regular progression
-                    next_state = State::ObservationSeparator;
+                    if ascii_len == 0 {
+                        // BLANKING case
+                        if self.obs_ptr == self.numobs {
+                            // Last blanking
+                            self.obs_ptr = 0;
+                            next_state = State::Flags;
+                        } else {
+                            // regular progression in case of blanking
+                            next_state = State::ObservationV3;
+                        }
+                    } else {
+                        // regular progression
+                        next_state = State::ObservationSeparator;
+                    }
                 }
             },
 
@@ -1090,11 +1119,17 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                 }
 
                 ptr -= 15;
+
                 // publish this payload & reset for next time
                 user_buf[user_ptr + ptr] = b'\n';
-                ptr += 1;
 
-                produced += ptr; // \n
+                if self.v3 {
+                    produced +=
+                        State::ObservationV3.size_to_produce(true, self.numsat, self.numobs);
+                } else {
+                    produced +=
+                        State::ObservationV2.size_to_produce(false, self.numsat, self.numobs);
+                }
 
                 self.sv_ptr += 1;
                 println!("COMPLETED {}", self.sv);
@@ -1112,23 +1147,24 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                 }
             },
 
-            State::ObservationEarlyTermination => {
+            State::EarlyTerminationV2 => {
                 // Special case where line is abruptly terminated
                 // - all remaining observations have been blanked (=missing)
                 // - all flags were omitted (= to remain identical 100% compressed)
 
                 // we need to fill the blanks
-                for ptr in self.obs_ptr..self.numobs {
+                let mut ptr = 1 + 16 * self.obs_ptr;
+
+                for _ in self.obs_ptr..self.numobs {
                     println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
                     let blanking = "                ".to_string();
 
-                    // copy to user
-                    let start = ptr * 16;
+                    // copy to user;
 
-                    user_buf[user_ptr + start..user_ptr + start + 16]
+                    user_buf[user_ptr + ptr..user_ptr + ptr + 16]
                         .copy_from_slice(blanking.as_bytes());
 
-                    self.pending_copy += 14;
+                    ptr += 16;
                 }
 
                 // we need to maintain all data flags
@@ -1145,24 +1181,22 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                     if flags_len > lli_idx {
                         //user_buf[user_ptr + start] = b'x';
                         user_buf[user_ptr + start] = flags_bytes[lli_idx];
-                        self.pending_copy += 1;
                     }
 
                     let start = 15 + i * 16;
                     if flags_len > snr_idx {
                         // user_buf[user_ptr + start] = b'y';
                         user_buf[user_ptr + start] = flags_bytes[snr_idx];
-                        self.pending_copy += 1;
                     }
                 }
 
-                // publish this paylad & reset for next time
-                user_buf[user_ptr + self.pending_copy] = b'\n';
-                produced += self.pending_copy + 1; // \n
+                // publish this payload
+                user_buf[user_ptr + ptr] = b'\n';
+                produced += 0; // TODO
 
+                // move on to next state
                 self.obs_ptr = 0;
                 self.sv_ptr += 1;
-                self.pending_copy = 1; // initial whitespace
                 println!("COMPLETED {}", self.sv);
 
                 if self.sv_ptr == self.numsat {
@@ -1170,11 +1204,66 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                     next_state = State::EpochGathering;
                 } else {
                     self.sv = self.next_sv().expect("failed to determine next vehicle");
-                    if self.v3 {
-                        next_state = State::ObservationV3;
-                    } else {
-                        next_state = State::ObservationV2;
+                    next_state = State::ObservationV2;
+                }
+            },
+
+            State::EarlyTerminationV3 => {
+                // Special case where line is abruptly terminated
+                // - all remaining observations have been blanked (=missing)
+                // - all flags were omitted (= to remain identical 100% compressed)
+
+                // we need to fill the blanks
+                let mut ptr = 3 + 16 * self.obs_ptr;
+
+                for _ in self.obs_ptr..self.numobs {
+                    println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
+                    let blanking = "                ".to_string();
+
+                    // copy to user
+                    user_buf[user_ptr + ptr..user_ptr + ptr + 16]
+                        .copy_from_slice(blanking.as_bytes());
+
+                    ptr += 16;
+                }
+
+                // all data flags are maintained
+                let flags_len = self.flags_descriptor.len();
+                let flags_bytes = self.flags_descriptor.as_bytes();
+                println!("RECOVERED: \"{}\"", self.flags_descriptor);
+
+                // copy all flags to user
+                let mut ptr = 3 + 16;
+                for i in 0..self.numobs {
+                    let lli_idx = i * 2;
+                    let snr_idx = lli_idx + 1;
+                    if flags_len > lli_idx {
+                        user_buf[user_ptr + ptr] = b'x';
+                        //user_buf[user_ptr + start] = flags_bytes[lli_idx];
                     }
+                    if flags_len > snr_idx {
+                        user_buf[user_ptr + ptr + 1] = b'y';
+                        //user_buf[user_ptr + ptr +1] = flags_bytes[snr_idx];
+                    }
+                    ptr += 15;
+                }
+
+                // publish this payload
+                ptr -= 15;
+                user_buf[user_ptr + ptr] = b'\n';
+                produced += ptr;
+
+                // move on to next state
+                self.obs_ptr = 0;
+                self.sv_ptr += 1;
+                println!("COMPLETED {}", self.sv);
+
+                if self.sv_ptr == self.numsat {
+                    self.sv_ptr = 0;
+                    next_state = State::EpochGathering;
+                } else {
+                    self.sv = self.next_sv().expect("failed to determine next vehicle");
+                    next_state = State::ObservationV3;
                 }
             },
         }
@@ -1202,7 +1291,6 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             buf: [0; 4096],
             eos: false,
             first_epoch: true,
-            pending_copy: 1, // initial whitespace
             inside_v3_specs: false,
             sv: Default::default(),
             state: Default::default(),
@@ -1234,7 +1322,6 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             buf: [0; 4096],
             eos: false,
             first_epoch: true,
-            pending_copy: 1, // initial whitespace
             inside_v3_specs: false,
             sv: Default::default(),
             state: Default::default(),
@@ -1269,6 +1356,7 @@ mod test {
     use crate::prelude::SV;
     use std::fs::File;
     use std::str::FromStr;
+
     #[test]
     fn epoch_size_to_produce_v2() {
         for (numsat, expected) in [
@@ -1358,6 +1446,30 @@ mod test {
             ),
         ] {
             let size = State::Flags.size_to_produce(false, 0, numobs);
+            assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
+        }
+    }
+
+    #[test]
+    fn epoch_size_to_produce_v3() {
+        for (numsat, expected) in [
+            (18, "> 2022 03 04 00 00  0.0000000  0 18"),
+            (22, "> 2022 03 04 00 00  0.0000000  0 22"),
+        ] {
+            let size = State::ClockGathering.size_to_produce(true, numsat, 0);
+            assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
+        }
+    }
+
+    #[test]
+    fn data_size_to_produce_v3() {
+        for (numobs, expected) in [
+            (1, "G01  20243517.560  "),
+            (2, "G03  20619020.680   108353702.79708"),
+            (4, "R10  22432243.520   119576492.91607      1307.754          43.250  "),
+            (8, "R17  20915624.780   111923741.34508      1970.309          49.000    20915629.120    87051816.58507      1532.457          46.500  "),
+        ] {
+            let size = State::Flags.size_to_produce(true, 0, numobs);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
