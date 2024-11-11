@@ -2,7 +2,7 @@
 #[cfg(feature = "flate2")]
 use flate2::read::GzDecoder;
 
-use crate::hatanaka::Decompressor;
+use crate::hatanaka::DecompressorExpert;
 
 use std::io::{BufRead, BufReader, Error as IoError, Read};
 
@@ -17,10 +17,10 @@ pub enum BufferedReader<const M: usize, R: Read> {
     #[cfg(feature = "flate2")]
     Gz(BufReader<GzDecoder<R>>),
     // Seamless Hatanaka compressed stream (non readable)
-    CRINEX(BufReader<Decompressor<M, R>>),
+    CRINEX(BufReader<DecompressorExpert<M, R>>),
     /// Seamless Gzip Hatanaka compressed stream (non readable)
     #[cfg(feature = "flate2")]
-    GzCRINEX(BufReader<Decompressor<M, GzDecoder<R>>>),
+    GzCRINEX(BufReader<DecompressorExpert<M, GzDecoder<R>>>),
 }
 
 impl<const M: usize, R: Read> BufferedReader<M, R> {
@@ -28,7 +28,7 @@ impl<const M: usize, R: Read> BufferedReader<M, R> {
         Self::Plain(BufReader::new(r))
     }
     pub fn crinex(r: R) -> Self {
-        Self::CRINEX(BufReader::new(Decompressor::new(r)))
+        Self::CRINEX(BufReader::new(DecompressorExpert::new(r)))
     }
     #[cfg(feature = "flate2")]
     pub fn gzip(r: R) -> Self {
@@ -36,7 +36,7 @@ impl<const M: usize, R: Read> BufferedReader<M, R> {
     }
     #[cfg(feature = "flate2")]
     pub fn gzip_crinex(r: R) -> Self {
-        Self::GzCRINEX(BufReader::new(Decompressor::new(GzDecoder::new(r))))
+        Self::GzCRINEX(BufReader::new(DecompressorExpert::new(GzDecoder::new(r))))
     }
 }
 

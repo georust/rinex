@@ -358,6 +358,7 @@ mod test {
     }
 
     #[cfg(feature = "flate2")]
+    #[test]
     fn v3_esbc00dnk() {
         let dut = Rinex::from_file::<5>(
             "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
@@ -456,12 +457,12 @@ mod test {
         let mut nth = 1;
         let mut buf = [0; 4096];
         let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
-        let mut decompressor = Decompressor::<5, File>::new(fd);
+        let mut decompressor = Decompressor::<File>::new(fd);
 
         // consume entire file
         loop {
             match decompressor.read(&mut buf) {
-                Err(e) => {},
+                Err(_) => {},
                 Ok(size) => {
                     if size == 0 {
                         break; // EOS
@@ -598,10 +599,11 @@ mod test {
 
     #[test]
     fn v1_zegv0010_raw() {
+        let mut last_passed = false;
         let mut nth = 1;
         let mut buf = [0; 4096];
         let fd = File::open("../test_resources/CRNX/V1/zegv0010.21d").unwrap();
-        let mut decompressor = Decompressor::<5, File>::new(fd);
+        let mut decompressor = Decompressor::<File>::new(fd);
 
         loop {
             match decompressor.read(&mut buf) {
@@ -697,6 +699,13 @@ mod test {
                             130 => {
                                 panic!("DONE");
                             },
+                            1493 => {
+                                assert_eq!(line, "  23573585.517 7  23573589.832 5                 126058552.95807  98045562.02905");
+                            },
+                            1494 => {
+                                assert_eq!(line, "                                                        42.626          35.171  ");
+                            },
+                            1495 => last_passed = true,
                             _ => {},
                         }
                         nth += 1;
@@ -715,5 +724,135 @@ mod test {
             }
         }
         assert_eq!(nth, 1495);
+        assert!(last_passed, "nth={}", nth);
+    }
+
+    #[test]
+    fn v3_duth0630_raw() {
+        let mut last_passed = false;
+        let mut nth = 1;
+        let mut buf = [0; 4096];
+        let fd = File::open("../test_resources/CRNX/V3/DUTH0630.22D").unwrap();
+        let mut decompressor = Decompressor::<File>::new(fd);
+
+        // consume entire file
+        loop {
+            match decompressor.read(&mut buf) {
+                Err(e) => {},
+                Ok(size) => {
+                    if size == 0 {
+                        break; // EOS
+                    }
+                    assert!(size <= 4096);
+
+                    let mut ptr = 0;
+                    let buf_str = String::from_utf8_lossy(&buf[..size]);
+
+                    for line in buf_str.lines() {
+                        match nth {
+                            1 => {
+                                assert_eq!(line, "     3.02           OBSERVATION DATA    M: MIXED            RINEX VERSION / TYPE");
+                            },
+                            2 => {
+                                assert_eq!(line, "HEADER CHANGED BY EPN CB ON 2022-03-11                      COMMENT");
+                            },
+                            3 => {
+                                assert_eq!(
+                                    line,
+                                    "TO BE CONFORM WITH THE INFORMATION IN                       COMMENT"
+                                );
+                            },
+                            35 => {
+                                assert_eq!(line, "                                                            END OF HEADER");
+                            },
+                            36 => {
+                                assert_eq!(line, "> 2022 03 04 00 00  0.0000000  0 18");
+                            },
+                            37 => {
+                                assert_eq!(line, "G01  20243517.560   106380411.41808     -1242.766          51.250    20243518.680    82893846.80009      -968.395          54.750 ");
+                            },
+                            89 => {
+                                assert_eq!(line, "R23  22543866.020   120594470.51907     -4464.453          44.25");
+                            },
+                            90 => {
+                                assert_eq!(line, "R24  20147683.700   107738728.87108     -2188.113          51.000    20147688.700    83796794.50808     -1701.871          48.500");
+                                last_passed = true;
+                            },
+                            _ => {},
+                        }
+                        nth += 1;
+                        ptr += line.len() + 1;
+                    }
+
+                    if ptr < buf_str.len() {
+                        let remainder = buf_str[ptr..].to_string();
+                        println!("remainder \"{}\"", remainder);
+                        // buf.clear();
+                    }
+                },
+            }
+        }
+        assert_eq!(nth, 90);
+        assert!(last_passed, "nth={}", nth);
+    }
+
+    #[test]
+    fn v3_esbcdnk_raw() {
+        let mut last_passed = false;
+        let mut nth = 1;
+        let mut buf = [0; 4096];
+        let fd = File::open("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
+        let mut decompressor = Decompressor::<File>::new_gzip(fd);
+
+        // consume entire file
+        loop {
+            match decompressor.read(&mut buf) {
+                Err(e) => {},
+                Ok(size) => {
+                    if size == 0 {
+                        break; // EOS
+                    }
+                    assert!(size <= 4096);
+
+                    let mut ptr = 0;
+                    let buf_str = String::from_utf8_lossy(&buf[..size]);
+
+                    for line in buf_str.lines() {
+                        match nth {
+                            1 => {
+                                assert_eq!(line, "     3.05           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
+                            },
+                            2 => {
+                                assert_eq!(line, "sbf2rin-13.4.5                          20220706 130812 UTC PGM / RUN BY / DATE");
+                            },
+                            3 => {
+                                assert_eq!(line, "gfzrnx-1.16-8177    FILE MERGE          20220706 132211 UTC COMMENT");
+                            },
+                            4 => {
+                                assert_eq!(
+                                    line,
+                                    "ESBC00DNK                                                   MARKER NAME"
+                                );
+                            },
+                            133734 => {
+                                assert_eq!(line, "44  41519088.701 5                        99.299 5                 218184295.26505                        35.500");
+                                last_passed = true;
+                            },
+                            _ => {},
+                        }
+                        nth += 1;
+                        ptr += line.len() + 1;
+                    }
+
+                    if ptr < buf_str.len() {
+                        let remainder = buf_str[ptr..].to_string();
+                        println!("remainder \"{}\"", remainder);
+                        // buf.clear();
+                    }
+                },
+            }
+        }
+        assert!(last_passed, "nth={}", nth);
     }
 }

@@ -10,7 +10,7 @@ fn test_decompressor_read() {
     let reader = File::open("../test_resources/CRNX/V1/AJAC3550.21D").unwrap();
 
     let mut buf = [0_u8; 128];
-    let mut decomp = Decompressor::<6, _>::new(reader);
+    let mut decomp = Decompressor::new(reader);
 
     let size = decomp.read(&mut buf).unwrap();
     // assert_eq!(size, 81);
@@ -47,7 +47,7 @@ fn test_decompressor_lines() {
     let mut nth = 1;
     let reader = File::open("../test_resources/CRNX/V1/AJAC3550.21D").unwrap();
 
-    let decomp = BufReader::new(Decompressor::<6, _>::new(reader));
+    let decomp = BufReader::new(Decompressor::new(reader));
 
     let mut lines = decomp.lines();
 

@@ -15,7 +15,8 @@ mod textdiff;
 
 pub use compressor::Compressor;
 pub use crinex::CRINEX;
-pub use decompressor::Decompressor;
+
+pub use decompressor::{Decompressor, DecompressorExpert};
 
 pub(crate) use numdiff::NumDiff;
 pub(crate) use obs::ObsDiff;
