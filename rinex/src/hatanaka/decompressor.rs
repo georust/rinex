@@ -764,6 +764,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
         // push timestamp + flag
         // TODO: catch case recovered epoch is BAD? (not 34 byte long)
+        //       which will cause this to panic
         buf[ptr + produced..ptr + produced + 34].copy_from_slice(&bytes[..34]);
         produced += 34;
 
@@ -982,6 +983,14 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         let mut consumed = 0;
         let mut produced = 0;
 
+        // prepend SVNN identity
+        let start = Self::sv_slice_start(true, self.sv_ptr);
+        let end = (start + 3).min(self.epoch_desc_len);
+        let bytes = self.epoch_descriptor.as_bytes();
+        user_buf[user_ptr..user_ptr + 3].copy_from_slice(&bytes[start..end]);
+
+        produced += 3;
+
         // observation retrieval is complex, due to possible ommitted fields..
         loop {
             self.obs_ptr += 1;
@@ -1016,7 +1025,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                     println!("slice \"{}\" [{}/{}]", &slice, self.obs_ptr, self.numobs);
 
                     if let Some(offset) = slice.find('&') {
-                        if offset == 2 {
+                        if offset == 1 {
                             // correct core reset pattern
                             if let Ok(level) = slice[..offset].parse::<usize>() {
                                 if let Ok(value) = slice[offset + 1..].parse::<i64>() {
@@ -1028,6 +1037,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                                         let kernel = NumDiff::<M>::new(value, level);
                                         self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                                     }
+                                    formatted = format!("{:14.3}  ", value as f64 / 1000.0);
                                 }
                             }
                         }
@@ -1073,6 +1083,40 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             // 3. and finally conclude this SV
         }
 
+        // grab flags content (if any)
+        if consumed < self.ascii_len {
+            // proceed to flags recovering
+            let flags = &self.ascii[consumed..];
+            println!("FLAGS \"{}\"", flags);
+
+            self.flags_descriptor = self.flags_diff.decompress(flags).to_string();
+            println!("RECOVERED \"{}\"", self.flags_descriptor);
+
+            let bytes = self.flags_descriptor.as_bytes();
+
+            let flags_len = self.flags_descriptor.len();
+
+            // copy all flags to user
+            let mut offset = 17;
+            for i in 0..self.numobs {
+                let lli_idx = i * 2;
+                if flags_len > lli_idx {
+                    if !self.flags_descriptor[lli_idx..lli_idx + 1].eq(" ") {
+                        user_buf[user_ptr + offset] = bytes[i * 2]; // b'x';
+                    }
+                }
+
+                let snr_idx = lli_idx + 1;
+                if flags_len > snr_idx {
+                    if !self.flags_descriptor[snr_idx..snr_idx + 1].eq(" ") {
+                        user_buf[user_ptr + offset + 1] = bytes[(i * 2) + 1]; // b'y';
+                    }
+                }
+
+                offset += 16;
+            }
+        }
+
         self.obs_ptr = 0;
 
         // move on to next
@@ -1080,7 +1124,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
         println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
 
-        // terminate this line
+        // conclude this line
         user_buf[user_ptr + produced] = b'\n';
         produced += 1;
 
@@ -1094,190 +1138,6 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
         (new_state, self.next_eol + 1, produced)
     }
-
-    //         State::Flags => {
-    //             // recover flags
-    //             self.flags_descriptor = self.flags_diff.decompress(&ascii).to_string();
-    //             let flags_len = self.flags_descriptor.len();
-    //             println!("RECOVERED: \"{}\"", self.flags_descriptor);
-
-    //             let flags_bytes = self.flags_descriptor.as_bytes();
-
-    //             let mut ptr = if self.v3 { 17 } else { 16 };
-
-    //             // copy all flags to user
-    //             for i in 0..self.numobs {
-    //                 let lli_idx = i * 2;
-    //                 if flags_len > lli_idx {
-    //                     user_buf[user_ptr + ptr] = flags_bytes[lli_idx];
-    //                 }
-    //                 ptr += 1;
-    //                 let snr_idx = lli_idx + 1;
-    //                 if flags_len > snr_idx {
-    //                     user_buf[user_ptr + ptr] = flags_bytes[snr_idx];
-    //                 }
-    //                 ptr += 15;
-    //             }
-
-    //             ptr -= 15;
-
-    //             // publish this payload & reset for next time
-    //             user_buf[user_ptr + ptr] = b'\n';
-
-    //             if self.v3 {
-    //                 produced +=
-    //                     State::ObservationV3.size_to_produce(true, self.numsat, self.numobs);
-    //             } else {
-    //                 produced +=
-    //                     State::ObservationV2.size_to_produce(false, self.numsat, self.numobs);
-    //             }
-
-    //             self.sv_ptr += 1;
-    //             println!("COMPLETED {}", self.sv);
-
-    //             if self.sv_ptr == self.numsat {
-    //                 self.sv_ptr = 0;
-    //                 next_state = State::EpochGathering;
-    //             } else {
-    //                 self.sv = self.next_sv().expect("failed to determine next vehicle");
-    //                 if self.v3 {
-    //                     next_state = State::ObservationV3;
-    //                 } else {
-    //                     next_state = State::ObservationV2;
-    //                 }
-    //             }
-    //         },
-
-    //         State::EarlyTerminationV2 => {
-    //             // Special case where line is abruptly terminated
-    //             // - all remaining observations have been blanked (=missing)
-    //             // - all flags were omitted (= to remain identical 100% compressed)
-
-    //             // we need to fill the blanks
-    //             let mut ptr = 1 + 16 * self.obs_ptr;
-
-    //             for _ in self.obs_ptr..self.numobs {
-    //                 println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
-    //                 let blanking = "                ".to_string();
-
-    //                 // copy to user;
-
-    //                 user_buf[user_ptr + ptr..user_ptr + ptr + 16]
-    //                     .copy_from_slice(blanking.as_bytes());
-
-    //                 ptr += 16;
-    //             }
-
-    //             // we need to maintain all data flags
-    //             let flags_len = self.flags_descriptor.len();
-    //             let flags_bytes = self.flags_descriptor.as_bytes();
-    //             println!("RECOVERED: \"{}\"", self.flags_descriptor);
-
-    //             // copy all flags to user
-    //             for i in 0..self.numobs {
-    //                 let start = 14 + i * 16;
-    //                 let lli_idx = i * 2;
-    //                 let snr_idx = lli_idx + 1;
-
-    //                 if flags_len > lli_idx {
-    //                     //user_buf[user_ptr + start] = b'x';
-    //                     user_buf[user_ptr + start] = flags_bytes[lli_idx];
-    //                 }
-
-    //                 let start = 15 + i * 16;
-    //                 if flags_len > snr_idx {
-    //                     // user_buf[user_ptr + start] = b'y';
-    //                     user_buf[user_ptr + start] = flags_bytes[snr_idx];
-    //                 }
-    //             }
-
-    //             // publish this payload
-    //             user_buf[user_ptr + ptr] = b'\n';
-    //             produced += 0; // TODO
-
-    //             // move on to next state
-    //             self.obs_ptr = 0;
-    //             self.sv_ptr += 1;
-    //             println!("COMPLETED {}", self.sv);
-
-    //             if self.sv_ptr == self.numsat {
-    //                 self.sv_ptr = 0;
-    //                 next_state = State::EpochGathering;
-    //             } else {
-    //                 self.sv = self.next_sv().expect("failed to determine next vehicle");
-    //                 next_state = State::ObservationV2;
-    //             }
-    //         },
-
-    //         State::EarlyTerminationV3 => {
-    //             // Special case where line is abruptly terminated
-    //             // - all remaining observations have been blanked (=missing)
-    //             // - all flags were omitted (= to remain identical 100% compressed)
-
-    //             // we need to fill the blanks
-    //             let mut ptr = 3 + 16 * self.obs_ptr;
-
-    //             for _ in self.obs_ptr..self.numobs {
-    //                 println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
-    //                 let blanking = "                ".to_string();
-
-    //                 // copy to user
-    //                 user_buf[user_ptr + ptr..user_ptr + ptr + 16]
-    //                     .copy_from_slice(blanking.as_bytes());
-
-    //                 ptr += 16;
-    //             }
-
-    //             // all data flags are maintained
-    //             let flags_len = self.flags_descriptor.len();
-    //             let flags_bytes = self.flags_descriptor.as_bytes();
-    //             println!("RECOVERED: \"{}\"", self.flags_descriptor);
-
-    //             // copy all flags to user
-    //             let mut ptr = 3 + 16;
-    //             for i in 0..self.numobs {
-    //                 let lli_idx = i * 2;
-    //                 let snr_idx = lli_idx + 1;
-    //                 if flags_len > lli_idx {
-    //                     user_buf[user_ptr + ptr] = b'x';
-    //                     //user_buf[user_ptr + start] = flags_bytes[lli_idx];
-    //                 }
-    //                 if flags_len > snr_idx {
-    //                     user_buf[user_ptr + ptr + 1] = b'y';
-    //                     //user_buf[user_ptr + ptr +1] = flags_bytes[snr_idx];
-    //                 }
-    //                 ptr += 15;
-    //             }
-
-    //             // publish this payload
-    //             ptr -= 15;
-    //             user_buf[user_ptr + ptr] = b'\n';
-    //             produced += ptr;
-
-    //             // move on to next state
-    //             self.obs_ptr = 0;
-    //             self.sv_ptr += 1;
-    //             println!("COMPLETED {}", self.sv);
-
-    //             if self.sv_ptr == self.numsat {
-    //                 self.sv_ptr = 0;
-    //                 next_state = State::EpochGathering;
-    //             } else {
-    //                 self.sv = self.next_sv().expect("failed to determine next vehicle");
-    //                 next_state = State::ObservationV3;
-    //             }
-    //         },
-    //     }
-
-    //     if ascii_len > 1 && self.state.eol_terminated() {
-    //         // ascii is trimed to facilitate the parsing & internal analysis
-    //         // but it discards the possible \n termination
-    //         // that this module must pass through
-    //         consumed += 1; // consume \n
-    //     }
-
-    //     Ok((next_state, consumed, produced))
-    // }
 
     /// Creates a new [Decompressor] to work from [Read]able stream
     pub fn new(reader: R) -> Self {
