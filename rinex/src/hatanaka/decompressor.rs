@@ -104,17 +104,15 @@ pub enum State {
     HeaderSpecs,
     /// Wait for END OF HEADER
     EndofHeader,
-    /// Collecting Epoch description
-    EpochGathering,
-    /// Collecting clock data
-    ClockGathering,
-    /// Collecting new observation
-    ObservationV2,
+    /// Recovering Epoch descriptor
+    Epoch,
+    /// Recovering Clock offset
+    Clock,
+    /// Observations recovering
+    ObservationV1,
     ObservationV3,
-    /// Collecting observation separator
-    ObservationSeparator,
     /// We wind up here on early line terminations (all blankings)
-    EarlyTerminationV2,
+    EarlyTerminationV1,
     /// We wind up here on early line terminations (all blankings)
     EarlyTerminationV3,
     /// Collecting observation flags
@@ -122,11 +120,11 @@ pub enum State {
 }
 
 impl State {
-    /// Minimal size of a valid [Epoch] description in V2 revision    
+    /// Minimal size of a valid [Epoch] description in V1 revision    
     /// - Timestamp: Year uses 2 digits
     /// - Flag
     /// - Numsat
-    const MIN_V2_EPOCH_DESCRIPTION_SIZE: usize = 26 + 3 + 3;
+    const MIN_V1_EPOCH_DESCRIPTION_SIZE: usize = 26 + 3 + 3;
 
     /// Minimal size of a valid [Epoch] description in V3 revision  
     /// - >
@@ -154,34 +152,24 @@ impl State {
         )
     }
 
-    /// True if this [State] needs to collect \n terminated.
-    /// Other states are either bytewise dependent (fixed length) or other specific byte to locate
-    fn eol_terminated(&self) -> bool {
-        self.file_header()
-            || matches!(
-                self,
-                Self::EpochGathering | Self::ClockGathering | Self::Flags
-            )
-    }
     /// Calculates number of bytes this state will forward to user
     fn size_to_produce(&self, v3: bool, numsat: usize, numobs: usize) -> usize {
         if self.file_header() {
             80
         } else {
             match self {
-                Self::ClockGathering => {
-                    // total epoch description + potential clock description
+                Self::Epoch => {
                     if v3 {
                         Self::MIN_V3_EPOCH_DESCRIPTION_SIZE
                     } else {
-                        let mut size = Self::MIN_V2_EPOCH_DESCRIPTION_SIZE;
+                        let mut size = Self::MIN_V1_EPOCH_DESCRIPTION_SIZE;
                         let num_extra = div_ceil(numsat, 12) - 1;
                         size += num_extra * 17; // padding
                         size += numsat * 3; // formatted
                         size
                     }
                 },
-                Self::ObservationV2 => {
+                Self::ObservationV1 => {
                     let mut size = 1;
                     size += numobs - 1; // separator
                     size += 15 * numobs; // formatted
@@ -192,22 +180,6 @@ impl State {
                 Self::ObservationV3 => {
                     let size = 3; // SVNN
                     size + numobs * 16
-                },
-                // In the following states, we're about to produce data.
-                // We mark the pending size to the user so the user buffer is locked
-                // and cannot be modified.
-                Self::Flags => {
-                    if v3 {
-                        Self::ObservationV3.size_to_produce(true, numsat, numobs)
-                    } else {
-                        Self::ObservationV2.size_to_produce(false, numsat, numobs)
-                    }
-                },
-                Self::EarlyTerminationV2 => {
-                    Self::ObservationV2.size_to_produce(false, numsat, numobs)
-                },
-                Self::EarlyTerminationV3 => {
-                    Self::ObservationV3.size_to_produce(true, numsat, numobs)
                 },
                 _ => 0,
             }
@@ -241,6 +213,7 @@ pub struct DecompressorExpert<const M: usize, R: Read> {
     /// Internal buffer
     buf: [u8; 4096],
     /// Pointers
+    next_eol: usize,
     rd_ptr: usize,
     wr_ptr: usize,
     eos: bool,
@@ -248,6 +221,8 @@ pub struct DecompressorExpert<const M: usize, R: Read> {
     numsat: usize, // total
     sv_ptr: usize, // inside epoch
     sv: SV,
+    ascii: String,
+    ascii_len: usize,
     /// pointers
     numobs: usize, // total
     obs_ptr: usize, // inside epoch
@@ -295,7 +270,7 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
         // run FSM
         loop {
             if self.rd_ptr >= self.wr_ptr {
-                // analyzed everything: need to grab new content
+                // consumed everything: need to grab new content
                 println!(
                     "consumed everything rd={}|wr={}|user={}",
                     self.rd_ptr, self.wr_ptr, user_ptr
@@ -307,35 +282,7 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
                 return Ok(user_ptr);
             }
 
-            // collect next data of interest
-            let offset = self.collect_gather();
-            if offset.is_none() {
-                // failed to locate interesting content:
-                // need to grab new content while preserving pending data
-                println!(
-                    "pattern not found! rd_ptr={}/wr_ptr={}",
-                    self.rd_ptr, self.wr_ptr
-                );
-
-                // need to preserve data that is yet to analyze
-                // shift left, and make room for new read
-                self.buf.copy_within(self.rd_ptr.., 0);
-                self.wr_ptr -= self.rd_ptr;
-                self.rd_ptr = 0;
-                return Ok(user_ptr);
-            }
-
-            // internal verification that located content seems OK
-            // could be avoided if collect_gather is robust enough ?
-            // is this really needed ?
-            let offset = offset.unwrap();
-            if !self.check_length(offset) {
-                println!("check_len: not enough bytes!");
-                break;
-            }
-
-            // verify user buffer has enough capacity.
-            // for each state, we only proceed if user can absorb next amount of data to be produced.
+            // verify user buffer has enough capacity to absorb data we're about to produce.
             // This vastly simplifies internal logic.
             if user_ptr
                 + self
@@ -350,56 +297,20 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
                 self.buf.copy_within(self.rd_ptr.., 0);
                 self.wr_ptr -= self.rd_ptr;
                 self.rd_ptr = 0;
-
                 return Ok(user_ptr);
             }
 
-            // #[cfg(feature = "log")]
-            println!(
-                "[V{}/{}] {:?} wr={}/rd={}/user={}",
-                self.crinex.version.major,
-                self.constellation,
-                self.state,
-                self.wr_ptr,
-                self.rd_ptr,
-                user_ptr,
-            );
-
-            if let Ok((next, consumed_size, produced_size)) =
-                self.consume_execute_fsm(offset, buf, user_ptr)
-            {
-                self.state = next;
-                self.rd_ptr += consumed_size;
-                user_ptr += produced_size;
-            } else {
-                println!("consume_exec_fsm: error!");
-                break;
+            match self.run_fsm(buf, user_ptr) {
+                Ok((new_state, consumed, produced)) => {
+                    self.state = new_state;
+                    self.rd_ptr += consumed;
+                    user_ptr += produced;
+                },
+                Err(e) => {
+                    return Err(e);
+                },
             }
-        }
-
-        // // we're done analyzing: concluding publication to user.
-        // // If all vast majority of size available has been analyzed:
-        // // we allow for a new read (I/O). It will most likely
-        // // split in the middle of a line that we need to preversed for next analysis.
-        // if self.rd_ptr > self.wr_ptr - 256 {
-        //     self.buf.copy_within(self.rd_ptr.., 0);
-        //     self.wr_ptr -= self.rd_ptr; // preserve pending analysis
-        //     self.rd_ptr = 0; // restart analysis
-        //     println!("leftovers: {}/user={}", self.wr_ptr, user_ptr);
-        // }
-
-        if user_ptr == 0 {
-            // we have not produced a single byte
-            if self.eos {
-                // because EOS has been reached
-                Ok(0)
-            } else {
-                // we need other I/O access
-                Err(Error::NeedMoreData.to_stdio())
-            }
-        } else {
-            Ok(user_ptr)
-        }
+        } // loop
     }
 }
 
@@ -409,22 +320,19 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     /// Whitespace char
     const WHITESPACE_BYTE: u8 = b' ';
 
-    /// Minimal timestamp length in V2 revision
-    const V2_TIMESTAMP_SIZE: usize = 24;
-    const V2_NUMSAT_OFFSET: usize = Self::V2_TIMESTAMP_SIZE + 4;
-    const V2_SV_OFFSET: usize = Self::V2_NUMSAT_OFFSET + 3;
+    /// Minimal timestamp length in V1 revision
+    const V1_TIMESTAMP_SIZE: usize = 24;
+    const V1_NUMSAT_OFFSET: usize = Self::V1_TIMESTAMP_SIZE + 4;
+    const V1_SV_OFFSET: usize = Self::V1_NUMSAT_OFFSET + 3;
 
     /// Minimal timestamp length in V3 revision
     const V3_TIMESTAMP_SIZE: usize = 26;
     const V3_NUMSAT_OFFSET: usize = Self::V3_TIMESTAMP_SIZE + 1 + 4;
     const V3_SV_OFFSET: usize = Self::V3_NUMSAT_OFFSET + 9;
 
-    // /// Max. number of [Observable]s described in a single [State::HeaderSpecs] line
-    // const NAX_SPECS_PER_LINE :usize = 9;
-
-    /// Locates first given caracther
-    fn find_next(&self, byte: u8) -> Option<usize> {
-        self.buf[self.rd_ptr..].iter().position(|b| *b == byte)
+    /// Locates first given characther
+    fn find(buf: &[u8], byte: u8) -> Option<usize> {
+        buf.iter().position(|b| *b == byte)
     }
 
     /// Returns pointer offset to parse this sv
@@ -432,7 +340,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         let offset = if v3 {
             Self::V3_SV_OFFSET
         } else {
-            Self::V2_SV_OFFSET
+            Self::V1_SV_OFFSET
         };
         offset + sv_index * 3
     }
@@ -455,7 +363,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         let start = if self.v3 {
             Self::V3_NUMSAT_OFFSET
         } else {
-            Self::V2_NUMSAT_OFFSET
+            Self::V1_NUMSAT_OFFSET
         };
 
         if let Ok(numsat) = &self.epoch_descriptor[start..start + 3].trim().parse::<u8>() {
@@ -465,813 +373,903 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         }
     }
 
-    /// Collect & gather data we're interested starting at current pointer
-    fn collect_gather(&mut self) -> Option<usize> {
-        if self.state.eol_terminated() {
-            self.find_next(Self::EOL_BYTE)
-        } else {
-            match self.state {
-                State::EarlyTerminationV2 => Some(1),
-                State::EarlyTerminationV3 => Some(1),
-                State::ObservationSeparator => Some(1),
-                State::ObservationV2 | State::ObservationV3 => {
-                    self.find_next(Self::WHITESPACE_BYTE)
-                },
-                _ => unreachable!("internal error"),
-            }
-        }
-    }
-
-    /// Verifies that collected data is actually enough to proceed to actual FSM
-    fn check_length(&self, size: usize) -> bool {
-        println!("\n{:?}: check len={}", self.state, size);
-        match self.state {
-            State::Version => size > 60,
-            State::ProgDate => size > 60,
-            State::EndofHeader => size > 60,
-            State::VersionType => size > 60,
-            State::HeaderSpecs => size > 60,
-            State::Flags => true,
-            State::ObservationV2 => true,
-            State::ObservationV3 => true,
-            State::EpochGathering => true,
-            State::ClockGathering => true,
-            State::EarlyTerminationV2 => true,
-            State::EarlyTerminationV3 => true,
-            State::ObservationSeparator => true,
-        }
-    }
-
-    /// Process collected bytes that need to be valid UTF-8.
+    /// Process internal buffer according to current [State]
     /// Returns
     /// - next [State]
     /// - consumed size (rd pointer)
     /// - produced size (wr pointer)
-    fn consume_execute_fsm(
+    fn run_fsm(&mut self, user_buf: &mut [u8], user_ptr: usize) -> Result<(State, usize, usize)> {
+        self.run_readline()?;
+
+        match self.state {
+            State::Version => self.run_version(user_buf, user_ptr),
+            State::ProgDate => self.run_progdate(user_buf, user_ptr),
+            State::VersionType => self.run_version_type(user_buf, user_ptr),
+            State::HeaderSpecs => self.run_header_specs(user_buf, user_ptr),
+            State::EndofHeader => self.run_end_of_header(user_buf, user_ptr),
+            State::Epoch => self.run_epoch(user_buf, user_ptr),
+            State::Clock => self.run_clock(user_buf, user_ptr),
+            State::ObservationV1 => self.run_observation_v1(user_buf, user_ptr),
+            State::ObservationV3 => self.run_observation_v3(user_buf, user_ptr),
+            _ => panic!("not yet"),
+        }
+    }
+
+    fn run_readline(&mut self) -> Result<()> {
+        // we operate on a line basis. One line may either
+        //  + contain the entire content needed for this state (=epoch)
+        //  + contain part of needed content (=lengthy observations)
+        if let Some(next_eol) = Self::find(&self.buf[self.rd_ptr..], Self::EOL_BYTE) {
+            // #[cfg(feature = "log")]
+            println!(
+                "[V{}/{}] {:?} wr={}/rd={}",
+                self.crinex.version.major, self.constellation, self.state, self.wr_ptr, self.rd_ptr,
+            );
+
+            if next_eol > 4096 {
+                // unrealistic content: directly tied to our self.ascii preallocation
+                panic!("internal buffer too small, invalid content ?");
+            }
+
+            // grab content
+            let slice = &self.buf[self.rd_ptr..self.rd_ptr + next_eol];
+
+            // which must be valid UTF-8
+            self.ascii = from_utf8(&slice)
+                .map_err(|_| Error::BadUtf8Data.to_stdio())?
+                .to_string();
+
+            self.ascii_len = self.ascii.len();
+            println!("ASCII \"{}\" [{}]", self.ascii, self.ascii_len);
+
+            self.next_eol = next_eol;
+            Ok(())
+        } else {
+            // unable to grab a complete line
+            // memcopy (save current content) and proceed to new read
+            self.buf.copy_within(self.rd_ptr.., 0);
+            self.wr_ptr -= self.rd_ptr; // make room
+            self.rd_ptr = 0; // analyzer will start at base
+            return Err(Error::NeedMoreData.to_stdio());
+        }
+    }
+
+    /// Process internal buffer in [State::Version]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_version(
         &mut self,
-        offset: usize,
         user_buf: &mut [u8],
         user_ptr: usize,
     ) -> Result<(State, usize, usize)> {
-        let mut produced = 0;
-        let mut next_state = self.state;
-
-        // always interprate new content as ASCII UTF-8
-        let ascii = from_utf8(&self.buf[self.rd_ptr..self.rd_ptr + offset])
-            .map_err(|_| Error::BadUtf8Data.to_stdio())?
-            .trim_end(); // clean up
-
-        // we'll consume this ASCII length (total) in most cases
-        // except in rare scenarios, mostly in Observation state
-        // where actual read size cannot be predicted ahead of time.
-        // For such scenarios, check where this variable is modified.
-        // The .max(1) is here to consume at least one byte (always)
-        // which is not discarded in empty lines, and this block must pass through the \n termination.
-        let mut ascii_len = ascii.len();
-        let mut consumed = ascii_len.max(1);
-
-        // #[cfg(feature = "log")]
-        println!("ASCII: \"{}\" [{}]", ascii, ascii_len);
-
-        // process according to FSM
-        match self.state {
-            State::Version => {
-                let version = Version::from_str(&ascii[0..20].trim())
-                    .map_err(|_| Error::VersionParsing.to_stdio())?;
-
-                self.crinex = self.crinex.with_version(version);
-                self.v3 = version.major == 3;
-                next_state = State::ProgDate;
-            },
-
-            State::ProgDate => {
-                self.crinex = self
-                    .crinex
-                    .with_prog_date(&ascii.trim_end())
-                    .map_err(|_| Error::CrinexParsing.to_stdio())?;
-
-                next_state = State::VersionType;
-            },
-
-            State::VersionType => {
-                if ascii.ends_with("END OF HEADER") {
-                    // Reached END_OF_HEADER and HeaderSpecs were not identified.
-                    // We would not be able to proceed to decode data.
-                    panic!("bad crinex: no observation specs");
-                }
-                if ascii.contains("TYPES OF OBS") {
-                    // Reached next specs without specifying a constellation system !
-                    panic!("bad crinex: no constellation specs");
-                }
-                if ascii.contains("SYS / # / OBS TYPES") {
-                    // Reached next specs without specifying a constellation system !
-                    panic!("bad crinex: no constellation specs");
-                }
-                if ascii.contains("RINEX VERSION / TYPE") {
-                    self.constellation = Constellation::from_str(ascii[40..60].trim())
-                        .expect("bad crinex: invalid constellation");
-
-                    self.numobs = 0;
-                    self.obs_ptr = 0;
-                    next_state = State::HeaderSpecs;
-                }
-
-                // copy to user
-                user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
-                user_buf[user_ptr + ascii_len] = b'\n';
-                produced += ascii_len + 1;
-            },
-
-            State::HeaderSpecs => {
-                if ascii.ends_with("END OF HEADER") {
-                    if self.v3 {
-                        if self.inside_v3_specs {
-                            panic!("bad crinex: incomplete observable specs");
-                        } else {
-                            next_state = State::EpochGathering;
-                        }
-                    } else {
-                        // Reached _end_of_header_ without observables specs !
-                        panic!("bad crinex: no observable specs");
-                    }
-                }
-
-                if ascii.contains("TYPES OF OBS") {
-                    // V2 parsing
-                    if self.v3 {
-                        panic!("bad v3 crinex definition");
-                    }
-
-                    if self.numobs == 0 {
-                        // first encounter
-                        if let Ok(numobs) = ascii[..10].trim().parse::<u8>() {
-                            self.numobs = numobs as usize;
-                        }
-                    }
-
-                    let num = ascii_len / 6;
-                    for i in 0..num {
-                        let start = i * 6;
-                        if let Ok(obs) = Observable::from_str(&ascii[start..start + 6]) {
-                            println!("found {}", obs);
-                            if let Some(specs) = self.gnss_observables.get_mut(&self.constellation)
-                            {
-                                specs.push(obs);
-                            } else {
-                                self.gnss_observables.insert(self.constellation, vec![obs]);
-                            }
-                            self.obs_ptr += 1;
-                        }
-                    }
-
-                    if self.obs_ptr == self.numobs {
-                        self.obs_ptr = 0;
-                        self.numobs = 0;
-                        next_state = State::EndofHeader;
-                    }
-                }
-
-                if ascii.ends_with("SYS / # / OBS TYPES") {
-                    if !self.v3 {
-                        panic!("bad v1 crinex definition");
-                    }
-
-                    if self.inside_v3_specs {
-                        // parse this line
-                        let mut start = 0;
-                        let mut end = 11;
-
-                        let end_range = (self.obs_ptr + 13).min(self.numobs);
-                        for i in self.obs_ptr..end_range {
-                            let slice = &ascii[start..end];
-                            println!("FOUND: \"{}\"", slice);
-                            self.obs_ptr += 1;
-
-                            start = end;
-                            end = start + 4;
-
-                            if i == self.numobs - 1 {
-                                self.inside_v3_specs = false;
-                            }
-                        }
-                    } else {
-                        let constell = Constellation::from_str(ascii[..3].trim())
-                            .expect("bad crinex: invalid constellation");
-
-                        let numobs = ascii[3..6]
-                            .trim()
-                            .parse::<usize>()
-                            .expect("bad crinex: invalid number of observable");
-
-                        self.obs_ptr = 0;
-
-                        // parse first line
-                        for i in 0..numobs.min(13) {
-                            let start = 6 + i * 4;
-                            let slice = &ascii[start..start + 5];
-                            println!("FOUND: \"{}\"", slice);
-                            let obs = Observable::from_str(slice.trim())
-                                .expect("bad crinex: invalid observable");
-
-                            if let Some(list) = self.gnss_observables.get_mut(&constell) {
-                                list.push(obs);
-                            } else {
-                                self.gnss_observables.insert(constell, vec![obs]);
-                            }
-
-                            self.obs_ptr += 1;
-                        }
-
-                        // helpers for multi line parsing
-                        if numobs > 13 {
-                            self.numobs = numobs;
-                            self.inside_v3_specs = true;
-                        } else {
-                            self.obs_ptr = 0;
-                            self.numobs = 0;
-                            self.inside_v3_specs = false;
-                        }
-                    }
-                }
-
-                // copy to user
-                user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
-                user_buf[user_ptr + ascii_len] = b'\n';
-                produced += ascii_len + 1;
-            },
-
-            State::EndofHeader => {
-                if ascii.ends_with("END OF HEADER") {
-                    // move on to next state: prepare for decoding
-                    next_state = State::EpochGathering;
-                    self.epoch_desc_len = 0;
-                    self.epoch_descriptor.clear();
-                }
-
-                // copy to user
-                user_buf[user_ptr..user_ptr + ascii_len].copy_from_slice(ascii.as_bytes());
-                user_buf[user_ptr + ascii_len] = b'\n';
-                produced += ascii_len + 1;
-            },
-
-            State::EpochGathering => {
-                if ascii.starts_with('&') {
-                    self.epoch_desc_len = ascii_len - 1;
-                    self.epoch_diff.force_init(&ascii[1..]);
-                    self.epoch_descriptor = ascii[1..].to_string();
-                } else if ascii.starts_with('>') {
-                    self.epoch_desc_len = ascii_len - 1;
-                    self.epoch_diff.force_init(&ascii[1..]);
-                    self.epoch_descriptor = ascii[1..].to_string();
-                } else {
-                    if self.first_epoch {
-                        panic!("bad crinex: first epoch not correctly marked");
-                    }
-
-                    if ascii_len > 1 {
-                        self.epoch_descriptor = self.epoch_diff.decompress(&ascii[1..]).to_string();
-                    } else {
-                        self.epoch_descriptor = self.epoch_diff.decompress("").to_string();
-                    }
-
-                    self.epoch_desc_len = self.epoch_descriptor.len();
-                    println!("RECOVERED: \"{}\"", self.epoch_descriptor);
-                }
-
-                // parsing & verification
-                self.numsat = self.epoch_numsat().expect("bad epoch recovered (numsat)");
-
-                // grab first SV
-                self.sv = self.next_sv().expect("failed to determine sv definition");
-
-                self.obs_ptr = 0;
-                self.first_epoch = false;
-
-                // grab first specs
-                let obs = self
-                    .get_observables(&self.sv.constellation)
-                    .expect("fail to determine sv definition");
-
-                // move on to next state
-                self.numobs = obs.len();
-                next_state = State::ClockGathering;
-            },
-
-            State::ClockGathering => {
-                // copy & format epoch description to user
-                // TODO: this misses the clock offset @ appropriate location
-
-                let mut ptr = 0;
-                let bytes = self.epoch_descriptor.as_bytes();
-
-                // format according to standards
-                if self.v3 {
-                    // easy format
-                    user_buf[user_ptr + ptr] = b'>'; // special marker
-                    ptr += 1;
-
-                    // push timestamp + flag,
-                    // and we squeeze SVNN on each observation line to follow
-                    user_buf[user_ptr + ptr..user_ptr + ptr + 34].copy_from_slice(&bytes[..34]);
-                    ptr += 34;
-
-                    user_buf[user_ptr + ptr] = b'\n';
-                    ptr += 1;
-                } else {
-                    // tedious format
-                    user_buf[user_ptr + ptr] = b' '; // single whitespace
-                    ptr += 1;
-
-                    // push first (up to 68) line
-                    let first_len = self.epoch_desc_len.min(67);
-
-                    user_buf[user_ptr + ptr..user_ptr + ptr + first_len]
-                        .copy_from_slice(&bytes[..first_len]);
-
-                    ptr += first_len;
-
-                    // first eol
-                    user_buf[user_ptr + ptr] = b'\n';
-                    ptr += 1;
-
-                    // if more  than 1 line is required;
-                    // append as many, with "standardized" padding
-                    let nb_extra_lines = self.epoch_desc_len / 68;
-
-                    for i in 0..nb_extra_lines {
-                        // extra padding
-                        user_buf[user_ptr + ptr..user_ptr + ptr + 32].copy_from_slice(&[
-                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-                        ]);
-
-                        ptr += 32;
-
-                        // copy appropriate slice
-                        let start = (i + 1) * 67;
-                        let end = (start + 68).min(self.epoch_desc_len);
-                        let size = end - start;
-
-                        user_buf[user_ptr + ptr..user_ptr + ptr + size]
-                            .copy_from_slice(&bytes[start..end]);
-
-                        ptr += size;
-
-                        // terminate this line
-                        user_buf[user_ptr + ptr] = b'\n';
-                        ptr += 1;
-                    }
-                }
-
-                produced += ptr;
-
-                if self.v3 {
-                    next_state = State::ObservationV3;
-                } else {
-                    next_state = State::ObservationV2;
-                }
-            },
-
-            State::ObservationV2 => {
-                let mut early_termination = false;
-
-                if ascii_len > 13 {
-                    // content looks suspicious:
-                    // this happens when all remaining flags are omitted (=BLANKING).
-                    // We have two cases
-                    if let Some(eol_offset) = ascii.find('\n') {
-                        // we grabbed part of the following lines
-                        // this happens in case all data flags remain identical (100% compression factor)
-                        // we must postpone part of this buffer
-                        ascii_len = eol_offset;
-                        consumed = eol_offset;
-                        early_termination = true;
-                    } else {
-                        // This case should never happen.
-                        // If we wind up here, the collect_gather and relationship with
-                        // the consumed size, is not robust enough
-                        unreachable!("internal error");
-                    }
-                }
-
-                // default is BLANK
-                let mut formatted = "                ".to_string();
-
-                // Decoding attempt
-                if ascii_len > 0 {
-                    let mut kernel_reset = false;
-
-                    if ascii_len > 2 {
-                        if ascii[1..2].eq("&") {
-                            kernel_reset = false;
-
-                            let order = ascii[0..1]
-                                .parse::<usize>()
-                                .expect("bad crinex compression level");
-
-                            if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
-                                let val = if let Some(kernel) =
-                                    self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                                {
-                                    kernel.force_init(val, order);
-                                    val as f64 / 1.0E3
-                                } else {
-                                    let kernel = NumDiff::new(val, order);
-                                    self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                    val as f64 / 1.0E3
-                                };
-                                formatted = format!("{:14.3}  ", val).to_string();
-                            }
-                        }
-                    }
-
-                    if !kernel_reset {
-                        // regular compression
-                        if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
-                            let val = if let Some(kernel) =
-                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                            {
-                                kernel.decompress(val) as f64 / 1.0E3
-                            } else {
-                                let kernel = NumDiff::new(val, M);
-                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                val as f64 / 1.0E3
-                            };
-                            formatted = format!("{:14.3}  ", val);
-                        }
-                    }
-                }
-
-                // copy to user
-                let mut ptr = self.obs_ptr * 16;
-                println!("fmt_len={}", formatted.as_bytes().len());
-
-                // push decompressed content
-                user_buf[user_ptr + ptr..user_ptr + ptr + 16].copy_from_slice(formatted.as_bytes());
-                ptr += 16;
-                self.obs_ptr += 1;
-
-                // v2 case: need to wrapp into several lines....
-                if !self.v3 {
-                    if self.obs_ptr % 5 == 0 {
-                        // line wrapping
-                        user_buf[user_ptr + ptr] = b'\n';
-                        ptr += 1;
-
-                        // special V2 start of line padding ...
-                        user_buf[user_ptr + ptr..user_ptr + ptr + 15].copy_from_slice(&[
-                            b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-                            b' ', b' ', b' ',
-                        ]);
-
-                        ptr += 15;
-                    }
-                }
-
-                println!("obs={}/{}", self.obs_ptr, self.numobs);
-
-                // End of this observation: we have three cases
-                //  1. weird case where line is early terminated
-                //     due to the combination of Blanking (missing signals) and all flags being fully compressed.
-                //     In this scenario, we enter special case to push the necessary blanking
-                //     and re-use the past flag description (100% compression)
-                //  2. this is a regular BLANK, we need to determine whether this terminates
-                //     the observation serie or not
-                //  3. regular observation: need to progress to the next one
-                if early_termination {
-                    // Early termination case
-                    next_state = State::EarlyTerminationV2;
-                } else {
-                    if ascii_len == 0 {
-                        // BLANKING case
-                        if self.obs_ptr == self.numobs {
-                            // Last blanking
-                            self.obs_ptr = 0;
-                            next_state = State::Flags;
-                        } else {
-                            // regular progression in case of blanking
-                            next_state = State::ObservationV2;
-                        }
-                    } else {
-                        // regular progression
-                        next_state = State::ObservationSeparator;
-                    }
-                }
-            },
-
-            State::ObservationV3 => {
-                let mut early_termination = false;
-
-                if let Some(eol_offset) = ascii.find('\n') {
-                    if eol_offset < ascii_len - 1 {
-                        // we grabbed part of the following line
-                        // this happens in case all data flags remain identical (100% compression factor)
-                        // we must postpone part of this buffer
-                        ascii_len = eol_offset;
-                        consumed = eol_offset;
-                        early_termination = true;
-                    }
-                }
-
-                // default is BLANK
-                let mut formatted = "                ".to_string();
-
-                // Decoding attempt
-                if ascii_len > 0 {
-                    let mut kernel_reset = false;
-
-                    if ascii_len > 2 {
-                        if ascii[1..2].eq("&") {
-                            kernel_reset = false;
-
-                            let order = ascii[0..1]
-                                .parse::<usize>()
-                                .expect("bad crinex compression level");
-
-                            if let Ok(val) = ascii[2..ascii_len].trim().parse::<i64>() {
-                                let val = if let Some(kernel) =
-                                    self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                                {
-                                    kernel.force_init(val, order);
-                                    val as f64 / 1.0E3
-                                } else {
-                                    let kernel = NumDiff::new(val, order);
-                                    self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                    val as f64 / 1.0E3
-                                };
-                                formatted = format!("{:14.3}  ", val).to_string();
-                            }
-                        }
-                    }
-
-                    if !kernel_reset {
-                        // regular compression
-                        if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
-                            let val = if let Some(kernel) =
-                                self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                            {
-                                kernel.decompress(val) as f64 / 1.0E3
-                            } else {
-                                let kernel = NumDiff::new(val, M);
-                                self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-                                val as f64 / 1.0E3
-                            };
-                            formatted = format!("{:14.3}  ", val);
-                        }
-                    }
-                }
-
-                // copy to user
-                let mut ptr = self.obs_ptr * 16;
-                println!("formatted={}[{}]", formatted, formatted.as_bytes().len());
-
-                if self.obs_ptr == 0 {
-                    // need to squeeze SVNN at beginning of each line
-                    let bytes = self.epoch_descriptor.as_bytes();
-                    let start = Self::sv_slice_start(self.v3, self.sv_ptr);
-
-                    user_buf[user_ptr + ptr..user_ptr + ptr + 3]
-                        .copy_from_slice(&bytes[start..start + 3]);
-
-                    ptr += 3;
-                } else {
-                    ptr += 3;
-                }
-
-                // push decompressed content
-                user_buf[user_ptr + ptr..user_ptr + ptr + 16].copy_from_slice(formatted.as_bytes());
-
-                ptr += 16;
-                self.obs_ptr += 1;
-                println!("obs={}/{}", self.obs_ptr, self.numobs);
-
-                // End of this observation: we have three cases
-                //  1. weird case where line is early terminated
-                //     due to the combination of Blanking (missing signals) and all flags being fully compressed.
-                //     In this scenario, we enter special case to push the necessary blanking
-                //     and re-use the past flag description (100% compression)
-                //  2. this is a regular BLANK, we need to determine whether this terminates
-                //     the observation serie or not
-                //  3. regular observation: need to progress to the next one
-
-                if early_termination {
-                    // Early termination case
-                    next_state = State::EarlyTerminationV3;
-                } else {
-                    if ascii_len == 0 {
-                        // BLANKING case
-                        if self.obs_ptr == self.numobs {
-                            // Last blanking
-                            self.obs_ptr = 0;
-                            next_state = State::Flags;
-                        } else {
-                            // regular progression in case of blanking
-                            next_state = State::ObservationV3;
-                        }
-                    } else {
-                        // regular progression
-                        next_state = State::ObservationSeparator;
-                    }
-                }
-            },
-
-            State::ObservationSeparator => {
-                if self.obs_ptr == self.numobs {
-                    self.obs_ptr = 0;
-                    next_state = State::Flags;
-                } else {
-                    if self.v3 {
-                        next_state = State::ObservationV3;
-                    } else {
-                        next_state = State::ObservationV2;
-                    }
-                }
-            },
-
-            State::Flags => {
-                // recover flags
-                self.flags_descriptor = self.flags_diff.decompress(&ascii).to_string();
-                let flags_len = self.flags_descriptor.len();
-                println!("RECOVERED: \"{}\"", self.flags_descriptor);
-
-                let flags_bytes = self.flags_descriptor.as_bytes();
-
-                let mut ptr = if self.v3 { 17 } else { 16 };
-
-                // copy all flags to user
-                for i in 0..self.numobs {
-                    let lli_idx = i * 2;
-                    if flags_len > lli_idx {
-                        user_buf[user_ptr + ptr] = flags_bytes[lli_idx];
-                    }
-                    ptr += 1;
-                    let snr_idx = lli_idx + 1;
-                    if flags_len > snr_idx {
-                        user_buf[user_ptr + ptr] = flags_bytes[snr_idx];
-                    }
-                    ptr += 15;
-                }
-
-                ptr -= 15;
-
-                // publish this payload & reset for next time
-                user_buf[user_ptr + ptr] = b'\n';
-
-                if self.v3 {
-                    produced +=
-                        State::ObservationV3.size_to_produce(true, self.numsat, self.numobs);
-                } else {
-                    produced +=
-                        State::ObservationV2.size_to_produce(false, self.numsat, self.numobs);
-                }
-
-                self.sv_ptr += 1;
-                println!("COMPLETED {}", self.sv);
-
-                if self.sv_ptr == self.numsat {
-                    self.sv_ptr = 0;
-                    next_state = State::EpochGathering;
-                } else {
-                    self.sv = self.next_sv().expect("failed to determine next vehicle");
-                    if self.v3 {
-                        next_state = State::ObservationV3;
-                    } else {
-                        next_state = State::ObservationV2;
-                    }
-                }
-            },
-
-            State::EarlyTerminationV2 => {
-                // Special case where line is abruptly terminated
-                // - all remaining observations have been blanked (=missing)
-                // - all flags were omitted (= to remain identical 100% compressed)
-
-                // we need to fill the blanks
-                let mut ptr = 1 + 16 * self.obs_ptr;
-
-                for _ in self.obs_ptr..self.numobs {
-                    println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
-                    let blanking = "                ".to_string();
-
-                    // copy to user;
-
-                    user_buf[user_ptr + ptr..user_ptr + ptr + 16]
-                        .copy_from_slice(blanking.as_bytes());
-
-                    ptr += 16;
-                }
-
-                // we need to maintain all data flags
-                let flags_len = self.flags_descriptor.len();
-                let flags_bytes = self.flags_descriptor.as_bytes();
-                println!("RECOVERED: \"{}\"", self.flags_descriptor);
-
-                // copy all flags to user
-                for i in 0..self.numobs {
-                    let start = 14 + i * 16;
-                    let lli_idx = i * 2;
-                    let snr_idx = lli_idx + 1;
-
-                    if flags_len > lli_idx {
-                        //user_buf[user_ptr + start] = b'x';
-                        user_buf[user_ptr + start] = flags_bytes[lli_idx];
-                    }
-
-                    let start = 15 + i * 16;
-                    if flags_len > snr_idx {
-                        // user_buf[user_ptr + start] = b'y';
-                        user_buf[user_ptr + start] = flags_bytes[snr_idx];
-                    }
-                }
-
-                // publish this payload
-                user_buf[user_ptr + ptr] = b'\n';
-                produced += 0; // TODO
-
-                // move on to next state
-                self.obs_ptr = 0;
-                self.sv_ptr += 1;
-                println!("COMPLETED {}", self.sv);
-
-                if self.sv_ptr == self.numsat {
-                    self.sv_ptr = 0;
-                    next_state = State::EpochGathering;
-                } else {
-                    self.sv = self.next_sv().expect("failed to determine next vehicle");
-                    next_state = State::ObservationV2;
-                }
-            },
-
-            State::EarlyTerminationV3 => {
-                // Special case where line is abruptly terminated
-                // - all remaining observations have been blanked (=missing)
-                // - all flags were omitted (= to remain identical 100% compressed)
-
-                // we need to fill the blanks
-                let mut ptr = 3 + 16 * self.obs_ptr;
-
-                for _ in self.obs_ptr..self.numobs {
-                    println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
-                    let blanking = "                ".to_string();
-
-                    // copy to user
-                    user_buf[user_ptr + ptr..user_ptr + ptr + 16]
-                        .copy_from_slice(blanking.as_bytes());
-
-                    ptr += 16;
-                }
-
-                // all data flags are maintained
-                let flags_len = self.flags_descriptor.len();
-                let flags_bytes = self.flags_descriptor.as_bytes();
-                println!("RECOVERED: \"{}\"", self.flags_descriptor);
-
-                // copy all flags to user
-                let mut ptr = 3 + 16;
-                for i in 0..self.numobs {
-                    let lli_idx = i * 2;
-                    let snr_idx = lli_idx + 1;
-                    if flags_len > lli_idx {
-                        user_buf[user_ptr + ptr] = b'x';
-                        //user_buf[user_ptr + start] = flags_bytes[lli_idx];
-                    }
-                    if flags_len > snr_idx {
-                        user_buf[user_ptr + ptr + 1] = b'y';
-                        //user_buf[user_ptr + ptr +1] = flags_bytes[snr_idx];
-                    }
-                    ptr += 15;
-                }
-
-                // publish this payload
-                ptr -= 15;
-                user_buf[user_ptr + ptr] = b'\n';
-                produced += ptr;
-
-                // move on to next state
-                self.obs_ptr = 0;
-                self.sv_ptr += 1;
-                println!("COMPLETED {}", self.sv);
-
-                if self.sv_ptr == self.numsat {
-                    self.sv_ptr = 0;
-                    next_state = State::EpochGathering;
-                } else {
-                    self.sv = self.next_sv().expect("failed to determine next vehicle");
-                    next_state = State::ObservationV3;
-                }
-            },
+        if self.next_eol < 60 {
+            // does not look like a valid header
+            return Err(Error::BadHeaderData.to_stdio());
         }
 
-        if ascii_len > 1 && self.state.eol_terminated() {
-            // ascii is trimed to facilitate the parsing & internal analysis
-            // but it discards the possible \n termination
-            // that this module must pass through
-            consumed += 1; // consume \n
-        }
+        // parse version specs
+        let version = Version::from_str(&self.ascii[0..20].trim())
+            .map_err(|_| Error::VersionParsing.to_stdio())?;
 
-        Ok((next_state, consumed, produced))
+        self.crinex = self.crinex.with_version(version);
+        self.v3 = version.major == 3;
+        Ok((State::ProgDate, self.next_eol + 1, 0))
     }
+
+    /// Process internal buffer in [State::ProgDate]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_progdate(
+        &mut self,
+        user_buf: &mut [u8],
+        user_ptr: usize,
+    ) -> Result<(State, usize, usize)> {
+        if self.next_eol < 60 {
+            // does not look like a valid header
+            return Err(Error::BadHeaderData.to_stdio());
+        }
+
+        // parse version specs
+        self.crinex = self
+            .crinex
+            .with_prog_date(&self.ascii.trim_end())
+            .map_err(|_| Error::CrinexParsing.to_stdio())?;
+
+        Ok((State::VersionType, self.next_eol + 1, 0))
+    }
+
+    /// Process internal buffer in [State::VersionType]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_version_type(
+        &mut self,
+        user_buf: &mut [u8],
+        user_ptr: usize,
+    ) -> Result<(State, usize, usize)> {
+        if self.next_eol < 60 {
+            // does not look like a valid header
+            return Err(Error::BadHeaderData.to_stdio());
+        }
+
+        // parse version specs
+        self.constellation = Constellation::from_str(self.ascii[40..60].trim())
+            .expect("bad crinex: invalid constellation");
+
+        // line pass through
+        user_buf[user_ptr..user_ptr + self.next_eol]
+            .copy_from_slice(&self.buf[self.rd_ptr..self.rd_ptr + self.next_eol]);
+
+        user_buf[user_ptr + self.next_eol] = b'\n';
+
+        Ok((State::HeaderSpecs, self.next_eol + 1, self.next_eol + 1))
+    }
+
+    /// Process internal buffer in [State::HeaderSpecs]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_header_specs(
+        &mut self,
+        user_buf: &mut [u8],
+        user_ptr: usize,
+    ) -> Result<(State, usize, usize)> {
+        let mut new_state = self.state;
+
+        if self.next_eol < 60 {
+            // not a valid header
+            return Err(Error::BadHeaderData.to_stdio());
+        }
+
+        if self.ascii.ends_with("END OF HEADER") {
+            if self.v3 {
+                if self.inside_v3_specs {
+                    panic!("bad crinex-v3: incomplete observable specs!");
+                } else {
+                    new_state = State::Epoch;
+                }
+            }
+        }
+
+        if self.ascii.contains("TYPES OF OBS") {
+            // V2 parsing
+            if self.v3 {
+                panic!("bad crinex-v3: invalid definition");
+            }
+
+            if self.numobs == 0 {
+                // first encounter
+                self.numobs = self.ascii[..10]
+                    .trim()
+                    .parse::<usize>()
+                    .expect("bad crinex: invalid observable specs");
+
+                let mut ptr = 6;
+                for i in 0..self.numobs {
+                    println!("obs_slice \"{}\"", &self.ascii[ptr..ptr + 6]);
+
+                    let obs = Observable::from_str(&self.ascii[ptr..ptr + 6])
+                        .expect("bad-crinex: invalid observable!");
+
+                    println!("FOUND {}", obs);
+
+                    if let Some(specs) = self.gnss_observables.get_mut(&self.constellation) {
+                        specs.push(obs);
+                    } else {
+                        self.gnss_observables.insert(self.constellation, vec![obs]);
+                    }
+
+                    ptr += 6;
+                    self.obs_ptr += 1;
+                    if self.obs_ptr == self.numobs {
+                        new_state = State::EndofHeader;
+                    }
+                }
+            }
+        } else if self.ascii.ends_with("SYS / # / OBS TYPES") {
+            if !self.v3 {
+                panic!("bad crinex-v1: invalid definition");
+            }
+
+            if self.inside_v3_specs {
+                // following lines
+                let mut start = 0;
+                let mut end = 11;
+
+                let end_range = (self.obs_ptr + 13).min(self.numobs);
+                for i in self.obs_ptr..end_range {
+                    let slice = &self.ascii[start..end];
+                    println!("FOUND: \"{}\"", slice);
+                    self.obs_ptr += 1;
+
+                    start = end;
+                    end = start + 4;
+
+                    if i == self.numobs - 1 {
+                        self.inside_v3_specs = false;
+                    }
+                }
+            } else {
+                // first line
+                let constell = Constellation::from_str(&self.ascii[..3].trim())
+                    .expect("bad crinex: invalid constellation");
+
+                let numobs = self.ascii[3..6]
+                    .trim()
+                    .parse::<usize>()
+                    .expect("bad crinex: invalid number of observable");
+
+                self.obs_ptr = 0;
+
+                // parse first line
+                for i in 0..numobs.min(13) {
+                    let start = 6 + i * 4;
+                    let slice = &self.ascii[start..start + 5];
+                    println!("FOUND: \"{}\"", slice);
+
+                    let obs =
+                        Observable::from_str(slice.trim()).expect("bad crinex: invalid observable");
+
+                    if let Some(list) = self.gnss_observables.get_mut(&constell) {
+                        list.push(obs);
+                    } else {
+                        self.gnss_observables.insert(constell, vec![obs]);
+                    }
+
+                    self.obs_ptr += 1;
+                }
+
+                if numobs > 13 {
+                    self.numobs = numobs;
+                    self.inside_v3_specs = true;
+                } else {
+                    self.obs_ptr = 0;
+                    self.numobs = 0;
+                    self.inside_v3_specs = false;
+                }
+            }
+        }
+
+        // line pass through
+        user_buf[user_ptr..user_ptr + self.next_eol]
+            .copy_from_slice(&self.buf[self.rd_ptr..self.rd_ptr + self.next_eol]);
+
+        user_buf[user_ptr + self.next_eol] = b'\n';
+
+        Ok((new_state, self.next_eol + 1, self.next_eol + 1))
+    }
+
+    /// Process internal buffer in [State::EndofHeader]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_end_of_header(
+        &mut self,
+        user_buf: &mut [u8],
+        user_ptr: usize,
+    ) -> Result<(State, usize, usize)> {
+        let mut new_state = self.state;
+
+        if self.ascii[60..].contains("END OF HEADER") {
+            new_state = State::Epoch;
+        }
+
+        // line pass through
+        user_buf[user_ptr..user_ptr + self.next_eol]
+            .copy_from_slice(&self.buf[self.rd_ptr..self.rd_ptr + self.next_eol]);
+
+        user_buf[user_ptr + self.next_eol] = b'\n';
+
+        Ok((new_state, self.next_eol + 1, self.next_eol + 1))
+    }
+
+    /// Process internal buffer in [State::Epoch]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_epoch(&mut self, user_buf: &mut [u8], user_ptr: usize) -> Result<(State, usize, usize)> {
+        if self.ascii_len < 1 {
+            // Epoch does not look good. catch this nicely and wait for next one ?
+            panic!("invalid epoch!");
+        }
+
+        if self.ascii.starts_with('&') {
+            if self.v3 {
+                panic!("bad crinex-v3 content");
+            }
+
+            self.epoch_diff.force_init(&self.ascii[1..]);
+            self.epoch_descriptor = self.ascii[1..].to_string();
+            self.epoch_desc_len = self.ascii_len - 1;
+        } else if self.ascii.starts_with('>') {
+            if !self.v3 {
+                panic!("bad crinex-v1 content");
+            }
+
+            self.epoch_diff.force_init(&self.ascii[1..]);
+            self.epoch_descriptor = self.ascii[1..].to_string();
+            self.epoch_desc_len = self.ascii_len - 1;
+        } else {
+            self.epoch_descriptor = self.epoch_diff.decompress(&self.ascii[1..]).to_string();
+            self.epoch_desc_len = self.epoch_descriptor.len();
+        }
+
+        println!(
+            "RECOVERED \"{}\" [{}]",
+            self.epoch_descriptor, self.epoch_desc_len
+        );
+
+        // format according to specs
+        let produced = self.format_epoch(user_buf, user_ptr);
+
+        // prepare for next state
+        self.obs_ptr = 0;
+        self.sv_ptr = 0;
+        self.first_epoch = false;
+
+        self.numsat = self.epoch_numsat().expect("bad recovered content (numsat)");
+
+        // grab first sv
+        self.sv = self.next_sv().expect("bad recovered content (sv)");
+
+        let obs = self
+            .get_observables(&self.sv.constellation)
+            .expect("failed to determine sv definition");
+
+        self.numobs = obs.len();
+
+        Ok((State::Clock, self.next_eol + 1, produced))
+    }
+
+    /// Fills user buffer with recovered epoch, following either V1 or V3 standards
+    fn format_epoch(&self, buf: &mut [u8], ptr: usize) -> usize {
+        if self.v3 {
+            self.format_epoch_v3(buf, ptr)
+        } else {
+            self.format_epoch_v1(buf, ptr)
+        }
+    }
+
+    /// Fills user buffer with recovered epoch, following V3 standards
+    fn format_epoch_v3(&self, buf: &mut [u8], ptr: usize) -> usize {
+        // V3 format is much simpler
+        // all we need to do is extract SV `XXY` to append in each following lines
+
+        let mut produced = 0;
+        buf[ptr + produced] = b'>'; // special marker
+        produced += 1;
+
+        let bytes = self.epoch_descriptor.as_bytes();
+
+        // push timestamp + flag
+        // TODO: catch case recovered epoch is BAD? (not 34 byte long)
+        buf[ptr + produced..ptr + produced + 34].copy_from_slice(&bytes[..34]);
+        produced += 34;
+
+        buf[ptr + produced] = b'\n';
+        produced += 1;
+
+        // TODO: improve this, this size is constant
+        produced
+    }
+
+    /// Fills user buffer with recovered epoch, following V1 standards
+    fn format_epoch_v1(&self, buf: &mut [u8], ptr: usize) -> usize {
+        let mut produced = 0;
+
+        buf[ptr + produced] = b' '; // single whitespace
+        produced += 1;
+
+        let bytes = self.epoch_descriptor.as_bytes();
+
+        // push first line (up to 68 bytes)
+        let first_len = self.epoch_desc_len.min(67);
+
+        buf[ptr + produced..ptr + produced + first_len].copy_from_slice(&bytes[..first_len]);
+
+        produced += first_len;
+
+        // conclude 1st line
+        buf[ptr + produced] = b'\n';
+        produced += 1;
+
+        // construct all following lines we need,
+        // with "standard" padding
+        let nb_extra = self.epoch_desc_len / 68;
+        for i in 0..nb_extra {
+            // extra padding
+            buf[ptr + produced..ptr + produced + 32].copy_from_slice(&[
+                b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+                b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+                b' ', b' ', b' ', b' ',
+            ]);
+
+            produced += 32;
+
+            // copy data slice
+            let start = (i + 1) * 67;
+            let end = (start + 68).min(self.epoch_desc_len);
+            let size = end - start;
+
+            buf[ptr + produced..ptr + produced + size].copy_from_slice(&bytes[start..end]);
+
+            produced += size;
+
+            // terminate this line
+            buf[ptr + produced] = b'\n';
+            produced += 1;
+        }
+
+        produced
+    }
+
+    /// Process internal buffer in [State::Clock]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_clock(&mut self, user_buf: &mut [u8], user_ptr: usize) -> Result<(State, usize, usize)> {
+        // try to parse clock data
+        match self.ascii.trim().parse::<i64>() {
+            Ok(val_i64) => {
+                // TODO: fill clock data in epoch description
+                // fill blank
+                if self.v3 {
+                    Ok((State::ObservationV3, self.next_eol + 1, 0))
+                } else {
+                    Ok((State::ObservationV1, self.next_eol + 1, 0))
+                }
+            },
+            Err(e) => {
+                // fill blank
+                if self.v3 {
+                    Ok((State::ObservationV3, self.next_eol + 1, 0))
+                } else {
+                    Ok((State::ObservationV1, self.next_eol + 1, 0))
+                }
+            },
+        }
+    }
+
+    /// Process internal buffer in [State::ObservationV1]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_observation_v1(
+        &mut self,
+        user_buf: &mut [u8],
+        user_ptr: usize,
+    ) -> Result<(State, usize, usize)> {
+        panic!("obs_v1: not yet");
+    }
+
+    //         State::ObservationV2 => {
+    //             let mut early_termination = false;
+
+    //             if let Some(eol_offset) = ascii.find('\n') {
+    //                 if eol_offset < ascii_len -1 {
+    //                     // we grabbed part of the following line
+    //                     // this happens in case all data flags remain identical (100% compression factor)
+    //                     // we must postpone part of this buffer
+    //                     ascii_len = eol_offset;
+    //                     consumed = eol_offset;
+    //                     early_termination = true;
+    //                 }
+    //             }
+
+    //             // default is BLANK
+    //             let mut formatted = "                ".to_string();
+
+    //             // Decoding attempt
+    //             if ascii_len > 0 {
+    //                 let mut kernel_reset = false;
+
+    //                 if ascii_len > 2 {
+    //                     if ascii[1..2].eq("&") {
+    //                         kernel_reset = false;
+
+    //                         let order = ascii[0..1]
+    //                             .parse::<usize>()
+    //                             .expect("bad crinex compression level");
+
+    //                     }
+    //                 }
+
+    //                 if !kernel_reset {
+    //                     // regular compression
+    //                     if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
+    //                         let val = if let Some(kernel) =
+    //                             self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+    //                         {
+    //                             kernel.decompress(val) as f64 / 1.0E3
+    //                         } else {
+    //                             let kernel = NumDiff::new(val, M);
+    //                             self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+    //                             val as f64 / 1.0E3
+    //                         };
+    //                         formatted = format!("{:14.3}  ", val);
+    //                     }
+    //                 }
+    //             }
+
+    //             // copy to user
+    //             let mut ptr = self.obs_ptr * 16;
+    //             println!("fmt_len={}", formatted.as_bytes().len());
+
+    //             // push decompressed content
+    //             user_buf[user_ptr + ptr..user_ptr + ptr + 16].copy_from_slice(formatted.as_bytes());
+    //             ptr += 16;
+    //             self.obs_ptr += 1;
+
+    //             // v2 case: need to wrapp into several lines....
+    //             if self.obs_ptr % 5 == 0 {
+    //                 // line wrapping
+    //                 user_buf[user_ptr + ptr] = b'\n';
+    //                 ptr += 1;
+
+    //                 // special V2 start of line padding ...
+    //                 user_buf[user_ptr + ptr..user_ptr + ptr + 15].copy_from_slice(&[
+    //                     b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
+    //                     b' ', b' ', b' ',
+    //                 ]);
+
+    //                 ptr += 15;
+    //             }
+
+    //             println!("obs={}/{}", self.obs_ptr, self.numobs);
+    //             // End of this observation: we have three cases
+    //             //  1. weird case where line is early terminated
+    //             //     due to the combination of Blanking (missing signals) and all flags being fully compressed.
+    //             //     In this scenario, we enter special case to push the necessary blanking
+    //             //     and re-use the past flag description (100% compression)
+    //             //  2. this is a regular BLANK, we need to determine whether this terminates
+    //             //     the observation serie or not
+    //             //  3. regular observation: need to progress to the next one
+    //             if early_termination {
+    //                 // Early termination case
+    //                 next_state = State::EarlyTerminationV2;
+    //             } else {
+    //                 if ascii_len == 0 {
+    //                     // BLANKING case
+    //                     if self.obs_ptr == self.numobs {
+    //                         // Last blanking
+    //                         self.obs_ptr = 0;
+    //                         next_state = State::Flags;
+    //                     } else {
+    //                         // regular progression in case of blanking
+    //                         next_state = State::ObservationV2;
+    //                     }
+    //                 } else {
+    //                     // regular progression
+    //                     next_state = State::ObservationSeparator;
+    //                 }
+    //             }
+    //         },
+
+    /// Process internal buffer in [State::ObservationV3]
+    /// Returns
+    /// - next [State]
+    /// - consumed size (rd pointer)
+    /// - produced size (wr pointer)
+    fn run_observation_v3(
+        &mut self,
+        user_buf: &mut [u8],
+        user_ptr: usize,
+    ) -> Result<(State, usize, usize)> {
+        let mut new_state = self.state;
+        let mut consumed = 0;
+        let mut produced = 0;
+        let mut last_wsp = 0;
+
+        // observation retrieval is complex, due to possible ommitted fields..
+        while self.obs_ptr < self.numobs {
+            if let Some(offset) = self.ascii[consumed..].find(' ') {
+                last_wsp = offset;
+                self.obs_ptr += 1;
+
+                let formatted = if offset > 2 {
+                    // grab slice
+                    let slice = self.ascii[consumed..consumed + offset].trim();
+                    println!("slice \"{}\"", &slice);
+
+                    // defaults to a BLANK in case something goes wrong,
+                    // we only implement valid scenarios
+                    let mut formatted = "                ".to_string();
+
+                    if offset < 3 {
+                        // this must be compressed data
+                    } else {
+                        if slice[1..2].eq("&") {
+                            // kernel reset
+                            if let Ok(level) = slice[..1].parse::<usize>() {
+                                if let Ok(value) = slice[2..].parse::<i64>() {
+                                    if let Some(kernel) =
+                                        self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                                    {
+                                        kernel.force_init(value, level);
+                                    } else {
+                                        let kernel = NumDiff::<M>::new(value, level);
+                                        self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                    }
+
+                                    let value = value as f64 / 1000.0;
+                                    formatted = format!("{:14.3}  ", value).to_string();
+                                }
+                            } else {
+                                // regular compressed data
+                                if let Ok(value) = slice.parse::<i64>() {
+                                    if let Some(kernel) =
+                                        self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                                    {
+                                        let value = kernel.decompress(value);
+                                        let value = value as f64 / 1000.0;
+                                        formatted = format!("{:14.3}  ", value).to_string();
+                                    }
+                                }
+                            }
+                        } else {
+                            // lengthy yet, compressed data
+                            if let Ok(value) = slice.parse::<i64>() {
+                                if let Some(kernel) =
+                                    self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
+                                {
+                                    let value = kernel.decompress(value);
+                                    let value = value as f64 / 1000.0;
+                                    formatted = format!("{:14.3}  ", value).to_string();
+                                }
+                            }
+                        }
+                    }
+
+                    consumed += offset + 1;
+                    formatted
+                } else {
+                    // ommited field
+                    println!("omitted");
+                    consumed += 1;
+                    "                ".to_string()
+                };
+
+                let fmt_len = formatted.len(); // TODO: improve, this is constant
+                let bytes = formatted.as_bytes();
+
+                // push into user
+                user_buf[user_ptr + produced..user_ptr + produced + fmt_len]
+                    .copy_from_slice(&bytes);
+
+                produced += fmt_len;
+            } else {
+                // failed to locate a new whitespace
+                // determine whether this is early termination or not
+                if self.obs_ptr < self.numobs {
+                    unimplemented!("early termination");
+                    // This happens when all the following observations are missing (BLANKING)
+                    // and flags are fully compressed (to remain identical)
+
+                    // 1. we need to push all required BLANKING
+
+                    // 2. we need to preserve data flags
+
+                    // 3. and finally conclude this SV
+                }
+
+                self.obs_ptr = 0;
+
+                // move on to next
+                self.sv_ptr += 1;
+
+                println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
+
+                // terminate this line
+                user_buf[user_ptr + produced] = b'\n';
+                produced += 1;
+
+                if self.sv_ptr == self.numsat {
+                    // end of epoch
+                    println!("[END OF EPOCH]");
+                    new_state = State::Epoch;
+                } else {
+                    self.sv = self.next_sv().expect("failed to determine next sv");
+                }
+                break;
+            }
+        }
+
+        Ok((new_state, self.next_eol + 1, produced))
+    }
+
+    //         State::Flags => {
+    //             // recover flags
+    //             self.flags_descriptor = self.flags_diff.decompress(&ascii).to_string();
+    //             let flags_len = self.flags_descriptor.len();
+    //             println!("RECOVERED: \"{}\"", self.flags_descriptor);
+
+    //             let flags_bytes = self.flags_descriptor.as_bytes();
+
+    //             let mut ptr = if self.v3 { 17 } else { 16 };
+
+    //             // copy all flags to user
+    //             for i in 0..self.numobs {
+    //                 let lli_idx = i * 2;
+    //                 if flags_len > lli_idx {
+    //                     user_buf[user_ptr + ptr] = flags_bytes[lli_idx];
+    //                 }
+    //                 ptr += 1;
+    //                 let snr_idx = lli_idx + 1;
+    //                 if flags_len > snr_idx {
+    //                     user_buf[user_ptr + ptr] = flags_bytes[snr_idx];
+    //                 }
+    //                 ptr += 15;
+    //             }
+
+    //             ptr -= 15;
+
+    //             // publish this payload & reset for next time
+    //             user_buf[user_ptr + ptr] = b'\n';
+
+    //             if self.v3 {
+    //                 produced +=
+    //                     State::ObservationV3.size_to_produce(true, self.numsat, self.numobs);
+    //             } else {
+    //                 produced +=
+    //                     State::ObservationV2.size_to_produce(false, self.numsat, self.numobs);
+    //             }
+
+    //             self.sv_ptr += 1;
+    //             println!("COMPLETED {}", self.sv);
+
+    //             if self.sv_ptr == self.numsat {
+    //                 self.sv_ptr = 0;
+    //                 next_state = State::EpochGathering;
+    //             } else {
+    //                 self.sv = self.next_sv().expect("failed to determine next vehicle");
+    //                 if self.v3 {
+    //                     next_state = State::ObservationV3;
+    //                 } else {
+    //                     next_state = State::ObservationV2;
+    //                 }
+    //             }
+    //         },
+
+    //         State::EarlyTerminationV2 => {
+    //             // Special case where line is abruptly terminated
+    //             // - all remaining observations have been blanked (=missing)
+    //             // - all flags were omitted (= to remain identical 100% compressed)
+
+    //             // we need to fill the blanks
+    //             let mut ptr = 1 + 16 * self.obs_ptr;
+
+    //             for _ in self.obs_ptr..self.numobs {
+    //                 println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
+    //                 let blanking = "                ".to_string();
+
+    //                 // copy to user;
+
+    //                 user_buf[user_ptr + ptr..user_ptr + ptr + 16]
+    //                     .copy_from_slice(blanking.as_bytes());
+
+    //                 ptr += 16;
+    //             }
+
+    //             // we need to maintain all data flags
+    //             let flags_len = self.flags_descriptor.len();
+    //             let flags_bytes = self.flags_descriptor.as_bytes();
+    //             println!("RECOVERED: \"{}\"", self.flags_descriptor);
+
+    //             // copy all flags to user
+    //             for i in 0..self.numobs {
+    //                 let start = 14 + i * 16;
+    //                 let lli_idx = i * 2;
+    //                 let snr_idx = lli_idx + 1;
+
+    //                 if flags_len > lli_idx {
+    //                     //user_buf[user_ptr + start] = b'x';
+    //                     user_buf[user_ptr + start] = flags_bytes[lli_idx];
+    //                 }
+
+    //                 let start = 15 + i * 16;
+    //                 if flags_len > snr_idx {
+    //                     // user_buf[user_ptr + start] = b'y';
+    //                     user_buf[user_ptr + start] = flags_bytes[snr_idx];
+    //                 }
+    //             }
+
+    //             // publish this payload
+    //             user_buf[user_ptr + ptr] = b'\n';
+    //             produced += 0; // TODO
+
+    //             // move on to next state
+    //             self.obs_ptr = 0;
+    //             self.sv_ptr += 1;
+    //             println!("COMPLETED {}", self.sv);
+
+    //             if self.sv_ptr == self.numsat {
+    //                 self.sv_ptr = 0;
+    //                 next_state = State::EpochGathering;
+    //             } else {
+    //                 self.sv = self.next_sv().expect("failed to determine next vehicle");
+    //                 next_state = State::ObservationV2;
+    //             }
+    //         },
+
+    //         State::EarlyTerminationV3 => {
+    //             // Special case where line is abruptly terminated
+    //             // - all remaining observations have been blanked (=missing)
+    //             // - all flags were omitted (= to remain identical 100% compressed)
+
+    //             // we need to fill the blanks
+    //             let mut ptr = 3 + 16 * self.obs_ptr;
+
+    //             for _ in self.obs_ptr..self.numobs {
+    //                 println!("BLANK(early) ={}/{}", ptr + 1, self.numobs);
+    //                 let blanking = "                ".to_string();
+
+    //                 // copy to user
+    //                 user_buf[user_ptr + ptr..user_ptr + ptr + 16]
+    //                     .copy_from_slice(blanking.as_bytes());
+
+    //                 ptr += 16;
+    //             }
+
+    //             // all data flags are maintained
+    //             let flags_len = self.flags_descriptor.len();
+    //             let flags_bytes = self.flags_descriptor.as_bytes();
+    //             println!("RECOVERED: \"{}\"", self.flags_descriptor);
+
+    //             // copy all flags to user
+    //             let mut ptr = 3 + 16;
+    //             for i in 0..self.numobs {
+    //                 let lli_idx = i * 2;
+    //                 let snr_idx = lli_idx + 1;
+    //                 if flags_len > lli_idx {
+    //                     user_buf[user_ptr + ptr] = b'x';
+    //                     //user_buf[user_ptr + start] = flags_bytes[lli_idx];
+    //                 }
+    //                 if flags_len > snr_idx {
+    //                     user_buf[user_ptr + ptr + 1] = b'y';
+    //                     //user_buf[user_ptr + ptr +1] = flags_bytes[snr_idx];
+    //                 }
+    //                 ptr += 15;
+    //             }
+
+    //             // publish this payload
+    //             ptr -= 15;
+    //             user_buf[user_ptr + ptr] = b'\n';
+    //             produced += ptr;
+
+    //             // move on to next state
+    //             self.obs_ptr = 0;
+    //             self.sv_ptr += 1;
+    //             println!("COMPLETED {}", self.sv);
+
+    //             if self.sv_ptr == self.numsat {
+    //                 self.sv_ptr = 0;
+    //                 next_state = State::EpochGathering;
+    //             } else {
+    //                 self.sv = self.next_sv().expect("failed to determine next vehicle");
+    //                 next_state = State::ObservationV3;
+    //             }
+    //         },
+    //     }
+
+    //     if ascii_len > 1 && self.state.eol_terminated() {
+    //         // ascii is trimed to facilitate the parsing & internal analysis
+    //         // but it discards the possible \n termination
+    //         // that this module must pass through
+    //         consumed += 1; // consume \n
+    //     }
+
+    //     Ok((next_state, consumed, produced))
+    // }
 
     /// Creates a new [Decompressor] to work from [Read]able stream
     pub fn new(reader: R) -> Self {
@@ -1284,7 +1282,10 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             numobs: 0,
             obs_ptr: 0,
             buf: [0; 4096],
+            ascii: String::with_capacity(1024),
+            ascii_len: 0,
             eos: false,
+            next_eol: 0,
             first_epoch: true,
             inside_v3_specs: false,
             sv: Default::default(),
@@ -1316,8 +1317,11 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             obs_ptr: 0,
             buf: [0; 4096],
             eos: false,
+            next_eol: 0,
             first_epoch: true,
             inside_v3_specs: false,
+            ascii: String::with_capacity(1024),
+            ascii_len: 0,
             sv: Default::default(),
             state: Default::default(),
             crinex: Default::default(),
@@ -1353,7 +1357,7 @@ mod test {
     use std::str::FromStr;
 
     #[test]
-    fn epoch_size_to_produce_v2() {
+    fn epoch_size_to_produce_v1() {
         for (numsat, expected) in [
             (
                 9,
@@ -1399,13 +1403,13 @@ mod test {
                 S23S36",
             ),
         ] {
-            let size = State::ClockGathering.size_to_produce(false, numsat, 0);
+            let size = State::Epoch.size_to_produce(false, numsat, 0);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
 
     #[test]
-    fn data_size_to_produce_v2() {
+    fn data_size_to_produce_v1() {
         for (numobs, expected) in [
             (1, " 110158976.908 8"),
             (2, " 110158976.908 8  85838153.10248"),
@@ -1440,7 +1444,7 @@ mod test {
                100106048.706 6  25509827.540        2118.232          39.550  ",
             ),
         ] {
-            let size = State::Flags.size_to_produce(false, 0, numobs);
+            let size = State::ObservationV1.size_to_produce(false, 0, numobs);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
@@ -1451,7 +1455,7 @@ mod test {
             (18, "> 2022 03 04 00 00  0.0000000  0 18"),
             (22, "> 2022 03 04 00 00  0.0000000  0 22"),
         ] {
-            let size = State::ClockGathering.size_to_produce(true, numsat, 0);
+            let size = State::ObservationV3.size_to_produce(true, numsat, 0);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
@@ -1470,7 +1474,7 @@ mod test {
     }
 
     #[test]
-    fn v2_sv_slice() {
+    fn v1_sv_slice() {
         let recovered = "21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27G30R01R02R03R08R09R15R16R17R18R19R20";
         for sv_index in 0..24 {
             let start = Decompressor::<File>::sv_slice_start(false, sv_index);
@@ -1485,9 +1489,9 @@ mod test {
     }
 
     #[test]
-    fn v2_numsat_slice() {
+    fn v1_numsat_slice() {
         let recovered = "21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27G30R01R02R03R08R09R15R16R17R18R19R20";
-        let offset = Decompressor::<File>::V2_NUMSAT_OFFSET;
+        let offset = Decompressor::<File>::V1_NUMSAT_OFFSET;
         let numsat_str = &recovered[offset..offset + 3];
         assert_eq!(numsat_str, " 24");
         let numsat = numsat_str.trim().parse::<u64>().unwrap();

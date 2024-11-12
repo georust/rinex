@@ -27,6 +27,8 @@ use std::io::{Error as IoError, ErrorKind};
 /// Hatanaka dedicated Errors
 #[derive(Debug)]
 pub enum Error {
+    /// Invalid Header data (line)
+    BadHeaderData,
     /// Invalid UTF-8 content
     BadUtf8Data,
     /// Buffer too small to accept incoming data
@@ -72,6 +74,7 @@ impl Error {
     /// Converts [Error] to custom [IoError]
     fn to_stdio(&self) -> IoError {
         let descriptor = match self {
+            Self::BadHeaderData => "bad rinex header",
             Self::BadUtf8Data => "bad utf-8 data",
             Self::BufferOverflow => "read buf overflow",
             Self::EpochFormat => "invalid epoch description",
