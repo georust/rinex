@@ -6,7 +6,7 @@ use crate::{
 
 use std::{
     collections::HashMap,
-    io::{Read, Result},
+    io::{Read, Result as IoResult},
     str::{from_utf8, FromStr},
 };
 
@@ -29,7 +29,7 @@ enum Reader<R: Read> {
 }
 
 impl<R: Read> Read for Reader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         match self {
             Self::Plain(r) => r.read(buf),
             Self::Gz(r) => r.read(buf),
@@ -108,15 +108,10 @@ pub enum State {
     Epoch,
     /// Recovering Clock offset
     Clock,
-    /// Observations recovering
+    /// V1 Observations recovering
     ObservationV1,
+    /// V3 Observations recovering
     ObservationV3,
-    /// We wind up here on early line terminations (all blankings)
-    EarlyTerminationV1,
-    /// We wind up here on early line terminations (all blankings)
-    EarlyTerminationV3,
-    /// Collecting observation flags
-    Flags,
 }
 
 impl State {
@@ -246,7 +241,7 @@ pub struct DecompressorExpert<const M: usize, R: Read> {
 }
 
 impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         let mut user_ptr = 0;
         let user_len = buf.len();
 
@@ -307,7 +302,30 @@ impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
                     user_ptr += produced;
                 },
                 Err(e) => {
-                    return Err(e);
+                    // catch internal error:
+                    match e {
+                        Error::NeedMoreData => {
+                            // this is the only acceptable error here
+                            // If we have produced data, then expose it to user
+                            if user_ptr > 0 {
+                                // need to preserve data that is yet to analyze
+                                // shift left, and make room for new read
+                                self.buf.copy_within(self.rd_ptr.., 0);
+                                self.wr_ptr -= self.rd_ptr;
+                                self.rd_ptr = 0;
+                                return Ok(user_ptr);
+                            } else {
+                                // did not produce a single byte, could be end of stream
+                                return Ok(0);
+                            }
+                        },
+                        e => {
+                            // any other error is not acceptable.
+                            // We have several places that will actually panic and not
+                            // be caught here. Could use some improvements ?
+                            return Err(e.to_stdio());
+                        },
+                    }
                 },
             }
         } // loop
@@ -378,32 +396,40 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     /// - next [State]
     /// - consumed size (rd pointer)
     /// - produced size (wr pointer)
-    fn run_fsm(&mut self, user_buf: &mut [u8], user_ptr: usize) -> Result<(State, usize, usize)> {
-        self.run_readline()?;
+    fn run_fsm(
+        &mut self,
+        user_buf: &mut [u8],
+        user_ptr: usize,
+    ) -> Result<(State, usize, usize), Error> {
+        self.run_readline(user_ptr)?;
 
         match self.state {
-            State::Version => self.run_version(user_buf, user_ptr),
-            State::ProgDate => self.run_progdate(user_buf, user_ptr),
+            State::Version => self.run_version(),
+            State::ProgDate => self.run_progdate(),
             State::VersionType => self.run_version_type(user_buf, user_ptr),
             State::HeaderSpecs => self.run_header_specs(user_buf, user_ptr),
-            State::EndofHeader => self.run_end_of_header(user_buf, user_ptr),
-            State::Epoch => self.run_epoch(user_buf, user_ptr),
-            State::Clock => self.run_clock(user_buf, user_ptr),
-            State::ObservationV1 => self.run_observation_v1(user_buf, user_ptr),
-            State::ObservationV3 => self.run_observation_v3(user_buf, user_ptr),
-            _ => panic!("not yet"),
+            State::EndofHeader => Ok(self.run_end_of_header(user_buf, user_ptr)),
+            State::Epoch => Ok(self.run_epoch(user_buf, user_ptr)),
+            State::Clock => Ok(self.run_clock(user_buf, user_ptr)),
+            State::ObservationV1 => Ok(self.run_observation_v1(user_buf, user_ptr)),
+            State::ObservationV3 => Ok(self.run_observation_v3(user_buf, user_ptr)),
         }
     }
 
-    fn run_readline(&mut self) -> Result<()> {
+    fn run_readline(&mut self, user_ptr: usize) -> Result<(), Error> {
         // we operate on a line basis. One line may either
         //  + contain the entire content needed for this state (=epoch)
         //  + contain part of needed content (=lengthy observations)
         if let Some(next_eol) = Self::find(&self.buf[self.rd_ptr..], Self::EOL_BYTE) {
             // #[cfg(feature = "log")]
             println!(
-                "[V{}/{}] {:?} wr={}/rd={}",
-                self.crinex.version.major, self.constellation, self.state, self.wr_ptr, self.rd_ptr,
+                "[V{}/{}] {:?} wr={}/rd={}/user={}",
+                self.crinex.version.major,
+                self.constellation,
+                self.state,
+                self.wr_ptr,
+                self.rd_ptr,
+                user_ptr,
             );
 
             if next_eol > 4096 {
@@ -416,7 +442,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
             // which must be valid UTF-8
             self.ascii = from_utf8(&slice)
-                .map_err(|_| Error::BadUtf8Data.to_stdio())?
+                .map_err(|_| Error::BadUtf8Data)?
                 .to_string();
 
             self.ascii_len = self.ascii.len();
@@ -430,7 +456,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             self.buf.copy_within(self.rd_ptr.., 0);
             self.wr_ptr -= self.rd_ptr; // make room
             self.rd_ptr = 0; // analyzer will start at base
-            return Err(Error::NeedMoreData.to_stdio());
+            Err(Error::NeedMoreData)
         }
     }
 
@@ -439,19 +465,14 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     /// - next [State]
     /// - consumed size (rd pointer)
     /// - produced size (wr pointer)
-    fn run_version(
-        &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> Result<(State, usize, usize)> {
+    fn run_version(&mut self) -> Result<(State, usize, usize), Error> {
         if self.next_eol < 60 {
             // does not look like a valid header
-            return Err(Error::BadHeaderData.to_stdio());
+            return Err(Error::BadHeaderData);
         }
 
         // parse version specs
-        let version = Version::from_str(&self.ascii[0..20].trim())
-            .map_err(|_| Error::VersionParsing.to_stdio())?;
+        let version = Version::from_str(&self.ascii[0..20].trim()).expect("bad crinex definition");
 
         self.crinex = self.crinex.with_version(version);
         self.v3 = version.major == 3;
@@ -463,21 +484,17 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     /// - next [State]
     /// - consumed size (rd pointer)
     /// - produced size (wr pointer)
-    fn run_progdate(
-        &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> Result<(State, usize, usize)> {
+    fn run_progdate(&mut self) -> Result<(State, usize, usize), Error> {
         if self.next_eol < 60 {
             // does not look like a valid header
-            return Err(Error::BadHeaderData.to_stdio());
+            return Err(Error::BadHeaderData);
         }
 
         // parse version specs
         self.crinex = self
             .crinex
             .with_prog_date(&self.ascii.trim_end())
-            .map_err(|_| Error::CrinexParsing.to_stdio())?;
+            .expect("bad crinex definition");
 
         Ok((State::VersionType, self.next_eol + 1, 0))
     }
@@ -491,10 +508,10 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         &mut self,
         user_buf: &mut [u8],
         user_ptr: usize,
-    ) -> Result<(State, usize, usize)> {
+    ) -> Result<(State, usize, usize), Error> {
         if self.next_eol < 60 {
             // does not look like a valid header
-            return Err(Error::BadHeaderData.to_stdio());
+            return Err(Error::BadHeaderData);
         }
 
         // parse version specs
@@ -519,12 +536,12 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         &mut self,
         user_buf: &mut [u8],
         user_ptr: usize,
-    ) -> Result<(State, usize, usize)> {
+    ) -> Result<(State, usize, usize), Error> {
         let mut new_state = self.state;
 
         if self.next_eol < 60 {
             // not a valid header
-            return Err(Error::BadHeaderData.to_stdio());
+            return Err(Error::BadHeaderData);
         }
 
         if self.ascii.ends_with("END OF HEADER") {
@@ -650,11 +667,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     /// - next [State]
     /// - consumed size (rd pointer)
     /// - produced size (wr pointer)
-    fn run_end_of_header(
-        &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> Result<(State, usize, usize)> {
+    fn run_end_of_header(&mut self, user_buf: &mut [u8], user_ptr: usize) -> (State, usize, usize) {
         let mut new_state = self.state;
 
         if self.ascii[60..].contains("END OF HEADER") {
@@ -667,7 +680,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
         user_buf[user_ptr + self.next_eol] = b'\n';
 
-        Ok((new_state, self.next_eol + 1, self.next_eol + 1))
+        (new_state, self.next_eol + 1, self.next_eol + 1)
     }
 
     /// Process internal buffer in [State::Epoch]
@@ -675,7 +688,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     /// - next [State]
     /// - consumed size (rd pointer)
     /// - produced size (wr pointer)
-    fn run_epoch(&mut self, user_buf: &mut [u8], user_ptr: usize) -> Result<(State, usize, usize)> {
+    fn run_epoch(&mut self, user_buf: &mut [u8], user_ptr: usize) -> (State, usize, usize) {
         if self.ascii_len < 1 {
             // Epoch does not look good. catch this nicely and wait for next one ?
             panic!("invalid epoch!");
@@ -726,7 +739,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
         self.numobs = obs.len();
 
-        Ok((State::Clock, self.next_eol + 1, produced))
+        (State::Clock, self.next_eol + 1, produced)
     }
 
     /// Fills user buffer with recovered epoch, following either V1 or V3 standards
@@ -816,24 +829,24 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     /// - next [State]
     /// - consumed size (rd pointer)
     /// - produced size (wr pointer)
-    fn run_clock(&mut self, user_buf: &mut [u8], user_ptr: usize) -> Result<(State, usize, usize)> {
+    fn run_clock(&mut self, user_buf: &mut [u8], user_ptr: usize) -> (State, usize, usize) {
         // try to parse clock data
         match self.ascii.trim().parse::<i64>() {
             Ok(val_i64) => {
                 // TODO: fill clock data in epoch description
                 // fill blank
                 if self.v3 {
-                    Ok((State::ObservationV3, self.next_eol + 1, 0))
+                    (State::ObservationV3, self.next_eol + 1, 0)
                 } else {
-                    Ok((State::ObservationV1, self.next_eol + 1, 0))
+                    (State::ObservationV1, self.next_eol + 1, 0)
                 }
             },
             Err(e) => {
                 // fill blank
                 if self.v3 {
-                    Ok((State::ObservationV3, self.next_eol + 1, 0))
+                    (State::ObservationV3, self.next_eol + 1, 0)
                 } else {
-                    Ok((State::ObservationV1, self.next_eol + 1, 0))
+                    (State::ObservationV1, self.next_eol + 1, 0)
                 }
             },
         }
@@ -848,7 +861,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         &mut self,
         user_buf: &mut [u8],
         user_ptr: usize,
-    ) -> Result<(State, usize, usize)> {
+    ) -> (State, usize, usize) {
         panic!("obs_v1: not yet");
     }
 
@@ -964,34 +977,49 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         &mut self,
         user_buf: &mut [u8],
         user_ptr: usize,
-    ) -> Result<(State, usize, usize)> {
+    ) -> (State, usize, usize) {
         let mut new_state = self.state;
         let mut consumed = 0;
         let mut produced = 0;
-        let mut last_wsp = 0;
 
         // observation retrieval is complex, due to possible ommitted fields..
-        while self.obs_ptr < self.numobs {
-            if let Some(offset) = self.ascii[consumed..].find(' ') {
-                last_wsp = offset;
-                self.obs_ptr += 1;
+        loop {
+            self.obs_ptr += 1;
 
-                let formatted = if offset > 2 {
+            if let Some(offset) = self.ascii[consumed..].find(' ') {
+                // defaults to a BLANK in case something goes wrong
+                let mut formatted = "                ".to_string();
+
+                if offset == 0 {
+                    // could be a single digit (=highly compressed data): still valid
+                    if self.ascii[consumed..consumed + 1].eq(" ") {
+                        // this is a BLANK
+                        println!("omitted [{}/{}]", self.obs_ptr, self.numobs);
+                    } else {
+                        // highly compressed data (single digit)
+                        let slice = &self.ascii[consumed..consumed + 1];
+                        println!("slice \"{}\" [{}/{}]", &slice, self.obs_ptr, self.numobs);
+
+                        if let Ok(value) = slice.parse::<i64>() {
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                                let value = kernel.decompress(value);
+                                let value = value as f64 / 1000.0;
+                                formatted = format!("{:14.3}  ", value).to_string();
+                            }
+                        }
+                    }
+
+                    consumed += 1;
+                } else {
                     // grab slice
                     let slice = self.ascii[consumed..consumed + offset].trim();
-                    println!("slice \"{}\"", &slice);
+                    println!("slice \"{}\" [{}/{}]", &slice, self.obs_ptr, self.numobs);
 
-                    // defaults to a BLANK in case something goes wrong,
-                    // we only implement valid scenarios
-                    let mut formatted = "                ".to_string();
-
-                    if offset < 3 {
-                        // this must be compressed data
-                    } else {
-                        if slice[1..2].eq("&") {
-                            // kernel reset
-                            if let Ok(level) = slice[..1].parse::<usize>() {
-                                if let Ok(value) = slice[2..].parse::<i64>() {
+                    if let Some(offset) = slice.find('&') {
+                        if offset == 2 {
+                            // correct core reset pattern
+                            if let Ok(level) = slice[..offset].parse::<usize>() {
+                                if let Ok(value) = slice[offset + 1..].parse::<i64>() {
                                     if let Some(kernel) =
                                         self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
                                     {
@@ -1000,43 +1028,21 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                                         let kernel = NumDiff::<M>::new(value, level);
                                         self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
                                     }
-
-                                    let value = value as f64 / 1000.0;
-                                    formatted = format!("{:14.3}  ", value).to_string();
-                                }
-                            } else {
-                                // regular compressed data
-                                if let Ok(value) = slice.parse::<i64>() {
-                                    if let Some(kernel) =
-                                        self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                                    {
-                                        let value = kernel.decompress(value);
-                                        let value = value as f64 / 1000.0;
-                                        formatted = format!("{:14.3}  ", value).to_string();
-                                    }
                                 }
                             }
-                        } else {
-                            // lengthy yet, compressed data
-                            if let Ok(value) = slice.parse::<i64>() {
-                                if let Some(kernel) =
-                                    self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                                {
-                                    let value = kernel.decompress(value);
-                                    let value = value as f64 / 1000.0;
-                                    formatted = format!("{:14.3}  ", value).to_string();
-                                }
+                        }
+                    } else {
+                        // this must be compressed data
+                        if let Ok(value) = slice.parse::<i64>() {
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                                let value = kernel.decompress(value);
+                                let value = value as f64 / 1000.0;
+                                formatted = format!("{:14.3}  ", value).to_string();
                             }
                         }
                     }
 
                     consumed += offset + 1;
-                    formatted
-                } else {
-                    // ommited field
-                    println!("omitted");
-                    consumed += 1;
-                    "                ".to_string()
                 };
 
                 let fmt_len = formatted.len(); // TODO: improve, this is constant
@@ -1050,41 +1056,43 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             } else {
                 // failed to locate a new whitespace
                 // determine whether this is early termination or not
-                if self.obs_ptr < self.numobs {
-                    unimplemented!("early termination");
-                    // This happens when all the following observations are missing (BLANKING)
-                    // and flags are fully compressed (to remain identical)
+            }
 
-                    // 1. we need to push all required BLANKING
-
-                    // 2. we need to preserve data flags
-
-                    // 3. and finally conclude this SV
-                }
-
-                self.obs_ptr = 0;
-
-                // move on to next
-                self.sv_ptr += 1;
-
-                println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
-
-                // terminate this line
-                user_buf[user_ptr + produced] = b'\n';
-                produced += 1;
-
-                if self.sv_ptr == self.numsat {
-                    // end of epoch
-                    println!("[END OF EPOCH]");
-                    new_state = State::Epoch;
-                } else {
-                    self.sv = self.next_sv().expect("failed to determine next sv");
-                }
+            if self.obs_ptr == self.numobs {
                 break;
             }
+        } //loop
+
+        if self.obs_ptr < self.numobs - 1 {
+            unimplemented!("early termination");
+            // This happens when all the following observations are missing (BLANKING)
+            // and flags are fully compressed (to remain identical)
+
+            // 1. we need to push all required BLANKING
+            // 2. we need to preserve data flags
+            // 3. and finally conclude this SV
         }
 
-        Ok((new_state, self.next_eol + 1, produced))
+        self.obs_ptr = 0;
+
+        // move on to next
+        self.sv_ptr += 1;
+
+        println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
+
+        // terminate this line
+        user_buf[user_ptr + produced] = b'\n';
+        produced += 1;
+
+        if self.sv_ptr == self.numsat {
+            // end of epoch
+            println!("[END OF EPOCH]");
+            new_state = State::Epoch;
+        } else {
+            self.sv = self.next_sv().expect("failed to determine next sv");
+        }
+
+        (new_state, self.next_eol + 1, produced)
     }
 
     //         State::Flags => {
@@ -1351,8 +1359,10 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
 #[cfg(test)]
 mod test {
-    use super::{Decompressor, State};
-    use crate::prelude::SV;
+    use crate::{
+        hatanaka::decompressor::{Decompressor, State},
+        prelude::SV,
+    };
     use std::fs::File;
     use std::str::FromStr;
 
@@ -1455,7 +1465,7 @@ mod test {
             (18, "> 2022 03 04 00 00  0.0000000  0 18"),
             (22, "> 2022 03 04 00 00  0.0000000  0 22"),
         ] {
-            let size = State::ObservationV3.size_to_produce(true, numsat, 0);
+            let size = State::Epoch.size_to_produce(true, numsat, 0);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
@@ -1468,7 +1478,7 @@ mod test {
             (4, "R10  22432243.520   119576492.91607      1307.754          43.250  "),
             (8, "R17  20915624.780   111923741.34508      1970.309          49.000    20915629.120    87051816.58507      1532.457          46.500  "),
         ] {
-            let size = State::Flags.size_to_produce(true, 0, numobs);
+            let size = State::ObservationV3.size_to_produce(true, 0, numobs);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }

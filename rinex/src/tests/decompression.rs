@@ -739,7 +739,7 @@ mod test {
         // consume entire file
         loop {
             match decompressor.read(&mut buf) {
-                Err(e) => {},
+                Err(_) => {},
                 Ok(size) => {
                     if size == 0 {
                         break; // EOS
