@@ -530,7 +530,7 @@ mod test {
         for (line, expected) in [
             (
                 "> 2022 03 04 00 00  0.0000000  0 18      G01G03G04G09G17G19G21G22G31G32R01R02R08R09R10R17R23R24", 
-                "> 2022 03 04 00 00  0.0000000  0 18",
+                "> 2022 03 04 00 00  0.0000000  0 18", 
             ),
                 ("", ""),
             (
@@ -551,10 +551,10 @@ mod test {
             ),
         ] {
             let mut buf = [0; 1024];
-            decomp.decompress(line, line.len(), &mut buf, 1024)
+            let size = decomp.decompress(line, line.len(), &mut buf, 1024)
                 .unwrap();
 
-            let content = from_utf8(&buf).expect("CRNX2RNX should always produce valid UTF-8");
+            let content = from_utf8(&buf[..size]).expect("CRNX2RNX should always produce valid UTF-8");
             assert_eq!(content, expected, "failed for \"{}\"", line);
         }
     }

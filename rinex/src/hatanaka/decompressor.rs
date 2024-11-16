@@ -307,15 +307,15 @@ impl<const M: usize> DecompressorExpert<M> {
 
         if line.starts_with('&') {
             if self.v3 {
-                return Err(Error::BadV1Format);
+                return Err(Error::BadV3Format);
             }
 
             self.epoch_diff.force_init(&line[1..]);
             self.epoch_descriptor = line[1..].to_string();
             self.epoch_desc_len = len - 1;
         } else if line.starts_with('>') {
-            if self.v3 {
-                return Err(Error::BadV3Format);
+            if !self.v3 {
+                return Err(Error::BadV1Format);
             }
 
             self.epoch_diff.force_init(&line[1..]);
@@ -379,9 +379,6 @@ impl<const M: usize> DecompressorExpert<M> {
         //       which will cause this to panic
         buf[produced..produced + 34].copy_from_slice(&bytes[..34]);
         produced += 34;
-
-        buf[produced] = b'\n';
-        produced += 1;
 
         // TODO: improve this, this size is constant
         produced
@@ -725,10 +722,6 @@ impl<const M: usize> DecompressorExpert<M> {
         self.sv_ptr += 1;
 
         println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
-
-        // conclude this line
-        buf[produced] = b'\n';
-        produced += 1;
 
         if self.sv_ptr == self.numsat {
             // end of epoch
