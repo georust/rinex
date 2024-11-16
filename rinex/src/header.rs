@@ -20,7 +20,7 @@ use crate::{
     observable::Observable,
     observation::HeaderFields as ObservationHeader,
     prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, COSPAR, DOMES, SV},
-    reader::BufferedReader,
+    reader::Reader,
     types::Type,
     version::Version,
 };
@@ -151,10 +151,8 @@ pub struct Header {
 }
 
 impl Header {
-    /// Builds [Header] from [Read]able interface
-    pub fn new<const M: usize, R: Read>(
-        reader: &mut BufferedReader<M, R>,
-    ) -> Result<Header, ParsingError> {
+    /// Parse [Header] by consuming [Reader] until end of this section
+    pub fn parse<R: Read>(reader: &mut Reader<R>) -> Result<Self, ParsingError> {
         let mut rinex_type = Type::default();
         let mut constellation: Option<Constellation> = None;
         let mut version = Version::default();

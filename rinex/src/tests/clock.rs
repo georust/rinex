@@ -1,16 +1,13 @@
 #[cfg(test)]
 mod test {
-    use crate::prelude::{
-        clock::*,
-        qc::{Merge, MergeError},
-        Constellation, DOMESTrackingPoint, Epoch, Rinex, DOMES, SV,
-    };
+    use crate::prelude::{clock::*, Constellation, DOMESTrackingPoint, Epoch, Rinex, DOMES, SV};
     use std::str::FromStr;
+
     #[test]
     fn clk_v2_cod20352() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V2/COD20352.CLK";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         let rinex = rinex.unwrap();
         assert_eq!(rinex.epoch().count(), 10);
 
@@ -135,7 +132,7 @@ mod test {
     fn clk_v3_usno() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/USNO1.txt";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
 
         let rinex = rinex.unwrap();
         let clock_header = rinex.header.clock.as_ref().expect("badly formed clk rinex");
@@ -248,7 +245,7 @@ mod test {
     fn clk_v3_04_example1() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/example1.txt";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
@@ -292,7 +289,7 @@ mod test {
     fn clk_v3_04_example2() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V3/example2.txt";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 

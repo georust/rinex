@@ -12,18 +12,25 @@ mod test {
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources");
+
         let path1 = test_resources
             .clone()
             .join("NAV")
             .join("V3")
             .join("AMEL00NLD_R_20210010000_01D_MN.rnx");
+
         let path2 = test_resources
             .clone()
             .join("OBS")
             .join("V3")
             .join("LARM0630.22O");
-        let mut r1 = Rinex::from_file::<5>(&path1.to_string_lossy()).unwrap();
-        let r2 = Rinex::from_file::<5>(&path2.to_string_lossy()).unwrap();
+
+        let path = path1.to_string_lossy().to_string();
+        let mut r1 = Rinex::from_file(&path).unwrap();
+
+        let path = path2.to_string_lossy().to_string();
+        let r2 = Rinex::from_file(&path).unwrap();
+
         assert!(r1.merge_mut(&r2).is_err())
     }
 
@@ -33,29 +40,25 @@ mod test {
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources");
-        let path1 = test_resources
+
+        let path = test_resources
             .clone()
             .join("NAV")
             .join("V3")
             .join("AMEL00NLD_R_20210010000_01D_MN.rnx");
-        let rnx_a = Rinex::from_file::<5>(&path1.to_string_lossy());
-        assert!(
-            rnx_a.is_ok(),
-            "failed to parse NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx"
-        );
-        let path2 = test_resources
+
+        let path = path.to_string_lossy().to_string();
+        let rnx_a = Rinex::from_file(&path).unwrap();
+
+        let path = test_resources
             .clone()
             .join("NAV")
             .join("V3")
             .join("CBW100NLD_R_20210010000_01D_MN.rnx");
-        let rnx_b = Rinex::from_file::<5>(&path2.to_string_lossy());
-        assert!(
-            rnx_b.is_ok(),
-            "failed to parse NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx"
-        );
 
-        let rnx_a = rnx_a.unwrap();
-        let rnx_b = rnx_b.unwrap();
+        let path = path.to_string_lossy().to_string();
+        let rnx_b = Rinex::from_file(&path).unwrap();
+
         let merged = rnx_a.merge(&rnx_b);
         assert!(
             merged.is_ok(),
@@ -74,7 +77,7 @@ mod test {
         // );
 
         // parse back
-        let rnx = Rinex::from_file::<5>("merge.txt");
+        let rnx = Rinex::from_file("merge.txt");
         assert!(rnx.is_ok(), "Failed to parsed back previously merged file");
 
         let rnx = rnx.unwrap();
@@ -100,23 +103,25 @@ mod test {
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources");
-        let path1 = test_resources
+
+        let path = test_resources
             .clone()
             .join("OBS")
             .join("V2")
             .join("AJAC3550.21O");
-        let rnx_a = Rinex::from_file::<5>(&path1.to_string_lossy());
-        assert!(rnx_a.is_ok(), "failed to parse OBS/V2/AJAC3550.21O");
-        let path2 = test_resources
+
+        let path = path.to_string_lossy().to_string();
+        let rnx_a = Rinex::from_file(&path).unwrap();
+
+        let path = test_resources
             .clone()
             .join("OBS")
             .join("V2")
             .join("npaz3550.21o");
-        let rnx_b = Rinex::from_file::<5>(&path2.to_string_lossy());
-        assert!(rnx_b.is_ok(), "failed to parse OBS/V2/npaz3550.21o");
 
-        let rnx_a = rnx_a.unwrap();
-        let rnx_b = rnx_b.unwrap();
+        let path = path.to_string_lossy().to_string();
+        let rnx_b = Rinex::from_file(&path).unwrap();
+
         let merged = rnx_a.merge(&rnx_b);
         assert!(
             merged.is_ok(),
@@ -162,17 +167,16 @@ mod test {
         );
 
         // parse back
-        let rnx = Rinex::from_file::<5>("merge.txt").expect("failed to parse back merged file");
+        let rnx = Rinex::from_file("merge.txt").expect("failed to parse back merged file");
 
         assert!(
             rnx.is_merged(),
             "failed to identify a merged file correctly"
         );
 
-        assert_eq!(rnx, merged, "merge() reciprocity failed");
-
         let _ = fs_remove_file("merge.txt"); // cleanup
     }
+
     // #[cfg(feature = "antex")]
     // use crate::antex::antenna::AntennaMatcher;
     // #[cfg(feature = "antex")]

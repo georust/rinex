@@ -61,7 +61,6 @@ mod rtcm;
 mod tests;
 
 mod reader;
-use reader::BufferedReader;
 
 mod writer;
 use writer::BufferedWriter;
@@ -102,6 +101,7 @@ pub mod prelude {
         header::Header,
         leap::Leap,
         observable::Observable,
+        reader::Reader,
         types::Type as RinexType,
         version::Version,
         Rinex,
@@ -195,9 +195,6 @@ use crate::{
 #[cfg(feature = "nav")]
 use crate::nav::{Almanac, AzElRange, DeltaTaiUt1, Orbit};
 
-#[cfg(feature = "flate2")]
-use flate2::bufread::GzDecoder;
-
 use carrier::Carrier;
 use prelude::*;
 
@@ -244,7 +241,7 @@ pub(crate) fn fmt_comment(content: &str) -> String {
     fmt_rinex(content, "COMMENT")
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 /// [Rinex] comprises a [Header] and a [Record] section.
 /// ```
 /// use rinex::prelude::*;
@@ -852,38 +849,17 @@ impl Rinex {
         attributes
     }
 
-    /// Parse [RINEX] from abstract [R]eadable interface.
-    /// Whether this is a [CRINEX] or not is automatically guessed and handled.
-    /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
-    /// For the simple reason they are defined by a File name.
-    /// You will have to define them afterwards.
-    pub fn read<const M: usize, R: Read>(reader: R) -> Result<Rinex, ParsingError> {
-        let mut r = BufferedReader::<M, R>::plain(reader);
-        Self::from_buffered_reader(&mut r)
-    }
+    /// Parse [RINEX] content by consuming [Reader].
+    /// Attributes described by a file name need to be provided either
+    /// manually / externally, or guessed after parsing.
+    pub fn parse<R: Read>(reader: &mut Reader<R>) -> Result<Self, ParsingError> {
+        // Parses Header section (=consumes header until this point)
+        let mut header = Header::parse(reader)?;
 
-    /// Parse [RINEX] from abstract Gzip compressed [R]eadable interface.
-    /// Whether this is a [CRINEX] or not is automatically guessed and handled.
-    /// [ProductionAttributes] cannot be determined when working from abstract interfaces.
-    /// For the simple reason they are defined by a File name.
-    /// You will have to define them afterwards.
-    #[cfg(feature = "flate2")]
-    pub fn read_gzip<const M: usize, R: Read>(reader: R) -> Result<Rinex, ParsingError> {
-        let mut r = BufferedReader::<M, R>::gzip(reader);
-        Self::from_buffered_reader(&mut r)
-    }
+        // Parse record (=consumes rest of this resource)
+        // Comments are preserved and store "as is"
+        let (record, comments) = Record::parse(&mut header, reader)?;
 
-    fn from_buffered_reader<const M: usize, R: Read>(
-        reader: &mut BufferedReader<M, R>,
-    ) -> Result<Rinex, ParsingError> {
-        // Parses Header section: consumes header until this point
-        let mut header = Header::new(reader)?;
-
-        // Parse record: consumes the rest of the record (File body).
-        //  Comments: are preserved and stored.
-        //  They don't serve a real purpose yet, but some comments
-        //  like "File Splice" may be important
-        let (record, comments) = record::parse_record(reader, &mut header)?;
         Ok(Rinex {
             header,
             record,
@@ -893,6 +869,7 @@ impl Rinex {
     }
 
     /// Parses [RINEX] from local file.
+    /// Will panic if provided file does not exist or is not readable.
     /// We only have restrictions on the file extention, not the filename itself.
     /// If filename follows standard naming conventions, then internal definitions
     /// will be complete.
@@ -902,43 +879,11 @@ impl Rinex {
     ///   - Otherwise we interprate as Plain (readable) RINEX and it might panic.
     ///   This also means that plain readable RINEX can be terminated by
     ///   something that do not follow standard naming conventions.
-    pub fn from_file<const M: usize>(fullpath: &str) -> Result<Rinex, ParsingError> {
-        let fp = Path::new(fullpath);
-        Self::from_path::<M>(fp)
-    }
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Rinex, ParsingError> {
+        let path = path.as_ref();
 
-    /// Parse [RINEX] from [Path]
-    pub fn from_path<const M: usize>(path: &Path) -> Result<Rinex, ParsingError> {
-        let fd = File::open(path).unwrap();
-        let br = BufReader::new(fd);
-
-        #[cfg(feature = "flate2")]
-        let mut reader: BufferedReader<M, _> = if path.ends_with(".crx.gz") {
-            BufferedReader::<M, _>::gzip_crinex(br)
-        } else if path.ends_with(".gz") {
-            BufferedReader::<M, _>::gzip(br)
-        } else if path.ends_with(".crx") {
-            BufferedReader::<M, _>::crinex(br)
-        } else {
-            BufferedReader::<M, _>::plain(br)
-        };
-
-        #[cfg(not(feature = "flate2"))]
-        let mut reader: BufferedReader<M, _> = if path.ends_with(".crx.gz") {
-            panic!("Gzip not supported: activate flate2");
-        } else if path.ends_with(".gz") {
-            panic!("Gzip not supported: activate flate2");
-        } else if path.ends_with(".crx") {
-            BufferedReader::<M, _>::crinex(br)
-        } else {
-            BufferedReader::<M, _>::plain(br)
-        };
-
-        let mut rinex = Rinex::from_buffered_reader(&mut reader)?;
-
-        // Parse / identify production attributes
-        // that only exist in the filename.
-        let prod_attr = match path.file_name() {
+        // deduce all we can from file name
+        let file_attributes = match path.file_name() {
             Some(filename) => {
                 let filename = filename.to_string_lossy().to_string();
                 if let Ok(attrs) = ProductionAttributes::from_str(&filename) {
@@ -950,7 +895,12 @@ impl Rinex {
             _ => None,
         };
 
-        rinex.prod_attr = prod_attr;
+        let mut fd = File::open(path).expect("from_file: open error");
+
+        let mut reader = Reader::new(fd);
+        let mut rinex = Rinex::parse(&mut reader)?;
+
+        rinex.prod_attr = file_attributes;
         Ok(rinex)
     }
 

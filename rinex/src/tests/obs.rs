@@ -17,7 +17,7 @@ mod test {
             .join("aopr0010.17o");
 
         let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -51,9 +51,9 @@ mod test {
             .join("OBS")
             .join("V2")
             .join("npaz3550.21o");
-        let fullpath = path.to_string_lossy();
 
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let fullpath = path.to_string_lossy();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -92,7 +92,7 @@ mod test {
 
         let fullpath = path.to_string_lossy();
 
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -139,7 +139,7 @@ mod test {
             .join("DUTH0630.22O");
 
         let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -169,7 +169,7 @@ mod test {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx";
 
-        let dut = Rinex::from_file::<5>(&test_resource).unwrap();
+        let dut = Rinex::from_file(&test_resource).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -216,7 +216,7 @@ mod test {
 
         let fullpath = path.to_string_lossy();
 
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -254,7 +254,7 @@ mod test {
             .join("AJAC3550.21O");
 
         let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -290,7 +290,7 @@ mod test {
             .join("V3")
             .join("NOA10630.22O");
         let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,

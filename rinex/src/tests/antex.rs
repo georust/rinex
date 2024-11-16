@@ -12,7 +12,7 @@ mod test {
     fn v1_trosar_25r4_leit_2020_09_23() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/ATX/V1/TROSAR25.R4__LEIT_2020_09_23.atx";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         assert!(rinex.is_antex());
@@ -112,7 +112,7 @@ mod test {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/ATX/V1/igs14_small.atx.gz";
 
-        let rinex = Rinex::from_file::<5>(&test_resource).unwrap();
+        let rinex = Rinex::from_file(&test_resource).unwrap();
 
         let fake_now = Epoch::from_gregorian_utc_at_midnight(2023, 01, 01);
 

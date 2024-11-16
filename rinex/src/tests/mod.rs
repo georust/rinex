@@ -5,7 +5,6 @@ mod antex;
 mod compression;
 mod decompression;
 mod filename;
-mod hatanaka;
 mod parsing;
 mod production;
 

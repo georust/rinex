@@ -10,47 +10,32 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
+use gnss::constellation;
 use num_integer::div_ceil;
 
 #[cfg(feature = "log")]
 use log::debug;
 
-#[cfg(feature = "flate2")]
-use flate2::read::GzDecoder;
-
 #[cfg(docsrs)]
 use crate::hatanaka::Compressor;
 
-/// [Reader] is a small private wrapper to support
-/// both native and Gzip compressed streams
-enum Reader<R: Read> {
-    Plain(R),
-    Gz(GzDecoder<R>),
-}
-
-impl<R: Read> Read for Reader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        match self {
-            Self::Plain(r) => r.read(buf),
-            Self::Gz(r) => r.read(buf),
-        }
-    }
-}
-
 /// [Decompressor] is a structure to decompress CRINEX (compressed compacted RINEX)
-/// into readable RINEX. It implements the same core elements as the historical
-/// CRX2RNX tool, so is limited to M<=5. If you're an expert and what full control over the decompression
-/// algorithm, move to [DecompressorExpert] instead.
+/// into readable RINEX. It is scaled to operate according to the historical CRX2RNX tool,
+/// which seems to limit itself to M=3 in the compression algorithm.
+/// If you want complete control over the decompression algorithm, prefer [DecompressorExpert].
 ///
-/// [Decompressor] is efficient and works from any [Read]able interface.
-/// It is somewhat flexible but currently, several severe errors will cause it to panic,
-/// someof those being:
+/// [Decompressor] implements the CRINEX decompression algorithm, following
+/// the specifications written by Y. Hatanaka. Like RINEX, CRINEX (compact) RINEX
+/// is a line based format (\n termination), this structures works on a line basis.
+///
+/// Although [Decompressor] is flexible, it currently does not tolerate critical
+/// format issues, specifically:
 ///  - numsat incorrectly encoded in Epoch description
-///  - bad observable specifications
-///  - bad constellation specifications.
+///  - missing or bad observable specifications
+///  - missing or bad constellation specifications
 ///
-/// In this example, we deploy the [Decompressor] over a local file, but that is just
-/// an example.
+/// In this example, we deploy the [Decompressor] over a local file, as an example
+/// yet typical usage scenario. We use our [RinexReader] to provide the line Iterator.
 /// ```
 /// use std::fs::File;
 /// use rinex::hatanaka::Decompressor;
@@ -75,35 +60,11 @@ impl<R: Read> Read for Reader<R> {
 ///
 /// assert_eq!(total, 36); // total bytewise
 /// ```
-///
-/// If you compressed the data yourself, especially working with our [Compressor],
-/// you have complete control over the compression level. But you have to understand
-/// that CRINEX is not a lossless compression and M=5 is said to be the optimal compromise.
-///
-/// ```
-pub type Decompressor<R> = DecompressorExpert<5, R>;
+pub type Decompressor = DecompressorExpert<5>;
 
-// TODO
-// The current implementation is not really flexible towards invalid CRINEX.
-// Which is totally fine ! but high level applications could benefit a little flexibility ?
-//
-// ** search for .unwrap() and .expect() **
-// Numsat tolerance and SV tolerance could be added
-// we could introduce a Garbage state and simply trash incoming data until End of Epoch.
-// But exiting that state is not easy !
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub enum State {
     #[default]
-    /// Expecting "CRINEX VERSION / TYPE"
-    Version,
-    /// Expecting "CRINEX PROG / DATE"
-    ProgDate,
-    /// Expecting RINEX VERSION / TYPE
-    VersionType,
-    /// Expecting SYS TYPES OF OBS
-    HeaderSpecs,
-    /// Wait for END OF HEADER
-    EndofHeader,
     /// Recovering Epoch descriptor
     Epoch,
     /// Recovering Clock offset
@@ -128,67 +89,44 @@ impl State {
     /// - Numsat
     const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = 28 + 3 + 3 + 1;
 
-    /// Returns true if we're inside the File Body.
-    /// Use this to grab the [CRINEX] definition if you have to.
-    pub fn file_body(&self) -> bool {
-        !self.file_header()
-    }
-
-    /// Returns true if we're inside the File Header.
-    /// Use this to determine it is not safe to grab the [CRINEX] definition yet.
-    pub fn file_header(&self) -> bool {
-        matches!(
-            self,
-            Self::Version
-                | Self::ProgDate
-                | Self::VersionType
-                | Self::HeaderSpecs
-                | Self::EndofHeader
-        )
-    }
-
     /// Calculates number of bytes this state will forward to user
     fn size_to_produce(&self, v3: bool, numsat: usize, numobs: usize) -> usize {
-        if self.file_header() {
-            80
-        } else {
-            match self {
-                Self::Epoch => {
-                    if v3 {
-                        Self::MIN_V3_EPOCH_DESCRIPTION_SIZE
-                    } else {
-                        let mut size = Self::MIN_V1_EPOCH_DESCRIPTION_SIZE;
-                        let num_extra = div_ceil(numsat, 12) - 1;
-                        size += num_extra * 17; // padding
-                        size += numsat * 3; // formatted
-                        size
-                    }
-                },
-                Self::ObservationV1 => {
-                    let mut size = 1;
-                    size += numobs - 1; // separator
-                    size += 15 * numobs; // formatted
-                    let num_extra = div_ceil(numobs, 5) - 1;
-                    size += num_extra * 15; // padding
+        match self {
+            Self::Epoch => {
+                if v3 {
+                    Self::MIN_V3_EPOCH_DESCRIPTION_SIZE
+                } else {
+                    let mut size = Self::MIN_V1_EPOCH_DESCRIPTION_SIZE;
+                    let num_extra = div_ceil(numsat, 12) - 1;
+                    size += num_extra * 17; // padding
+                    size += numsat * 3; // formatted
                     size
-                },
-                Self::ObservationV3 => {
-                    let size = 3; // SVNN
-                    size + numobs * 16
-                },
-                _ => 0,
-            }
+                }
+            },
+            Self::ObservationV1 => {
+                let mut size = 1;
+                size += numobs - 1; // separator
+                size += 15 * numobs; // formatted
+                let num_extra = div_ceil(numobs, 5) - 1;
+                size += num_extra * 15; // padding
+                size
+            },
+            Self::ObservationV3 => {
+                let size = 3; // SVNN
+                size + numobs * 16
+            },
+            State::Clock => 32, // TODO : verify
         }
     }
 }
 
 /// [DecompressorExpert] gives you full control over the maximal compression ratio.
 /// When decoding, we adapt to the compression ratio applied when the stream was encoded.
-/// RNX2CRX is historically limited to M<=5 and in practice, seems to limit itself to
-/// M=3, while 5 is said to be the optimal. With [DecompressorExpert] you can support
-/// any value. Keep in mind that CRINEX is not a lossless compression for signal observations.
-/// The higher the compression order, the larger the error over the siganl observations.
-pub struct DecompressorExpert<const M: usize, R: Read> {
+/// RNX2CRX is historically limited to M<=3 while 5 is said to be the optimal.
+/// With [DecompressorExpert] you can support any value.
+/// Keep in mind that CRINEX is not a lossless compression for signal observations.
+/// The higher the compression order, the larger the error over the signal observations.
+pub struct DecompressorExpert<const M: usize> {
     /// Whether this is a V3 parser or not
     v3: bool,
     /// Internal [State]. Use this to determine
@@ -198,26 +136,12 @@ pub struct DecompressorExpert<const M: usize, R: Read> {
     /// For internal logic: remains true until
     /// first [Epoch] description was decoded.
     first_epoch: bool,
-    /// For internal parsing logic
-    inside_v3_specs: bool,
-    /// CRINEX header that we did identify.
-    /// You should wait until State != State::InsideHeader to consider this field.
-    pub crinex: CRINEX,
-    /// [Read]able interface
-    reader: Reader<R>,
-    /// Internal buffer
-    buf: [u8; 4096],
-    /// Pointers
-    next_eol: usize,
-    rd_ptr: usize,
-    wr_ptr: usize,
-    eos: bool,
     /// pointers
     numsat: usize, // total
     sv_ptr: usize, // inside epoch
     sv: SV,
-    ascii: String,
-    ascii_len: usize,
+    /// [Constellation] described in Header field
+    constellation: Constellation,
     /// pointers
     numobs: usize, // total
     obs_ptr: usize, // inside epoch
@@ -234,105 +158,11 @@ pub struct DecompressorExpert<const M: usize, R: Read> {
     clock_diff: NumDiff<M>,
     /// Observation differentiators
     obs_diff: HashMap<(SV, usize), NumDiff<M>>,
-    /// [Constellation] described in Header field
-    constellation: Constellation,
     /// [Observable]s specs for each [Constellation]
     gnss_observables: HashMap<Constellation, Vec<Observable>>,
 }
 
-impl<const M: usize, R: Read> Read for DecompressorExpert<M, R> {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        let mut user_ptr = 0;
-        let user_len = buf.len();
-
-        // always try to grab new content
-        if self.wr_ptr < 4096 {
-            // try to fill internal buffer
-            let size = self.reader.read(&mut self.buf[self.wr_ptr..])?;
-            self.eos = size == 0;
-            self.wr_ptr += size;
-            println!("new read: {}", self.wr_ptr);
-
-            if size == 0 {
-                // did not grab anything new
-                if self.rd_ptr == 0 {
-                    // no pending analysis: mark EOS
-                    return Ok(0);
-                }
-            }
-        }
-
-        // run FSM
-        loop {
-            if self.rd_ptr >= self.wr_ptr {
-                // consumed everything: need to grab new content
-                println!(
-                    "consumed everything rd={}|wr={}|user={}",
-                    self.rd_ptr, self.wr_ptr, user_ptr
-                );
-
-                // reset pointers for next time
-                self.rd_ptr = 0;
-                self.wr_ptr = 0;
-                return Ok(user_ptr);
-            }
-
-            // verify user buffer has enough capacity to absorb data we're about to produce.
-            // This vastly simplifies internal logic.
-            if user_ptr
-                + self
-                    .state
-                    .size_to_produce(self.v3, self.numsat, self.numobs)
-                >= user_len
-            {
-                println!("user_len: not enough capacity | user={}", user_ptr);
-
-                // need to preserve data that is yet to analyze
-                // shift left, and make room for new read
-                self.buf.copy_within(self.rd_ptr.., 0);
-                self.wr_ptr -= self.rd_ptr;
-                self.rd_ptr = 0;
-                return Ok(user_ptr);
-            }
-
-            match self.run_fsm(buf, user_ptr) {
-                Ok((new_state, consumed, produced)) => {
-                    self.state = new_state;
-                    self.rd_ptr += consumed;
-                    user_ptr += produced;
-                },
-                Err(e) => {
-                    // catch internal error:
-                    match e {
-                        Error::NeedMoreData => {
-                            // this is the only acceptable error here
-                            // If we have produced data, then expose it to user
-                            if user_ptr > 0 {
-                                // need to preserve data that is yet to analyze
-                                // shift left, and make room for new read
-                                self.buf.copy_within(self.rd_ptr.., 0);
-                                self.wr_ptr -= self.rd_ptr;
-                                self.rd_ptr = 0;
-                                return Ok(user_ptr);
-                            } else {
-                                // did not produce a single byte, could be end of stream
-                                return Ok(0);
-                            }
-                        },
-                        e => {
-                            // any other error is not acceptable.
-                            // We have several places that will actually panic and not
-                            // be caught here. Could use some improvements ?
-                            return Err(e.to_stdio());
-                        },
-                    }
-                },
-            }
-        } // loop
-    }
-}
-
-impl<const M: usize, R: Read> DecompressorExpert<M, R> {
+impl<const M: usize> DecompressorExpert<M> {
     /// EOL is used in the decoding process
     const EOL_BYTE: u8 = b'\n';
     /// Whitespace char
@@ -391,327 +221,108 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         }
     }
 
-    /// Process internal buffer according to current [State]
+    /// Builds new CRINEX decompressor.
+    /// Inputs
+    /// - v3: whether this CRINEX V1 or V3 content will follow
+    /// - constellation: [Constellation] as defined in header
+    /// - gnss_observables: [Observable]s per [Constellation] as defined in header.
+    pub fn new(
+        v3: bool,
+        constellation: Constellation,
+        gnss_observables: HashMap<Constellation, Vec<Observable>>,
+    ) -> Self {
+        Self {
+            v3,
+            numsat: 0,
+            sv_ptr: 0,
+            numobs: 0,
+            obs_ptr: 0,
+            constellation,
+            gnss_observables,
+            first_epoch: true,
+            epoch_desc_len: 0,
+            sv: Default::default(),
+            state: Default::default(),
+            obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
+            epoch_diff: TextDiff::new(""),
+            flags_diff: TextDiff::new(""),
+            flags_descriptor: String::with_capacity(256),
+            epoch_descriptor: String::with_capacity(256),
+            clock_diff: NumDiff::<M>::new(0, M),
+        }
+    }
+
+    /// Decompresses following line and pushes recovered content into buffer.
+    /// Inputs
+    ///  - line: trimed line (no \n termination), which is consistent with
+    /// [LinesIterator].
+    /// - len: line.len()
+    /// - buf: destination buffer
+    /// - size: size available in destination buffer
     /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_fsm(
+    ///  - size: produced size (total bytes recovered).
+    /// It is possible that, depending on current state, that several input lines
+    /// are needed to recover a new line. Recovered content may span several lines as well,
+    /// especially when working with a V1 stream.
+    pub fn decompress(
         &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> Result<(State, usize, usize), Error> {
-        self.run_readline(user_ptr)?;
+        line: &str,
+        len: usize,
+        buf: &mut [u8],
+        size: usize,
+    ) -> Result<usize, Error> {
+        if size
+            < self
+                .state
+                .size_to_produce(self.v3, self.numsat, self.numobs)
+        {
+            return Err(Error::BufferOverflow);
+        }
 
         match self.state {
-            State::Version => self.run_version(),
-            State::ProgDate => self.run_progdate(),
-            State::VersionType => self.run_version_type(user_buf, user_ptr),
-            State::HeaderSpecs => self.run_header_specs(user_buf, user_ptr),
-            State::EndofHeader => Ok(self.run_end_of_header(user_buf, user_ptr)),
-            State::Epoch => Ok(self.run_epoch(user_buf, user_ptr)),
-            State::Clock => Ok(self.run_clock(user_buf, user_ptr)),
-            State::ObservationV1 => Ok(self.run_observation_v1(user_buf, user_ptr)),
-            State::ObservationV3 => Ok(self.run_observation_v3(user_buf, user_ptr)),
+            State::Epoch => self.run_epoch(line, len, buf, size),
+            State::Clock => self.run_clock(line, len, buf, size),
+            State::ObservationV1 => self.run_observation_v1(line, len, buf, size),
+            State::ObservationV3 => self.run_observation_v3(line, len, buf, size),
         }
     }
 
-    fn run_readline(&mut self, user_ptr: usize) -> Result<(), Error> {
-        // we operate on a line basis. One line may either
-        //  + contain the entire content needed for this state (=epoch)
-        //  + contain part of needed content (=lengthy observations)
-        if let Some(next_eol) = Self::find(&self.buf[self.rd_ptr..], Self::EOL_BYTE) {
-            // #[cfg(feature = "log")]
-            println!(
-                "[V{}/{}] {:?} wr={}/rd={}/user={}",
-                self.crinex.version.major,
-                self.constellation,
-                self.state,
-                self.wr_ptr,
-                self.rd_ptr,
-                user_ptr,
-            );
-
-            if next_eol > 4096 {
-                // unrealistic content: directly tied to our self.ascii preallocation
-                panic!("internal buffer too small, invalid content ?");
-            }
-
-            // grab content
-            let slice = &self.buf[self.rd_ptr..self.rd_ptr + next_eol];
-
-            // which must be valid UTF-8
-            self.ascii = from_utf8(&slice)
-                .map_err(|_| Error::BadUtf8Data)?
-                .to_string();
-
-            self.ascii_len = self.ascii.len();
-            println!("ASCII \"{}\" [{}]", self.ascii, self.ascii_len);
-
-            self.next_eol = next_eol;
-            Ok(())
-        } else {
-            // unable to grab a complete line
-            // memcopy (save current content) and proceed to new read
-            self.buf.copy_within(self.rd_ptr.., 0);
-            self.wr_ptr -= self.rd_ptr; // make room
-            self.rd_ptr = 0; // analyzer will start at base
-            Err(Error::NeedMoreData)
-        }
-    }
-
-    /// Process internal buffer in [State::Version]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_version(&mut self) -> Result<(State, usize, usize), Error> {
-        if self.next_eol < 60 {
-            // does not look like a valid header
-            return Err(Error::BadHeaderData);
-        }
-
-        // parse version specs
-        let version = Version::from_str(&self.ascii[0..20].trim()).expect("bad crinex definition");
-
-        self.crinex = self.crinex.with_version(version);
-        self.v3 = version.major == 3;
-        Ok((State::ProgDate, self.next_eol + 1, 0))
-    }
-
-    /// Process internal buffer in [State::ProgDate]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_progdate(&mut self) -> Result<(State, usize, usize), Error> {
-        if self.next_eol < 60 {
-            // does not look like a valid header
-            return Err(Error::BadHeaderData);
-        }
-
-        // parse version specs
-        self.crinex = self
-            .crinex
-            .with_prog_date(&self.ascii.trim_end())
-            .expect("bad crinex definition");
-
-        Ok((State::VersionType, self.next_eol + 1, 0))
-    }
-
-    /// Process internal buffer in [State::VersionType]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_version_type(
+    /// Process following line, in [State::Epoch]
+    fn run_epoch(
         &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> Result<(State, usize, usize), Error> {
-        if self.next_eol < 60 {
-            // does not look like a valid header
-            return Err(Error::BadHeaderData);
-        }
-
-        // parse version specs
-        self.constellation = Constellation::from_str(self.ascii[40..60].trim())
-            .expect("bad crinex: invalid constellation");
-
-        // line pass through
-        user_buf[user_ptr..user_ptr + self.next_eol]
-            .copy_from_slice(&self.buf[self.rd_ptr..self.rd_ptr + self.next_eol]);
-
-        user_buf[user_ptr + self.next_eol] = b'\n';
-
-        Ok((State::HeaderSpecs, self.next_eol + 1, self.next_eol + 1))
-    }
-
-    /// Process internal buffer in [State::HeaderSpecs]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_header_specs(
-        &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> Result<(State, usize, usize), Error> {
-        let mut new_state = self.state;
-
-        if self.next_eol < 60 {
-            // not a valid header
-            return Err(Error::BadHeaderData);
-        }
-
-        if self.ascii.ends_with("END OF HEADER") {
-            if self.v3 {
-                if self.inside_v3_specs {
-                    panic!("bad crinex-v3: incomplete observable specs!");
-                } else {
-                    new_state = State::Epoch;
-                }
-            }
-        }
-
-        if self.ascii.contains("TYPES OF OBS") {
-            // V2 parsing
-            if self.v3 {
-                panic!("bad crinex-v3: invalid definition");
-            }
-
-            if self.numobs == 0 {
-                // first encounter
-                self.numobs = self.ascii[..10]
-                    .trim()
-                    .parse::<usize>()
-                    .expect("bad crinex: invalid observable specs");
-
-                let mut ptr = 6;
-                for i in 0..self.numobs {
-                    println!("obs_slice \"{}\"", &self.ascii[ptr..ptr + 6]);
-
-                    let obs = Observable::from_str(&self.ascii[ptr..ptr + 6])
-                        .expect("bad-crinex: invalid observable!");
-
-                    println!("FOUND {}", obs);
-
-                    if let Some(specs) = self.gnss_observables.get_mut(&self.constellation) {
-                        specs.push(obs);
-                    } else {
-                        self.gnss_observables.insert(self.constellation, vec![obs]);
-                    }
-
-                    ptr += 6;
-                    self.obs_ptr += 1;
-                    if self.obs_ptr == self.numobs {
-                        new_state = State::EndofHeader;
-                    }
-                }
-            }
-        } else if self.ascii.ends_with("SYS / # / OBS TYPES") {
-            if !self.v3 {
-                panic!("bad crinex-v1: invalid definition");
-            }
-
-            if self.inside_v3_specs {
-                // following lines
-                let mut start = 0;
-                let mut end = 11;
-
-                let end_range = (self.obs_ptr + 13).min(self.numobs);
-                for i in self.obs_ptr..end_range {
-                    let slice = &self.ascii[start..end];
-                    println!("FOUND: \"{}\"", slice);
-                    self.obs_ptr += 1;
-
-                    start = end;
-                    end = start + 4;
-
-                    if i == self.numobs - 1 {
-                        self.inside_v3_specs = false;
-                    }
-                }
-            } else {
-                // first line
-                let constell = Constellation::from_str(&self.ascii[..3].trim())
-                    .expect("bad crinex: invalid constellation");
-
-                let numobs = self.ascii[3..6]
-                    .trim()
-                    .parse::<usize>()
-                    .expect("bad crinex: invalid number of observable");
-
-                self.obs_ptr = 0;
-
-                // parse first line
-                for i in 0..numobs.min(13) {
-                    let start = 6 + i * 4;
-                    let slice = &self.ascii[start..start + 5];
-                    println!("FOUND: \"{}\"", slice);
-
-                    let obs =
-                        Observable::from_str(slice.trim()).expect("bad crinex: invalid observable");
-
-                    if let Some(list) = self.gnss_observables.get_mut(&constell) {
-                        list.push(obs);
-                    } else {
-                        self.gnss_observables.insert(constell, vec![obs]);
-                    }
-
-                    self.obs_ptr += 1;
-                }
-
-                if numobs > 13 {
-                    self.numobs = numobs;
-                    self.inside_v3_specs = true;
-                } else {
-                    self.obs_ptr = 0;
-                    self.numobs = 0;
-                    self.inside_v3_specs = false;
-                }
-            }
-        }
-
-        // line pass through
-        user_buf[user_ptr..user_ptr + self.next_eol]
-            .copy_from_slice(&self.buf[self.rd_ptr..self.rd_ptr + self.next_eol]);
-
-        user_buf[user_ptr + self.next_eol] = b'\n';
-
-        Ok((new_state, self.next_eol + 1, self.next_eol + 1))
-    }
-
-    /// Process internal buffer in [State::EndofHeader]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_end_of_header(&mut self, user_buf: &mut [u8], user_ptr: usize) -> (State, usize, usize) {
-        let mut new_state = self.state;
-
-        if self.ascii[60..].contains("END OF HEADER") {
-            new_state = State::Epoch;
-        }
-
-        // line pass through
-        user_buf[user_ptr..user_ptr + self.next_eol]
-            .copy_from_slice(&self.buf[self.rd_ptr..self.rd_ptr + self.next_eol]);
-
-        user_buf[user_ptr + self.next_eol] = b'\n';
-
-        (new_state, self.next_eol + 1, self.next_eol + 1)
-    }
-
-    /// Process internal buffer in [State::Epoch]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_epoch(&mut self, user_buf: &mut [u8], user_ptr: usize) -> (State, usize, usize) {
-        if self.ascii_len < 1 {
-            // Epoch does not look good. catch this nicely and wait for next one ?
-            panic!("invalid epoch!");
-        }
-
-        if self.ascii.starts_with('&') {
-            if self.v3 {
-                panic!("bad crinex-v3 content");
-            }
-
-            self.epoch_diff.force_init(&self.ascii[1..]);
-            self.epoch_descriptor = self.ascii[1..].to_string();
-            self.epoch_desc_len = self.ascii_len - 1;
-        } else if self.ascii.starts_with('>') {
-            if !self.v3 {
-                panic!("bad crinex-v1 content");
-            }
-
-            self.epoch_diff.force_init(&self.ascii[1..]);
-            self.epoch_descriptor = self.ascii[1..].to_string();
-            self.epoch_desc_len = self.ascii_len - 1;
+        line: &str,
+        len: usize,
+        buf: &mut [u8],
+        size: usize,
+    ) -> Result<usize, Error> {
+        let min_len = if self.v3 {
+            State::MIN_V3_EPOCH_DESCRIPTION_SIZE
         } else {
-            self.epoch_descriptor = self.epoch_diff.decompress(&self.ascii[1..]).to_string();
+            State::MIN_V1_EPOCH_DESCRIPTION_SIZE
+        };
+
+        if len < min_len {
+            return Err(Error::EpochFormat);
+        }
+
+        if line.starts_with('&') {
+            if self.v3 {
+                return Err(Error::BadV1Format);
+            }
+
+            self.epoch_diff.force_init(&line[1..]);
+            self.epoch_descriptor = line[1..].to_string();
+            self.epoch_desc_len = len - 1;
+        } else if line.starts_with('>') {
+            if self.v3 {
+                return Err(Error::BadV3Format);
+            }
+
+            self.epoch_diff.force_init(&line[1..]);
+            self.epoch_descriptor = line[1..].to_string();
+            self.epoch_desc_len = len - 1;
+        } else {
+            self.epoch_descriptor = self.epoch_diff.decompress(&line[1..]).to_string();
             self.epoch_desc_len = self.epoch_descriptor.len();
         }
 
@@ -721,7 +332,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         );
 
         // format according to specs
-        let produced = self.format_epoch(user_buf, user_ptr);
+        let produced = self.format_epoch(buf);
 
         // prepare for next state
         self.obs_ptr = 0;
@@ -739,25 +350,26 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
 
         self.numobs = obs.len();
 
-        (State::Clock, self.next_eol + 1, produced)
+        self.state = State::Clock;
+        Ok(produced)
     }
 
     /// Fills user buffer with recovered epoch, following either V1 or V3 standards
-    fn format_epoch(&self, buf: &mut [u8], ptr: usize) -> usize {
+    fn format_epoch(&self, buf: &mut [u8]) -> usize {
         if self.v3 {
-            self.format_epoch_v3(buf, ptr)
+            self.format_epoch_v3(buf)
         } else {
-            self.format_epoch_v1(buf, ptr)
+            self.format_epoch_v1(buf)
         }
     }
 
     /// Fills user buffer with recovered epoch, following V3 standards
-    fn format_epoch_v3(&self, buf: &mut [u8], ptr: usize) -> usize {
+    fn format_epoch_v3(&self, buf: &mut [u8]) -> usize {
         // V3 format is much simpler
         // all we need to do is extract SV `XXY` to append in each following lines
 
         let mut produced = 0;
-        buf[ptr + produced] = b'>'; // special marker
+        buf[produced] = b'>'; // special marker
         produced += 1;
 
         let bytes = self.epoch_descriptor.as_bytes();
@@ -765,10 +377,10 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         // push timestamp + flag
         // TODO: catch case recovered epoch is BAD? (not 34 byte long)
         //       which will cause this to panic
-        buf[ptr + produced..ptr + produced + 34].copy_from_slice(&bytes[..34]);
+        buf[produced..produced + 34].copy_from_slice(&bytes[..34]);
         produced += 34;
 
-        buf[ptr + produced] = b'\n';
+        buf[produced] = b'\n';
         produced += 1;
 
         // TODO: improve this, this size is constant
@@ -776,10 +388,10 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     }
 
     /// Fills user buffer with recovered epoch, following V1 standards
-    fn format_epoch_v1(&self, buf: &mut [u8], ptr: usize) -> usize {
+    fn format_epoch_v1(&self, buf: &mut [u8]) -> usize {
         let mut produced = 0;
 
-        buf[ptr + produced] = b' '; // single whitespace
+        buf[produced] = b' '; // single whitespace
         produced += 1;
 
         let bytes = self.epoch_descriptor.as_bytes();
@@ -787,12 +399,11 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         // push first line (up to 68 bytes)
         let first_len = self.epoch_desc_len.min(67);
 
-        buf[ptr + produced..ptr + produced + first_len].copy_from_slice(&bytes[..first_len]);
+        buf[produced..produced + first_len].copy_from_slice(&bytes[..first_len]);
 
         produced += first_len;
 
-        // conclude 1st line
-        buf[ptr + produced] = b'\n';
+        buf[produced] = b'\n'; // conclude 1st line
         produced += 1;
 
         // construct all following lines we need,
@@ -800,7 +411,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         let nb_extra = self.epoch_desc_len / 68;
         for i in 0..nb_extra {
             // extra padding
-            buf[ptr + produced..ptr + produced + 32].copy_from_slice(&[
+            buf[produced..produced + 32].copy_from_slice(&[
                 b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
                 b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
                 b' ', b' ', b' ', b' ',
@@ -813,56 +424,50 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             let end = (start + 68).min(self.epoch_desc_len);
             let size = end - start;
 
-            buf[ptr + produced..ptr + produced + size].copy_from_slice(&bytes[start..end]);
+            buf[produced..produced + size].copy_from_slice(&bytes[start..end]);
 
             produced += size;
 
             // terminate this line
-            buf[ptr + produced] = b'\n';
+            buf[produced] = b'\n';
             produced += 1;
         }
 
         produced
     }
 
-    /// Process internal buffer in [State::Clock]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
-    fn run_clock(&mut self, user_buf: &mut [u8], user_ptr: usize) -> (State, usize, usize) {
+    /// Process following line, in [State::Clock]
+    fn run_clock(
+        &mut self,
+        line: &str,
+        len: usize,
+        buf: &mut [u8],
+        size: usize,
+    ) -> Result<usize, Error> {
         // try to parse clock data
-        match self.ascii.trim().parse::<i64>() {
+        match line.trim().parse::<i64>() {
             Ok(val_i64) => {
                 // TODO: fill clock data in epoch description
                 // fill blank
-                if self.v3 {
-                    (State::ObservationV3, self.next_eol + 1, 0)
-                } else {
-                    (State::ObservationV1, self.next_eol + 1, 0)
-                }
             },
-            Err(e) => {
-                // fill blank
-                if self.v3 {
-                    (State::ObservationV3, self.next_eol + 1, 0)
-                } else {
-                    (State::ObservationV1, self.next_eol + 1, 0)
-                }
-            },
+            Err(_) => {},
         }
+        if self.v3 {
+            self.state = State::ObservationV3
+        } else {
+            self.state = State::ObservationV1
+        }
+        Ok(0)
     }
 
-    /// Process internal buffer in [State::ObservationV1]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
+    /// Process following line, in [State::ObservationV1]
     fn run_observation_v1(
         &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> (State, usize, usize) {
+        line: &str,
+        len: usize,
+        buf: &mut [u8],
+        size: usize,
+    ) -> Result<usize, Error> {
         panic!("obs_v1: not yet");
     }
 
@@ -969,16 +574,14 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
     //             }
     //         },
 
-    /// Process internal buffer in [State::ObservationV3]
-    /// Returns
-    /// - next [State]
-    /// - consumed size (rd pointer)
-    /// - produced size (wr pointer)
+    /// Process following line, in [State::ObservationV3]
     fn run_observation_v3(
         &mut self,
-        user_buf: &mut [u8],
-        user_ptr: usize,
-    ) -> (State, usize, usize) {
+        line: &str,
+        len: usize,
+        buf: &mut [u8],
+        size: usize,
+    ) -> Result<usize, Error> {
         let mut new_state = self.state;
         let mut consumed = 0;
         let mut produced = 0;
@@ -987,7 +590,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         let start = Self::sv_slice_start(true, self.sv_ptr);
         let end = (start + 3).min(self.epoch_desc_len);
         let bytes = self.epoch_descriptor.as_bytes();
-        user_buf[user_ptr..user_ptr + 3].copy_from_slice(&bytes[start..end]);
+        buf[..3].copy_from_slice(&bytes[start..end]);
 
         produced += 3;
 
@@ -995,18 +598,18 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         loop {
             self.obs_ptr += 1;
 
-            if let Some(offset) = self.ascii[consumed..].find(' ') {
+            if let Some(offset) = line[consumed..].find(' ') {
                 // defaults to a BLANK in case something goes wrong
                 let mut formatted = "                ".to_string();
 
                 if offset == 0 {
                     // could be a single digit (=highly compressed data): still valid
-                    if self.ascii[consumed..consumed + 1].eq(" ") {
+                    if line[consumed..consumed + 1].eq(" ") {
                         // this is a BLANK
                         println!("omitted [{}/{}]", self.obs_ptr, self.numobs);
                     } else {
                         // highly compressed data (single digit)
-                        let slice = &self.ascii[consumed..consumed + 1];
+                        let slice = &line[consumed..consumed + 1];
                         println!("slice \"{}\" [{}/{}]", &slice, self.obs_ptr, self.numobs);
 
                         if let Ok(value) = slice.parse::<i64>() {
@@ -1021,7 +624,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                     consumed += 1;
                 } else {
                     // grab slice
-                    let slice = self.ascii[consumed..consumed + offset].trim();
+                    let slice = line[consumed..consumed + offset].trim();
                     println!("slice \"{}\" [{}/{}]", &slice, self.obs_ptr, self.numobs);
 
                     if let Some(offset) = slice.find('&') {
@@ -1059,8 +662,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                 let bytes = formatted.as_bytes();
 
                 // push into user
-                user_buf[user_ptr + produced..user_ptr + produced + fmt_len]
-                    .copy_from_slice(&bytes);
+                buf[produced..produced + fmt_len].copy_from_slice(&bytes);
 
                 produced += fmt_len;
             } else {
@@ -1084,9 +686,9 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         }
 
         // grab flags content (if any)
-        if consumed < self.ascii_len {
+        if consumed < len {
             // proceed to flags recovering
-            let flags = &self.ascii[consumed..];
+            let flags = &line[consumed..];
             println!("FLAGS \"{}\"", flags);
 
             self.flags_descriptor = self.flags_diff.decompress(flags).to_string();
@@ -1102,14 +704,14 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
                 let lli_idx = i * 2;
                 if flags_len > lli_idx {
                     if !self.flags_descriptor[lli_idx..lli_idx + 1].eq(" ") {
-                        user_buf[user_ptr + offset] = bytes[i * 2]; // b'x';
+                        buf[offset] = bytes[i * 2]; // b'x';
                     }
                 }
 
                 let snr_idx = lli_idx + 1;
                 if flags_len > snr_idx {
                     if !self.flags_descriptor[snr_idx..snr_idx + 1].eq(" ") {
-                        user_buf[user_ptr + offset + 1] = bytes[(i * 2) + 1]; // b'y';
+                        buf[offset + 1] = bytes[(i * 2) + 1]; // b'y';
                     }
                 }
 
@@ -1125,7 +727,7 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
         println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
 
         // conclude this line
-        user_buf[user_ptr + produced] = b'\n';
+        buf[produced] = b'\n';
         produced += 1;
 
         if self.sv_ptr == self.numsat {
@@ -1136,74 +738,8 @@ impl<const M: usize, R: Read> DecompressorExpert<M, R> {
             self.sv = self.next_sv().expect("failed to determine next sv");
         }
 
-        (new_state, self.next_eol + 1, produced)
-    }
-
-    /// Creates a new [Decompressor] to work from [Read]able stream
-    pub fn new(reader: R) -> Self {
-        Self {
-            v3: false,
-            wr_ptr: 0,
-            rd_ptr: 0,
-            numsat: 0,
-            sv_ptr: 0,
-            numobs: 0,
-            obs_ptr: 0,
-            buf: [0; 4096],
-            ascii: String::with_capacity(1024),
-            ascii_len: 0,
-            eos: false,
-            next_eol: 0,
-            first_epoch: true,
-            inside_v3_specs: false,
-            sv: Default::default(),
-            state: Default::default(),
-            crinex: Default::default(),
-            reader: Reader::Plain(reader),
-            flags_diff: TextDiff::new(""),
-            epoch_diff: TextDiff::new(""),
-            constellation: Constellation::Mixed,
-            clock_diff: NumDiff::<M>::new(0, M),
-            obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
-            epoch_desc_len: 0,
-            epoch_descriptor: String::with_capacity(256),
-            flags_descriptor: String::with_capacity(128),
-            gnss_observables: HashMap::with_capacity(4),
-        }
-    }
-
-    /// Creates a new [Decompressor] to work from gzip compressed [Read]able stream
-    #[cfg(feature = "flate2")]
-    pub fn new_gzip(reader: R) -> Self {
-        Self {
-            v3: false,
-            wr_ptr: 0,
-            rd_ptr: 0,
-            numsat: 0,
-            sv_ptr: 0,
-            numobs: 0,
-            obs_ptr: 0,
-            buf: [0; 4096],
-            eos: false,
-            next_eol: 0,
-            first_epoch: true,
-            inside_v3_specs: false,
-            ascii: String::with_capacity(1024),
-            ascii_len: 0,
-            sv: Default::default(),
-            state: Default::default(),
-            crinex: Default::default(),
-            flags_diff: TextDiff::new(""),
-            epoch_diff: TextDiff::new(""),
-            constellation: Constellation::Mixed,
-            reader: Reader::Gz(GzDecoder::new(reader)),
-            clock_diff: NumDiff::<M>::new(0, M),
-            obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
-            epoch_desc_len: 0,
-            epoch_descriptor: String::with_capacity(256),
-            flags_descriptor: String::with_capacity(128),
-            gnss_observables: HashMap::with_capacity(4),
-        }
+        self.state = new_state;
+        Ok(produced)
     }
 
     /// Helper to retrieve observable for given system
@@ -1223,7 +759,6 @@ mod test {
         hatanaka::decompressor::{Decompressor, State},
         prelude::SV,
     };
-    use std::fs::File;
     use std::str::FromStr;
 
     #[test]
@@ -1347,7 +882,7 @@ mod test {
     fn v1_sv_slice() {
         let recovered = "21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27G30R01R02R03R08R09R15R16R17R18R19R20";
         for sv_index in 0..24 {
-            let start = Decompressor::<File>::sv_slice_start(false, sv_index);
+            let start = Decompressor::sv_slice_start(false, sv_index);
             let slice_str = &recovered[start..start + 3];
             if sv_index == 0 {
                 assert_eq!(slice_str, "G07");
@@ -1361,7 +896,7 @@ mod test {
     #[test]
     fn v1_numsat_slice() {
         let recovered = "21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27G30R01R02R03R08R09R15R16R17R18R19R20";
-        let offset = Decompressor::<File>::V1_NUMSAT_OFFSET;
+        let offset = Decompressor::V1_NUMSAT_OFFSET;
         let numsat_str = &recovered[offset..offset + 3];
         assert_eq!(numsat_str, " 24");
         let numsat = numsat_str.trim().parse::<u64>().unwrap();
@@ -1372,7 +907,7 @@ mod test {
     fn v3_sv_slice() {
         let recovered = " 2020 06 25 00 00 00.0000000  0 43      C05C07C10C12C19C20C23C32C34C37E01E03E05E09E13E15E24E31G02G05G07G08G09G13G15G18G21G27G28G30R01R02R08R09R10R11R12R17R18R19S23S25S36";
         for sv_index in 0..43 {
-            let start = Decompressor::<File>::sv_slice_start(true, sv_index);
+            let start = Decompressor::sv_slice_start(true, sv_index);
             let slice_str = &recovered[start..start + 3];
             if sv_index == 0 {
                 assert_eq!(slice_str, "C05");
@@ -1386,7 +921,7 @@ mod test {
     #[test]
     fn v3_numsat_slice() {
         let recovered = " 2020 06 25 00 00 00.0000000  0 43      C05C07C10C12C19C20C23C32C34C37E01E03E05E09E13E15E24E31G02G05G07G08G09G13G15G18G21G27G28G30R01R02R08R09R10R11R12R17R18R19S23S25S36";
-        let offset = Decompressor::<File>::V3_NUMSAT_OFFSET;
+        let offset = Decompressor::V3_NUMSAT_OFFSET;
         let numsat_str = &recovered[offset..offset + 3];
         assert_eq!(numsat_str, " 43");
         let numsat = numsat_str.trim().parse::<u64>().unwrap();

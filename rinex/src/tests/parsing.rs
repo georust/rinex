@@ -34,7 +34,7 @@ mod test {
                         continue; // do not run in this build configuration
                     }
                     println!("Parsing \"{}\"", full_path);
-                    let rinex = Rinex::from_file::<5>(full_path);
+                    let rinex = Rinex::from_file(full_path);
                     assert!(
                         rinex.is_ok(),
                         "error parsing \"{}\": {:?}",

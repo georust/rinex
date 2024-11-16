@@ -2,14 +2,16 @@
 mod test {
     use crate::{
         hatanaka::{Decompressor, Error},
-        prelude::{Epoch, EpochFlag, GeodeticMarker, MarkerType, Observable, Rinex, SV},
+        prelude::{
+            Constellation, Epoch, EpochFlag, GeodeticMarker, MarkerType, Observable, Rinex, SV,
+        },
         tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
     };
     use std::{
+        collections::HashMap,
         fs::{remove_file as fs_remove_file, File},
-        io::Read,
         path::Path,
-        str::FromStr,
+        str::{from_utf8, FromStr},
     };
 
     #[test]
@@ -25,7 +27,7 @@ mod test {
         for (crnx_name, rnx_name) in pool {
             // parse DUT
             let path = format!("../test_resources/CRNX/V1/{}", crnx_name);
-            let crnx = Rinex::from_file::<5>(&path);
+            let crnx = Rinex::from_file(&path);
 
             assert!(crnx.is_ok(), "failed to parse {}", path);
             let mut dut = crnx.unwrap();
@@ -198,7 +200,7 @@ mod test {
 
             // run test on generated file
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
-            let _model = Rinex::from_file::<5>(&path).unwrap();
+            let _model = Rinex::from_file(&path).unwrap();
 
             // TODO unlock this
             // generic_observation_rinex_against_model();
@@ -227,7 +229,7 @@ mod test {
             // parse DUT
             let path = format!("../test_resources/CRNX/V3/{}", crnx_name);
 
-            let mut dut = Rinex::from_file::<5>(&path).unwrap();
+            let mut dut = Rinex::from_file(&path).unwrap();
 
             assert!(dut.header.obs.is_some());
             let obs = dut.header.obs.as_ref().unwrap();
@@ -255,7 +257,7 @@ mod test {
 
             // run test on generated file
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);
-            let model = Rinex::from_file::<5>(&path).unwrap();
+            let model = Rinex::from_file(&path).unwrap();
 
             // TODO unlock this
             // generic_observation_rinex_against_model();
@@ -272,7 +274,7 @@ mod test {
             .join("zegv0010.21d");
 
         let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -314,7 +316,7 @@ mod test {
             .join("ACOR00ESP_R_20213550000_01D_30S_MO.crx");
 
         let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file::<5>(fullpath.as_ref()).unwrap();
+        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
         assert!(dut.header.obs.is_some());
         let obs = dut.header.obs.as_ref().unwrap();
@@ -360,10 +362,9 @@ mod test {
     #[cfg(feature = "flate2")]
     #[test]
     fn v3_esbc00dnk() {
-        let dut = Rinex::from_file::<5>(
-            "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
-        )
-        .unwrap();
+        let dut =
+            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+                .unwrap();
 
         let mut geo_marker = GeodeticMarker::default()
             .with_name("ESBC00DNK")
@@ -408,10 +409,9 @@ mod test {
     #[test]
     #[cfg(feature = "flate2")]
     fn v3_mojn00dnk() {
-        let dut = Rinex::from_file::<5>(
-            "../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
-        )
-        .unwrap();
+        let dut =
+            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+                .unwrap();
 
         generic_observation_rinex_test(
             &dut,
@@ -452,440 +452,110 @@ mod test {
     }
 
     #[test]
-    fn v1_aopr0017d_raw() {
-        let mut last_passed = false;
-        let mut nth = 1;
-        let mut buf = [0; 4096];
-        let fd = File::open("../test_resources/CRNX/V1/aopr0010.17d").unwrap();
-        let mut decompressor = Decompressor::<File>::new(fd);
+    fn v1_aopr0010() {
+        // content extract from AOPR00_17d compressed with RNX2CRX tool
+        let gnss_observables = HashMap::from_iter(
+            [(
+                Constellation::GPS,
+                vec![
+                    Observable::PhaseRange("L1".to_string()),
+                    Observable::PhaseRange("L2".to_string()),
+                    Observable::PhaseRange("C1".to_string()),
+                    Observable::PhaseRange("P1".to_string()),
+                    Observable::PhaseRange("P2".to_string()),
+                ],
+            )]
+            .into_iter(),
+        );
 
-        // consume entire file
-        loop {
-            match decompressor.read(&mut buf) {
-                Err(_) => {},
-                Ok(size) => {
-                    if size == 0 {
-                        break; // EOS
-                    }
-                    assert!(size <= 4096);
+        let mut decomp = Decompressor::new(false, Constellation::GPS, gnss_observables);
 
-                    let mut ptr = 0;
-                    let buf_str = String::from_utf8_lossy(&buf[..size]);
+        for (line, expected) in [
+            (
+                "&17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26",
+                " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26",
+            ),
+            ("", ""),
+            (
+                "3&-14746974730 3&-11440396209 3&22513484637 3&22513484772 3&22513487370 49484 4 4",
+                " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ",
+            ),
+        ] {
+            let mut buf = [0; 1024];
 
-                    for line in buf_str.lines() {
-                        match nth {
-                            1 => {
-                                assert_eq!(line, "     2.10           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE");
-                            },
-                            2 => {
-                                assert_eq!(line, "teqc  2002Mar14     Arecibo Observatory 20170102 06:00:02UTCPGM / RUN BY / DATE");
-                            },
-                            3 => {
-                                assert_eq!(
-                                    line,
-                                    "Linux 2.0.36|Pentium II|gcc|Linux|486/DX+                   COMMENT"
-                                );
-                            },
-                            13 => {
-                                assert_eq!(line, "     5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV");
-                            },
-                            14 => {
-                                assert_eq!(
-                                    line,
-                                    "Version: Version:                                           COMMENT"
-                                );
-                            },
-                            18 => {
-                                assert_eq!(line, "  2017     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
-                            },
-                            19 => {
-                                assert_eq!(
-                                    line,
-                                    "                                                            END OF HEADER"
-                                );
-                            },
-                            20 => {
-                                assert_eq!(
-                                    line,
-                                    " 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26"
-                                );
-                            },
-                            21 => {
-                                assert_eq!(line, " -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ");
-                            },
-                            22 => {
-                                assert_eq!(line, " -19651355.72649 -15259372.67949  21319698.6624   21319698.7504   21319703.7964 ");
-                            },
-                            23 => {
-                                assert_eq!(line, "  -9440000.26548  -7293824.59347  23189944.5874   23189944.9994   23189951.4644 ");
-                            },
-                            24 => {
-                                assert_eq!(line, " -11141744.16748  -8631423.58147  23553953.9014   23553953.6364   23553960.7164 ");
-                            },
-                            25 => {
-                                assert_eq!(line, " -21846711.60849 -16970657.69649  20528865.5524   20528865.0214   20528868.5944 ");
-                            },
-                            26 => {
-                                assert_eq!(line, "  -2919082.75648  -2211037.84947  24165234.9594   24165234.7844   24165241.6424 ");
-                            },
-                            27 => {
-                                assert_eq!(line, " -20247177.70149 -15753542.44648  21289883.9064   21289883.7434   21289887.2614 ");
-                            },
-                            28 => {
-                                assert_eq!(line, " -15110614.77049 -11762797.21948  23262395.0794   23262394.3684   23262395.3424 ");
-                            },
-                            29 => {
-                                assert_eq!(line, " -16331314.56648 -12447068.51348  22920988.2144   22920987.5494   22920990.0634 ");
-                            },
-                            30 => {
-                                assert_eq!(line, " -15834397.66049 -12290568.98049  21540206.1654   21540206.1564   21540211.9414 ");
-                            },
-                            31 => {
-                                assert_eq!(
-                                    line,
-                                    " 17  1  1  3 33 40.0000000  0  9G30G27G11G16G 8G 7G23G 9G 1   "
-                                );
-                            },
-                            32 => {
-                                assert_eq!(line, "  -4980733.18548  -3805623.87347  24352349.1684   24352347.9244   24352356.1564 ");
-                            },
-                            33 => {
-                                assert_eq!(line, "  -9710828.79748  -7513506.68548  23211317.1574   23211317.5034   23211324.2834 ");
-                            },
-                            34 => {
-                                assert_eq!(line, " -26591640.60049 -20663619.71349  20668830.8234   20668830.4204   20668833.2334 ");
-                            },
-                            38 => {
-                                assert_eq!(line, " -18143490.68049 -14126079.68448  22685259.0754   22685258.3664   22685261.2134 ");
-                            },
-                            39 => {
-                                assert_eq!(line, " -16594887.53049 -12883140.10148  22336785.6934   22336785.4334   22336790.8924 ");
-                            },
-                            40 => {
-                                assert_eq!(line, " -19095445.86249 -14826971.50648  21708306.6584   21708306.5704   21708312.9414 ");
-                            },
-                            41 => {
-                                assert_eq!(
-                                    line,
-                                    " 17  1  1  6  9 10.0000000  0 11G30G17G 3G11G19G 8G 7G 6G22G28G 1"
-                                );
-                            },
-                            42 => {
-                                assert_eq!(line, " -23668184.66249 -18367274.15149  20796245.2334   20796244.8234   20796250.6334 ");
-                            },
-                            43 => {
-                                assert_eq!(line, "  -5877878.73348  -4575160.53248  23410058.5724   23410059.2714   23410062.1064 ");
-                            },
-                            52 => {
-                                last_passed = true;
-                                assert_eq!(line, " -21848286.72849 -16972039.81549  21184456.3894   21184456.9144   21184462.1224 ");
-                            },
-                            _ => {},
-                        }
-                        nth += 1;
-                        ptr += line.len() + 1;
-                    }
+            decomp.decompress(line, line.len(), &mut buf, 1024).unwrap();
 
-                    if ptr < buf_str.len() {
-                        let remainder = buf_str[ptr..].to_string();
-                        println!("remainder \"{}\"", remainder);
-                        // buf.clear();
-                    }
-                },
-            }
+            let content = from_utf8(&buf).expect("CRNX2RNX should always produce valid UTF-8");
+            assert_eq!(content, expected, "failed for \"{}\"", line);
         }
-        assert!(last_passed, "nth={}", nth);
-    }
-
-    #[test]
-    fn v1_zegv0010_raw() {
-        let mut last_passed = false;
-        let mut nth = 1;
-        let mut buf = [0; 4096];
-        let fd = File::open("../test_resources/CRNX/V1/zegv0010.21d").unwrap();
-        let mut decompressor = Decompressor::<File>::new(fd);
-
-        loop {
-            match decompressor.read(&mut buf) {
-                Ok(size) => {
-                    if size == 0 {
-                        break; // EOS
-                    }
-                    assert!(size <= 4096);
-
-                    let mut ptr = 0;
-                    let buf_str = String::from_utf8_lossy(&buf[..size]);
-
-                    for line in buf_str.lines() {
-                        match nth {
-                            1 => {
-                                assert_eq!(line, "     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
-                            },
-                            2 => {
-                                assert_eq!(line, "ssrcrin-13.4.4x                         20210101 000000 UTC PGM / RUN BY / DATE");
-                            },
-                            10 => {
-                                assert_eq!(line, "-------------------------------------                       COMMENT");
-                            },
-                            11 => {
-                                assert_eq!(line, "    11    C1    C2    C5    L1    L2    L5    P1    P2    S1# / TYPES OF OBSERV");
-                            },
-                            12 => {
-                                assert_eq!(line, "          S2    S5                                          # / TYPES OF OBSERV");
-                            },
-                            13 => {
-                                assert_eq!(line, "    54                                                      # OF SATELLITES");
-                            },
-                            14 => {
-                                assert_eq!(line, "   G01  1020  1033  1036   990   984  1036   984   984  1020PRN / # OF OBS");
-                            },
-                            32 => {
-                                assert_eq!(line, "   G10  1147  1145  1145  1129  1126  1145  1126  1126  1147PRN / # OF OBS");
-                            },
-                            40 => {
-                                assert_eq!(line, "   G15  1066  1057        1061  1059        1060  1060  1066PRN / # OF OBS");
-                            },
-                            45 => {
-                                assert_eq!(line, "        1157                                                PRN / # OF OBS");
-                            },
-                            50 => {
-                                assert_eq!(line, "   G20  1154              1120  1113        1113  1113  1154PRN / # OF OBS");
-                            },
-                            52 => {
-                                assert_eq!(line, "   G21  1044              1003   989         989   989  1044PRN / # OF OBS");
-                            },
-                            53 => {
-                                assert_eq!(line, "         989                                                PRN / # OF OBS");
-                            },
-                            56 => {
-                                assert_eq!(line, "   G23  1161  1160  1160  1149  1146  1160  1146  1146  1161PRN / # OF OBS");
-                            },
-                            104 => {
-                                assert_eq!(line, "   R16  1254  1255        1239  1229                    1254PRN / # OF OBS");
-                            },
-                            105 => {
-                                assert_eq!(line, "        1255                                                PRN / # OF OBS");
-                            },
-                            106 => {
-                                assert_eq!(line, "   R17  1285  1285        1283  1283                    1285PRN / # OF OBS");
-                            },
-                            107 => {
-                                assert_eq!(line, "        1285                                                PRN / # OF OBS");
-                            },
-                            122 => {
-                                assert_eq!(line, "    30.000                                                  INTERVAL");
-                            },
-                            123 => {
-                                assert_eq!(line, "  2021     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS");
-                            },
-                            124 => {
-                                assert_eq!(line, "  2021     1     1    23    59   30.0000000     GPS         TIME OF LAST OBS");
-                            },
-                            125 => {
-                                assert_eq!(line, "                                                            END OF HEADER");
-                            },
-                            126 => {
-                                assert_eq!(line, " 21 01 01 00 00 00.0000000  0 24G07G08G10G13G15G16G18G20G21G23G26G27");
-                            },
-                            127 => {
-                                assert_eq!(line, "                                G30R01R02R03R08R09R15R16R17R18R19R24");
-                            },
-                            128 => {
-                                assert_eq!(line, "  24178026.635 6  24178024.891 6                 127056391.69906  99004963.01703");
-                            },
-                            129 => {
-                                assert_eq!(line, "                  24178026.139 3  24178024.181 3        38.066          22.286");
-                            },
-                            130 => {
-                                panic!("DONE");
-                            },
-                            1493 => {
-                                assert_eq!(line, "  23573585.517 7  23573589.832 5                 126058552.95807  98045562.02905");
-                            },
-                            1494 => {
-                                assert_eq!(line, "                                                        42.626          35.171  ");
-                            },
-                            1495 => {
-                                last_passed = true;
-                            },
-                            _ => {},
-                        }
-                        nth += 1;
-                        ptr += line.len() + 1;
-                    }
-
-                    if ptr < buf_str.len() {
-                        let remainder = buf_str[ptr..].to_string();
-                        println!("remainder \"{}\"", remainder);
-                        // buf.clear();
-                    }
-                },
-                Err(e) => {
-                    println!("i/o error: {}", e);
-                },
-            }
-        }
-        assert!(last_passed, "nth={}", nth);
     }
 
     #[test]
     fn v3_duth0630_raw() {
-        let mut last_passed = false;
-        let mut nth = 1;
-        let mut buf = [0; 4096];
-        let fd = File::open("../test_resources/CRNX/V3/DUTH0630.22D").unwrap();
-        let mut decompressor = Decompressor::<File>::new(fd);
+        // content extract from DUTH0630 compressed with RNX2CRX tool
+        let gnss_observables = HashMap::from_iter(
+            [
+                (
+                    Constellation::GPS,
+                    vec![
+                        Observable::PhaseRange("C1C".to_string()),
+                        Observable::PhaseRange("L1C".to_string()),
+                        Observable::PhaseRange("D1C".to_string()),
+                        Observable::PhaseRange("S1C".to_string()),
+                        Observable::PhaseRange("L2W".to_string()),
+                        Observable::PhaseRange("C2W".to_string()),
+                        Observable::PhaseRange("D2W".to_string()),
+                        Observable::PhaseRange("S2W".to_string()),
+                    ],
+                ),
+                (
+                    Constellation::Glonass,
+                    vec![
+                        Observable::PhaseRange("C1C".to_string()),
+                        Observable::PhaseRange("L1C".to_string()),
+                        Observable::PhaseRange("D1C".to_string()),
+                        Observable::PhaseRange("S1C".to_string()),
+                        Observable::PhaseRange("C2P".to_string()),
+                        Observable::PhaseRange("L2P".to_string()),
+                        Observable::PhaseRange("D2P".to_string()),
+                        Observable::PhaseRange("S2P".to_string()),
+                    ],
+                ),
+            ]
+            .into_iter(),
+        );
 
-        // consume entire file
-        loop {
-            match decompressor.read(&mut buf) {
-                Err(_) => {},
-                Ok(size) => {
-                    if size == 0 {
-                        break; // EOS
-                    }
-                    assert!(size <= 4096);
+        let mut decomp = Decompressor::new(true, Constellation::Mixed, gnss_observables);
 
-                    let mut ptr = 0;
-                    let buf_str = String::from_utf8_lossy(&buf[..size]);
+        for (line, expected) in [
+            (
+                "> 2022 03 04 00 00  0.0000000  0 18      G01G03G04G09G17G19G21G22G31G32R01R02R08R09R10R17R23R24", 
+                "> 2022 03 04 00 00  0.0000000  0 18",
+            ),
+                ("", ""),
+            (
+                "3&20243517560 3&106380411418 3&-1242766 3&51250 3&20243518680 3&82893846800 3&-968395 3&54750 &&08&&&&&&09&&&&",
+                "G01  20243517.560   106380411.41808     -1242.766          51.250    20243518.680    82893846.80009      -968.395          54.750  ",
+            ),
+            (
+                "3&20619020680 3&108353702797 3&852785 3&50750 3&20619021100 3&84431468391 3&664508 3&55000 &&08&&&&&&09&&&&",
+                "G03  20619020.680   108353702.79708       852.785          50.750    20619021.100    84431468.39109       664.508          55.000  ",
+            ),
+            (
+                "3&21542633500 3&113207338117 3&2389520 3&49250 3&21542633020 3&88213529248 3&1861965 3&46000 &&08&&&&&&07&&&&",
+                "G04  21542633.500   113207338.11708      2389.520          49.250    21542633.020    88213529.24807      1861.965          46.000  ",
+            ),
+            (
+                "3&24438727980 3&128426388921 3&3441828 3&42250 3&24438729140 3&100072523720 3&2681945 3&48000 &&07&&&&&&08&&&&",
+                "G09  24438727.980   128426388.92107      3441.828          42.250    24438729.140   100072523.72008      2681.945          48.000  ",
+            ),
+        ] {
+            let mut buf = [0; 1024];
+            decomp.decompress(line, line.len(), &mut buf, 1024)
+                .unwrap();
 
-                    for line in buf_str.lines() {
-                        match nth {
-                            1 => {
-                                assert_eq!(line, "     3.02           OBSERVATION DATA    M: MIXED            RINEX VERSION / TYPE");
-                            },
-                            2 => {
-                                assert_eq!(line, "HEADER CHANGED BY EPN CB ON 2022-03-11                      COMMENT");
-                            },
-                            3 => {
-                                assert_eq!(
-                                    line,
-                                    "TO BE CONFORM WITH THE INFORMATION IN                       COMMENT"
-                                );
-                            },
-                            35 => {
-                                assert_eq!(line, "                                                            END OF HEADER");
-                            },
-                            36 => {
-                                assert_eq!(line, "> 2022 03 04 00 00  0.0000000  0 18");
-                            },
-                            37 => {
-                                assert_eq!(line, "G01  20243517.560   106380411.41808     -1242.766          51.250    20243518.680    82893846.80009      -968.395          54.750  ");
-                            },
-                            38 => {
-                                assert_eq!(line, "G03  20619020.680   108353702.79708       852.785          50.750    20619021.100    84431468.39109       664.508          55.000  ");
-                            },
-                            39 => {
-                                assert_eq!(line, "G04  21542633.500   113207338.11708      2389.520          49.250    21542633.020    88213529.24807      1861.965          46.000  ");
-                            },
-                            40 => {
-                                assert_eq!(line, "G09  24438727.980   128426388.92107      3441.828          42.250    24438729.140   100072523.72008      2681.945          48.000  ");
-                            },
-                            46 => {
-                                assert_eq!(line, "G32  24991723.280   131332403.80806     -3346.027          38.500    24991723.680   102336952.35407     -2607.301          45.000  ");
-                            },
-                            47 => {
-                                assert_eq!(line, "R01  19727826.340   105456587.22208       519.527          49.000    19727833.320    82021844.95107       404.078          45.000  ");
-                            },
-                            48 => {
-                                assert_eq!(line, "R02  23171275.620   123646407.55007      3024.918          43.750    23171282.520    96169463.60007      2352.711          43.000  ");
-                            },
-                            49 => {
-                                assert_eq!(line, "R08  20662538.580   110647112.63108     -2347.816          48.500    20662542.500    86058958.81907     -1826.082          47.500  ");
-                            },
-                            50 => {
-                                assert_eq!(line, "R09  23450513.820   125224436.13906      -230.477          41.000    23450519.040    97396803.17207      -179.262          42.250  ");
-                            },
-                            51 => {
-                                assert_eq!(line, "R10  23044984.180   122842738.81106      2450.535          41.500                                                                  ");
-                            },
-                            73 => {
-                                assert_eq!(line, "> 2022 03 04 00 57  0.0000000  0 17");
-                            },
-                            74 => {
-                                assert_eq!(line, "G01  21653418.260   113789485.67008     -2985.516          49.500    21653419.660    88667150.38209     -2326.379          54.750");
-                            },
-                            89 => {
-                                assert_eq!(line, "R23  22543866.020   120594470.51907     -4464.453          44.250");
-                            },
-                            90 => {
-                                assert_eq!(line, "R24  20147683.700   107738728.87108     -2188.113          51.000    20147688.700    83796794.50808     -1701.871          48.500");
-                                last_passed = true;
-                            },
-                            _ => {},
-                        }
-                        nth += 1;
-                        ptr += line.len() + 1;
-                    }
-
-                    if ptr < buf_str.len() {
-                        let remainder = buf_str[ptr..].to_string();
-                        println!("remainder \"{}\"", remainder);
-                        // buf.clear();
-                    }
-                },
-            }
+            let content = from_utf8(&buf).expect("CRNX2RNX should always produce valid UTF-8");
+            assert_eq!(content, expected, "failed for \"{}\"", line);
         }
-        assert!(last_passed, "nth={}", nth);
-    }
-
-    #[test]
-    fn v3_esbcdnk_raw() {
-        let mut last_passed = false;
-        let mut nth = 1;
-        let mut buf = [0; 4096];
-        let fd = File::open("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-            .unwrap();
-        let mut decompressor = Decompressor::<File>::new_gzip(fd);
-
-        // consume entire file
-        loop {
-            match decompressor.read(&mut buf) {
-                Err(e) => {},
-                Ok(size) => {
-                    if size == 0 {
-                        break; // EOS
-                    }
-                    assert!(size <= 4096);
-
-                    let mut ptr = 0;
-                    let buf_str = String::from_utf8_lossy(&buf[..size]);
-
-                    for line in buf_str.lines() {
-                        match nth {
-                            1 => {
-                                assert_eq!(line, "     3.05           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE");
-                            },
-                            2 => {
-                                assert_eq!(line, "sbf2rin-13.4.5                          20220706 130812 UTC PGM / RUN BY / DATE");
-                            },
-                            3 => {
-                                assert_eq!(line, "gfzrnx-1.16-8177    FILE MERGE          20220706 132211 UTC COMMENT");
-                            },
-                            4 => {
-                                assert_eq!(
-                                    line,
-                                    "ESBC00DNK                                                   MARKER NAME"
-                                );
-                            },
-                            133734 => {
-                                assert_eq!(line, "44  41519088.701 5                        99.299 5                 218184295.26505                        35.500");
-                                last_passed = true;
-                            },
-                            _ => {},
-                        }
-                        nth += 1;
-                        ptr += line.len() + 1;
-                    }
-
-                    if ptr < buf_str.len() {
-                        let remainder = buf_str[ptr..].to_string();
-                        println!("remainder \"{}\"", remainder);
-                        // buf.clear();
-                    }
-                },
-            }
-        }
-        assert!(last_passed, "nth={}", nth);
     }
 }

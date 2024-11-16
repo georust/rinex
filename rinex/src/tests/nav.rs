@@ -12,16 +12,18 @@ mod test {
     use std::path::Path;
     use std::path::PathBuf;
     use std::str::FromStr;
+
     #[test]
     #[cfg(feature = "nav")]
     fn v2_amel0010_21g() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/amel0010.21g";
-        let rinex = Rinex::from_file::<5>(&test_resource);
-        assert!(rinex.is_ok());
-        let rinex = rinex.unwrap();
+
+        let rinex = Rinex::from_file(&test_resource).unwrap();
+
         let record = rinex.record.as_nav();
         assert!(record.is_some());
+
         let record = record.unwrap();
         assert_eq!(record.len(), 4);
 
@@ -184,7 +186,7 @@ mod test {
     fn v2_cbw10010_21n() {
         let test_resources =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/cbw10010.21n.gz";
-        let rinex = Rinex::from_file::<5>(&test_resources);
+        let rinex = Rinex::from_file(&test_resources);
         assert!(rinex.is_ok(), "failed to parse NAV/V2/cbw10010.21n.gz");
         let rinex = rinex.unwrap();
 
@@ -304,7 +306,7 @@ mod test {
     fn v3_amel00nld_r_2021() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         assert!(rinex.is_ok());
 
         let rinex = rinex.unwrap();
@@ -485,7 +487,7 @@ mod test {
     fn v4_kms300dnk_r_202215910() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         assert!(rinex.is_navigation_rinex());
@@ -947,7 +949,7 @@ mod test {
     fn v3_brdc00gop_r_2021_gz() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/BRDC00GOP_R_20210010000_01D_MN.rnx.gz";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         assert!(rinex.is_ok());
 
         let rinex = rinex.unwrap();
@@ -1048,7 +1050,7 @@ mod test {
     fn v4_nav_messages() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
-        let rinex = Rinex::from_file::<5>(&test_resource);
+        let rinex = Rinex::from_file(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
@@ -1115,13 +1117,10 @@ mod test {
             .join("NAV")
             .join("V4")
             .join("BRD400DLR_S_20230710000_01D_MN.rnx.gz");
-        let rinex = Rinex::from_file::<5>(&path.to_string_lossy());
-        assert!(
-            rinex.is_ok(),
-            "failed to parse NAV/V4/BRD400DLR_S_20230710000_01D_MN.rnx.gz, error: {:?}",
-            rinex.err()
-        );
-        let rinex = rinex.unwrap();
+
+        let path = path.to_string_lossy().to_string();
+        let rinex = Rinex::from_file(&path).unwrap();
+
         for (epoch, (msg, sv, data)) in rinex.ephemeris() {
             if sv == sv!("G01") {
                 assert!(
@@ -1354,7 +1353,7 @@ mod test {
             .join("NAV")
             .join("V2")
             .join("dlf10010.21g");
-        let rinex = Rinex::from_file::<5>(path.to_string_lossy().as_ref());
+        let rinex = Rinex::from_file(path.to_string_lossy().as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         for (_toc, (_, sv, _ephemeris)) in rinex.ephemeris() {
@@ -1379,7 +1378,7 @@ mod test {
             .join("NAV")
             .join("V3")
             .join("AMEL00NLD_R_20210010000_01D_MN.rnx");
-        let rinex = Rinex::from_file::<5>(path.to_string_lossy().as_ref());
+        let rinex = Rinex::from_file(path.to_string_lossy().as_ref());
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
@@ -1427,13 +1426,9 @@ mod test {
             .join("NAV")
             .join("V3")
             .join("CBW100NLD_R_20210010000_01D_MN.rnx");
-        let rinex = Rinex::from_file::<5>(&path.to_string_lossy());
-        assert!(
-            rinex.is_ok(),
-            "failed to parse NAV/V3/BCW100NLD_R_2021, error: {:?}",
-            rinex.err()
-        );
-        let rinex = rinex.unwrap();
+
+        let path = path.to_string_lossy().to_string();
+        let rinex = Rinex::from_file(&path).unwrap();
 
         for (t0, should_work) in [
             // VALID : publication datetime
@@ -1474,6 +1469,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "nav")]
     fn v2_iono_alphabeta_and_toe() {
@@ -1484,13 +1480,10 @@ mod test {
             .join("NAV")
             .join("V2")
             .join("cbw10010.21n.gz");
-        let rinex = Rinex::from_file::<5>(&path.to_string_lossy());
-        assert!(
-            rinex.is_ok(),
-            "failed to parse NAV/V2/cbw10010.21n.gz, error: {:?}",
-            rinex.err()
-        );
-        let rinex = rinex.unwrap();
+
+        let path = path.to_string_lossy().to_string();
+        let rinex = Rinex::from_file(&path).unwrap();
+
         // Earliest epoch record is 2020-12-31 23:59:44
 
         for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
@@ -1593,7 +1586,7 @@ mod test {
                 env!("CARGO_MANIFEST_DIR"),
                 fp
             );
-            let rinex = Rinex::from_file::<5>(&fullpath);
+            let rinex = Rinex::from_file(&fullpath);
             let rinex = rinex.unwrap();
             /*
              * Verify ION logical correctness

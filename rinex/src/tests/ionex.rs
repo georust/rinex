@@ -13,7 +13,7 @@ mod test {
             .join("CKMG0090.21I.gz");
         let fullpath = path.to_string_lossy();
 
-        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
+        let rinex = Rinex::from_file(fullpath.as_ref());
         assert!(rinex.is_ok(), "failed to parse IONEX/V1CKMG0090.21I.gz");
 
         let rinex = rinex.unwrap();
@@ -57,7 +57,7 @@ mod test {
             .join("jplg0010.17i.gz");
         let fullpath = path.to_string_lossy();
 
-        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
+        let rinex = Rinex::from_file(fullpath.as_ref());
         assert!(rinex.is_ok(), "failed to parse IONEX/jplg0010.17i.gz");
 
         let rinex = rinex.unwrap();
@@ -94,7 +94,7 @@ mod test {
             .join("CKMG0020.22I.gz");
         let fullpath = path.to_string_lossy();
 
-        let rinex = Rinex::from_file::<5>(fullpath.as_ref());
+        let rinex = Rinex::from_file(fullpath.as_ref());
         assert!(rinex.is_ok(), "failed to parse IONEX/V1/CKMG0020.22I.gz");
 
         let rinex = rinex.unwrap();
