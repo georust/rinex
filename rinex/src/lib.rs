@@ -9,6 +9,9 @@ extern crate num;
 #[cfg(feature = "qc")]
 extern crate rinex_qc_traits as qc_traits;
 
+#[cfg(feature = "flate2")]
+use flate2::read::GzDecoder;
+
 #[macro_use]
 extern crate num_derive;
 
@@ -864,15 +867,11 @@ impl Rinex {
 
     /// Parses [RINEX] from local file.
     /// Will panic if provided file does not exist or is not readable.
-    /// We only have restrictions on the file extention, not the filename itself.
-    /// If filename follows standard naming conventions, then internal definitions
-    /// will be complete.
-    /// Restrictions that apply on file extension:
-    ///   - CRINEX files must be terminated by .crx (standard convention)
-    ///   - CRINEX + Gzip must be terminated by .crx.gz (standard convention)
-    ///   - Otherwise we interprate as Plain (readable) RINEX and it might panic.
-    ///   This also means that plain readable RINEX can be terminated by
-    ///   something that do not follow standard naming conventions.
+    /// If file name follows standard naming conventions, then internal definitions
+    /// will truly be complete. Otherwise [ProductionAttributes] cannot be determined.
+    /// If you want or need to (mostly in data production environment), you can either
+    ///  1. define it yourself with further customization
+    ///  2. use the smart guesser (after parsing): [Self::guess_production_attributes]
     pub fn from_file(path: impl AsRef<Path>) -> Result<Rinex, ParsingError> {
         let path = path.as_ref();
 
@@ -894,6 +893,36 @@ impl Rinex {
         let mut reader = BufReader::new(fd);
         let mut rinex = Rinex::parse(&mut reader)?;
 
+        rinex.prod_attr = file_attributes;
+        Ok(rinex)
+    }
+
+    /// Parses [RINEX] from local gzip compressed file.
+    /// Will panic if provided file does not exist or is not readable.
+    /// Refer to [Self::from_file] for more information.
+    #[cfg(feature = "flate2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
+    pub fn from_gzip_file(path: impl AsRef<Path>) -> Result<Rinex, ParsingError> {
+        let path = path.as_ref();
+
+        // deduce all we can from file name
+        let file_attributes = match path.file_name() {
+            Some(filename) => {
+                let filename = filename.to_string_lossy().to_string();
+                if let Ok(attrs) = ProductionAttributes::from_str(&filename) {
+                    Some(attrs)
+                } else {
+                    None
+                }
+            },
+            _ => None,
+        };
+
+        let fd = File::open(path).expect("from_file: open error");
+
+        let reader = GzDecoder::new(fd);
+        let mut reader = BufReader::new(reader);
+        let mut rinex = Rinex::parse(&mut reader)?;
         rinex.prod_attr = file_attributes;
         Ok(rinex)
     }
