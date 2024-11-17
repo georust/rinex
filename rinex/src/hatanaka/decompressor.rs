@@ -768,6 +768,7 @@ impl<const M: usize> DecompressorExpert<M> {
 
                 // conclude this SV
                 self.sv_ptr += 1;
+
                 println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
 
                 if self.sv_ptr == self.numsat {
@@ -776,6 +777,18 @@ impl<const M: usize> DecompressorExpert<M> {
                     self.state = State::Epoch;
                 } else {
                     self.sv = self.next_sv().expect("failed to determine next sv");
+
+                    let constellation = if self.sv.constellation.is_sbas() {
+                        Constellation::SBAS
+                    } else {
+                        self.sv.constellation
+                    };
+
+                    self.numobs = self
+                        .get_observables(&constellation)
+                        .expect("internal error")
+                        .len();
+
                     self.state = State::ObservationV3;
                 }
 
@@ -833,6 +846,17 @@ impl<const M: usize> DecompressorExpert<M> {
             new_state = State::Epoch;
         } else {
             self.sv = self.next_sv().expect("failed to determine next sv");
+
+            let constellation = if self.sv.constellation.is_sbas() {
+                Constellation::SBAS
+            } else {
+                self.sv.constellation
+            };
+
+            self.numobs = self
+                .get_observables(&constellation)
+                .expect("internal error")
+                .len();
         }
 
         self.state = new_state;

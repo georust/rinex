@@ -1,4 +1,5 @@
-mod pdel0010_21; // realistic V3 test
+mod esbcdnk;
+mod pdel0010_21; // realistic V3 test // realistic V3 test
 
 use std::{
     collections::HashMap,
@@ -49,57 +50,52 @@ pub fn run_raw_decompression_test(
 
         let content = from_utf8(&buf[..size]).expect("CRNX2RNX should always produce valid UTF-8");
 
+        let content = content.trim_end();
+        let output = output.trim_end();
+
         assert_eq!(content, output, "failed on line={} \"{}\"", nth, input);
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::{
-        prelude::{
-            Constellation, Epoch, EpochFlag, GeodeticMarker, MarkerType, Observable, Rinex, SV,
-        },
-        tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
-    };
-    use std::{
-        collections::HashMap,
-        fs::{remove_file as fs_remove_file, File},
-        path::Path,
-        str::{from_utf8, FromStr},
-    };
+use crate::{
+    prelude::{Epoch, EpochFlag, GeodeticMarker, MarkerType, Rinex, SV},
+    tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
+};
 
-    #[test]
-    fn testbench_v1() {
-        let pool = vec![
-            ("zegv0010.21d", "zegv0010.21o"),
-            ("AJAC3550.21D", "AJAC3550.21O"),
-            //("KOSG0010.95D", "KOSG0010.95O"), //TODO@ fix tests/obs/v2_kosg first
-            ("aopr0010.17d", "aopr0010.17o"),
-            ("npaz3550.21d", "npaz3550.21o"),
-            ("wsra0010.21d", "wsra0010.21o"),
-        ];
-        for (crnx_name, rnx_name) in pool {
-            // parse DUT
-            let path = format!("../test_resources/CRNX/V1/{}", crnx_name);
-            let crnx = Rinex::from_file(&path);
+use std::{fs::remove_file as fs_remove_file, path::Path};
 
-            assert!(crnx.is_ok(), "failed to parse {}", path);
-            let mut dut = crnx.unwrap();
+#[test]
+fn testbench_v1() {
+    let pool = vec![
+        ("zegv0010.21d", "zegv0010.21o"),
+        ("AJAC3550.21D", "AJAC3550.21O"),
+        //("KOSG0010.95D", "KOSG0010.95O"), //TODO@ fix tests/obs/v2_kosg first
+        ("aopr0010.17d", "aopr0010.17o"),
+        ("npaz3550.21d", "npaz3550.21o"),
+        ("wsra0010.21d", "wsra0010.21o"),
+    ];
+    for (crnx_name, rnx_name) in pool {
+        // parse DUT
+        let path = format!("../test_resources/CRNX/V1/{}", crnx_name);
+        let crnx = Rinex::from_file(&path);
 
-            let header = dut.header.obs.as_ref().unwrap();
+        assert!(crnx.is_ok(), "failed to parse {}", path);
+        let mut dut = crnx.unwrap();
 
-            assert!(header.crinex.is_some());
-            let infos = header.crinex.as_ref().unwrap();
+        let header = dut.header.obs.as_ref().unwrap();
 
-            if crnx_name.eq("zegv0010.21d") {
-                assert_eq!(infos.version.major, 1);
-                assert_eq!(infos.version.minor, 0);
-                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-                assert_eq!(
-                    infos.date,
-                    Epoch::from_gregorian_utc(2021, 01, 02, 00, 01, 00, 00)
-                );
-                generic_observation_rinex_test(
+        assert!(header.crinex.is_some());
+        let infos = header.crinex.as_ref().unwrap();
+
+        if crnx_name.eq("zegv0010.21d") {
+            assert_eq!(infos.version.major, 1);
+            assert_eq!(infos.version.minor, 0);
+            assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+            assert_eq!(
+                infos.date,
+                Epoch::from_gregorian_utc(2021, 01, 02, 00, 01, 00, 00)
+            );
+            generic_observation_rinex_test(
                     &dut,
                     None,
                     "2.11",
@@ -120,36 +116,36 @@ mod test {
                     vec![],
                     vec![],
                 );
-            } else if crnx_name.eq("npaz3550.21d") {
-                assert_eq!(infos.version.major, 1);
-                assert_eq!(infos.version.minor, 0);
-                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-                assert_eq!(
-                    infos.date,
-                    Epoch::from_gregorian_utc(2021, 12, 28, 00, 18, 00, 00)
-                );
-                generic_observation_rinex_test(
-                    &dut,
-                    None,
-                    "2.11",
-                    Some("MIXED"),
-                    false,
-                    "GPS, GLO",
-                    "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
-                    &[("GPS", "C1, L1, L2, P2, S1, S2")],
-                    Some("2021-12-21T00:00:00 GPST"),
-                    Some("2021-12-21T23:59:30 GPST"),
-                    None,
-                    None,
-                    None,
-                    TimeFrame::from_inclusive_csv(
-                        "2021-12-21T00:00:00 GPST, 2021-12-21T01:04:00 GPST, 30 s",
-                    ),
-                    vec![],
-                    vec![],
-                );
-            } else if crnx_name.eq("wsra0010.21d") {
-                generic_observation_rinex_test(
+        } else if crnx_name.eq("npaz3550.21d") {
+            assert_eq!(infos.version.major, 1);
+            assert_eq!(infos.version.minor, 0);
+            assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+            assert_eq!(
+                infos.date,
+                Epoch::from_gregorian_utc(2021, 12, 28, 00, 18, 00, 00)
+            );
+            generic_observation_rinex_test(
+                &dut,
+                None,
+                "2.11",
+                Some("MIXED"),
+                false,
+                "GPS, GLO",
+                "G08,G10,G15,G16,G18,G21,G23,G26,G32,R04,R05,R06,R10,R12,R19,R20,R21",
+                &[("GPS", "C1, L1, L2, P2, S1, S2")],
+                Some("2021-12-21T00:00:00 GPST"),
+                Some("2021-12-21T23:59:30 GPST"),
+                None,
+                None,
+                None,
+                TimeFrame::from_inclusive_csv(
+                    "2021-12-21T00:00:00 GPST, 2021-12-21T01:04:00 GPST, 30 s",
+                ),
+                vec![],
+                vec![],
+            );
+        } else if crnx_name.eq("wsra0010.21d") {
+            generic_observation_rinex_test(
                     &dut,
                     None,
                     "2.11",
@@ -170,49 +166,49 @@ mod test {
                     vec![],
                     vec![],
                 );
-            } else if crnx_name.eq("aopr0010.17d") {
-                generic_observation_rinex_test(
-                    &dut,
-                    None,
-                    "2.10",
-                    Some("GPS"),
-                    false,
-                    "GPS",
-                    "G31, G27, G03, G32, G16, G08, G14, G23, G22, G26",
-                    &[("GPS", "C1, L1, L2, P1, P2"), ("GLO", "C1")],
-                    Some("2017-01-01T00:00:00 GPST"),
-                    None,
-                    None,
-                    None,
-                    None,
-                    TimeFrame::from_erratic_csv(
-                        "
+        } else if crnx_name.eq("aopr0010.17d") {
+            generic_observation_rinex_test(
+                &dut,
+                None,
+                "2.10",
+                Some("GPS"),
+                false,
+                "GPS",
+                "G31, G27, G03, G32, G16, G08, G14, G23, G22, G26",
+                &[("GPS", "C1, L1, L2, P1, P2"), ("GLO", "C1")],
+                Some("2017-01-01T00:00:00 GPST"),
+                None,
+                None,
+                None,
+                None,
+                TimeFrame::from_erratic_csv(
+                    "
                     2017-01-01T00:00:00 GPST,
                     2017-01-01T03:33:40 GPST,
                     2017-01-01T06:09:10 GPST
                     ",
-                    ),
-                    vec![],
-                    vec![],
-                );
-            //} else if crnx_name.eq("KOSG0010.95D") {
-            //    test_observation_rinex(
-            //        &rnx,
-            //        "2.0",
-            //        Some("GPS"),
-            //        "GPS",
-            //        "G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
-            //        "C1, L1, L2, P2, S1",
-            //        Some("1995-01-01T00:00:00 GPST"),
-            //        Some("1995-01-01T23:59:30 GPST"),
-            //        erratic_time_frame!("
-            //            1995-01-01T00:00:00 GPST,
-            //            1995-01-01T11:00:00 GPST,
-            //            1995-01-01T20:44:30 GPST
-            //        "),
-            //    );
-            } else if crnx_name.eq("AJAC3550.21D") {
-                generic_observation_rinex_test(
+                ),
+                vec![],
+                vec![],
+            );
+        //} else if crnx_name.eq("KOSG0010.95D") {
+        //    test_observation_rinex(
+        //        &rnx,
+        //        "2.0",
+        //        Some("GPS"),
+        //        "GPS",
+        //        "G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
+        //        "C1, L1, L2, P2, S1",
+        //        Some("1995-01-01T00:00:00 GPST"),
+        //        Some("1995-01-01T23:59:30 GPST"),
+        //        erratic_time_frame!("
+        //            1995-01-01T00:00:00 GPST,
+        //            1995-01-01T11:00:00 GPST,
+        //            1995-01-01T20:44:30 GPST
+        //        "),
+        //    );
+        } else if crnx_name.eq("AJAC3550.21D") {
+            generic_observation_rinex_test(
                     &dut,
                     None,
                     "2.11",
@@ -235,102 +231,102 @@ mod test {
                     vec![],
                     vec![],
                 );
-            }
-
-            // decompress and write to file
-            dut.crnx2rnx_mut();
-
-            let specs = dut.header.obs.as_ref().unwrap();
-            assert!(specs.crinex.is_none());
-
-            // TODO
-            let filename = format!("{}.rnx", random_name(10));
-
-            // assert!(
-            //     dut.to_file(&filename).is_ok(),
-            //     "failed to dump \"{}\" after decompression",
-            //     crnx_name
-            // );
-
-            // run test on generated file
-            let path = format!("../test_resources/OBS/V2/{}", rnx_name);
-            let _model = Rinex::from_file(&path).unwrap();
-
-            // TODO unlock this
-            // generic_observation_rinex_against_model();
-
-            let _ = fs_remove_file(filename); // cleanup
         }
+
+        // decompress and write to file
+        dut.crnx2rnx_mut();
+
+        let specs = dut.header.obs.as_ref().unwrap();
+        assert!(specs.crinex.is_none());
+
+        // TODO
+        let filename = format!("{}.rnx", random_name(10));
+
+        // assert!(
+        //     dut.to_file(&filename).is_ok(),
+        //     "failed to dump \"{}\" after decompression",
+        //     crnx_name
+        // );
+
+        // run test on generated file
+        let path = format!("../test_resources/OBS/V2/{}", rnx_name);
+        let _model = Rinex::from_file(&path).unwrap();
+
+        // TODO unlock this
+        // generic_observation_rinex_against_model();
+
+        let _ = fs_remove_file(filename); // cleanup
     }
-    #[test]
-    fn testbench_v3() {
-        let pool = vec![
-            ("DUTH0630.22D", "DUTH0630.22O"),
-            (
-                "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
-                "ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
-            ),
-            ("pdel0010.21d", "pdel0010.21o"),
-            ("flrs0010.12d", "flrs0010.12o"),
-            ("VLNS0010.22D", "VLNS0010.22O"),
-            ("VLNS0630.22D", "VLNS0630.22O"),
-            //TODO unlock this
-            //("ESBC00DNK_R_20201770000_01D_30S_MO.crx", "ESBC00DNK_R_20201770000_01D_30S_MO.rnx"),
-            //("KMS300DNK_R_20221591000_01H_30S_MO.crx", "KMS300DNK_R_20221591000_01H_30S_MO.rnx"),
-            //("MOJN00DNK_R_20201770000_01D_30S_MO.crx", "MOJN00DNK_R_20201770000_01D_30S_MO.rnx"),
-        ];
-        for (crnx_name, rnx_name) in pool {
-            // parse DUT
-            let path = format!("../test_resources/CRNX/V3/{}", crnx_name);
+}
+#[test]
+fn testbench_v3() {
+    let pool = vec![
+        ("DUTH0630.22D", "DUTH0630.22O"),
+        (
+            "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
+            "ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+        ),
+        ("pdel0010.21d", "pdel0010.21o"),
+        ("flrs0010.12d", "flrs0010.12o"),
+        ("VLNS0010.22D", "VLNS0010.22O"),
+        ("VLNS0630.22D", "VLNS0630.22O"),
+        //TODO unlock this
+        //("ESBC00DNK_R_20201770000_01D_30S_MO.crx", "ESBC00DNK_R_20201770000_01D_30S_MO.rnx"),
+        //("KMS300DNK_R_20221591000_01H_30S_MO.crx", "KMS300DNK_R_20221591000_01H_30S_MO.rnx"),
+        //("MOJN00DNK_R_20201770000_01D_30S_MO.crx", "MOJN00DNK_R_20201770000_01D_30S_MO.rnx"),
+    ];
+    for (crnx_name, rnx_name) in pool {
+        // parse DUT
+        let path = format!("../test_resources/CRNX/V3/{}", crnx_name);
 
-            let mut dut = Rinex::from_file(&path).unwrap();
+        let mut dut = Rinex::from_file(&path).unwrap();
 
-            assert!(dut.header.obs.is_some());
-            let obs = dut.header.obs.as_ref().unwrap();
+        assert!(dut.header.obs.is_some());
+        let obs = dut.header.obs.as_ref().unwrap();
 
-            assert!(obs.crinex.is_some());
-            let infos = obs.crinex.as_ref().unwrap();
+        assert!(obs.crinex.is_some());
+        let infos = obs.crinex.as_ref().unwrap();
 
-            if crnx_name.eq("ACOR00ESP_R_20213550000_01D_30S_MO.crx") {
-                assert_eq!(infos.version.major, 3);
-                assert_eq!(infos.version.minor, 0);
-                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-                assert_eq!(
-                    infos.date,
-                    Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00)
-                );
+        if crnx_name.eq("ACOR00ESP_R_20213550000_01D_30S_MO.crx") {
+            assert_eq!(infos.version.major, 3);
+            assert_eq!(infos.version.minor, 0);
+            assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+            assert_eq!(
+                infos.date,
+                Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00)
+            );
 
-                // TODO: run detailed testbench
-            }
-
-            // convert to RINEX
-            dut.crnx2rnx_mut();
-
-            let obs = dut.header.obs.as_ref().unwrap();
-            assert!(obs.crinex.is_none());
-
-            // run test on generated file
-            let path = format!("../test_resources/OBS/V3/{}", rnx_name);
-            let model = Rinex::from_file(&path).unwrap();
-
-            // TODO unlock this
-            // generic_observation_rinex_against_model();
+            // TODO: run detailed testbench
         }
+
+        // convert to RINEX
+        dut.crnx2rnx_mut();
+
+        let obs = dut.header.obs.as_ref().unwrap();
+        assert!(obs.crinex.is_none());
+
+        // run test on generated file
+        let path = format!("../test_resources/OBS/V3/{}", rnx_name);
+        let model = Rinex::from_file(&path).unwrap();
+
+        // TODO unlock this
+        // generic_observation_rinex_against_model();
     }
+}
 
-    #[test]
-    fn v1_zegv0010_21d() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("CRNX")
-            .join("V1")
-            .join("zegv0010.21d");
+#[test]
+fn v1_zegv0010_21d() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("CRNX")
+        .join("V1")
+        .join("zegv0010.21d");
 
-        let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let fullpath = path.to_string_lossy();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "2.11",
@@ -358,35 +354,35 @@ mod test {
             ],
             vec![],
         );
-    }
+}
 
-    #[test]
-    fn v3_acor00esp_r2021() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("CRNX")
-            .join("V3")
-            .join("ACOR00ESP_R_20213550000_01D_30S_MO.crx");
+#[test]
+fn v3_acor00esp_r2021() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("CRNX")
+        .join("V3")
+        .join("ACOR00ESP_R_20213550000_01D_30S_MO.crx");
 
-        let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let fullpath = path.to_string_lossy();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        assert!(dut.header.obs.is_some());
-        let obs = dut.header.obs.as_ref().unwrap();
-        assert!(obs.crinex.is_some());
+    assert!(dut.header.obs.is_some());
+    let obs = dut.header.obs.as_ref().unwrap();
+    assert!(obs.crinex.is_some());
 
-        let infos = obs.crinex.as_ref().unwrap();
+    let infos = obs.crinex.as_ref().unwrap();
 
-        assert_eq!(infos.version.major, 3);
-        assert_eq!(infos.version.minor, 0);
-        assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-        assert_eq!(
-            infos.date,
-            Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00)
-        );
+    assert_eq!(infos.version.major, 3);
+    assert_eq!(infos.version.minor, 0);
+    assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+    assert_eq!(
+        infos.date,
+        Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00)
+    );
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "3.04",
@@ -411,22 +407,22 @@ mod test {
             ],
             vec![],
         );
-    }
+}
 
-    #[cfg(feature = "flate2")]
-    #[test]
-    fn v3_esbc00dnk() {
-        let dut =
-            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-                .unwrap();
+#[cfg(feature = "flate2")]
+#[test]
+fn v3_esbc00dnk() {
+    let dut =
+        Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
 
-        let mut geo_marker = GeodeticMarker::default()
-            .with_name("ESBC00DNK")
-            .with_number("10118M001");
+    let mut geo_marker = GeodeticMarker::default()
+        .with_name("ESBC00DNK")
+        .with_number("10118M001");
 
-        geo_marker.marker_type = Some(MarkerType::Geodetic);
+    geo_marker.marker_type = Some(MarkerType::Geodetic);
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "3.05",
@@ -458,16 +454,15 @@ mod test {
             vec![],
             vec![],
         );
-    }
+}
 
-    #[test]
-    #[cfg(feature = "flate2")]
-    fn v3_mojn00dnk() {
-        let dut =
-            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
-                .unwrap();
+#[test]
+fn v3_mojn00dnk() {
+    let dut =
+        Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "3.05",
@@ -503,5 +498,4 @@ mod test {
             vec![],
             vec![]
         );
-    }
 }
