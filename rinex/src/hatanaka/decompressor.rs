@@ -265,7 +265,7 @@ impl<const M: usize> DecompressorExpert<M> {
 
         match self.state {
             State::Epoch => self.run_epoch(line, len),
-            State::Clock => self.run_clock(line, buf),
+            State::Clock => self.run_clock(line, len, buf),
             State::ObservationV1 => self.run_observation_v1(line, len, buf, size),
             State::ObservationV3 => self.run_observation_v3(line, len, buf),
         }
@@ -314,16 +314,16 @@ impl<const M: usize> DecompressorExpert<M> {
     }
 
     /// Fills user buffer with recovered epoch, following either V1 or V3 standards
-    fn format_epoch(&self, buf: &mut [u8]) -> usize {
+    fn format_epoch(&self, clock_data: Option<i64>, buf: &mut [u8]) -> usize {
         if self.v3 {
-            self.format_epoch_v3(buf)
+            self.format_epoch_v3(clock_data, buf)
         } else {
-            self.format_epoch_v1(buf)
+            self.format_epoch_v1(clock_data, buf)
         }
     }
 
     /// Fills user buffer with recovered epoch, following V3 standards
-    fn format_epoch_v3(&self, buf: &mut [u8]) -> usize {
+    fn format_epoch_v3(&self, clock_data: Option<i64>, buf: &mut [u8]) -> usize {
         // V3 format is much simpler
         // all we need to do is extract SV `XXY` to append in each following lines
 
@@ -333,18 +333,25 @@ impl<const M: usize> DecompressorExpert<M> {
 
         let bytes = self.epoch_descriptor.as_bytes();
 
-        // push timestamp + flag
-        // TODO: catch case recovered epoch is BAD? (not 34 byte long)
-        //       which will cause this to panic
+        // push timestamp +flag
         buf[produced..produced + 34].copy_from_slice(&bytes[..34]);
         produced += 34;
 
-        // TODO: improve this, this size is constant
+        // provide clock data, if any
+        if let Some(clock_data) = clock_data {
+            let value = clock_data as f64 / 1000.0;
+            let formatted = format!("       {:.12}", value);
+            let fmt_len = formatted.len(); // TODO improve: this is constant
+            let bytes = formatted.as_bytes();
+            buf[produced..produced + fmt_len].copy_from_slice(&bytes);
+            produced += fmt_len; // TODO improve: this is constant
+        }
+
         produced
     }
 
     /// Fills user buffer with recovered epoch, following V1 standards
-    fn format_epoch_v1(&self, buf: &mut [u8]) -> usize {
+    fn format_epoch_v1(&self, clock_data: Option<i64>, buf: &mut [u8]) -> usize {
         let mut produced = 0;
 
         buf[produced] = b' '; // single whitespace
@@ -393,19 +400,35 @@ impl<const M: usize> DecompressorExpert<M> {
     }
 
     /// Process following line, in [State::Clock]
-    fn run_clock(&mut self, line: &str, buf: &mut [u8]) -> Result<usize, Error> {
-        // try to parse clock data
-        match line.trim().parse::<i64>() {
-            Ok(val_i64) => {
-                // TODO: fill clock data in epoch description
-                // fill blank
-            },
-            Err(_) => {},
+    fn run_clock(&mut self, line: &str, len: usize, buf: &mut [u8]) -> Result<usize, Error> {
+        let mut clock_data = Option::<i64>::None;
+
+        // attempts to recover clock data (if it exists)
+        if len > 2 {
+            if line[1..].starts_with('&') {
+                if let Ok(order) = line[..1].parse::<usize>() {
+                    if let Ok(val) = line[2..].parse::<i64>() {
+                        // valid kernel reset
+                        self.clock_diff.force_init(val, order);
+                        clock_data = Some(val);
+                    }
+                }
+            }
+        }
+        if len == 1 {
+            // highly compressed clock data
+            match line.trim().parse::<i64>() {
+                Ok(val) => {
+                    let val = self.clock_diff.decompress(val);
+                    clock_data = Some(val);
+                },
+                Err(_) => {},
+            }
         }
 
-        // now that clock data has been recovered,
+        // now that we have potentially recovered clock data
         // we can format the complete epoch description
-        let produced = self.format_epoch(buf);
+        let produced = self.format_epoch(clock_data, buf);
 
         // prepare for observation state
         self.obs_ptr = 0;
