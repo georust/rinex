@@ -3,7 +3,7 @@ pub mod toolkit;
 
 mod antex;
 mod compression;
-mod decompression;
+mod crinex;
 mod filename;
 mod parsing;
 mod production;

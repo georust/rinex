@@ -1,7 +1,7 @@
 //! CRINEX decompression module
 use crate::{
-    hatanaka::{Error, NumDiff, TextDiff, CRINEX},
-    prelude::{Constellation, Observable, Version, SV},
+    hatanaka::{Error, NumDiff, TextDiff},
+    prelude::{Constellation, Observable, SV},
 };
 
 use std::{
@@ -10,7 +10,6 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
-use gnss::constellation;
 use num_integer::div_ceil;
 
 #[cfg(feature = "log")]
@@ -87,12 +86,15 @@ impl State {
     /// - Timestamp: Year uses 4 digits
     /// - Flag
     /// - Numsat
-    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = 28 + 3 + 3 + 1;
+    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = "                   1".len();
 
     /// Calculates number of bytes this state will forward to user
     fn size_to_produce(&self, v3: bool, numsat: usize, numobs: usize) -> usize {
         match self {
-            Self::Epoch => {
+            // Epoch is recovered once Clock is recovered.
+            // Because standard format says the clock data should be appended to epoch description
+            // (in an inconvenient way, in V1 revision).
+            Self::Clock => {
                 if v3 {
                     Self::MIN_V3_EPOCH_DESCRIPTION_SIZE
                 } else {
@@ -115,7 +117,9 @@ impl State {
                 let size = 3; // SVNN
                 size + numobs * 16
             },
-            State::Clock => 32, // TODO : verify
+            // Other states do not generate any data
+            // we need to consume lines to progress to states that actually produce something
+            _ => 0,
         }
     }
 }
@@ -140,8 +144,6 @@ pub struct DecompressorExpert<const M: usize> {
     numsat: usize, // total
     sv_ptr: usize, // inside epoch
     sv: SV,
-    /// [Constellation] described in Header field
-    constellation: Constellation,
     /// pointers
     numobs: usize, // total
     obs_ptr: usize, // inside epoch
@@ -151,9 +153,7 @@ pub struct DecompressorExpert<const M: usize> {
     epoch_descriptor: String,
     epoch_desc_len: usize, // for internal logic
     /// [TextDiff] for observation flags
-    flags_diff: TextDiff,
-    /// Recovered flags
-    flags_descriptor: String,
+    flags_diff: HashMap<SV, TextDiff>,
     /// Clock offset differentiator
     clock_diff: NumDiff<M>,
     /// Observation differentiators
@@ -163,11 +163,6 @@ pub struct DecompressorExpert<const M: usize> {
 }
 
 impl<const M: usize> DecompressorExpert<M> {
-    /// EOL is used in the decoding process
-    const EOL_BYTE: u8 = b'\n';
-    /// Whitespace char
-    const WHITESPACE_BYTE: u8 = b' ';
-
     /// Minimal timestamp length in V1 revision
     const V1_TIMESTAMP_SIZE: usize = 24;
     const V1_NUMSAT_OFFSET: usize = Self::V1_TIMESTAMP_SIZE + 4;
@@ -177,11 +172,6 @@ impl<const M: usize> DecompressorExpert<M> {
     const V3_TIMESTAMP_SIZE: usize = 26;
     const V3_NUMSAT_OFFSET: usize = Self::V3_TIMESTAMP_SIZE + 1 + 4;
     const V3_SV_OFFSET: usize = Self::V3_NUMSAT_OFFSET + 9;
-
-    /// Locates first given characther
-    fn find(buf: &[u8], byte: u8) -> Option<usize> {
-        buf.iter().position(|b| *b == byte)
-    }
 
     /// Returns pointer offset to parse this sv
     fn sv_slice_start(v3: bool, sv_index: usize) -> usize {
@@ -226,27 +216,21 @@ impl<const M: usize> DecompressorExpert<M> {
     /// - v3: whether this CRINEX V1 or V3 content will follow
     /// - constellation: [Constellation] as defined in header
     /// - gnss_observables: [Observable]s per [Constellation] as defined in header.
-    pub fn new(
-        v3: bool,
-        constellation: Constellation,
-        gnss_observables: HashMap<Constellation, Vec<Observable>>,
-    ) -> Self {
+    pub fn new(v3: bool, gnss_observables: HashMap<Constellation, Vec<Observable>>) -> Self {
         Self {
             v3,
             numsat: 0,
             sv_ptr: 0,
             numobs: 0,
             obs_ptr: 0,
-            constellation,
             gnss_observables,
             first_epoch: true,
             epoch_desc_len: 0,
             sv: Default::default(),
             state: Default::default(),
-            obs_diff: HashMap::with_capacity(8), // cannot be initialized yet
             epoch_diff: TextDiff::new(""),
-            flags_diff: TextDiff::new(""),
-            flags_descriptor: String::with_capacity(256),
+            obs_diff: HashMap::with_capacity(8), // cannot initialize yet
+            flags_diff: HashMap::with_capacity(8), // cannot initialize yet
             epoch_descriptor: String::with_capacity(256),
             clock_diff: NumDiff::<M>::new(0, M),
         }
@@ -280,21 +264,15 @@ impl<const M: usize> DecompressorExpert<M> {
         }
 
         match self.state {
-            State::Epoch => self.run_epoch(line, len, buf, size),
-            State::Clock => self.run_clock(line, len, buf, size),
+            State::Epoch => self.run_epoch(line, len),
+            State::Clock => self.run_clock(line, buf),
             State::ObservationV1 => self.run_observation_v1(line, len, buf, size),
-            State::ObservationV3 => self.run_observation_v3(line, len, buf, size),
+            State::ObservationV3 => self.run_observation_v3(line, len, buf),
         }
     }
 
     /// Process following line, in [State::Epoch]
-    fn run_epoch(
-        &mut self,
-        line: &str,
-        len: usize,
-        buf: &mut [u8],
-        size: usize,
-    ) -> Result<usize, Error> {
+    fn run_epoch(&mut self, line: &str, len: usize) -> Result<usize, Error> {
         let min_len = if self.v3 {
             State::MIN_V3_EPOCH_DESCRIPTION_SIZE
         } else {
@@ -331,27 +309,8 @@ impl<const M: usize> DecompressorExpert<M> {
             self.epoch_descriptor, self.epoch_desc_len
         );
 
-        // format according to specs
-        let produced = self.format_epoch(buf);
-
-        // prepare for next state
-        self.obs_ptr = 0;
-        self.sv_ptr = 0;
-        self.first_epoch = false;
-
-        self.numsat = self.epoch_numsat().expect("bad recovered content (numsat)");
-
-        // grab first sv
-        self.sv = self.next_sv().expect("bad recovered content (sv)");
-
-        let obs = self
-            .get_observables(&self.sv.constellation)
-            .expect("failed to determine sv definition");
-
-        self.numobs = obs.len();
-
         self.state = State::Clock;
-        Ok(produced)
+        Ok(0)
     }
 
     /// Fills user buffer with recovered epoch, following either V1 or V3 standards
@@ -434,13 +393,7 @@ impl<const M: usize> DecompressorExpert<M> {
     }
 
     /// Process following line, in [State::Clock]
-    fn run_clock(
-        &mut self,
-        line: &str,
-        len: usize,
-        buf: &mut [u8],
-        size: usize,
-    ) -> Result<usize, Error> {
+    fn run_clock(&mut self, line: &str, buf: &mut [u8]) -> Result<usize, Error> {
         // try to parse clock data
         match line.trim().parse::<i64>() {
             Ok(val_i64) => {
@@ -449,12 +402,51 @@ impl<const M: usize> DecompressorExpert<M> {
             },
             Err(_) => {},
         }
+
+        // now that clock data has been recovered,
+        // we can format the complete epoch description
+        let produced = self.format_epoch(buf);
+
+        // prepare for observation state
+        self.obs_ptr = 0;
+        self.sv_ptr = 0;
+        self.first_epoch = false;
+
+        self.numsat = self.epoch_numsat().expect("bad recovered content (numsat)");
+
+        // grab first sv
+        self.sv = self.next_sv().expect("bad recovered content (sv)");
+
+        // cross check recovered content
+        // &, at the same time, make sure we are ready to process any new SV
+        for i in 0..self.numsat {
+            let start = Self::sv_slice_start(self.v3, i);
+
+            // any invalid SV description, will cause us to wait for a new epoch.
+            // In other terms, epoch is fully disregarded.
+            let sv = SV::from_str(&self.epoch_descriptor[start..start + 3])
+                .map_err(|_| Error::SVParsing)?;
+
+            // initialize on first encounter
+            if self.flags_diff.get(&sv).is_none() {
+                let textdiff = TextDiff::new("");
+                self.flags_diff.insert(sv, textdiff);
+            }
+        }
+
+        let obs = self
+            .get_observables(&self.sv.constellation)
+            .expect("failed to determine sv definition");
+
+        self.numobs = obs.len();
+
         if self.v3 {
             self.state = State::ObservationV3
         } else {
             self.state = State::ObservationV1
         }
-        Ok(0)
+
+        Ok(produced)
     }
 
     /// Process following line, in [State::ObservationV1]
@@ -577,11 +569,11 @@ impl<const M: usize> DecompressorExpert<M> {
         line: &str,
         len: usize,
         buf: &mut [u8],
-        size: usize,
     ) -> Result<usize, Error> {
-        let mut new_state = self.state;
-        let mut consumed = 0;
+        println!("[{}] LINE \"{}\"", self.sv, line);
+
         let mut produced = 0;
+        let mut new_state = self.state;
 
         // prepend SVNN identity
         let start = Self::sv_slice_start(true, self.sv_ptr);
@@ -591,60 +583,52 @@ impl<const M: usize> DecompressorExpert<M> {
 
         produced += 3;
 
-        // observation retrieval is complex, due to possible ommitted fields..
-        loop {
-            self.obs_ptr += 1;
+        let mut consumed = 0;
 
-            if let Some(offset) = line[consumed..].find(' ') {
-                // defaults to a BLANK in case something goes wrong
-                let mut formatted = "                ".to_string();
+        // Retrieving observations is complex.
+        // When signal sampling was not feasible: data is omitted (blanked) by a single '_'
+        // Which is not particularly clever and means the data flags can only provided at the end of the line.
+        // Since data flags are text compressed, it can create some weird situations.
+        for ptr in 0..self.numobs {
+            // We must output something for each expected data points (whatever happens).
+            // So we default to a BLANK, which simplifies the following code:
+            // we only implement successful cases.
+            let mut formatted = "                ".to_string();
 
-                if offset == 0 {
-                    // could be a single digit (=highly compressed data): still valid
-                    if line[consumed..consumed + 1].eq(" ") {
-                        // this is a BLANK
-                        println!("omitted [{}/{}]", self.obs_ptr, self.numobs);
-                    } else {
-                        // highly compressed data (single digit)
-                        let slice = &line[consumed..consumed + 1];
-                        println!("slice \"{}\" [{}/{}]", &slice, self.obs_ptr, self.numobs);
+            // Try to locate next '_', which is either
+            //  . normal/expected line progression
+            //  . or a blanking
+            let offset = line[consumed..].find(' ');
 
-                        if let Ok(value) = slice.parse::<i64>() {
-                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
-                                let value = kernel.decompress(value);
-                                let value = value as f64 / 1000.0;
-                                formatted = format!("{:14.3}  ", value).to_string();
-                            }
-                        }
-                    }
+            if let Some(offset) = offset {
+                if offset > 1 {
+                    // observation (made of at least two digits)
+                    // Determine whether this is a kernel reset or compression continuation
 
-                    consumed += 1;
-                } else {
-                    // grab slice
                     let slice = line[consumed..consumed + offset].trim();
-                    println!("slice \"{}\" [{}/{}]", &slice, self.obs_ptr, self.numobs);
+                    println!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
 
                     if let Some(offset) = slice.find('&') {
                         if offset == 1 {
-                            // correct core reset pattern
+                            // valid core reset pattern
                             if let Ok(level) = slice[..offset].parse::<usize>() {
                                 if let Ok(value) = slice[offset + 1..].parse::<i64>() {
-                                    if let Some(kernel) =
-                                        self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-                                    {
+                                    if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, ptr)) {
                                         kernel.force_init(value, level);
                                     } else {
                                         let kernel = NumDiff::<M>::new(value, level);
-                                        self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
+                                        self.obs_diff.insert((self.sv, ptr), kernel);
                                     }
                                     formatted = format!("{:14.3}  ", value as f64 / 1000.0);
                                 }
                             }
                         }
+                        // non valid core reset patterns:
+                        // we output a BLANK
                     } else {
-                        // this must be compressed data
+                        // compressed data case
                         if let Ok(value) = slice.parse::<i64>() {
-                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, self.obs_ptr)) {
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, ptr)) {
                                 let value = kernel.decompress(value);
                                 let value = value as f64 / 1000.0;
                                 formatted = format!("{:14.3}  ", value).to_string();
@@ -652,62 +636,183 @@ impl<const M: usize> DecompressorExpert<M> {
                         }
                     }
 
-                    consumed += offset + 1;
-                };
+                    consumed += offset + 1; // consume until this point
+                } else {
+                    // this is either BLANK or highly compressed (=single digit value)
+                    let slice = line[consumed..consumed + offset].trim();
+
+                    if slice.len() > 0 {
+                        // this is a digit (highly compressed value)
+                        println!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
+                        if let Ok(value) = slice.parse::<i64>() {
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, ptr)) {
+                                let value = kernel.decompress(value);
+                                let value = value as f64 / 1000.0;
+                                formatted = format!("{:14.3}  ", value).to_string();
+                            }
+                        }
+                        consumed += 2; // consume this byte
+                    } else {
+                        consumed += 1;
+                    }
+                }
 
                 let fmt_len = formatted.len(); // TODO: improve, this is constant
                 let bytes = formatted.as_bytes();
 
                 // push into user
                 buf[produced..produced + fmt_len].copy_from_slice(&bytes);
-
                 produced += fmt_len;
+
+                // this may cause trimed lines to panic on next '_' search
+                // so we exist the loop so we do not overflow
+                if consumed >= len {
+                    break;
+                }
             } else {
-                // failed to locate a new whitespace
-                // determine whether this is early termination or not
+                // early line termination.
+                // This happens when last observations are all missing (possibly more than one)
+                // and observation "flags" are all fully compressed (100% compression factor)
+
+                // if we have leftovers, that means we have one last observation
+                if len > consumed {
+                    let mut formatted = "                ".to_string();
+
+                    // grab slice
+                    let slice = line[consumed..].trim();
+                    println!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
+
+                    if let Some(offset) = slice.find('&') {
+                        if offset == 1 {
+                            // valid core reset pattern
+                            if let Ok(level) = slice[..offset].parse::<usize>() {
+                                if let Ok(value) = slice[offset + 1..].parse::<i64>() {
+                                    if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, ptr)) {
+                                        kernel.force_init(value, level);
+                                    } else {
+                                        let kernel = NumDiff::<M>::new(value, level);
+                                        self.obs_diff.insert((self.sv, ptr), kernel);
+                                    }
+                                    formatted = format!("{:14.3}  ", value as f64 / 1000.0);
+                                }
+                            }
+                        }
+                        // non valid core reset patterns:
+                        // we output a BLANK
+                    } else {
+                        // compressed data case
+                        if let Ok(value) = slice.parse::<i64>() {
+                            if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, ptr)) {
+                                let value = kernel.decompress(value);
+                                let value = value as f64 / 1000.0;
+                                formatted = format!("{:14.3}  ", value).to_string();
+                            }
+                        }
+                    }
+
+                    let fmt_len = formatted.len(); // TODO: improve, this is constant
+                    let bytes = formatted.as_bytes();
+
+                    // push into user
+                    buf[produced..produced + fmt_len].copy_from_slice(&bytes);
+                    produced += fmt_len;
+                }
+
+                // 1. we need to push all required BLANKING
+                // 2. we need to preserve data flags
+                // 3. and finally conclude this SV
+                let nb_missing = self.numobs - ptr - 1;
+
+                let formatted = "                ".to_string();
+                let fmt_len = formatted.len(); // IMPROVE: this is constant
+                let bytes = formatted.as_bytes();
+
+                // fill required nb of blanks
+                for _ in 0..nb_missing {
+                    // push into user
+                    buf[produced..produced + fmt_len].copy_from_slice(&bytes);
+                    produced += fmt_len;
+                }
+
+                // trick to preserve data flags
+                let textdiff = self
+                    .flags_diff
+                    .get_mut(&self.sv)
+                    .expect("internal error: bad crinex content?");
+
+                let descriptor = textdiff.decompress("");
+                let flags_len = descriptor.len();
+                let bytes = descriptor.as_bytes();
+
+                println!("PRESERVED \"{}\"", descriptor);
+
+                // copy all flags to user
+                let mut offset = 17;
+                for i in 0..self.numobs {
+                    let lli_idx = i * 2;
+                    if flags_len > lli_idx {
+                        if !descriptor[lli_idx..lli_idx + 1].eq(" ") {
+                            buf[offset] = bytes[i * 2]; // b'x';
+                        }
+                    }
+
+                    let snr_idx = lli_idx + 1;
+                    if flags_len > snr_idx {
+                        if !descriptor[snr_idx..snr_idx + 1].eq(" ") {
+                            buf[offset + 1] = bytes[(i * 2) + 1]; // b'y';
+                        }
+                    }
+
+                    offset += 16;
+                }
+
+                // conclude this SV
+                self.sv_ptr += 1;
+                println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
+
+                if self.sv_ptr == self.numsat {
+                    // end of epoch
+                    println!("[END OF EPOCH]");
+                    self.state = State::Epoch;
+                } else {
+                    self.sv = self.next_sv().expect("failed to determine next sv");
+                    self.state = State::ObservationV3;
+                }
+
+                return Ok(produced);
             }
+        } // for
 
-            if self.obs_ptr == self.numobs {
-                break;
-            }
-        } //loop
+        // at this point, we should be left with "data flags" in the buffer.
+        // That may not be the case. We may have consumed everything when
+        // the line is trimed and flags should be preserved
 
-        if self.obs_ptr < self.numobs - 1 {
-            unimplemented!("early termination");
-            // This happens when all the following observations are missing (BLANKING)
-            // and flags are fully compressed (to remain identical)
-
-            // 1. we need to push all required BLANKING
-            // 2. we need to preserve data flags
-            // 3. and finally conclude this SV
-        }
-
-        // grab flags content (if any)
         if consumed < len {
             // proceed to flags recovering
             let flags = &line[consumed..];
             println!("FLAGS \"{}\"", flags);
 
-            self.flags_descriptor = self.flags_diff.decompress(flags).to_string();
-            println!("RECOVERED \"{}\"", self.flags_descriptor);
+            let kernel = self.flags_diff.get_mut(&self.sv).expect("internal error");
 
-            let bytes = self.flags_descriptor.as_bytes();
+            let descriptor = kernel.decompress(flags);
+            let flags_len = descriptor.len();
+            let bytes = descriptor.as_bytes();
 
-            let flags_len = self.flags_descriptor.len();
+            println!("RECOVERED \"{}\"", descriptor);
 
             // copy all flags to user
             let mut offset = 17;
             for i in 0..self.numobs {
                 let lli_idx = i * 2;
                 if flags_len > lli_idx {
-                    if !self.flags_descriptor[lli_idx..lli_idx + 1].eq(" ") {
+                    if !descriptor[lli_idx..lli_idx + 1].eq(" ") {
                         buf[offset] = bytes[i * 2]; // b'x';
                     }
                 }
 
                 let snr_idx = lli_idx + 1;
                 if flags_len > snr_idx {
-                    if !self.flags_descriptor[snr_idx..snr_idx + 1].eq(" ") {
+                    if !descriptor[snr_idx..snr_idx + 1].eq(" ") {
                         buf[offset + 1] = bytes[(i * 2) + 1]; // b'y';
                     }
                 }
@@ -720,7 +825,6 @@ impl<const M: usize> DecompressorExpert<M> {
 
         // move on to next
         self.sv_ptr += 1;
-
         println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
 
         if self.sv_ptr == self.numsat {
@@ -802,6 +906,9 @@ mod test {
             ),
         ] {
             let size = State::Epoch.size_to_produce(false, numsat, 0);
+            assert_eq!(size, 0); // Should wait for Clock data !
+
+            let size = State::Clock.size_to_produce(false, numsat, 0);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
@@ -853,7 +960,10 @@ mod test {
             (18, "> 2022 03 04 00 00  0.0000000  0 18"),
             (22, "> 2022 03 04 00 00  0.0000000  0 22"),
         ] {
-            let size = State::Epoch.size_to_produce(true, numsat, 0);
+            let size = State::Epoch.size_to_produce(false, numsat, 0);
+            assert_eq!(size, 0); // Should wait for Clock data !
+
+            let size = State::Clock.size_to_produce(true, numsat, 0);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }

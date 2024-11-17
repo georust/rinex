@@ -1,7 +1,61 @@
+mod pdel0010_21; // realistic V3 test
+
+use std::{
+    collections::HashMap,
+    str::{from_utf8, FromStr},
+};
+
+use crate::{
+    hatanaka::Decompressor,
+    prelude::{Constellation, Observable},
+};
+
+/// This method is used by all "raw" decompression tests
+/// to compare the decompressed content to what we expect
+/// Inputs:
+/// - v3 (boolean)
+/// - constellation (from supposedly parsed header)
+/// - specs (from spposedly parsed header)
+pub fn run_raw_decompression_test(
+    v3: bool,
+    constellation_specs: &[&str],
+    observable_specs: &[&str],
+    input: &str,
+    output: &str,
+) {
+    let mut gnss_observables = HashMap::<Constellation, Vec<Observable>>::new();
+
+    for (constell, observables) in constellation_specs.iter().zip(observable_specs.iter()) {
+        let constell = Constellation::from_str(constell.trim()).unwrap();
+        let observables = observables
+            .split(',')
+            .map(|ob| Observable::from_str(ob.trim()).unwrap())
+            .collect::<Vec<_>>();
+        gnss_observables.insert(constell, observables);
+    }
+
+    // build decompressor
+    let mut decomp = Decompressor::new(v3, gnss_observables);
+
+    // run test, on every provided input versus output
+    let input_lines = input.lines();
+    let output_lines = output.lines();
+    let mut buf = [0; 4096];
+
+    for ((nth, input), output) in input_lines.enumerate().zip(output_lines) {
+        let size = decomp
+            .decompress(input, input.len(), &mut buf, 4096)
+            .expect(&format!(".decompress failed to line={} \"{}\"", nth, input));
+
+        let content = from_utf8(&buf[..size]).expect("CRNX2RNX should always produce valid UTF-8");
+
+        assert_eq!(content, output, "failed on line={} \"{}\"", nth, input);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
-        hatanaka::{Decompressor, Error},
         prelude::{
             Constellation, Epoch, EpochFlag, GeodeticMarker, MarkerType, Observable, Rinex, SV,
         },
