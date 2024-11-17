@@ -132,7 +132,7 @@ mod test {
                 week: Some(2185),
                 day: Some(7),
                 timescale: None,
-                delta_tls: None,
+                delta_tls: Some(18),
             }
         );
     }
@@ -145,7 +145,7 @@ mod test {
                 leap: 18,
                 week: Some(2185),
                 day: Some(7),
-                delta_tls: None,
+                delta_tls: Some(18),
                 timescale: Some(TimeScale::GPST),
             }
         );
