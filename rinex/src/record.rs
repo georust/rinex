@@ -1,20 +1,22 @@
 use crate::{
-    antex, clock,
-    clock::{ClockKey, ClockProfile},
-    doris, header, ionex, is_rinex_comment, meteo, navigation,
-    navigation::record::parse_epoch as parse_nav_epoch,
+    antex,
+    clock::{self, ClockKey, ClockProfile},
+    doris,
+    hatanaka::DecompressorExpert,
+    header, ionex, is_rinex_comment, meteo,
+    navigation::{self, record::parse_epoch as parse_nav_epoch},
     observation::{
         is_new_epoch as is_new_observation_epoch, parse_epoch as parse_observation_epoch,
         Record as ObservationRecord,
     },
     prelude::{Constellation, Epoch, Header, Observations, ParsingError, TimeScale},
-    reader::Reader,
     types::Type,
 };
 
 use std::{
     collections::BTreeMap,
-    io::{BufRead, Read},
+    io::{BufRead, BufReader, Read},
+    str::from_utf8,
 };
 
 #[cfg(feature = "log")]
@@ -232,16 +234,15 @@ impl Record {
     /// [Header] parsed by consuming [Reader] until this point is required.
     pub fn parse<R: Read>(
         header: &mut Header,
-        reader: &mut Reader<R>,
+        reader: &mut BufReader<R>,
     ) -> Result<(Self, Comments), ParsingError> {
         let mut first_epoch = true;
-        let content = String::default();
-        let mut epoch_content = String::with_capacity(6 * 64);
+        let mut epoch_content = String::with_capacity(1024);
 
-        // to manage `record` comments
+        // comments management
         let mut comments: Comments = Comments::new();
         let mut comment_ts = Epoch::default();
-        let mut comment_content: Vec<String> = Vec::with_capacity(4);
+        let mut comment_content = Vec::<String>::with_capacity(4);
 
         // ANTEX
         let mut atx_rec = antex::Record::new();
@@ -252,6 +253,21 @@ impl Record {
         // OBS
         let mut obs_rec = ObservationRecord::new();
         let mut observations = Observations::default();
+
+        // CRINEX case
+        let mut buf = [0; 1024];
+        let mut is_crinex = false;
+        let v3 = header.version.major > 2;
+        let mut gnss_observables = Default::default();
+
+        if let Some(obs) = &header.obs {
+            is_crinex = obs.crinex.is_some();
+            gnss_observables = obs.codes.clone();
+        }
+
+        // Build a decompressor, to be deployed based on already recovered [Header].
+        // These parameters are compatible with historical RNX2CRX tool.
+        let mut decompressor = DecompressorExpert::<5>::new(v3, gnss_observables);
 
         // MET
         let mut met_rec = meteo::Record::new();
@@ -320,9 +336,10 @@ impl Record {
         let mut ionx_rec = ionex::Record::new();
         let mut ionex_rms_plane = false;
 
+        // iterates one line at a time
         for l in reader.lines() {
-            // iterates one line at a time
             let line = l.unwrap();
+
             // COMMENTS special case
             // --> store
             // ---> append later with epoch.timestamp attached to it
@@ -331,6 +348,7 @@ impl Record {
                 comment_content.push(comment.to_string());
                 continue;
             }
+
             // IONEX exponent-->data scaling use update regularly
             //  and used in TEC map parsing
             if line.contains("EXPONENT") {
@@ -342,9 +360,27 @@ impl Record {
                 }
             }
 
+            // CRINEX special case: need to apply decompression algorithm prior moving forward
+            let content = if is_crinex {
+                let line_len = line.len();
+
+                let size = decompressor
+                    .decompress(&line, line_len, &mut buf, 1024)
+                    .map_err(|e| ParsingError::CRINEX(e))?;
+
+                let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
+
+                recovered
+            } else {
+                &line
+            };
+
+            // Yet another lines Iterator.
+            // In case of special CRINEX1 (old revision) decompression
+            // content may actually be wrapped in several lines.
+            // In any other case, content is limited to a single line.
+            // This behaves correctly and takes care of it
             for line in content.lines() {
-                // in case of CRINEX -> RINEX < 3 being recovered,
-                // we have more than 1 ligne to process
                 let new_epoch = is_new_epoch(line, header);
                 ionex_rms_plane = ionex::record::is_new_rms_plane(line);
 

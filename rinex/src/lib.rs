@@ -60,11 +60,6 @@ mod rtcm;
 #[cfg(test)]
 mod tests;
 
-mod reader;
-
-mod writer;
-use writer::BufferedWriter;
-
 use std::{
     collections::{BTreeMap, HashMap},
     fs::File,
@@ -101,7 +96,6 @@ pub mod prelude {
         header::Header,
         leap::Leap,
         observable::Observable,
-        reader::Reader,
         types::Type as RinexType,
         version::Version,
         Rinex,
@@ -849,10 +843,10 @@ impl Rinex {
         attributes
     }
 
-    /// Parse [RINEX] content by consuming [Reader].
-    /// Attributes described by a file name need to be provided either
-    /// manually / externally, or guessed after parsing.
-    pub fn parse<R: Read>(reader: &mut Reader<R>) -> Result<Self, ParsingError> {
+    /// Parse [RINEX] content by consuming [BufReader] (efficient buffered reader).
+    /// Attributes potentially described by a file name need to be provided either
+    /// manually / externally, or guessed when parsing has been completed.
+    pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Self, ParsingError> {
         // Parses Header section (=consumes header until this point)
         let mut header = Header::parse(reader)?;
 
@@ -895,9 +889,9 @@ impl Rinex {
             _ => None,
         };
 
-        let mut fd = File::open(path).expect("from_file: open error");
+        let fd = File::open(path).expect("from_file: open error");
 
-        let mut reader = Reader::new(fd);
+        let mut reader = BufReader::new(fd);
         let mut rinex = Rinex::parse(&mut reader)?;
 
         rinex.prod_attr = file_attributes;

@@ -116,7 +116,7 @@ impl<const M: usize> Compressor<M> {
             //println!("VEHICULE: {}", sv); //DEBUG
             Ok(sv)
         } else {
-            Err(Error::SVFormat)
+            panic!("todo");
         }
     }
 

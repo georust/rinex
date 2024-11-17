@@ -29,5 +29,4 @@ mod meteo;
 #[cfg(feature = "nav")]
 mod nav;
 
-#[cfg(feature = "obs")]
 mod obs;

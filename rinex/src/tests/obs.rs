@@ -1,25 +1,23 @@
-#[cfg(test)]
-mod test {
-    use crate::{
-        prelude::{GeodeticMarker, Rinex},
-        tests::toolkit::{generic_observation_rinex_test, TimeFrame},
-    };
+use crate::{
+    prelude::{GeodeticMarker, Rinex},
+    tests::toolkit::{generic_observation_rinex_test, TimeFrame},
+};
 
-    use std::path::Path;
+use std::path::Path;
 
-    #[test]
-    fn v2_aopr0010_17o() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("OBS")
-            .join("V2")
-            .join("aopr0010.17o");
+#[test]
+fn v2_aopr0010_17o() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("OBS")
+        .join("V2")
+        .join("aopr0010.17o");
 
-        let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let fullpath = path.to_string_lossy();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "2.10",
@@ -41,60 +39,58 @@ mod test {
             vec![],
             vec![],
         );
-    }
+}
 
-    #[test]
-    fn v2_npaz3550_21o() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("OBS")
-            .join("V2")
-            .join("npaz3550.21o");
+#[test]
+fn v2_npaz3550_21o() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("OBS")
+        .join("V2")
+        .join("npaz3550.21o");
 
-        let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let fullpath = path.to_string_lossy();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
-            &dut,
-            None,
-            "2.11",
-            Some("MIXED"),
-            false,
-            "G01, G08, G10, G15, G16, G18, G21, G23, G26, G32, 
+    generic_observation_rinex_test(
+        &dut,
+        None,
+        "2.11",
+        Some("MIXED"),
+        false,
+        "G01, G08, G10, G15, G16, G18, G21, G23, G26, G32, 
             R04, R05, R06, R07, R10, R12, R19, R20, R21, R22",
-            "GPS, GLO",
-            &[
-                ("GPS", "C1, L1, L2, P2, S1, S2"),
-                ("GLO", "C1, L1, L2, P2, S1, S2"),
-            ],
-            Some("2021-12-21T00:00:00 GPST"),
-            Some("2021-12-21T23:59:30 GPST"),
-            None,
-            None,
-            None,
-            TimeFrame::from_inclusive_csv(
-                "2021-12-21T00:00:00 GPST, 2021-12-21T01:04:00 GPST, 30 s",
-            ),
-            vec![],
-            vec![],
-        );
-    }
+        "GPS, GLO",
+        &[
+            ("GPS", "C1, L1, L2, P2, S1, S2"),
+            ("GLO", "C1, L1, L2, P2, S1, S2"),
+        ],
+        Some("2021-12-21T00:00:00 GPST"),
+        Some("2021-12-21T23:59:30 GPST"),
+        None,
+        None,
+        None,
+        TimeFrame::from_inclusive_csv("2021-12-21T00:00:00 GPST, 2021-12-21T01:04:00 GPST, 30 s"),
+        vec![],
+        vec![],
+    );
+}
 
-    #[test]
-    fn v2_rovn0010_21o() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("OBS")
-            .join("V2")
-            .join("rovn0010.21o");
+#[test]
+fn v2_rovn0010_21o() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("OBS")
+        .join("V2")
+        .join("rovn0010.21o");
 
-        let fullpath = path.to_string_lossy();
+    let fullpath = path.to_string_lossy();
 
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "2.11",
@@ -126,22 +122,22 @@ mod test {
             vec![],
         );
 
-        assert_eq!(dut.header.agency, "TU Delft for Deltares");
-    }
+    assert_eq!(dut.header.agency, "TU Delft for Deltares");
+}
 
-    #[test]
-    fn v3_duth0630() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("OBS")
-            .join("V3")
-            .join("DUTH0630.22O");
+#[test]
+fn v3_duth0630() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("OBS")
+        .join("V3")
+        .join("DUTH0630.22O");
 
-        let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let fullpath = path.to_string_lossy();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "3.02",
@@ -162,16 +158,16 @@ mod test {
             vec![],
             vec![],
         );
-    }
+}
 
-    #[test]
-    fn v4_kms300dnk_r_2022_v3crx() {
-        let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
-            + "/../test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx";
+#[test]
+fn v4_kms300dnk_r_2022_v3crx() {
+    let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
+        + "/../test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx";
 
-        let dut = Rinex::from_file(&test_resource).unwrap();
+    let dut = Rinex::from_file(&test_resource).unwrap();
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "4.00",
@@ -202,61 +198,61 @@ mod test {
             vec![],
             vec![],
         );
-    }
+}
 
-    #[test]
-    #[ignore]
-    fn v2_kosg0010_95o() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("OBS")
-            .join("V2")
-            .join("KOSG0010.95O");
+#[test]
+#[ignore]
+fn v2_kosg0010_95o() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("OBS")
+        .join("V2")
+        .join("KOSG0010.95O");
 
-        let fullpath = path.to_string_lossy();
+    let fullpath = path.to_string_lossy();
 
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
-            &dut,
-            None,
-            "2.0",
-            Some("GPS"),
-            false,
-            "G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
-            "GPS",
-            &[("GPS", "C1, L1, L2, P2, S1")],
-            Some("1995-01-01T00:00:00 GPST"),
-            Some("1995-01-01T23:59:30 GPST"),
-            None,
-            None,
-            None,
-            TimeFrame::from_erratic_csv(
-                "
+    generic_observation_rinex_test(
+        &dut,
+        None,
+        "2.0",
+        Some("GPS"),
+        false,
+        "G01, G04, G05, G06, G16, G17, G18, G19, G20, G21, G22, G23, G24, G25, G27, G29, G31",
+        "GPS",
+        &[("GPS", "C1, L1, L2, P2, S1")],
+        Some("1995-01-01T00:00:00 GPST"),
+        Some("1995-01-01T23:59:30 GPST"),
+        None,
+        None,
+        None,
+        TimeFrame::from_erratic_csv(
+            "
             1995-01-01T00:00:00 GPST,
             1995-01-01T11:00:00 GPST,
             1995-01-01T20:44:30 GPST
         ",
-            ),
-            vec![],
-            vec![],
-        );
-    }
+        ),
+        vec![],
+        vec![],
+    );
+}
 
-    #[test]
-    fn v2_ajac3550() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("OBS")
-            .join("V2")
-            .join("AJAC3550.21O");
+#[test]
+fn v2_ajac3550() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("OBS")
+        .join("V2")
+        .join("AJAC3550.21O");
 
-        let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+    let fullpath = path.to_string_lossy();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
+    generic_observation_rinex_test(
             &dut,
             None,
             "2.11",
@@ -279,41 +275,40 @@ mod test {
             vec![],
             vec![],
         );
-    }
+}
 
-    #[test]
-    fn v3_noa10630() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("test_resources")
-            .join("OBS")
-            .join("V3")
-            .join("NOA10630.22O");
-        let fullpath = path.to_string_lossy();
-        let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
+#[test]
+fn v3_noa10630() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("OBS")
+        .join("V3")
+        .join("NOA10630.22O");
+    let fullpath = path.to_string_lossy();
+    let dut = Rinex::from_file(fullpath.as_ref()).unwrap();
 
-        generic_observation_rinex_test(
-            &dut,
-            None,
-            "3.02",
-            Some("GPS"),
-            false,
-            "G01, G03, G04, G06, G09, G17, G19, G21, G22, G31",
-            "GPS",
-            &[("GPS", "C1C, L1C, D1C, S1C, C2W, L2W, D2W, S2W")],
-            Some("2022-03-04T00:00:00 GPST"),
-            Some("2022-03-04T23:59:30 GPST"),
-            None,
-            None,
-            None,
-            TimeFrame::from_erratic_csv(
-                "2022-03-04T00:00:00 GPST,
+    generic_observation_rinex_test(
+        &dut,
+        None,
+        "3.02",
+        Some("GPS"),
+        false,
+        "G01, G03, G04, G06, G09, G17, G19, G21, G22, G31",
+        "GPS",
+        &[("GPS", "C1C, L1C, D1C, S1C, C2W, L2W, D2W, S2W")],
+        Some("2022-03-04T00:00:00 GPST"),
+        Some("2022-03-04T23:59:30 GPST"),
+        None,
+        None,
+        None,
+        TimeFrame::from_erratic_csv(
+            "2022-03-04T00:00:00 GPST,
                 2022-03-04T00:00:30 GPST,
                 2022-03-04T00:01:00 GPST,
                 2022-03-04T00:52:30 GPST",
-            ),
-            vec![],
-            vec![],
-        );
-    }
+        ),
+        vec![],
+        vec![],
+    );
 }

@@ -20,14 +20,13 @@ use crate::{
     observable::Observable,
     observation::HeaderFields as ObservationHeader,
     prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, COSPAR, DOMES, SV},
-    reader::Reader,
     types::Type,
     version::Version,
 };
 
 use std::{
     collections::HashMap,
-    io::{BufRead, Read},
+    io::{BufRead, BufReader, Read},
     str::FromStr,
 };
 
@@ -151,12 +150,12 @@ pub struct Header {
 }
 
 impl Header {
-    /// Parse [Header] by consuming [Reader] until end of this section
-    pub fn parse<R: Read>(reader: &mut Reader<R>) -> Result<Self, ParsingError> {
+    /// Parse [Header] by consuming [BufReader] until end of this section
+    pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Self, ParsingError> {
         let mut rinex_type = Type::default();
-        let mut constellation: Option<Constellation> = None;
         let mut version = Version::default();
-        let mut comments: Vec<String> = Vec::new();
+        let mut constellation: Option<Constellation> = None;
+
         let mut program = String::new();
         let mut run_by = String::new();
         let mut date = String::new();
@@ -177,6 +176,8 @@ impl Header {
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
         let mut ionod_corrections = HashMap::<Constellation, IonMessage>::with_capacity(4);
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
+
+        let mut comments = Vec::<String>::with_capacity(8);
 
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
@@ -215,7 +216,14 @@ impl Header {
             //     and we do this at the end of the Header section
             ///////////////////////////////////////////////////////
             } else if marker.contains("CRINEX VERS") {
+                let version = Version::from_str(content[..10].trim())?;
+                let crinex = CRINEX::default().with_version(version);
+
+                observation.crinex = Some(crinex);
             } else if marker.contains("CRINEX PROG / DATE") {
+                if let Some(ref mut crinex) = observation.crinex {
+                    *crinex = crinex.with_prog_date(content)?;
+                }
 
                 ///////////////////////////////////////////////////////
                 // Unhandled cases: TODO
