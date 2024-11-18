@@ -369,10 +369,11 @@ impl<const M: usize> DecompressorExpert<M> {
         buf[produced] = b'\n'; // conclude 1st line
         produced += 1;
 
-        // construct all following lines we need,
-        // with "standard" padding
-        let nb_extra = self.epoch_desc_len / 68;
-        for i in 0..nb_extra {
+        // construct all following lines that need to be wrapped and padded
+        let mut offset = 67;
+        let nb_extra = (self.epoch_desc_len - Self::V1_NUMSAT_OFFSET) / 36;
+
+        for _ in 0..nb_extra {
             // extra padding
             buf[produced..produced + 32].copy_from_slice(&[
                 b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
@@ -383,12 +384,12 @@ impl<const M: usize> DecompressorExpert<M> {
             produced += 32;
 
             // copy data slice
-            let start = (i + 1) * 67;
-            let end = (start + 68).min(self.epoch_desc_len);
-            let size = end - start;
+            let end = (offset + 36).min(self.epoch_desc_len);
+            let size = end - offset;
 
-            buf[produced..produced + size].copy_from_slice(&bytes[start..end]);
+            buf[produced..produced + size].copy_from_slice(&bytes[offset..end]);
 
+            offset += size;
             produced += size;
 
             // terminate this line
@@ -561,9 +562,10 @@ impl<const M: usize> DecompressorExpert<M> {
 
                 // handle V1 padding and wrapping
                 if !self.v3 {
-                    if (ptr % 5) == 1 {
+                    if (ptr % 5) == 4 {
                         // TODO: improve; this is constant
                         let formatted = "\n                       ".to_string();
+                        let bytes = formatted.as_bytes();
                         let fmt_len = formatted.len();
 
                         buf[produced..produced + fmt_len].copy_from_slice(&bytes);
@@ -805,7 +807,7 @@ impl<const M: usize> DecompressorExpert<M> {
             if flags_len > snr_idx {
                 if !flags[snr_idx..snr_idx + 1].eq(" ") {
                     buf[offset + 1] = b'y';
-                    buf[offset + 1] = bytes[(i * 2) + 1];
+                    //buf[offset + 1] = bytes[(i * 2) + 1];
                 }
             }
             offset += 16;
