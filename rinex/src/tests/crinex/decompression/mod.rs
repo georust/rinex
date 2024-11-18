@@ -1,6 +1,7 @@
+mod ajac3550;
 mod esbcdnk; // realistic V3 test
 mod pdel0010_21; // realistic V3 test
-mod vlns0630; // realistic V3 test
+mod vlns0630; // realistic V3 test // short realistic V1 test
 
 use std::{
     collections::HashMap,

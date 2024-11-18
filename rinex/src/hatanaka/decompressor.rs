@@ -68,10 +68,8 @@ pub enum State {
     Epoch,
     /// Recovering Clock offset
     Clock,
-    /// V1 Observations recovering
-    ObservationV1,
-    /// V3 Observations recovering
-    ObservationV3,
+    /// Observations recovering
+    Observation,
 }
 
 impl State {
@@ -105,17 +103,17 @@ impl State {
                     size
                 }
             },
-            Self::ObservationV1 => {
-                let mut size = 1;
-                size += numobs - 1; // separator
-                size += 15 * numobs; // formatted
-                let num_extra = div_ceil(numobs, 5) - 1;
-                size += num_extra * 15; // padding
-                size
-            },
-            Self::ObservationV3 => {
-                let size = 3; // SVNN
-                size + numobs * 16
+            Self::Observation => {
+                if v3 {
+                    3 + numobs * 16
+                } else {
+                    let mut size = 1;
+                    size += numobs - 1; // separator
+                    size += 15 * numobs; // formatted
+                    let num_extra = div_ceil(numobs, 5) - 1;
+                    size += num_extra * 15; // padding
+                    size
+                }
             },
             // Other states do not generate any data
             // we need to consume lines to progress to states that actually produce something
@@ -266,8 +264,7 @@ impl<const M: usize> DecompressorExpert<M> {
         match self.state {
             State::Epoch => self.run_epoch(line, len),
             State::Clock => self.run_clock(line, len, buf),
-            State::ObservationV1 => self.run_observation_v1(line, len, buf, size),
-            State::ObservationV3 => self.run_observation_v3(line, len, buf),
+            State::Observation => self.run_observation(line, len, buf),
         }
     }
 
@@ -462,151 +459,25 @@ impl<const M: usize> DecompressorExpert<M> {
             .expect("failed to determine sv definition");
 
         self.numobs = obs.len();
-
-        if self.v3 {
-            self.state = State::ObservationV3
-        } else {
-            self.state = State::ObservationV1
-        }
-
+        self.state = State::Observation;
         Ok(produced)
     }
 
-    /// Process following line, in [State::ObservationV1]
-    fn run_observation_v1(
-        &mut self,
-        line: &str,
-        len: usize,
-        buf: &mut [u8],
-        size: usize,
-    ) -> Result<usize, Error> {
-        panic!("obs_v1: not yet");
-    }
-
-    //         State::ObservationV2 => {
-    //             let mut early_termination = false;
-
-    //             if let Some(eol_offset) = ascii.find('\n') {
-    //                 if eol_offset < ascii_len -1 {
-    //                     // we grabbed part of the following line
-    //                     // this happens in case all data flags remain identical (100% compression factor)
-    //                     // we must postpone part of this buffer
-    //                     ascii_len = eol_offset;
-    //                     consumed = eol_offset;
-    //                     early_termination = true;
-    //                 }
-    //             }
-
-    //             // default is BLANK
-    //             let mut formatted = "                ".to_string();
-
-    //             // Decoding attempt
-    //             if ascii_len > 0 {
-    //                 let mut kernel_reset = false;
-
-    //                 if ascii_len > 2 {
-    //                     if ascii[1..2].eq("&") {
-    //                         kernel_reset = false;
-
-    //                         let order = ascii[0..1]
-    //                             .parse::<usize>()
-    //                             .expect("bad crinex compression level");
-
-    //                     }
-    //                 }
-
-    //                 if !kernel_reset {
-    //                     // regular compression
-    //                     if let Ok(val) = ascii[..ascii_len].trim().parse::<i64>() {
-    //                         let val = if let Some(kernel) =
-    //                             self.obs_diff.get_mut(&(self.sv, self.obs_ptr))
-    //                         {
-    //                             kernel.decompress(val) as f64 / 1.0E3
-    //                         } else {
-    //                             let kernel = NumDiff::new(val, M);
-    //                             self.obs_diff.insert((self.sv, self.obs_ptr), kernel);
-    //                             val as f64 / 1.0E3
-    //                         };
-    //                         formatted = format!("{:14.3}  ", val);
-    //                     }
-    //                 }
-    //             }
-
-    //             // copy to user
-    //             let mut ptr = self.obs_ptr * 16;
-    //             println!("fmt_len={}", formatted.as_bytes().len());
-
-    //             // push decompressed content
-    //             user_buf[user_ptr + ptr..user_ptr + ptr + 16].copy_from_slice(formatted.as_bytes());
-    //             ptr += 16;
-    //             self.obs_ptr += 1;
-
-    //             // v2 case: need to wrapp into several lines....
-    //             if self.obs_ptr % 5 == 0 {
-    //                 // line wrapping
-    //                 user_buf[user_ptr + ptr] = b'\n';
-    //                 ptr += 1;
-
-    //                 // special V2 start of line padding ...
-    //                 user_buf[user_ptr + ptr..user_ptr + ptr + 15].copy_from_slice(&[
-    //                     b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    //                     b' ', b' ', b' ',
-    //                 ]);
-
-    //                 ptr += 15;
-    //             }
-
-    //             println!("obs={}/{}", self.obs_ptr, self.numobs);
-    //             // End of this observation: we have three cases
-    //             //  1. weird case where line is early terminated
-    //             //     due to the combination of Blanking (missing signals) and all flags being fully compressed.
-    //             //     In this scenario, we enter special case to push the necessary blanking
-    //             //     and re-use the past flag description (100% compression)
-    //             //  2. this is a regular BLANK, we need to determine whether this terminates
-    //             //     the observation serie or not
-    //             //  3. regular observation: need to progress to the next one
-    //             if early_termination {
-    //                 // Early termination case
-    //                 next_state = State::EarlyTerminationV2;
-    //             } else {
-    //                 if ascii_len == 0 {
-    //                     // BLANKING case
-    //                     if self.obs_ptr == self.numobs {
-    //                         // Last blanking
-    //                         self.obs_ptr = 0;
-    //                         next_state = State::Flags;
-    //                     } else {
-    //                         // regular progression in case of blanking
-    //                         next_state = State::ObservationV2;
-    //                     }
-    //                 } else {
-    //                     // regular progression
-    //                     next_state = State::ObservationSeparator;
-    //                 }
-    //             }
-    //         },
-
-    /// Process following line, in [State::ObservationV3]
-    fn run_observation_v3(
-        &mut self,
-        line: &str,
-        len: usize,
-        buf: &mut [u8],
-    ) -> Result<usize, Error> {
-        println!("[{}] LINE \"{}\"", self.sv, line);
-
+    /// Process following line, in [State::Observation]
+    fn run_observation(&mut self, line: &str, len: usize, buf: &mut [u8]) -> Result<usize, Error> {
+        let mut consumed = 0;
         let mut produced = 0;
         let mut new_state = self.state;
+        println!("[{}] LINE \"{}\"", self.sv, line);
 
-        // prepend SVNN identity
-        let start = Self::sv_slice_start(true, self.sv_ptr);
-        let end = (start + 3).min(self.epoch_desc_len);
-        let bytes = self.epoch_descriptor.as_bytes();
-        buf[..3].copy_from_slice(&bytes[start..end]);
-
-        produced += 3;
-
-        let mut consumed = 0;
+        if self.v3 {
+            // prepend SVNN identity
+            let start = Self::sv_slice_start(true, self.sv_ptr);
+            let end = (start + 3).min(self.epoch_desc_len);
+            let bytes = self.epoch_descriptor.as_bytes();
+            buf[..3].copy_from_slice(&bytes[start..end]);
+            produced += 3;
+        }
 
         // Retrieving observations is complex.
         // When signal sampling was not feasible: data is omitted (blanked) by a single '_'
@@ -812,7 +683,7 @@ impl<const M: usize> DecompressorExpert<M> {
                         .expect("internal error")
                         .len();
 
-                    self.state = State::ObservationV3;
+                    self.state = State::Observation;
                 }
 
                 return Ok(produced);
@@ -996,7 +867,7 @@ mod test {
                100106048.706 6  25509827.540        2118.232          39.550  ",
             ),
         ] {
-            let size = State::ObservationV1.size_to_produce(false, 0, numobs);
+            let size = State::Observation.size_to_produce(false, 0, numobs);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
@@ -1023,7 +894,7 @@ mod test {
             (4, "R10  22432243.520   119576492.91607      1307.754          43.250  "),
             (8, "R17  20915624.780   111923741.34508      1970.309          49.000    20915629.120    87051816.58507      1532.457          46.500  "),
         ] {
-            let size = State::ObservationV3.size_to_produce(true, 0, numobs);
+            let size = State::Observation.size_to_produce(true, 0, numobs);
             assert_eq!(size, expected.len(), "failed for \"{}\"", expected);
         }
     }
