@@ -64,11 +64,11 @@ pub type Decompressor = DecompressorExpert<5>;
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub enum State {
     #[default]
-    /// Recovering Epoch descriptor
+    /// Gathering Epoch descriptor.
     Epoch,
-    /// Recovering Clock offset
+    /// Gathering Clock offset, recovering complete epoch description.
     Clock,
-    /// Observations recovering
+    /// Observations gathering and recovering.
     Observation,
 }
 
@@ -306,6 +306,10 @@ impl<const M: usize> DecompressorExpert<M> {
             self.epoch_descriptor, self.epoch_desc_len
         );
 
+        // numsat needs to be recovered right away,
+        // because it is used to determine the next production size
+        self.numsat = self.epoch_numsat().expect("bad recovered content (numsat)");
+
         self.state = State::Clock;
         Ok(0)
     }
@@ -360,7 +364,6 @@ impl<const M: usize> DecompressorExpert<M> {
         let first_len = self.epoch_desc_len.min(67);
 
         buf[produced..produced + first_len].copy_from_slice(&bytes[..first_len]);
-
         produced += first_len;
 
         buf[produced] = b'\n'; // conclude 1st line
@@ -431,8 +434,6 @@ impl<const M: usize> DecompressorExpert<M> {
         self.obs_ptr = 0;
         self.sv_ptr = 0;
         self.first_epoch = false;
-
-        self.numsat = self.epoch_numsat().expect("bad recovered content (numsat)");
 
         // grab first sv
         self.sv = self.next_sv().expect("bad recovered content (sv)");
@@ -558,6 +559,18 @@ impl<const M: usize> DecompressorExpert<M> {
                 buf[produced..produced + fmt_len].copy_from_slice(&bytes);
                 produced += fmt_len;
 
+                // handle V1 padding and wrapping
+                if !self.v3 {
+                    if (ptr % 5) == 1 {
+                        // TODO: improve; this is constant
+                        let formatted = "\n                       ".to_string();
+                        let fmt_len = formatted.len();
+
+                        buf[produced..produced + fmt_len].copy_from_slice(&bytes);
+                        produced += fmt_len;
+                    }
+                }
+
                 // this may cause trimed lines to panic on next '_' search
                 // so we exist the loop so we do not overflow
                 if consumed >= len {
@@ -610,6 +623,15 @@ impl<const M: usize> DecompressorExpert<M> {
                     // push into user
                     buf[produced..produced + fmt_len].copy_from_slice(&bytes);
                     produced += fmt_len;
+
+                    // handle V1 padding & wrapping
+                    if !self.v3 {
+                        // TODO: improve; this is constant
+                        let formatted = "\n                 ".to_string();
+                        let fmt_len = formatted.len();
+                        buf[produced..produced + fmt_len].copy_from_slice(&bytes);
+                        produced += fmt_len;
+                    }
                 }
 
                 // 1. we need to push all required BLANKING
@@ -622,10 +644,21 @@ impl<const M: usize> DecompressorExpert<M> {
                 let bytes = formatted.as_bytes();
 
                 // fill required nb of blanks
-                for _ in 0..nb_missing {
+                for j in 0..nb_missing {
                     // push into user
                     buf[produced..produced + fmt_len].copy_from_slice(&bytes);
                     produced += fmt_len;
+
+                    // handle V1 padding & wrapping
+                    if !self.v3 {
+                        if (ptr + j) % 5 == 4 {
+                            // TODO: improve, this is constant
+                            let formatted = "\n            ".to_string();
+                            let fmt_len = formatted.len();
+                            buf[produced..produced + fmt_len].copy_from_slice(&bytes);
+                            produced += fmt_len;
+                        }
+                    }
                 }
 
                 // trick to preserve data flags
@@ -634,31 +667,11 @@ impl<const M: usize> DecompressorExpert<M> {
                     .get_mut(&self.sv)
                     .expect("internal error: bad crinex content?");
 
-                let descriptor = textdiff.decompress("");
-                let flags_len = descriptor.len();
-                let bytes = descriptor.as_bytes();
+                let flags = textdiff.decompress("");
+                let flags_len = flags.len();
+                println!("PRESERVED \"{}\"", flags);
 
-                println!("PRESERVED \"{}\"", descriptor);
-
-                // copy all flags to user
-                let mut offset = 17;
-                for i in 0..self.numobs {
-                    let lli_idx = i * 2;
-                    if flags_len > lli_idx {
-                        if !descriptor[lli_idx..lli_idx + 1].eq(" ") {
-                            buf[offset] = bytes[i * 2]; // b'x';
-                        }
-                    }
-
-                    let snr_idx = lli_idx + 1;
-                    if flags_len > snr_idx {
-                        if !descriptor[snr_idx..snr_idx + 1].eq(" ") {
-                            buf[offset + 1] = bytes[(i * 2) + 1]; // b'y';
-                        }
-                    }
-
-                    offset += 16;
-                }
+                Self::write_flags(flags, flags_len, self.numobs, self.v3, buf);
 
                 // conclude this SV
                 self.sv_ptr += 1;
@@ -764,6 +777,60 @@ impl<const M: usize> DecompressorExpert<M> {
             Some(mixed)
         } else {
             self.gnss_observables.get(constell)
+        }
+    }
+
+    /// Insert data flags into buffer that we already have
+    /// partially encoded. This concludes the buffer publication in Observation state.
+    fn write_flags(flags: &str, flags_len: usize, numobs: usize, v3: bool, buf: &mut [u8]) {
+        if v3 {
+            Self::write_v3_flags(flags, flags_len, numobs, buf);
+        } else {
+            Self::write_v1_flags(flags, flags_len, numobs, buf);
+        }
+    }
+
+    fn write_v1_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
+        let mut offset = 17;
+        let bytes = flags.as_bytes();
+        for i in 0..numobs {
+            let lli_idx = i * 2;
+            if flags_len > lli_idx {
+                if !flags[lli_idx..lli_idx + 1].eq(" ") {
+                    buf[offset] = b'x';
+                    //buf[offset] = bytes[i*2];
+                }
+            }
+            let snr_idx = lli_idx + 1;
+            if flags_len > snr_idx {
+                if !flags[snr_idx..snr_idx + 1].eq(" ") {
+                    buf[offset + 1] = b'y';
+                    buf[offset + 1] = bytes[(i * 2) + 1];
+                }
+            }
+            offset += 16;
+        }
+    }
+
+    fn write_v3_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
+        let mut offset = 17;
+        let bytes = flags.as_bytes();
+        for i in 0..numobs {
+            let lli_idx = i * 2;
+            if flags_len > lli_idx {
+                if !flags[lli_idx..lli_idx + 1].eq(" ") {
+                    //buf[offset] = b'x';
+                    buf[offset] = bytes[i * 2];
+                }
+            }
+            let snr_idx = lli_idx + 1;
+            if flags_len > snr_idx {
+                if !flags[snr_idx..snr_idx + 1].eq(" ") {
+                    //buf[offset + 1] = b'y';
+                    buf[offset + 1] = bytes[(i * 2) + 1];
+                }
+            }
+            offset += 16;
         }
     }
 }

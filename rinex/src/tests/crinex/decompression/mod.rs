@@ -42,20 +42,44 @@ pub fn run_raw_decompression_test(
 
     // run test, on every provided input versus output
     let input_lines = input.lines();
-    let output_lines = output.lines();
+    let mut output_lines = output.lines();
+
     let mut buf = [0; 4096];
 
-    for ((nth, input), output) in input_lines.enumerate().zip(output_lines) {
-        let size = decomp
-            .decompress(input, input.len(), &mut buf, 4096)
-            .expect(&format!(".decompress failed to line={} \"{}\"", nth, input));
+    for (nth, input) in input_lines.enumerate() {
+        // decompress each input
+        match decomp.decompress(input, input.len(), &mut buf, 4096) {
+            Ok(size) => {
+                // for each generated line (may have several in V1)
+                // we compare to expected outputs
+                let content = from_utf8(&buf[..size])
+                    .expect("CRNX2RNX should always produce valid UTF-8")
+                    .to_string();
 
-        let content = from_utf8(&buf[..size]).expect("CRNX2RNX should always produce valid UTF-8");
+                let generated_lines = content.lines();
+                let len = generated_lines.clone().count();
 
-        let content = content.trim_end();
-        let output = output.trim_end();
+                if len < 2 {
+                    // we are not 100 % equivalent, in terms of trailing whitespace
+                    let content = content.trim_end();
 
-        assert_eq!(content, output, "failed on line={} \"{}\"", nth, input);
+                    let output = output_lines.next().unwrap().trim_end();
+
+                    assert_eq!(content, output, "failed on line={} \"{}\"", nth, input);
+                } else {
+                    // in V1 we may generate more than 1 line for 1 input line
+                    for line in generated_lines {
+                        // we are not 100 % equivalent, in terms of trailing whitespace
+                        let content = line.trim_end();
+
+                        let output = output_lines.next().unwrap().trim_end();
+
+                        assert_eq!(content, output, "failed on line={} \"{}\"", nth, input);
+                    }
+                }
+            },
+            Err(e) => panic!("decompression failed with {}", e),
+        }
     }
 }
 
