@@ -822,27 +822,27 @@ impl<const M: usize> DecompressorExpert<M> {
     }
 
     fn write_v1_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
-        let mut offset = 17;
+        let mut offset = 13;
         let bytes = flags.as_bytes();
         for i in 0..numobs {
             let lli_idx = i * 2;
             if flags_len > lli_idx {
                 if !flags[lli_idx..lli_idx + 1].eq(" ") {
-                    buf[offset] = b'x';
-                    //buf[offset] = bytes[i*2];
+                    //buf[offset] = b'x';
+                    buf[offset] = bytes[i * 2];
                 }
             }
             let snr_idx = lli_idx + 1;
             if flags_len > snr_idx {
                 if !flags[snr_idx..snr_idx + 1].eq(" ") {
-                    buf[offset + 1] = b'y';
-                    //buf[offset + 1] = bytes[(i * 2) + 1];
+                    //buf[offset + 1] = b'y';
+                    buf[offset + 1] = bytes[(i * 2) + 1];
                 }
             }
             offset += 16;
 
             if (i % 5) == 4 {
-                offset += 32; // padding + wrapping
+                offset += 1; // padding + wrapping
             }
         }
     }
@@ -1053,11 +1053,39 @@ mod test {
 
     #[test]
     fn v1_flags_format() {
-        for (flags, buffer, expected) in [(
-            "  06     6",
-            "G01  24600158.420   129274705.784          38.300    24600162.420   100733552.500  ",
-            "G01  24600158.420   129274705.78406        38.300    24600162.420   100733552.500 6",
-        )] {
+        for (flags, buffer, expected) in [
+            (
+                "4 06 1   6",
+                " 24600158.4204  129274705.784          38.300    24600162.420   100733552.500  ",
+                " 24600158.4204  129274705.78406        38.300 1  24600162.420   100733552.500 6",
+            ),
+            (
+                "49484 4 4",
+                "-14746974.730   -11440396.209    22513484.637    22513484.772    22513487.370  ",
+                "-14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ",
+            ),
+            (
+                " 643        4",
+                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+          40.000          22.000 ",
+                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+          40.000          22.0004",
+            ),
+            (
+                " 643      1 4",
+                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+          40.000          22.000 ",
+                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+          40.0001         22.0004",
+            ),
+            (
+                " 643      1  5",
+                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+          40.000          22.000 ",
+                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+          40.0001         22.000 5",
+            ),
+        ] {
             let flags_len = flags.len();
             let buffer_len = buffer.len();
             let bytes = buffer.as_bytes();
@@ -1065,7 +1093,7 @@ mod test {
             let mut buf = [0; 128];
             buf[..buffer_len].copy_from_slice(&bytes);
 
-            let numobs = buffer.split_ascii_whitespace().count() - 1;
+            let numobs = buffer.split_ascii_whitespace().count();
 
             Decompressor::write_v1_flags(flags, flags_len, numobs, &mut buf);
 
