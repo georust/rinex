@@ -10,6 +10,8 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
+pub mod io;
+
 use num_integer::div_ceil;
 
 #[cfg(feature = "log")]
@@ -158,6 +160,28 @@ pub struct DecompressorExpert<const M: usize> {
     obs_diff: HashMap<(SV, usize), NumDiff<M>>,
     /// [Observable]s specs for each [Constellation]
     gnss_observables: HashMap<Constellation, Vec<Observable>>,
+}
+
+impl<const M: usize> Default for DecompressorExpert<M> {
+    fn default() -> Self {
+        Self {
+            v3: true,
+            numsat: 0,
+            sv_ptr: 0,
+            numobs: 0,
+            obs_ptr: 0,
+            first_epoch: true,
+            epoch_desc_len: 0,
+            sv: Default::default(),
+            state: Default::default(),
+            epoch_diff: TextDiff::new(""),
+            gnss_observables: HashMap::with_capacity(8), // cannot be initialized
+            obs_diff: HashMap::with_capacity(8), // cannot initialize yet
+            flags_diff: HashMap::with_capacity(8), // cannot initialize yet
+            epoch_descriptor: String::with_capacity(256),
+            clock_diff: NumDiff::<M>::new(0, M),
+        }
+    }
 }
 
 impl<const M: usize> DecompressorExpert<M> {
@@ -365,6 +389,15 @@ impl<const M: usize> DecompressorExpert<M> {
 
         buf[produced..produced + first_len].copy_from_slice(&bytes[..first_len]);
         produced += first_len;
+
+        // push clock offset (if any)
+        if let Some(clock_data) = clock_data {
+            let formatted_ck = format!(" {:15.12}", clock_data);
+            let fmt_len = formatted_ck.len(); // TODO: improve (constant)
+            let formatted_ck = formatted_ck.as_bytes();
+            buf[produced..produced + fmt_len].copy_from_slice(&formatted_ck);
+            produced += fmt_len;
+        }
 
         buf[produced] = b'\n'; // conclude 1st line
         produced += 1;
@@ -745,7 +778,7 @@ impl<const M: usize> DecompressorExpert<M> {
 
         self.obs_ptr = 0;
 
-        // move on to next
+        // move on to next state
         self.sv_ptr += 1;
         println!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
 
@@ -811,6 +844,10 @@ impl<const M: usize> DecompressorExpert<M> {
                 }
             }
             offset += 16;
+            
+            if (i%5) == 4 {
+                offset += 32; // padding + wrapping
+            }
         }
     }
 
