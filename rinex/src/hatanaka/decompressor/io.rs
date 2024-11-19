@@ -3,20 +3,18 @@ use crate::{
     prelude::{Constellation, Observable},
 };
 
-use std::{
-    io::{Read, BufRead, BufReader, Lines},
-};
+use std::io::{BufRead, BufReader, Lines, Read};
 
 /// [DecompressorIO] is a [Decompressor] implementation that works directly
 /// on any [Read]ble I/O interface. Use it if your application to decompress
 /// CRINEX to parsable RINEX efficiently. Refer to [Decompressor] for its
 /// limitations. It implements the same internal parameters as the historical
 /// CRX2RNX tool.
-pub type DecompressorIO<R: Read> = DecompressorExpertIO<5, R>;
+pub type DecompressorIO<R> = DecompressorExpertIO<5, R>;
 
 /// Unlike [DecompressorIO], [DecompressorExpertIO] is not limited in the decompression
 /// algorithm and gives you all flexibility. This is needed if your data compressor
-/// used a compression level above 3. 
+/// used a compression level above 3.
 pub struct DecompressorExpertIO<const M: usize, R: Read> {
     /// Internal LinesIter. The decompressor works on a line basis.
     lines: Lines<BufReader<R>>,
@@ -31,7 +29,9 @@ impl<const M: usize, R: Read> Read for DecompressorExpertIO<M, R> {
             let line = line?;
             let len = line.len();
             let buf_size = buf.len();
-            let size = self.decomp.decompress(&line, len, buf, buf_size)
+            let size = self
+                .decomp
+                .decompress(&line, len, buf, buf_size)
                 .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "hatanaka error"))?;
             Ok(size)
         } else {
@@ -71,4 +71,3 @@ impl<const M: usize, R: Read> DecompressorExpertIO<M, R> {
         self.decomp.gnss_observables.insert(constell, observables);
     }
 }
-
