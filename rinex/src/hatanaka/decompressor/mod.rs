@@ -133,19 +133,15 @@ impl State {
 pub struct DecompressorExpert<const M: usize> {
     /// Whether this is a V3 parser or not
     v3: bool,
-    /// Internal [State]. Use this to determine
-    /// whether we're still inside the Header section (algorithm is not active),
-    /// or inside file body (algorithm is active).
+    /// Internal Finite [State] Machine.
     state: State,
-    /// For internal logic: remains true until
-    /// first [Epoch] description was decoded.
+    /// For internal logic: remains true until one epoch descriptor has been recovered.
     first_epoch: bool,
     /// pointers
-    numsat: usize, // total
-    sv_ptr: usize, // inside epoch
     sv: SV,
-    /// pointers
-    numobs: usize, // total
+    numsat: usize,  // total
+    sv_ptr: usize,  // inside epoch
+    numobs: usize,  // total
     obs_ptr: usize, // inside epoch
     /// [TextDiff] that works on entire Epoch line
     epoch_diff: TextDiff,
@@ -176,8 +172,8 @@ impl<const M: usize> Default for DecompressorExpert<M> {
             state: Default::default(),
             epoch_diff: TextDiff::new(""),
             gnss_observables: HashMap::with_capacity(8), // cannot be initialized
-            obs_diff: HashMap::with_capacity(8), // cannot initialize yet
-            flags_diff: HashMap::with_capacity(8), // cannot initialize yet
+            obs_diff: HashMap::with_capacity(8),         // cannot initialize yet
+            flags_diff: HashMap::with_capacity(8),       // cannot initialize yet
             epoch_descriptor: String::with_capacity(256),
             clock_diff: NumDiff::<M>::new(0, M),
         }
@@ -844,8 +840,8 @@ impl<const M: usize> DecompressorExpert<M> {
                 }
             }
             offset += 16;
-            
-            if (i%5) == 4 {
+
+            if (i % 5) == 4 {
                 offset += 32; // padding + wrapping
             }
         }
@@ -880,7 +876,7 @@ mod test {
         hatanaka::decompressor::{Decompressor, State},
         prelude::SV,
     };
-    use std::str::FromStr;
+    use std::str::{from_utf8, FromStr};
 
     #[test]
     fn epoch_size_to_produce_v1() {
@@ -1053,5 +1049,55 @@ mod test {
         assert_eq!(numsat_str, " 43");
         let numsat = numsat_str.trim().parse::<u64>().unwrap();
         assert_eq!(numsat, 43);
+    }
+
+    #[test]
+    fn v1_flags_format() {
+        for (flags, buffer, expected) in [(
+            "  06     6",
+            "G01  24600158.420   129274705.784          38.300    24600162.420   100733552.500  ",
+            "G01  24600158.420   129274705.78406        38.300    24600162.420   100733552.500 6",
+        )] {
+            let flags_len = flags.len();
+            let buffer_len = buffer.len();
+            let bytes = buffer.as_bytes();
+
+            let mut buf = [0; 128];
+            buf[..buffer_len].copy_from_slice(&bytes);
+
+            let numobs = buffer.split_ascii_whitespace().count() - 1;
+
+            Decompressor::write_v1_flags(flags, flags_len, numobs, &mut buf);
+
+            let output = from_utf8(&buf[..expected.len()]).expect("did not generate valid UTF-8");
+
+            // verify that (in place) write did its job
+            assert_eq!(output, expected);
+        }
+    }
+
+    #[test]
+    fn v3_flags_format() {
+        for (flags, buffer, expected) in [(
+            "  06     6",
+            "G01  24600158.420   129274705.784          38.300    24600162.420   100733552.500  ",
+            "G01  24600158.420   129274705.78406        38.300    24600162.420   100733552.500 6",
+        )] {
+            let flags_len = flags.len();
+            let buffer_len = buffer.len();
+            let bytes = buffer.as_bytes();
+
+            let mut buf = [0; 128];
+            buf[..buffer_len].copy_from_slice(&bytes);
+
+            let numobs = buffer.split_ascii_whitespace().count() - 1;
+
+            Decompressor::write_v3_flags(flags, flags_len, numobs, &mut buf);
+
+            let output = from_utf8(&buf[..expected.len()]).expect("did not generate valid UTF-8");
+
+            // verify that (in place) write did its job
+            assert_eq!(output, expected);
+        }
     }
 }
