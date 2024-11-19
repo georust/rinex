@@ -79,14 +79,14 @@ impl State {
     /// - Timestamp: Year uses 2 digits
     /// - Flag
     /// - Numsat
-    const MIN_V1_EPOCH_DESCRIPTION_SIZE: usize = 26 + 3 + 3;
+    const MIN_V1_EPOCH_DESCRIPTION_SIZE: usize = 17;
 
     /// Minimal size of a valid [Epoch] description in V3 revision  
     /// - >
     /// - Timestamp: Year uses 4 digits
     /// - Flag
     /// - Numsat
-    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = "                   1".len();
+    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = 20;
 
     /// Calculates number of bytes this state will forward to user
     fn size_to_produce(&self, v3: bool, numsat: usize, numobs: usize) -> usize {
@@ -297,6 +297,7 @@ impl<const M: usize> DecompressorExpert<M> {
         };
 
         if len < min_len {
+            panic!("len={}", len);
             return Err(Error::EpochFormat);
         }
 
@@ -593,7 +594,7 @@ impl<const M: usize> DecompressorExpert<M> {
                 if !self.v3 {
                     if (ptr % 5) == 4 {
                         // TODO: improve; this is constant
-                        let formatted = "\n                       ".to_string();
+                        let formatted = "\n".to_string();
                         let bytes = formatted.as_bytes();
                         let fmt_len = formatted.len();
 
@@ -745,31 +746,12 @@ impl<const M: usize> DecompressorExpert<M> {
 
             let kernel = self.flags_diff.get_mut(&self.sv).expect("internal error");
 
-            let descriptor = kernel.decompress(flags);
-            let flags_len = descriptor.len();
-            let bytes = descriptor.as_bytes();
-
-            println!("RECOVERED \"{}\"", descriptor);
+            let flags = kernel.decompress(flags);
+            let flags_len = flags.len();
+            println!("RECOVERED \"{}\"", flags);
 
             // copy all flags to user
-            let mut offset = 17;
-            for i in 0..self.numobs {
-                let lli_idx = i * 2;
-                if flags_len > lli_idx {
-                    if !descriptor[lli_idx..lli_idx + 1].eq(" ") {
-                        buf[offset] = bytes[i * 2]; // b'x';
-                    }
-                }
-
-                let snr_idx = lli_idx + 1;
-                if flags_len > snr_idx {
-                    if !descriptor[snr_idx..snr_idx + 1].eq(" ") {
-                        buf[offset + 1] = bytes[(i * 2) + 1]; // b'y';
-                    }
-                }
-
-                offset += 16;
-            }
+            Self::write_flags(flags, flags_len, self.numobs, self.v3, buf);
         }
 
         self.obs_ptr = 0;
@@ -822,7 +804,7 @@ impl<const M: usize> DecompressorExpert<M> {
     }
 
     fn write_v1_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
-        let mut offset = 13;
+        let mut offset = 14;
         let bytes = flags.as_bytes();
         for i in 0..numobs {
             let lli_idx = i * 2;
@@ -1085,12 +1067,21 @@ mod test {
                 "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
           40.0001         22.000 5",
             ),
+            (
+                " 643      1  56    1 ",
+                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+          40.000          22.000          22.000          22.000          22.000  
+          40.000          22.000          22.000          22.000          22.000 ",
+                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+          40.0001         22.000 5        22.0006         22.000          22.000 1
+          40.000          22.000          22.000          22.000          22.000 ",
+            ),
         ] {
             let flags_len = flags.len();
             let buffer_len = buffer.len();
             let bytes = buffer.as_bytes();
 
-            let mut buf = [0; 128];
+            let mut buf = [0; 256];
             buf[..buffer_len].copy_from_slice(&bytes);
 
             let numobs = buffer.split_ascii_whitespace().count();
