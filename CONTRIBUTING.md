@@ -1,36 +1,62 @@
 CONTRIBUTING
 ============
 
-Hello and welcome on board :wave:
+Hello and welcome :wave:
 
-Use the github portal to submit PR, all contributions are welcomed.  
-Don't forget to run a quick `cargo fmt` prior any submissions, so the CI/CD does not fail
-on coding style "issues".
+The GeoRust RINEX toolbox is a powerful & somewhat complete toolbox,
+at least, it aims to be! it is also fully open and all contributions are welcome. 
+Use the github portal for that purpose. Don't forget to run a quick `cargo fmt` linter
+prior submissions, so the CI/CD jobs does not fail for irrelevant reasons.  
 
-This crate and ecosystem is part of the Georust community. 
-You can contact us on [Discord](https://discord.gg/Fp2aape).
+For questions you can either open a discussion on Github.com or drop us a message
+on [Discord](https://discord.gg/Fp2aape) (prefer the RINEX channel).
 
-Crate architecture
-==================
+Toolbox
+=======
 
-For each supported RINEX types, we have one folder named after that format.  
-`src/navigation` is one of those. 
+This repository is a complete toolbox because it does not only host libraries.
+`rinex-cli` is the main application as of today and it does not come with a GUI.  
+We still have quite a lot to achieve in terms of processing, and we consider we will focus
+on GUI development afterwards. If you're interested in helping us taking this step quicker: do not hesitate.
 
-The module contains the record type definition. RINEX file contents vary a lot
-depending on which type of RINEX we're talking about.  
-For complex RINEX formats like Navigation Data, that module will contain all possible inner types.
+Post-processed navigation is complex and therefore, does not rely on the RINEX lib on its own. 
+In fact, RINEX is just the (only) file format that allows saving the data context that we can later on
+study and process. Navigation being just one of many applications we can use GNSS for. Our applications
+are not only dedicated to navigation, they allow more than that.
 
-Other important structures :
-- SV and Constellation support is provided by the GNSS lib (gnss-rs)
-- `src/epoch/mod.rs`: the Epoch module basically provides
-hifitime::Epoch parsing methods, because RINEX describes date in non standard formats.
-Also, the `Flag` structure is used to mark Observations (valid or invalid).
-- `src/observable.rs`: defines possible observations like raw phase
-- `src/carrier.rs`: defines carrier signals in terms of frequency and bandwidth.
-It also contains utilities to identify which GNSS signals we're dealing with,
-from an `Observable`.
-- `src/hatanaka/mod.rs`: the Hatanaka module contains the RINEX Compressor and Decompressor 
-- `src/antex/antenna.rs`: defines the index structure of ANTEX format
+The main dependencies for RINEX processing is summarized with:
+
+* GNSS-RTK for the core navigation calculations
+* ANISE for the frame and space model
+* Nyx-space for advanced navigation features
+* Hifitime for all timing aspects, which is a key element
+
+Scroll down for further detail for each repo:
+
+* [rinex](#rinex) the RINEX library
+* [sp3](#sp3) parser to permit PPP
+* [rinex-qc](#rinex-qc) for RINEX and post processed navigation
+
+RINEX
+======
+
+The RINEX library is mainly a parser library. We have still a few
+steps to take to fully support data formatting. In terms of data capabilities,
+it is fair to say it has a lot of interesting features, yet it is not perfect
+and key processing options are still lacking.
+
+## Crate Architecture
+
+In terms of architecture, the library crate is well organized. The
+current work aims at further improving this. It should facilitate new comers. 
+Because RINEX has several formats, the library is lengthy. Yet we are able
+to achieve a simple and unique interface and support all RINEX formats.
+Also, the new NAV V4 frames are supported, which is still kind of rare today.
+
+For each RINEX format, we have one submodule, for example `observation` for
+Observation RINEX.
+
+The Hatanaka module contains the CRINEX decompressor and RINEX compressor objects.
 
 Navigation Data
 ===============
@@ -107,10 +133,11 @@ Crate dependencies
 - `gnss-rtk` is a library that depends on `rinex`, `sp3` and `rinex-qc`
 - `cli` is an application that exposes `rinex-qc`, `gnss-rtk`, `sp3` and `rinex`
 
-External key dependencies:
+SP3
+===
 
-- `Hifitime` (timing lib) is used by all libraries
-- `Nyx-space` (navigation lib) is used by `gnss-rtk`
-- `Ublox-rs` (UBX protocol) is used by `ublox-rnx`
+SP3 parser library was developped to support that particular file format, which is required
+in PPP post processed scenario. `rinex-qc` accepts such an input, and can stack them to the context, `rinex-cli` can post process
+the data context.
 
-<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/dependencies.png">
+SP3 parser is less dense that RINEX because it is a unique format and answers the Navigation part of the RINEX dataset.
