@@ -44,7 +44,8 @@ pub(crate) fn parse_epoch(
     content: &str,
 ) -> Result<(Epoch, HashMap<Observable, f64>), ParsingError> {
     let mut lines = content.lines();
-    let mut line = lines.next().unwrap();
+
+    let mut line = lines.next().ok_or(ParsingError::EmptyEpoch)?;
 
     let mut map: HashMap<Observable, f64> = HashMap::with_capacity(3);
 

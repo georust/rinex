@@ -156,7 +156,8 @@ pub(crate) fn parse_epoch(
     ts: TimeScale,
 ) -> Result<(Epoch, ClockKey, ClockProfile), ParsingError> {
     let mut lines = content.lines();
-    let line = lines.next().unwrap();
+    let line = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+
     const LIMIT: Version = Version { major: 3, minor: 4 };
     let (dtype, mut rem) = line.split_at(3);
     let profile_type = ClockProfileType::from_str(dtype.trim())?;
