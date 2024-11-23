@@ -542,6 +542,7 @@ S36  39057559.716 7  39057534.704 5        -0.569 7        -0.175 5 205250138.47
 fn v3_esbcdnk() {
     run_raw_decompression_test(
         true,
+        "MIXED",
         &["BDS", "GAL", "GPS", "QZSS", "GLO", "SBAS"],
         &[
             "C2I, C6I, C7I, D2I, D6I, D7I, L2I, L6I, L7I, S2I, S6I, S7I",

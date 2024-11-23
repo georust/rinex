@@ -135,6 +135,8 @@ impl State {
 pub struct DecompressorExpert<const M: usize> {
     /// Whether this is a V3 parser or not
     v3: bool,
+    /// Constellation described by [Header]
+    constellation: Constellation,
     /// Internal Finite [State] Machine.
     state: State,
     /// For internal logic: remains true until one epoch descriptor has been recovered.
@@ -172,6 +174,7 @@ impl<const M: usize> Default for DecompressorExpert<M> {
             epoch_desc_len: 0,
             sv: Default::default(),
             state: Default::default(),
+            constellation: Constellation::Mixed,
             epoch_diff: TextDiff::new(""),
             gnss_observables: HashMap::with_capacity(8), // cannot be initialized
             obs_diff: HashMap::with_capacity(8),         // cannot initialize yet
@@ -208,11 +211,31 @@ impl<const M: usize> DecompressorExpert<M> {
         let start = Self::sv_slice_start(self.v3, self.sv_ptr);
         let end = (start + 3).min(self.epoch_desc_len);
 
-        // TODO: this might fail on old rinex single constell that ommit the constellation
         if let Ok(sv) = SV::from_str(&self.epoch_descriptor[start..end].trim()) {
             Some(sv)
         } else {
-            None
+            // May fail on old revisions that have a mono GNSS system
+            // that have tendency to omit the constellation description (leaving only the PRN#)
+            if !self.v3 {
+                match self.constellation {
+                    Constellation::Mixed => {
+                        None // incorrect description, will rapidly panic
+                    },
+                    constellation => {
+                        // PRN# parsing attempt
+                        if let Ok(prn) = &self.epoch_descriptor[start..end].trim().parse::<u8>() {
+                            Some(SV {
+                                prn: *prn,
+                                constellation,
+                            })
+                        } else {
+                            None // incorrect description, will rapidly panic
+                        }
+                    },
+                }
+            } else {
+                None
+            }
         }
     }
 
@@ -236,13 +259,18 @@ impl<const M: usize> DecompressorExpert<M> {
     /// - v3: whether this CRINEX V1 or V3 content will follow
     /// - constellation: [Constellation] as defined in header
     /// - gnss_observables: [Observable]s per [Constellation] as defined in header.
-    pub fn new(v3: bool, gnss_observables: HashMap<Constellation, Vec<Observable>>) -> Self {
+    pub fn new(
+        v3: bool,
+        constellation: Constellation,
+        gnss_observables: HashMap<Constellation, Vec<Observable>>,
+    ) -> Self {
         Self {
             v3,
             numsat: 0,
             sv_ptr: 0,
             numobs: 0,
             obs_ptr: 0,
+            constellation,
             gnss_observables,
             first_epoch: true,
             epoch_desc_len: 0,
@@ -477,8 +505,28 @@ impl<const M: usize> DecompressorExpert<M> {
 
             // any invalid SV description, will cause us to wait for a new epoch.
             // In other terms, epoch is fully disregarded.
-            let sv = SV::from_str(&self.epoch_descriptor[start..start + 3])
-                .map_err(|_| Error::SVParsing)?;
+            let sv = match SV::from_str(&self.epoch_descriptor[start..start + 3]) {
+                Ok(sv) => sv,
+                Err(_) => {
+                    // SV parsing may be in failure in case of very old V1 CRINEX mono GNSS
+                    // that omit the constellation
+                    if !self.v3 {
+                        if let Ok(prn) = &self.epoch_descriptor[start + 1..start + 3]
+                            .trim()
+                            .parse::<u8>()
+                        {
+                            SV {
+                                prn: *prn,
+                                constellation: self.constellation,
+                            }
+                        } else {
+                            return Err(Error::SVParsing);
+                        }
+                    } else {
+                        return Err(Error::SVParsing);
+                    }
+                },
+            };
 
             // initialize on first encounter
             if self.flags_diff.get(&sv).is_none() {
@@ -662,6 +710,8 @@ impl<const M: usize> DecompressorExpert<M> {
                         // TODO: improve; this is constant
                         let formatted = "\n                 ".to_string();
                         let fmt_len = formatted.len();
+                        let bytes = formatted.as_bytes();
+
                         buf[produced..produced + fmt_len].copy_from_slice(&bytes);
                         produced += fmt_len;
                     }
@@ -688,6 +738,8 @@ impl<const M: usize> DecompressorExpert<M> {
                             // TODO: improve, this is constant
                             let formatted = "\n            ".to_string();
                             let fmt_len = formatted.len();
+                            let bytes = formatted.as_bytes();
+
                             buf[produced..produced + fmt_len].copy_from_slice(&bytes);
                             produced += fmt_len;
                         }

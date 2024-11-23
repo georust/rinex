@@ -104,6 +104,7 @@ R24  19649027.552   105072191.792 8        49.500                    19649026.15
 fn v3_vlns0630() {
     run_raw_decompression_test(
         true,
+        "MIXED",
         &["GPS", "GLO"],
         &[
             "C1C, L1C, S1C, C2P, C2W, C2S, C2L, C2X, L2P, L2W, L2S, L2L, L2X, S2P, S2W, S2S, S2L, S2X",

@@ -860,6 +860,7 @@ R19  21154533.640   113162504.52106      1999.535          40.250    21154537.34
 fn v3_pdel0010_21() {
     run_raw_decompression_test(
         true,
+        "MIXED",
         &["GPS", "GLO"],
         &[
             "C1C, L1C, D1C, S1C, C2W, L2W, D2W, S2W",

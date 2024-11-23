@@ -72,6 +72,7 @@ impl Record {
         let mut buf = [0; 1024];
         let mut is_crinex = false;
         let mut crinex_v3 = false;
+        let mut crinex_content = String::with_capacity(1024);
         let mut gnss_observables = Default::default();
 
         if let Some(obs) = &header.obs {
@@ -84,7 +85,11 @@ impl Record {
 
         // Build a decompressor, to be deployed based on already recovered [Header].
         // These parameters are compatible with historical RNX2CRX tool.
-        let mut decompressor = DecompressorExpert::<5>::new(crinex_v3, gnss_observables);
+        let mut decompressor = DecompressorExpert::<5>::new(
+            crinex_v3,
+            header.constellation.unwrap_or_default(),
+            gnss_observables,
+        );
 
         // MET
         let mut met_rec = MeteoRecord::new();
@@ -193,7 +198,17 @@ impl Record {
                     .map_err(|e| ParsingError::CRINEX(e))?;
 
                 let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
-                recovered
+
+                // TODO: to improve overall performance,
+                // we should rework the buffering in this function.
+                // Basically 'epoch_content' and Self::is_new_epoch interaction.
+                // We should wait for a new epoch to appear and process everything prior that instant.
+                // Currently, in the CRINEX case, this requires a new allocation just to append a single \n
+                crinex_content.clear();
+                crinex_content.push_str(recovered);
+                crinex_content.push('\n');
+
+                &crinex_content
             } else {
                 &line
             };
@@ -204,6 +219,8 @@ impl Record {
             // In any other case, content is limited to a single line.
             // This behaves correctly and takes care of it
             for line in content.lines() {
+                println!("LINE \"{}\"", line);
+
                 let new_epoch = Self::is_new_epoch(line, header);
                 ionex_rms_plane = is_new_rms_plane(line);
 
@@ -316,10 +333,6 @@ impl Record {
                     }
                     first_epoch = false;
                 }
-
-                // epoch content builder
-                epoch_content.push_str(content);
-                epoch_content.push('\n');
             }
         }
 

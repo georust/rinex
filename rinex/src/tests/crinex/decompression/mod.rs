@@ -1,7 +1,13 @@
+// V1 test
 mod ajac3550;
-mod esbcdnk; // realistic V3 test
-mod pdel0010_21; // realistic V3 test
-mod vlns0630; // realistic V3 test // short realistic V1 test
+// V1 very old
+mod kosg0010;
+// V3 test
+mod esbcdnk;
+// v3 test
+mod pdel0010_21;
+// v1 test with clock (not very meaningful though..)
+mod vlns0630;
 
 use std::{
     collections::HashMap,
@@ -17,15 +23,19 @@ use crate::{
 /// to compare the decompressed content to what we expect
 /// Inputs:
 /// - v3 (boolean)
+/// - constellation: as defined in header
 /// - constellation (from supposedly parsed header)
 /// - specs (from spposedly parsed header)
 pub fn run_raw_decompression_test(
     v3: bool,
+    constellation: &str,
     constellation_specs: &[&str],
     observable_specs: &[&str],
     input: &str,
     output: &str,
 ) {
+    let constellation = Constellation::from_str(constellation.trim()).unwrap();
+
     let mut gnss_observables = HashMap::<Constellation, Vec<Observable>>::new();
 
     for (constell, observables) in constellation_specs.iter().zip(observable_specs.iter()) {
@@ -38,7 +48,7 @@ pub fn run_raw_decompression_test(
     }
 
     // build decompressor
-    let mut decomp = Decompressor::new(v3, gnss_observables);
+    let mut decomp = Decompressor::new(v3, constellation, gnss_observables);
 
     // run test, on every provided input versus output
     let input_lines = input.lines();
