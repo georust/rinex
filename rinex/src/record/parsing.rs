@@ -198,9 +198,6 @@ impl Record {
                 &line
             };
 
-            epoch_content.push_str(content);
-            //epoch_content.push('\n');
-
             // Yet another lines Iterator.
             // In case of special CRINEX1 (old revision) decompression
             // content may actually be wrapped in several lines.
@@ -315,12 +312,14 @@ impl Record {
 
                 if new_epoch {
                     if !first_epoch {
-                        epoch_content.clear()
+                        epoch_content.clear();
                     }
                     first_epoch = false;
                 }
+
                 // epoch content builder
-                epoch_content.push_str(&(line.to_owned() + "\n"));
+                epoch_content.push_str(content);
+                epoch_content.push('\n');
             }
         }
 

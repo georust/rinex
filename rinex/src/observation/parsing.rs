@@ -160,45 +160,52 @@ fn parse_observations(
     header: &Header,
     num_sat: u16,
     rem: &str,
-    mut lines: std::str::Lines<'_>,
+    mut lines: Lines<'_>,
     signals: &mut Vec<SignalObservation>,
 ) -> Result<(), ParsingError> {
     // retrieve header specs
     let constellation = header.constellation;
 
     let obs = header.obs.as_ref().unwrap();
-
     let observables = &obs.codes;
 
-    match header.version.major {
-        2 => {
-            // Sets the satellite systems description, which consits in
-            //  - end of current line
-            //  - possible following lines
-            let mut systems_str = String::with_capacity(24 * 3); //SVNN
-            systems_str.push_str(rem.trim());
-            while systems_str.len() / 3 < num_sat.into() {
-                if let Some(l) = lines.next() {
-                    systems_str.push_str(l.trim());
-                } else {
-                    return Err(ParsingError::BadV2SatellitesDescription);
-                }
+    // V1 / V2 tedious case
+    let rem = rem.trim();
+    let remainder_len = rem.len();
+
+    if header.version.major < 3 {
+        // Sets the satellite systems description, which consits in
+        //  - end of current line
+        //  - possible following lines
+
+        // starts with first line content
+        let end = (12 * 3).min(remainder_len);
+        let mut systems_str = rem[..end].to_string();
+        let mut systems_str_len = systems_str.len();
+
+        // grab following lines (if we need to)
+        while systems_str_len / 3 < num_sat.into() {
+            if let Some(line) = lines.next() {
+                let trimmed = line.trim();
+                systems_str_len += trimmed.len();
+                systems_str.push_str(trimmed);
+            } else {
+                return Err(ParsingError::BadV2SatellitesDescription);
             }
+        }
 
-            let systems_str_len = systems_str.len();
+        let systems_str_len = systems_str.len();
 
-            parse_signals_v2(
-                &systems_str,
-                systems_str_len,
-                constellation,
-                observables,
-                lines,
-                signals,
-            );
-        },
-        _ => {
-            parse_signals_v3(observables, lines, signals);
-        },
+        parse_signals_v2(
+            &systems_str,
+            systems_str_len,
+            constellation,
+            observables,
+            lines,
+            signals,
+        );
+    } else {
+        parse_signals_v3(observables, lines, signals);
     }
 
     Ok(())
@@ -257,8 +264,6 @@ fn parse_signals_v2(
             // identify new SV
             let sv_end = (sv_ptr + SVNN_SIZE).min(systems_str_len);
             let system = &systems_str[sv_ptr..sv_end].trim();
-
-            println!("SYSTEM \"{}\"", system);
 
             // actual parsing
             if let Ok(found) = SV::from_str(system) {
@@ -719,6 +724,43 @@ G30R01R02R03R08R09R15R16R17R18R19R24
             "2021-12-21T00:00:30 GPST",
             93,
             "2021-12-21T00:00:30 GPST",
+            EpochFlag::Ok,
+            None,
+        );
+    }
+
+    #[test]
+    fn test_parse_v2_barq() {
+        // extracted from v2/barq0.19d
+        let content = " 19  3 12 16 36  0.0000000  0 15G08G10G14G16G18G20G22G26G27G32R04R05
+        R06R19R20
+111525030.92718  86902614.11057  21222508.060                    21222505.880
+113917475.72718  88766858.51957  21677775.000                    21677773.380
+117582228.43417  91622504.36956  22375154.360                    22375150.800
+116496701.38017  90776637.01356  22168585.640                    22168581.380
+120543799.60817  93930215.60156  22938722.560                    22938718.700
+125411881.34917  97723533.46955  23865086.320                    23865082.480
+124148906.10717  96739381.30556  23624751.240                    23624745.820
+127085060.78216  99027334.17655  24183483.520                    24183486.540
+105970568.06418  82574457.73858  20165528.740                    20165526.020
+114286506.03418  89054414.91257  21747998.820                    21747997.860
+113282224.20717  88108400.20417  21154656.900                    21154656.960
+102507243.91718  79727864.12617  19176099.600                    19176101.880
+116775184.83016                  21883618.780
+112181738.38117  87252468.04516  20971192.900                    20971194.040
+110923986.30317  86274222.72417  20743344.820                    20743348.200
+";
+        generic_observation_epoch_decoding_test(
+            content,
+            2,
+            Constellation::Mixed,
+            &[
+                ("GPS", "L1,    L2,    C1,    P1,    P2,    P1,    P2"),
+                ("GLO", "L1,    L2,    C1,    P1,    P2,    P1,    P2"),
+            ],
+            "2019-03-12T16:36:00 GPST",
+            50,
+            "2019-03-12T16:36:00 GPST",
             EpochFlag::Ok,
             None,
         );
