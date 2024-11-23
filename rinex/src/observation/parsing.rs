@@ -184,7 +184,17 @@ fn parse_observations(
                     return Err(ParsingError::BadV2SatellitesDescription);
                 }
             }
-            parse_signals_v2(&systems_str, constellation, observables, lines, signals);
+
+            let systems_str_len = systems_str.len();
+
+            parse_signals_v2(
+                &systems_str,
+                systems_str_len,
+                constellation,
+                observables,
+                lines,
+                signals,
+            );
         },
         _ => {
             parse_signals_v3(observables, lines, signals);
@@ -205,6 +215,7 @@ fn parse_observations(
 ///   - lines: remaing [Lines] Iterator
 fn parse_signals_v2(
     systems_str: &str,
+    systems_str_len: usize,
     head_constellation: Option<Constellation>,
     head_observables: &HashMap<Constellation, Vec<Observable>>,
     lines: Lines<'_>,
@@ -244,7 +255,10 @@ fn parse_signals_v2(
         //  2. every time past SV is concluded
         if !sv_identified {
             // identify new SV
-            let system = &systems_str[sv_ptr..sv_ptr + SVNN_SIZE].trim();
+            let sv_end = (sv_ptr + SVNN_SIZE).min(systems_str_len);
+            let system = &systems_str[sv_ptr..sv_end].trim();
+
+            println!("SYSTEM \"{}\"", system);
 
             // actual parsing
             if let Ok(found) = SV::from_str(system) {
@@ -328,23 +342,23 @@ fn parse_signals_v2(
         // num obs contained this line
         let num_obs = div_ceil(line_width, OBSERVABLE_WIDTH); //TODO: get rid of .div_ceil
 
-        #[cfg(feature = "log")]
-        debug!("line: \"{}\" [={}]", line, num_obs);
+        //#[cfg(feature = "log")]
+        println!("line: \"{}\" [={}]", line, num_obs);
 
         let mut offset = 0;
 
         // process all of them
         for _ in 0..num_obs {
-            if obs_ptr > observables.len() {
+            if obs_ptr >= observables.len() {
                 // line is abnormally long (trailing whitespaces): abort
-                break;
+                return;
             }
 
             let end = (offset + OBSERVABLE_WIDTH).min(line_width);
             let slice = &line[offset..end];
 
-            #[cfg(feature = "log")]
-            debug!("observation: \"{}\" {}", slice, observables[obs_ptr]);
+            //#[cfg(feature = "log")]
+            println!("observation: \"{}\" {}", slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
@@ -593,114 +607,6 @@ G09  25493930.890   133971510.403 6        41.250                    25493926.95
             EpochFlag::Ok,
             None,
         );
-
-        // let c1c = Observable::from_str("C1C").unwrap();
-        // let l1c = Observable::from_str("L1C").unwrap();
-        // let s1c = Observable::from_str("S1C").unwrap();
-        // let c2w = Observable::from_str("C2W").unwrap();
-        // let l2w = Observable::from_str("L2W").unwrap();
-        // let s2w = Observable::from_str("S2W").unwrap();
-
-        // let g01 = SV::from_str("G01").unwrap();
-        // let g03 = SV::from_str("G03").unwrap();
-        // let g04 = SV::from_str("G04").unwrap();
-        // let g06 = SV::from_str("G06").unwrap();
-        // let g09 = SV::from_str("G09").unwrap();
-
-        // let signals = obs.signals.clone();
-
-        // for sig in &signals {
-        //     if sig.sv == g01 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 20832393.682);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 109474991.854);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 49.500);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 20832389.822);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 85305196.437);
-        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 49.500);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g03 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 20342516.786);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 106900663.487);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 50.0);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 20342512.006);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 83299201.382);
-        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 50.000);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g04 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 22448754.952);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 117969025.322);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 48.250);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 22448749.312);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 91923884.833);
-        //             //assert_eq!(sig.snr, Some(SNR::from(7))); //TODO
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 43.750);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g06 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 24827263.216);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 130468159.526);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 39.750);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 24827259.316);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 101663482.505);
-        //             //assert_eq!(sig.snr, Some(SNR::from(6))); //TODO
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 37.250);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g09 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 25493930.890);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 133971510.403);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 41.250);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 25493926.950);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 104393373.997);
-        //             //assert_eq!(sig.snr, Some(SNR::from(6))); //TODO
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 41.75);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else {
-        //         panic!("invalid sv");
-        //     }
-        // }
-
-        // TODO assert_eq!(formatted, content); // reciprocal
     }
 
     #[test]
@@ -722,90 +628,6 @@ G04  21342618.100   112156219.39808      2167.688          48.250    21342617.44
             EpochFlag::Ok,
             None,
         );
-
-        // let c1c = Observable::from_str("C1C").unwrap();
-        // let l1c = Observable::from_str("L1C").unwrap();
-        // let d1c = Observable::from_str("D1C").unwrap();
-        // let s1c = Observable::from_str("S1C").unwrap();
-        // let c2w = Observable::from_str("C2W").unwrap();
-        // let l2w = Observable::from_str("L2W").unwrap();
-        // let d2w = Observable::from_str("D2W").unwrap();
-        // let s2w = Observable::from_str("S2W").unwrap();
-
-        // let g01 = SV::from_str("G01").unwrap();
-        // let g03 = SV::from_str("G03").unwrap();
-        // let g04 = SV::from_str("G04").unwrap();
-
-        // let signals = obs.signals.clone();
-
-        // for sig in &signals {
-        //     if sig.sv == g01 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 20176608.780);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 106028802.118);
-        //         } else if sig.observable == d1c {
-        //             assert_eq!(sig.value, -1009.418);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 50.250);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 20176610.080);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 82619851.246);
-        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-        //         } else if sig.observable == d2w {
-        //             assert_eq!(sig.value, -786.562);
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 54.500);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g03 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 20719565.760);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 108882069.815);
-        //         } else if sig.observable == d1c {
-        //             assert_eq!(sig.value, 762.203);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 49.750);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 20719566.420);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 84843175.688);
-        //             //assert_eq!(sig.snr, Some(SNR::from(8))); //TODO
-        //         } else if sig.observable == d2w {
-        //             assert_eq!(sig.value, 593.922);
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 55.000);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g04 {
-        //         if sig.observable == c1c {
-        //             assert_eq!(sig.value, 21342618.100);
-        //         } else if sig.observable == l1c {
-        //             assert_eq!(sig.value, 112156219.398);
-        //         } else if sig.observable == d1c {
-        //             assert_eq!(sig.value, 2167.688);
-        //         } else if sig.observable == s1c {
-        //             assert_eq!(sig.value, 48.250);
-        //         } else if sig.observable == c2w {
-        //             assert_eq!(sig.value, 21342617.440);
-        //         } else if sig.observable == l2w {
-        //             assert_eq!(sig.value, 87394474.096);
-        //             //assert_eq!(sig.snr, Some(SNR::from(7))); //TODO
-        //         } else if sig.observable == d2w {
-        //             assert_eq!(sig.value, 1689.105);
-        //         } else if sig.observable == s2w {
-        //             assert_eq!(sig.value, 45.500);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else {
-        //         panic!("invalid sv");
-        //     }
-        // }
     }
 
     #[test]
@@ -845,95 +667,60 @@ G30R01R02R03R08R09R15R16R17R18R19R24
             EpochFlag::Ok,
             None,
         );
+    }
 
-        // let c1 = Observable::from_str("C1").unwrap();
-        // let c2 = Observable::from_str("C2").unwrap();
-        // let c5 = Observable::from_str("C5").unwrap();
-        // let l1 = Observable::from_str("L1").unwrap();
-        // let l2 = Observable::from_str("L2").unwrap();
-        // let l5 = Observable::from_str("L5").unwrap();
-        // let p1 = Observable::from_str("P1").unwrap();
-        // let p2 = Observable::from_str("P2").unwrap();
-        // let s1 = Observable::from_str("S1").unwrap();
-        // let s2 = Observable::from_str("S2").unwrap();
-        // let s5 = Observable::from_str("S5").unwrap();
+    #[test]
+    fn test_parse_v2_2() {
+        // extracted from v2/npaz3550_21o
+        let content = " 21 12 21 00 00 30.0000000  0 17G08G10G15G16G18G21G23G26G32R04R05R06
+                                R10R12R19R20R21
+  22273618.192   117048642.67706  91206745.37646  22273620.492          45.000  
+        27.000  
+  20679832.284   108673270.42707  84680474.73748  20679834.464          51.000  
+        47.000  
+  24428574.718   128373032.12605 100030940.88146  24428574.158          40.000  
+        26.000  
+  21748622.436   114289784.86106  89056973.16346  21748622.736          46.000  
+        30.000  
+  23159990.646   121706608.75906  94836327.00246  23159990.946          43.000  
+        22.000  
+  24121222.480   126757874.84305  98772376.29745  24121222.660          40.000  
+        17.000  
+  21243754.540   111636702.47207  86989641.56447  21243755.220          48.000  
+        33.000  
+  23730924.382   124706843.12805  97174162.95546  23730927.462          41.000  
+        30.000  
+  25068865.594   131737775.26304 102652811.50846  25068867.574          38.000  
+        24.000  
+  21628749.716   115820985.39407  90082976.65346  21628746.496          48.000  
+        22.000  
+  20263702.068   108321110.70607  84249758.00647  20263698.768          50.000  
+        34.000  
+  23144036.268   123501011.94300                                        32.000  
 
-        // let g07 = SV::from_str("G07").unwrap();
-        // let g08 = SV::from_str("G08").unwrap();
-        // let g10 = SV::from_str("G10").unwrap();
-        // let g13 = SV::from_str("G13").unwrap();
-        // let g15 = SV::from_str("G15").unwrap();
-        // let g16 = SV::from_str("G16").unwrap();
-        // let g18 = SV::from_str("G18").unwrap();
-
-        // let signals = obs.signals.clone();
-
-        // for sig in &signals {
-        //     if sig.sv == g07 {
-        //         if sig.observable == c1 {
-        //             assert_eq!(sig.value, 24178026.635);
-        //         } else if sig.observable == c2 {
-        //             assert_eq!(sig.value, 24178024.891);
-        //         } else if sig.observable == c5 {
-        //             panic!("found invalid obs");
-        //         } else if sig.observable == l1 {
-        //             assert_eq!(sig.value, 127056391.699);
-        //         } else if sig.observable == l2 {
-        //             assert_eq!(sig.value, 99004963.017);
-        //         } else if sig.observable == l5 {
-        //             panic!("found invalid obs");
-        //         } else if sig.observable == p1 {
-        //             assert_eq!(sig.value, 24178026.139);
-        //         } else if sig.observable == p2 {
-        //             assert_eq!(sig.value, 24178024.181);
-        //         } else if sig.observable == s1 {
-        //             assert_eq!(sig.value, 38.066);
-        //         } else if sig.observable == s2 {
-        //             assert_eq!(sig.value, 22.286);
-        //         } else if sig.observable == s5 {
-        //             panic!("found invalid obs");
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g08 {
-        //         if sig.observable == c1 {
-        //         } else if sig.observable == c2 {
-        //         } else if sig.observable == c5 {
-        //         } else if sig.observable == l1 {
-        //         } else if sig.observable == l2 {
-        //         } else if sig.observable == l5 {
-        //         } else if sig.observable == p1 {
-        //         } else if sig.observable == p2 {
-        //         } else if sig.observable == s1 {
-        //         } else if sig.observable == s2 {
-        //         } else if sig.observable == s5 {
-        //             assert_eq!(sig.value, 52.161);
-        //         } else {
-        //             panic!("found invalid observable {}", sig.observable);
-        //         }
-        //     } else if sig.sv == g10 {
-        //     } else if sig.sv == g13 {
-        //     } else if sig.sv == g15 {
-        //         if sig.observable == c5 {
-        //             panic!("found invalid obs");
-        //         } else if sig.observable == l5 {
-        //             panic!("found invalid obs");
-        //         }
-        //     } else if sig.sv == g16 {
-        //         if sig.observable == c2 {
-        //             panic!("found invalid obs");
-        //         } else if sig.observable == c5 {
-        //             panic!("found invalid obs");
-        //         } else if sig.observable == s5 {
-        //             panic!("found invalid obs");
-        //         }
-        //     } else if sig.sv == g18 {
-        //         if sig.observable == s5 {
-        //             panic!("found invalid obs");
-        //         }
-        //     } else {
-        //         panic!("invalid sv {}", sig.sv);
-        //     }
-        // }
+  22905715.968   122100341.64505                                        42.000  
+                
+  23665462.924   126416648.11306  98324062.16346  23665459.604          43.000  
+        25.000  
+  23266753.448   124461433.23101                                        33.000  
+                
+  19895900.968   106392328.16604  82749588.85847  19895899.328          39.000  
+        33.000  
+  21758080.616   116431896.04406  90558129.99946  21758077.536          47.000  
+        22.000  ";
+        generic_observation_epoch_decoding_test(
+            content,
+            2,
+            Constellation::Mixed,
+            &[
+                ("GPS", "C1, L1, L2, P2, S1, S2"),
+                ("GLO", "C1, L1, L2, P2, S1, S2"),
+            ],
+            "2021-12-21T00:00:30 GPST",
+            93,
+            "2021-12-21T00:00:30 GPST",
+            EpochFlag::Ok,
+            None,
+        );
     }
 }

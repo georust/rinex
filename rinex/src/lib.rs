@@ -95,7 +95,9 @@ pub mod prelude {
         doris::Station,
         error::{Error, FormattingError, ParsingError},
         ground_position::GroundPosition,
-        hatanaka::CRINEX,
+        hatanaka::{
+            Decompressor, DecompressorExpert, DecompressorExpertIO, DecompressorIO, CRINEX,
+        },
         header::Header,
         leap::Leap,
         observable::Observable,
@@ -179,7 +181,7 @@ use qc_traits::{
 use crate::{
     clock::record::{clock_decim_mut, clock_mask_mut},
     doris::record::{doris_decim_mut, doris_mask_mut},
-    header::header_mask_mut,
+    header::processing::header_mask_mut,
     ionex::record::{ionex_decim_mut, ionex_mask_mut},
     meteo::record::{meteo_decim_mut, meteo_mask_mut},
     navigation::record::{navigation_decim_mut, navigation_mask_mut},

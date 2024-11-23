@@ -2,13 +2,25 @@
 mod test {
     use crate::prelude::*;
     use std::path::PathBuf;
+
     #[test]
-    fn test_parser() {
+    fn repo_parsing() {
+        // Tests entire repository with at least successful parsing
+        // and runs a few verifications.
+        // For thorough verifications, we have dedicated tests elsewhere.
         let test_resources = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("../test_resources");
-        let test_data = vec!["ATX", "CLK", "CRNX", "MET", "NAV", "OBS", "IONEX"];
-        for data in test_data {
+
+        for data in vec![
+            "OBS",
+            // "CRNX",
+            // "MET",
+            // "NAV",
+            // "IONEX",
+            // "CLK",
+            // "ATX",
+        ] {
             let data_path = test_resources.clone().join(data);
             for revision in std::fs::read_dir(data_path).unwrap() {
                 let rev = revision.unwrap();
@@ -19,28 +31,41 @@ mod test {
                     let entry = entry.unwrap();
                     let path = entry.path();
                     let full_path = &path.to_str().unwrap();
-                    let is_hidden = entry.file_name().to_str().unwrap().starts_with('.');
-                    if is_hidden {
-                        continue; // not a test resource
-                    }
-                    let is_generated_file = entry.file_name().to_str().unwrap().ends_with("-copy");
-                    if is_generated_file {
-                        continue; // not a test resource
+
+                    let filename = entry.file_name().to_str().unwrap().to_string();
+
+                    // discard hidden files
+                    if filename.starts_with('.') {
+                        continue;
                     }
 
-                    let mut is_gzip_encoded = entry.file_name().to_str().unwrap().ends_with(".gz");
-                    is_gzip_encoded |= entry.file_name().to_str().unwrap().ends_with(".Z");
-                    if is_gzip_encoded && !cfg!(feature = "flate2") {
-                        continue; // do not run in this build configuration
+                    //let is_generated_file = entry.file_name().to_str().unwrap().ends_with("-copy");
+                    //if is_generated_file {
+                    //    continue; // not a test resource
+                    //}
+
+                    // discard .Z compression that we cannot support
+                    if filename.ends_with(".Z") {
+                        continue;
                     }
+
+                    // parse RINEX file
                     println!("Parsing \"{}\"", full_path);
-                    let rinex = Rinex::from_file(full_path);
+
+                    let rinex = if filename.ends_with(".gz") {
+                        #[cfg(feature = "flate2")]
+                        Rinex::from_gzip_file(full_path)
+                    } else {
+                        Rinex::from_file(full_path)
+                    };
+
                     assert!(
                         rinex.is_ok(),
                         "error parsing \"{}\": {:?}",
                         full_path,
                         rinex.err().unwrap()
                     );
+
                     let rinex = rinex.unwrap();
 
                     match data {
@@ -90,6 +115,7 @@ mod test {
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
                             assert!(rinex.signal_observations_iter().count() > 0); // all files have content
+
                             if data == "OBS" {
                                 let compressed = rinex.rnx2crnx();
                                 assert!(

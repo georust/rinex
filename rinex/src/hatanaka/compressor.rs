@@ -3,7 +3,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{
-    hatanaka::{Error, NumDiff, ObsDiff, TextDiff},
+    hatanaka::{Error, NumDiff, TextDiff},
     prelude::{Constellation, SV},
 };
 
@@ -43,8 +43,6 @@ pub struct Compressor<const M: usize> {
     epoch_diff: TextDiff,
     /// Clock [NumDiff]
     clock_diff: NumDiff<M>,
-    /// SV Diff
-    sv_diff: HashMap<ObsKey, ObsDiff<M>>,
     /// Pending kernel re-initialization
     forced_init: HashMap<SV, Vec<usize>>,
 }
@@ -72,7 +70,6 @@ impl<const M: usize> Default for Compressor<M> {
             vehicle_ptr: 0,
             obs_ptr: 0,
             epoch_diff: TextDiff::new(""),
-            sv_diff: HashMap::new(),
             forced_init: HashMap::new(),
             clock_diff: NumDiff::<M>::new(0, 3),
         }
@@ -149,20 +146,6 @@ impl<const M: usize> Compressor<M> {
         self.epoch_descriptor.clear();
         self.state = State::EpochDescriptor;
     }
-
-    /// Kernel init needs to be scheduled on any kernel that is facing
-    /// missing data.
-    fn schedule_kernel_init(&mut self, obskey: &ObsKey, obsdata: i64, snr: &str, lli: &str) {
-        if let Some(kernel) = self
-            .sv_diff
-            .iter_mut()
-            .filter_map(|(key, value)| if key == obskey { Some(value) } else { None })
-            .reduce(|k, _k| k)
-        {
-            kernel.force_init(obsdata, 3, snr, lli);
-        }
-    }
-
     ///// Compresses given RINEX data to CRINEX
     //pub fn compress(
     //    &mut self,

@@ -57,10 +57,9 @@ impl HeaderFields {
     }
 }
 
-#[cfg(feature = "processing")]
 impl HeaderFields {
     /// Timescale helper
-    fn timescale(&self) -> TimeScale {
+    pub(crate) fn timescale(&self) -> TimeScale {
         match self.timeof_first_obs {
             Some(ts) => ts.time_scale,
             None => match self.timeof_last_obs {
@@ -69,6 +68,10 @@ impl HeaderFields {
             },
         }
     }
+}
+
+#[cfg(feature = "processing")]
+impl HeaderFields {
     /// Modifies in place Self, when applying preprocessing filter ops
     pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
         match f.operand {

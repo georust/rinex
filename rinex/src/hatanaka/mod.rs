@@ -10,17 +10,18 @@ mod compressor;
 mod crinex;
 mod decompressor;
 mod numdiff;
-mod obs;
 mod textdiff;
 
 pub use compressor::Compressor;
 pub use crinex::CRINEX;
 
-pub use decompressor::{Decompressor, DecompressorExpert};
+pub use decompressor::{
+    io::{DecompressorExpertIO, DecompressorIO},
+    Decompressor, DecompressorExpert,
+};
 
-pub(crate) use numdiff::NumDiff;
-pub(crate) use obs::ObsDiff;
-pub(crate) use textdiff::TextDiff;
+pub use numdiff::NumDiff;
+pub use textdiff::TextDiff;
 
 use thiserror::Error as ErrorTrait;
 

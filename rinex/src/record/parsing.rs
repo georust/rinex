@@ -1,15 +1,36 @@
 use crate::{
-    antex,
-    clock::{self, ClockKey, ClockProfile},
-    doris,
+    antex::{
+        record::{is_new_epoch as is_new_antex_epoch, parse_antenna as parse_antex_antenna},
+        Record as AntexRecord,
+    },
+    clock::{
+        record::{is_new_epoch as is_new_clock_epoch, parse_epoch as parse_clock_epoch},
+        ClockKey, ClockProfile, Record as ClockRecord,
+    },
+    doris::{
+        record::{is_new_epoch as is_new_doris_epoch, parse_epoch as parse_doris_epoch},
+        Record as DorisRecord,
+    },
     hatanaka::DecompressorExpert,
-    header, ionex, is_rinex_comment, meteo,
-    navigation::{self, record::parse_epoch as parse_nav_epoch},
+    ionex::{
+        record::{is_new_rms_plane, is_new_tec_plane, parse_plane as parse_ionex_plane},
+        Record as IonexRecord,
+    },
+    is_rinex_comment,
+    meteo::{
+        record::{is_new_epoch as is_new_meteo_epoch, parse_epoch as parse_meteo_epoch},
+        Record as MeteoRecord,
+    },
+    navigation::{
+        record::{is_new_epoch as is_new_nav_epoch, parse_epoch as parse_nav_epoch},
+        Record as NavRecord,
+    },
     observation::{
         is_new_epoch as is_new_observation_epoch, parse_epoch as parse_observation_epoch,
         Record as ObservationRecord,
     },
     prelude::{Constellation, Epoch, Header, Observations, ParsingError, TimeScale},
+    record::{Comments, Record},
     types::Type,
 };
 
@@ -22,214 +43,7 @@ use std::{
 #[cfg(feature = "log")]
 use log::error;
 
-#[cfg(feature = "serde")]
-use serde::Serialize;
-
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum Record {
-    /// ATX record, see [antex::record::Record]
-    AntexRecord(antex::Record),
-    /// Clock record, see [clock::record::Record]
-    ClockRecord(clock::Record),
-    /// IONEX (Ionosphere maps) record, see [ionex::record::Record]
-    IonexRecord(ionex::Record),
-    /// Meteo record, see [meteo::record::Record]
-    MeteoRecord(meteo::Record),
-    /// Navigation record, see [navigation::record::Record]
-    NavRecord(navigation::Record),
-    /// Observation record [ObservationRecord]
-    ObsRecord(ObservationRecord),
-    /// DORIS RINEX, special DORIS measurements wraped as observations
-    DorisRecord(doris::Record),
-}
-
-/// Record comments are high level informations, sorted by epoch
-/// (timestamp) of appearance. We deduce the "associated" timestamp from the
-/// previosuly parsed epoch, when parsing the record.
-pub type Comments = BTreeMap<Epoch, Vec<String>>;
-
 impl Record {
-    /// Unwraps self as ANTEX record
-    pub fn as_antex(&self) -> Option<&antex::Record> {
-        match self {
-            Record::AntexRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as mutable reference to ANTEX record
-    pub fn as_mut_antex(&mut self) -> Option<&mut antex::Record> {
-        match self {
-            Record::AntexRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as CLK record
-    pub fn as_clock(&self) -> Option<&clock::Record> {
-        match self {
-            Record::ClockRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as mutable CLK record
-    pub fn as_mut_clock(&mut self) -> Option<&mut clock::Record> {
-        match self {
-            Record::ClockRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as IONEX record
-    pub fn as_ionex(&self) -> Option<&ionex::Record> {
-        match self {
-            Record::IonexRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as mutable IONEX record
-    pub fn as_mut_ionex(&mut self) -> Option<&mut ionex::Record> {
-        match self {
-            Record::IonexRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as MET record
-    pub fn as_meteo(&self) -> Option<&meteo::Record> {
-        match self {
-            Record::MeteoRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Returns mutable reference to Meteo record
-    pub fn as_mut_meteo(&mut self) -> Option<&mut meteo::Record> {
-        match self {
-            Record::MeteoRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as NAV record
-    pub fn as_nav(&self) -> Option<&navigation::Record> {
-        match self {
-            Record::NavRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Returns mutable reference to Navigation record
-    pub fn as_mut_nav(&mut self) -> Option<&mut navigation::Record> {
-        match self {
-            Record::NavRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as OBS record
-    pub fn as_obs(&self) -> Option<&ObservationRecord> {
-        match self {
-            Record::ObsRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Returns mutable reference to Observation record
-    pub fn as_mut_obs(&mut self) -> Option<&mut ObservationRecord> {
-        match self {
-            Record::ObsRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-    /// Unwraps self as DORIS record
-    pub fn as_doris(&self) -> Option<&doris::Record> {
-        match self {
-            Record::DorisRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-
-    /// Unwraps self as mutable reference to DORIS record
-    pub fn as_mut_doris(&mut self) -> Option<&mut doris::Record> {
-        match self {
-            Record::DorisRecord(r) => Some(r),
-            _ => None,
-        }
-    }
-
-    // /// Streams into given file writer
-    // pub fn to_file<W: Write>(
-    //     &self,
-    //     header: &header::Header,
-    //     writer: &mut BufferedWriter<W>,
-    // ) -> Result<(), FormattingError> {
-    //     let major = header.version.major;
-    //     let constell = header.constellation;
-
-    //     match &header.rinex_type {
-    //         Type::MeteoData => {
-    //             let record = self.as_meteo().unwrap();
-    //             for (epoch, data) in record.iter() {
-    //                 if let Ok(epoch) = meteo::record::fmt_epoch(epoch, data, header) {
-    //                     let _ = write!(writer, "{}", epoch);
-    //                 }
-    //             }
-    //         },
-    //         Type::ObservationData => {
-    //             let record = self.as_obs().unwrap();
-    //             let obs_fields = &header.obs.as_ref().unwrap();
-    //         },
-    //         Type::NavigationData => {
-    //             let record = self.as_nav().unwrap();
-    //             for (epoch, frames) in record.iter() {
-    //                 if let Ok(epoch) = navigation::record::fmt_epoch(epoch, frames, header) {
-    //                     let _ = write!(writer, "{}", epoch);
-    //                 }
-    //             }
-    //         },
-    //         Type::ClockData => {
-    //             if let Some(rec) = self.as_clock() {
-    //                 for (epoch, keys) in rec {
-    //                     for (key, prof) in keys {
-    //                         let _ =
-    //                             write!(writer, "{}", clock::record::fmt_epoch(epoch, key, prof));
-    //                     }
-    //                 }
-    //             }
-    //         },
-    //         Type::IonosphereMaps => {
-    //             if let Some(_r) = self.as_ionex() {
-    //                 //for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
-    //                 //    let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index);
-    //                 //    let _ = write!(
-    //                 //        writer,
-    //                 //        "{}                        EPOCH OF CURRENT MAP",
-    //                 //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-    //                 //    );
-    //                 //    let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index);
-    //                 //}
-    //                 // /*
-    //                 //  * not efficient browsing, but matches provided examples and common formatting.
-    //                 //  * RMS and Height maps are passed after TEC maps.
-    //                 //  */
-    //                 //for (index, (epoch, (_, _map, _))) in r.iter().enumerate() {
-    //                 //    let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index);
-    //                 //    let _ = write!(
-    //                 //        writer,
-    //                 //        "{}                        EPOCH OF CURRENT MAP",
-    //                 //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-    //                 //    );
-    //                 //    let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index);
-    //                 //}
-    //                 //for (index, (epoch, (_, _, _map))) in r.iter().enumerate() {
-    //                 //    let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index);
-    //                 //    let _ = write!(
-    //                 //        writer,
-    //                 //        "{}                        EPOCH OF CURRENT MAP",
-    //                 //        epoch::format(*epoch, None, Type::IonosphereMaps, 1)
-    //                 //    );
-    //                 //    let _ = write!(writer, "{:6}                                                      END OF HEIGHT MAP", index);
-    //                 //}
-    //             }
-    //         },
-    //         _ => panic!("record type not supported yet"),
-    //     }
-    //     Ok(())
-    // }
-
     /// Parses [Record] section by consuming [Reader] entirely.
     /// [Header] parsed by consuming [Reader] until this point is required.
     pub fn parse<R: Read>(
@@ -245,10 +59,10 @@ impl Record {
         let mut comment_content = Vec::<String>::with_capacity(4);
 
         // ANTEX
-        let mut atx_rec = antex::Record::new();
+        let mut atx_rec = AntexRecord::new();
 
         // NAV
-        let mut nav_rec = navigation::Record::new();
+        let mut nav_rec = NavRecord::new();
 
         // OBS
         let mut obs_rec = ObservationRecord::new();
@@ -257,26 +71,29 @@ impl Record {
         // CRINEX case
         let mut buf = [0; 1024];
         let mut is_crinex = false;
-        let v3 = header.version.major > 2;
+        let mut crinex_v3 = false;
         let mut gnss_observables = Default::default();
 
         if let Some(obs) = &header.obs {
-            is_crinex = obs.crinex.is_some();
+            if let Some(crinex) = &obs.crinex {
+                is_crinex = true;
+                crinex_v3 = crinex.version.major > 2;
+            }
             gnss_observables = obs.codes.clone();
         }
 
         // Build a decompressor, to be deployed based on already recovered [Header].
         // These parameters are compatible with historical RNX2CRX tool.
-        let mut decompressor = DecompressorExpert::<5>::new(v3, gnss_observables);
+        let mut decompressor = DecompressorExpert::<5>::new(crinex_v3, gnss_observables);
 
         // MET
-        let mut met_rec = meteo::Record::new();
+        let mut met_rec = MeteoRecord::new();
 
         // CLK
-        let mut clk_rec = clock::Record::new();
+        let mut clk_rec = ClockRecord::new();
 
         // DORIS
-        let mut dor_rec = doris::Record::new();
+        let mut dor_rec = DorisRecord::new();
 
         // OBSERVATION case: timescale is either defined by
         //    [+] TIME OF FIRST header field
@@ -333,24 +150,29 @@ impl Record {
         //  but others may exist:
         //    in this case we used the previously identified Epoch
         //    and attach other kinds of maps
-        let mut ionx_rec = ionex::Record::new();
+        let mut ionx_rec = IonexRecord::new();
         let mut ionex_rms_plane = false;
 
-        // iterates one line at a time
-        for l in reader.lines() {
-            let line = l.unwrap();
+        // Iterate and consume, one line at a time
+        for line in reader.lines() {
+            // TODO: see if we can wrap this in a single line (iterator)
+            let line = if let Ok(line) = line {
+                line
+            } else {
+                continue;
+            };
 
-            // COMMENTS special case
-            // --> store
-            // ---> append later with epoch.timestamp attached to it
+            // handle special cases first
+
+            // COMMENTS: store as is
             if is_rinex_comment(&line) {
                 let comment = line.split_at(60).0.trim_end();
                 comment_content.push(comment.to_string());
                 continue;
             }
 
-            // IONEX exponent-->data scaling use update regularly
-            //  and used in TEC map parsing
+            // IONEX exponent scaling special case:
+            // keep up to date, so data interpretation remains correct
             if line.contains("EXPONENT") {
                 if let Some(ionex) = header.ionex.as_mut() {
                     let content = line.split_at(60).0;
@@ -358,9 +180,11 @@ impl Record {
                         *ionex = ionex.with_exponent(e); // scaling update
                     }
                 }
+                continue;
             }
 
-            // CRINEX special case: need to apply decompression algorithm prior moving forward
+            // CRINEX special case:
+            //  apply decompression algorithm prior moving forward
             let content = if is_crinex {
                 let line_len = line.len();
 
@@ -369,11 +193,13 @@ impl Record {
                     .map_err(|e| ParsingError::CRINEX(e))?;
 
                 let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
-
                 recovered
             } else {
                 &line
             };
+
+            epoch_content.push_str(content);
+            //epoch_content.push('\n');
 
             // Yet another lines Iterator.
             // In case of special CRINEX1 (old revision) decompression
@@ -381,8 +207,8 @@ impl Record {
             // In any other case, content is limited to a single line.
             // This behaves correctly and takes care of it
             for line in content.lines() {
-                let new_epoch = is_new_epoch(line, header);
-                ionex_rms_plane = ionex::record::is_new_rms_plane(line);
+                let new_epoch = Self::is_new_epoch(line, header);
+                ionex_rms_plane = is_new_rms_plane(line);
 
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
@@ -419,21 +245,19 @@ impl Record {
                             }
                         },
                         Type::DORIS => {
-                            if let Ok((e, map)) = doris::record::parse_epoch(header, &epoch_content)
-                            {
+                            if let Ok((e, map)) = parse_doris_epoch(header, &epoch_content) {
                                 dor_rec.insert(e, map);
                             }
                         },
                         Type::MeteoData => {
-                            if let Ok((e, map)) = meteo::record::parse_epoch(header, &epoch_content)
-                            {
+                            if let Ok((e, map)) = parse_meteo_epoch(header, &epoch_content) {
                                 met_rec.insert(e, map);
                                 comment_ts = e; // for comments classification & management
                             }
                         },
                         Type::ClockData => {
                             if let Ok((epoch, key, profile)) =
-                                clock::record::parse_epoch(header.version, &epoch_content, clk_ts)
+                                parse_clock_epoch(header.version, &epoch_content, clk_ts)
                             {
                                 if let Some(e) = clk_rec.get_mut(&epoch) {
                                     e.insert(key, profile);
@@ -447,13 +271,12 @@ impl Record {
                             }
                         },
                         Type::AntennaData => {
-                            let (antenna, content) =
-                                antex::record::parse_antenna(&epoch_content).unwrap();
+                            let (antenna, content) = parse_antex_antenna(&epoch_content).unwrap();
                             atx_rec.push((antenna, content));
                         },
                         Type::IonosphereMaps => {
                             if let Ok((epoch, altitude, plane)) =
-                                ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
+                                parse_ionex_plane(&epoch_content, header, ionex_rms_plane)
                             {
                                 if ionex_rms_plane {
                                     if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
@@ -534,19 +357,19 @@ impl Record {
                 }
             },
             Type::DORIS => {
-                if let Ok((e, map)) = doris::record::parse_epoch(header, &epoch_content) {
+                if let Ok((e, map)) = parse_doris_epoch(header, &epoch_content) {
                     dor_rec.insert(e, map);
                 }
             },
             Type::MeteoData => {
-                if let Ok((e, map)) = meteo::record::parse_epoch(header, &epoch_content) {
+                if let Ok((e, map)) = parse_meteo_epoch(header, &epoch_content) {
                     met_rec.insert(e, map);
                     comment_ts = e; // for comments classification + management
                 }
             },
             Type::ClockData => {
                 if let Ok((epoch, key, profile)) =
-                    clock::record::parse_epoch(header.version, &epoch_content, clk_ts)
+                    parse_clock_epoch(header.version, &epoch_content, clk_ts)
                 {
                     if let Some(e) = clk_rec.get_mut(&epoch) {
                         e.insert(key, profile);
@@ -560,7 +383,7 @@ impl Record {
             },
             Type::IonosphereMaps => {
                 if let Ok((epoch, altitude, plane)) =
-                    ionex::record::parse_plane(&epoch_content, header, ionex_rms_plane)
+                    parse_ionex_plane(&epoch_content, header, ionex_rms_plane)
                 {
                     if ionex_rms_plane {
                         if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
@@ -587,7 +410,7 @@ impl Record {
                 //if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content) {
                 //    atx_rec.push((antenna, content));
                 //}
-                let (antenna, content) = antex::record::parse_antenna(&epoch_content).unwrap();
+                let (antenna, content) = parse_antex_antenna(&epoch_content).unwrap();
                 atx_rec.push((antenna, content));
             },
         }
@@ -607,23 +430,19 @@ impl Record {
         };
         Ok((record, comments))
     }
-}
 
-/// Returns true if given line matches the start   
-/// of a new epoch, inside a RINEX record.
-pub(crate) fn is_new_epoch(line: &str, header: &header::Header) -> bool {
-    if is_rinex_comment(line) {
-        return false;
-    }
-    match &header.rinex_type {
-        Type::AntennaData => antex::record::is_new_epoch(line),
-        Type::ClockData => clock::record::is_new_epoch(line),
-        Type::IonosphereMaps => {
-            ionex::record::is_new_tec_plane(line) || ionex::record::is_new_rms_plane(line)
-        },
-        Type::NavigationData => navigation::record::is_new_epoch(line, header.version),
-        Type::ObservationData => is_new_observation_epoch(line, header.version),
-        Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
-        Type::DORIS => doris::record::is_new_epoch(line),
+    fn is_new_epoch(line: &str, header: &Header) -> bool {
+        if is_rinex_comment(line) {
+            return false;
+        }
+        match &header.rinex_type {
+            Type::AntennaData => is_new_antex_epoch(line),
+            Type::ClockData => is_new_clock_epoch(line),
+            Type::IonosphereMaps => is_new_tec_plane(line) || is_new_rms_plane(line),
+            Type::NavigationData => is_new_nav_epoch(line, header.version),
+            Type::ObservationData => is_new_observation_epoch(line, header.version),
+            Type::MeteoData => is_new_meteo_epoch(line, header.version),
+            Type::DORIS => is_new_doris_epoch(line),
+        }
     }
 }

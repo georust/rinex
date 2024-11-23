@@ -1,3 +1,5 @@
+//! CRINEX decompression from direct I/O
+
 use crate::{
     hatanaka::decompressor::DecompressorExpert,
     prelude::{Constellation, Observable},

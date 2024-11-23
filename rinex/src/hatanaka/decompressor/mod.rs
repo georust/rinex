@@ -79,14 +79,16 @@ impl State {
     /// - Timestamp: Year uses 2 digits
     /// - Flag
     /// - Numsat
-    const MIN_V1_EPOCH_DESCRIPTION_SIZE: usize = 17;
+    const MIN_COMPRESSED_EPOCH_SIZE_V1: usize = 17;
+    const MIN_DECOMPRESSED_EPOCH_SIZE_V1: usize = 32;
 
     /// Minimal size of a valid [Epoch] description in V3 revision  
     /// - >
     /// - Timestamp: Year uses 4 digits
     /// - Flag
     /// - Numsat
-    const MIN_V3_EPOCH_DESCRIPTION_SIZE: usize = 20;
+    const MIN_COMPRESSED_EPOCH_SIZE_V3: usize = 20;
+    const MIN_DECOMPRESSED_EPOCH_SIZE_V3: usize = 35;
 
     /// Calculates number of bytes this state will forward to user
     fn size_to_produce(&self, v3: bool, numsat: usize, numobs: usize) -> usize {
@@ -96,9 +98,9 @@ impl State {
             // (in an inconvenient way, in V1 revision).
             Self::Clock => {
                 if v3 {
-                    Self::MIN_V3_EPOCH_DESCRIPTION_SIZE
+                    Self::MIN_DECOMPRESSED_EPOCH_SIZE_V3
                 } else {
-                    let mut size = Self::MIN_V1_EPOCH_DESCRIPTION_SIZE;
+                    let mut size = Self::MIN_DECOMPRESSED_EPOCH_SIZE_V1;
                     let num_extra = div_ceil(numsat, 12) - 1;
                     size += num_extra * 17; // padding
                     size += numsat * 3; // formatted
@@ -291,13 +293,12 @@ impl<const M: usize> DecompressorExpert<M> {
     /// Process following line, in [State::Epoch]
     fn run_epoch(&mut self, line: &str, len: usize) -> Result<usize, Error> {
         let min_len = if self.v3 {
-            State::MIN_V3_EPOCH_DESCRIPTION_SIZE
+            State::MIN_COMPRESSED_EPOCH_SIZE_V3
         } else {
-            State::MIN_V1_EPOCH_DESCRIPTION_SIZE
+            State::MIN_COMPRESSED_EPOCH_SIZE_V1
         };
 
         if len < min_len {
-            panic!("len={}", len);
             return Err(Error::EpochFormat);
         }
 
@@ -804,23 +805,25 @@ impl<const M: usize> DecompressorExpert<M> {
     }
 
     fn write_v1_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
-        let mut offset = 14;
+        let mut offset = 13;
         let bytes = flags.as_bytes();
         for i in 0..numobs {
             let lli_idx = i * 2;
             if flags_len > lli_idx {
                 if !flags[lli_idx..lli_idx + 1].eq(" ") {
-                    //buf[offset] = b'x';
+                    // buf[offset] = b'x';
                     buf[offset] = bytes[i * 2];
                 }
             }
+
             let snr_idx = lli_idx + 1;
             if flags_len > snr_idx {
                 if !flags[snr_idx..snr_idx + 1].eq(" ") {
-                    //buf[offset + 1] = b'y';
+                    // buf[offset + 1] = b'y';
                     buf[offset + 1] = bytes[(i * 2) + 1];
                 }
             }
+
             offset += 16;
 
             if (i % 5) == 4 {
@@ -1035,46 +1038,57 @@ mod test {
 
     #[test]
     fn v1_flags_format() {
-        for (flags, buffer, expected) in [
+        for (flags, numobs, buffer, expected) in [
+            //     (
+            //         "4 06 1   6",
+            //         5,
+            //         " 24600158.420   129274705.784          38.300    24600162.420   100733552.500  ",
+            //         " 24600158.4204  129274705.78406        38.300 1  24600162.420   100733552.500 6",
+            //     ),
+            //     (
+            //         "49484 4 4",
+            //         5,
+            //         "-14746974.730   -11440396.209    22513484.637    22513484.772    22513487.370  ",
+            //         "-14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ",
+            //     ),
+            //     (
+            //         " 643        4",
+            //         7,
+            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+            //   40.000          22.000 ",
+            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+            //   40.000          22.0004",
+            //     ),
+            //     (
+            //         " 643      1 4",
+            //         7,
+            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+            //   40.000          22.000 ",
+            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+            //   40.0001         22.0004",
+            //     ),
+            //     (
+            //         " 643      1  5",
+            //         7,
+            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+            //   40.000          22.000 ",
+            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+            //   40.0001         22.000 5",
+            //     ),
+            //     (
+            //         " 643      1  56    1 ", 15,
+            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
+            //   40.000          22.000          22.000          22.000          22.000
+            //   40.000          22.000          22.000          22.000          22.000 ",
+            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
+            //   40.0001         22.000 5        22.0006         22.000          22.000 1
+            //   40.000          22.000          22.000          22.000          22.000 ",
+            //     ),
             (
-                "4 06 1   6",
-                " 24600158.4204  129274705.784          38.300    24600162.420   100733552.500  ",
-                " 24600158.4204  129274705.78406        38.300 1  24600162.420   100733552.500 6",
-            ),
-            (
-                "49484 4 4",
-                "-14746974.730   -11440396.209    22513484.637    22513484.772    22513487.370  ",
-                "-14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ",
-            ),
-            (
-                " 643        4",
-                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-          40.000          22.000 ",
-                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-          40.000          22.0004",
-            ),
-            (
-                " 643      1 4",
-                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-          40.000          22.000 ",
-                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-          40.0001         22.0004",
-            ),
-            (
-                " 643      1  5",
-                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-          40.000          22.000 ",
-                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-          40.0001         22.000 5",
-            ),
-            (
-                " 643      1  56    1 ",
-                "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-          40.000          22.000          22.000          22.000          22.000  
-          40.000          22.000          22.000          22.000          22.000 ",
-                "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-          40.0001         22.000 5        22.0006         22.000          22.000 1
-          40.000          22.000          22.000          22.000          22.000 ",
+                " 5",
+                3,
+                " 131869667.223                    25093963.200",
+                " 131869667.223 5                  25093963.200",
             ),
         ] {
             let flags_len = flags.len();
@@ -1083,8 +1097,6 @@ mod test {
 
             let mut buf = [0; 256];
             buf[..buffer_len].copy_from_slice(&bytes);
-
-            let numobs = buffer.split_ascii_whitespace().count();
 
             Decompressor::write_v1_flags(flags, flags_len, numobs, &mut buf);
 

@@ -42,9 +42,9 @@ pub struct HeaderFields {
     /// Name of the DORIS satellite
     pub satellite: String,
     /// Time of First Measurement, expressed in TAI timescale.
-    pub time_of_first_obs: Option<Epoch>,
+    pub timeof_first_obs: Option<Epoch>,
     /// Time of Last Measurement, expressed in TAI timescale.
-    pub time_of_last_obs: Option<Epoch>,
+    pub timeof_last_obs: Option<Epoch>,
     /// List of observables
     pub observables: Vec<Observable>,
     /// Data scaling, almost 100% of the time present in DORIS measurements.
@@ -78,9 +78,9 @@ impl HeaderFields {
 #[cfg(feature = "processing")]
 impl HeaderFields {
     fn timescale(&self) -> TimeScale {
-        match self.time_of_first_obs {
+        match self.timeof_first_obs {
             Some(ts) => ts.time_scale,
-            None => match self.time_of_last_obs {
+            None => match self.timeof_last_obs {
                 Some(ts) => ts.time_scale,
                 None => TimeScale::GPST,
             },

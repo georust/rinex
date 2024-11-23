@@ -134,8 +134,8 @@ impl Merge for Header {
         }
         if let Some(lhs) = &mut self.doris {
             if let Some(rhs) = &rhs.doris {
-                merge_time_of_first_obs(&mut lhs.time_of_first_obs, &rhs.time_of_first_obs);
-                merge_time_of_last_obs(&mut lhs.time_of_last_obs, &rhs.time_of_last_obs);
+                merge_time_of_first_obs(&mut lhs.timeof_first_obs, &rhs.timeof_first_obs);
+                merge_time_of_last_obs(&mut lhs.timeof_last_obs, &rhs.timeof_last_obs);
                 merge_mut_unique_vec(&mut lhs.stations, &rhs.stations);
                 merge_mut_unique_vec(&mut lhs.observables, &rhs.observables);
                 //TODO: merge_scaling();
