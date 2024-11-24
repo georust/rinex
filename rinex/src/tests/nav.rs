@@ -186,7 +186,7 @@ mod test {
     fn v2_cbw10010_21n() {
         let test_resources =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/cbw10010.21n.gz";
-        let rinex = Rinex::from_file(&test_resources);
+        let rinex = Rinex::from_gzip_file(&test_resources);
         assert!(rinex.is_ok(), "failed to parse NAV/V2/cbw10010.21n.gz");
         let rinex = rinex.unwrap();
 
@@ -487,7 +487,7 @@ mod test {
     fn v4_kms300dnk_r_202215910() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
-        let rinex = Rinex::from_file(&test_resource);
+        let rinex = Rinex::from_gzip_file(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
         assert!(rinex.is_navigation_rinex());
@@ -949,7 +949,7 @@ mod test {
     fn v3_brdc00gop_r_2021_gz() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/BRDC00GOP_R_20210010000_01D_MN.rnx.gz";
-        let rinex = Rinex::from_file(&test_resource);
+        let rinex = Rinex::from_gzip_file(&test_resource);
         assert!(rinex.is_ok());
 
         let rinex = rinex.unwrap();
@@ -1050,7 +1050,7 @@ mod test {
     fn v4_nav_messages() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
-        let rinex = Rinex::from_file(&test_resource);
+        let rinex = Rinex::from_gzip_file(&test_resource);
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
@@ -1119,7 +1119,7 @@ mod test {
             .join("BRD400DLR_S_20230710000_01D_MN.rnx.gz");
 
         let path = path.to_string_lossy().to_string();
-        let rinex = Rinex::from_file(&path).unwrap();
+        let rinex = Rinex::from_gzip_file(&path).unwrap();
 
         for (epoch, (msg, sv, data)) in rinex.ephemeris() {
             if sv == sv!("G01") {
@@ -1472,6 +1472,7 @@ mod test {
 
     #[test]
     #[cfg(feature = "nav")]
+    #[cfg(feature = "flate2")]
     fn v2_iono_alphabeta_and_toe() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -1482,7 +1483,7 @@ mod test {
             .join("cbw10010.21n.gz");
 
         let path = path.to_string_lossy().to_string();
-        let rinex = Rinex::from_file(&path).unwrap();
+        let rinex = Rinex::from_gzip_file(&path).unwrap();
 
         // Earliest epoch record is 2020-12-31 23:59:44
 
@@ -1586,7 +1587,7 @@ mod test {
                 env!("CARGO_MANIFEST_DIR"),
                 fp
             );
-            let rinex = Rinex::from_file(&fullpath);
+            let rinex = Rinex::from_gzip_file(&fullpath);
             let rinex = rinex.unwrap();
             /*
              * Verify ION logical correctness

@@ -13,13 +13,8 @@ mod test {
             .join("../test_resources");
 
         for data in vec![
-            "OBS",
-            // "CRNX",
-            // "MET",
-            // "NAV",
-            // "IONEX",
-            // "CLK",
-            // "ATX",
+            "OBS", // "CRNX",
+            "MET", "NAV", "IONEX", "CLK", "ATX",
         ] {
             let data_path = test_resources.clone().join(data);
             for revision in std::fs::read_dir(data_path).unwrap() {

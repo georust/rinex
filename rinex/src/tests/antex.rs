@@ -105,14 +105,14 @@ mod test {
         );
         assert_eq!(apc.unwrap(), (-0.22, -0.01, 154.88));
     }
-    #[cfg(feature = "flate2")]
     #[cfg(feature = "antex")]
+    #[cfg(feature = "flate2")]
     #[test]
     fn v1_4_igs_atx() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/ATX/V1/igs14_small.atx.gz";
 
-        let rinex = Rinex::from_file(&test_resource).unwrap();
+        let rinex = Rinex::from_gzip_file(&test_resource).unwrap();
 
         let fake_now = Epoch::from_gregorian_utc_at_midnight(2023, 01, 01);
 

@@ -40,7 +40,6 @@ impl Rinex {
     }
 
     /// Mutable [Observations] Iterator.
-    /// This only applies to Observation RINEX and will panic otherwise (bad operation).
     pub fn observations_iter_mut(&mut self) -> IterMut<'_, ObsKey, Observations> {
         if let Some(rec) = self.record.as_mut_obs() {
             rec.iter_mut()
@@ -49,30 +48,25 @@ impl Rinex {
         }
     }
 
-    /// Returns [SignalObservation] Iterator
+    /// Returns [SignalObservation]s Iterator.
     pub fn signal_observations_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (&ObsKey, &SignalObservation)> + '_> {
-        Box::new(self.observations_iter().flat_map(|(k, obs)| {
-            obs.signals.iter().fold(vec![], |mut signals, x| {
-                signals.push((k, x));
-                signals
-            })
-        }))
+        Box::new(
+            self.observations_iter()
+                .flat_map(|(key, obs)| obs.signals.iter().map(move |sig| (key, sig))),
+        )
     }
 
-    /// Mutable [SignalObservation] Iterator
+    /// Mutable [SignalObservation]s Iterator.
     pub fn signal_observations_iter_mut(
         &mut self,
     ) -> Box<dyn Iterator<Item = (&ObsKey, &mut SignalObservation)> + '_> {
-        Box::new(self.observations_iter_mut().flat_map(|(k, obs)| {
-            obs.signals.iter_mut().fold(vec![], |mut signals, x| {
-                signals.push((k, x));
-                signals
-            })
-        }))
+        Box::new(
+            self.observations_iter_mut()
+                .flat_map(|(key, obs)| obs.signals.iter_mut().map(move |sig| (key, sig))),
+        )
     }
-
     /// Returns [ClockObservation] Iterator.
     pub fn clock_observations_iter(
         &self,

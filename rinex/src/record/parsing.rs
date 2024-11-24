@@ -50,8 +50,13 @@ impl Record {
         header: &mut Header,
         reader: &mut BufReader<R>,
     ) -> Result<(Self, Comments), ParsingError> {
-        let mut first_epoch = true;
-        let mut epoch_content = String::with_capacity(1024);
+        // buffer pointers
+        let mut rd_offset = 0; // total we have processed
+        let mut total: usize = 0; // total bytes we have buffered
+        let mut total_lines = 0; // total lines we have buffered
+
+        // string buffer
+        let mut content = String::with_capacity(1024);
 
         // comments management
         let mut comments: Comments = Comments::new();
@@ -159,119 +164,126 @@ impl Record {
         let mut ionex_rms_plane = false;
 
         // Iterate and consume, one line at a time
-        for line in reader.lines() {
-            // TODO: see if we can wrap this in a single line (iterator)
-            let line = if let Ok(line) = line {
-                line
-            } else {
-                continue;
-            };
-
-            // handle special cases first
-
-            // COMMENTS: store as is
-            if is_rinex_comment(&line) {
-                let comment = line.split_at(60).0.trim_end();
-                comment_content.push(comment.to_string());
-                continue;
+        while let Ok(size) = reader.read_line(&mut content) {
+            if size == 0 {
+                // reached EOS
+                break;
             }
 
-            // IONEX exponent scaling special case:
+            total += size;
+            total_lines += 1; // new line
+
+            println!(
+                " ======= CONTENT \n {} ====== [total={}/lines={},rd={}] ",
+                &content[..total],
+                total,
+                total_lines,
+                rd_offset
+            );
+
+            // (special case) COMMENTS: store as is
+            if is_rinex_comment(&content[rd_offset..]) {
+                let comment = content[rd_offset..].split_at(60).0.trim_end();
+                comment_content.push(comment.to_string());
+            }
+
+            // (special case) IONEX exponent scaling:
             // keep up to date, so data interpretation remains correct
-            if line.contains("EXPONENT") {
+            if content[rd_offset..].contains("EXPONENT") {
                 if let Some(ionex) = header.ionex.as_mut() {
-                    let content = line.split_at(60).0;
+                    let content = content[rd_offset..].split_at(60).0;
                     if let Ok(e) = content.trim().parse::<i8>() {
                         *ionex = ionex.with_exponent(e); // scaling update
                     }
                 }
-                continue;
             }
 
-            // CRINEX special case:
-            //  apply decompression algorithm prior moving forward
-            let content = if is_crinex {
-                let line_len = line.len();
+            // // CRINEX special case:
+            // //  apply decompression algorithm prior moving forward
+            // let content = if is_crinex {
+            //     let line_len = line.len();
 
-                let size = decompressor
-                    .decompress(&line, line_len, &mut buf, 1024)
-                    .map_err(|e| ParsingError::CRINEX(e))?;
+            //     let size = decompressor
+            //         .decompress(&line, line_len, &mut buf, 1024)
+            //         .map_err(|e| ParsingError::CRINEX(e))?;
 
-                let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
+            //     let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
 
-                // TODO: to improve overall performance,
-                // we should rework the buffering in this function.
-                // Basically 'epoch_content' and Self::is_new_epoch interaction.
-                // We should wait for a new epoch to appear and process everything prior that instant.
-                // Currently, in the CRINEX case, this requires a new allocation just to append a single \n
-                crinex_content.clear();
-                crinex_content.push_str(recovered);
-                crinex_content.push('\n');
+            //     // TODO: to improve overall performance,
+            //     // we should rework the buffering in this function.
+            //     // Basically 'epoch_content' and Self::is_new_epoch interaction.
+            //     // We should wait for a new epoch to appear and process everything prior that instant.
+            //     // Currently, in the CRINEX case, this requires a new allocation just to append a single \n
+            //     crinex_content.clear();
+            //     crinex_content.push_str(recovered);
+            //     &crinex_content
+            // } else {
+            //     &line
+            // };
 
-                &crinex_content
-            } else {
-                &line
-            };
+            let mut new_epoch = false;
 
-            // Yet another lines Iterator.
-            // In case of special CRINEX1 (old revision) decompression
-            // content may actually be wrapped in several lines.
-            // In any other case, content is limited to a single line.
-            // This behaves correctly and takes care of it
-            for line in content.lines() {
-                println!("LINE \"{}\"", line);
+            // total > 1 is here to make sure we have buffered one epoch
+            // and new one is starting to appear
+            if total_lines > 1 {
+                new_epoch = Self::is_new_epoch(&content[rd_offset..], &header);
 
-                let new_epoch = Self::is_new_epoch(line, header);
-                ionex_rms_plane = is_new_rms_plane(line);
+                if new_epoch {
+                    // new epoch appearing: process what we have buffered
+                    // parsing method is format dependent
+                    println!("***MATCH*** \"{}\"\n", &content[rd_offset..]);
 
-                if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
                             let constellation = &header.constellation.unwrap();
-                            if let Ok((e, fr)) =
-                                parse_nav_epoch(header.version, *constellation, &epoch_content)
-                            {
+                            if let Ok((e, fr)) = parse_nav_epoch(
+                                header.version,
+                                *constellation,
+                                &content[..rd_offset],
+                            ) {
                                 nav_rec
                                     .entry(e)
                                     .and_modify(|frames| frames.push(fr.clone()))
                                     .or_insert_with(|| vec![fr.clone()]);
-                                comment_ts = e; // for comments classification & management
+                                comment_ts = e; // for comments storage
                             }
                         },
                         Type::ObservationData => {
                             match parse_observation_epoch(
                                 header,
-                                &epoch_content,
+                                &content[..rd_offset],
                                 obs_ts,
                                 &mut observations,
                             ) {
                                 Ok(key) => {
                                     obs_rec.insert(key, observations.clone());
-                                    observations.signals.clear(); // for next time, avoids re-alloc
-                                    comment_ts = key.epoch; // for temporal comment indexing
+                                    observations.signals.clear(); // reset for next parsing (single alloc)
+                                    comment_ts = key.epoch; // for comments storage
                                 },
                                 #[cfg(feature = "log")]
                                 Err(e) => {
-                                    error!("parsing: {}", e);
+                                    println!("parsing: {}", e);
                                 },
                                 #[cfg(not(feature = "log"))]
-                                Err(_) => {},
+                                Err(e) => {
+                                    println!("parsing: {}", e);
+                                },
                             }
                         },
                         Type::DORIS => {
-                            if let Ok((e, map)) = parse_doris_epoch(header, &epoch_content) {
+                            if let Ok((e, map)) = parse_doris_epoch(header, &content[..rd_offset]) {
                                 dor_rec.insert(e, map);
                             }
                         },
                         Type::MeteoData => {
-                            if let Ok((e, map)) = parse_meteo_epoch(header, &epoch_content) {
+                            if let Ok((e, map)) = parse_meteo_epoch(header, &content[..rd_offset]) {
                                 met_rec.insert(e, map);
                                 comment_ts = e; // for comments classification & management
                             }
                         },
                         Type::ClockData => {
                             if let Ok((epoch, key, profile)) =
-                                parse_clock_epoch(header.version, &epoch_content, clk_ts)
+                                parse_clock_epoch(header.version, &content[..rd_offset], clk_ts)
                             {
                                 if let Some(e) = clk_rec.get_mut(&epoch) {
                                     e.insert(key, profile);
@@ -285,12 +297,13 @@ impl Record {
                             }
                         },
                         Type::AntennaData => {
-                            let (antenna, content) = parse_antex_antenna(&epoch_content).unwrap();
+                            let (antenna, content) =
+                                parse_antex_antenna(&content[..rd_offset]).unwrap();
                             atx_rec.push((antenna, content));
                         },
                         Type::IonosphereMaps => {
                             if let Ok((epoch, altitude, plane)) =
-                                parse_ionex_plane(&epoch_content, header, ionex_rms_plane)
+                                parse_ionex_plane(&content[..rd_offset], header, ionex_rms_plane)
                             {
                                 if ionex_rms_plane {
                                     if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
@@ -320,124 +333,34 @@ impl Record {
                         },
                     }
 
-                    // new comments ?
-                    if !comment_content.is_empty() {
-                        comments.insert(comment_ts, comment_content.clone());
-                        comment_content.clear() // reset
+                    // preserve only new content for next time
+                    unsafe {
+                        let bytes = content.as_bytes_mut();
+                        bytes.copy_within(rd_offset..rd_offset + size - 1, 0);
                     }
-                } //is_new_epoch() +!first
-
-                if new_epoch {
-                    if !first_epoch {
-                        epoch_content.clear();
-                    }
-                    first_epoch = false;
                 }
             }
-        }
 
-        // --> try to build an epoch out of current residues
-        // this covers
-        //   + final epoch (last epoch in record)
-        //   + comments parsing with empty record (empty file body)
-        match &header.rinex_type {
-            Type::NavigationData => {
-                let constellation = &header.constellation.unwrap();
-                if let Ok((e, fr)) = parse_nav_epoch(header.version, *constellation, &epoch_content)
-                {
-                    nav_rec
-                        .entry(e)
-                        .and_modify(|current| current.push(fr.clone()))
-                        .or_insert_with(|| vec![fr.clone()]);
-                    comment_ts = e; // for comments classification & management
-                }
-            },
-            Type::ObservationData => {
-                match parse_observation_epoch(header, &epoch_content, obs_ts, &mut observations) {
-                    Ok(key) => {
-                        obs_rec.insert(key, observations.clone());
-                        observations.signals.clear(); // for next time, avoids re-alloc
-                        comment_ts = key.epoch; // for temporal comment storage
-                    },
-                    #[cfg(not(feature = "log"))]
-                    Err(_) => {},
-                    #[cfg(feature = "log")]
-                    Err(e) => {
-                        // notify (debugger) non vital problems (slight/temporary formatting issues
-                        error!("parsing: {}", e);
-                    },
-                }
-            },
-            Type::DORIS => {
-                if let Ok((e, map)) = parse_doris_epoch(header, &epoch_content) {
-                    dor_rec.insert(e, map);
-                }
-            },
-            Type::MeteoData => {
-                if let Ok((e, map)) = parse_meteo_epoch(header, &epoch_content) {
-                    met_rec.insert(e, map);
-                    comment_ts = e; // for comments classification + management
-                }
-            },
-            Type::ClockData => {
-                if let Ok((epoch, key, profile)) =
-                    parse_clock_epoch(header.version, &epoch_content, clk_ts)
-                {
-                    if let Some(e) = clk_rec.get_mut(&epoch) {
-                        e.insert(key, profile);
-                    } else {
-                        let mut inner: BTreeMap<ClockKey, ClockProfile> = BTreeMap::new();
-                        inner.insert(key, profile);
-                        clk_rec.insert(epoch, inner);
-                    }
-                    comment_ts = epoch; // for comments classification & management
-                }
-            },
-            Type::IonosphereMaps => {
-                if let Ok((epoch, altitude, plane)) =
-                    parse_ionex_plane(&epoch_content, header, ionex_rms_plane)
-                {
-                    if ionex_rms_plane {
-                        if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
-                            // provide RMS value for the entire plane
-                            for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
-                                rec_tec.rms = tec.rms;
-                            }
-                        } else {
-                            // insert RMS values
-                            ionx_rec.insert((epoch, altitude), plane);
-                        }
-                    } else if let Some(rec_plane) = ionx_rec.get_mut(&(epoch, altitude)) {
-                        // provide TEC value for the entire plane
-                        for ((_, rec_tec), (_, tec)) in rec_plane.iter_mut().zip(plane.iter()) {
-                            rec_tec.tec = tec.tec;
-                        }
-                    } else {
-                        // insert TEC values
-                        ionx_rec.insert((epoch, altitude), plane);
-                    }
-                }
-            },
-            Type::AntennaData => {
-                //if let Ok((antenna, content)) = antex::record::parse_antenna(&epoch_content) {
-                //    atx_rec.push((antenna, content));
-                //}
-                let (antenna, content) = parse_antex_antenna(&epoch_content).unwrap();
-                atx_rec.push((antenna, content));
-            },
-        }
-        // new comments ?
-        if !comment_content.is_empty() {
-            comments.insert(comment_ts, comment_content.clone());
-        }
-        // wrap record
+            if new_epoch {
+                total -= rd_offset; // we have trashed all previous content
+                total_lines = 1; // we're only left with one line
+                rd_offset = size - 1; // we have processed it already
+            } else {
+                rd_offset += size; // we have processed everything
+            }
+        } //loop
+
+        // wrap content and exit
         let record = match &header.rinex_type {
             Type::AntennaData => Record::AntexRecord(atx_rec),
             Type::ClockData => Record::ClockRecord(clk_rec),
             Type::IonosphereMaps => Record::IonexRecord(ionx_rec),
             Type::MeteoData => Record::MeteoRecord(met_rec),
             Type::NavigationData => Record::NavRecord(nav_rec),
-            Type::ObservationData => Record::ObsRecord(obs_rec),
+            Type::ObservationData => {
+                println!("debug obs_rec={:#?}", obs_rec);
+                Record::ObsRecord(obs_rec)
+            },
             Type::DORIS => Record::DorisRecord(dor_rec),
         };
         Ok((record, comments))

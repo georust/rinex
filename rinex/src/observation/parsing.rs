@@ -68,6 +68,7 @@ pub fn parse_epoch(
     ts: TimeScale,
     observations: &mut Observations,
 ) -> Result<ObsKey, ParsingError> {
+    println!("forwared: \"{}\"", content);
     let mut lines = content.lines();
 
     let mut line = match lines.next() {
@@ -235,20 +236,18 @@ fn parse_signals_v2(
     const MIN_LINE_WIDTH: usize = 1; // below 10 bytes, we're sure this line is empty (=not a single obs)
 
     // basic check that avoid entering the loop for nothing
-    if systems_str.len() < SVNN_SIZE {
+    if systems_str_len < SVNN_SIZE {
         // does not look good (=rubbish first line)
         #[cfg(feature = "log")]
-        error!("abort: empty content");
+        error!("parse_sig_v2(aborted): empty content");
         return;
     }
-
-    #[cfg(feature = "log")]
-    debug!("V2 parsing: \"{}\"", systems_str);
 
     // sv pointer
     let mut sv = SV::default();
     let mut sv_ptr = 0;
     let mut sv_identified = false;
+    // let numsat = systems_str_len / SVNN_SIZE;
 
     // observable pointer
     let mut obs_ptr = 0;
@@ -259,7 +258,7 @@ fn parse_signals_v2(
     for line in lines {
         // [SV] identification
         //  1. on first line (not defined yet!)
-        //  2. every time past SV is concluded
+        //  2. every time one SV is concluded
         if !sv_identified {
             // identify new SV
             let sv_end = (sv_ptr + SVNN_SIZE).min(systems_str_len);
@@ -269,12 +268,12 @@ fn parse_signals_v2(
             if let Ok(found) = SV::from_str(system) {
                 sv = found;
             } else {
-                // This may actually fail,
-                // The ""great""" V2 mono constellation which may omit X in XYY descrption
+                // This may fail on very old RINEX mono GNSS
+                // that omit the constellation in the description
                 match head_constellation {
                     Some(Constellation::Mixed) | None => {
                         #[cfg(feature = "log")]
-                        error!("abort: no constellation specs in header");
+                        error!("parse_sig_v2(abort): no constell specs");
                         break;
                     },
                     Some(gnss) => {
@@ -285,7 +284,7 @@ fn parse_signals_v2(
                             };
                         } else {
                             #[cfg(feature = "log")]
-                            error!("abort: invalid svnn descriptor");
+                            error!("parse_sig_v2(abort): invalid sv");
                             break;
                         }
                     },
@@ -306,7 +305,7 @@ fn parse_signals_v2(
                     observables
                 } else {
                     #[cfg(feature = "log")]
-                    error!("abort (sbas): not observable specs");
+                    error!("parse_sig_v2 (sbas): no specs");
                     break;
                 }
             } else {
@@ -314,7 +313,7 @@ fn parse_signals_v2(
                     observables
                 } else {
                     #[cfg(feature = "log")]
-                    error!("abort ({}): no observable specs", sv.constellation);
+                    error!("parse_sig_v2 ({}): no specs", sv.constellation);
                     break;
                 }
             };
@@ -331,7 +330,7 @@ fn parse_signals_v2(
 
         if trimmed_len == 0 {
             #[cfg(feature = "log")]
-            debug!("empty line: \"{}\"", line);
+            println!("empty line: \"{}\"", line);
 
             obs_ptr += MAX_OBSERVABLES_LINE;
 
@@ -339,18 +338,29 @@ fn parse_signals_v2(
             if obs_ptr >= observables.len() {
                 sv_identified = false;
                 obs_identified = false;
+                if sv_ptr == systems_str_len {
+                    // we're done
+                    return;
+                }
             }
 
             continue;
         }
 
         // num obs contained this line
-        let num_obs = div_ceil(line_width, OBSERVABLE_WIDTH); //TODO: get rid of .div_ceil
-
-        //#[cfg(feature = "log")]
-        println!("line: \"{}\" [={}]", line, num_obs);
+        let num_obs = div_ceil(line_width, OBSERVABLE_WIDTH);
 
         let mut offset = 0;
+
+        #[cfg(feature = "log")]
+        println!(
+            "line: \"{}\" [sv={}/{} obs={}/{}]",
+            line,
+            sv_ptr,
+            systems_str_len,
+            obs_ptr,
+            observables.len()
+        );
 
         // process all of them
         for _ in 0..num_obs {
@@ -376,7 +386,7 @@ fn parse_signals_v2(
                     },
                     #[cfg(feature = "log")]
                     Err(e) => {
-                        error!("lli: {}", e);
+                        error!("parse_sig(v2) - lli: {}", e);
                     },
                     #[cfg(not(feature = "log"))]
                     Err(_) => {},
@@ -419,13 +429,18 @@ fn parse_signals_v2(
 
             if obs_ptr == observables.len() {
                 #[cfg(feature = "log")]
-                debug!("{} completed", sv);
+                println!("{} completed", sv);
 
                 sv_identified = false;
                 obs_identified = false;
+
+                if sv_ptr == systems_str_len {
+                    // we're done
+                    return;
+                }
             } else {
                 #[cfg(feature = "log")]
-                debug!("{}/{}", obs_ptr, num_obs);
+                println!("{}/{}", obs_ptr, observables.len());
             }
         } //num_obs
 
@@ -563,9 +578,20 @@ mod test {
             "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
             Version { major: 2, minor: 0 }
         ));
+        assert!(!is_new_epoch("      ", Version { major: 2, minor: 0 }));
+        assert!(!is_new_epoch(" ", Version { major: 2, minor: 0 }));
+        assert!(!is_new_epoch("", Version { major: 2, minor: 0 }));
         assert!(!is_new_epoch(
             "21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
             Version { major: 2, minor: 0 }
+        ));
+        assert!(!is_new_epoch(
+            "  20849594.124   111570400.06907  86776964.96746  20849589.804          49.000",
+            Version { major: 2, minor: 0 }
+        ));
+        assert!(!is_new_epoch(
+            "  21911712.315 7  21911713.545 7  21911710.943 8 115146830.08007  89724806.65908",
+            Version { major: 2, minor: 0 },
         ));
         assert!(is_new_epoch(
             "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
