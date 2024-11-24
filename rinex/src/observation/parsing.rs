@@ -68,7 +68,6 @@ pub fn parse_epoch(
     ts: TimeScale,
     observations: &mut Observations,
 ) -> Result<ObsKey, ParsingError> {
-    println!("forwared: \"{}\"", content);
     let mut lines = content.lines();
 
     let mut line = match lines.next() {
