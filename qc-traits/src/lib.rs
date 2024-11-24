@@ -12,6 +12,5 @@ mod processing;
 #[cfg(feature = "processing")]
 pub use processing::{
     Decimate, DecimationError, DecimationFilter, DecimationFilterType, Filter, FilterItem,
-    MaskError, MaskFilter, MaskOperand, Masking, Preprocessing, Repair, RepairTrait,
-    Split,
+    MaskError, MaskFilter, MaskOperand, Masking, Preprocessing, Repair, RepairTrait, Split,
 };
