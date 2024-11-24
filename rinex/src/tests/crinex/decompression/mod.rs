@@ -445,8 +445,8 @@ fn v3_acor00esp_r2021() {
         );
 }
 
-#[cfg(feature = "flate2")]
 #[test]
+#[cfg(feature = "flate2")]
 fn v3_esbc00dnk() {
     let dut = Rinex::from_gzip_file(
         "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",

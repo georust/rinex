@@ -205,15 +205,22 @@ impl Record {
             if is_crinex {
                 let line_len = line_buf.len();
 
-                let size = decompressor
-                    .decompress(&line_buf, line_len, &mut buf, CRINEX_BUF_SIZE)
-                    .map_err(|e| ParsingError::CRINEX(e))?;
+                // catch errors nicely, simply log them
+                // it is normal to abort on final line for example
+                match decompressor.decompress(&line_buf, line_len, &mut buf, CRINEX_BUF_SIZE) {
+                    Ok(size) => {
+                        // clear and overwrite pending content with recovered content
+                        // we should have valid ASCII UTF-8 at all times, at this point
+                        let recovered =
+                            from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
 
-                // clear and overwrite pending content with recovered content
-                let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
-
-                line_buf.clear();
-                line_buf = recovered.to_string();
+                        line_buf.clear();
+                        line_buf = recovered.to_string();
+                    },
+                    Err(e) => {
+                        break;
+                    },
+                }
             }
 
             let mut new_epoch = false;

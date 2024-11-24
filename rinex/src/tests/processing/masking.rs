@@ -5,10 +5,12 @@ mod test {
     use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
     use std::str::FromStr;
     #[test]
+    #[cfg(feature = "flate2")]
     fn obs_gnss_v3_esbcdnk() {
-        let rnx =
-            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-                .unwrap();
+        let rnx = Rinex::from_gzip_file(
+            "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+        )
+        .unwrap();
 
         let mask = Filter::mask(
             MaskOperand::Equals,
@@ -176,9 +178,10 @@ mod test {
     #[test]
     #[cfg(feature = "flate2")]
     fn obs_epoch_v3_esbc00dnk() {
-        let rinex =
-            Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-                .unwrap();
+        let rinex = Rinex::from_gzip_file(
+            "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+        )
+        .unwrap();
         let last_eq = Filter::equals("2020-06-25T23:59:30 GPST").unwrap();
         let last_geq = Filter::greater_equals("2020-06-25T23:59:30 GPST").unwrap();
         let last_gt = Filter::greater_than("2020-06-25T23:59:30 GPST").unwrap();

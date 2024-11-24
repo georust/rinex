@@ -330,24 +330,25 @@ impl<const M: usize> DecompressorExpert<M> {
             return Err(Error::EpochFormat);
         }
 
+        let trimmed = &line[1..].trim_end();
         if line.starts_with('&') {
             if self.v3 {
                 return Err(Error::BadV3Format);
             }
 
-            self.epoch_diff.force_init(&line[1..]);
-            self.epoch_descriptor = line[1..].trim_end().to_string();
-            self.epoch_desc_len = len - 1;
+            self.epoch_diff.force_init(trimmed);
+            self.epoch_descriptor = trimmed.to_string();
+            self.epoch_desc_len = trimmed.len();
         } else if line.starts_with('>') {
             if !self.v3 {
                 return Err(Error::BadV1Format);
             }
 
-            self.epoch_diff.force_init(&line[1..].trim_end());
-            self.epoch_descriptor = line[1..].to_string();
-            self.epoch_desc_len = len - 1;
+            self.epoch_diff.force_init(trimmed);
+            self.epoch_descriptor = trimmed.to_string();
+            self.epoch_desc_len = trimmed.len();
         } else {
-            self.epoch_descriptor = self.epoch_diff.decompress(line[1..].trim_end()).to_string();
+            self.epoch_descriptor = self.epoch_diff.decompress(trimmed).to_string();
             self.epoch_desc_len = self.epoch_descriptor.len();
         }
 
@@ -530,7 +531,8 @@ impl<const M: usize> DecompressorExpert<M> {
 
             // initialize on first encounter
             if self.flags_diff.get(&sv).is_none() {
-                let textdiff = TextDiff::new("");
+                // initializes the internal buffer with some capacity..
+                let textdiff = TextDiff::new("               ");
                 self.flags_diff.insert(sv, textdiff);
             }
         }
@@ -752,7 +754,7 @@ impl<const M: usize> DecompressorExpert<M> {
                     .get_mut(&self.sv)
                     .expect("internal error: bad crinex content?");
 
-                let flags = textdiff.decompress("");
+                let flags = textdiff.decompress("").trim_end();
                 let flags_len = flags.len();
                 println!("PRESERVED \"{}\"", flags);
 
@@ -794,7 +796,7 @@ impl<const M: usize> DecompressorExpert<M> {
 
         if consumed < len {
             // proceed to flags recovering
-            let flags = &line[consumed..];
+            let flags = &line[consumed..].trim_end();
             println!("FLAGS \"{}\"", flags);
 
             let kernel = self.flags_diff.get_mut(&self.sv).expect("internal error");
@@ -856,8 +858,9 @@ impl<const M: usize> DecompressorExpert<M> {
         }
     }
 
+    /// Formats Data "flags" into mutable buffer, following standardized format.
     fn write_v1_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
-        let mut offset = 13;
+        let mut offset = 14;
         let bytes = flags.as_bytes();
         for i in 0..numobs {
             let lli_idx = i * 2;
@@ -884,6 +887,7 @@ impl<const M: usize> DecompressorExpert<M> {
         }
     }
 
+    /// Formats Data "flags" into mutable buffer, following standardized format.
     fn write_v3_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
         let mut offset = 17;
         let bytes = flags.as_bytes();
@@ -1091,56 +1095,51 @@ mod test {
     #[test]
     fn v1_flags_format() {
         for (flags, numobs, buffer, expected) in [
-            //     (
-            //         "4 06 1   6",
-            //         5,
-            //         " 24600158.420   129274705.784          38.300    24600162.420   100733552.500  ",
-            //         " 24600158.4204  129274705.78406        38.300 1  24600162.420   100733552.500 6",
-            //     ),
-            //     (
-            //         "49484 4 4",
-            //         5,
-            //         "-14746974.730   -11440396.209    22513484.637    22513484.772    22513487.370  ",
-            //         "-14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704 ",
-            //     ),
-            //     (
-            //         " 643        4",
-            //         7,
-            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-            //   40.000          22.000 ",
-            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-            //   40.000          22.0004",
-            //     ),
-            //     (
-            //         " 643      1 4",
-            //         7,
-            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-            //   40.000          22.000 ",
-            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-            //   40.0001         22.0004",
-            //     ),
-            //     (
-            //         " 643      1  5",
-            //         7,
-            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-            //   40.000          22.000 ",
-            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-            //   40.0001         22.000 5",
-            //     ),
-            //     (
-            //         " 643      1  56    1 ", 15,
-            //         "126298057.858    98414080.647    24033720.416    24033721.351    24033719.353
-            //   40.000          22.000          22.000          22.000          22.000
-            //   40.000          22.000          22.000          22.000          22.000 ",
-            //         "126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353
-            //   40.0001         22.000 5        22.0006         22.000          22.000 1
-            //   40.000          22.000          22.000          22.000          22.000 ",
-            //     ),
             (
                 " 5",
                 3,
                 " 131869667.223                    25093963.200",
                 " 131869667.223 5                  25093963.200",
+            ),
+            (
+                " 5  1",
+                3,
+                " 131869667.223                    25093963.200",
+                " 131869667.223 5                  25093963.2001",
+            ),
+            (
+                " 5  12",
+                3,
+                " 131869667.223                    25093963.200",
+                " 131869667.223 5                  25093963.20012",
+            ),
+            (
+                "45  12",
+                3,
+                " 131869667.223                    25093963.200",
+                " 131869667.22345                  25093963.20012",
+            ),
+            (
+                "4 06 1   6",
+                5,
+                " 106305408.320    27089583.280       -1635.689          45.200   109078577.583 6",
+                " 106305408.3204   27089583.28006     -1635.689 1        45.200   109078577.583 6",
+            ),
+            (
+                "49484 4 4",
+                5,
+                " 106305408.320    27089583.280       -1635.689          45.200   109078577.583",
+                " 106305408.32049  27089583.28048     -1635.6894         45.2004  109078577.5834",
+            ),
+            (
+                " 6 6 7060407 4 4",
+                11,
+                "  23203962.113    23203960.554    23203963.222   121937655.118    95016353.749  
+  91057352.202    23203961.787    23203960.356          41.337          28.313  
+        46.834",
+                "  23203962.113 6  23203960.554 6  23203963.222 7 121937655.11806  95016353.74904
+  91057352.20207  23203961.787 4  23203960.356 4        41.337          28.313  
+        46.834",
             ),
         ] {
             let flags_len = flags.len();
@@ -1155,7 +1154,7 @@ mod test {
             let output = from_utf8(&buf[..expected.len()]).expect("did not generate valid UTF-8");
 
             // verify that (in place) write did its job
-            assert_eq!(output, expected);
+            assert_eq!(output, expected, "failed for \"{}\"", flags);
         }
     }
 
