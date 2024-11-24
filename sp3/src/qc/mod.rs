@@ -1,2 +1,2 @@
-pub mod merge;
-pub mod split;
+mod merge;
+mod split;

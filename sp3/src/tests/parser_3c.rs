@@ -5,8 +5,9 @@ mod test {
     use gnss::prelude::Constellation;
     use std::path::PathBuf;
     use std::str::FromStr;
-    #[cfg(feature = "flate2")]
+    
     #[test]
+    #[cfg(feature = "flate2")]
     fn esa0opsrap_20232339_01d_15m() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -15,7 +16,7 @@ mod test {
             .join("SP3")
             .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
-        let sp3 = SP3::from_file(&path.to_string_lossy());
+        let sp3 = SP3::from_gzip_file(&path);
         assert!(
             sp3.is_ok(),
             "failed to parse ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz : {:?}",

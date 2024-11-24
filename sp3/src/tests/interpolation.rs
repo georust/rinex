@@ -18,8 +18,9 @@ mod test {
         let factorial: usize = (1..=order + 1).product();
         q.abs() / factorial as f64 // TODO f^(n+1)[x]
     }
-    #[cfg(feature = "flate2")]
+    
     #[test]
+    #[cfg(feature = "flate2")]
     fn interp() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -27,7 +28,7 @@ mod test {
             .join("test_resources")
             .join("SP3")
             .join("EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz");
-        let sp3 = SP3::from_file(&path.to_string_lossy());
+        let sp3 = SP3::from_gzip_file(&path);
         assert!(
             sp3.is_ok(),
             "failed to parse EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz"

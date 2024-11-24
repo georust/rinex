@@ -6,6 +6,7 @@ mod test {
     use gnss_rs::sv;
     use std::path::PathBuf;
     use std::str::FromStr;
+
     #[test]
     fn sp3d_txt() {
         let path = PathBuf::new()
@@ -14,7 +15,7 @@ mod test {
             .join("test_resources")
             .join("SP3")
             .join("sp3d.txt");
-        let sp3 = SP3::from_file(&path.to_string_lossy());
+        let sp3 = SP3::from_file(&path);
         assert!(
             sp3.is_ok(),
             "failed to parse test_resources/SP3/sp3d.txt: {:?}",
