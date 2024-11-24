@@ -1,10 +1,6 @@
-use qc_traits::{
-    Decimate,
-    DecimationFilter,
-    DecimationFilterType,
-};
+use qc_traits::{Decimate, DecimationFilter, DecimationFilterType};
 
-use crate::prelude::{SP3, Epoch};
+use crate::prelude::{Epoch, SP3};
 
 impl Decimate for SP3 {
     fn decimate(&self, f: &DecimationFilter) -> Self {

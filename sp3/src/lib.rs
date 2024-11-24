@@ -21,7 +21,6 @@ mod qc;
 #[cfg(feature = "processing")]
 mod processing;
 
-
 #[cfg(feature = "flate2")]
 use flate2::bufread::GzDecoder;
 
@@ -49,7 +48,9 @@ use serde::{Deserialize, Serialize};
 type Vector3D = (f64, f64, f64);
 
 pub mod prelude {
-    pub use crate::{version::Version, SP3Entry, SP3Key, DataType, Error, OrbitType, SP3, ParsingError};
+    pub use crate::{
+        version::Version, DataType, Error, OrbitType, ParsingError, SP3Entry, SP3Key, SP3,
+    };
     // Pub re-export
     pub use gnss::prelude::{Constellation, SV};
     pub use hifitime::{Duration, Epoch, TimeScale};

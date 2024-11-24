@@ -2,7 +2,7 @@
 mod test {
     use crate::prelude::*;
     use std::path::PathBuf;
-    
+
     #[test]
     #[cfg(feature = "flate2")]
     fn gzip_data() {

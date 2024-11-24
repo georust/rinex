@@ -1,11 +1,6 @@
-use qc_traits::{
-    Masking,
-    MaskFilter,
-    FilterItem,
-    MaskOperand,
-};
+use qc_traits::{FilterItem, MaskFilter, MaskOperand, Masking};
 
-use crate::prelude::{SP3, Constellation};
+use crate::prelude::{Constellation, SP3};
 
 impl Masking for SP3 {
     fn mask(&self, f: &MaskFilter) -> Self {

@@ -18,7 +18,7 @@ mod test {
         let factorial: usize = (1..=order + 1).product();
         q.abs() / factorial as f64 // TODO f^(n+1)[x]
     }
-    
+
     #[test]
     #[cfg(feature = "flate2")]
     fn interp() {

@@ -5,7 +5,7 @@ mod test {
     use gnss::prelude::Constellation;
     use std::path::PathBuf;
     use std::str::FromStr;
-    
+
     #[test]
     #[cfg(feature = "flate2")]
     fn esa0opsrap_20232339_01d_15m() {

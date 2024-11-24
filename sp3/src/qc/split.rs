@@ -1,10 +1,11 @@
+use crate::prelude::{Duration, Epoch, SP3, SV};
 use qc_traits::Split;
-use crate::prelude::{SP3, SV, Epoch, Duration};
 
 impl Split for SP3 {
     fn split(&self, t: Epoch) -> (Self, Self)
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         (Self::default(), Self::default())
     }
 
@@ -15,7 +16,9 @@ impl Split for SP3 {
         let mut sv_drop = Vec::<SV>::new();
         let mut sv_preserved = Vec::<SV>::new();
 
-        let collected = self.data.iter()
+        let collected = self
+            .data
+            .iter()
             .filter_map(|(k, v)| {
                 if k.epoch > t {
                     Some((k.clone(), v.clone()))
@@ -28,17 +31,16 @@ impl Split for SP3 {
         self.data.retain(|k, _| k.epoch <= t);
 
         // browse remaining data: adapt self & returned
-        for (_, v) in self.data.iter() {
-            
-        }
+        for (_, v) in self.data.iter() {}
 
         ret.data = collected;
         ret
     }
 
     fn split_even_dt(&self, dt: Duration) -> Vec<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         Default::default()
     }
 }

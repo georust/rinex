@@ -1,11 +1,8 @@
-
 use std::{
-    io::{
-        Read, BufRead, BufReader,
-    },
-    path::Path,
-    fs::File,
     collections::BTreeMap,
+    fs::File,
+    io::{BufRead, BufReader, Read},
+    path::Path,
     str::FromStr,
 };
 
@@ -18,8 +15,11 @@ use crate::{
         line2::{is_header_line2, Line2},
     },
     position::{position_entry, PositionEntry},
+    prelude::{
+        Constellation, DataType, Duration, Epoch, Error, OrbitType, ParsingError, SP3Entry, SP3Key,
+        TimeScale, Version, SP3, SV,
+    },
     velocity::{velocity_entry, VelocityEntry},
-    prelude::{SP3, Constellation, Error, Version, DataType, TimeScale, OrbitType, Duration, SV, SP3Key, SP3Entry, Epoch, ParsingError},
 };
 
 fn file_descriptor(content: &str) -> bool {
@@ -70,7 +70,6 @@ fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingErr
 }
 
 impl SP3 {
-
     /// Parse [SP3] data from local file.
     pub fn from_file(path: impl AsRef<Path>) -> Result<Self, Error> {
         let fd = File::open(path).expect("file is not readable");
@@ -86,10 +85,9 @@ impl SP3 {
         let mut reader = BufReader::new(fd);
         Self::from_reader(&mut reader)
     }
-    
+
     /// Parse [SP3] data from [Read]able I/O.
     pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Result<Self, Error> {
-
         let mut version = Version::default();
         let mut data_type = DataType::default();
 

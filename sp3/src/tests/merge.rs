@@ -3,9 +3,9 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
+    use qc_traits::Merge;
     use std::path::PathBuf;
     use std::str::FromStr;
-    use qc_traits::Merge;
 
     #[test]
     #[cfg(feature = "qc")]
@@ -43,7 +43,7 @@ mod test {
             "should not be able to merge files from two different data providers"
         );
     }
-    
+
     #[test]
     #[cfg(feature = "qc")]
     #[cfg(feature = "flate2")]

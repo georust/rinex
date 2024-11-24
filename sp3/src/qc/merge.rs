@@ -1,4 +1,4 @@
-use crate::prelude::{SP3, Constellation};
+use crate::prelude::{Constellation, SP3};
 
 use qc_traits::{Merge, MergeError};
 
@@ -74,4 +74,3 @@ impl Merge for SP3 {
         Ok(())
     }
 }
-

@@ -3,7 +3,6 @@ use hifitime::{Duration, Epoch};
 
 /// Implement [Split] to rearrange datasets timewise.
 pub trait Split {
-
     /// [Split]s Self into two at specified [Epoch]
     /// Returns:
     ///  - (a , b) where a <= t and b > t
