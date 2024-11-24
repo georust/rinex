@@ -1,10 +1,10 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{Constellation, Epoch, GroundPosition, Orbit, Rinex, SV},
+    prelude::{nav::Orbit, Constellation, Epoch, GroundPosition, Rinex, SV},
 };
 use std::collections::{BTreeMap, HashMap};
 
-use qc_traits::processing::{Filter, Preprocessing};
+use qc_traits::{Filter, Preprocessing};
 
 use crate::{
     plot::{MapboxStyle, MarkerSymbol, Mode},
@@ -308,7 +308,7 @@ impl OrbitReport {
                 );
                 #[cfg(feature = "sp3")]
                 if let Some(sp3) = ctx.sp3() {
-                    for (sv_index, sv) in sp3.sv().enumerate() {
+                    for (_sv_index, sv) in sp3.sv().enumerate() {
                         let orbits = sp3
                             .sv_position()
                             .filter_map(|(t, svnn, pos_km)| {

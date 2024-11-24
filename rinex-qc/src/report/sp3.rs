@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
 use std::collections::HashMap;
 
 use sp3::prelude::{Constellation, SP3, SV};
@@ -89,20 +89,8 @@ impl SP3Report {
                 span class="icon" {
                     i class="fa-solid fa-satellite" {}
                 }
-                "High Precision Orbit (SP3)"
+                (format!("High Precision Orbit (SP3{})", self.version))
             }
-            //ul(class="menu-list", id="menu:tabs:sp3", style="display:block") {
-            //    @ for page in self.pages.keys().sorted() {
-            //        li {
-            //            a(id=&format!("menu:sp3:{}", page), class="tab:sp3", style="margin-left:29px") {
-            //                span(class="icon") {
-            //                    i(class="fa-solid fa-satellite");
-            //                }
-            //                : page.to_string()
-            //            }
-            //        }
-            //    }
-            //}
         }
     }
     pub fn new(sp3: &SP3) -> Self {

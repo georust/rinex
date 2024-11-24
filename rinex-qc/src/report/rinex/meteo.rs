@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::{
     meteo::sensor::Sensor,
     prelude::{Observable, Rinex},

@@ -6,8 +6,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use rinex::{
-    merge::{Error as RinexMergeError, Merge as RinexMerge},
-    prelude::{Almanac, GroundPosition, Rinex, TimeScale},
+    prelude::{nav::Almanac, GroundPosition, Rinex, TimeScale},
     types::Type as RinexType,
     Error as RinexError,
 };
@@ -22,10 +21,7 @@ use anise::{
 #[cfg(feature = "sp3")]
 use sp3::prelude::SP3;
 
-use qc_traits::{
-    processing::{Filter, Preprocessing, Repair, RepairTrait},
-    Merge, MergeError,
-};
+use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait};
 
 /// Context Error
 #[derive(Debug, Error)]
@@ -42,8 +38,6 @@ pub enum Error {
     FileNameDetermination,
     #[error("invalid rinex format")]
     RinexError(#[from] RinexError),
-    #[error("failed to extend rinex context")]
-    RinexMergeError(#[from] RinexMergeError),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -546,7 +540,7 @@ impl QcContext {
     pub fn cpp_compatible(&self) -> bool {
         // TODO: improve: only PR
         if let Some(obs) = self.observation() {
-            obs.carrier().count() > 1
+            obs.carrier_iter().count() > 1
         } else {
             false
         }

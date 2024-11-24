@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
-use rinex::prelude::{ClockProfileType, Constellation, Rinex, TimeScale, DOMES, SV};
+use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
+use rinex::prelude::{clock::ClockProfileType, Constellation, Rinex, TimeScale, DOMES, SV};
 use std::collections::HashMap;
 
 use crate::report::shared::SamplingReport;
