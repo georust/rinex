@@ -464,7 +464,7 @@ fn parse_signals_v3(
     // browse all lines
     for line in lines {
         #[cfg(feature = "log")]
-        debug!("line: \"{}\"", line);
+        println!("line: \"{}\"", line);
 
         // identify SV
         let sv_str = &line[0..SVNN_SIZE];

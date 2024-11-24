@@ -52,9 +52,6 @@ impl Record {
     ) -> Result<(Self, Comments), ParsingError> {
         // buffer pointers
         let mut eos = false; // EOS reached (might still have something to process)
-        let mut rd_offset = 1; // total we have processed
-        let mut total: usize = 0; // total bytes we have buffered
-        let mut total_lines = 0; // total lines we have buffered
 
         // current line storage
         let mut line_buf = String::with_capacity(128);
@@ -78,10 +75,11 @@ impl Record {
         let mut observations = Observations::default();
 
         // CRINEX case
-        let mut buf = [0; 1024];
+        const CRINEX_BUF_SIZE: usize = 1024;
+        let mut buf = [0; CRINEX_BUF_SIZE];
+
         let mut is_crinex = false;
         let mut crinex_v3 = false;
-        let mut crinex_content = String::with_capacity(1024);
         let mut gnss_observables = Default::default();
 
         if let Some(obs) = &header.obs {
@@ -200,36 +198,23 @@ impl Record {
                 continue;
             }
 
-            // // CRINEX special case:
-            // //  apply decompression algorithm prior moving forward
-            // let content = if is_crinex {
-            //     let line_len = line.len();
+            // CRINEX special case:
+            // - apply decompression algorithm prior moving forward
+            // - decompress new pending line, which may recover several lines
+            // in old V1 format
+            if is_crinex {
+                let line_len = line_buf.len();
 
-            //     let size = decompressor
-            //         .decompress(&line, line_len, &mut buf, 1024)
-            //         .map_err(|e| ParsingError::CRINEX(e))?;
+                let size = decompressor
+                    .decompress(&line_buf, line_len, &mut buf, CRINEX_BUF_SIZE)
+                    .map_err(|e| ParsingError::CRINEX(e))?;
 
-            //     let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
+                // clear and overwrite pending content with recovered content
+                let recovered = from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
 
-            //     // TODO: to improve overall performance,
-            //     // we should rework the buffering in this function.
-            //     // Basically 'epoch_content' and Self::is_new_epoch interaction.
-            //     // We should wait for a new epoch to appear and process everything prior that instant.
-            //     // Currently, in the CRINEX case, this requires a new allocation just to append a single \n
-            //     crinex_content.clear();
-            //     crinex_content.push_str(recovered);
-            //     &crinex_content
-            // } else {
-            //     &line
-            // };
-
-            total += size;
-            total_lines += 1; // new line
-
-            //println!(
-            //    " ======= CONTENT \n {} ====== [total={}/lines={},rd={}] ",
-            //    &epoch_buf, total, total_lines, rd_offset
-            //);
+                line_buf.clear();
+                line_buf = recovered.to_string();
+            }
 
             let mut new_epoch = false;
 
@@ -237,6 +222,7 @@ impl Record {
             // that we process once a new one appears
             if epoch_buf.len() > 0 {
                 new_epoch = Self::is_new_epoch(&line_buf, &header);
+                ionex_rms_plane = is_new_rms_plane(&line_buf);
 
                 // trick to force attempt on last iteration
                 new_epoch |= eos;
@@ -284,12 +270,13 @@ impl Record {
                         Type::DORIS => {
                             if let Ok((e, map)) = parse_doris_epoch(header, &epoch_buf) {
                                 dor_rec.insert(e, map);
+                                comment_ts = e.0; // for comments storage
                             }
                         },
                         Type::MeteoData => {
                             if let Ok((e, map)) = parse_meteo_epoch(header, &epoch_buf) {
                                 met_rec.insert(e, map);
-                                comment_ts = e; // for comments classification & management
+                                comment_ts = e; // for comments storage
                             }
                         },
                         Type::ClockData => {
@@ -304,7 +291,7 @@ impl Record {
                                     inner.insert(key, profile);
                                     clk_rec.insert(epoch, inner);
                                 }
-                                comment_ts = epoch; // for comments classification & management
+                                comment_ts = epoch; // for comments storage
                             }
                         },
                         Type::AntennaData => {

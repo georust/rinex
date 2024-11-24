@@ -336,18 +336,18 @@ impl<const M: usize> DecompressorExpert<M> {
             }
 
             self.epoch_diff.force_init(&line[1..]);
-            self.epoch_descriptor = line[1..].to_string();
+            self.epoch_descriptor = line[1..].trim_end().to_string();
             self.epoch_desc_len = len - 1;
         } else if line.starts_with('>') {
             if !self.v3 {
                 return Err(Error::BadV1Format);
             }
 
-            self.epoch_diff.force_init(&line[1..]);
+            self.epoch_diff.force_init(&line[1..].trim_end());
             self.epoch_descriptor = line[1..].to_string();
             self.epoch_desc_len = len - 1;
         } else {
-            self.epoch_descriptor = self.epoch_diff.decompress(&line[1..]).to_string();
+            self.epoch_descriptor = self.epoch_diff.decompress(line[1..].trim_end()).to_string();
             self.epoch_desc_len = self.epoch_descriptor.len();
         }
 
