@@ -13,7 +13,7 @@ use preprocessing::preprocess;
 mod report;
 use report::Report;
 
-use rinex_qc::prelude::{QcContext, QcExtraPage};
+use rinex_qc::prelude::{MergeError, QcContext, QcExtraPage};
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -52,20 +52,16 @@ pub enum Error {
     MissingMeteoRinex,
     #[error("missing Clock RINEX")]
     MissingClockRinex,
-    #[error("merge ops failure")]
-    MergeError(#[from] rinex::merge::Error),
-    #[error("split ops failure")]
-    SplitError(#[from] rinex::split::Error),
     #[error("positioning solver error")]
     PositioningSolverError(#[from] positioning::Error),
     #[cfg(feature = "csv")]
     #[error("csv export error")]
     CsvError(#[from] CsvError),
+    #[error("merge error")]
+    Merge(#[from] MergeError),
 }
 
-/*
- * Parses and preprepocess all files passed by User
- */
+/// Parses and preprepocess all files passed by User
 fn user_data_parsing(
     cli: &Cli,
     single_files: Vec<&String>,
@@ -82,62 +78,134 @@ fn user_data_parsing(
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
             if !entry.path().is_dir() {
                 let path = entry.path();
-                if let Ok(rinex) = Rinex::from_path(path) {
-                    let loading = ctx.load_rinex(path, rinex);
-                    if loading.is_ok() {
-                        info!("Loading RINEX file \"{}\"", path.display());
+
+                let file_ext = path
+                    .extension()
+                    .expect("failed to determine file extension")
+                    .to_string_lossy()
+                    .to_string();
+
+                let gzip_encoded = file_ext == "gz";
+
+                // we support gzip encoding
+                if gzip_encoded {
+                    if let Ok(rinex) = Rinex::from_gzip_file(path) {
+                        let loading = ctx.load_rinex(path, rinex);
+                        if loading.is_ok() {
+                            info!("Loading RINEX file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load RINEX file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
+                    } else if let Ok(sp3) = SP3::from_gzip_file(path) {
+                        let loading = ctx.load_sp3(path, sp3);
+                        if loading.is_ok() {
+                            info!("Loading SP3 file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load SP3 file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
                     } else {
-                        warn!(
-                            "failed to load RINEX file \"{}\": {}",
-                            path.display(),
-                            loading.err().unwrap()
-                        );
-                    }
-                } else if let Ok(sp3) = SP3::from_path(path) {
-                    let loading = ctx.load_sp3(path, sp3);
-                    if loading.is_ok() {
-                        info!("Loading SP3 file \"{}\"", path.display());
-                    } else {
-                        warn!(
-                            "failed to load SP3 file \"{}\": {}",
-                            path.display(),
-                            loading.err().unwrap()
-                        );
+                        warn!("non supported file format \"{}\"", path.display());
                     }
                 } else {
-                    warn!("non supported file format \"{}\"", path.display());
+                    if let Ok(rinex) = Rinex::from_file(path) {
+                        let loading = ctx.load_rinex(path, rinex);
+                        if loading.is_ok() {
+                            info!("Loading RINEX file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load RINEX file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
+                    } else if let Ok(sp3) = SP3::from_file(path) {
+                        let loading = ctx.load_sp3(path, sp3);
+                        if loading.is_ok() {
+                            info!("Loading SP3 file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load SP3 file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
+                    } else {
+                        warn!("non supported file format \"{}\"", path.display());
+                    }
                 }
             }
         }
     }
+
     // load individual files
     for fp in single_files.iter() {
         let path = Path::new(fp);
-        if let Ok(rinex) = Rinex::from_path(path) {
-            let loading = ctx.load_rinex(path, rinex);
-            if loading.is_err() {
-                warn!(
-                    "failed to load RINEX file \"{}\": {}",
-                    path.display(),
-                    loading.err().unwrap()
-                );
-            }
-        } else if let Ok(sp3) = SP3::from_path(path) {
-            let loading = ctx.load_sp3(path, sp3);
-            if loading.is_err() {
-                warn!(
-                    "failed to load SP3 file \"{}\": {}",
-                    path.display(),
-                    loading.err().unwrap()
-                );
+
+        let file_ext = path
+            .extension()
+            .expect("failed to determine file extension")
+            .to_string_lossy()
+            .to_string();
+
+        let gzip_encoded = file_ext == "gz";
+
+        // we support gzip encoding
+        if gzip_encoded {
+            if let Ok(rinex) = Rinex::from_gzip_file(path) {
+                let loading = ctx.load_rinex(path, rinex);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load RINEX file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else if let Ok(sp3) = SP3::from_gzip_file(path) {
+                let loading = ctx.load_sp3(path, sp3);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load SP3 file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else {
+                warn!("non supported file format \"{}\"", path.display());
             }
         } else {
-            warn!("non supported file format \"{}\"", path.display());
+            if let Ok(rinex) = Rinex::from_file(path) {
+                let loading = ctx.load_rinex(path, rinex);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load RINEX file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else if let Ok(sp3) = SP3::from_file(path) {
+                let loading = ctx.load_sp3(path, sp3);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load SP3 file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else {
+                warn!("non supported file format \"{}\"", path.display());
+            }
         }
     }
-    /*
-     * Preprocessing
-     */
+
+    // Preprocessing: Resampling, Filtering..
     preprocess(&mut ctx, cli);
 
     match cli.matches.subcommand() {

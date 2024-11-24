@@ -40,8 +40,11 @@ use rinex_qc::prelude::QcExtraPage;
 
 use gnss_rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, Orbit, PVTSolutionType, Solver,
+    NgModel, Solver,
 };
+
+#[cfg(feature = "cggtts")]
+use gnss_rtk::prelude::PVTSolutionType;
 
 use thiserror::Error;
 
@@ -240,16 +243,16 @@ pub fn precise_positioning(
         Some(fp) => {
             let content = read_to_string(fp)
                 .unwrap_or_else(|e| panic!("failed to read configuration: {}", e));
+
             let mut cfg: Config = serde_json::from_str(&content)
                 .unwrap_or_else(|e| panic!("failed to parse configuration: {}", e));
 
-            /*
-             * CGGTTS special case
-             */
+            // CGGTTS special case
             #[cfg(feature = "cggtts")]
             if matches.get_flag("cggtts") {
                 cfg.sol_type = PVTSolutionType::TimeOnly;
             }
+
             #[cfg(not(feature = "cggtts"))]
             if matches.get_flag("cggtts") {
                 panic!("--cggtts option not available: compile with cggtts option");
@@ -262,13 +265,12 @@ pub fn precise_positioning(
             let method = Method::default();
             let mut cfg = Config::static_ppp_preset(method);
 
-            /*
-             * CGGTTS special case
-             */
+            // CGGTTS special case
             #[cfg(feature = "cggtts")]
             if matches.get_flag("cggtts") {
                 cfg.sol_type = PVTSolutionType::TimeOnly;
             }
+
             #[cfg(not(feature = "cggtts"))]
             if matches.get_flag("cggtts") {
                 panic!("--cggtts option not available: compile with cggtts option");
@@ -278,11 +280,13 @@ pub fn precise_positioning(
             cfg
         },
     };
-    /* Verify requirements and print helpful comments */
+
+    // Verify requirements and print helpful comments
     assert!(
         ctx.data.observation().is_some(),
         "Positioning requires Observation RINEX"
     );
+
     if !is_rtk {
         assert!(
             ctx.data.brdc_navigation().is_some(),
@@ -292,7 +296,7 @@ pub fn precise_positioning(
 
     if let Some(obs_rinex) = ctx.data.observation() {
         if let Some(obs_header) = &obs_rinex.header.obs {
-            if let Some(time_of_first_obs) = obs_header.time_of_first_obs {
+            if let Some(time_of_first_obs) = obs_header.timeof_first_obs {
                 if let Some(clk_rinex) = ctx.data.clock() {
                     if let Some(clk_header) = &clk_rinex.header.clock {
                         if let Some(time_scale) = clk_header.timescale {

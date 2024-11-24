@@ -1,11 +1,8 @@
 use crate::{cli::Context, positioning::cast_rtk_carrier};
 
 use gnss_rtk::prelude::{Epoch, Observation as RTKObservation, SV};
-use rinex::{
-    observation::ObservationData,
-    prelude::{Carrier, EpochFlag, Observable},
-};
-use std::collections::{BTreeMap, HashMap};
+use rinex::prelude::{Carrier, ObsKey, SignalObservation};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct BufKey {
@@ -14,28 +11,20 @@ struct BufKey {
     pub carrier: Carrier,
 }
 
+// TODO: this does not take SNR into account
 pub struct RemoteRTKReference<'a> {
     buffer: HashMap<BufKey, f64>,
-    iter: Box<
-        dyn Iterator<
-                Item = (
-                    &'a (Epoch, EpochFlag),
-                    &'a (
-                        Option<f64>,
-                        BTreeMap<SV, HashMap<Observable, ObservationData>>,
-                    ),
-                ),
-            > + 'a,
-    >,
+    iter: Box<dyn Iterator<Item = (ObsKey, &'a SignalObservation)> + 'a>,
 }
 
 impl<'a> RemoteRTKReference<'a> {
+    /// Builds new [RemoteRTKReference] from data [Context]
     pub fn from_ctx(ctx: &'a Context) -> Self {
         if let Some(reference_site) = ctx.reference_site.as_ref() {
             if let Some(remote_obs) = reference_site.data.observation() {
                 info!("Remote reference site context created");
                 Self {
-                    iter: remote_obs.observation(),
+                    iter: remote_obs.signal_ok_iter(),
                     buffer: HashMap::with_capacity(16),
                 }
             } else {
@@ -53,44 +42,58 @@ impl<'a> RemoteRTKReference<'a> {
             }
         }
     }
+
+    /// Signal observation attempt
+    /// Inputs:
+    /// - t: [Epoch] of observation
+    /// - sv: [SV] signal source
+    /// - carrier: [Carrier] signal
+    /// Returns:
+    /// - [RTKObservation] if sucessful
     pub fn observe(&mut self, t: Epoch, sv: SV, carrier: Carrier) -> Option<RTKObservation> {
         let rtk_carrier = cast_rtk_carrier(carrier);
         let mut ret = Option::<RTKObservation>::None;
         let key = BufKey { t, sv, carrier };
+
+        // if this value has been buffered already; exppose it
         if let Some(value) = self.buffer.get(&key) {
             // TODO (SNR)
             ret = Some(RTKObservation::pseudo_range(rtk_carrier, *value, None));
-        }
-        if ret.is_none() {
-            while let Some(((remote_t, remote_flag), (_, remote_svnn))) = self.iter.next() {
-                if remote_flag.is_ok() {
-                    for (remote_sv, remote_obsnn) in remote_svnn.iter() {
-                        for (remote_observable, remote_obs) in remote_obsnn.iter() {
-                            if let Ok(remote_carrier) =
-                                Carrier::from_observable(remote_sv.constellation, remote_observable)
-                            {
-                                let key = BufKey {
-                                    t: *remote_t,
-                                    sv: *remote_sv,
-                                    carrier: remote_carrier,
-                                };
-                                let remote_rtk_carrier = cast_rtk_carrier(remote_carrier);
-                                if *remote_t == t && *remote_sv == sv && remote_carrier == carrier {
-                                    // TODO (SNR)
-                                    return Some(RTKObservation::pseudo_range(
-                                        remote_rtk_carrier,
-                                        remote_obs.obs,
-                                        None,
-                                    ));
-                                } else {
-                                    self.buffer.insert(key, remote_obs.obs);
-                                }
-                            }
-                        }
-                    }
+        } else {
+            // consume remote site, save data if they do not match,
+            // return on matching success
+
+            while let Some((k, signal)) = self.iter.next() {
+                // discards invalid observations, which should not exist anyway
+                let remote_carrier =
+                    Carrier::from_observable(signal.sv.constellation, &signal.observable);
+                if remote_carrier.is_err() {
+                    continue;
+                }
+
+                let remote_carrier = remote_carrier.unwrap();
+
+                // Build unique identifier
+                let key = BufKey {
+                    t: k.epoch,
+                    sv: signal.sv,
+                    carrier,
+                };
+
+                if k.epoch == t && signal.sv == sv && remote_carrier == carrier {
+                    // perfect match
+                    ret = Some(RTKObservation::pseudo_range(
+                        rtk_carrier,
+                        signal.value,
+                        None,
+                    ));
+                } else {
+                    // save
+                    self.buffer.insert(key, signal.value);
                 }
             }
         }
+
         self.buffer.retain(|k, _| k.t >= t);
         ret
     }

@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-};
+use std::{collections::BTreeMap, io::Write};
 
 use crate::cli::Context;
 
@@ -22,7 +19,6 @@ use kml::{
 };
 
 extern crate geo_types;
-use geo_types::Point as GeoPoint;
 
 #[derive(Debug, Error)]
 pub enum Error {

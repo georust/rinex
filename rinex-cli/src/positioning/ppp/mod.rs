@@ -9,7 +9,7 @@ use crate::{
 
 use std::{cell::RefCell, collections::BTreeMap};
 
-use rinex::{carrier::Carrier, observation::LliFlags};
+use rinex::prelude::{Carrier, LliFlags};
 
 mod report;
 pub use report::Report;
@@ -29,23 +29,18 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
+    // returned solutions
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
-    // infaillible, at this point
+    // infaillible at this point
     let obs_data = ctx.data.observation().unwrap();
 
-    // Optional remote reference site
+    // TODO: Optional remote reference site
     // let rtk_compatible = ctx.rtk_compatible();
     // let remote_site = ctx.reference_site.as_ref();
 
-    for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
+    for (key, signal) in obs_data.signal_ok_iter() {
         let mut candidates = Vec::<Candidate>::with_capacity(4);
-
-        if !flag.is_ok() {
-            // TODO: flag.is_nok
-            warn!("{}: aborting epoch on {} event", t, flag);
-            continue;
-        }
 
         for (sv, rinex_obs) in vehicles {
             let mut observations = Vec::<Observation>::new();
@@ -111,6 +106,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                     }
                 }
             }
+
             // create [Candidate]
             let mut candidate = Candidate::new(*sv, *t, observations.clone());
 
