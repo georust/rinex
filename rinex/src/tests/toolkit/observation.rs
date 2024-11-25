@@ -150,9 +150,9 @@ pub fn generic_observation_rinex_test(
     let expected = gnss_from_csv(gnss_csv);
     assert_eq!(content, expected);
 
-    // // Self - Self should be 0
-    // let null_dut = dut.substract(&dut);
-    // generic_null_rinex_test(null_dut);
+    // Self - Self should be 0
+    let null_dut = dut.substract(&dut);
+    generic_null_rinex_test(null_dut);
 
     // Check against provided model
     if let Some(model) = model {

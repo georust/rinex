@@ -66,7 +66,7 @@ mod tests;
 use std::{
     collections::{BTreeMap, HashMap},
     fs::File,
-    io::{BufReader, Read},
+    io::{BufReader, BufWriter, Read, Write},
     path::Path,
     str::FromStr,
 };
@@ -867,6 +867,13 @@ impl Rinex {
         })
     }
 
+    /// Format [RINEX] into writable I/O using efficient buffered writer
+    /// and following standard specifications. The revision to be followed is defined
+    /// in [Header] section. This is the mirror operation of [Self::parse].
+    pub fn format<W: Write>(&self, writer: &mut BufWriter<W>) -> Result<usize, FormattingError> {
+        self.record.format(writer)
+    }
+
     /// Parses [RINEX] from local file.
     /// Will panic if provided file does not exist or is not readable.
     /// If file name follows standard naming conventions, then internal definitions
@@ -897,6 +904,30 @@ impl Rinex {
 
         rinex.prod_attr = file_attributes;
         Ok(rinex)
+    }
+
+    /// Dumps [RINEX] into writable local file (as readable ASCII UTF-8)
+    /// using efficient buffered formatting.
+    /// This is the mirror operation of [Self::from_file].
+    /// Returns total amount of bytes that was generated.
+    /// ```
+    /// // Read a RINEX and dump it without any modifications
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///   .unwrap();
+    /// assert!(rnx.to_file("test.rnx").is_ok());
+    /// ```
+    ///
+    /// Other useful links are in data production contexts:
+    ///   * [Self::standard_filename] to generate a standardized filename
+    ///   * [Self::guess_production_attributes] helps generate standardized filenames for
+    ///     files that do not follow naming conventions
+    pub fn to_file(&self, path: impl AsRef<Path>) -> Result<usize, FormattingError> {
+        let mut fd = File::create(path)?;
+        let mut writer = BufWriter::new(fd);
+        let size = self.format(&mut writer)?;
+        fd.flush()?;
+        Ok(size)
     }
 
     /// Parses [RINEX] from local gzip compressed file.
@@ -1013,27 +1044,6 @@ impl Rinex {
         }
         false
     }
-
-    // /// Writes self into given file.
-    // /// Both header + record will strictly follow RINEX standards.
-    // /// Record: refer to supported RINEX types.
-    // /// ```
-    // /// // Read a RINEX and dump it without any modifications
-    // /// use rinex::prelude::*;
-    // /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    // ///   .unwrap();
-    // /// assert!(rnx.to_file("test.rnx").is_ok());
-    // /// ```
-    // /// Other useful links are:
-    // ///   * [Self::standard_filename] to generate a standardized filename
-    // ///   * [Self::guess_production_attributes] helps generate standardized filenames for
-    // ///     files that do not follow naming conventions
-    // pub fn to_file(&self, path: &str) -> Result<(), Error> {
-    //     let mut writer = BufferedWriter::new(path)?;
-    //     write!(writer, "{}", self.header)?;
-    //     self.record.to_file(&self.header, &mut writer)?;
-    //     Ok(())
-    // }
 }
 
 /*
@@ -1571,6 +1581,48 @@ impl Rinex {
                 .into_iter()
                 .flat_map(|record| record.iter()),
         )
+    }
+
+    /// Modifies [Rinex] in place with observation differentiation
+    /// using the remote (RHS) counterpart,
+    /// for each identical signal and signal source.
+    /// This only applies to Observation or DORIS RINEX and has no
+    /// effect on any other formats.
+    /// This is particularly useful in exotic setup, to compare
+    /// phase observations of two GNSS receivers, especially when
+    /// sharing the same clock (spread / shared signal)
+    pub fn substract_mut(&mut self, rhs: &Self) {
+        if let Some(rhs) = rhs.record.as_obs() {
+            if let Some(rec) = self.record.as_mut_obs() {
+                for (k, v) in rec.iter_mut() {
+                    if let Some(rhs) = rhs.get(&k) {
+                        for signal in v.signals.iter_mut() {
+                            if let Some(rhs) = rhs
+                                .signals
+                                .iter()
+                                .filter(|sig| {
+                                    sig.observable == signal.observable && sig.sv == sig.sv
+                                })
+                                .reduce(|k, _| k)
+                            {
+                                signal.value -= rhs.value;
+                            }
+                        }
+                    }
+                }
+            }
+        } else if let Some(rhs) = rhs.record.as_doris() {
+            if let Some(rec) = self.record.as_mut_doris() {}
+        }
+    }
+
+    /// Copies and returns new [Rinex] that is the result
+    /// of observation differentiation. See [Self::substract_mut] for more
+    /// information.
+    pub fn substract(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.substract_mut(rhs);
+        s
     }
 }
 
