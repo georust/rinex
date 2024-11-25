@@ -3,11 +3,15 @@ pub mod record;
 
 pub use record::{ClockKey, ClockProfile, ClockProfileType, ClockType, Record};
 
-use crate::version::Version;
-use hifitime::TimeScale;
-use std::str::FromStr;
+use std::{
+    str::FromStr,
+    io::{BufWriter, Write},
+};
 
-use crate::prelude::DOMES;
+use crate::{
+    fmt_rinex,
+    prelude::{DOMES, Version, TimeScale, FormattingError},
+};
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -86,36 +90,78 @@ impl WorkClock {
 }
 
 impl HeaderFields {
+
+    /// Formats [HeaderFields] into [BufWriter].
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+
+        write!(w, "{:6}", self.codes.len())?;
+
+        for (nth, code) in self.codes.iter().enumerate() {
+            write!(
+                w,
+                "{:6}", code,
+            )?;
+
+            if nth % 9 == 8 {
+                writeln!(w, "# / TYPES OF DATA\n      ")?;
+            }
+        }
+
+        // possible timescale
+        if let Some(ts) = self.timescale {
+            writeln!(
+                w,
+                "{}",
+                fmt_rinex(&format!("   {:x}", ts), "TIME SYSTEM ID")
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Defines a new [WorkClock]
     pub(crate) fn work_clock(&self, clk: WorkClock) -> Self {
         let mut s = self.clone();
         s.work_clock.push(clk);
         s
     }
+
+    /// Defines [TimeScale]
     pub(crate) fn timescale(&self, ts: TimeScale) -> Self {
         let mut s = self.clone();
         s.timescale = Some(ts);
         s
     }
+
+    /// Defines clock site
     pub(crate) fn site(&self, site: &str) -> Self {
         let mut s = self.clone();
         s.site = Some(site.to_string());
         s
     }
+
+    /// Defines [DOMES] site number
     pub(crate) fn domes(&self, domes: DOMES) -> Self {
         let mut s = self.clone();
         s.domes = Some(domes);
         s
     }
+
+    /// Defines IGS special code
     pub(crate) fn igs(&self, igs: &str) -> Self {
         let mut s = self.clone();
         s.igs = Some(igs.to_string());
         s
     }
+
+    /// Defines clock site full name
     pub(crate) fn full_name(&self, name: &str) -> Self {
         let mut s = self.clone();
         s.full_name = Some(name.to_string());
         s
     }
+
+    /// Defines site reference clock
     pub(crate) fn refclock(&self, clk: &str) -> Self {
         let mut s = self.clone();
         s.ref_clock = Some(clk.to_string());

@@ -5,7 +5,9 @@ pub use record::Record;
 pub mod sensor;
 use sensor::Sensor;
 
-use crate::Observable;
+use std::io::{BufWriter, Write};
+
+use crate::prelude::{FormattingError, Observable};
 
 #[cfg(feature = "processing")]
 use std::str::FromStr;
@@ -24,6 +26,26 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
+
+    /// Formats [HeaderFields] into [BufWriter].
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+            
+        write!(w, "{:6}", self.codes.len())?;
+
+        for (nth, observable) in self.codes.iter().enumerate() {
+            if (nth % 9) == 8 {
+                write!(w, "# / TYPES OF OBSERV\n      ")?;
+            }
+            write!(w, "    {}", observable)?;
+        }
+
+        for sensor in self.sensors.iter() {
+            writeln!(w, "{}", sensor)?;
+        }
+
+        Ok(())
+    }
+
     #[cfg(feature = "processing")]
     pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
         match f.operand {

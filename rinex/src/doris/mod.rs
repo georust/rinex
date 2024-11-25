@@ -1,9 +1,14 @@
-use std::collections::HashMap;
+//! DORIS module
 use thiserror::Error;
 
 use crate::{
     observable::Observable,
-    prelude::{Duration, Epoch},
+    prelude::{Duration, Epoch, FormattingError},
+};
+
+use std::{
+    io::{BufWriter, Write},
+    collections::HashMap,
 };
 
 use gnss_rs::domes::Error as DomesParsingError;
@@ -58,6 +63,13 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
+
+    /// Formats [HeaderFields] into [BufWriter].
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        Ok(())
+    }
+
+
     // /// Retrieve station by ID#
     // pub(crate) fn get_station(&mut self, id: u16) -> Option<&Station> {
     //     self.stations

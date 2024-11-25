@@ -265,37 +265,6 @@ impl Header {
 }
 
 impl std::fmt::Display for Header {
-    /// `Header` formatter, mainly for RINEX file production purposes
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // start with CRINEX attributes, if need be
-        if let Some(obs) = &self.obs {
-            if let Some(crinex) = &obs.crinex {
-                writeln!(f, "{}", crinex)?;
-            }
-        }
-
-        self.fmt_rinex_version_type(f)?;
-        self.fmt_comments(f)?;
-
-        // PGM / RUN BY / DATE
-        writeln!(
-            f,
-            "{}",
-            fmt_rinex(
-                &format!("{:<20}{:<20}{:<20}", self.program, self.run_by, self.date),
-                "PGM / RUN BY / DATE"
-            )
-        )?;
-
-        // OBSERVER / AGENCY
-        writeln!(
-            f,
-            "{}",
-            fmt_rinex(
-                &format!("{:<20}{}", self.observer, self.agency),
-                "OBSERVER /AGENCY"
-            )
-        )?;
 
         if let Some(marker) = &self.geodetic_marker {
             writeln!(f, "{}", fmt_rinex(&marker.name, "MARKER NAME"))?;
@@ -358,14 +327,6 @@ impl std::fmt::Display for Header {
                 )
             )?;
         }
-        // INTERVAL
-        if let Some(interval) = &self.sampling_interval {
-            writeln!(
-                f,
-                "{}",
-                fmt_rinex(&format!("{:6}", interval.to_seconds()), "INTERVAL")
-            )?;
-        }
 
         // LEAP
         if let Some(leap) = &self.leap {
@@ -388,14 +349,5 @@ impl std::fmt::Display for Header {
             ));
             write!(f, "{}", line)?
         }
-
-        // RINEX Type dependent header
-        self.fmt_rinex_dependent(f)?;
-
-        //TODO
-        // things that could be nice to squeeze in:
-        // [+] SBAS contained (detailed vehicles)
-        // [+] RINEX 3 -> 2 observables conversion (see OBS/V2/rovn as an example)
-        writeln!(f, "{}", fmt_rinex("", "END OF HEADER"))
     }
 }

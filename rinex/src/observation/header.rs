@@ -1,11 +1,16 @@
 //! Observation Record specific header fields
 
 use crate::{
+    fmt_rinex,
     hatanaka::CRINEX,
-    prelude::{Constellation, Epoch, Observable, TimeScale},
+    prelude::{Constellation, Epoch, Observable, TimeScale, FormattingError},
 };
 
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::HashMap, 
+    io::{BufWriter, Write},
+    str::FromStr,
+};
 
 #[cfg(feature = "processing")]
 use itertools::Itertools;
@@ -34,27 +39,71 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
+
+    /// Formats [HeaderFields] into [BufWriter].
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>, major: u8) -> Result<(), FormattingError> {
+        match major {
+            1 | 2 => {
+                if let Some((_constell, observables)) = self.codes.iter().next() {
+                    write!(w, "{:6}", observables.len())?;
+                    for (nth, observable) in observables.iter().enumerate() {
+                        if (nth % 9) == 8 {
+                            write!(w, "# / TYPES OF OBSERV\n      ")?;
+                        }
+                        write!(w, "    {}", observable)?;
+                    }
+                }
+            },
+            _ => {
+                for (constell, observables) in &self.codes {
+                    write!(
+                        w,
+                        "{:x}{:5}",
+                        constell,
+                        observables.len(),
+                    )?;
+                    for (nth, observable) in observables.iter().enumerate() {
+                        if (nth % 13) == 12 {
+                            write!(w, "SYS / # / OBS TYPES\n        ")?;
+                        }
+                        write!(w, " {}", observable)?;
+                    }
+                }
+            },
+        }
+
+        // must take place after list of observables:
+        //  TODO DCBS compensations
+        //  TODO PCVs compensations
+
+        Ok(())
+    }
+
     /// Add "TIME OF FIRST OBS" field
     pub(crate) fn with_timeof_first_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
         s.timeof_first_obs = Some(epoch);
         s
     }
+
     /// Add "TIME OF LAST OBS" field
     pub(crate) fn with_timeof_last_obs(&self, epoch: Epoch) -> Self {
         let mut s = self.clone();
         s.timeof_last_obs = Some(epoch);
         s
     }
+
     /// Insert a data scaling
     pub(crate) fn with_scaling(&mut self, c: Constellation, observable: Observable, scaling: u16) {
         self.scaling.insert((c, observable.clone()), scaling);
     }
+
     /// Returns given scaling to apply for given GNSS system
     /// and given observation. Returns 1.0 by default, so it always applies
     pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
         self.scaling.get(&(c, observable))
     }
+
 }
 
 impl HeaderFields {

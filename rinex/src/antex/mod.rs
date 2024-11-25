@@ -13,6 +13,10 @@ pub use antenna::{
 
 pub use record::{FrequencyDependentData, Record};
 
+use crate::prelude::FormattingError;
+
+use std::io::{BufWriter, Write};
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -27,12 +31,19 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
+
+    /// Formats [HeaderFields] into [BufWriter].
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        Ok(())
+    }
+
     /// Set Phase Center Variations type
     pub fn with_pcv_type(&self, pcv: Pcv) -> Self {
         let mut s = self.clone();
         s.pcv_type = pcv;
         s
     }
+
     /// Sets Reference Antenna serial number
     pub fn with_reference_antenna_sn(&self, sn: &str) -> Self {
         let mut s = self.clone();

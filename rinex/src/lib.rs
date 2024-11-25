@@ -72,7 +72,6 @@ use std::{
 };
 
 use itertools::Itertools;
-use thiserror::Error;
 
 use antex::{Antenna, AntennaMatcher, AntennaSpecific, FrequencyDependentData};
 use doris::record::ObservationData as DorisObservationData;
@@ -308,13 +307,6 @@ pub struct Rinex {
      * parsed from files that follow stadard naming conventions
      */
     prod_attr: Option<ProductionAttributes>,
-}
-
-#[derive(Error, Debug)]
-/// `RINEX` Parsing related errors
-pub enum Error {
-    #[error("file i/o error")]
-    IoError(#[from] std::io::Error),
 }
 
 impl Rinex {
@@ -870,8 +862,10 @@ impl Rinex {
     /// Format [RINEX] into writable I/O using efficient buffered writer
     /// and following standard specifications. The revision to be followed is defined
     /// in [Header] section. This is the mirror operation of [Self::parse].
-    pub fn format<W: Write>(&self, writer: &mut BufWriter<W>) -> Result<usize, FormattingError> {
-        self.record.format(writer)
+    pub fn format<W: Write>(&self, writer: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        self.record.format(writer, &self.header)?;
+        writer.flush()?;
+        Ok(())
     }
 
     /// Parses [RINEX] from local file.
@@ -922,12 +916,11 @@ impl Rinex {
     ///   * [Self::standard_filename] to generate a standardized filename
     ///   * [Self::guess_production_attributes] helps generate standardized filenames for
     ///     files that do not follow naming conventions
-    pub fn to_file(&self, path: impl AsRef<Path>) -> Result<usize, FormattingError> {
-        let mut fd = File::create(path)?;
+    pub fn to_file(&self, path: impl AsRef<Path>) -> Result<(), FormattingError> {
+        let fd = File::create(path)?;
         let mut writer = BufWriter::new(fd);
-        let size = self.format(&mut writer)?;
-        fd.flush()?;
-        Ok(size)
+        self.format(&mut writer)?;
+        Ok(())
     }
 
     /// Parses [RINEX] from local gzip compressed file.
@@ -958,6 +951,31 @@ impl Rinex {
         let mut rinex = Rinex::parse(&mut reader)?;
         rinex.prod_attr = file_attributes;
         Ok(rinex)
+    }
+
+    /// Dumps and gzip encodes [RINEX] into writable local file,
+    /// using efficient buffered formatting.
+    /// This is the mirror operation of [Self::from_gzip_file].
+    /// Returns total amount of bytes that was generated.
+    /// ```
+    /// // Read a RINEX and dump it without any modifications
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///   .unwrap();
+    /// assert!(rnx.to_file("test.rnx").is_ok());
+    /// ```
+    ///
+    /// Other useful links are in data production contexts:
+    ///   * [Self::standard_filename] to generate a standardized filename
+    ///   * [Self::guess_production_attributes] helps generate standardized filenames for
+    ///     files that do not follow naming conventions
+    #[cfg(feature = "flate2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
+    pub fn to_gzip_file(&self, path: impl AsRef<Path>) -> Result<(), FormattingError> {
+        let  fd = File::create(path)?;
+        let mut writer = BufWriter::new(fd);
+        let size = self.format(&mut writer)?;
+        Ok(())
     }
 
     /// Returns true if this is an ATX RINEX
@@ -1471,7 +1489,7 @@ impl Rinex {
         if self.is_observation_rinex() {
             Box::new(
                 self.signal_observations_iter()
-                    .map(|(k, v)| &v.observable)
+                    .map(|(_, v)| &v.observable)
                     .unique(),
             )
         } else if let Some(record) = self.record.as_meteo() {

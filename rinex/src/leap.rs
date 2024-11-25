@@ -1,5 +1,5 @@
 //! Leap second described in Header
-use crate::prelude::{ParsingError, TimeScale};
+use crate::{prelude::{ParsingError, TimeScale}, FormattingError};
 
 /// `Leap` to describe leap seconds.
 /// GLO = UTC = GPS - ΔtLS   
@@ -22,6 +22,30 @@ pub struct Leap {
 }
 
 impl Leap {
+
+
+    // Format [Leap] into [BufWrite]
+    pub fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        let mut line = String::new();
+        line.push_str(&format!("{:6}", leap.leap));
+        if let Some(delta) = &leap.delta_tls {
+            line.push_str(&format!("{:6}", delta));
+            line.push_str(&format!("{:6}", leap.week.unwrap_or(0)));
+            line.push_str(&format!("{:6}", leap.day.unwrap_or(0)));
+            if let Some(timescale) = &leap.timescale {
+                line.push_str(&format!("{:<10}", timescale));
+            } else {
+                line.push_str(&format!("{:<10}", ""));
+            }
+        }
+        line.push_str(&format!(
+            "{:>width$}",
+            "LEAP SECONDS\n",
+            width = 73 - line.len()
+        ));
+        write!(f, "{}", line)?
+    }
+
     // Copy and assign Delta [TLS]
     pub fn with_delta_tls(&self, delta_tls: u32) -> Self {
         let mut s = self.clone();

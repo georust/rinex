@@ -1,6 +1,4 @@
 //! IONEX module
-use crate::prelude::{Epoch, ParsingError, SV};
-use std::collections::HashMap;
 
 #[cfg(feature = "processing")]
 use crate::prelude::TimeScale;
@@ -20,6 +18,19 @@ use serde::Serialize;
 
 #[cfg(feature = "processing")]
 use qc_traits::{FilterItem, MaskFilter, MaskOperand};
+
+use crate::{
+    prelude::{
+        Epoch, ParsingError, SV,
+        FormattingError,
+    },
+    fmt_rinex,
+};
+
+use std::{
+    collections::HashMap,
+    io::{BufWriter, Write},
+};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -123,6 +134,91 @@ impl Default for HeaderFields {
 }
 
 impl HeaderFields {
+
+    /// Formats [HeaderFields] into [BufWriter].
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(&format!("{:6}", self.map_dimension), "MAP DIMENSION")
+        )?;
+
+        // altitude grid
+        let (start, end, spacing) = (
+            self.grid.height.start,
+            self.grid.height.end,
+            self.grid.height.spacing,
+        );
+
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(
+                &format!("{} {} {}", start, end, spacing),
+                "HGT1 / HGT2 / DHGT"
+            )
+        )?;
+
+        // latitude grid
+        let (start, end, spacing) = (
+            self.grid.latitude.start,
+            self.grid.latitude.end,
+            self.grid.latitude.spacing,
+        );
+
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(
+                &format!("{} {} {}", start, end, spacing),
+                "LAT1 / LAT2 / DLAT"
+            )
+        )?;
+
+        // longitude grid
+        let (start, end, spacing) = (
+            self.grid.longitude.start,
+            self.grid.longitude.end,
+            self.grid.longitude.spacing,
+        );
+
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(
+                &format!("{} {} {}", start, end, spacing),
+                "LON1 / LON2 / DLON"
+            )
+        )?;
+
+        // elevation cutoff
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(&format!("{}", self.elevation_cutoff), "ELEVATION CUTOFF")
+        )?;
+
+        // mapping func
+        if let Some(func) = &self.mapping {
+            writeln!(
+                w,
+                "{}",
+                fmt_rinex(&format!("{:?}", func), "MAPPING FUNCTION")
+            )?;
+        } else {
+            writeln!(w, "{}", fmt_rinex("NONE", "MAPPING FUNCTION"))?;
+        }
+
+        // time of first map
+        writeln!(w, "{}", fmt_rinex("TODO", "EPOCH OF FIRST MAP"))?;
+
+        // time of last map
+        writeln!(w, "{}", fmt_rinex("TODO", "EPOCH OF LAST MAP"))?;
+
+        Ok(())
+    }
+
     /// Copies self with given time of first map
     pub fn with_epoch_of_first_map(&self, t: Epoch) -> Self {
         let mut s = self.clone();

@@ -1,8 +1,9 @@
 //! OBS RINEX formatting
 use crate::{
-    epoch::format as epoch_format,
-    prelude::{ClockObservation, Constellation, Header, ObsKey, RinexType, SignalObservation},
+    epoch::format as epoch_format, observation::Record, prelude::{SV, ClockObservation, Header, ObsKey, RinexType}, FormattingError
 };
+
+use std::io::{Write, BufWriter};
 
 #[cfg(feature = "log")]
 use log::error;
@@ -17,188 +18,174 @@ use itertools::Itertools;
 /// - signals: [SignalObservation]s
 /// ## Returns
 /// - formatter string according to standard specifications
-pub fn fmt_observations(
-    major: u8,
-    header: &Header,
-    key: &ObsKey,
-    clock: &Option<ClockObservation>,
-    signals: Vec<SignalObservation>,
-) -> String {
-    if major < 3 {
-        fmt_observations_v2(header, key, clock, signals)
+pub fn format<W: Write>(w: &mut BufWriter<W>, record: &Record, header: &Header) -> Result<(), FormattingError> {
+    if header.version.major < 3 {
+        format_v2(w, header, record)
     } else {
-        fmt_observations_v3(header, key, clock, signals)
+        format_v3(w, header, record)
     }
 }
 
-fn fmt_observations_v3(
-    header: &Header,
-    key: &ObsKey,
-    clock: &Option<ClockObservation>,
-    signals: Vec<SignalObservation>,
-) -> String {
-    const EMPTY_FIELD: &str = "                ";
-
-    let mut lines = String::with_capacity(128);
-
-    let observables = &header.obs.as_ref().expect("missing observable specs").codes;
-
-    let unique_sv = signals
-        .iter()
-        .map(|sig| sig.sv)
-        .unique()
-        .collect::<Vec<_>>();
-
-    let num_sat = unique_sv.len();
-
-    lines.push_str(&format!(
-        "> {}  {} {:2}",
-        epoch_format(key.epoch, RinexType::ObservationData, 3),
-        key.flag,
-        num_sat,
-    ));
+fn format_epoch_v3<W: Write>(
+    w: &mut BufWriter<W>,
+    k: &ObsKey,
+    sv_list: &[SV],
+    clock: Option<ClockObservation>,
+) -> Result<(), FormattingError> {
+    
+    let numsat = sv_list.len();
 
     if let Some(clock) = clock {
-        lines.push_str(&format!("{:13.4}", clock.offset_s));
+        write!(
+            w, 
+            "> {}  {} {:2}",
+            epoch_format(k.epoch, RinexType::ObservationData, 3),
+            k.flag,
+            numsat,
+        )?;
+    } else {
+        write!(
+            w,
+            "> {}  {} {:2}",
+            epoch_format(k.epoch, RinexType::ObservationData, 3),
+            k.flag,
+            numsat,
+        )?;
     }
 
-    lines.push('\n');
-
-    for (nth_sv, sv) in unique_sv.iter().enumerate() {
-        // retrieve observable specs
-        let observables = if sv.constellation.is_sbas() {
-            observables.get(&Constellation::SBAS)
-        } else {
-            observables.get(&sv.constellation)
-        };
-
-        if observables.is_none() {
-            #[cfg(feature = "log")]
-            error!("{}: missing obs specs", sv);
-            continue;
-        }
-
-        lines.push_str(&sv.to_string());
-
-        let observables = observables.unwrap();
-
-        for observable in observables {
-            if let Some(signal) = signals
-                .iter()
-                .filter(|sig| sig.sv == *sv && &sig.observable == observable)
-                .reduce(|k, _| k)
-            {
-                lines.push_str(&format!("{:14.3}", signal.value));
-                if let Some(lli) = signal.lli {
-                    lines.push_str(&format!("{}", lli.bits()));
-                } else {
-                    lines.push(' ');
-                }
-                if let Some(snr) = signal.snr {
-                    lines.push_str(&format!("{:x}", snr));
-                } else {
-                    lines.push(' ');
-                }
-            } else {
-                lines.push_str(EMPTY_FIELD);
-            }
-        }
-
-        if nth_sv < num_sat - 1 {
-            lines.push('\n');
-        }
-    }
-    lines
+    Ok(())
 }
 
-fn fmt_observations_v2(
+fn format_v3<W: Write>(
+    w: &mut BufWriter<W>,
     header: &Header,
-    key: &ObsKey,
-    clock: &Option<ClockObservation>,
-    signals: Vec<SignalObservation>,
-) -> String {
-    const NUM_SV_PER_LINE: usize = 12;
-    const OBSERVATION_PER_LINE: usize = 5;
-    const END_OF_LINE_PADDING: &str = "\n                                ";
+    record: &Record,
+) -> Result<(), FormattingError> {
 
-    let mut lines = String::with_capacity(128);
+    const NUM_SV_PER_LINE: usize = 12;
+    const OBSERVATIONS_PER_LINE: usize = 5;
+    const END_OF_LINE_PADDING: &str = "\n                                ";
 
     let observables = &header
         .obs
         .as_ref()
-        .expect("bad rinex: not observable definitions")
+        .ok_or(FormattingError::UndefinedObservables)?
         .codes;
 
-    let unique_sv = signals.iter().map(|sig| sig.sv).collect::<Vec<_>>();
+    for (k, v) in record.iter() {
 
-    let num_sat = unique_sv.len();
+        // retrieve unique sv list
+        let sv_list = v.signals
+            .iter()
+            .map(|k| k.sv)
+            .unique()
+            .sorted()
+            .collect::<Vec<_>>();
 
-    lines.push_str(&format!(
-        " {}  {} {:2}",
-        epoch_format(key.epoch, RinexType::ObservationData, 2),
-        key.flag,
-        num_sat,
-    ));
+        // encode new epoch
+        format_epoch_v3(w, k,  &sv_list, v.clock)?;
 
-    // format the systems line
-    let mut index = 0;
-    for (nth_sv, sv) in unique_sv.iter().enumerate() {
-        if index == NUM_SV_PER_LINE {
-            index = 0;
-            if nth_sv == 12 {
-                // first line: append Clock (if any)
-                if let Some(clock) = clock {
-                    // push clock offsets
-                    lines.push_str(&format!(" {:9.1}", clock.offset_s));
-                }
-            }
+        // by sorted SV     
+        for sv in sv_list.iter() {
 
-            lines.push_str(END_OF_LINE_PADDING);
-        }
-
-        lines.push_str(&format!(" {:x}", sv));
-        index += 1;
-    }
-
-    for (nth_sv, sv) in unique_sv.iter().enumerate() {
-        // retrieve header specs
-        let observables = if sv.constellation.is_sbas() {
-            observables.get(&Constellation::SBAS)
-        } else {
-            observables.get(&sv.constellation)
-        };
-
-        if observables.is_none() {
-            #[cfg(feature = "log")]
-            error!("{}: missing obs specs", sv.constellation);
-            continue;
-        }
-
-        let observables = observables.unwrap();
-
-        for (nth_obs, observable) in observables.iter().enumerate() {
-            if nth_obs % OBSERVATION_PER_LINE == 0 {
-                lines.push('\n');
-            }
-            if let Some(signal) = signals
-                .iter()
-                .filter(|sig| sig.sv == *sv && &sig.observable == observable)
-                .reduce(|k, _| k)
-            {
-                lines.push_str(&format!("{:14.3}", signal.value));
-                if let Some(lli) = signal.lli {
-                    lines.push_str(&format!("{:x}", lli.bits()));
+            // following header definition
+            let observables = observables.get(&sv.constellation)
+                .ok_or(FormattingError::MissingObservableDefinition)?;
+            
+            for observable in observables.iter() {
+                if let Some(observation) = v.signals
+                    .iter()
+                    .filter(|sig| sig.observable == *observable)
+                    .reduce(|k, _| k)
+                {
+                    
                 } else {
-                    lines.push(' ');
+                    // Blanking
                 }
-                if let Some(snr) = signal.snr {
-                    lines.push_str(&format!("{:x}", snr));
-                } else {
-                    lines.push(' ');
-                }
-            } else {
             }
         }
     }
-    lines
+    Ok(())
+}
+
+fn format_epoch_v2<W: Write>(
+    w: &mut BufWriter<W>,
+    k: &ObsKey,
+    sv_list: &[SV],
+    clock: Option<ClockObservation>,
+) -> Result<(), FormattingError> {
+    
+    let numsat = sv_list.len();
+
+    if let Some(clock) = clock {
+        write!(
+            w,
+            " {}  {} {:2}",
+            epoch_format(k.epoch, RinexType::ObservationData, 2),
+            k.flag,
+            numsat,
+        )?;
+    } else {
+        write!(
+            w,
+            " {}  {} {:2}",
+            epoch_format(k.epoch, RinexType::ObservationData, 2),
+            k.flag,
+            numsat,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn format_v2<W: Write>(
+    w: &mut BufWriter<W>,
+    header: &Header,
+    record: &Record,
+) -> Result<(), FormattingError> {
+
+    const NUM_SV_PER_LINE: usize = 12;
+    const OBSERVATIONS_PER_LINE: usize = 5;
+    const END_OF_LINE_PADDING: &str = "\n                                ";
+
+    let observables = &header
+        .obs
+        .as_ref()
+        .ok_or(FormattingError::UndefinedObservables)?
+        .codes;
+
+    for (k, v) in record.iter() {
+
+        // retrieve unique sv list
+        let sv_list = v.signals
+            .iter()
+            .map(|k| k.sv)
+            .unique()
+            .sorted()
+            .collect::<Vec<_>>();
+
+        // encode new epoch
+        format_epoch_v2(w, k,  &sv_list, v.clock)?;
+
+        // by sorted SV     
+        for sv in sv_list.iter() {
+
+            // following header definition
+            let observables = observables.get(&sv.constellation)
+                .ok_or(FormattingError::MissingObservableDefinition)?;
+            
+            for observable in observables.iter() {
+                if let Some(observation) = v.signals
+                    .iter()
+                    .filter(|sig| sig.observable == *observable)
+                    .reduce(|k, _| k)
+                {
+                    
+                } else {
+                    // Blanking
+                }
+            }
+        }
+    }
+    Ok(())
 }

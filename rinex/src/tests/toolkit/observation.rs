@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    observation::{fmt_observations, parse_epoch, HeaderFields},
+    observation::{parse_epoch, HeaderFields},
     prelude::{
         ClockObservation, Constellation, Epoch, EpochFlag, GeodeticMarker, GroundPosition, Header,
         ObsKey, Observable, Observations, Rinex, RinexType, SignalObservation, Version, SV,
@@ -152,7 +152,7 @@ pub fn generic_observation_rinex_test(
 
     // Self - Self should be 0
     let null_dut = dut.substract(&dut);
-    generic_null_rinex_test(null_dut);
+    generic_null_rinex_test(&null_dut);
 
     // Check against provided model
     if let Some(model) = model {
@@ -256,23 +256,4 @@ pub fn generic_observation_epoch_decoding_test(
     assert_eq!(obs.signals.len(), num_signals);
 
     // TODO: test data points
-
-    // reciprocal:
-    // RINEX format being a little flexible, there's high probability we don't match perfectly
-    // and cannot compare both strings together.
-    // So the test consists in parsing back what we just formatted, and the results must match exactly.
-    let signals = obs.signals.clone();
-
-    let mut parsed_back_obs = Observations::default();
-
-    let formatted = fmt_observations(3, &header, &key, &None, signals);
-    // TODO
-    // let key = parse_epoch(&header, &formatted, ts, &mut parsed_back_obs).unwrap();
-
-    // assert_eq!(key.epoch, key_epoch);
-    // assert_eq!(key.flag, key_flag);
-    // assert_eq!(parsed_back_obs.clock, clock);
-    // assert_eq!(parsed_back_obs.signals.len(), num_signals);
-    // TODO!
-    // assert_eq!(parsed_back_obs, obs);
 }

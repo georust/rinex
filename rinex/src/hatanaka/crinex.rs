@@ -2,31 +2,13 @@
 use crate::{
     epoch::now as epoch_now_utc,
     epoch::parse_formatted_month,
-    prelude::{Epoch, ParsingError, Version},
+    prelude::{Epoch, FormattingError, ParsingError, Version},
 };
+
+use std::io::{BufWriter, Write};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-
-/// Formats 1 to "Jan" and so on..
-macro_rules! fmt_algebric_month {
-    ($m: expr) => {
-        match $m {
-            1 => "Jan",
-            2 => "Feb",
-            3 => "Mar",
-            4 => "Apr",
-            5 => "May",
-            6 => "Jun",
-            7 => "Jul",
-            8 => "Aug",
-            9 => "Sep",
-            10 => "Oct",
-            11 => "Nov",
-            _ => "Dec",
-        }
-    };
-}
 
 /// CRINEX specifications
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
@@ -41,24 +23,73 @@ pub struct CRINEX {
 }
 
 impl CRINEX {
-    /// Sets compression algorithm revision
+    /// Formats [CRINEX] into [BufWriter]
+    pub fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        write!(w, "{:<width$}", self.version, width = 20)?;
+        write!(w, "{:<width$}", "COMPACT RINEX FORMAT", width = 20)?;
+
+        writeln!(
+            w,
+            "{value:<width$} CRINEX VERS   / TYPE",
+            value = "",
+            width = 19
+        )?;
+
+        write!(w, "{:<width$}", self.prog, width = 20)?;
+        write!(w, "{:20}", "")?;
+
+        let (y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
+
+        let formatted_month = match m {
+            1 => "Jan",
+            2 => "Feb",
+            3 => "Mar",
+            4 => "Apr",
+            5 => "May",
+            6 => "Jun",
+            7 => "Jul",
+            8 => "Aug",
+            9 => "Sep",
+            10 => "Oct",
+            11 => "Nov",
+            _ => "Dec",
+        };
+
+        let date = format!(
+            "{:02}-{}-{} {:02}:{:02}",
+            d,
+            formatted_month,
+            y - 2000,
+            hh,
+            mm
+        );
+        write!(w, "{:<width$}", date, width = 20)?;
+        writeln!(w, "CRINEX PROG / DATE")?;
+
+        Ok(())
+    }
+
+    /// Defines compression algorithm revision
     pub fn with_version(&self, version: Version) -> Self {
         let mut s = self.clone();
         s.version = version;
         s
     }
-    /// Sets compression program name
+
+    /// Defines compression program name
     pub fn with_prog(&self, prog: &str) -> Self {
         let mut s = self.clone();
         s.prog = prog.to_string();
         s
     }
-    /// Sets compression date
+
+    /// Defines date of compression
     pub fn with_date(&self, e: Epoch) -> Self {
         let mut s = self.clone();
         s.date = e;
         s
     }
+
     /// Parse and append prog+date fields
     pub(crate) fn with_prog_date(&self, prog_date: &str) -> Result<Self, ParsingError> {
         if prog_date.len() < 60 {
@@ -144,27 +175,6 @@ impl Default for CRINEX {
     }
 }
 
-impl std::fmt::Display for CRINEX {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let version = self.version.to_string();
-        write!(f, "{:<width$}", version, width = 20)?;
-        write!(f, "{:<width$}", "COMPACT RINEX FORMAT", width = 20)?;
-        writeln!(
-            f,
-            "{value:<width$} CRINEX VERS   / TYPE",
-            value = "",
-            width = 19
-        )?;
-        write!(f, "{:<width$}", self.prog, width = 20)?;
-        write!(f, "{:20}", "")?;
-        let (y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
-        let m = fmt_algebric_month!(m);
-        let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y - 2000, hh, mm);
-        write!(f, "{:<width$}", date, width = 20)?;
-        f.write_str("CRINEX PROG / DATE")
-    }
-}
-
 impl std::str::FromStr for CRINEX {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -204,23 +214,10 @@ mod test {
             date: Epoch::from_str("2021-01-02T00:01:00 UTC").unwrap(),
         };
 
-        let formatted = crinex.to_string();
-        let lines = formatted.lines().collect::<Vec<_>>();
+        let content = "3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE
+RNX2CRX ver.4.0.7                       02-Jan-21 00:01     CRINEX PROG / DATE";
 
-        assert_eq!(lines.len(), 2, "formatted CRINEX should span 2 lines");
-
-        assert_eq!(
-            lines[0],
-            "3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE"
-        );
-
-        assert_eq!(
-            lines[1],
-            "RNX2CRX ver.4.0.7                       02-Jan-21 00:01     CRINEX PROG / DATE",
-        );
-
-        // parse back + reciprocal
-        let decoded = CRINEX::from_str(&formatted).unwrap();
+        let decoded = CRINEX::from_str(&content).unwrap();
         assert_eq!(decoded, crinex);
     }
 
@@ -232,45 +229,25 @@ mod test {
             date: Epoch::from_str("2015-10-20T09:08:00 UTC").unwrap(),
         };
 
-        let formatted = crinex.to_string();
-        let lines = formatted.lines().collect::<Vec<_>>();
+        let content =
+            "1.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE
+test                                    20-Oct-15 09:08     CRINEX PROG / DATE";
 
-        assert_eq!(lines.len(), 2, "formatted CRINEX should span 2 lines");
-        assert_eq!(
-            lines[0],
-            "1.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE",
-        );
-
-        assert_eq!(
-            lines[1],
-            "test                                    20-Oct-15 09:08     CRINEX PROG / DATE",
-        );
-
-        // parse back + reciprocal
-        let decoded = CRINEX::from_str(&formatted).unwrap();
+        let decoded = CRINEX::from_str(&content).unwrap();
         assert_eq!(decoded, crinex);
-    }
-
-    #[test]
-    fn test_fmt_month() {
-        assert_eq!(fmt_algebric_month!(1), "Jan");
-        assert_eq!(fmt_algebric_month!(2), "Feb");
-        assert_eq!(fmt_algebric_month!(3), "Mar");
-        assert_eq!(fmt_algebric_month!(10), "Oct");
-        assert_eq!(fmt_algebric_month!(11), "Nov");
-        assert_eq!(fmt_algebric_month!(12), "Dec");
     }
 
     #[test]
     fn test_with_prog_date() {
         let crinex = CRINEX::default();
+
         let crinex = crinex
             .with_prog_date(
                 "RNX2CRX ver.4.0.7                       28-Dec-21 00:17     CRINEX PROG / DATE",
             )
             .unwrap();
 
-        let crinex = crinex
+        let _ = crinex
             .with_prog_date("RNX2CRX ver.4.0.7                       28-Dec-21 00:17     ")
             .unwrap();
     }

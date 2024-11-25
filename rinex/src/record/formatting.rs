@@ -11,11 +11,11 @@ impl Record {
         &self,
         w: &mut BufWriter<W>,
         header: &Header,
-    ) -> Result<usize, FormattingError> {
+    ) -> Result<(), FormattingError> {
         if let Some(rec) = self.as_obs() {
-            format_observations(rec)
+            format_observations(w, rec, header)
         } else {
-            Ok(0)
+            Ok(())
         }
     }
 }

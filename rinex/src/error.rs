@@ -165,6 +165,10 @@ pub enum FormattingError {
     OutputError(#[from] IoError),
     #[error("missing constellation information")]
     NoConstellationDefinition,
+    #[error("undefined observables")]
+    UndefinedObservables,
+    #[error("missing observable definition")]
+    MissingObservableDefinition,
     #[error("nav: unknown radio message")]
     NoNavigationDefinition,
 }
