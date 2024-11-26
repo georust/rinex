@@ -19,22 +19,22 @@ rust-version = "1.64"
 
 [dependencies]
 log = "0.4"
-walkdir = "2.4.0"
+walkdir = "2.5"
 geo-types = "0.7.11"
 env_logger = "0.11"
 serde_json = "1"
-lazy_static = "1.4"
+lazy_static = "1.5"
 thiserror = "1"
 itertools = "0.13"
 map_3d = "0.1.5"
 maud = "0.26"
 
 clap = { version = "4.4.13", features = ["derive", "color"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde = { version = "1", default-features = false, features = ["derive"] }
 
 kml = { version = "0.8", optional = true }
 gpx = { version = "0.10", optional = true }
-csv = { version = "1.3.0", optional = true }
+csv = { version = "1.3", optional = true }
 
 plotly = "0.9"
 # plotly = { path = "../../plotly-rs/plotly" }
