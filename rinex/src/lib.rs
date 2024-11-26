@@ -863,6 +863,7 @@ impl Rinex {
     /// and following standard specifications. The revision to be followed is defined
     /// in [Header] section. This is the mirror operation of [Self::parse].
     pub fn format<W: Write>(&self, writer: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        self.header.format(writer)?;
         self.record.format(writer, &self.header)?;
         writer.flush()?;
         Ok(())
