@@ -1,28 +1,25 @@
-//! Application to generate RINEX data in standard format
-//! using a Ublox receiver.   
+//! Generate RINEX data from U-Blox GNSS receivers.
 //! Homepage: <https://github.com/georust/rinex>
-use std::str::FromStr;
 
 use thiserror::Error;
 
-use rinex::navigation::{IonMessage, KbModel, KbRegionCode};
-use rinex::observation::{LliFlags, ObservationData};
-use rinex::prelude::EpochFlag;
-use rinex::prelude::*;
+use rinex::{
+    hardware::Receiver,
+    navigation::{IonMessage, KbModel, KbRegionCode},
+    prelude::{
+        ClockObservation, Constellation, Duration, Epoch, EpochFlag, Header, LliFlags, Observable,
+        SignalObservation, TimeScale, SV,
+    },
+};
 
 extern crate gnss_rs as gnss;
-
-use gnss::prelude::SV;
-use gnss::sv;
-
 extern crate ublox;
+
 use ublox::{
-    CfgMsgAllPorts, CfgMsgAllPortsBuilder, CfgPrtUart, CfgPrtUartBuilder, DataBits, InProtoMask,
-    OutProtoMask, PacketRef, Parity, StopBits, UartMode, UartPortId,
+    CfgMsgAllPorts, CfgMsgAllPortsBuilder, CfgPrtUart, CfgPrtUartBuilder, DataBits, GpsFix,
+    InProtoMask, NavSat, NavStatusFlags, NavStatusFlags2, NavTimeUtcFlags, OutProtoMask, PacketRef,
+    Parity, RecStatFlags, StopBits, UartMode, UartPortId,
 };
-use ublox::{GpsFix, RecStatFlags};
-use ublox::{NavSat, NavTimeUtcFlags};
-use ublox::{NavStatusFlags, NavStatusFlags2};
 
 use log::{debug, error, info, trace, warn};
 
@@ -175,9 +172,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut epoch_flag = EpochFlag::default();
 
     // observation
-    let mut _observable = Observable::default();
+    let mut t = Epoch::default();
+    let mut rcvr = Receiver::default();
     let mut lli: Option<LliFlags> = None;
-    let mut obs_data = ObservationData::default();
+    let mut signal = SignalObservation::default();
+    let mut clock = ClockObservation::default();
+
+    let mut _observable = Observable::default();
 
     let mut uptime = Duration::default();
 
@@ -216,7 +217,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         epoch_flag = EpochFlag::CycleSlip;
                     }
-                    obs_data.lli = lli;
+                    signal.lli = lli;
                 },
                 PacketRef::MonHw(_pkt) => {
                     //let jamming = pkt.jam_ind(); //TODO
@@ -231,8 +232,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 PacketRef::MonVer(pkt) => {
                     //UBX revision
-                    pkt.software_version();
-                    pkt.hardware_version();
+                    let sw_version = pkt.software_version();
+                    let hw_version = pkt.hardware_version();
                 },
                 /*
                  * NAVIGATION
@@ -289,17 +290,18 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                     itow = pkt.itow();
                     // reset Epoch
                     lli = None;
+                    signal = Default::default();
                     epoch_flag = EpochFlag::default();
                 },
                 /*
                  * NAVIGATION : EPHEMERIS
                  */
-                PacketRef::MgaGpsEph(pkt) => {
-                    let _sv = sv!(&format!("G{}", pkt.sv_id()));
+                PacketRef::MgaGpsEph(_pkt) => {
+                    //let _sv = sv!(&format!("G{}", pkt.sv_id()));
                     //nav_record.insert(epoch, sv);
                 },
-                PacketRef::MgaGloEph(pkt) => {
-                    let _sv = sv!(&format!("R{}", pkt.sv_id()));
+                PacketRef::MgaGloEph(_pkt) => {
+                    //let _sv = sv!(&format!("R{}", pkt.sv_id()));
                     //nav_record.insert(epoch, sv);
                 },
                 /*
@@ -317,8 +319,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                  * OBSERVATION: Receiver Clock
                  */
                 PacketRef::NavClock(pkt) => {
-                    let _bias = pkt.clk_b();
-                    let _drift = pkt.clk_d();
+                    let bias = pkt.clk_b();
+                    let drift = pkt.clk_d();
+                    //clock.with_offset_s(t, bias);
+                    clock.drift_s_s = drift.into();
                     // pkt.t_acc(); // phase accuracy
                     // pkt.f_acc(); // frequency accuracy
                 },

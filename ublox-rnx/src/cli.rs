@@ -29,6 +29,7 @@ impl Cli {
                             .short('p')
                             .long("port")
                             .value_name("PORT")
+                            .default_value("/dev/ttyUSB0")
                             .help("Set device port, default: \"/dev/ttyUSB0\""),
                     )
                     .arg(
@@ -36,7 +37,8 @@ impl Cli {
                             .short('b')
                             .long("baud")
                             .value_name("BAUDRATE")
-                            .help("Set port baudrate, default: \"9600\""),
+                            .default_value("9600")
+                            .help("Define port baud rate"),
                     )
                     .arg(
                         Arg::new("observation")
