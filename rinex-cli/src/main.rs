@@ -13,14 +13,19 @@ use preprocessing::preprocess;
 mod report;
 use report::Report;
 
+use sp3::prelude::SP3;
+
+use rinex::prelude::{
+    FormattingError as RinexFormattingError, ParsingError as RinexParsingError, Rinex,
+};
+
 use rinex_qc::prelude::{MergeError, QcContext, QcExtraPage};
-use std::path::Path;
+
+use std::{io::Error as IoError, path::Path};
+
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
-
-use rinex::prelude::Rinex;
-use sp3::prelude::SP3;
 
 use cli::{Cli, Context, RemoteReferenceSite, Workspace};
 
@@ -39,9 +44,11 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("i/o error")]
-    StdioError(#[from] std::io::Error),
-    #[error("rinex error")]
-    RinexError(#[from] rinex::Error),
+    StdioError(#[from] IoError),
+    #[error("rinex parsing")]
+    RinexParsing(#[from] RinexParsingError),
+    #[error("rinex formatting")]
+    RinexFormatting(#[from] RinexFormattingError),
     #[error("missing OBS RINEX")]
     MissingObservationRinex,
     #[error("missing (BRDC) NAV RINEX")]

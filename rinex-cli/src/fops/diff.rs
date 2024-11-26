@@ -5,9 +5,8 @@ use rinex::prelude::{Rinex, RinexType};
 use rinex_qc::prelude::ProductType;
 use std::path::PathBuf;
 
-/*
- * Substract RINEX[A]-RINEX[B]
- */
+/// Runs the RINEX[A]-RINEX[B] differential operation
+/// and dumps output result into the workspace.
 pub fn diff(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let path_a = ctx_data
