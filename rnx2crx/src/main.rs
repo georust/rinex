@@ -1,60 +1,70 @@
 mod cli;
 use cli::Cli;
-use rinex::{prelude::*, Error};
+
+use rinex::prelude::{Epoch, FormattingError, ParsingError, Rinex};
+
+use std::path::{Path, PathBuf};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+enum Error {
+    #[error("parsing error")]
+    ParsingError(#[from] ParsingError),
+    #[error("formatting error")]
+    FormattingError(#[from] FormattingError),
+}
+
+fn workspace(cli: &Cli) -> PathBuf {
+    if let Some(workspace) = cli.workspace() {
+        Path::new(workspace).to_path_buf()
+    } else {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("WORKSPACE")
+    }
+}
+
 fn main() -> Result<(), Error> {
     let cli = Cli::new();
     let input_path = cli.input_path();
+    let short_name = cli.matches.get_flag("short");
+    let output_name = cli.output_name();
+    let gzip_out = cli.gzip_encoding();
 
-    let mut rinex = Rinex::from_file(input_path)?; // parse
+    let workspace = workspace(&cli);
 
-    println!("Compressing \"{}\"..", input_path);
-    rinex.rnx2crnx_mut();
+    let extension = input_path
+        .extension()
+        .expect("failed to determine file extension")
+        .to_string_lossy();
 
-    // compression attributes
-    if cli.crx1() {
-        if let Some(obs) = &mut rinex.header.obs {
-            if let Some(crx) = &mut obs.crinex {
-                crx.version.major = 1; // force to V1
-            }
-        }
-    }
-    if cli.crx3() {
-        if let Some(obs) = &mut rinex.header.obs {
-            if let Some(crx) = &mut obs.crinex {
-                crx.version.major = 3; // force to V3
-            }
-        }
-    }
-    if let Some(date) = cli.date() {
-        let (y, m, d, _, _, _, _) = date.to_gregorian_utc();
-        if let Some((hh, mm, ss)) = cli.time() {
-            if let Some(obs) = &mut rinex.header.obs {
-                if let Some(crx) = &mut obs.crinex {
-                    crx.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
-                }
-            }
-        } else if let Some(obs) = &mut rinex.header.obs {
-            if let Some(crx) = &mut obs.crinex {
-                crx.date = Epoch::from_gregorian_utc_at_midnight(y, m, d);
-            }
-        }
-    } else if let Some((hh, mm, ss)) = cli.time() {
-        let today = Epoch::now().expect("failed to retrieve system time");
-        let (y, m, d, _, _, _, _) = today.to_gregorian_utc();
-        if let Some(obs) = &mut rinex.header.obs {
-            if let Some(crx) = &mut obs.crinex {
-                crx.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
-            }
-        }
-    }
+    let gzip_input = extension == "gz";
 
-    // output path
-    let output_path = match cli.output_path() {
-        Some(path) => path.clone(), // use customized name
-        _ => rinex.standard_filename(cli.matches.get_flag("short"), None, None),
+    let mut rinex = if gzip_input {
+        Rinex::from_gzip_file(input_path)?
+    } else {
+        Rinex::from_file(input_path)?
     };
 
+    rinex.rnx2crnx_mut();
+
+    // output path
+    let output_path = if let Some(output_name) = output_name {
+        workspace.join(output_name)
+    } else {
+        let suffix = if gzip_out { Some(".gz") } else { None };
+
+        let auto = rinex.standard_filename(short_name, suffix, None);
+        workspace.join(auto)
+    };
+
+    let output_file_name = output_path
+        .file_name()
+        .expect("failed to determine output file")
+        .to_string_lossy();
+
     rinex.to_file(&output_path)?;
-    println!("{} generated", output_path);
+    println!("{} generated", output_file_name);
+
     Ok(())
 }
