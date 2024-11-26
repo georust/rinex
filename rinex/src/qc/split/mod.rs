@@ -85,7 +85,7 @@ impl Split for Rinex {
         } else if let Some(r) = self.record.as_mut_meteo() {
             Record::MeteoRecord(meteo_split_mut(r, t))
         } else {
-            panic!("non feasible split");
+            self.record.clone()
         };
 
         Self {
@@ -96,7 +96,7 @@ impl Split for Rinex {
         }
     }
 
-    fn split_even_dt(&self, _: Duration) -> Vec<Self> {
-        Vec::default()
+    fn split_even_dt(&self, dt: Duration) -> Vec<Self> {
+        Default::default()
     }
 }

@@ -20,11 +20,8 @@ use serde::Serialize;
 use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 use crate::{
-    prelude::{
-        Epoch, ParsingError, SV,
-        FormattingError,
-    },
     fmt_rinex,
+    prelude::{Epoch, FormattingError, ParsingError, SV},
 };
 
 use std::{
@@ -134,10 +131,8 @@ impl Default for HeaderFields {
 }
 
 impl HeaderFields {
-
     /// Formats [HeaderFields] into [BufWriter].
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
-        
         writeln!(
             w,
             "{}",

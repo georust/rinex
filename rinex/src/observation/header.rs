@@ -3,11 +3,11 @@
 use crate::{
     fmt_rinex,
     hatanaka::CRINEX,
-    prelude::{Constellation, Epoch, Observable, TimeScale, FormattingError},
+    prelude::{Constellation, Epoch, FormattingError, Observable, TimeScale},
 };
 
 use std::{
-    collections::HashMap, 
+    collections::HashMap,
     io::{BufWriter, Write},
     str::FromStr,
 };
@@ -39,9 +39,12 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
-
     /// Formats [HeaderFields] into [BufWriter].
-    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>, major: u8) -> Result<(), FormattingError> {
+    pub(crate) fn format<W: Write>(
+        &self,
+        w: &mut BufWriter<W>,
+        major: u8,
+    ) -> Result<(), FormattingError> {
         match major {
             1 | 2 => {
                 if let Some((_constell, observables)) = self.codes.iter().next() {
@@ -56,12 +59,7 @@ impl HeaderFields {
             },
             _ => {
                 for (constell, observables) in &self.codes {
-                    write!(
-                        w,
-                        "{:x}{:5}",
-                        constell,
-                        observables.len(),
-                    )?;
+                    write!(w, "{:x}{:5}", constell, observables.len(),)?;
                     for (nth, observable) in observables.iter().enumerate() {
                         if (nth % 13) == 12 {
                             write!(w, "SYS / # / OBS TYPES\n        ")?;
@@ -103,7 +101,6 @@ impl HeaderFields {
     pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
         self.scaling.get(&(c, observable))
     }
-
 }
 
 impl HeaderFields {

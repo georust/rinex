@@ -972,7 +972,7 @@ impl Rinex {
     #[cfg(feature = "flate2")]
     #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
     pub fn to_gzip_file(&self, path: impl AsRef<Path>) -> Result<(), FormattingError> {
-        let  fd = File::create(path)?;
+        let fd = File::create(path)?;
         let mut writer = BufWriter::new(fd);
         let size = self.format(&mut writer)?;
         Ok(())

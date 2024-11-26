@@ -10,7 +10,6 @@ use crate::{
 use std::io::{BufWriter, Write};
 
 impl Header {
-
     /// Formats [Header] into [Write]able interface, using efficient buffering.
     pub fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         if let Some(obs) = &self.obs {
@@ -23,6 +22,15 @@ impl Header {
         self.format_observer_agency(w)?;
         self.format_comments(w)?;
         self.format_rinex_dependent(w)?;
+
+        if let Some(position) = self.ground_position {
+            writeln!(
+                w,
+                "{}",
+                fmt_rinex(&format!("{:X}", position), "APPROX POSITION XYZ")
+            )?;
+        }
+
         self.format_sampling_interval(w)?;
 
         if let Some(leap) = self.leap {
@@ -115,7 +123,10 @@ impl Header {
     }
 
     /// Formats RINEX type dependent [Header] fields
-    fn format_rinex_dependent<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+    fn format_rinex_dependent<W: Write>(
+        &self,
+        w: &mut BufWriter<W>,
+    ) -> Result<(), FormattingError> {
         if let Some(obs) = &self.obs {
             obs.format(w, self.version.major)
         } else if let Some(meteo) = &self.meteo {
@@ -132,9 +143,9 @@ impl Header {
             Ok(()) // should not happen
         }
     }
-    
+
     /// Formats "PMG / RUN BY / DATE"
-    fn format_prog_runby<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> { 
+    fn format_prog_runby<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         // PGM / RUN BY / DATE
         writeln!(
             w,
@@ -148,7 +159,10 @@ impl Header {
     }
 
     /// Formats "OBSERVER / AGENCY"
-    fn format_observer_agency<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+    fn format_observer_agency<W: Write>(
+        &self,
+        w: &mut BufWriter<W>,
+    ) -> Result<(), FormattingError> {
         writeln!(
             w,
             "{}",
@@ -161,7 +175,10 @@ impl Header {
     }
 
     /// Formats "INTERVAL"
-    fn format_sampling_interval<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+    fn format_sampling_interval<W: Write>(
+        &self,
+        w: &mut BufWriter<W>,
+    ) -> Result<(), FormattingError> {
         if let Some(interval) = &self.sampling_interval {
             writeln!(
                 w,
@@ -171,7 +188,7 @@ impl Header {
         }
         Ok(())
     }
-    
+
     /// Formats all comments
     fn format_comments<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         for comment in self.comments.iter() {

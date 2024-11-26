@@ -31,7 +31,6 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
-
     /// Formats [HeaderFields] into [BufWriter].
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         Ok(())

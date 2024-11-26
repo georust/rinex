@@ -1,6 +1,13 @@
-//! Hardware: receiver, antenna informations
-use crate::prelude::{COSPAR, SV};
-use std::str::FromStr;
+//! Receiver and antenna
+use crate::{
+    fmt_rinex,
+    prelude::{FormattingError, COSPAR, SV},
+};
+
+use std::{
+    io::{BufWriter, Write},
+    str::FromStr,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -20,7 +27,22 @@ pub struct Receiver {
     pub firmware: String, // firmware #
 }
 
-impl std::str::FromStr for Receiver {
+impl Receiver {
+    /// Formats [Receiver] into [BufWriter]
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        write!(
+            w,
+            "{}",
+            fmt_rinex(
+                &format!("{:<20}{:<20}{}", self.sn, self.model, self.firmware),
+                "REC # / TYPE / VERS"
+            )
+        )?;
+        Ok(())
+    }
+}
+
+impl FromStr for Receiver {
     type Err = std::io::Error;
     fn from_str(line: &str) -> Result<Self, Self::Err> {
         let (id, rem) = line.split_at(20);
@@ -56,6 +78,39 @@ pub struct Antenna {
 }
 
 impl Antenna {
+    /// Formats [Antenna] into [BufWriter]
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(&format!("{:<20}{}", self.model, self.sn), "ANT # / TYPE")
+        )?;
+        if let Some(coords) = &self.coords {
+            writeln!(
+                w,
+                "{}",
+                fmt_rinex(
+                    &format!("{:14.4}{:14.4}{:14.4}", coords.0, coords.1, coords.2),
+                    "APPROX POSITION XYZ"
+                )
+            )?;
+        }
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(
+                &format!(
+                    "{:14.4}{:14.4}{:14.4}",
+                    self.height.unwrap_or(0.0),
+                    self.eastern.unwrap_or(0.0),
+                    self.northern.unwrap_or(0.0)
+                ),
+                "ANTENNA: DELTA H/E/N"
+            )
+        )?;
+        Ok(())
+    }
+
     /// Sets desired model
     pub fn with_model(&self, m: &str) -> Self {
         let mut s = self.clone();

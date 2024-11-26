@@ -214,7 +214,8 @@ mod test {
             date: Epoch::from_str("2021-01-02T00:01:00 UTC").unwrap(),
         };
 
-        let content = "3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE
+        let content =
+            "3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE
 RNX2CRX ver.4.0.7                       02-Jan-21 00:01     CRINEX PROG / DATE";
 
         let decoded = CRINEX::from_str(&content).unwrap();

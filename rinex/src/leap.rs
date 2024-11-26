@@ -1,5 +1,10 @@
 //! Leap second described in Header
-use crate::{prelude::{ParsingError, TimeScale}, FormattingError};
+use crate::{
+    prelude::{ParsingError, TimeScale},
+    FormattingError,
+};
+
+use std::io::{BufWriter, Write};
 
 /// `Leap` to describe leap seconds.
 /// GLO = UTC = GPS - ΔtLS   
@@ -22,28 +27,27 @@ pub struct Leap {
 }
 
 impl Leap {
-
-
-    // Format [Leap] into [BufWrite]
+    // Format [Leap] into [BufWriter]
     pub fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
-        let mut line = String::new();
-        line.push_str(&format!("{:6}", leap.leap));
-        if let Some(delta) = &leap.delta_tls {
-            line.push_str(&format!("{:6}", delta));
-            line.push_str(&format!("{:6}", leap.week.unwrap_or(0)));
-            line.push_str(&format!("{:6}", leap.day.unwrap_or(0)));
-            if let Some(timescale) = &leap.timescale {
-                line.push_str(&format!("{:<10}", timescale));
-            } else {
-                line.push_str(&format!("{:<10}", ""));
-            }
+        if let Some(delta) = &self.delta_tls {
+            writeln!(
+                w,
+                "{:6}{:6}{:6}{:6} {:<10}      LEAP SECONDS",
+                self.leap,
+                delta,
+                self.week.unwrap_or(0),
+                self.day.unwrap_or(0),
+                self.timescale.unwrap_or_default()
+            )?;
+        } else {
+            writeln!(
+                w,
+                "{:6}                                  {:<10}      LEAP SECONDS",
+                self.leap,
+                self.timescale.unwrap_or_default()
+            )?;
         }
-        line.push_str(&format!(
-            "{:>width$}",
-            "LEAP SECONDS\n",
-            width = 73 - line.len()
-        ));
-        write!(f, "{}", line)?
+        Ok(())
     }
 
     // Copy and assign Delta [TLS]

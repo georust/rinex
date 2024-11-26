@@ -26,10 +26,8 @@ pub struct HeaderFields {
 }
 
 impl HeaderFields {
-
     /// Formats [HeaderFields] into [BufWriter].
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
-            
         write!(w, "{:6}", self.codes.len())?;
 
         for (nth, observable) in self.codes.iter().enumerate() {

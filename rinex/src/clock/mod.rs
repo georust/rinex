@@ -4,13 +4,13 @@ pub mod record;
 pub use record::{ClockKey, ClockProfile, ClockProfileType, ClockType, Record};
 
 use std::{
-    str::FromStr,
     io::{BufWriter, Write},
+    str::FromStr,
 };
 
 use crate::{
     fmt_rinex,
-    prelude::{DOMES, Version, TimeScale, FormattingError},
+    prelude::{FormattingError, TimeScale, Version, DOMES},
 };
 
 /// Clocks `RINEX` specific header fields
@@ -90,17 +90,12 @@ impl WorkClock {
 }
 
 impl HeaderFields {
-
     /// Formats [HeaderFields] into [BufWriter].
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
-
         write!(w, "{:6}", self.codes.len())?;
 
         for (nth, code) in self.codes.iter().enumerate() {
-            write!(
-                w,
-                "{:6}", code,
-            )?;
+            write!(w, "{:6}", code,)?;
 
             if nth % 9 == 8 {
                 writeln!(w, "# / TYPES OF DATA\n      ")?;

@@ -1,5 +1,11 @@
-//! Geodetic marker description
-use crate::prelude::ParsingError;
+//! Geodetic marker
+
+use crate::{
+    fmt_rinex,
+    prelude::{FormattingError, ParsingError},
+};
+
+use std::io::{BufWriter, Write};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -75,6 +81,15 @@ impl std::str::FromStr for MarkerType {
 }
 
 impl GeodeticMarker {
+    /// Formats [GeodeticMarker] into [BufWriter]
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        writeln!(w, "{}", fmt_rinex(&self.name, "MARKER NAME"))?;
+        if let Some(number) = self.number() {
+            writeln!(w, "{}", fmt_rinex(&self.name, "MARKER NUMBER"))?;
+        }
+        Ok(())
+    }
+
     /// Returns a GeodeticMarker with given "name".
     pub fn with_name(&self, name: &str) -> Self {
         let mut s = self.clone();
