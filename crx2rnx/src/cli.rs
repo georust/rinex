@@ -18,8 +18,8 @@ impl Cli {
                     .color(ColorChoice::Always)
                     .arg(
                         Arg::new("filepath")
-                            .short('f')
-                            .long("fp")
+                            //.short('f')
+                            //.long("fp")
                             .help("Input RINEX file")
                             .required(true),
                     )
@@ -44,6 +44,12 @@ Both will not work well if your input does not follow standard conventions at al
                             .help("Custom output file name"),
                     )
                     .arg(
+                        Arg::new("gz")
+                            .long("gz")
+                            .action(ArgAction::SetTrue)
+                            .help("Force Gzip compression on the output."),
+                    )
+                    .arg(
                         Arg::new("workspace")
                             .short('w')
                             .long("workspace")
@@ -58,6 +64,9 @@ Both will not work well if your input does not follow standard conventions at al
     }
     pub fn output_name(&self) -> Option<&String> {
         self.matches.get_one::<String>("output")
+    }
+    pub fn gzip_output(&self) -> bool {
+        self.matches.contains_id("gz")
     }
     pub fn workspace(&self) -> Option<&String> {
         self.matches.get_one::<String>("workspace")

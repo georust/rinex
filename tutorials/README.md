@@ -51,8 +51,7 @@ We demonstrate the synthesis of CGGTTS solutions with our position surveys.
 Other file operations like RINEX files management is also demonstrated.
 
 - [Config](./config) are special preset that some tutorials may use
-- [QC](./QC) 
-  - other QC and analysis examples (without surveying)
+- [CRX2RNX](./CRX2RNX) CRINEX decompression to readable RINEX (file in/file out)
 - [GPS](./GPS):
   - Esbjerg and Mojn (DNK) stations surveying
 - [Galileo](./GAL):
@@ -82,6 +81,8 @@ Other file operations like RINEX files management is also demonstrated.
 - [Batch splitting](./SPLIT)
   - Esbjerg (24h/DNK) station observations
   - SP3 batch splitting
+- [QC](./QC) 
+  - other QC and analysis examples (without surveying)
 - [CSV](./CSV)
   - RINEX or SP3 to CSV extraction examples, typically
   used to forward to other software toolkits.

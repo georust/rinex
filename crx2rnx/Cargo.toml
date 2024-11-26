@@ -11,5 +11,6 @@ edition = "2021"
 readme = "README.md"
 
 [dependencies]
+thiserror = "2"
 clap = { version = "4.4.13", features = ["derive", "color"] }
-rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["serde"] }
+rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["flate2"] }
