@@ -128,10 +128,9 @@ pub(crate) fn parse_plane(
                 let dlon_f64 =
                     f64::from_str(dlon_str).map_err(|_| ParsingError::IonexGridCoordinates)?;
 
-                let (h, _) = rem.split_at(6);
-                let h = h.trim();
-                let alt =
-                    f64::from_str(dlon_str).map_err(|_| ParsingError::IonexGridCoordinates)?;
+                let (h_str, _) = rem.split_at(6);
+                let h_str = h_str.trim();
+                let alt = f64::from_str(h_str).map_err(|_| ParsingError::IonexGridCoordinates)?;
 
                 altitude = (alt.round() * 100.0_f64) as i32;
                 latitude = (lat.round() * 1000.0_f64) as i32;

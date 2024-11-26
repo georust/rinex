@@ -85,7 +85,7 @@ impl GeodeticMarker {
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         writeln!(w, "{}", fmt_rinex(&self.name, "MARKER NAME"))?;
         if let Some(number) = self.number() {
-            writeln!(w, "{}", fmt_rinex(&self.name, "MARKER NUMBER"))?;
+            writeln!(w, "{}", fmt_rinex(&number, "MARKER NUMBER"))?;
         }
         Ok(())
     }

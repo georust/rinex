@@ -23,6 +23,18 @@ impl Header {
         self.format_comments(w)?;
         self.format_rinex_dependent(w)?;
 
+        if let Some(rcvr) = &self.rcvr {
+            rcvr.format(w)?;
+        }
+
+        if let Some(ant) = &self.rcvr_antenna {
+            ant.format(w)?;
+        }
+
+        if let Some(marker) = &self.geodetic_marker {
+            marker.format(w)?;
+        }
+
         if let Some(position) = self.ground_position {
             writeln!(
                 w,

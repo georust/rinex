@@ -1,23 +1,10 @@
 use crate::{
-    antex,
-    clock::{self, ClockKey, ClockProfile},
-    doris,
-    hatanaka::DecompressorExpert,
-    header, ionex, is_rinex_comment, meteo,
-    navigation::{self, record::parse_epoch as parse_nav_epoch},
-    observation::{
-        is_new_epoch as is_new_observation_epoch, parse_epoch as parse_observation_epoch,
-        Record as ObservationRecord,
-    },
-    prelude::{Constellation, Epoch, Header, Observations, ParsingError, TimeScale},
-    types::Type,
+    antex::Record as AntexRecord, clock::Record as ClockRecord, doris::Record as DorisRecord,
+    ionex::Record as IonexRecord, meteo::Record as MeteoRecord, navigation::Record as NavRecord,
+    observation::Record as ObservationRecord, prelude::Epoch,
 };
 
-use std::{
-    collections::BTreeMap,
-    io::{BufRead, BufReader, Read},
-    str::from_utf8,
-};
+use std::collections::BTreeMap;
 
 #[cfg(feature = "log")]
 use log::error;
@@ -31,20 +18,20 @@ mod parsing;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Record {
-    /// ATX record, see [antex::record::Record]
-    AntexRecord(antex::Record),
-    /// Clock record, see [clock::record::Record]
-    ClockRecord(clock::Record),
-    /// IONEX (Ionosphere maps) record, see [ionex::record::Record]
-    IonexRecord(ionex::Record),
-    /// Meteo record, see [meteo::record::Record]
-    MeteoRecord(meteo::Record),
-    /// Navigation record, see [navigation::record::Record]
-    NavRecord(navigation::Record),
+    /// [AntexRecord] contains antenna calibration profile
+    AntexRecord(AntexRecord),
+    /// [ClockRecord] contains SV and ground clock states
+    ClockRecord(ClockRecord),
+    /// IONEX (Ionosphere maps), see [IonexRecord]
+    IonexRecord(IonexRecord),
+    /// Meteo record, see [MeteoRecord]
+    MeteoRecord(MeteoRecord),
+    /// Navigation messages stored in [NavRecord]
+    NavRecord(NavRecord),
     /// Observation record [ObservationRecord]
     ObsRecord(ObservationRecord),
-    /// DORIS RINEX, special DORIS measurements wraped as observations
-    DorisRecord(doris::Record),
+    /// DORIS RINEX, special DORIS signals observation
+    DorisRecord(DorisRecord),
 }
 
 /// Record comments are high level informations, sorted by epoch
@@ -53,100 +40,111 @@ pub enum Record {
 pub type Comments = BTreeMap<Epoch, Vec<String>>;
 
 impl Record {
-    /// Unwraps self as ANTEX record
-    pub fn as_antex(&self) -> Option<&antex::Record> {
+    /// [AntexRecord] unwrapping attempt.
+    pub fn as_antex(&self) -> Option<&AntexRecord> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as mutable reference to ANTEX record
-    pub fn as_mut_antex(&mut self) -> Option<&mut antex::Record> {
+
+    /// Mutable [AntexRecord] unwrapping attempt.
+    pub fn as_mut_antex(&mut self) -> Option<&mut AntexRecord> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as CLK record
-    pub fn as_clock(&self) -> Option<&clock::Record> {
+
+    /// [ClockRecord] unwrapping attempt.
+    pub fn as_clock(&self) -> Option<&ClockRecord> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as mutable CLK record
-    pub fn as_mut_clock(&mut self) -> Option<&mut clock::Record> {
+
+    /// Mutable [ClockRecord] unwrapping attempt.
+    pub fn as_mut_clock(&mut self) -> Option<&mut ClockRecord> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as IONEX record
-    pub fn as_ionex(&self) -> Option<&ionex::Record> {
+
+    /// [IonexRecord] unwrapping attempt.
+    pub fn as_ionex(&self) -> Option<&IonexRecord> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as mutable IONEX record
-    pub fn as_mut_ionex(&mut self) -> Option<&mut ionex::Record> {
+
+    /// Mutable [IonexRecord] unwrapping attempt.
+    pub fn as_mut_ionex(&mut self) -> Option<&mut IonexRecord> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as MET record
-    pub fn as_meteo(&self) -> Option<&meteo::Record> {
+
+    /// [MeteoRecord] unwrapping attempt.
+    pub fn as_meteo(&self) -> Option<&MeteoRecord> {
         match self {
             Record::MeteoRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Returns mutable reference to Meteo record
-    pub fn as_mut_meteo(&mut self) -> Option<&mut meteo::Record> {
+
+    /// Mutable [MeteoRecord] unwrapping attempt.
+    pub fn as_mut_meteo(&mut self) -> Option<&mut MeteoRecord> {
         match self {
             Record::MeteoRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as NAV record
-    pub fn as_nav(&self) -> Option<&navigation::Record> {
+
+    /// [NavRecord] unwrapping attempt.
+    pub fn as_nav(&self) -> Option<&NavRecord> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Returns mutable reference to Navigation record
-    pub fn as_mut_nav(&mut self) -> Option<&mut navigation::Record> {
+
+    /// Mutable [NavRecord] unwrapping attempt.
+    pub fn as_mut_nav(&mut self) -> Option<&mut NavRecord> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as OBS record
+
+    /// [ObservationRecord] unwrapping attempt.
     pub fn as_obs(&self) -> Option<&ObservationRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Returns mutable reference to Observation record
+
+    /// Mutable [ObservationRecord] unwrapping attempt.
     pub fn as_mut_obs(&mut self) -> Option<&mut ObservationRecord> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as DORIS record
-    pub fn as_doris(&self) -> Option<&doris::Record> {
+    /// [DorisRecord] unwrapping attempt.
+    pub fn as_doris(&self) -> Option<&DorisRecord> {
         match self {
             Record::DorisRecord(r) => Some(r),
             _ => None,
         }
     }
 
-    /// Unwraps self as mutable reference to DORIS record
-    pub fn as_mut_doris(&mut self) -> Option<&mut doris::Record> {
+    /// Mutable [DorisRecord] unwrapping attempt.
+    pub fn as_mut_doris(&mut self) -> Option<&mut DorisRecord> {
         match self {
             Record::DorisRecord(r) => Some(r),
             _ => None,

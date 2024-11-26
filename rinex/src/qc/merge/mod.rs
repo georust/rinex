@@ -149,7 +149,13 @@ impl Merge for Rinex {
             } else {
                 return Err(MergeError::FileTypeMismatch);
             }
+        } else {
+            let doris = self.record.as_mut_doris().unwrap();
+            if let Some(rhs) = rhs.record.as_doris() {
+                return merge_mut_doris(doris, rhs);
+            } else {
+                return Err(MergeError::FileTypeMismatch);
+            }
         }
-        Ok(())
     }
 }

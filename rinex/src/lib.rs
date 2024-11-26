@@ -10,7 +10,7 @@ extern crate num;
 extern crate rinex_qc_traits as qc_traits;
 
 #[cfg(feature = "flate2")]
-use flate2::read::GzDecoder;
+use flate2::{read::GzDecoder, write::GzEncoder, Compression as GzCompression};
 
 #[macro_use]
 extern crate num_derive;
@@ -345,6 +345,7 @@ impl Rinex {
     pub fn replace_record(&mut self, record: record::Record) {
         self.record = record.clone();
     }
+
     /// Converts self to CRINEX (compressed RINEX) format.
     /// If current revision is < 3 then file gets converted to CRINEX1
     /// format, otherwise, modern Observations are converted to CRINEX3.
@@ -364,7 +365,8 @@ impl Rinex {
         s.rnx2crnx_mut();
         s
     }
-    /// [`Self::rnx2crnx`] mutable implementation
+
+    /// Mutable [Self::rnx2crnx] implementation
     pub fn rnx2crnx_mut(&mut self) {
         if self.is_observation_rinex() {
             let mut crinex = CRINEX::default();
@@ -372,47 +374,9 @@ impl Rinex {
                 1 | 2 => 1,
                 _ => 3,
             };
+            crinex.date = epoch::now();
+            crinex.prog = format!("geo-rust v{}", env!("CARGO_PKG_VERSION"));
             self.header = self.header.with_crinex(crinex);
-        }
-    }
-
-    /// Converts self to CRINEX1 compressed format,
-    /// whatever the RINEX revision might be.  
-    /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx1(&self) -> Self {
-        let mut s = self.clone();
-        s.rnx2crnx1_mut();
-        s
-    }
-
-    /// [`Self::rnx2crnx1`] mutable implementation.
-    pub fn rnx2crnx1_mut(&mut self) {
-        if self.is_observation_rinex() {
-            self.header = self.header.with_crinex(CRINEX {
-                version: Version { major: 1, minor: 0 },
-                date: epoch::now(),
-                prog: format!("rust-rinex-{}", env!("CARGO_PKG_VERSION")),
-            });
-        }
-    }
-
-    /// Converts self to CRINEX3 compressed format,
-    /// whatever the RINEX revision might be.
-    /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx3(&self) -> Self {
-        let mut s = self.clone();
-        s.rnx2crnx1_mut();
-        s
-    }
-
-    /// [`Self::rnx2crnx3`] mutable implementation.
-    pub fn rnx2crnx3_mut(&mut self) {
-        if self.is_observation_rinex() {
-            self.header = self.header.with_crinex(CRINEX {
-                date: epoch::now(),
-                version: Version { major: 3, minor: 0 },
-                prog: "rust-crinex".to_string(),
-            });
         }
     }
 
@@ -438,6 +402,12 @@ impl Rinex {
                     timeof_first_obs: params.timeof_first_obs,
                     timeof_last_obs: params.timeof_last_obs,
                 });
+
+            self.header = self.header.with_general_information(
+                &format!("geo-rust v{}", env!("CARGO_PKG_VERSION")),
+                &self.header.run_by,
+                &self.header.agency,
+            );
         }
     }
     /// Returns a filename that would describe Self according to standard naming conventions.
@@ -974,8 +944,9 @@ impl Rinex {
     #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
     pub fn to_gzip_file(&self, path: impl AsRef<Path>) -> Result<(), FormattingError> {
         let fd = File::create(path)?;
-        let mut writer = BufWriter::new(fd);
-        let size = self.format(&mut writer)?;
+        let compression = GzCompression::new(5);
+        let mut writer = BufWriter::new(GzEncoder::new(fd, compression));
+        self.format(&mut writer)?;
         Ok(())
     }
 
@@ -1632,6 +1603,8 @@ impl Rinex {
             }
         } else if let Some(rhs) = rhs.record.as_doris() {
             if let Some(rec) = self.record.as_mut_doris() {}
+        } else if let Some(rhs) = rhs.record.as_meteo() {
+            if let Some(rec) = self.record.as_mut_meteo() {}
         }
     }
 

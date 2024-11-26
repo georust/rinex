@@ -195,7 +195,7 @@ pub fn generic_observation_rinex_against_model(dut: &Rinex, model: &Rinex) {
 
     // TODO : verify carriers
 
-    for (k, v) in rec_dut.iter() {
+    for (k, _) in rec_dut.iter() {
         assert!(
             rec_model.get(k).is_some(),
             "found unexpected content: {:?}",

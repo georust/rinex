@@ -4,7 +4,6 @@ use crate::{
     antex::HeaderFields as AntexHeader,
     clock::HeaderFields as ClockHeader,
     doris::HeaderFields as DorisHeader,
-    fmt_rinex,
     ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
     hatanaka::CRINEX,

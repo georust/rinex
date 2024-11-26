@@ -43,7 +43,7 @@ mod test {
 
             // convert to CRINEX1
             println!("compressing \"{}\"..", rnx_path.to_string_lossy());
-            let dut = rnx.rnx2crnx1();
+            let dut = rnx.rnx2crnx();
 
             // parse model
             let model_path = crnx_path.to_string_lossy().to_string();
@@ -77,7 +77,7 @@ mod test {
 
             // compress
             let rnx = rnx.unwrap();
-            let compressed = rnx.rnx2crnx1();
+            let compressed = rnx.rnx2crnx();
 
             let tmp_path = format!("test-{}.crx", random_name(8));
 
@@ -140,7 +140,7 @@ mod test {
 
             // convert to CRINEX3
             println!("compressing \"{}\"..", rnx_path.to_string_lossy());
-            let dut = rnx.rnx2crnx1();
+            let dut = rnx.rnx2crnx();
 
             // parse model
             let model_path = crnx_path.to_string_lossy().to_string();
@@ -169,7 +169,7 @@ mod test {
 
             // compress
             let rnx = rnx.unwrap();
-            let compressed = rnx.rnx2crnx1();
+            let compressed = rnx.rnx2crnx();
 
             let tmp_path = format!("test-{}.crx", random_name(8));
 
