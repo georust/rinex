@@ -6,9 +6,8 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use rinex::{
-    prelude::{nav::Almanac, GroundPosition, Rinex, TimeScale},
+    prelude::{nav::Almanac, GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale},
     types::Type as RinexType,
-    Error as RinexError,
 };
 
 use anise::{
@@ -37,30 +36,28 @@ pub enum Error {
     #[error("failed to determine filename")]
     FileNameDetermination,
     #[error("invalid rinex format")]
-    RinexError(#[from] RinexError),
+    RinexParsingError(#[from] RinexParsingError),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ProductType {
-    /// GNSS carrier signal observation in the form
-    /// of Observation RINEX data.
+    /// GNSS signal observations provided by Observation RINEX
     Observation,
-    /// Meteo sensors data wrapped as Meteo RINEX files.
+    /// Meteo sensors for accurate Troposphere modeling, provided by special RINEX.
     MeteoObservation,
-    /// DORIS measurements wrapped as special RINEX observation file.
+    /// DORIS signal observations provided by special RINEX.
     DORIS,
-    /// Broadcast Navigation message as contained in
-    /// Navigation RINEX files.
+    /// Broadcast navigation message described by Navigation RINEX.
     BroadcastNavigation,
-    /// High precision orbital attitudes wrapped in Clock RINEX files.
+    /// High precision clock states described by special RINEX.
     HighPrecisionClock,
-    /// Antenna calibration information wrapped in ANTEX special RINEX files.
+    /// Antenna calibration data described by ANTEX.
     ANTEX,
-    /// Precise Ionosphere state wrapped in IONEX special RINEX files.
+    /// Precise ionosphere TEC maps described by IONEX.
     IONEX,
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// High precision clock data wrapped in SP3 files.
+    /// High precision orbital state described by SP3.
     HighPrecisionOrbit,
 }
 
