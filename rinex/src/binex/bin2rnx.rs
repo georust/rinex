@@ -14,23 +14,24 @@ pub struct BIN2RNX<'a, R: Read> {
 impl<'a, R: Read> Iterator for BIN2RNX<'a, R> {
     type Item = Option<String>;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.decoder.next() {
-            Some(Ok(element)) => match element {
-                StreamElement::OpenSource(msg) => match msg.record {
-                    BinexRecord::MonumentGeo(geo) => for frame in geo.frames.iter() {},
-                    BinexRecord::EphemerisFrame(fr) => match fr {
-                        EphemerisFrame::GPS(gps) => {},
-                        EphemerisFrame::GPSRaw(gps) => {},
-                        EphemerisFrame::GAL(gal) => {},
-                        EphemerisFrame::GLO(glo) => {},
-                        EphemerisFrame::SBAS(sbas) => {},
-                    },
-                },
-                _ => None,
-            },
-            Some(Err(e)) => None,
-            None => None,
-        }
+        None
+        // match self.decoder.next() {
+        //     Some(Ok(element)) => match element {
+        //         StreamElement::OpenSource(msg) => match msg.record {
+        //             BinexRecord::MonumentGeo(geo) => for frame in geo.frames.iter() {},
+        //             BinexRecord::EphemerisFrame(fr) => match fr {
+        //                 EphemerisFrame::GPS(gps) => {},
+        //                 EphemerisFrame::GPSRaw(gps) => {},
+        //                 EphemerisFrame::GAL(gal) => {},
+        //                 EphemerisFrame::GLO(glo) => {},
+        //                 EphemerisFrame::SBAS(sbas) => {},
+        //             },
+        //         },
+        //         _ => None,
+        //     },
+        //     Some(Err(e)) => None,
+        //     None => None,
+        // }
     }
 }
 
