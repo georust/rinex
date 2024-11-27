@@ -352,14 +352,14 @@ fn parse_signals_v2(
         let mut offset = 0;
 
         #[cfg(feature = "log")]
-        println!(
-            "line: \"{}\" [sv={}/{} obs={}/{}]",
-            line,
-            sv_ptr,
-            systems_str_len,
-            obs_ptr,
-            observables.len()
-        );
+        //println!(
+        //    "line: \"{}\" [sv={}/{} obs={}/{}]",
+        //    line,
+        //    sv_ptr,
+        //    systems_str_len,
+        //    obs_ptr,
+        //    observables.len()
+        //);
 
         // process all of them
         for _ in 0..num_obs {
@@ -372,7 +372,7 @@ fn parse_signals_v2(
             let slice = &line[offset..end];
 
             //#[cfg(feature = "log")]
-            println!("observation: \"{}\" {}", slice, observables[obs_ptr]);
+            //println!("observation: \"{}\" {}", slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
@@ -463,8 +463,8 @@ fn parse_signals_v3(
 
     // browse all lines
     for line in lines {
-        #[cfg(feature = "log")]
-        println!("line: \"{}\"", line);
+        //#[cfg(feature = "log")]
+        //println!("line: \"{}\"", line);
 
         // identify SV
         let sv_str = &line[0..SVNN_SIZE];
