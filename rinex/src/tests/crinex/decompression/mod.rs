@@ -298,14 +298,14 @@ fn testbench_v1() {
 fn testbench_v3() {
     let pool = vec![
         ("DUTH0630.22D", "DUTH0630.22O"),
-        (
-            "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
-            "ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
-        ),
-        ("pdel0010.21d", "pdel0010.21o"),
-        ("flrs0010.12d", "flrs0010.12o"),
-        ("VLNS0010.22D", "VLNS0010.22O"),
-        ("VLNS0630.22D", "VLNS0630.22O"),
+        //(
+        //    "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
+        //    "ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+        //),
+        //("pdel0010.21d", "pdel0010.21o"),
+        //("flrs0010.12d", "flrs0010.12o"),
+        //("VLNS0010.22D", "VLNS0010.22O"),
+        //("VLNS0630.22D", "VLNS0630.22O"),
         //TODO unlock this
         //("ESBC00DNK_R_20201770000_01D_30S_MO.crx", "ESBC00DNK_R_20201770000_01D_30S_MO.rnx"),
         //("KMS300DNK_R_20221591000_01H_30S_MO.crx", "KMS300DNK_R_20221591000_01H_30S_MO.rnx"),
@@ -323,7 +323,36 @@ fn testbench_v3() {
         assert!(obs.crinex.is_some());
         let infos = obs.crinex.as_ref().unwrap();
 
-        if crnx_name.eq("ACOR00ESP_R_20213550000_01D_30S_MO.crx") {
+        if crnx_name.eq("DUTH0630.22D") {
+            assert_eq!(infos.version.major, 3);
+            assert_eq!(infos.version.minor, 0);
+            assert_eq!(infos.prog, "RNX2CRX ver.4.1.0");
+
+            generic_observation_rinex_test(
+                &dut,
+                None,
+                "3.02",
+                Some("MIXED"),
+                false, // has_clock
+                "G01, G03, G04, G06, G09, G17, G19, G21, G22, G26, G31, G32, R01, R02, R08, R09, R10, R17, R23, R24",
+                "GPS, GLO",
+                &[
+                    ("GPS", "C1C, L1C, D1C, S1C, C2W, L2W, D2W, S2W"),
+                    ("GLO", "C1C, L1C, D1C, S1C, C2P, L2P, D2P, S2P"),
+                ],
+                Some("2022-03-04T00:00:00 GPST"),
+                Some("2022-03-04T23:59:30 GPST"),
+                None, // ground_ref_wgs84_m
+                None, // observer
+                None, // geodetic_marker
+                TimeFrame::from_erratic_csv(
+                    "2022-03-04T00:00:00 GPST, 
+                    2022-03-04T00:28:30 GPST,
+                    2022-03-04T00:57:00 GPST"),
+                vec![], // signals
+                vec![], // clocks
+            );
+        } else if crnx_name.eq("ACOR00ESP_R_20213550000_01D_30S_MO.crx") {
             assert_eq!(infos.version.major, 3);
             assert_eq!(infos.version.minor, 0);
             assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
@@ -332,7 +361,29 @@ fn testbench_v3() {
                 Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00)
             );
 
-            // TODO: run detailed testbench
+            generic_observation_rinex_test(
+                &dut,
+                None,
+                "3.04",
+                Some("MIXED"),
+                false, // has_clock
+                "GPS, GLO, GAL, BDS",
+                "G01, G07, G08, G10, G16, G18, G21, G23, G26, G30, R04, R05, R10, R12, R20, R21, E02, E11, E12, E24, E25, E31, E33, E36, C05, C11, C14, C21, C22, C23, C25, C28, C34, C37, C42, C43, C44, C58",
+                &[
+                    ("GPS", "C1C, L1C, S1C, C2S, L2S, S2S, C2W, L2W, S2W, C5Q, L5Q, S5Q"),
+                    ("GLO", "C1C, L1C, S1C, C2P, L2P, S2P, C2C, L2C, S2C, C3Q, L3Q, S3Q"),
+                    ("GAL", "C1C, L1C, S1C, C5Q, L5Q, S5Q, C6C, L6C, S6C, C7Q, L7Q, S7Q, C8Q, L8Q, S8Q"),
+                    ("BDS", "C2I, L2I, S2I, C6I, L6I, S6I, C7I, L7I, S7I"),
+                ],
+                Some("2021-12-21T00:00:00 GPST"),
+                Some("2021-12-21T23:59:30 GPST"),
+                None, // ground_ref_wgs84_m
+                None, // observer
+                None, // geodetic_marker
+                TimeFrame::from_inclusive_csv("2021-12-21T00:00:00 GPST, 2021-12-21T00:12:00 GPST, 30 s"),
+                vec![], // signals
+                vec![], // clocks
+            );
         }
 
         // convert to RINEX

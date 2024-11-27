@@ -45,13 +45,15 @@ use log::error;
 
 impl Record {
     /// Parses [Record] section by consuming [Reader] entirely.
-    /// [Header] parsed by consuming [Reader] until this point is required.
+    /// This requires reference to [Header] that was just parsed by consuming [Reader] until this point.
     pub fn parse<R: Read>(
         header: &mut Header,
         reader: &mut BufReader<R>,
     ) -> Result<(Self, Comments), ParsingError> {
-        // buffer pointers
-        let mut eos = false; // EOS reached (might still have something to process)
+        // eos reached: process pending buffer & exit
+        let mut eos = false;
+        // crinex decompression in failure: process pending buffer & exit
+        let mut crinex_error = false;
 
         // current line storage
         let mut line_buf = String::with_capacity(128);
@@ -90,7 +92,7 @@ impl Record {
             gnss_observables = obs.codes.clone();
         }
 
-        // Build a decompressor, to be deployed based on already recovered [Header].
+        // Build a decompressor, that we deployed if needed.
         // These parameters are compatible with historical RNX2CRX tool.
         let mut decompressor = DecompressorExpert::<5>::new(
             crinex_v3,
@@ -108,9 +110,9 @@ impl Record {
         let mut dor_rec = DorisRecord::new();
 
         // OBSERVATION case: timescale is either defined by
-        //    [+] TIME OF FIRST header field
-        //    [+] TIME OF LAST header field (flexibility, actually invalid according to specs)
-        //    [+] GNSS system in case of single GNSS old RINEX
+        // [+] TIME OF FIRST header field
+        // [+] TIME OF LAST header field (flexibility, actually invalid according to specs)
+        // [+] GNSS system in case of single GNSS old RINEX
         let mut obs_ts = TimeScale::default();
 
         if let Some(obs) = &header.obs {
@@ -138,12 +140,12 @@ impl Record {
         }
 
         // Clock RINEX TimeScale definition.
-        //   Modern revisions define it in header directly.
-        //   Old revisions are once again badly defined and most likely not thought out.
-        //   We default to GPST to "match" the case where this file is multi constellation
-        //      and it seems that clocks steered to GPST is the most common case.
-        //      For example NASA/CDDIS.com
-        //   In mono constellation, we adapt to that timescale.
+        // Modern revisions define it in header directly.
+        // Old revisions are once again badly defined and most likely not thought out.
+        //  + We default to GPST to "match" the case where this file is multi constellation
+        //   and it seems that clocks steered to GPST is the most common case.
+        //   For example NASA/CDDIS.com
+        //  + In mono constellation, we adapt to that timescale.
         let mut clk_ts = TimeScale::GPST;
         if let Some(clk) = &header.clock {
             if let Some(ts) = clk.timescale {
@@ -160,8 +162,8 @@ impl Record {
         // IONEX case
         //  Default map type is TEC, it will come with identified Epoch
         //  but others may exist:
-        //    in this case we used the previously identified Epoch
-        //    and attach other kinds of maps
+        //  in this case we use the previously identified Epoch
+        //  and attach other kinds of maps
         let mut ionx_rec = IonexRecord::new();
         let mut ionex_rms_plane = false;
 
@@ -200,8 +202,7 @@ impl Record {
 
             // CRINEX special case:
             // - apply decompression algorithm prior moving forward
-            // - decompress new pending line, which may recover several lines
-            // in old V1 format
+            // - decompress new pending line, which may recover several lines (in old V1 format)
             if is_crinex {
                 let line_len = line_buf.len();
 
@@ -209,16 +210,19 @@ impl Record {
                 // it is normal to abort on final line for example
                 match decompressor.decompress(&line_buf, line_len, &mut buf, CRINEX_BUF_SIZE) {
                     Ok(size) => {
-                        // clear and overwrite pending content with recovered content
-                        // we should have valid ASCII UTF-8 at all times, at this point
-                        let recovered =
-                            from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
+                        if size > 0 {
+                            // clear and overwrite pending content with recovered content
+                            // we should have valid ASCII UTF-8 at all times, at this point
+                            let recovered =
+                                from_utf8(&buf[..size]).map_err(|_| ParsingError::BadUtf8Crinex)?;
 
-                        line_buf.clear();
-                        line_buf = recovered.to_string();
+                            line_buf.clear();
+                            line_buf = recovered.to_string();
+                            line_buf.push('\n');
+                        }
                     },
                     Err(e) => {
-                        break;
+                        crinex_error = true;
                     },
                 }
             }
@@ -260,6 +264,7 @@ impl Record {
                                 &mut observations,
                             ) {
                                 Ok(key) => {
+                                    //println!("obs={:?} content=\"{}\"", observations, epoch_buf);
                                     obs_rec.insert(key, observations.clone());
                                     observations.signals.clear(); // reset for next parsing (single alloc)
                                     comment_ts = key.epoch; // for comments storage
@@ -347,7 +352,7 @@ impl Record {
             // always stack new content
             epoch_buf.push_str(&line_buf);
 
-            if eos == true {
+            if eos || crinex_error {
                 break;
             }
 

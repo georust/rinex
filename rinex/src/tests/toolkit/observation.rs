@@ -117,15 +117,15 @@ pub fn generic_observation_rinex_test(
         assert_eq!(dut.header.geodetic_marker, Some(marker));
     }
 
+    // verifies header specs
     let specs = dut.header.obs.as_ref().unwrap();
-
     for (gnss, observable_csv) in gnss_observ_csv {
         let gnss = Constellation::from_str(gnss).unwrap();
         let expected = observable_from_csv(observable_csv);
         let found = specs
             .codes
             .get(&gnss)
-            .expect(&format!("missing observables for {}", gnss))
+            .expect(&format!("missing header specs for {}", gnss))
             .into_iter()
             .cloned()
             .sorted()

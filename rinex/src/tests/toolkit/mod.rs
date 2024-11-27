@@ -42,7 +42,7 @@ pub fn generic_timeframe_test(dut: &Rinex, tf: TimeFrame) {
         if let Some(dut) = dut.next() {
             assert_eq!(model, dut);
         } else {
-            panic!("missing temporal data");
+            panic!("missing temporal data {:?}", model);
         }
     }
     assert!(
