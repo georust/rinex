@@ -7,25 +7,28 @@ use crate::prelude::{Carrier, LliFlags, ObsKey, Rinex, SignalObservation};
 #[cfg(docsrs)]
 use crate::prelude::{Epoch, EpochFlag, Observable};
 
-// TODO
-// #[cfg(feature = "obs")]
-// use observation::{Combination, Combine};
+#[derive(Debug, Copy, Clone)]
+pub enum Combination {
+    /// Geometry Free (GF) combination
+    GeometryFree,
+    /// Ionosphere Free (IF) combination
+    IonosphereFree,
+    /// Wide Lane (Wl) combination
+    WideLane,
+    /// Narrow Lane (Nl) combination
+    NarrowLane,
+    /// Melbourne Wubbena (MW) combination
+    MelbourneWubbena,
+}
 
-// TODO
-// #[cfg(feature = "obs")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-// impl Combine for Rinex {
-//     fn combine(
-//         &self,
-//         c: Combination,
-//     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-//         if let Some(r) = self.record.as_obs() {
-//             r.combine(c)
-//         } else {
-//             HashMap::new()
-//         }
-//     }
-// }
+#[derive(Debug, Clone)]
+pub struct SignalCombination {
+    pub combination: Combination,
+    /// LHS [SignalObservation] of the [Combination] (lhs - ref)
+    pub lhs: SignalObservation,
+    /// Reference [SignalObservation] used in [Combination] (lhs - ref)
+    pub reference: SignalObservation,
+}
 
 // TODO
 // #[cfg(feature = "obs")]
@@ -74,11 +77,11 @@ impl Rinex {
         )
     }
 
-    /// Returns an Iterator over [Epoch]s where normal sampling conditions were detected.
-    /// Use this to browse signal observations that were sampled correctly.
-    /// * You can use [Rinex::pseudo_range_decoding_ok_iter()] if you're only interested in [Observable::PseudoRange]
-    /// * You can use [Rinex::phase_range_sampling_ok_iter()] or [Rinex::phase_range_tracking_ok_iter()]
-    /// if you're only interested in [Observable::PhaseRange]
+    /// [SignalObservation]s Iterator for which sampling conditions were marked OK.
+    /// For [Observable::PhaseRange] you should verify the tracking status as well, for completeness.
+    /// You can use:
+    /// - [Self::pseudo_range_sampling_ok_iter()] if you're only interested in decoded pseudo range
+    /// - [Self::phase_range_sampling_ok_iter()] if you're only interested in estimated phase range
     /// ```
     /// use rinex::prelude::Rinex;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
@@ -105,18 +108,19 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn signal_ok_iter(&self) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+    pub fn signal_observations_sampling_ok_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
         Box::new(self.signal_observations_iter().filter_map(|(k, sig)| {
             if !k.flag.is_ok() {
-                Some((*k, sig))
+                Some((k, sig))
             } else {
                 None
             }
         }))
     }
 
-    /// Returns an Iterator over [Epoch]s where [Observable::PseudoRange] decoding took place in good conditions.
-    /// See [Rinex::signal_ok_iter()] for more information.
+    /// [Self::signals_observations_sampling_ok_iter()] with [Observable::PseudoRange] mask applied.
     /// ```
     /// use rinex::prelude::Rinex;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
@@ -132,16 +136,19 @@ impl Rinex {
     ///     let pseudo_range_m = signal.value;
     /// }
     /// ```
-    pub fn pseudo_range_decoding_ok_iter(
+    pub fn pseudo_range_sampling_ok_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
-        Box::new(self.signal_ok_iter().filter_map(|(k, sig)| {
-            if sig.observable.is_pseudo_range_observable() {
-                Some((k, sig))
-            } else {
-                None
-            }
-        }))
+        Box::new(
+            self.signal_observations_sampling_ok_iter()
+                .filter_map(|(k, sig)| {
+                    if sig.observable.is_pseudo_range_observable() {
+                        Some((k, sig))
+                    } else {
+                        None
+                    }
+                }),
+        )
     }
 
     /// Returns an Iterator over [Epoch]s where [Observable::PhaseRange] sampling took place in good conditions.
@@ -167,13 +174,16 @@ impl Rinex {
     pub fn phase_range_sampling_ok_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
-        Box::new(self.signal_ok_iter().filter_map(|(k, sig)| {
-            if sig.observable.is_phase_range_observable() {
-                Some((k, sig))
-            } else {
-                None
-            }
-        }))
+        Box::new(
+            self.signal_observations_sampling_ok_iter()
+                .filter_map(|(k, sig)| {
+                    if sig.observable.is_phase_range_observable() {
+                        Some((k, sig))
+                    } else {
+                        None
+                    }
+                }),
+        )
     }
 
     /// Returns an Iterator over [Epoch]s where [Observable::PhaseRange] sampling and tracking took place in good conditions.
@@ -267,7 +277,7 @@ impl Rinex {
             if sig.observable.is_phase_range_observable() {
                 if let Some(lli) = sig.lli {
                     if lli.intersects(LliFlags::LOCK_LOSS) {
-                        Some((*k, sig))
+                        Some((k, sig))
                     } else {
                         None
                     }
@@ -303,19 +313,10 @@ impl Rinex {
     pub fn phase_half_full_cycle_slip_events(
         &self,
     ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
-        Box::new(self.signal_observations_iter().filter_map(|(k, sig)| {
-            if sig.observable.is_pseudo_range_observable() {
-                if let Some(lli) = sig.lli {
-                    if lli.intersects(LliFlags::LOCK_LOSS)
-                        || lli.intersects(LliFlags::HALF_CYCLE_SLIP)
-                    {
-                        Some((*k, sig))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+        Box::new(self.phase_range_observations_iter().filter_map(|(k, sig)| {
+            let lli = sig.lli?;
+            if lli.intersects(LliFlags::LOCK_LOSS) || lli.intersects(LliFlags::HALF_CYCLE_SLIP) {
+                Some((k, sig))
             } else {
                 None
             }
@@ -365,19 +366,31 @@ impl Rinex {
     pub fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = &ObsKey> + '_> {
         Box::new(self.observation_keys().filter(|k| k.flag.is_ok()))
     }
-}
 
-//     /// Returns Unique Iterator over all feasible Pseudo range and Phase range combination,
-//     /// expressed as (lhs: Observable, rhs: Observable).
-//     /// Regardless which one is to consider as reference signal.
-//     /// Use [pseudo_range_combinations()] or [phase_range_combinations()]
-//     /// to reduce to specific physical observations.
-//     pub fn signal_combinations(&self) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
-//         Box::new(
-//             self.pseudo_range_combinations()
-//                 .chain(self.phase_range_combinations()),
-//         )
-//     }
+    // /// Iterator over all possible signal [Combination]s.
+    // /// NB: we only combine pseudo range and / or phase range, not other observations.
+    // /// You can then apply your own filter, to retain for example pseudo range combination only.
+    // /// Some combinations will cross-mix physics.
+    // pub fn signal_combinations_iter(&self) -> Iter<'_, ObsKey, SignalCombination> {
+    //     self.observations_iter()
+    // }
+
+    // /// Iterator over specific signal [Combination].
+    // /// NB: we only combine pseudo range and / or phase range, not other observations.
+    // /// You can then apply your own filter, to retain for example pseudo range combination only.
+    // /// Some combinations will cross-mix physics.
+    // pub fn signal_combination_iter(&self, combination: Combination) -> Iter<'_, ObsKey, SignalCombination> {
+    //     self.signal_combinations_iter()
+    //         .filter_map(|(k, v))| {
+    //             if v.combination == combination {
+    //                 Some((k, v))
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //     }
+    // }
+}
 
 //     /// See [signal_combinations()]
 //     pub fn pseudo_range_combinations(

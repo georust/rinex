@@ -51,39 +51,92 @@ impl Rinex {
     /// Returns [SignalObservation]s Iterator.
     pub fn signal_observations_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (&ObsKey, &SignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
         Box::new(
             self.observations_iter()
-                .flat_map(|(key, obs)| obs.signals.iter().map(move |sig| (key, sig))),
+                .flat_map(|(key, obs)| obs.signals.iter().map(move |sig| (*key, sig))),
         )
     }
 
     /// Mutable [SignalObservation]s Iterator.
     pub fn signal_observations_iter_mut(
         &mut self,
-    ) -> Box<dyn Iterator<Item = (&ObsKey, &mut SignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (ObsKey, &mut SignalObservation)> + '_> {
         Box::new(
             self.observations_iter_mut()
-                .flat_map(|(key, obs)| obs.signals.iter_mut().map(move |sig| (key, sig))),
+                .flat_map(|(key, obs)| obs.signals.iter_mut().map(move |sig| (*key, sig))),
         )
     }
+
     /// Returns [ClockObservation] Iterator.
     pub fn clock_observations_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (&ObsKey, ClockObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (ObsKey, ClockObservation)> + '_> {
         Box::new(self.observations_iter().filter_map(|(k, v)| {
             let clock = v.clock?;
-            Some((k, clock))
+            Some((*k, clock))
         }))
     }
 
     /// Mutable [ClockObservation] Iterator
     pub fn clock_observations_iter_mut(
         &mut self,
-    ) -> Box<dyn Iterator<Item = (&ObsKey, &mut ClockObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (ObsKey, &mut ClockObservation)> + '_> {
         Box::new(self.observations_iter_mut().filter_map(|(k, v)| {
             if let Some(ref mut clock) = v.clock {
-                Some((k, clock))
+                Some((*k, clock))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Pseudo Range observation Iterator
+    pub fn pseudo_range_observations_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+        Box::new(self.signal_observations_iter().filter_map(|(k, v)| {
+            if v.observable.is_pseudo_range_observable() {
+                Some((k, v))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Phase Range observation Iterator
+    pub fn phase_range_observations_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+        Box::new(self.signal_observations_iter().filter_map(|(k, v)| {
+            if v.observable.is_phase_range_observable() {
+                Some((k, v))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Doppler observation Iterator
+    pub fn doppler_observations_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+        Box::new(self.signal_observations_iter().filter_map(|(k, v)| {
+            if v.observable.is_doppler_observable() {
+                Some((k, v))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// SSI observation Iterator
+    pub fn ssi_observations_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+        Box::new(self.signal_observations_iter().filter_map(|(k, v)| {
+            if v.observable.is_ssi_observable() {
+                Some((k, v))
             } else {
                 None
             }

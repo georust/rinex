@@ -1,4 +1,4 @@
-use crate::prelude::{qc::Split, Duration, Record, Rinex};
+use crate::prelude::{qc::Split, Duration, Epoch, Record, Rinex};
 
 mod clock;
 mod doris;
@@ -28,7 +28,7 @@ use doris::{
 };
 
 impl Split for Rinex {
-    fn split(&self, t: hifitime::Epoch) -> (Self, Self) {
+    fn split(&self, t: Epoch) -> (Self, Self) {
         let (r0, r1) = if let Some(r) = self.record.as_obs() {
             let (r0, r1) = obs_split(r, t);
             (Record::ObsRecord(r0), Record::ObsRecord(r1))
@@ -48,7 +48,10 @@ impl Split for Rinex {
             let (r0, r1) = meteo_split(r, t);
             (Record::MeteoRecord(r0), Record::MeteoRecord(r1))
         } else {
-            panic!("non feasible split");
+            (
+                Record::ObsRecord(Default::default()),
+                Record::ObsRecord(Default::default()),
+            )
         };
 
         // TODO: improve this
@@ -71,7 +74,7 @@ impl Split for Rinex {
         )
     }
 
-    fn split_mut(&mut self, t: hifitime::Epoch) -> Self {
+    fn split_mut(&mut self, t: Epoch) -> Self {
         let record = if let Some(r) = self.record.as_mut_obs() {
             Record::ObsRecord(obs_split_mut(r, t))
         } else if let Some(r) = self.record.as_mut_nav() {
@@ -88,6 +91,10 @@ impl Split for Rinex {
             self.record.clone()
         };
 
+        // TODO: improve this
+        //  split comments timewise
+        //  implement Split for Header ?
+        //  implement Split for production attributes ?
         Self {
             record,
             header: self.header.clone(),
@@ -97,6 +104,14 @@ impl Split for Rinex {
     }
 
     fn split_even_dt(&self, dt: Duration) -> Vec<Self> {
+        let records = if let Some(r) = self.record.as_obs() {
+            obs_split_even_dt(r, dt)
+                .into_iter()
+                .map(|rec| Record::ObsRecord(rec))
+        } else {
+            panic!("bad op");
+        };
+
         Default::default()
     }
 }

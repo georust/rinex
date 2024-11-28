@@ -6,7 +6,10 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use rinex::{
-    prelude::{nav::Almanac, GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale},
+    prelude::{
+        nav::Almanac, Error as RinexError, GroundPosition, ParsingError as RinexParsingError,
+        Rinex, TimeScale,
+    },
     types::Type as RinexType,
 };
 
@@ -41,23 +44,23 @@ pub enum Error {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ProductType {
-    /// GNSS signal observations provided by Observation RINEX
+    /// GNSS signal observations provided by Observation RINEX.
     Observation,
-    /// Meteo sensors for accurate Troposphere modeling, provided by special RINEX.
+    /// Meteo observations provided by Meteo RINEX.
     MeteoObservation,
-    /// DORIS signal observations provided by special RINEX.
+    /// DORIS signals observation provided by special RINEX.
     DORIS,
-    /// Broadcast navigation message described by Navigation RINEX.
+    /// Broadcast Navigation message described by Navigation RINEX.
     BroadcastNavigation,
-    /// High precision clock states described by special RINEX.
+    /// High precision clock states described by Clock RINEX.
     HighPrecisionClock,
-    /// Antenna calibration data described by ANTEX.
+    /// Antenna calibration information described by ANTEX.
     ANTEX,
-    /// Precise ionosphere TEC maps described by IONEX.
+    /// Precise Ionosphere maps described by IONEX.
     IONEX,
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// High precision orbital state described by SP3.
+    /// High precision orbital attitude described by SP3.
     HighPrecisionOrbit,
 }
 

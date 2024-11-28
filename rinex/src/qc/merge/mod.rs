@@ -26,18 +26,14 @@ use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/*
- * Appends given vector into self.
- */
+/// Appends given vector into self.
 pub(crate) fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
         lhs.push(item.clone());
     }
 }
 
-/*
- * Merges given vector into self, but ensures values are unique.
- */
+/// Merges given vector into self, but ensures values are unique.
 pub(crate) fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
         if !lhs.contains(item) {
@@ -46,9 +42,7 @@ pub(crate) fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: 
     }
 }
 
-/*
- * Merges given map into self but ensures both keys and values are unique.
- */
+/// Merges given map into self but ensures both keys and values are unique.
 pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq>(
     lhs: &mut HashMap<K, Vec<V>>,
     rhs: &HashMap<K, Vec<V>>,
@@ -66,9 +60,7 @@ pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone 
     }
 }
 
-/*
- * Merges optionnal data fields, rhs overwrites lhs, only if lhs is not previously defined.
- */
+/// Merges optionnal data fields, rhs overwrites lhs, only if lhs is not previously defined.
 pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     if lhs.is_none() {
         if let Some(rhs) = rhs {
@@ -77,9 +69,7 @@ pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     }
 }
 
-/*
- * Merges "TIME OF FIRST" special OBSERVATION header field
- */
+/// Merges "TIME OF FIRST" special OBSERVATION header field
 pub(crate) fn merge_time_of_first_obs(lhs: &mut Option<Epoch>, rhs: &Option<Epoch>) {
     if lhs.is_none() {
         if let Some(rhs) = rhs {
@@ -91,9 +81,7 @@ pub(crate) fn merge_time_of_first_obs(lhs: &mut Option<Epoch>, rhs: &Option<Epoc
     }
 }
 
-/*
- * Merges "TIME OF LAST" special OBSERVATION header field
- */
+/// Merges "TIME OF LAST" special OBSERVATION header field
 pub(crate) fn merge_time_of_last_obs(lhs: &mut Option<Epoch>, rhs: &Option<Epoch>) {
     if lhs.is_none() {
         if let Some(rhs) = rhs {
@@ -111,7 +99,7 @@ impl Merge for Rinex {
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    /// Merges `rhs` into `Self`
+
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if let Some(lhs) = self.record.as_mut_nav() {
             if let Some(rhs) = rhs.record.as_nav() {
