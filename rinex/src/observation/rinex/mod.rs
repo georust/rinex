@@ -8,7 +8,7 @@ mod feature; // feature dependent, high level methods
 use std::collections::btree_map::{Iter, IterMut, Keys};
 
 impl Rinex {
-    /// Retruns true if [Rinex] format is [RinexType::ObservationData].
+    /// Returns true if [Rinex] format is [RinexType::ObservationData].
     /// ```
     /// use rinex::prelude::Rinex;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")

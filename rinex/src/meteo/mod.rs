@@ -2,11 +2,17 @@
 mod formatting;
 mod header;
 mod parsing;
-mod sensor;
+mod rinex;
+mod sensor; // high level methods
 
+pub use header::HeaderFields;
 pub use sensor::Sensor;
 
 use crate::prelude::{Epoch, Observable};
+use std::collections::BTreeMap;
+
+pub(crate) use formatting::format;
+pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 #[cfg(feature = "processing")]
 pub(crate) mod mask; // mask Trait implementation
@@ -29,5 +35,5 @@ pub struct MeteoKey {
     pub observable: Observable,
 }
 
-/// Meteo observation (unit depends on [Observable]), sorted by [MeteoKey]
-pub type Record = BTreeMap<ObsKey, f64>;
+/// [MeteoObservation]s sorted by [Epoch]
+pub type Record = BTreeMap<MeteoKey, f64>;

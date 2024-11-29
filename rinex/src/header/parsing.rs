@@ -15,7 +15,7 @@ use crate::{
     leap::Leap,
     linspace::Linspace,
     marker::{GeodeticMarker, MarkerType},
-    meteo::{sensor::Sensor as MeteoSensor, HeaderFields as MeteoHeader},
+    meteo::{HeaderFields as MeteoHeader, Sensor as MeteoSensor},
     navigation::{IonMessage, KbModel},
     observable::Observable,
     observation::HeaderFields as ObservationHeader,

@@ -1,4 +1,4 @@
-use crate::meteo::Record;
+use crate::{meteo::Record, prelude::Epoch};
 use qc_traits::{DecimationFilter, DecimationFilterType};
 
 pub(crate) fn decim_mut(rec: &mut Record, f: &DecimationFilter) {
@@ -16,17 +16,17 @@ pub(crate) fn decim_mut(rec: &mut Record, f: &DecimationFilter) {
         },
         DecimationFilterType::Duration(interval) => {
             let mut last_retained = Option::<Epoch>::None;
-            rec.retain(|e, _| {
+            rec.retain(|k, _| {
                 if let Some(last) = last_retained {
-                    let dt = *e - last;
+                    let dt = k.epoch - last;
                     if dt >= interval {
-                        last_retained = Some(*e);
+                        last_retained = Some(k.epoch);
                         true
                     } else {
                         false
                     }
                 } else {
-                    last_retained = Some(*e);
+                    last_retained = Some(k.epoch);
                     true // always retain 1st epoch
                 }
             });

@@ -1,4 +1,5 @@
 use crate::{meteo::Record, prelude::Observable};
+use std::str::FromStr;
 
 use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
@@ -6,7 +7,7 @@ use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, 
 pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
     match mask.operand {
         MaskOperand::Equals => match &mask.item {
-            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e == *epoch),
+            FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch == *epoch),
             FilterItem::ComplexItem(filter) => {
                 // try to interprate as [Observable]
                 let observables = filter
@@ -26,7 +27,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             _ => {},
         },
         MaskOperand::NotEquals => match &mask.item {
-            FilterItem::EpochItem(epoch) => rec.retain(|e, _| *e != *epoch),
+            FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch != *epoch),
             FilterItem::ComplexItem(filter) => {
                 // try to interprate as [Observable]
                 let observables = filter
@@ -46,7 +47,7 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             _ => {},
         },
         MaskOperand::GreaterEquals => match &mask.item {
-            FilterItem::EpochItem(epoch) => rec.retain(|k, _| *k.epoch >= *epoch),
+            FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch >= *epoch),
             _ => {},
         },
         MaskOperand::GreaterThan => match &mask.item {
@@ -54,11 +55,11 @@ pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {
             _ => {},
         },
         MaskOperand::LowerEquals => match &mask.item {
-            FilterItem::EpochItem(epoch) => rec.retain(|k, _| *k.epoch <= *epoch),
+            FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch <= *epoch),
             _ => {},
         },
         MaskOperand::LowerThan => match &mask.item {
-            FilterItem::EpochItem(epoch) => rec.retain(|k, _| *k.epoch < *epoch),
+            FilterItem::EpochItem(epoch) => rec.retain(|k, _| k.epoch < *epoch),
             _ => {},
         },
     }

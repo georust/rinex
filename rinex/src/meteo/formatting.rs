@@ -3,30 +3,40 @@ use std::{
     str::FromStr,
 };
 
+use crate::{
+    epoch::format as format_epoch,
+    meteo::Record,
+    prelude::{FormattingError, Header, RinexType},
+};
+
+use itertools::Itertools;
+
 /// Formats Meteo epoch into [BufWriter]
 pub fn format<W: Write>(
     w: &mut BufWriter<W>,
     record: &Record,
     header: &Header,
-) -> Result<String, FormattingError> {
-    let mut lines = String::with_capacity(128);
-    lines.push_str(&format!(
-        " {}",
-        epoch::format(*epoch, Type::MeteoData, header.version.major)
-    ));
-    let observables = &header.meteo.as_ref().unwrap().codes;
-    let mut index = 0;
-    for obscode in observables {
-        index += 1;
-        if let Some(data) = data.get(obscode) {
-            lines.push_str(&format!("{:7.1}", data));
-        } else {
-            lines.push_str("       ");
-        }
-        if (index % 8) == 0 {
-            lines.push('\n');
-        }
+) -> Result<(), FormattingError> {
+    let observables = &header
+        .meteo
+        .as_ref()
+        .ok_or(FormattingError::UndefinedObservables)?;
+
+    for t in record.keys().map(|k| k.epoch).unique().sorted() {
+        writeln!(
+            w,
+            " {}",
+            format_epoch(t, RinexType::MeteoData, header.version.major)
+        )?;
+        //// follow header definitions
+        //for observable in observables.codes.iter() {
+        //    if let Some(observation) = v.iter().filter(|obs| obs.observable == observable).reduce(|k, _| k) {
+        //        write!(w, "{:14.13} ", observation.value)?;
+        //    } else {
+        //        write!(w, "           ")?;
+        //    }
+        //}
     }
-    lines.push('\n');
-    Ok(lines)
+
+    Ok(())
 }

@@ -1,8 +1,13 @@
-use crate::{epoch::parse_utc as parse_utc_epoch, prelude::Version};
+use num_integer::div_ceil;
 
 use std::{
     collections::{BTreeMap, HashMap},
     str::FromStr,
+};
+
+use crate::{
+    epoch::parse_utc as parse_utc_epoch,
+    prelude::{Epoch, Header, MeteoKey, Observable, ParsingError, Version},
 };
 
 /// Returns true if provided content matches the start of a new Meteo Epoch
@@ -30,56 +35,35 @@ pub fn is_new_epoch(line: &str, v: Version) -> bool {
 /// ## Input
 ///   - header: [Header] parsed previously
 ///   - content: readable content
-pub fn parse_epoch(header: &Header, content: &str) -> Result<Vec<MeteoKey, f64>> {
+pub fn parse_epoch(header: &Header, content: &str) -> Result<Vec<(MeteoKey, f64)>, ParsingError> {
     let mut lines = content.lines();
-
     let mut line = lines.next().ok_or(ParsingError::EmptyEpoch)?;
-
-    let mut map: HashMap<Observable, f64> = HashMap::with_capacity(3);
+    let mut ret = Vec::<(MeteoKey, f64)>::with_capacity(8);
 
     let mut offset: usize = 18; // YY
     if header.version.major > 2 {
         offset += 2; // YYYY
     }
 
-    let epoch = epoch::parse_utc(&line[0..offset])?;
+    let epoch = parse_utc_epoch(&line[0..offset])?;
 
-    let codes = &header.meteo.as_ref().unwrap().codes;
-    let nb_codes = codes.len();
-    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8);
-    let mut code_index: usize = 0;
+    let header = &header
+        .meteo
+        .as_ref()
+        .ok_or(ParsingError::MissingObservableDefinition)?;
 
-    for i in 0..nb_lines {
+    let mut obs_ptr = 0;
+    let codes = &header.codes;
+    let nb_obs = codes.len();
+    let nb_lines_per_obs = div_ceil(nb_obs, 8) as usize;
+
+    for i in 0..nb_lines_per_obs {
         for _ in 0..8 {
-            let code = &codes[code_index];
-            let obs: Option<f64> = match f64::from_str(line[offset..offset + 7].trim()) {
-                Ok(f) => Some(f),
-                Err(_) => None,
-            };
-
-            if let Some(obs) = obs {
-                map.insert(code.clone(), obs);
-            }
-            code_index += 1;
-            if code_index >= nb_codes {
-                break;
-            }
-
-            offset += 7;
-            if offset >= line.len() {
-                break;
-            }
-        } // 1:8
-
-        if i < nb_lines - 1 {
-            if let Some(l) = lines.next() {
-                line = l;
-            } else {
-                break;
-            }
+            let code = &codes[obs_ptr];
         }
-    } // nb lines
-    Ok((epoch, map))
+    }
+
+    Ok(ret)
 }
 
 #[cfg(test)]

@@ -1,5 +1,10 @@
 //! Meteo specific Header fields
-use std::io::{BufWriter, Write};
+use std::{
+    io::{BufWriter, Write},
+    str::FromStr,
+};
+
+use crate::prelude::FormattingError;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

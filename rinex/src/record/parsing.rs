@@ -18,8 +18,7 @@ use crate::{
     },
     is_rinex_comment,
     meteo::{
-        record::{is_new_epoch as is_new_meteo_epoch, parse_epoch as parse_meteo_epoch},
-        Record as MeteoRecord,
+        is_new_epoch as is_new_meteo_epoch, parse_epoch as parse_meteo_epoch, Record as MeteoRecord,
     },
     navigation::{
         record::{is_new_epoch as is_new_nav_epoch, parse_epoch as parse_nav_epoch},
@@ -286,9 +285,11 @@ impl Record {
                             }
                         },
                         Type::MeteoData => {
-                            if let Ok((e, map)) = parse_meteo_epoch(header, &epoch_buf) {
-                                met_rec.insert(e, map);
-                                comment_ts = e; // for comments storage
+                            if let Ok(items) = parse_meteo_epoch(header, &epoch_buf) {
+                                for (k, v) in items.iter() {
+                                    met_rec.insert(k.clone(), *v);
+                                    comment_ts = k.epoch; // for comments storage
+                                }
                             }
                         },
                         Type::ClockData => {
