@@ -1591,7 +1591,7 @@ impl Rinex {
                                 .signals
                                 .iter()
                                 .filter(|sig| {
-                                    sig.observable == signal.observable && sig.sv == sig.sv
+                                    sig.observable == signal.observable && sig.sv == signal.sv
                                 })
                                 .reduce(|k, _| k)
                             {

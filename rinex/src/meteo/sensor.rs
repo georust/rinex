@@ -178,6 +178,7 @@ mod test {
     use super::*;
     use crate::prelude::GroundPosition;
     use std::str::FromStr;
+
     #[test]
     fn test_formatting() {
         let s = Sensor::new(Observable::Temperature);
@@ -210,6 +211,7 @@ mod test {
         0.0000        0.0000        0.0000     1234.5678 PR SENSOR POS XYZ/H\n"
         );
     }
+
     #[test]
     fn from_str() {
         let s = Sensor::from_str("                                                  0.0    PR ");

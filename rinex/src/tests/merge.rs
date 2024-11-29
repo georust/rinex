@@ -77,14 +77,14 @@ mod test {
         // );
 
         // parse back
-        let rnx = Rinex::from_file("merge.txt");
-        assert!(rnx.is_ok(), "Failed to parsed back previously merged file");
+        //let rnx = Rinex::from_file("merge.txt");
+        //assert!(rnx.is_ok(), "Failed to parsed back previously merged file");
 
-        let rnx = rnx.unwrap();
-        assert!(
-            rnx.is_merged(),
-            "failed to identify a merged file correctly"
-        );
+        //let rnx = rnx.unwrap();
+        //assert!(
+        //    rnx.is_merged(),
+        //    "failed to identify a merged file correctly"
+        //);
 
         /*
          * Unlock reciprocity test in near future

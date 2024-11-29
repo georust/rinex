@@ -18,7 +18,7 @@ use num_integer::div_ceil;
 #[cfg(feature = "log")]
 use log::{debug, error};
 
-/// Returns true if given content matches a new OBSERVATION data epoch
+/// Returns true if provided content matches the start of a new Observation Epoch
 pub fn is_new_epoch(line: &str, v: Version) -> bool {
     if v.major < 3 {
         if line.len() < 30 {

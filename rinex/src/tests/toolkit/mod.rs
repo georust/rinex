@@ -45,9 +45,12 @@ pub fn generic_timeframe_test(dut: &Rinex, tf: TimeFrame) {
             panic!("missing temporal data {:?}", model);
         }
     }
+
+    let next = dut.next();
     assert!(
-        dut.next().is_none(),
-        "timeframe exceeded! unexpected content"
+        next.is_none(),
+        "timeframe exceeded! unexpected content {:?}",
+        next.unwrap()
     );
 }
 

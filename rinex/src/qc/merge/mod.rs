@@ -13,6 +13,7 @@ mod meteo;
 mod nav;
 mod obs;
 mod prod;
+// mod io; // I/O is work in progress
 
 use antex::merge_mut as merge_mut_antex;
 use clock::merge_mut as merge_mut_clock;
