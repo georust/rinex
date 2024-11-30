@@ -2,20 +2,24 @@ use crate::navigation::FrameClass;
 use crate::*;
 use rand::{distributions::Alphanumeric, Rng};
 
-/* OBS RINEX dedicated tools */
+// OBS RINEX dedicated tools
 mod observation;
 pub use observation::{
     generic_observation_epoch_decoding_test, generic_observation_rinex_against_model,
     generic_observation_rinex_test, ClockDataPoint, SignalDataPoint,
 };
 
-/* NAV RINEX dedicated tools */
+// NAV RINEX dedicated tools
 pub mod nav;
 
-/* DORIS RINEX dedicated tools */
+// DORIS RINEX dedicated tools
 mod doris;
 pub use doris::check_observables as doris_check_observables;
 pub use doris::check_stations as doris_check_stations;
+
+// Meteo RINEX dedicated tests
+mod meteo;
+pub use meteo::{generic_meteo_rinex_against_model, generic_meteo_rinex_test};
 
 pub mod timeframe;
 pub use timeframe::TimeFrame;
@@ -35,7 +39,7 @@ pub fn random_name(size: usize) -> String {
 /// Generic sampling test
 pub fn generic_timeframe_test(dut: &Rinex, tf: TimeFrame) {
     // grab epoch iter
-    let mut dut = dut.epoch();
+    let mut dut = dut.epoch_iter();
     let mut model = tf.into_iter();
 
     while let Some(model) = model.next() {
@@ -193,59 +197,4 @@ fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon
     //        panic!("\"{}\" - parsed {:?} unexpectedly", filename, e_dut);
     //    }
     //}
-}
-
-/*
- * Meteo RINEX thorough comparison
- */
-fn meteo_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f64) {
-    let rec_dut = dut
-        .record
-        .as_meteo()
-        .expect("failed to unwrap rinex record");
-    let rec_model = model
-        .record
-        .as_meteo()
-        .expect("failed to unwrap rinex record");
-    for (e_model, obscodes_model) in rec_model.iter() {
-        if let Some(obscodes_dut) = rec_dut.get(e_model) {
-            for (code_model, observation_model) in obscodes_model.iter() {
-                if let Some(observation_dut) = obscodes_dut.get(code_model) {
-                    assert_eq!(
-                        observation_model, observation_dut,
-                        "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                        filename, e_model, code_model, observation_model, observation_dut
-                    );
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} missing \"{}\" observation",
-                        filename, e_model, code_model
-                    );
-                }
-            }
-        } else {
-            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
-        }
-    }
-
-    for (e_dut, obscodes_dut) in rec_dut.iter() {
-        if let Some(obscodes_model) = rec_model.get(e_dut) {
-            for (code_dut, observation_dut) in obscodes_dut.iter() {
-                if let Some(observation_model) = obscodes_model.get(code_dut) {
-                    assert_eq!(
-                        observation_model, observation_dut,
-                        "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                        filename, e_dut, code_dut, observation_model, observation_dut
-                    );
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} parsed \"{}\" unexpectedly",
-                        filename, e_dut, code_dut
-                    );
-                }
-            }
-        } else {
-            panic!("\"{}\" - parsed {:?} unexpectedly", filename, e_dut);
-        }
-    }
 }

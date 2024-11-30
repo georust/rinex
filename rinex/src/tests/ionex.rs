@@ -28,7 +28,7 @@ mod test {
             "falsely identified some RMS maps"
         );
         assert_eq!(
-            rinex.epoch().count(),
+            rinex.epoch_iter().count(),
             25,
             "wrong amount of epochs identified"
         );

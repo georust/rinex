@@ -52,7 +52,7 @@ impl Rinex {
 
     /// Returns mutable Meteo Observations Iterator.
     /// This only applies to Meteo RINEX and will panic otherwise (bad operation).
-    pub fn meteo_observations_iter_mut(&self) -> IterMut<'_, MeteoKey, f64> {
+    pub fn meteo_observations_iter_mut(&mut self) -> IterMut<'_, MeteoKey, f64> {
         if let Some(rec) = self.record.as_mut_meteo() {
             rec.iter_mut()
         } else {

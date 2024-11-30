@@ -35,9 +35,8 @@ pub fn is_new_epoch(line: &str, v: Version) -> bool {
 /// ## Input
 ///   - header: [Header] parsed previously
 ///   - content: readable content
-pub fn parse_epoch(header: &Header, content: &str) -> Result<Vec<(MeteoKey, f64)>, ParsingError> {
-    let mut lines = content.lines();
-    let mut line = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+pub fn parse_epoch(header: &Header, line: &str) -> Result<Vec<(MeteoKey, f64)>, ParsingError> {
+    let line_len = line.len();
     let mut ret = Vec::<(MeteoKey, f64)>::with_capacity(8);
 
     let mut offset: usize = 18; // YY
@@ -52,14 +51,39 @@ pub fn parse_epoch(header: &Header, content: &str) -> Result<Vec<(MeteoKey, f64)
         .as_ref()
         .ok_or(ParsingError::MissingObservableDefinition)?;
 
-    let mut obs_ptr = 0;
     let codes = &header.codes;
     let nb_obs = codes.len();
-    let nb_lines_per_obs = div_ceil(nb_obs, 8) as usize;
 
-    for i in 0..nb_lines_per_obs {
-        for _ in 0..8 {
-            let code = &codes[obs_ptr];
+    let mut obs_ptr = 0;
+
+    // parse all remaining fields
+    loop {
+        let end = (offset + 7).min(line_len);
+        let slice = &line[offset..end];
+        println!("slice \"{}\"", slice);
+
+        if let Ok(value) = slice.trim().parse::<f64>() {
+            ret.push((
+                MeteoKey {
+                    epoch,
+                    observable: codes[obs_ptr].clone(),
+                },
+                value,
+            ));
+        }
+
+        offset += 7;
+        obs_ptr += 1;
+
+        if offset >= line_len {
+            break;
+        }
+
+        if obs_ptr >= nb_obs {
+            // Buffer would overflow.
+            // But that means we're actually receiving bad content
+            // with resepect to header description
+            break;
         }
     }
 
@@ -68,38 +92,21 @@ pub fn parse_epoch(header: &Header, content: &str) -> Result<Vec<(MeteoKey, f64)
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::is_new_epoch;
+    use crate::prelude::Version;
     #[test]
     fn test_new_epoch() {
         let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
+        assert!(is_new_epoch(content, Version { major: 2, minor: 0 }));
         let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
+        assert!(is_new_epoch(content, Version { major: 2, minor: 0 }));
         let content = " 22  1  4  9 55  0  997.9   -6.4   54.2    2.9  342.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
+        assert!(is_new_epoch(content, Version { major: 2, minor: 0 }));
         let content = " 22  1  4 10  0  0  997.9   -6.3   55.4    3.4  337.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
+        assert!(is_new_epoch(content, Version { major: 2, minor: 0 }));
         let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 2, minor: 0 }
-        ));
+        assert!(is_new_epoch(content, Version { major: 2, minor: 0 }));
         let content = " 2021  1  7  0  0  0  993.3   23.0   90.0";
-        assert!(is_new_epoch(
-            content,
-            version::Version { major: 4, minor: 0 }
-        ));
+        assert!(is_new_epoch(content, Version { major: 4, minor: 0 }));
     }
 }

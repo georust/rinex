@@ -19,21 +19,21 @@ mod decimation {
         assert!(rinex.is_ok(), "failed to parse \"{}\"", fullpath);
 
         let mut rinex = rinex.unwrap();
-        let len = rinex.epoch().count();
+        let len = rinex.epoch_iter().count();
 
         let dt_60s = DecimationFilter::duration(Duration::from_seconds(60.0));
         let dt_120s = DecimationFilter::duration(Duration::from_seconds(120.0));
 
         rinex.decimate_mut(&dt_60s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, len / 2, "decimate(1'): error");
 
         rinex.decimate_mut(&dt_60s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, len / 2, "decimate(1'): error");
 
         rinex.decimate_mut(&dt_120s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, len / 4, "decimate(2'): error",);
     }
     #[test]
@@ -51,22 +51,22 @@ mod decimation {
         assert!(rinex.is_ok(), "failed to parse \"{}\"", fullpath);
 
         let mut rinex = rinex.unwrap();
-        let len = rinex.epoch().count();
+        let len = rinex.epoch_iter().count();
 
         let dt_60s = DecimationFilter::duration(Duration::from_seconds(60.0));
         let dt_360s = DecimationFilter::duration(Duration::from_seconds(360.0));
         let dt_900s = DecimationFilter::duration(Duration::from_seconds(900.0));
 
         rinex.decimate_mut(&dt_60s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, len, "decimate(1'): error",);
 
         rinex.decimate_mut(&dt_360s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, len / 2, "decimate(6'): error",);
 
         rinex.decimate_mut(&dt_900s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, len / 4, "decimate(15'): error",);
     }
     #[test]
@@ -87,14 +87,14 @@ mod decimation {
         let dt_61s = DecimationFilter::duration(Duration::from_seconds(61.0));
 
         let mut rinex = rinex.unwrap();
-        let _len = rinex.epoch().count();
+        let _len = rinex.epoch_iter().count();
 
         rinex.decimate_mut(&dt_60s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, 1013, "decimate(1'): error",);
 
         rinex.decimate_mut(&dt_61s);
-        let count = rinex.epoch().count();
+        let count = rinex.epoch_iter().count();
         assert_eq!(count, 1013, "decimate(1'+1s): error",);
     }
 }

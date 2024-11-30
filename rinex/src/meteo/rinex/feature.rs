@@ -1,9 +1,22 @@
 //! Feature dependent high level methods
 
-use crate::prelude::{Epoch, Observable, Rinex};
+use crate::{
+    meteo::Sensor,
+    prelude::{Epoch, Observable, Rinex},
+};
 
 impl Rinex {
-    /// Returns temperature data iterator, values expressed in Celcius degrees
+    /// Returns Meteo [Sensor]s Iterator
+    pub fn meteo_sensors_iter(&self) -> Box<dyn Iterator<Item = &Sensor> + '_> {
+        if let Some(meteo) = &self.header.meteo {
+            Box::new(meteo.sensors.iter())
+        } else {
+            Box::new([].into_iter())
+        }
+    }
+
+    /// Returns temperature measurements iterator, values expressed in Celcius degrees.
+    /// Applies to Meteo RINEX.
     /// ```
     /// use rinex::prelude::*;
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
@@ -12,10 +25,10 @@ impl Rinex {
     ///     println!("ts: {}, value: {} °C", epoch, tmp);
     /// }
     /// ```
-    pub fn temperature(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+    pub fn temperature_iter(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
         Box::new(self.meteo_observations_iter().filter_map(|(k, v)| {
             if k.observable == Observable::Temperature {
-                Some((k.epoch, v))
+                Some((k.epoch, *v))
             } else {
                 None
             }

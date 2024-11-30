@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::{prelude::*, tests::toolkit::generic_observation_rinex_test};
     use std::path::PathBuf;
 
     #[test]
@@ -69,7 +69,7 @@ mod test {
                         },
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());
-                            assert!(rinex.epoch().count() > 0); // all files have content
+                            assert!(rinex.epoch_iter().count() > 0); // all files have content
                             assert!(rinex.navigation().count() > 0); // all files have content
                                                                      // Ephemeris verifications
                             #[cfg(feature = "nav")]
@@ -108,7 +108,7 @@ mod test {
                             let obs_header = rinex.header.obs.clone().unwrap();
 
                             assert!(rinex.is_observation_rinex());
-                            assert!(rinex.epoch().count() > 0); // all files have content
+                            assert!(rinex.epoch_iter().count() > 0); // all files have content
                             assert!(rinex.signal_observations_iter().count() > 0); // all files have content
 
                             if data == "OBS" {
@@ -152,26 +152,28 @@ mod test {
                         },
                         "MET" => {
                             assert!(rinex.is_meteo_rinex());
-                            assert!(rinex.epoch().count() > 0); // all files have content
-                            assert!(rinex.meteo().count() > 0); // all files have content
-                            for (e, _) in rinex.meteo() {
+                            assert!(rinex.epoch_iter().count() > 0); // all files have content
+                            assert!(rinex.meteo_observation_keys().count() > 0); // all files have content
+                            assert!(rinex.meteo_observations_iter().count() > 0); // all files have content
+
+                            for (k, _) in rinex.meteo_observations_iter() {
                                 assert!(
-                                    e.time_scale == TimeScale::UTC,
+                                    k.epoch.time_scale == TimeScale::UTC,
                                     "wrong {} time scale for a METEO RINEX",
-                                    e.time_scale
+                                    k.epoch.time_scale
                                 );
                             }
                         },
                         "CLK" => {
                             assert!(rinex.is_clock_rinex(), "badly identified CLK RINEX");
                             assert!(rinex.header.clock.is_some(), "badly formed CLK RINEX");
-                            assert!(rinex.epoch().count() > 0); // all files have content
+                            assert!(rinex.epoch_iter().count() > 0); // all files have content
                             let _ = rinex.record.as_clock().unwrap();
                         },
                         "IONEX" => {
                             assert!(rinex.is_ionex());
-                            assert!(rinex.epoch().count() > 0); // all files have content
-                            for e in rinex.epoch() {
+                            assert!(rinex.epoch_iter().count() > 0); // all files have content
+                            for e in rinex.epoch_iter() {
                                 assert!(
                                     e.time_scale == TimeScale::UTC,
                                     "wrong {} timescale for a IONEX",

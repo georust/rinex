@@ -141,12 +141,12 @@ pub fn generic_observation_rinex_test(
     }
 
     // Check SV content
-    let content = dut.sv().collect::<Vec<_>>();
+    let content = dut.sv_iter().collect::<Vec<_>>();
     let expected = sv_from_csv(sv_csv);
     assert_eq!(content, expected);
 
     // Check GNSS content
-    let content = dut.constellation().sorted().collect::<Vec<_>>();
+    let content = dut.constellations_iter().sorted().collect::<Vec<_>>();
     let expected = gnss_from_csv(gnss_csv);
     assert_eq!(content, expected);
 
@@ -184,13 +184,13 @@ pub fn generic_observation_rinex_against_model(dut: &Rinex, model: &Rinex) {
         .expect("failed to unwrap rinex record");
 
     // verify constellations
-    let dut_content = dut.constellation().sorted().collect::<Vec<_>>();
-    let expected_content = model.constellation().sorted().collect::<Vec<_>>();
+    let dut_content = dut.constellations_iter().sorted().collect::<Vec<_>>();
+    let expected_content = model.constellations_iter().sorted().collect::<Vec<_>>();
     assert_eq!(dut_content, expected_content);
 
     // verify observables
-    let dut_content = dut.observable().sorted().collect::<Vec<_>>();
-    let expected_content = dut.observable().sorted().collect::<Vec<_>>();
+    let dut_content = dut.observables_iter().sorted().collect::<Vec<_>>();
+    let expected_content = dut.observables_iter().sorted().collect::<Vec<_>>();
     assert_eq!(dut_content, expected_content);
 
     // TODO : verify carriers

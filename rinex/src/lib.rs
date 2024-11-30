@@ -43,7 +43,8 @@ mod leap; // leap second
 mod linspace; // grid and linear spacing
 mod observable;
 mod observation;
-mod production; // RINEX production infrastructure // physical observations
+mod production;
+mod sampling; // RINEX production infrastructure // physical observations
 
 #[cfg(feature = "qc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
@@ -184,8 +185,7 @@ use crate::{
     doris::record::{doris_decim_mut, doris_mask_mut},
     header::processing::header_mask_mut,
     ionex::record::{ionex_decim_mut, ionex_mask_mut},
-    meteo::decim::decim_mut as meteo_decim_mut,
-    meteo::record::{meteo_decim_mut, meteo_mask_mut},
+    meteo::{decim::decim_mut as meteo_decim_mut, mask::mask_mut as meteo_mask_mut},
     navigation::record::{navigation_decim_mut, navigation_mask_mut},
     observation::{
         decim::decim_mut as observation_decim_mut, mask::mask_mut as observation_mask_mut,
@@ -1035,186 +1035,17 @@ impl Rinex {
 }
 
 /*
- * Sampling related methods
- */
-impl Rinex {
-    /// Returns first [Epoch] encountered in time
-    pub fn first_epoch(&self) -> Option<Epoch> {
-        self.epoch().next()
-    }
-
-    /// Returns last [Epoch] encountered in time
-    pub fn last_epoch(&self) -> Option<Epoch> {
-        self.epoch().last()
-    }
-
-    /// Returns total [Duration] this [Rinex].
-    pub fn duration(&self) -> Option<Duration> {
-        let start = self.first_epoch()?;
-        let end = self.last_epoch()?;
-        Some(end - start)
-    }
-
-    /// Form a [`Timeseries`] iterator spanning [Self::duration]
-    /// with [Self::dominant_sample_rate] spacing
-    pub fn timeseries(&self) -> Option<TimeSeries> {
-        let start = self.first_epoch()?;
-        let end = self.last_epoch()?;
-        let dt = self.dominant_sample_rate()?;
-        Some(TimeSeries::inclusive(start, end, dt))
-    }
-
-    /// Returns sample rate used by the data receiver.
-    pub fn sample_rate(&self) -> Option<Duration> {
-        self.header.sampling_interval
-    }
-
-    /// Returns dominant sample rate
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// assert_eq!(
-    ///     rnx.dominant_sample_rate(),
-    ///     Some(Duration::from_seconds(60.0)));
-    /// ```
-    pub fn dominant_sample_rate(&self) -> Option<Duration> {
-        self.sampling_histogram()
-            .max_by(|(_, pop_i), (_, pop_j)| pop_i.cmp(pop_j))
-            .map(|dominant| dominant.0)
-    }
-    /// Histogram analysis on Epoch interval. Although
-    /// it is feasible on all types indexed by [Epoch],
-    /// this operation only makes truly sense on Observation Data.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use itertools::Itertools;
-    /// use std::collections::HashMap;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
-    ///     .unwrap();
-    ///  assert!(
-    ///     rinex.sampling_histogram().sorted().eq(vec![
-    ///         (Duration::from_seconds(30.0), 1),
-    ///     ]),
-    ///     "sampling_histogram failed"
-    /// );
-    /// ```
-    pub fn sampling_histogram(&self) -> Box<dyn Iterator<Item = (Duration, usize)> + '_> {
-        // compute dt = |e_k+1 - e_k| : instantaneous epoch delta
-        //              then compute an histogram on these intervals
-        Box::new(
-            self.epoch()
-                .zip(self.epoch().skip(1))
-                .map(|(ek, ekp1)| ekp1 - ek) // following step computes the histogram
-                // and at the same time performs a .unique() like filter
-                .fold(vec![], |mut list, dt| {
-                    let mut found = false;
-                    for (delta, pop) in list.iter_mut() {
-                        if *delta == dt {
-                            *pop += 1;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        list.push((dt, 1));
-                    }
-                    list
-                })
-                .into_iter(),
-        )
-    }
-    /// Returns True if Self has a steady sampling, ie., all epoch interval
-    /// are evenly spaced
-    pub fn steady_sampling(&self) -> bool {
-        self.sampling_histogram().count() == 1
-    }
-    /// Returns an iterator over unexpected data gaps,
-    /// in the form ([`Epoch`], [`Duration`]), where
-    /// epoch is the starting datetime, and its related duration.
-    /// ```
-    /// use std::str::FromStr;
-    /// use rinex::prelude::{Rinex, Epoch, Duration};
-    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    ///
-    /// // when tolerance is set to None,
-    /// // the reference sample rate is [Self::dominant_sample_rate].
-    /// let mut tolerance : Option<Duration> = None;
-    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
-    /// assert!(
-    ///     rinex.data_gaps(None).eq(
-    ///         vec![
-    ///             (Epoch::from_str("2015-01-01T00:09:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T09:04:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T19:54:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T23:02:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T23:21:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
-    ///         ]),
-    ///     "data_gaps(tol=None) failed"
-    /// );
-    ///
-    /// // with a tolerance, we tolerate the given gap duration
-    /// tolerance = Some(Duration::from_seconds(3600.0));
-    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
-    /// assert!(
-    ///     rinex.data_gaps(Some(Duration::from_seconds(3.0 * 3600.0))).eq(
-    ///         vec![
-    ///             (Epoch::from_str("2015-01-01T00:09:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T09:04:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T19:54:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
-    ///         ]),
-    ///     "data_gaps(tol=3h) failed"
-    /// );
-    /// ```
-    pub fn data_gaps(
-        &self,
-        tolerance: Option<Duration>,
-    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_> {
-        let sample_rate: Duration = match tolerance {
-            Some(dt) => dt, // user defined
-            None => {
-                match self.dominant_sample_rate() {
-                    Some(dt) => dt,
-                    None => {
-                        match self.sample_rate() {
-                            Some(dt) => dt,
-                            None => {
-                                // not enough information
-                                // this is probably not an Epoch iterated RINEX
-                                return Box::new(Vec::<(Epoch, Duration)>::new().into_iter());
-                            },
-                        }
-                    },
-                }
-            },
-        };
-        Box::new(
-            self.epoch()
-                .zip(self.epoch().skip(1))
-                .filter_map(move |(ek, ekp1)| {
-                    let dt = ekp1 - ek; // gap
-                    if dt > sample_rate {
-                        // too large
-                        Some((ek, dt)) // retain starting datetime and gap duration
-                    } else {
-                        None
-                    }
-                }),
-        )
-    }
-}
-
-/*
  * Methods that return an Iterator exclusively.
  * These methods are used to browse data easily and efficiently.
  */
 impl Rinex {
-    pub fn epoch(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
+    /// Returns [Epoch] Iterator. This applies to all but ANTEX special format,
+    /// for which we return null.
+    pub fn epoch_iter(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
         if let Some(r) = self.record.as_obs() {
             Box::new(r.iter().map(|(k, _)| k.epoch))
         } else if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().map(|(k, _)| k.epoch))
+            Box::new(r.iter().map(|(k, _)| k.epoch).unique())
         } else if let Some(r) = self.record.as_doris() {
             Box::new(r.iter().map(|((k, _), _)| *k))
         } else if let Some(r) = self.record.as_nav() {
@@ -1224,18 +1055,16 @@ impl Rinex {
         } else if let Some(r) = self.record.as_ionex() {
             Box::new(r.iter().map(|((k, _), _)| *k))
         } else {
-            panic!(
-                "cannot get an epoch iterator for \"{:?}\" RINEX",
-                self.header.rinex_type
-            );
+            Box::new([].into_iter())
         }
     }
 
-    /// Returns a unique [`SV`] iterator, to navigate
-    /// all Satellite Vehicles encountered and identified.
-    /// This will panic if invoked on ATX, Meteo or IONEX records.
-    /// In case of Clock RINEX, the returns the list of vehicles
-    /// used as reference.
+    /// Returns [SV] iterator. This applies to
+    /// - Observation RINEX
+    /// - Navigation RINEX
+    /// - Clock RINEX
+    /// - DORIS
+    /// We return null for all other formats.
     /// ```
     /// extern crate gnss_rs as gnss;
     /// use rinex::prelude::*;
@@ -1257,7 +1086,7 @@ impl Rinex {
     ///     sv!("G28"), sv!("G30"), sv!("G31"),
     ///     sv!("G32")]);
     /// ```
-    pub fn sv(&self) -> Box<dyn Iterator<Item = SV> + '_> {
+    pub fn sv_iter(&self) -> Box<dyn Iterator<Item = SV> + '_> {
         if self.is_observation_rinex() {
             Box::new(
                 self.signal_observations_iter()
@@ -1267,8 +1096,6 @@ impl Rinex {
             )
         } else if let Some(record) = self.record.as_nav() {
             Box::new(
-                // grab all vehicles through all epochs,
-                // fold them into a unique list
                 record
                     .iter()
                     .flat_map(|(_, frames)| {
@@ -1306,10 +1133,7 @@ impl Rinex {
                     .unique(),
             )
         } else {
-            panic!(
-                ".sv() is not feasible on \"{:?}\" RINEX",
-                self.header.rinex_type
-            );
+            Box::new([].into_iter())
         }
     }
 
@@ -1384,7 +1208,8 @@ impl Rinex {
     //         );
     //     }
     // }
-    /// Returns a (unique) Iterator over all identified [`Constellation`]s.
+
+    /// Returns [Constellation]s Iterator.
     /// ```
     /// use rinex::prelude::*;
     /// use itertools::Itertools; // .sorted()
@@ -1392,7 +1217,7 @@ impl Rinex {
     ///     .unwrap();
     ///
     /// assert!(
-    ///     rnx.constellation().sorted().eq(
+    ///     rnx.constellations_iter().sorted().eq(
     ///         vec![
     ///             Constellation::GPS,
     ///             Constellation::Glonass,
@@ -1403,10 +1228,10 @@ impl Rinex {
     ///     "parsed wrong GNSS context",
     /// );
     /// ```
-    pub fn constellation(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
+    pub fn constellations_iter(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
         // from .sv() (unique) iterator:
         //  create a unique list of Constellations
-        Box::new(self.sv().map(|sv| sv.constellation).unique())
+        Box::new(self.sv_iter().map(|sv| sv.constellation).unique())
     }
 
     // /// Returns an Iterator over Unique Constellations, per Epoch
@@ -1421,54 +1246,55 @@ impl Rinex {
     //     }))
     // }
 
-    /// Unique [Observable]s Iterator. Can only be used on either Observation,
-    /// Meteo or DORIS RINEX and will panic otherwise (invalid RINEX type).
+    /// Returns [Observable]s Iterator.
+    /// Applies to Observation RINEX, Meteo RINEX and DORIS.
+    /// Returns null for any other formats.  
     /// ```
     /// use rinex::prelude::*;
+    ///
+    /// // Observation RINEX (example)
     /// let rinex = Rinex::from_file("../test_resources/CRNX/V1/AJAC3550.21D")
     ///     .unwrap();
-    /// for observable in rinex.observable() {
+    /// for observable in rinex.observables_iter() {
     ///     if observable.is_phase_observable() {
     ///         // do something
     ///     }
     /// }
-    /// ```
-    /// Also applies to Meteo RINEX:
-    /// ```
-    /// use rinex::prelude::*;
+    ///
+    /// // Meteo (example)
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
-    /// for observable in rinex.observable() {
+    /// for observable in rinex.observables_iter() {
     ///     if *observable == Observable::Temperature {
     ///         // do something
     ///     }
     /// }
-    /// ```
-    /// Also applies to DORIS RINEX:
-    /// ```
+    ///
+    /// // DORIS (example)
     /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
+    /// let rinex = Rinex::from_gzip_file("../test_resources/DOR/V3/cs2rx18164.gz")
     ///     .unwrap();
-    /// for observable in rinex.observable() {
+    /// for observable in rinex.observables_iter() {
     ///     if observable.is_pseudorange_observable() {
     ///         // do something
     ///     }
     /// }
     /// ```
-    pub fn observable(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
+    pub fn observables_iter(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
         if self.is_observation_rinex() {
             Box::new(
                 self.signal_observations_iter()
                     .map(|(_, v)| &v.observable)
-                    .unique(),
+                    .unique()
+                    .sorted(),
             )
-        } else if let Some(record) = self.record.as_meteo() {
-            Box::new(record.iter().map(|(k, _)| k.observable).unique())
-        //     Box::new(
-        //         self.meteo()
-        //             .flat_map(|(_, observables)| observables.iter().map(|(k, _)| k))
-        //             .unique(),
-        //     )
+        } else if self.is_meteo_rinex() {
+            Box::new(
+                self.meteo_observations_iter()
+                    .map(|(k, _)| &k.observable)
+                    .unique()
+                    .sorted(),
+            )
         // } else if self.record.as_doris().is_some() {
         //     Box::new(
         //         self.doris()
@@ -1482,20 +1308,6 @@ impl Rinex {
         } else {
             Box::new([].into_iter())
         }
-    }
-    /// Meteo RINEX record browsing method. Extracts data for this specific format.
-    /// Data is sorted by [`Epoch`] then by [`Observable`].
-    /// ```
-    ///     }
-    /// }
-    /// ```
-    pub fn meteo(&self) -> Box<dyn Iterator<Item = (&Epoch, &HashMap<Observable, f64>)> + '_> {
-        Box::new(
-            self.record
-                .as_meteo()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
     }
 
     /// Returns Navigation Data interator (any type of message).
