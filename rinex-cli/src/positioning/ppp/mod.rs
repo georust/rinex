@@ -35,7 +35,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
     // infaillible at this point
-    let obs_data = ctx.data.observation().unwrap();
+    let obs_data = ctx.data.observation_data().unwrap();
 
     // TODO: Optional remote reference site
     // let rtk_compatible = ctx.rtk_compatible();
@@ -124,7 +124,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
             candidate.set_tropo_components(tropo);
 
             // customization: Iono
-            match ctx.data.brdc_navigation() {
+            match ctx.data.brdc_navigation_data() {
                 Some(brdc) => {
                     if let Some(model) = kb_model(brdc, t) {
                         candidate.set_iono_components(IonoComponents::KbModel(model));

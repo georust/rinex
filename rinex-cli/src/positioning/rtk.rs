@@ -21,7 +21,7 @@ impl<'a> RemoteRTKReference<'a> {
     /// Builds new [RemoteRTKReference] from data [Context]
     pub fn from_ctx(ctx: &'a Context) -> Self {
         if let Some(reference_site) = ctx.reference_site.as_ref() {
-            if let Some(remote_obs) = reference_site.data.observation() {
+            if let Some(remote_obs) = reference_site.data.observation_data() {
                 info!("Remote reference site context created");
                 Self {
                     iter: remote_obs.signal_observations_sampling_ok_iter(),

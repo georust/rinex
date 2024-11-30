@@ -262,20 +262,18 @@ impl Record {
                                 &mut observations,
                             ) {
                                 Ok(key) => {
-                                    //println!("obs={:?} content=\"{}\"", observations, epoch_buf);
+                                    println!("key={:?}", key);
                                     obs_rec.insert(key, observations.clone());
-                                    observations.signals.clear(); // reset for next parsing (single alloc)
                                     comment_ts = key.epoch; // for comments storage
                                 },
                                 #[cfg(feature = "log")]
                                 Err(e) => {
-                                    println!("parsing: {}", e);
+                                    error!("parsing: {}", e);
                                 },
-                                #[cfg(not(feature = "log"))]
-                                Err(e) => {
-                                    println!("parsing: {}", e);
-                                },
+                                Err(_) => {},
                             }
+
+                            observations.signals.clear(); // reset for next parsing (single alloc)
                         },
 
                         Type::DORIS => {

@@ -82,8 +82,8 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     };
 
     // infaillible, at this point
-    let obs_data = ctx.data.observation().unwrap();
-    let nav_data = ctx.data.brdc_navigation().unwrap();
+    let obs_data = ctx.data.observation_data().unwrap();
+    let nav_data = ctx.data.brdc_navigation_data().unwrap();
     // let meteo_data = ctx.data.meteo(); //TODO
 
     let dominant_sampling_period = obs_data
@@ -97,7 +97,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     let mut trk_midpoint = Option::<Epoch>::None;
     let mut trackers = HashMap::<(SV, Observable), SVTracker>::new();
 
-    for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
+    for ((t, flag), (_clk, vehicles)) in obs_data.observation_data() {
         /*
          * We only consider _valid_ epochs"
          * TODO: make use of LLI marker here
@@ -122,7 +122,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
 
                 // We consider a reference Pseudo Range
                 // and possibly gather other signals later on
-                if !observable.is_pseudorange_observable() {
+                if !observable.is_pseudo_range_observable() {
                     continue;
                 }
 
@@ -154,7 +154,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                         let rhs_carrier = rhs_carrier.unwrap();
                         let rhs_rtk_carrier = cast_rtk_carrier(rhs_carrier);
 
-                        if second_obs.is_pseudorange_observable() {
+                        if second_obs.is_pseudo_range_observable() {
                             observations.push(Observation {
                                 carrier: rhs_rtk_carrier,
                                 doppler: None,
@@ -163,7 +163,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                                 pseudo: Some(second_data.obs),
                                 snr: data.snr.map(|snr| snr.into()),
                             });
-                        } else if second_obs.is_phase_observable() {
+                        } else if second_obs.is_phase_range_observable() {
                             let lambda = rhs_carrier.wavelength();
                             if let Some(obs) = observations
                                 .iter_mut()

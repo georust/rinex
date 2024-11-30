@@ -16,7 +16,7 @@ pub fn post_process(
     /*
      * CGGTTS formation and customization
      */
-    let obs_data = ctx.data.observation().unwrap(); // infaillible at this point
+    let obs_data = ctx.data.observation_data().unwrap(); // infaillible at this point
 
     // receiver customization
     let rcvr = match &obs_data.header.rcvr {

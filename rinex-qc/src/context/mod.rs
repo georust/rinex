@@ -1,4 +1,4 @@
-//! GNSS processing context definition.
+//! User Data (input products) definitions
 use thiserror::Error;
 
 use std::{
@@ -24,10 +24,16 @@ use anise::{
     prelude::Frame,
 };
 
+mod rinex_ctx;
+
+#[cfg(feature = "sp3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+mod sp3_ctx;
+
 #[cfg(feature = "sp3")]
 use sp3::prelude::SP3;
 
-use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait};
+use qc_traits::{Filter, MergeError, Preprocessing, Repair, RepairTrait};
 
 /// Context Error
 #[derive(Debug, Error)]
@@ -98,7 +104,23 @@ impl From<RinexType> for ProductType {
     }
 }
 
-enum BlobData {
+impl ProductType {
+    pub(crate) fn to_rinex_type(&self) -> Option<RinexType> {
+        match self {
+            Self::Observation => Some(RinexType::ObservationData),
+            Self::ANTEX => Some(RinexType::AntennaData),
+            Self::BroadcastNavigation => Some(RinexType::NavigationData),
+            Self::DORIS => Some(RinexType::DORIS),
+            Self::IONEX => Some(RinexType::IonosphereMaps),
+            Self::MeteoObservation => Some(RinexType::MeteoData),
+            Self::HighPrecisionClock => Some(RinexType::ClockData),
+            #[cfg(feature = "sp3")]
+            Self::HighPrecisionOrbit => None,
+        }
+    }
+}
+
+enum UserBlobData {
     /// RINEX content
     Rinex(Rinex),
     #[cfg(feature = "sp3")]
@@ -106,55 +128,45 @@ enum BlobData {
     Sp3(SP3),
 }
 
-impl BlobData {
-    /// Returns reference to inner RINEX data.
-    pub fn as_rinex(&self) -> Option<&Rinex> {
-        match self {
-            Self::Rinex(r) => Some(r),
-            _ => None,
-        }
-    }
+/// [UserData] provides input storage and classification
+struct UserData {
+    /// [UserBlobData]
+    blob_data: UserBlobData,
+    /// Files [PathBuf] that contributed, for this [InputKey].
+    /// Stored in order of parsing.
+    paths: Vec<PathBuf>,
+}
 
-    /// Returns mutable reference to inner RINEX data.
-    pub fn as_mut_rinex(&mut self) -> Option<&mut Rinex> {
-        match self {
-            Self::Rinex(r) => Some(r),
-            _ => None,
-        }
-    }
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum UniqueId {
+    /// GNSS receiver name/model differentiates a signal source
+    Receiver(String),
+    /// Data provider (agency) may differentiate some [ProductType]s
+    Agency(String),
+    /// A satellite may differentiate some [ProductType]s
+    Satellite(String),
+    /// Some [ProductType] are not differentiated
+    #[default]
+    None,
+}
 
-    /// Returns reference to inner SP3 data.
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    pub fn as_sp3(&self) -> Option<&SP3> {
-        match self {
-            Self::Sp3(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    /// Returns mutable reference to inner SP3 data.
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    pub fn as_mut_sp3(&mut self) -> Option<&mut SP3> {
-        match self {
-            Self::Sp3(s) => Some(s),
-            _ => None,
-        }
-    }
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct InputKey {
+    /// [UniqueId] makes two identical [ProductType]s unique.
+    pub unique_id: UniqueId,
+    /// [ProductType] is the first level of uniqueness.
+    pub product_type: ProductType,
 }
 
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,
 /// precise timing or atmosphere analysis.
 pub struct QcContext {
-    /// Files merged into self
-    files: HashMap<ProductType, Vec<PathBuf>>,
-    /// Context blob created by merging each members of each category
-    blob: HashMap<ProductType, BlobData>,
-    /// Latest Almanac
+    /// Complex [UserData] stored by [InputKey] that makes them unique
+    user_data: HashMap<InputKey, UserData>,
+    /// Latest Almanac to use during this session.
     pub almanac: Almanac,
-    /// ECEF frame
+    /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
 }
 
@@ -164,7 +176,10 @@ impl QcContext {
     const ANISE_STORAGE_DIR: &str = "/home/env:USER/.local/share/nyx-space/anise";
 
     /// ANISE storage location
-    // TODO: this will not work (need full path)
+    #[cfg(target_os = "macos")]
+    const ANISE_STORAGE_DIR: &str = "/home/env:USER/.local/share/nyx-space/anise";
+
+    /// ANISE storage location
     #[cfg(target_os = "windows")]
     const ANISE_STORAGE_DIR: &str = "C:/users/env:USER:/AppData/Local/nyx-space/anise";
 
@@ -215,7 +230,7 @@ impl QcContext {
             let mut buf = Vec::with_capacity(1024);
             match fd.read_to_end(&mut buf) {
                 Ok(_) => Some(crc32fast::hash(&buf)),
-                Err(e) => None,
+                Err(_) => None,
             }
         } else {
             None
@@ -271,6 +286,7 @@ impl QcContext {
             },
         }
     }
+
     /// Create a new QcContext for which we will try to
     /// retrieve the latest and highest precision [Almanac]
     /// and reference [Frame] to work with. If you prefer
@@ -280,47 +296,49 @@ impl QcContext {
         Ok(Self {
             almanac,
             earth_cef,
-            blob: HashMap::new(),
-            files: HashMap::new(),
+            user_data: Default::default(),
         })
     }
+
     /// Build new [QcContext] with given [Almanac] and desired [Frame],
     /// which must be one of the available ECEF.
     pub fn new_almanac(almanac: Almanac, frame: Frame) -> Result<Self, Error> {
         Ok(Self {
             almanac,
             earth_cef: frame,
-            blob: HashMap::new(),
-            files: HashMap::new(),
+            user_data: Default::default(),
         })
     }
-    /// Returns main [TimeScale] for Self
+
+    /// Returns general [TimeScale] for this [QcContext]
     pub fn timescale(&self) -> Option<TimeScale> {
         #[cfg(feature = "sp3")]
-        if let Some(sp3) = self.sp3() {
+        if let Some(sp3) = self.sp3_data() {
             return Some(sp3.time_scale);
         }
 
-        if let Some(obs) = self.observation() {
+        if let Some(obs) = self.observation_data() {
             let first = obs.first_epoch()?;
             Some(first.time_scale)
-        } else if let Some(dor) = self.doris() {
+        } else if let Some(dor) = self.doris_data() {
             let first = dor.first_epoch()?;
             Some(first.time_scale)
-        } else if let Some(clk) = self.clock() {
+        } else if let Some(clk) = self.clock_data() {
             let first = clk.first_epoch()?;
             Some(first.time_scale)
-        } else if self.meteo().is_some() {
+        } else if self.meteo_data().is_some() {
             Some(TimeScale::UTC)
-        } else if self.ionex().is_some() {
+        } else if self.ionex_data().is_some() {
             Some(TimeScale::UTC)
         } else {
             None
         }
     }
-    /// Returns path to File considered as Primary product in this Context.
-    /// When a unique file had been loaded, it is obviously considered Primary.
-    pub fn primary_path(&self) -> Option<&PathBuf> {
+
+    /// Returns path to File considered as Primary input product.
+    /// If [QcContext] only holds one input product, it is obviously defined as Primary,
+    /// whatever its kind.
+    pub fn primary_path(&self) -> Option<&Path> {
         /*
          * Order is important: determines what format are prioritized
          * in the "primary" determination
@@ -336,15 +354,15 @@ impl QcContext {
             #[cfg(feature = "sp3")]
             ProductType::HighPrecisionOrbit,
         ] {
-            if let Some(paths) = self.files(product) {
-                /*
-                 * Returns Fist file loaded in this category
-                 */
-                return paths.first();
+            // Returns first file loaded in this category.
+            if let Some(first) = self.files_iter(Some(product), None).next() {
+                return Some(first);
             }
         }
+
         None
     }
+
     /// Returns name of this context.
     /// Context is named after the file considered as Primary, see [Self::primary_path].
     /// If no files were previously loaded, simply returns "Undefined".
@@ -362,311 +380,232 @@ impl QcContext {
             "Undefined".to_string()
         }
     }
-    /// Returns reference to files loaded in given category
-    pub fn files(&self, product: ProductType) -> Option<&Vec<PathBuf>> {
-        self.files
-            .iter()
-            .filter_map(|(prod_type, paths)| {
-                if *prod_type == product {
-                    Some(paths)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-    }
-    /// Returns mutable reference to files loaded in given category
-    pub fn files_mut(&mut self, product: ProductType) -> Option<&Vec<PathBuf>> {
-        self.files
-            .iter()
-            .filter_map(|(prod_type, paths)| {
-                if *prod_type == product {
-                    Some(paths)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-    }
-    /// Returns reference to inner data of given category
-    fn data(&self, product: ProductType) -> Option<&BlobData> {
-        self.blob
-            .iter()
-            .filter_map(|(prod_type, data)| {
-                if *prod_type == product {
-                    Some(data)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-    }
-    /// Returns mutable reference to inner data of given category
-    fn data_mut(&mut self, product: ProductType) -> Option<&mut BlobData> {
-        self.blob
-            .iter_mut()
-            .filter_map(|(prod_type, data)| {
-                if *prod_type == product {
-                    Some(data)
-                } else {
-                    None
-                }
-            })
-            .reduce(move |k, _| k)
-    }
-    /// Returns reference to inner RINEX data of given category
-    pub fn rinex(&self, product: ProductType) -> Option<&Rinex> {
-        self.data(product)?.as_rinex()
-    }
-    /// Returns mutable reference to inner RINEX data of given category
-    pub fn rinex_mut(&mut self, product: ProductType) -> Option<&mut Rinex> {
-        self.data_mut(product)?.as_mut_rinex()
-    }
-    /// Returns reference to inner SP3 data
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    pub fn sp3(&self) -> Option<&SP3> {
-        self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
-    }
-    /// Returns reference to inner [ProductType::Observation] data
-    pub fn observation(&self) -> Option<&Rinex> {
-        self.data(ProductType::Observation)?.as_rinex()
-    }
-    /// Returns reference to inner [ProductType::DORIS] RINEX data
-    pub fn doris(&self) -> Option<&Rinex> {
-        self.data(ProductType::DORIS)?.as_rinex()
-    }
-    /// Returns reference to inner [ProductType::BroadcastNavigation] data
-    pub fn brdc_navigation(&self) -> Option<&Rinex> {
-        self.data(ProductType::BroadcastNavigation)?.as_rinex()
-    }
-    /// Returns reference to inner [ProductType::Meteo] data
-    pub fn meteo(&self) -> Option<&Rinex> {
-        self.data(ProductType::MeteoObservation)?.as_rinex()
-    }
-    /// Returns reference to inner [ProductType::HighPrecisionClock] data
-    pub fn clock(&self) -> Option<&Rinex> {
-        self.data(ProductType::HighPrecisionClock)?.as_rinex()
-    }
-    /// Returns reference to inner [ProductType::ANTEX] data
-    pub fn antex(&self) -> Option<&Rinex> {
-        self.data(ProductType::ANTEX)?.as_rinex()
-    }
-    /// Returns reference to inner [ProductType::IONEX] data
-    pub fn ionex(&self) -> Option<&Rinex> {
-        self.data(ProductType::IONEX)?.as_rinex()
-    }
-    /// Returns mutable reference to inner [ProductType::Observation] data
-    pub fn observation_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::Observation)?.as_mut_rinex()
-    }
-    /// Returns mutable reference to inner [ProductType::DORIS] RINEX data
-    pub fn doris_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::DORIS)?.as_mut_rinex()
-    }
-    /// Returns mutable reference to inner [ProductType::Observation] data
-    pub fn brdc_navigation_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::BroadcastNavigation)?
-            .as_mut_rinex()
-    }
-    /// Returns reference to inner [ProductType::Meteo] data
-    pub fn meteo_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::MeteoObservation)?.as_mut_rinex()
-    }
-    /// Returns mutable reference to inner [ProductType::HighPrecisionClock] data
-    pub fn clock_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::HighPrecisionClock)?
-            .as_mut_rinex()
-    }
-    /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
-        self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
-    }
-    /// Returns mutable reference to inner [ProductType::ANTEX] data
-    pub fn antex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::ANTEX)?.as_mut_rinex()
-    }
-    /// Returns mutable reference to inner [ProductType::IONEX] data
-    pub fn ionex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::IONEX)?.as_mut_rinex()
-    }
-    /// Returns true if [ProductType::Observation] are present in Self
-    pub fn has_observation(&self) -> bool {
-        self.observation().is_some()
-    }
-    /// Returns true if [ProductType::BroadcastNavigation] are present in Self
-    pub fn has_brdc_navigation(&self) -> bool {
-        self.brdc_navigation().is_some()
-    }
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// Returns true if [ProductType::HighPrecisionOrbit] are present in Self
-    pub fn has_sp3(&self) -> bool {
-        self.sp3().is_some()
-    }
-    /// Returns true if at least one [ProductType::DORIS] file is present
-    pub fn has_doris(&self) -> bool {
-        self.doris().is_some()
-    }
-    /// Returns true if [ProductType::MeteoObservation] are present in Self
-    pub fn has_meteo(&self) -> bool {
-        self.meteo().is_some()
-    }
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// Returns true if High Precision Orbits also contains temporal information.
-    pub fn sp3_has_clock(&self) -> bool {
-        if let Some(sp3) = self.sp3() {
-            sp3.sv_clock().count() > 0
-        } else {
-            false
-        }
-    }
-    /// Load a single RINEX file into Self.
-    /// File revision must be supported and must be correctly formatted
-    /// for this operation to be effective.
-    pub fn load_rinex(&mut self, path: &Path, rinex: Rinex) -> Result<(), Error> {
-        let prod_type = ProductType::from(rinex.header.rinex_type);
-        // extend context blob
-        if let Some(paths) = self
-            .files
-            .iter_mut()
-            .filter_map(|(prod, files)| {
-                if *prod == prod_type {
-                    Some(files)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-        {
-            if let Some(inner) = self.blob.get_mut(&prod_type).and_then(|k| k.as_mut_rinex()) {
-                inner.merge_mut(&rinex)?;
-                paths.push(path.to_path_buf());
+
+    /// Returns local file names Iterator.
+    /// Use [ProductType] filter to restrict to specific input [ProductType].
+    /// Use [UniqueId] filter to restrict to specific data source.
+    pub fn files_iter(
+        &self,
+        product_id: Option<ProductType>,
+        source_id: Option<UniqueId>,
+    ) -> Box<dyn Iterator<Item = &Path> + '_> {
+        if let Some(product_id) = product_id {
+            if let Some(source_id) = source_id {
+                Box::new(
+                    self.user_data
+                        .iter()
+                        .filter_map(move |(k, v)| {
+                            if k.product_type == product_id {
+                                if k.unique_id == source_id {
+                                    Some(v.paths.iter().map(|k| k.as_path()))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        })
+                        .flatten(),
+                )
+            } else {
+                Box::new(
+                    self.user_data
+                        .iter()
+                        .filter_map(move |(k, v)| {
+                            if k.product_type == product_id {
+                                Some(v.paths.iter().map(|k| k.as_path()))
+                            } else {
+                                None
+                            }
+                        })
+                        .flatten(),
+                )
             }
         } else {
-            self.blob.insert(prod_type, BlobData::Rinex(rinex));
-            self.files.insert(prod_type, vec![path.to_path_buf()]);
+            if let Some(source_id) = source_id {
+                Box::new(
+                    self.user_data
+                        .iter()
+                        .filter_map(move |(k, v)| {
+                            if k.unique_id == source_id {
+                                Some(v.paths.iter().map(|k| k.as_path()))
+                            } else {
+                                None
+                            }
+                        })
+                        .flatten(),
+                )
+            } else {
+                Box::new(
+                    self.user_data
+                        .iter()
+                        .flat_map(|(_, v)| v.paths.iter().map(|k| k.as_path())),
+                )
+            }
         }
-        Ok(())
     }
-    /// Load a single SP3 file into Self.
-    /// File revision must be supported and must be correctly formatted
-    /// for this operation to be effective.
-    #[cfg(feature = "sp3")]
-    pub fn load_sp3(&mut self, path: &Path, sp3: SP3) -> Result<(), Error> {
-        let prod_type = ProductType::HighPrecisionOrbit;
-        // extend context blob
-        if let Some(paths) = self
-            .files
-            .iter_mut()
-            .filter_map(|(prod, files)| {
-                if *prod == prod_type {
-                    Some(files)
+
+    /// Returns [UserData] for this [ProductType]
+    fn get_per_product_user_data(&self, product_id: ProductType) -> Option<&UserData> {
+        self.user_data
+            .iter()
+            .filter_map(|(k, user_data)| {
+                if k.product_type == product_id {
+                    Some(user_data)
                 } else {
                     None
                 }
             })
             .reduce(|k, _| k)
-        {
-            if let Some(inner) = self.blob.get_mut(&prod_type).and_then(|k| k.as_mut_sp3()) {
-                inner.merge_mut(&sp3)?;
-                paths.push(path.to_path_buf());
-            }
-        } else {
-            self.blob.insert(prod_type, BlobData::Sp3(sp3));
-            self.files.insert(prod_type, vec![path.to_path_buf()]);
-        }
-        Ok(())
     }
-    /// True if Self is compatible with navigation
-    pub fn nav_compatible(&self) -> bool {
-        self.observation().is_some() && self.brdc_navigation().is_some()
+
+    /// Returns mutable [UserData] for this [ProductType]
+    fn get_per_product_user_data_mut(&mut self, product_id: ProductType) -> Option<&mut UserData> {
+        self.user_data
+            .iter_mut()
+            .filter_map(|(k, user_data)| {
+                if k.product_type == product_id {
+                    Some(user_data)
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)
     }
-    /// True if Self is compatible with CPP positioning,
+
+    /// Returns [UserData] for this unique [InputKey] combination
+    fn get_unique_user_data(&self, key: &InputKey) -> Option<&UserData> {
+        self.user_data
+            .iter()
+            .filter_map(
+                |(k, user_data)| {
+                    if k == key {
+                        Some(user_data)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .reduce(|k, _| k)
+    }
+
+    /// Returns [UserData] for this unique [InputKey] combination
+    fn get_unique_user_data_mut(&mut self, key: &InputKey) -> Option<&mut UserData> {
+        self.user_data
+            .iter_mut()
+            .filter_map(
+                |(k, user_data)| {
+                    if k == key {
+                        Some(user_data)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .reduce(|k, _| k)
+    }
+
+    /// True if [QcContext] is compatible with post processed navigation
+    pub fn is_navi_compatible(&self) -> bool {
+        self.observation_data().is_some() && self.brdc_navigation_data().is_some()
+    }
+
+    /// True if [QcContext] is compatible with CPP positioning,
     /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
-    pub fn cpp_compatible(&self) -> bool {
+    pub fn is_cpp_compatible(&self) -> bool {
         // TODO: improve: only PR
-        if let Some(obs) = self.observation() {
+        if let Some(obs) = self.observation_data() {
             obs.carrier_iter().count() > 1
         } else {
             false
         }
     }
-    /// [Self] cannot be True if self is compatible with PPP positioning,
+
+    /// True if [QcContext] is compatible with PPP positioning,
     /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>
-    pub fn ppp_compatible(&self) -> bool {
+    pub fn is_ppp_compatible(&self) -> bool {
         // TODO: check PH as well
-        self.cpp_compatible()
+        self.is_cpp_compatible()
     }
+
     #[cfg(not(feature = "sp3"))]
-    /// SP3 is required for 100% PPP compatibility
+    /// SP3 support is required for 100% PPP compatibility
     pub fn ppp_ultra_compatible(&self) -> bool {
         false
     }
+
     #[cfg(feature = "sp3")]
-    pub fn ppp_ultra_compatible(&self) -> bool {
+    pub fn is_ppp_ultra_compatible(&self) -> bool {
         // TODO: improve
         //      verify clock().ts and obs().ts do match
         //      and have common time frame
-        self.clock().is_some() && self.sp3_has_clock() && self.ppp_compatible()
+        self.clock_data().is_some() && self.sp3_has_clock() && self.is_ppp_compatible()
     }
-    /// Returns true if provided Input products allow Ionosphere bias
-    /// model optimization
-    pub fn iono_bias_model_optimization(&self) -> bool {
-        self.ionex().is_some() // TODO: BRDC V3 or V4
+
+    /// True if [QcContext] supports Ionosphere bias model optimization
+    pub fn allows_iono_bias_model_optimization(&self) -> bool {
+        self.ionex_data().is_some() // TODO: BRDC V3 or V4
     }
-    /// Returns true if provided Input products allow Troposphere bias
-    /// model optimization
-    pub fn tropo_bias_model_optimization(&self) -> bool {
+
+    /// True if [QcContext] supports Troposphere bias model optimization
+    pub fn allows_tropo_bias_model_optimization(&self) -> bool {
         self.has_meteo()
     }
+
     /// Returns possible Reference position defined in this context.
     /// Usually the Receiver location in the laboratory.
     pub fn reference_position(&self) -> Option<GroundPosition> {
-        if let Some(data) = self.observation() {
+        if let Some(data) = self.observation_data() {
             if let Some(pos) = data.header.ground_position {
                 return Some(pos);
             }
         }
-        if let Some(data) = self.brdc_navigation() {
+        if let Some(data) = self.brdc_navigation_data() {
             if let Some(pos) = data.header.ground_position {
                 return Some(pos);
             }
         }
         None
     }
-    /// Apply preprocessing filter algorithm to mutable [Self].
-    /// Filter will apply to all data contained in the context.
+
+    /// Apply preprocessing filter algorithm to mutable [QcContext].
+    /// This is an efficient interface to resample or shrink the input products.
     pub fn filter_mut(&mut self, filter: &Filter) {
-        if let Some(data) = self.observation_mut() {
+        if let Some(data) = self.observation_data_mut() {
             data.filter_mut(filter);
         }
-        if let Some(data) = self.brdc_navigation_mut() {
+        if let Some(data) = self.brdc_navigation_data_mut() {
             data.filter_mut(filter);
         }
-        if let Some(data) = self.doris_mut() {
+        if let Some(data) = self.doris_data_mut() {
             data.filter_mut(filter);
         }
-        if let Some(data) = self.meteo_mut() {
+        if let Some(data) = self.meteo_data_mut() {
             data.filter_mut(filter);
         }
-        if let Some(data) = self.clock_mut() {
+        if let Some(data) = self.clock_data_mut() {
             data.filter_mut(filter);
         }
-        if let Some(data) = self.ionex_mut() {
+        if let Some(data) = self.ionex_data_mut() {
             data.filter_mut(filter);
         }
         #[cfg(feature = "sp3")]
-        if let Some(data) = self.sp3_mut() {
+        if let Some(data) = self.sp3_data_mut() {
             data.filter_mut(filter);
         }
     }
-    /// Fix given [Repair] condition
+
+    /// "Fix" [QcContext] by applyaing [Repair]ment.
+    /// This is useful if some wrongfuly Null Observations were forwarded
+    /// and we need to patch them, and similar scenarios.
     pub fn repair_mut(&mut self, r: Repair) {
-        if let Some(rinex) = self.observation_mut() {
+        if let Some(rinex) = self.observation_data_mut() {
+            rinex.repair_mut(r);
+        }
+        if let Some(rinex) = self.meteo_data_mut() {
+            rinex.repair_mut(r);
+        }
+        if let Some(rinex) = self.doris_data_mut() {
             rinex.repair_mut(r);
         }
     }
@@ -686,9 +625,9 @@ impl std::fmt::Debug for QcContext {
             #[cfg(feature = "sp3")]
             ProductType::HighPrecisionOrbit,
         ] {
-            if let Some(files) = self.files(product) {
+            while let Some(path) = self.files_iter(Some(product), None).next() {
                 write!(f, "\n{}: ", product)?;
-                write!(f, "{:?}", files,)?;
+                write!(f, "{:?}", path)?;
             }
         }
         Ok(())

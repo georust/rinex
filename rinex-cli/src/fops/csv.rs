@@ -5,6 +5,7 @@ use std::path::Path;
 
 pub fn write_obs_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error> {
     let mut w = Writer::from_path(path)?;
+
     w.write_record(&[
         "Epoch",
         "Flag",
@@ -15,31 +16,35 @@ pub fn write_obs_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error
         "LLI",
         "SNR",
     ])?;
-    for ((epoch, flag), (clk, svnn)) in rnx.observation() {
-        let t = epoch.to_string();
-        let flag = flag.to_string();
-        let clk = if let Some(clk) = clk {
-            clk.to_string()
+
+    for (key, observations) in rnx.observations_iter() {
+        let t = key.epoch.to_string();
+        let flag = key.flag.to_string();
+
+        let clk = if let Some(clk) = observations.clock {
+            format!("{:.6E}", clk.offset_s)
         } else {
             "None".to_string()
         };
-        for (sv, obsnn) in svnn.iter() {
-            let sv = sv.to_string();
-            for (code, obs) in obsnn.iter() {
-                let code = code.to_string();
-                let value = format!("{:.3E}", obs.obs);
-                let lli = if let Some(lli) = obs.lli {
-                    format!("{:?}", lli)
-                } else {
-                    "None".to_string()
-                };
-                let snr = if let Some(snr) = obs.snr {
-                    format!("{:?}", snr)
-                } else {
-                    "None".to_string()
-                };
-                w.write_record(&[&t, &flag, &clk, &sv, &code, &value, &lli, &snr])?;
-            }
+
+        for signal in observations.signals.iter() {
+            let sv = signal.sv.to_string();
+            let code = signal.observable.to_string();
+            let value = format!("{:.6E}", signal.value);
+
+            let lli = if let Some(lli) = signal.lli {
+                format!("{:?}", lli)
+            } else {
+                "None".to_string()
+            };
+
+            let snr = if let Some(snr) = signal.snr {
+                format!("{:?}", snr)
+            } else {
+                "None".to_string()
+            };
+
+            w.write_record(&[&t, &flag, &clk, &sv, &code, &value, &lli, &snr])?;
         }
     }
     Ok(())

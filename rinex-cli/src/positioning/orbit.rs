@@ -31,15 +31,15 @@ fn sun_unit_vector(almanac: &Almanac, t: Epoch) -> Result<Vector3<f64>, AlmanacE
 
 impl<'a, 'b> Orbits<'a, 'b> {
     pub fn new(ctx: &'a Context, eph: &'a RefCell<EphemerisSource<'b>>) -> Self {
-        let has_precise = ctx.data.sp3().is_some();
+        let has_precise = ctx.data.sp3_data().is_some();
         let mut s = Self {
             eph,
             has_precise,
             eos: if has_precise { false } else { true },
             buff: HashMap::with_capacity(16),
             iter: {
-                if let Some(sp3) = ctx.data.sp3() {
-                    if let Some(atx) = ctx.data.antex() {
+                if let Some(sp3) = ctx.data.sp3_data() {
+                    if let Some(atx) = ctx.data.antex_data() {
                         info!("Orbit source created: operating with Ultra Precise Orbits.");
                         Box::new(sp3.sv_position().filter_map(|(t, sv, (x_km, y_km, z_km))| {
                             // TODO: needs rework and support all frequencies

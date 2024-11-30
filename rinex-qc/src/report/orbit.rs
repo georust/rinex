@@ -179,7 +179,7 @@ impl OrbitReport {
         let mut azim_brdc = BTreeMap::<SV, Vec<f64>>::new();
 
         #[cfg(feature = "sp3")]
-        if let Some(sp3) = ctx.sp3() {
+        if let Some(sp3) = ctx.sp3_data() {
             for (t, sv_sp3, pos_sp3) in sp3.sv_position() {
                 let rx_orbit = Orbit::from_position(x0_km, y0_km, z0_km, t, ctx.earth_cef);
 
@@ -211,7 +211,7 @@ impl OrbitReport {
                         azim_sp3.insert(sv_sp3, vec![az_deg]);
                     }
                     if brdc_skyplot {
-                        let brdc = ctx.brdc_navigation().unwrap();
+                        let brdc = ctx.brdc_navigation_data().unwrap();
                         if let Some(el_az_range) =
                             brdc.sv_azimuth_elevation_range(sv_sp3, t, rx_orbit, &ctx.almanac)
                         {
@@ -307,7 +307,7 @@ impl OrbitReport {
                     true,
                 );
                 #[cfg(feature = "sp3")]
-                if let Some(sp3) = ctx.sp3() {
+                if let Some(sp3) = ctx.sp3_data() {
                     for (_sv_index, sv) in sp3.sv().enumerate() {
                         let orbits = sp3
                             .sv_position()
@@ -371,8 +371,8 @@ impl OrbitReport {
             #[cfg(feature = "sp3")]
             brdc_sp3_err: {
                 let mut reports = HashMap::<Constellation, BrdcSp3Report>::new();
-                if let Some(sp3) = ctx.sp3() {
-                    if let Some(nav) = ctx.brdc_navigation() {
+                if let Some(sp3) = ctx.sp3_data() {
+                    if let Some(nav) = ctx.brdc_navigation_data() {
                         for constellation in sp3.constellation() {
                             if let Some(constellation) = nav
                                 .constellations_iter()

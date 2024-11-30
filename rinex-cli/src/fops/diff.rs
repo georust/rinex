@@ -5,33 +5,30 @@ use rinex::prelude::{Rinex, RinexType};
 use rinex_qc::prelude::ProductType;
 use std::path::PathBuf;
 
-/// Runs the RINEX[A]-RINEX[B] differential operation
-/// and dumps output result into the workspace.
+/// Observation RINEX (a -b) special differential operation.
+/// Dumps result into workspace.
 pub fn diff(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
-    let path_a = ctx_data
-        .files(ProductType::Observation)
-        .expect("failed to determine output file name")
-        .first()
-        .unwrap();
 
-    let path_b = matches.get_one::<PathBuf>("file").unwrap();
+    for file in ctx_data.files_iter(Some(ProductType::Observation), None) {
+        let path_b = matches.get_one::<PathBuf>("file").unwrap();
 
-    let path_b = path_b.to_string_lossy().to_string();
-    let rinex_b = Rinex::from_file(&path_b)
-        .unwrap_or_else(|_| panic!("failed to load {}: invalid RINEX", path_b));
+        let extension = path_b
+            .extension()
+            .expect("failed to determine output file extension");
 
-    let rinex_c = match rinex_b.header.rinex_type {
-        RinexType::ObservationData => {
-            let rinex_a = ctx_data
-                .observation()
-                .expect("RINEX (A) - (B) requires OBS RINEX files");
+        let rinex_b = if extension.eq("gz") {
+            Rinex::from_gzip_file(&path_b).expect("failed to load diff(a-b*) file")
+        } else {
+            Rinex::from_file(&path_b).expect("failed to load diff(a-b*) file")
+        };
 
-            //TODO: change this to crnx2rnx_mut()
-            rinex_a.crnx2rnx().substract(&rinex_b.crnx2rnx())
-        },
-        t => panic!("operation not feasible for {}", t),
-    };
+        let rinex_a = ctx_data
+            .get_rinex_data_mut(RinexType::ObservationData)
+            .expect("RINEX (A-B) requires Observation RINEX");
+
+        rinex_a.substract_mut(&rinex_b);
+    }
 
     let mut extension = String::new();
 

@@ -3,13 +3,11 @@ use crate::fops::custom_prod_attributes;
 use crate::fops::output_filename;
 use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::Duration;
+use rinex::prelude::{Duration, RinexType};
 use rinex::prod::DetailedProductionAttributes;
-use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
+use rinex_qc::prelude::{Filter, Preprocessing};
 
-/*
- * Time reframing: subdivide a RINEX into a batch of equal duration
- */
+/// Time binning (batch split of equal duration) file operation
 pub fn time_binning(
     ctx: &Context,
     matches: &ArgMatches,
@@ -24,17 +22,18 @@ pub fn time_binning(
         panic!("invalid (null) duration");
     }
 
-    for (product, dir) in [
-        (ProductType::IONEX, "IONEX"),
-        (ProductType::DORIS, "DORIS"),
-        (ProductType::Observation, "OBSERVATIONS"),
-        (ProductType::MeteoObservation, "METEO"),
-        (ProductType::BroadcastNavigation, "BRDC"),
-        (ProductType::HighPrecisionClock, "CLOCK"),
-        (ProductType::HighPrecisionOrbit, "SP3"),
+    // RINEX time binning
+    for (rinex_type, dir) in [
+        (RinexType::IonosphereMaps, "IONEX"),
+        (RinexType::DORIS, "DORIS"),
+        (RinexType::ObservationData, "OBSERVATIONS"),
+        (RinexType::MeteoData, "METEO"),
+        (RinexType::NavigationData, "BRDC"),
+        (RinexType::ClockData, "CLOCK"),
     ] {
         // input data determination
-        if let Some(rinex) = ctx_data.rinex(product) {
+
+        if let Some(rinex) = ctx_data.get_rinex_data(rinex_type) {
             // create work dir
             ctx.workspace.create_subdir(dir);
 
@@ -78,10 +77,11 @@ pub fn time_binning(
                     .to_string();
 
                 batch.to_file(&output)?;
-                info!("{} RINEX \"{}\" has been generated", product, output);
+                info!("\"{}\" ({}) has been generated", output, rinex_type);
 
                 first += *duration;
                 last += *duration;
+
                 if let Some(ref mut details) = prod.details {
                     details.batch += 1;
                 }

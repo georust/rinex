@@ -60,13 +60,13 @@ impl ClockStateProvider for Clock<'_, '_> {
 
 impl<'a, 'b> Clock<'a, 'b> {
     pub fn new(ctx: &'a Context, eph: &'a RefCell<EphemerisSource<'b>>) -> Self {
-        let has_precise = ctx.data.clock().is_some();
+        let has_precise = ctx.data.clock_data().is_some();
         let mut s = Self {
             eph,
             has_precise,
             eos: if has_precise { false } else { true },
             buff: HashMap::with_capacity(128),
-            iter: if let Some(clk) = ctx.data.clock() {
+            iter: if let Some(clk) = ctx.data.clock_data() {
                 info!("Clock source created: operating with Precise Clock.");
                 Box::new(
                     clk.precise_sv_clock()

@@ -329,7 +329,7 @@ fn parse_signals_v2(
 
         if trimmed_len == 0 {
             #[cfg(feature = "log")]
-            println!("empty line: \"{}\"", line);
+            error!("empty line: \"{}\"", line);
 
             obs_ptr += MAX_OBSERVABLES_LINE;
 
@@ -352,14 +352,14 @@ fn parse_signals_v2(
         let mut offset = 0;
 
         #[cfg(feature = "log")]
-        //println!(
-        //    "line: \"{}\" [sv={}/{} obs={}/{}]",
-        //    line,
-        //    sv_ptr,
-        //    systems_str_len,
-        //    obs_ptr,
-        //    observables.len()
-        //);
+        debug!(
+            "line: \"{}\" [sv={}/{} obs={}/{}]",
+            line,
+            sv_ptr,
+            systems_str_len,
+            obs_ptr,
+            observables.len()
+        );
 
         // process all of them
         for _ in 0..num_obs {
@@ -371,8 +371,8 @@ fn parse_signals_v2(
             let end = (offset + OBSERVABLE_WIDTH).min(line_width);
             let slice = &line[offset..end];
 
-            //#[cfg(feature = "log")]
-            //println!("observation: \"{}\" {}", slice, observables[obs_ptr]);
+            #[cfg(feature = "log")]
+            debug!("observation: \"{}\" {}", slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
@@ -428,7 +428,7 @@ fn parse_signals_v2(
 
             if obs_ptr == observables.len() {
                 #[cfg(feature = "log")]
-                println!("{} completed", sv);
+                debug!("{} completed", sv);
 
                 sv_identified = false;
                 obs_identified = false;
@@ -439,7 +439,7 @@ fn parse_signals_v2(
                 }
             } else {
                 #[cfg(feature = "log")]
-                println!("{}/{}", obs_ptr, observables.len());
+                debug!("{}/{}", obs_ptr, observables.len());
             }
         } //num_obs
 
@@ -463,8 +463,8 @@ fn parse_signals_v3(
 
     // browse all lines
     for line in lines {
-        //#[cfg(feature = "log")]
-        //println!("line: \"{}\"", line);
+        #[cfg(feature = "log")]
+        debug!("line: \"{}\"", line);
 
         // identify SV
         let sv_str = &line[0..SVNN_SIZE];

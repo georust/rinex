@@ -194,15 +194,18 @@ impl QcReport {
                         ProductType::IONEX,
                         ProductType::ANTEX,
                     ] {
-                        if let Some(rinex) = context.rinex(product) {
+                        let rinex_type = product.to_rinex_type().unwrap();
+
+                        if let Some(rinex) = context.get_rinex_data(rinex_type) {
                             if let Ok(report) = RINEXReport::new(rinex) {
                                 items.insert(product, ProductReport::RINEX(report));
                             }
                         }
                     }
+
                     // one tab for SP3 when supported
                     #[cfg(feature = "sp3")]
-                    if let Some(sp3) = context.sp3() {
+                    if let Some(sp3) = context.sp3_data() {
                         items.insert(
                             ProductType::HighPrecisionOrbit,
                             ProductReport::SP3(SP3Report::new(sp3)),

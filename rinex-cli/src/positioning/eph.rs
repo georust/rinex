@@ -13,7 +13,7 @@ pub struct EphemerisSource<'a> {
 
 impl<'a> EphemerisSource<'a> {
     pub fn from_ctx(ctx: &'a Context) -> Self {
-        if let Some(brdc) = ctx.data.brdc_navigation() {
+        if let Some(brdc) = ctx.data.brdc_navigation_data() {
             info!("Ephemeris data source created.");
             let mut s = Self {
                 eos: false,

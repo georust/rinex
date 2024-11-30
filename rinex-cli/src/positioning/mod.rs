@@ -33,7 +33,7 @@ pub use clock::ClockStateProvider;
 
 use rinex::{
     carrier::Carrier,
-    prelude::{Constellation, Rinex},
+    prelude::{nav::Orbit, Constellation, Rinex},
 };
 
 use rinex_qc::prelude::QcExtraPage;
@@ -248,14 +248,12 @@ pub fn precise_positioning(
                 .unwrap_or_else(|e| panic!("failed to parse configuration: {}", e));
 
             // CGGTTS special case
-            #[cfg(feature = "cggtts")]
             if matches.get_flag("cggtts") {
-                cfg.sol_type = PVTSolutionType::TimeOnly;
-            }
-
-            #[cfg(not(feature = "cggtts"))]
-            if matches.get_flag("cggtts") {
-                panic!("--cggtts option not available: compile with cggtts option");
+                if cfg!(feature = "cggtts") {
+                    cfg.sol_type = PVTSolutionType::TimeOnly;
+                } else {
+                    panic!("--cggtts solver not compiled!");
+                }
             }
 
             info!("Using custom solver configuration: {:#?}", cfg);
@@ -283,21 +281,21 @@ pub fn precise_positioning(
 
     // Verify requirements and print helpful comments
     assert!(
-        ctx.data.observation().is_some(),
+        ctx.data.observation_data().is_some(),
         "Positioning requires Observation RINEX"
     );
 
     if !is_rtk {
         assert!(
-            ctx.data.brdc_navigation().is_some(),
+            ctx.data.brdc_navigation_data().is_some(),
             "Positioning requires Navigation RINEX"
         );
     }
 
-    if let Some(obs_rinex) = ctx.data.observation() {
+    if let Some(obs_rinex) = ctx.data.observation_data() {
         if let Some(obs_header) = &obs_rinex.header.obs {
             if let Some(time_of_first_obs) = obs_header.timeof_first_obs {
-                if let Some(clk_rinex) = ctx.data.clock() {
+                if let Some(clk_rinex) = ctx.data.clock_data() {
                     if let Some(clk_header) = &clk_rinex.header.clock {
                         if let Some(time_scale) = clk_header.timescale {
                             if time_scale == time_of_first_obs.time_scale {
@@ -308,7 +306,7 @@ pub fn precise_positioning(
                             }
                         }
                     }
-                } else if let Some(sp3) = ctx.data.sp3() {
+                } else if let Some(sp3) = ctx.data.sp3_data() {
                     if ctx.data.sp3_has_clock() {
                         if sp3.time_scale == time_of_first_obs.time_scale {
                             info!("Temporal PPP compliancy");
