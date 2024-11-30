@@ -78,10 +78,8 @@ use itertools::Itertools;
 use antex::{Antenna, AntennaMatcher, AntennaSpecific, FrequencyDependentData};
 use epoch::epoch_decompose;
 use hatanaka::CRINEX;
-use ionex::TECPlane;
 use navigation::NavFrame;
 use observable::Observable;
-use version::Version;
 
 use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
 
@@ -113,6 +111,7 @@ pub mod prelude {
     };
 
     pub use crate::meteo::MeteoKey;
+    pub use crate::ionex::{IonexKey, IonexMapCoordinates, TEC};
 
     pub use crate::prod::ProductionAttributes;
     pub use crate::record::{Comments, Record};
@@ -165,6 +164,7 @@ pub mod prelude {
     #[cfg(feature = "rtcm")]
     #[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]
     pub use crate::rtcm::RTCM2RNX;
+
 }
 
 /// Package dedicated to file production.
@@ -187,7 +187,11 @@ use crate::{
         repair::repair_mut as doris_repair_mut,
     },
     header::processing::header_mask_mut,
-    ionex::record::{ionex_decim_mut, ionex_mask_mut},
+    ionex::{
+        decim_mut as ionex_decim_mut,
+        mask_mut as ionex_mask_mut,
+        repair::repair_mut as ionex_repair_mut,
+    },
     meteo::{
         decim::decim_mut as meteo_decim_mut, mask::mask_mut as meteo_mask_mut,
         repair::repair_mut as meteo_repair_mut,
@@ -969,31 +973,6 @@ impl Rinex {
         self.header.rinex_type == types::Type::ClockData
     }
 
-    /// Returns true if Self is a IONEX
-    pub fn is_ionex(&self) -> bool {
-        self.header.rinex_type == types::Type::IonosphereMaps
-    }
-
-    /// Returns true if Self is a 3D IONEX.  
-    /// In this case, you can have TEC values at different altitudes, for a given Epoch.
-    pub fn is_ionex_3d(&self) -> bool {
-        if let Some(ionex) = &self.header.ionex {
-            ionex.map_dimension == 3
-        } else {
-            false
-        }
-    }
-
-    /// Returns true if Self is a 2D IONEX.
-    /// In this case, all TEC values are presented at the same altitude points.
-    pub fn is_ionex_2d(&self) -> bool {
-        if let Some(ionex) = &self.header.ionex {
-            ionex.map_dimension == 2
-        } else {
-            false
-        }
-    }
-
     /// Retruns true if this is a NAV RINEX
     pub fn is_navigation_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::NavigationData
@@ -1059,7 +1038,7 @@ impl Rinex {
         } else if let Some(r) = self.record.as_clock() {
             Box::new(r.iter().map(|(k, _)| *k))
         } else if let Some(r) = self.record.as_ionex() {
-            Box::new(r.iter().map(|((k, _), _)| *k))
+            Box::new(r.iter().map(|(k, _)| k.epoch).unique())
         } else {
             Box::new([].into_iter())
         }
@@ -1918,132 +1897,6 @@ impl Rinex {
                 })
             })
         }))
-    }
-}
-
-/*
- * IONEX specific feature
- */
-#[cfg(feature = "ionex")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
-impl Rinex {
-    /// Iterates over IONEX maps, per Epoch and altitude.
-    /// ```
-    /// use rinex::prelude::*;
-    /// ```
-    fn ionex(&self) -> Box<dyn Iterator<Item = (&(Epoch, i32), &TECPlane)> + '_> {
-        Box::new(
-            self.record
-                .as_ionex()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
-    }
-    /// Returns an iterator over TEC values exclusively.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
-    ///     .unwrap();
-    /// for (t, lat, lon, alt, tec) in rnx.tec() {
-    ///     // t: Epoch
-    ///     // lat: ddeg
-    ///     // lon: ddeg
-    ///     // alt: km
-    ///     // tec: TECu (f64: properly scaled)
-    /// }
-    /// ```
-    pub fn tec(&self) -> Box<dyn Iterator<Item = (Epoch, f64, f64, f64, f64)> + '_> {
-        Box::new(self.ionex().flat_map(|((e, h), plane)| {
-            plane.iter().map(|((lat, lon), tec)| {
-                (
-                    *e,
-                    *lat as f64 / 1000.0_f64,
-                    *lon as f64 / 1000.0_f64,
-                    *h as f64 / 100.0_f64,
-                    tec.tec,
-                )
-            })
-        }))
-    }
-    /// Returns an iterator over TEC RMS exclusively
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
-    ///     .unwrap();
-    /// for (t, lat, lon, alt, rms) in rnx.tec_rms() {
-    ///     // t: Epoch
-    ///     // lat: ddeg
-    ///     // lon: ddeg
-    ///     // alt: km
-    ///     // rms|TECu| (f64)
-    /// }
-    /// ```
-    pub fn tec_rms(&self) -> Box<dyn Iterator<Item = (Epoch, f64, f64, f64, f64)> + '_> {
-        Box::new(self.ionex().flat_map(|((e, h), plane)| {
-            plane.iter().filter_map(|((lat, lon), tec)| {
-                tec.rms.map(|rms| {
-                    (
-                        *e,
-                        *lat as f64 / 1000.0_f64,
-                        *lon as f64 / 1000.0_f64,
-                        *h as f64 / 100.0_f64,
-                        rms,
-                    )
-                })
-            })
-        }))
-    }
-    /// Returns 2D fixed altitude value, expressed in km, in case self is a 2D IONEX.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
-    ///     .unwrap();
-    /// assert_eq!(rnx.tec_fixed_altitude(), Some(450.0));
-    ///
-    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
-    ///     .unwrap();
-    /// assert_eq!(rnx.tec_fixed_altitude(), Some(350.0));
-    /// ```
-    pub fn tec_fixed_altitude(&self) -> Option<f64> {
-        if self.is_ionex_2d() {
-            let header = self.header.ionex.as_ref()?;
-            Some(header.grid.height.start)
-        } else {
-            None
-        }
-    }
-    /// Returns altitude range of this 3D IONEX as {min, max}
-    /// both expressed in km.
-    pub fn tec_altitude_range(&self) -> Option<(f64, f64)> {
-        if self.is_ionex_3d() {
-            let header = self.header.ionex.as_ref()?;
-            Some((header.grid.height.start, header.grid.height.end))
-        } else {
-            None
-        }
-    }
-    /// Returns 2D TEC plane at specified altitude and time.
-    /// Refer to the header.grid specification for its width and height.
-    pub fn tec_plane(&self, t: Epoch, h: f64) -> Option<&TECPlane> {
-        self.ionex()
-            .filter_map(|((e, alt), plane)| {
-                if t == *e && (*alt as f64) / 100.0 == h {
-                    Some(plane)
-                } else {
-                    None
-                }
-            })
-            .reduce(|plane, _| plane) // is unique, in a normal IONEX
-    }
-    /// Returns IONEX map borders, expressed as North Eastern
-    /// and South Western (latitude; longitude) coordinates,
-    /// both expressed in ddeg.
-    pub fn tec_map_borders(&self) -> Option<((f64, f64), (f64, f64))> {
-        let ionex = self.header.ionex.as_ref()?;
-        Some((
-            (ionex.grid.latitude.start, ionex.grid.longitude.start),
-            (ionex.grid.latitude.end, ionex.grid.longitude.end),
-        ))
     }
 }
 
