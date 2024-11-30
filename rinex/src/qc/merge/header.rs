@@ -140,7 +140,7 @@ impl Merge for Header {
                 merge_mut_unique_vec(&mut lhs.observables, &rhs.observables);
                 //TODO: merge_scaling();
                 //merge_mut_unique_map2d(&mut lhs.scaling, &rhs.scaling);
-                lhs.l2_l1_date_offset = std::cmp::max(lhs.l2_l1_date_offset, rhs.l2_l1_date_offset);
+                lhs.u2_s1_time_offset = std::cmp::max(lhs.u2_s1_time_offset, rhs.u2_s1_time_offset);
             }
         }
         if let Some(lhs) = &mut self.ionex {

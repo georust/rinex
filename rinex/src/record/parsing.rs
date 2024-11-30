@@ -8,8 +8,7 @@ use crate::{
         ClockKey, ClockProfile, Record as ClockRecord,
     },
     doris::{
-        record::{is_new_epoch as is_new_doris_epoch, parse_epoch as parse_doris_epoch},
-        Record as DorisRecord,
+        is_new_epoch as is_new_doris_epoch, parse_epoch as parse_doris_epoch, Record as DorisRecord,
     },
     hatanaka::DecompressorExpert,
     ionex::{
@@ -278,12 +277,14 @@ impl Record {
                                 },
                             }
                         },
+
                         Type::DORIS => {
-                            if let Ok((e, map)) = parse_doris_epoch(header, &epoch_buf) {
-                                dor_rec.insert(e, map);
-                                comment_ts = e.0; // for comments storage
+                            if let Ok((k, observations)) = parse_doris_epoch(header, &epoch_buf) {
+                                comment_ts = k.epoch; // for comments storage
+                                dor_rec.insert(k, observations);
                             }
                         },
+
                         Type::MeteoData => {
                             if let Ok(items) = parse_meteo_epoch(header, &epoch_buf) {
                                 for (k, v) in items.iter() {
@@ -292,6 +293,7 @@ impl Record {
                                 }
                             }
                         },
+
                         Type::ClockData => {
                             if let Ok((epoch, key, profile)) =
                                 parse_clock_epoch(header.version, &epoch_buf, clk_ts)

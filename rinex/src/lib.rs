@@ -39,6 +39,7 @@ mod constants;
 mod epoch;
 mod error; // error package
 mod ground_position;
+mod iterators;
 mod leap; // leap second
 mod linspace; // grid and linear spacing
 mod observable;
@@ -75,7 +76,6 @@ use std::{
 use itertools::Itertools;
 
 use antex::{Antenna, AntennaMatcher, AntennaSpecific, FrequencyDependentData};
-use doris::record::ObservationData as DorisObservationData;
 use epoch::epoch_decompose;
 use hatanaka::CRINEX;
 use ionex::TECPlane;
@@ -182,10 +182,16 @@ use qc_traits::{
 #[cfg(feature = "processing")]
 use crate::{
     clock::record::{clock_decim_mut, clock_mask_mut},
-    doris::record::{doris_decim_mut, doris_mask_mut},
+    doris::{
+        decim::decim_mut as doris_decim_mut, mask::mask_mut as doris_mask_mut,
+        repair::repair_mut as doris_repair_mut,
+    },
     header::processing::header_mask_mut,
     ionex::record::{ionex_decim_mut, ionex_mask_mut},
-    meteo::{decim::decim_mut as meteo_decim_mut, mask::mask_mut as meteo_mask_mut},
+    meteo::{
+        decim::decim_mut as meteo_decim_mut, mask::mask_mut as meteo_mask_mut,
+        repair::repair_mut as meteo_repair_mut,
+    },
     navigation::record::{navigation_decim_mut, navigation_mask_mut},
     observation::{
         decim::decim_mut as observation_decim_mut, mask::mask_mut as observation_mask_mut,
@@ -1047,7 +1053,7 @@ impl Rinex {
         } else if let Some(r) = self.record.as_meteo() {
             Box::new(r.iter().map(|(k, _)| k.epoch).unique())
         } else if let Some(r) = self.record.as_doris() {
-            Box::new(r.iter().map(|((k, _), _)| *k))
+            Box::new(r.iter().map(|(k, _)| k.epoch))
         } else if let Some(r) = self.record.as_nav() {
             Box::new(r.iter().map(|(k, _)| *k))
         } else if let Some(r) = self.record.as_clock() {
@@ -1341,24 +1347,7 @@ impl Rinex {
                 .flat_map(|record| record.iter()),
         )
     }
-    /// DORIS special RINEX iterator
-    pub fn doris(
-        &self,
-    ) -> Box<
-        dyn Iterator<
-                Item = (
-                    &(Epoch, EpochFlag),
-                    &BTreeMap<Station, HashMap<Observable, DorisObservationData>>,
-                ),
-            > + '_,
-    > {
-        Box::new(
-            self.record
-                .as_doris()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
-    }
+
     /// ANTEX antennas specifications browsing
     pub fn antennas(
         &self,
@@ -1822,6 +1811,10 @@ impl RepairTrait for Rinex {
     fn repair_mut(&mut self, r: Repair) {
         if let Some(rec) = self.record.as_mut_obs() {
             observation_repair_mut(rec, r);
+        } else if let Some(rec) = self.record.as_mut_meteo() {
+            meteo_repair_mut(rec, r);
+        } else if let Some(rec) = self.record.as_mut_doris() {
+            doris_repair_mut(rec, r);
         }
     }
 }
@@ -2132,164 +2125,6 @@ impl Rinex {
                 _ => None,
             })
             .reduce(|k, _| k) // we're expecting a single match here
-    }
-}
-
-/*
- * DORIS special features
- */
-#[cfg(feature = "doris")]
-#[cfg_attr(docsrs, doc(cfg(feature = "doris")))]
-impl Rinex {
-    /// Returns Stations Iterator
-    pub fn stations(&self) -> Box<dyn Iterator<Item = &Station> + '_> {
-        if let Some(doris) = &self.header.doris {
-            Box::new(doris.stations.iter())
-        } else {
-            Box::new([].iter())
-        }
-    }
-    /// Returns temperature data iterator, per DORIS station. Values expressed in Celcius degrees.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
-    ///     .unwrap();
-    /// for (epoch, station, value) in rinex.doris_temperature() {
-    ///     println!("{}@{}: {} °C", station.domes, epoch, value);
-    /// }
-    pub fn doris_temperature(&self) -> Box<dyn Iterator<Item = (Epoch, &Station, f64)> + '_> {
-        Box::new(self.doris().flat_map(|((epoch, _), stations)| {
-            stations.iter().flat_map(move |(station, observables)| {
-                observables.iter().filter_map(move |(observable, data)| {
-                    if *observable == Observable::Temperature {
-                        Some((*epoch, station, data.value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    /// Returns pressure data iterator, per DORIS station. Values expressed in hPa.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
-    ///     .unwrap();
-    /// for (epoch, station, value) in rinex.doris_pressure() {
-    ///     println!("{}@{}: {} hPa", station.domes, epoch, value);
-    /// }
-    pub fn doris_pressure(&self) -> Box<dyn Iterator<Item = (Epoch, &Station, f64)> + '_> {
-        Box::new(self.doris().flat_map(|((epoch, _), stations)| {
-            stations.iter().flat_map(move |(station, observables)| {
-                observables.iter().filter_map(move |(observable, data)| {
-                    if *observable == Observable::Pressure {
-                        Some((*epoch, station, data.value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    /// Humidity saturation rate Iterator, per DORIS station. Values expressed in percent.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
-    ///     .unwrap();
-    /// for (epoch, station, value) in rinex.doris_humidity() {
-    ///     println!("{}@{}: {}%", station.domes, epoch, value);
-    /// }
-    pub fn doris_humidity(&self) -> Box<dyn Iterator<Item = (Epoch, &Station, f64)> + '_> {
-        Box::new(self.doris().flat_map(|((epoch, _), stations)| {
-            stations.iter().flat_map(move |(station, observables)| {
-                observables.iter().filter_map(move |(observable, data)| {
-                    if *observable == Observable::HumidityRate {
-                        Some((*epoch, station, data.value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    /// Returns phase data iterator, per DORIS station. Values expressed in meters.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
-    ///     .unwrap();
-    /// for (epoch, station, code, value) in rinex.doris_phase() {
-    ///     println!("{} {}@{}: {}", station.domes, code, epoch, value);
-    /// }
-    pub fn doris_phase(
-        &self,
-    ) -> Box<dyn Iterator<Item = (Epoch, &Station, &Observable, f64)> + '_> {
-        Box::new(self.doris().flat_map(|((epoch, _), stations)| {
-            stations.iter().flat_map(move |(station, observables)| {
-                observables.iter().filter_map(move |(observable, data)| {
-                    if observable.is_phase_range_observable() {
-                        Some((*epoch, station, observable, data.value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    /// (High precision) Pseudo Range Iterator, per DORIS station. Values expressed in meters.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
-    ///     .unwrap();
-    /// for (epoch, station, code, value) in rinex.doris_pseudo_range() {
-    ///     println!("{} {}@{}: {}m", station.domes, code, epoch, value);
-    /// }
-    pub fn doris_pseudo_range(
-        &self,
-    ) -> Box<dyn Iterator<Item = (Epoch, &Station, &Observable, f64)> + '_> {
-        Box::new(self.doris().flat_map(move |((epoch, _), stations)| {
-            stations.iter().flat_map(move |(station, observables)| {
-                observables.iter().filter_map(move |(observable, data)| {
-                    if observable.is_pseudo_range_observable() {
-                        if let Some(header) = &self.header.doris {
-                            // apply a scaling (if any), otherwise preserve data precision
-                            if let Some(scaling) = header.scaling.get(&observable) {
-                                Some((*epoch, station, observable, data.value / *scaling as f64))
-                            } else {
-                                Some((*epoch, station, observable, data.value))
-                            }
-                        } else {
-                            Some((*epoch, station, observable, data.value))
-                        }
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    /// Returns received signal power Iterator, as observed at each DORIS stations.
-    /// Values expressed in [dBm].
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V3/cs2rx18164.gz")
-    ///     .unwrap();
-    /// for (epoch, station, code, value) in rinex.doris_rx_power() {
-    ///     println!("{} {}@{}: {} dBm", station.domes, code, epoch, value);
-    /// }
-    pub fn doris_rx_power(
-        &self,
-    ) -> Box<dyn Iterator<Item = (Epoch, &Station, &Observable, f64)> + '_> {
-        Box::new(self.doris().flat_map(|((epoch, _), stations)| {
-            stations.iter().flat_map(move |(station, observables)| {
-                observables.iter().filter_map(move |(observable, data)| {
-                    if observable.is_power_observable() {
-                        Some((*epoch, station, observable, data.value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
     }
 }
 

@@ -7,8 +7,8 @@ pub fn split(rec: &Record, epoch: Epoch) -> (Record, Record) {
     let r0 = rec
         .iter()
         .flat_map(|(k, v)| {
-            if k.0 <= epoch {
-                Some((*k, v.clone()))
+            if k.epoch <= epoch {
+                Some((k.clone(), v.clone()))
             } else {
                 None
             }
@@ -18,8 +18,8 @@ pub fn split(rec: &Record, epoch: Epoch) -> (Record, Record) {
     let r1 = rec
         .iter()
         .flat_map(|(k, v)| {
-            if k.0 > epoch {
-                Some((*k, v.clone()))
+            if k.epoch > epoch {
+                Some((k.clone(), v.clone()))
             } else {
                 None
             }
@@ -32,10 +32,16 @@ pub fn split(rec: &Record, epoch: Epoch) -> (Record, Record) {
 pub fn split_mut(rec: &mut Record, t: Epoch) -> Record {
     let r1 = rec
         .iter()
-        .flat_map(|(k, v)| if k.0 > t { Some((*k, v.clone())) } else { None })
+        .flat_map(|(k, v)| {
+            if k.epoch > t {
+                Some((k.clone(), v.clone()))
+            } else {
+                None
+            }
+        })
         .collect();
 
-    rec.retain(|k, _| k.0 < t);
+    rec.retain(|k, _| k.epoch < t);
     r1
 }
 

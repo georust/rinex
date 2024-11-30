@@ -24,7 +24,7 @@ impl<'a> RemoteRTKReference<'a> {
             if let Some(remote_obs) = reference_site.data.observation() {
                 info!("Remote reference site context created");
                 Self {
-                    iter: remote_obs.signal_ok_iter(),
+                    iter: remote_obs.signal_observations_sampling_ok_iter(),
                     buffer: HashMap::with_capacity(16),
                 }
             } else {

@@ -2,7 +2,7 @@ use itertools::Itertools;
 use maud::{html, Markup, Render};
 use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::{
-    meteo::sensor::Sensor,
+    meteo::Sensor,
     prelude::{Observable, Rinex},
 };
 use std::collections::HashMap;
@@ -31,13 +31,14 @@ fn obs2unit(ob: &Observable) -> String {
     match ob {
         Observable::Pressure => "hPa".to_string(),
         Observable::Temperature => "°C".to_string(),
-        Observable::HumidityRate | Observable::RainIncrement => "%".to_string(),
+        Observable::HumidityRate => "%".to_string(),
         Observable::ZenithWetDelay | Observable::ZenithDryDelay | Observable::ZenithTotalDelay => {
             "s".to_string()
         },
         Observable::WindDirection => "°".to_string(),
         Observable::WindSpeed => "m/s".to_string(),
         Observable::HailIndicator => "boolean".to_string(),
+        Observable::RainIncrement => "1/10 mm".to_string(),
         _ => "not applicable".to_string(),
     }
 }
@@ -100,32 +101,25 @@ impl MeteoPage {
         let title = format!("{} Observations", observable);
         let y_label = format!("{} [{}]", observable, obs2unit(observable));
         let html_id = observable.to_string();
+
         if *observable == Observable::WindDirection {
+            // special compass plot
             let mut compass_plot =
                 Plot::timedomain_plot(&html_id, "Wind Direction", "Angle [°]", true);
-            for (index, (t, observations)) in rnx.meteo().enumerate() {
-                let visible = index == 0;
-                for (ob, value) in observations.iter() {
-                    if *ob == Observable::WindDirection {
-                        let hover_text = t.to_string();
-                        let mut rho = 1.0;
-                        for (rhs_ob, rhs_value) in observations.iter() {
-                            if *rhs_ob == Observable::WindSpeed {
-                                rho = *rhs_value;
-                            }
-                        }
-                        let trace = CompassArrow::new(
-                            Mode::LinesMarkers,
-                            rho,
-                            *value,
-                            hover_text,
-                            visible,
-                            0.25,
-                            25.0,
-                        );
-                        compass_plot.add_trace(trace.scatter);
-                    }
-                }
+
+            for (nth, (t, angle_degrees)) in rnx.wind_direction_iter().enumerate() {
+                let visible = nth == 0;
+                let hover_text = t.to_string();
+                let trace = CompassArrow::new(
+                    Mode::LinesMarkers,
+                    angle_degrees,
+                    angle_degrees,
+                    hover_text,
+                    visible,
+                    0.25,
+                    25.0,
+                );
+                compass_plot.add_trace(trace.scatter);
             }
             let report = WindDirectionReport { compass_plot };
             Self {
@@ -134,30 +128,29 @@ impl MeteoPage {
             }
         } else {
             let mut plot = Plot::timedomain_plot(&html_id, &title, &y_label, true);
-            let data_x =
-                rnx.meteo()
-                    .flat_map(|(t, observations)| {
-                        observations.iter().filter_map(|(obs, _)| {
-                            if obs == observable {
-                                Some(*t)
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .collect::<Vec<_>>();
-            let data_y = rnx
-                .meteo()
-                .flat_map(|(_, observations)| {
-                    observations.iter().filter_map(|(obs, value)| {
-                        if obs == observable {
-                            Some(*value)
-                        } else {
-                            None
-                        }
-                    })
+
+            let data_x = rnx
+                .meteo_observations_iter()
+                .filter_map(|(k, _)| {
+                    if &k.observable == observable {
+                        Some(k.epoch)
+                    } else {
+                        None
+                    }
                 })
-                .collect::<Vec<_>>();
+                .collect();
+
+            let data_y = rnx
+                .meteo_observations_iter()
+                .filter_map(|(k, v)| {
+                    if &k.observable == observable {
+                        Some(*v)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
             let trace = Plot::timedomain_chart(
                 &observable.to_string(),
                 Mode::LinesMarkers,
@@ -209,6 +202,11 @@ impl Render for MeteoPage {
 pub struct MeteoReport {
     sensors: Vec<Sensor>,
     agency: Option<String>,
+    hail: bool,
+    rain: bool,
+    total_rain_drop_mm: f64,
+    pressure_min_max: (f64, f64),
+    temperature_min_max: (f64, f64),
     sampling: SamplingReport,
     pages: HashMap<String, MeteoPage>,
 }
@@ -226,13 +224,49 @@ impl MeteoReport {
     }
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
         let header = rnx.header.meteo.as_ref().ok_or(Error::MissingMeteoHeader)?;
+
+        let mut pressure_min_max = Option::<(f64, f64)>::None;
+        let mut temperature_min_max = Option::<(f64, f64)>::None;
+
+        for (k, v) in rnx.meteo_observations_iter() {
+            if k.observable == Observable::Temperature {
+                if let Some((min, max)) = &mut temperature_min_max {
+                    if v < min {
+                        *min = *v;
+                    }
+                    if v > max {
+                        *max = *v;
+                    }
+                } else {
+                    temperature_min_max = Some((*v, *v));
+                }
+            } else if k.observable == Observable::Temperature {
+                if let Some((min, max)) = &mut pressure_min_max {
+                    if v < min {
+                        *min = *v;
+                    }
+                    if v > max {
+                        *max = *v;
+                    }
+                } else {
+                    pressure_min_max = Some((*v, *v));
+                }
+            }
+        }
+
         Ok(Self {
             agency: None,
             sensors: header.sensors.clone(),
             sampling: SamplingReport::from_rinex(&rnx),
+            hail: rnx.hail_detected(),
+            rain: rnx.rain_detected(),
+            total_rain_drop_mm: rnx.total_accumulated_rain() * 10.0,
+            pressure_min_max: pressure_min_max.unwrap_or_default(),
+            temperature_min_max: temperature_min_max.unwrap_or_default(),
             pages: {
                 let mut pages = HashMap::<String, MeteoPage>::new();
-                for observable in rnx.observable() {
+
+                for observable in rnx.observables_iter() {
                     let filter = if *observable == Observable::WindDirection {
                         Filter::mask(
                             MaskOperand::Equals,
@@ -244,6 +278,7 @@ impl MeteoReport {
                             FilterItem::ComplexItem(vec![observable.to_string()]),
                         )
                     };
+
                     let focused = rnx.filter(&filter);
                     pages.insert(
                         obs2physics(observable),
@@ -284,6 +319,56 @@ impl Render for MeteoReport {
                                 td {
                                     (sensor.render())
                                 }
+                            }
+                        }
+                        tr {
+                            th {
+                                "Temperature"
+                            }
+                            td {
+                                (format!("min={:.1}°C  max={:.1}°C", self.temperature_min_max.0, self.temperature_min_max.1))
+                            }
+                        }
+                        tr {
+                            th {
+                                "Pressure"
+                            }
+                            td {
+                                (format!("min={:.1}hPa  max={:.1}hPa", self.pressure_min_max.0, self.pressure_min_max.1))
+                            }
+                        }
+                        tr {
+                            th {
+                                "Rain"
+                            }
+                            td {
+                                (self.rain)
+                            }
+                        }
+                        @if self.rain {
+                            tr {
+                                th {
+                                    "Rain (total drop)"
+                                }
+                                td {
+                                    (self.total_rain_drop_mm)
+                                }
+                            }
+                        }
+                        tr {
+                            th {
+                                "Hail"
+                            }
+                            td {
+                                (self.rain)
+                            }
+                        }
+                        tr {
+                            th {
+                                "Hail"
+                            }
+                            td {
+                                (self.hail)
                             }
                         }
                         tr {

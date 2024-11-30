@@ -375,7 +375,7 @@ impl OrbitReport {
                     if let Some(nav) = ctx.brdc_navigation() {
                         for constellation in sp3.constellation() {
                             if let Some(constellation) = nav
-                                .constellation()
+                                .constellations_iter()
                                 .filter(|c| *c == constellation)
                                 .reduce(|k, _| k)
                             {

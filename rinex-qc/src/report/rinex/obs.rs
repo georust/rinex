@@ -115,8 +115,8 @@ impl FrequencyPage {
             multipath_plot: Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true),
             raw_plots: {
                 let mut plots = HashMap::<Physics, Plot>::new();
-                let svnn = rinex.sv().collect::<Vec<_>>();
-                let observables = rinex.observable().collect::<Vec<_>>();
+                let svnn = rinex.sv_iter().collect::<Vec<_>>();
+                let observables = rinex.observables_iter().collect::<Vec<_>>();
 
                 // draws carrier phase plot for all SV; per signal
                 for ob in observables {
@@ -250,13 +250,13 @@ impl ConstellationPage {
         let mut cpp_compatible = false; // TODO
         let mut ppp_compatible = false; // TODO
 
-        let satellites = rinex.sv().collect::<Vec<_>>();
+        let satellites = rinex.sv_iter().collect::<Vec<_>>();
         let sampling = SamplingReport::from_rinex(rinex);
         let mut frequencies = HashMap::<String, FrequencyPage>::new();
 
         for carrier in rinex.carrier_iter() {
             let mut observables = Vec::<Observable>::new();
-            for observable in rinex.observable() {
+            for observable in rinex.observables_iter() {
                 if let Ok(signal) = Carrier::from_observable(constellation, observable) {
                     if signal == carrier {
                         observables.push(observable.clone());
@@ -440,7 +440,7 @@ impl Report {
             },
             constellations: {
                 let mut constellations = HashMap::<String, ConstellationPage>::new();
-                for constellation in rinex.constellation() {
+                for constellation in rinex.constellations_iter() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),

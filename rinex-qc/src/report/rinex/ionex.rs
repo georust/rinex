@@ -24,7 +24,7 @@ pub struct IonexReport {
 
 impl IonexReport {
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
-        let nb_of_maps = rnx.epoch().count();
+        let nb_of_maps = rnx.epoch_iter().count();
         let header = rnx.header.ionex.as_ref().ok_or(Error::MissingIonexHeader)?;
         Ok(Self {
             nb_of_maps,
@@ -46,7 +46,7 @@ impl IonexReport {
                 );
                 let mut buttons = Vec::<Button>::new();
                 // one trace(=map) per Epoch
-                for (epoch_index, epoch) in rnx.epoch().enumerate() {
+                for (epoch_index, epoch) in rnx.epoch_iter().enumerate() {
                     let label = epoch.to_string();
                     let lat = rnx
                         .tec()

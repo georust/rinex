@@ -31,7 +31,7 @@ impl SamplingReport {
     pub fn from_rinex(rinex: &Rinex) -> Self {
         let gaps = rinex.data_gaps(None).collect::<Vec<_>>();
         Self {
-            total: rinex.epoch().count(),
+            total: rinex.epoch_iter().count(),
             first_epoch: rinex
                 .first_epoch()
                 .expect("failed to determine first RINEX epoch, badly formed?"),

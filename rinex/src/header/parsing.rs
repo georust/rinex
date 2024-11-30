@@ -842,11 +842,12 @@ impl Header {
             } else if marker.contains("L2 / L1 DATE OFFSET") {
                 // DORIS special case
                 let content = content[1..].trim();
-                let l2l1_date_offset = content
+
+                let time_offset_us = content
                     .parse::<f64>()
                     .or(Err(ParsingError::DorisL1L2DateOffset))?;
 
-                doris.l2_l1_date_offset = Duration::from_microseconds(l2l1_date_offset);
+                doris.u2_s1_time_offset = Duration::from_microseconds(time_offset_us);
             } else if marker.contains("STATION REFERENCE") {
                 // DORIS special case
                 let station = DorisStation::from_str(content.trim())?;

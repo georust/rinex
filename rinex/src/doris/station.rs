@@ -1,6 +1,7 @@
 //! DORIS Station
 use crate::prelude::{ParsingError, DOMES};
 
+/// DORIS Ground [Station] description.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Station {
@@ -20,10 +21,12 @@ pub struct Station {
 
 impl Station {
     const USO_FREQ: f64 = 5.0E6_f64;
+
     /// Station S1 Frequency shift factor
     pub fn s1_frequency_shift(&self) -> f64 {
         543.0 * Self::USO_FREQ * (3.0 / 4.0 + 87.0 * self.k_factor as f64 / 5.0 * 2.0_f64.powi(26))
     }
+
     /// Station U2 Frequency shift factor
     pub fn u2_frequency_shift(&self) -> f64 {
         107.0 * Self::USO_FREQ * (3.0 / 4.0 + 87.0 * self.k_factor as f64 / 5.0 * 2.0_f64.powi(26))

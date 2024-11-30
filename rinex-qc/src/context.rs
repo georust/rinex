@@ -6,10 +6,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use rinex::{
-    prelude::{
-        nav::Almanac, Error as RinexError, GroundPosition, ParsingError as RinexParsingError,
-        Rinex, TimeScale,
-    },
+    prelude::{nav::Almanac, GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale},
     types::Type as RinexType,
 };
 
