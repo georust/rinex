@@ -1,9 +1,16 @@
 //! GNSS processing context definition.
 use thiserror::Error;
 
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    env,
+    ffi::OsStr,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
+
+use regex::Regex;
 
 use rinex::{
     prelude::{nav::Almanac, GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale},
@@ -107,6 +114,7 @@ impl BlobData {
             _ => None,
         }
     }
+
     /// Returns mutable reference to inner RINEX data.
     pub fn as_mut_rinex(&mut self) -> Option<&mut Rinex> {
         match self {
@@ -114,6 +122,7 @@ impl BlobData {
             _ => None,
         }
     }
+
     /// Returns reference to inner SP3 data.
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
@@ -123,6 +132,7 @@ impl BlobData {
             _ => None,
         }
     }
+
     /// Returns mutable reference to inner SP3 data.
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
@@ -149,26 +159,69 @@ pub struct QcContext {
 }
 
 impl QcContext {
+    /// ANISE storage location
+    #[cfg(target_os = "linux")]
+    const ANISE_STORAGE_DIR: &str = "/home/env:USER/.local/share/nyx-space/anise";
+
+    /// ANISE storage location
+    // TODO: this will not work (need full path)
+    #[cfg(target_os = "windows")]
+    const ANISE_STORAGE_DIR: &str = "C:/users/env:USER:/AppData/Local/nyx-space/anise";
+
+    /// Helper to replace environment variables (if any)
+    fn replace_env_vars(input: &str) -> String {
+        let re = Regex::new(r"env:([A-Z_][A-Z0-9_]*)").unwrap();
+        re.replace_all(input, |caps: &regex::Captures| {
+            let var_name = &caps[1];
+            env::var(var_name).unwrap_or_else(|_| format!("env:{}", var_name))
+        })
+        .to_string()
+    }
+
+    /// Returns [MetaFile] for anise DE440s.bsp
     fn nyx_anise_de440s_bsp() -> MetaFile {
         MetaFile {
             crc32: Some(1921414410),
             uri: String::from("http://public-data.nyxspace.com/anise/de440s.bsp"),
         }
     }
+
+    /// Returns [MetaFile] for anise PCK11.pca
     fn nyx_anise_pck11_pca() -> MetaFile {
         MetaFile {
             crc32: Some(0x8213b6e9),
             uri: String::from("http://public-data.nyxspace.com/anise/v0.4/pck11.pca"),
         }
     }
+
+    /// Returns [MetaFile] for daily JPL high precision bpc
     fn jpl_latest_high_prec_bpc() -> MetaFile {
         MetaFile {
-            crc32: None,
+            crc32: Self::jpl_latest_crc32(),
             uri:
                 "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_latest_high_prec.bpc"
                     .to_string(),
         }
     }
+
+    /// Daily JPL high precision bpc CRC32 computation attempt.
+    /// If file was previously downloaded, we return its CRC32.
+    /// If it matches the CRC32 for today, download is ignored because it is not needed.
+    fn jpl_latest_crc32() -> Option<u32> {
+        let storage_dir = Self::replace_env_vars(Self::ANISE_STORAGE_DIR);
+        let fullpath = format!("{}/earth_latest_high_prec.bpc", storage_dir);
+
+        if let Ok(mut fd) = File::open(fullpath) {
+            let mut buf = Vec::with_capacity(1024);
+            match fd.read_to_end(&mut buf) {
+                Ok(_) => Some(crc32fast::hash(&buf)),
+                Err(e) => None,
+            }
+        } else {
+            None
+        }
+    }
+
     /// Infaillible method to either download, retrieve or create
     /// a basic [Almanac] and reference [Frame] to work with.
     /// We always prefer the highest precision scenario.
