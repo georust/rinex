@@ -12,64 +12,47 @@ RINEX
 
 Rust tool suites to parse, analyze and process [RINEX](https://en.wikipedia.org/wiki/RINEX) and GNSS data.
 
-The [Wiki pages](https://github.com/georust/rinex/wiki) contain all documentation and example applications of this toolbox.  
-
-Use [Github Issues](https://github.com/georust/rinex/issues) to report bugs and other malfunctions.  
-You can also open a [Discussion](https://github.com/georust/rinex/discussions) or leave us a message [on Discord](https://discord.gg/Fp2aape).
+Use the [Github interface](https://github.com/georust/rinex/issues) to report issues and bugs.  
+You can also reach out to us on [Discord](https://discord.gg/Fp2aape).  
+To keep track of the latest developments, read the [Changelog](https://github.com/georust/rinex/main/CHANGELOG.md)
+and keep an eye on the `#rinex` channel on Discord.
 
 ## Advantages :rocket: :artificial_satellite:
 
-- Fast
-- Renders High level Geodetic survey reports
-- Fast PPP solver
+- Render High level reports from any supported file format
+  - including Geodetic survey results
+- Integrated PPP solver
+- Special CGGTTS solutions solver
 - Open sources: read and access all the code!
-- Self sustained examples and tutorials: data hosted within this repo
+- Complete set of examples and tutorials within the repo
 - All modern GNSS constellations, codes and signals
   - Surveying with GPS, Galileo, BeiDou and QZSS
 - Time scales: GPST, QZSST, BDT, GST, UTC, TAI
 - Efficient seamless compression and decompression
 - RINEX V4 full support
-- All RINEX formats supported (see following table)
-- High Precision Clock RINEX products (for PPP)
-- High Precision Orbital [SP3 for PPP](https://docs.rs/sp3/1.0.7/sp3/)
-- DORIS (special RINEX)
-- Many pre-processing algorithms including Filter Designer
-- Several file operations: merging, splitting, time binning (batch)
-- Post processing:
-  - [Position solver](https://github.com/georust/rinex/wiki/Positioning)
-  - [CGGTTS solver](https://github.com/georust/rinex/wiki/CGGTTS)
+- All RINEX formats supported (see following table), including
+ - High Precision Clock products (for PPP)
+ - IONEX (Ionosphere TEC maps)
+ - DORIS (special ground station evaluation from space)
+- [SP3 (High Precision Products)](https://docs.rs/sp3/1.0.7/sp3/) also supported (for PPP)
+- Many pre-processing algorithms
+- Several file operations: merging, splitting, file batch synthesis..
 
 ## Disadvantages :warning:
 
 - Navigation is currently not feasible with Glonass and IRNSS (applications/ ppp solver).
-- QZSS has not been tested in the PPP solver yet
+- QZSS navigation has not been tested yet
 - PPP solver and Navigation in general using SBAS is not 100 % feasible yet
 - RTK navigation is not feasible yet (work in progress) 
 - Our applications do not accept proprietary formats like Septentrio for example
 - BINEX support is currently work in progress.
 Library exists and works, not integrated to applications yet.
 
-## Repository 
+## Citation and referencing
 
-* [`rinex`](rinex/) is the core library 
-* [`rinex-cli`](rinex-cli/) is a command line application to process RINEX, SP3 and soon Ublox, and dedicated to typical GNSS post processing.  
-It is growing as some sort of Anubis/Teqc/Glab combination. No GUI currently available, this will be developed later.   
-It integrates a PVT and CGGTTS solutions solver.  
-The application is auto-generated for a few architectures, you can directly
-[download it from Github.com](https://github.com/georust/rinex/releases)
-* [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
-to get started quickly. The examples span pretty much everything our applications allow.
-* [`sp3`](sp3/) High Precision Orbits (by IGS) 
-* [`binex`](binex/) BINEX Encoding and Decoding library
-* [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
-* [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
-* [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
-* [`qc-traits`](qc-traits/) declares Traits that are shared between `rinex` and `rinex-qc`
-* [`sinex`](sinex/) SNX dedicated core library
-* [`ublox-rnx`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
-This application is currently work in progress
-* [`tools`](tools/) are utility scripts and development tools
-* [`logs`](logs/) is dedicated to store session logs, if you work within this workspace directly.
+If you need to reference this work, please use the following model:
+
+`GeoRust RINEX Team (2024), RINEX: analysis and processing (Apache-2/MIT), https://georust.org`
 
 ## Relevant Ecosystem
 
@@ -79,13 +62,56 @@ This application is currently work in progress
 * [CGGTTS](https://github.com/gwbres/cggtts): Common View Time Transfer file format, in Rust
 * [Geo](https://github.com/georust/geo): Geospatial primitives and algorithms, in Rust
 - [RTK-RS](https://github.com/rtk-rs/gnss-rtk): Precise Positioning (calculations) in Rust
-* [GNSS definitions](https://github.com/rtk-rs/gnss), in Rust
+* [GNSS](https://github.com/rtk-rs/gnss) in Rust
 
-## Citation and referencing
+Repo architecture
+=================
 
-If you need to reference this work, please use the following model:
+This repo holds everything for GNSS post processing.
+Including official Rust libraries, some applications,
+tutorials on how to use the applications and data sets,
+mostly for testing and demonstration purposes.
 
-`GeoRust RINEX Team (2023), RINEX: analysis and processing (Apache-2/MIT), https://georust.org`
+### Applications
+
+* [`CRX2RNX`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX).
+It is a light application that you can combined to `rinex-cli` for a complete workflow.
+* [`RINEX-Cli`](rinex-cli/) is our main application.
+It is a Cli and is not a GUI. A GUI will be developped once
+all most vital post processing has been achieved.
+If you want to see this happen sooner, contact us either on Discord or Github.com
+and help us start this topic.
+This application combines some of `teqc` and `anubis` features. 
+It allows post processed navigation, it integrates a special CGGTTS solutions solver.
+All solutions our synthesized as an HTML geodetic report, which is our main solution to this day.
+The application is auto-generated for a few architectures, you can directly
+[download it from Github.com](https://github.com/georust/rinex/releases)
+* [`RNX2CRX`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX).
+It is a light application that you can combined to `rinex-cli` for a complete workflow.
+* [`UBX2RNX`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
+This application is currently work in progress.
+
+### Libraries
+
+* [`BINEX`](binex/) BINEX message Encoding and Decoding library
+* [`Qc-Traits`](qc-traits/) is a low level library that is shared
+between our core libraries to permit consistant behaviors.
+* [`RINEX`](rinex/) provides RINEX parsing, formatting and CRINEX support.
+It allows post processing of all these file formats
+* [`RINEX-Qc`](rinex-qc/) is a our GNSS post processing library.
+It allows considering a complex fileset of RINEX, possibly enhanced with
+SP3. It generates a geodetic report from all of that.
+* [`SINEX`](sinex/) is a core
+* [`SP3`](sp3/) High Precision Orbits (by IGS) parsing. 
+It allows post processing for PPP.
+
+### Other 
+
+* [`logs`](logs/) is dedicated to store sessions log, if you work within this workspace directly.
+* [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
+to get started quickly. The examples span pretty much everything our applications allow.
+* [`tools`](tools/) are utility scripts and development tools
+
 
 RINEX-Cli
 =========
