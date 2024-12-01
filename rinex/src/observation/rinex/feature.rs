@@ -2,51 +2,38 @@
 
 use itertools::Itertools;
 
-use crate::prelude::{Carrier, LliFlags, ObsKey, Rinex, SignalObservation};
+use crate::prelude::{Carrier, LliFlags, ObsKey, Observable, Rinex, SignalObservation};
 
 #[cfg(docsrs)]
 use crate::prelude::{Epoch, EpochFlag, Observable};
 
 /// Supported signal [Combination]s
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Combination {
-    /// Geometry Free (GF) combination
+    /// Geometry Free (GF) combination (same physics)
     GeometryFree,
-    /// Ionosphere Free (IF) combination
+    /// Ionosphere Free (IF) combination (same physics)
     IonosphereFree,
-    /// Wide Lane (Wl) combination
+    /// Wide Lane (Wl) combination (same physics)
     WideLane,
-    /// Narrow Lane (Nl) combination
+    /// Narrow Lane (Nl) combination (same physics)
     NarrowLane,
-    /// Melbourne Wubbena (MW) combination
+    /// Melbourne-Wübbena (MW) combination (cross-mixed physics)
     MelbourneWubbena,
 }
 
 /// Definition of a [SignalCombination]
 #[derive(Debug, Clone)]
 pub struct SignalCombination {
+    /// [Combination] that was formed
     pub combination: Combination,
-    /// LHS [SignalObservation] of the [Combination] (lhs - ref)
-    pub lhs: SignalObservation,
-    /// Reference [SignalObservation] used in [Combination] (lhs - ref)
-    pub reference: SignalObservation,
+    /// Reference [Observable]
+    pub reference: Observable,
+    /// Left hand side (compared) [Observable]
+    pub lhs: Observable,
+    /// Value, unit is meters of delay of the (lhs - reference) frequency
+    pub value: f64,
 }
-
-// TODO
-// #[cfg(feature = "obs")]
-// use observation::Dcb;
-
-// #[cfg(feature = "obs")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-// impl Dcb for Rinex {
-//     fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-//         if let Some(r) = self.record.as_obs() {
-//             r.dcb()
-//         } else {
-//             panic!("wrong rinex type");
-//         }
-//     }
-// }
 
 impl Rinex {
     /// Returns [Carrier] signals Iterator
@@ -369,394 +356,123 @@ impl Rinex {
         Box::new(self.observation_keys().filter(|k| k.flag.is_ok()))
     }
 
-    // /// Iterator over all possible signal [Combination]s.
-    // /// NB: we only combine pseudo range and / or phase range, not other observations.
-    // /// You can then apply your own filter, to retain for example pseudo range combination only.
-    // /// Some combinations will cross-mix physics.
-    // pub fn signal_combinations_iter(&self) -> Iter<'_, ObsKey, SignalCombination> {
-    //     self.observations_iter()
-    // }
+    // Design [SignalCombination]s iterator.
+    pub fn signal_combinations_iter(
+        &self,
+        combination: Combination,
+    ) -> Box<dyn Iterator<Item = (ObsKey, SignalCombination)> + '_> {
+        if combination == Combination::MelbourneWubbena {
+            // this is a cross-mixed combination
 
-    // /// Iterator over specific signal [Combination].
-    // /// NB: we only combine pseudo range and / or phase range, not other observations.
-    // /// You can then apply your own filter, to retain for example pseudo range combination only.
-    // /// Some combinations will cross-mix physics.
-    // pub fn signal_combination_iter(&self, combination: Combination) -> Iter<'_, ObsKey, SignalCombination> {
-    //     self.signal_combinations_iter()
-    //         .filter_map(|(k, v))| {
-    //             if v.combination == combination {
-    //                 Some((k, v))
-    //             } else {
-    //                 None
-    //             }
-    //         })
-    //     }
-    // }
+            let phase = self
+                .signal_combinations_iter(Combination::WideLane)
+                .filter(|(_, comb)| comb.reference.is_phase_range_observable());
+
+            let code = self
+                .signal_combinations_iter(Combination::NarrowLane)
+                .filter(|(_, comb)| comb.reference.is_pseudo_range_observable());
+
+            Box::new(phase.zip(code).map(move |((k, phase), (_, code))| {
+                (
+                    k,
+                    SignalCombination {
+                        combination,
+                        reference: phase.reference.clone(),
+                        lhs: phase.lhs.clone(),
+                        value: phase.value - code.value,
+                    },
+                )
+            }))
+        } else {
+            Box::new(
+                self.signal_observations_iter()
+                    .zip(self.signal_observations_iter())
+                    .filter_map(move |((k_1, sig_1), (k_2, sig_2))| {
+                        // combine only synchronous observations
+                        let synchronous = k_1.epoch == k_2.epoch;
+
+                        // only same physics combinations at this point
+                        let same_physics = sig_1.observable.same_physics(&sig_2.observable);
+
+                        // consider only L1 on left hand iterator
+                        let sv_1 = sig_1.sv;
+                        let code_1 = sig_1.observable.to_string();
+                        let lhs_is_l1 = code_1.contains('1');
+                        let carrier_1 = sig_1.observable.carrier(sv_1.constellation);
+
+                        // consider anything but L1 on right hand iterator
+                        let sv_2 = sig_2.sv;
+                        let code_2 = sig_2.observable.to_string();
+                        let rhs_is_lj = !code_2.contains('1');
+                        let carrier_2 = sig_1.observable.carrier(sv_2.constellation);
+
+                        // need correct frequency interpretation on both sides
+                        let carriers_ok = carrier_1.is_ok() && carrier_2.is_ok();
+
+                        if synchronous && same_physics && lhs_is_l1 && rhs_is_lj && carriers_ok {
+                            let f_1 = carrier_1.unwrap().frequency();
+                            let f_2 = carrier_2.unwrap().frequency();
+
+                            let alpha = match combination {
+                                Combination::GeometryFree => 1.0,
+                                Combination::IonosphereFree => f_1.powi(2),
+                                Combination::WideLane => f_1,
+                                Combination::NarrowLane => f_1,
+                                Combination::MelbourneWubbena => {
+                                    unreachable!("mw combination");
+                                },
+                            };
+
+                            let beta = match combination {
+                                Combination::GeometryFree => -1.0,
+                                Combination::IonosphereFree => -f_2.powi(2),
+                                Combination::WideLane => -f_2,
+                                Combination::NarrowLane => f_2,
+                                Combination::MelbourneWubbena => {
+                                    unreachable!("mw combination");
+                                },
+                            };
+
+                            let gamma = match combination {
+                                Combination::GeometryFree => 1.0,
+                                Combination::IonosphereFree => (f_1.powi(2) - f_2.powi(2)),
+                                Combination::WideLane => f_1 - f_2,
+                                Combination::NarrowLane => f_1 + f_2,
+                                Combination::MelbourneWubbena => {
+                                    unreachable!("mw combination");
+                                },
+                            };
+
+                            let (v_lhs, v_rhs) = match combination {
+                                Combination::GeometryFree => {
+                                    if sig_1.observable.is_pseudo_range_observable() {
+                                        (sig_2.value, sig_1.value)
+                                    } else {
+                                        (sig_1.value, sig_2.value)
+                                    }
+                                },
+                                Combination::IonosphereFree => (sig_1.value, sig_2.value),
+                                Combination::WideLane => (sig_1.value, sig_2.value),
+                                Combination::NarrowLane => (sig_1.value, sig_2.value),
+                                Combination::MelbourneWubbena => {
+                                    unreachable!("mw combination");
+                                },
+                            };
+
+                            Some((
+                                k_1,
+                                SignalCombination {
+                                    combination,
+                                    lhs: sig_1.observable.clone(),
+                                    reference: sig_2.observable.clone(),
+                                    value: (alpha * v_lhs + beta * v_rhs) / gamma,
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    }),
+            )
+        }
+    }
 }
-
-//     /// See [signal_combinations()]
-//     pub fn pseudo_range_combinations(
-//         &self,
-//     ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
-//         Box::new(
-//             self.observation()
-//                 .flat_map(|(_, (_, svnn))| {
-//                     svnn.iter().flat_map(|(_, obs)| {
-//                         obs.iter().flat_map(|(lhs_ob, _)| {
-//                             obs.iter().flat_map(move |(rhs_ob, _)| {
-//                                 if lhs_ob.is_pseudorange_observable() && lhs_ob.same_physics(rhs_ob)
-//                                 {
-//                                     if lhs_ob != rhs_ob {
-//                                         Some((lhs_ob, rhs_ob))
-//                                     } else {
-//                                         None
-//                                     }
-//                                 } else {
-//                                     None
-//                                 }
-//                             })
-//                         })
-//                     })
-//                 })
-//                 .unique(),
-//         )
-//     }
-
-//     /// See [signal_combinations()]
-//     pub fn phase_range_combinations(
-//         &self,
-//     ) -> Box<dyn Iterator<Item = (&Observable, &Observable)> + '_> {
-//         Box::new(
-//             self.observation()
-//                 .flat_map(|(_, (_, svnn))| {
-//                     svnn.iter().flat_map(|(_, obs)| {
-//                         obs.iter().flat_map(|(lhs_ob, _)| {
-//                             obs.iter().flat_map(move |(rhs_ob, _)| {
-//                                 if lhs_ob.is_phase_observable() && lhs_ob.same_physics(rhs_ob) {
-//                                     if lhs_ob != rhs_ob {
-//                                         Some((lhs_ob, rhs_ob))
-//                                     } else {
-//                                         None
-//                                     }
-//                                 } else {
-//                                     None
-//                                 }
-//                             })
-//                         })
-//                     })
-//                 })
-//                 .unique(),
-//         )
-//     }
-
-//     /// Returns an iterator over phase data, expressed in (whole) carrier cycles.
-//     /// If Self is a High Precision RINEX (scaled RINEX), data is correctly scaled.
-//     /// High precision RINEX allows up to 100 pico carrier cycle precision.
-//     /// ```
-//     /// use rinex::prelude::*;
-//     /// use rinex::observable;
-//     /// use std::str::FromStr;
-//     ///
-//     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
-//     ///     .unwrap();
-//     /// // example: design a L1 signal iterator
-//     /// let phase_l1c = rnx.carrier_phase()
-//     ///     .filter_map(|(e, sv, obs, value)| {
-//     ///         if *obs == observable!("L1C") {
-//     ///             Some((e, sv, value))
-//     ///         } else {
-//     ///             None
-//     ///         }
-//     ///     });
-//     /// ```
-//     pub fn carrier_phase(
-//         &self,
-//     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
-//         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
-//             vehicles.iter().flat_map(|(sv, observations)| {
-//                 observations.iter().filter_map(|(observable, obsdata)| {
-//                     if observable.is_phase_observable() {
-//                         if let Some(header) = &self.header.obs {
-//                             // apply a scaling (if any), otherwise preserve data precision
-//                             if let Some(scaling) =
-//                                 header.scaling(sv.constellation, observable.clone())
-//                             {
-//                                 Some((*e, *sv, observable, obsdata.obs / *scaling as f64))
-//                             } else {
-//                                 Some((*e, *sv, observable, obsdata.obs))
-//                             }
-//                         } else {
-//                             Some((*e, *sv, observable, obsdata.obs))
-//                         }
-//                     } else {
-//                         None
-//                     }
-//                 })
-//             })
-//         }))
-//     }
-//     /// Returns an iterator over pseudo range observations.
-//     /// ```
-//     /// use rinex::prelude::*;
-//     /// use rinex::observable;
-//     /// use std::str::FromStr;
-//     ///
-//     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
-//     ///     .unwrap();
-//     /// // example: design a C1 pseudo range iterator
-//     /// let c1 = rnx.pseudo_range()
-//     ///     .filter_map(|(e, sv, obs, value)| {
-//     ///         if *obs == observable!("C1") {
-//     ///             Some((e, sv, value))
-//     ///         } else {
-//     ///             None
-//     ///         }
-//     ///     });
-//     /// ```
-//     pub fn pseudo_range(
-//         &self,
-//     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
-//         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
-//             vehicles.iter().flat_map(|(sv, observations)| {
-//                 observations.iter().filter_map(|(obs, obsdata)| {
-//                     if obs.is_pseudorange_observable() {
-//                         Some((*e, *sv, obs, obsdata.obs))
-//                     } else {
-//                         None
-//                     }
-//                 })
-//             })
-//         }))
-//     }
-//     /// Returns an Iterator over pseudo range observations in valid
-//     /// Epochs, with valid LLI flags
-//     pub fn pseudo_range_ok(&self) -> Box<dyn Iterator<Item = (Epoch, SV, &Observable, f64)> + '_> {
-//         Box::new(self.observation().flat_map(|((e, flag), (_, vehicles))| {
-//             vehicles.iter().flat_map(|(sv, observations)| {
-//                 observations.iter().filter_map(|(obs, obsdata)| {
-//                     if obs.is_pseudorange_observable() {
-//                         if flag.is_ok() {
-//                             Some((*e, *sv, obs, obsdata.obs))
-//                         } else {
-//                             None
-//                         }
-//                     } else {
-//                         None
-//                     }
-//                 })
-//             })
-//         }))
-//     }
-
-//     /// Returns an Iterator over fractional pseudo range observations
-//     pub fn pseudo_range_fract(
-//         &self,
-//     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
-//         Box::new(self.pseudo_range().filter_map(|(e, sv, observable, pr)| {
-//             if let Some(t) = observable.code_length(sv.constellation) {
-//                 let c = 299792458_f64; // speed of light
-//                 Some((e, sv, observable, pr / c / t))
-//             } else {
-//                 None
-//             }
-//         }))
-//     }
-//     /// Returns an iterator over doppler shifts. A positive doppler
-//     /// means SV is moving towards receiver.
-//     /// ```
-//     /// use rinex::prelude::*;
-//     /// use rinex::observable;
-//     /// use std::str::FromStr;
-//     ///
-//     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
-//     ///     .unwrap();
-//     /// // example: design a L1 signal doppler iterator
-//     /// let doppler_l1 = rnx.doppler()
-//     ///     .filter_map(|(e, sv, obs, value)| {
-//     ///         if *obs == observable!("D1") {
-//     ///             Some((e, sv, value))
-//     ///         } else {
-//     ///             None
-//     ///         }
-//     ///     });
-//     /// ```
-//     pub fn doppler(
-//         &self,
-//     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
-//         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
-//             vehicles.iter().flat_map(|(sv, observations)| {
-//                 observations.iter().filter_map(|(obs, obsdata)| {
-//                     if obs.is_doppler_observable() {
-//                         Some((*e, *sv, obs, obsdata.obs))
-//                     } else {
-//                         None
-//                     }
-//                 })
-//             })
-//         }))
-//     }
-//     /// Returns an iterator over signal strength observations.
-//     /// ```
-//     /// use rinex::prelude::*;
-//     /// use rinex::observable;
-//     /// use std::str::FromStr;
-//     ///
-//     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
-//     ///     .unwrap();
-//     /// // example: design a S1: L1 strength iterator
-//     /// let ssi_l1 = rnx.ssi()
-//     ///     .filter_map(|(e, sv, obs, value)| {
-//     ///         if *obs == observable!("S1") {
-//     ///             Some((e, sv, value))
-//     ///         } else {
-//     ///             None
-//     ///         }
-//     ///     });
-//     /// ```
-//     pub fn ssi(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, f64)> + '_> {
-//         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
-//             vehicles.iter().flat_map(|(sv, observations)| {
-//                 observations.iter().filter_map(|(obs, obsdata)| {
-//                     if obs.is_ssi_observable() {
-//                         Some((*e, *sv, obs, obsdata.obs))
-//                     } else {
-//                         None
-//                     }
-//                 })
-//             })
-//         }))
-//     }
-//     /// Returns an Iterator over signal SNR indications.
-//     /// All observation that did not come with such indication are filtered out.
-//     /// ```
-//     /// use rinex::*;
-//     /// let rinex =
-//     ///     Rinex::from_file("../test_resources/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx")
-//     ///         .unwrap();
-//     /// for ((e, flag), sv, observable, snr) in rinex.snr() {
-//     ///     // See RINEX specs or [SNR] documentation
-//     ///     if snr.weak() {
-//     ///     } else if snr.strong() {
-//     ///     } else if snr.excellent() {
-//     ///     }
-//     ///     // you can directly compare to dBHz
-//     ///     if snr < 29.0.into() {
-//     ///         // considered weak signal
-//     ///     } else if snr >= 30.0.into() {
-//     ///         // considered strong signal
-//     ///     }
-//     /// }
-//     /// ```
-//     pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, SNR)> + '_> {
-//         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
-//             vehicles.iter().flat_map(|(sv, observations)| {
-//                 observations
-//                     .iter()
-//                     .filter_map(|(obs, obsdata)| obsdata.snr.map(|snr| (*e, *sv, obs, snr)))
-//             })
-//         }))
-//     }
-//     /// Returns an Iterator over LLI flags that might be associated to an Observation.
-//     /// ```
-//     /// use rinex::*;
-//     /// use rinex::observation::LliFlags;
-//     /// let rinex =
-//     ///     Rinex::from_file("../test_resources/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx")
-//     ///         .unwrap();
-//     /// let custom_mask
-//     ///     = LliFlags::OK_OR_UNKNOWN | LliFlags::UNDER_ANTI_SPOOFING;
-//     /// for ((e, flag), sv, observable, lli) in rinex.lli() {
-//     ///     // See RINEX specs or [LliFlags] documentation
-//     ///     if lli.intersects(custom_mask) {
-//     ///         // sane observation but under AS
-//     ///     }
-//     /// }
-//     /// ```
-//     pub fn lli(
-//         &self,
-//     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), SV, &Observable, LliFlags)> + '_> {
-//         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
-//             vehicles.iter().flat_map(|(sv, observations)| {
-//                 observations
-//                     .iter()
-//                     .filter_map(|(obs, obsdata)| obsdata.lli.map(|lli| (*e, *sv, obs, lli)))
-//             })
-//         }))
-//     }
-//     /// Returns an Iterator over "complete" Epochs.
-//     /// "Complete" Epochs are Epochs were both Phase and Pseudo Range
-//     /// observations are present on two carriers, sane sampling conditions are met
-//     /// and an optional minimal SNR criteria is met (disregarded if None).
-//     pub fn complete_epoch(
-//         &self,
-//         min_snr: Option<SNR>,
-//     ) -> Box<dyn Iterator<Item = (Epoch, Vec<(SV, Carrier)>)> + '_> {
-//         Box::new(
-//             self.observation()
-//                 .filter_map(move |((e, flag), (_, vehicles))| {
-//                     if flag.is_ok() {
-//                         let mut list: Vec<(SV, Carrier)> = Vec::new();
-//                         for (sv, observables) in vehicles {
-//                             let mut l1_pr_ph = (false, false);
-//                             let mut lx_pr_ph: HashMap<Carrier, (bool, bool)> = HashMap::new();
-//                             for (observable, observation) in observables {
-//                                 if !observable.is_phase_observable()
-//                                     && !observable.is_pseudorange_observable()
-//                                 {
-//                                     continue; // not interesting here
-//                                 }
-//                                 let carrier =
-//                                     Carrier::from_observable(sv.constellation, observable);
-//                                 if carrier.is_err() {
-//                                     // fail to identify this signal
-//                                     continue;
-//                                 }
-//                                 if let Some(min_snr) = min_snr {
-//                                     if let Some(snr) = observation.snr {
-//                                         if snr < min_snr {
-//                                             continue;
-//                                         }
-//                                     } else {
-//                                         continue; // can't compare to criteria
-//                                     }
-//                                 }
-//                                 let carrier = carrier.unwrap();
-//                                 if carrier == Carrier::L1 {
-//                                     l1_pr_ph.0 |= observable.is_pseudorange_observable();
-//                                     l1_pr_ph.1 |= observable.is_phase_observable();
-//                                 } else if let Some((lx_pr, lx_ph)) = lx_pr_ph.get_mut(&carrier) {
-//                                     *lx_pr |= observable.is_pseudorange_observable();
-//                                     *lx_ph |= observable.is_phase_observable();
-//                                 } else if observable.is_pseudorange_observable() {
-//                                     lx_pr_ph.insert(carrier, (true, false));
-//                                 } else if observable.is_phase_observable() {
-//                                     lx_pr_ph.insert(carrier, (false, true));
-//                                 }
-//                             }
-//                             if l1_pr_ph == (true, true) {
-//                                 for (carrier, (pr, ph)) in lx_pr_ph {
-//                                     if pr && ph {
-//                                         list.push((*sv, carrier));
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                         Some((*e, list))
-//                     } else {
-//                         None
-//                     }
-//                 })
-//                 .filter(|(_sv, list)| !list.is_empty()),
-//         )
-//     }
-//     /// Returns Code Multipath bias estimates, for sampled code combination and per SV.
-//     /// Refer to [Bibliography::ESABookVol1] and [Bibliography::MpTaoglas].
-//     pub fn code_multipath(
-//         &self,
-//     ) -> HashMap<Observable, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-//         if let Some(r) = self.record.as_obs() {
-//             code_multipath(r)
-//         } else {
-//             HashMap::new()
-//         }
-//     }

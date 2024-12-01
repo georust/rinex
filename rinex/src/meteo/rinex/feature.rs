@@ -15,26 +15,6 @@ impl Rinex {
         }
     }
 
-    /// Returns temperature measurements iterator, values expressed in Celcius degrees.
-    /// Applies to Meteo RINEX.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for (epoch, value) in rinex.temperature_iter() {
-    ///     println!("{} value: {} °C", epoch, value);
-    /// }
-    /// ```
-    pub fn temperature_iter(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo_observations_iter().filter_map(|(k, v)| {
-            if k.observable == Observable::Temperature {
-                Some((k.epoch, *v))
-            } else {
-                None
-            }
-        }))
-    }
-
     /// Returns wind speed estimates iterator, values expressed in m/s.
     /// Applies to Meteo RINEX.
     /// ```
