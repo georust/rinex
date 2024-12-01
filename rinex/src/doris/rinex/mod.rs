@@ -1,4 +1,4 @@
-#[cfg(features = "doris")]
+#[cfg(feature = "doris")]
 mod feature;
 
 use std::collections::btree_map::{Iter, IterMut, Keys};

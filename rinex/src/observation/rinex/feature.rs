@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::prelude::{Carrier, LliFlags, ObsKey, Observable, Rinex, SignalObservation};
 
 #[cfg(docsrs)]
-use crate::prelude::{Epoch, EpochFlag, Observable};
+use crate::prelude::{Epoch, EpochFlag};
 
 /// Supported signal [Combination]s
 #[derive(Debug, Copy, Clone, PartialEq)]

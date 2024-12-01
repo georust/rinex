@@ -45,8 +45,6 @@ unlocks `[Rinex::rain_detected]` which is a direct consequence of a specific Ite
 The great `flate2` library allows us to support Gzip compression and decompression.  
 Compile our library with this option for seamless support (both ways).  
 
-Note that, parsing a Gzip compressed files requires that filename to be terminated by `.gz`.
-
 ## QC feature
 
 The `qc` feature allows:
@@ -77,12 +75,14 @@ in the post processing operations. For example, it unlocks
 
 A post processing pipeline will most likely require this feature to be activated.
 
-Although *RINEX* knows how to physically interprate these datasets, anything
+Although *RINEX* knows how to physically interprate a dataset, anything
 that is beyond that is out of scope of this library. The `RINEX-QC` library,
-which is also part of this *GeoRust* repository was developped for that very purpose.
-It allows actual consumption of the datasets and knows how to handle more than RINEX.
-For example, SP3 datasets are needed in precise applications. If you're interested
-in post processed Navigation and advanced operations, you are probably more interested in
+which is also part of the *GeoRust* repository, was developped for that very purpose.
+It allows more advance consumption of the dataset, and more importantly,
+it can stack several datasets toghether, creating a complete context that may answer
+the requirements to GNSS post processing.
+If you're interested
+in post processed Navigation for example, you are probably more interested in
 using `RINEX-QC` instead of simply *RINEX*. 
 
 ## SBAS and Geostationary :artificial_satellite:
@@ -166,11 +166,9 @@ your interface will always have to either
 and it cannot change once the parser has been built: you need to create a new parser to adapt
 to a new scenario.
 
-In its current form, *RINEX* has few limitations with respect to the filenames you can provide to the Parser.
-Refer to the [Rinex::from_file] API documentation, for more detail.
-
-Working with files that do not follow standard naming conventions, or Stream interface,
-we have no means to determine the [FileProductionAttributes]:
+When working with files that do not follow standard naming conventions, or directly
+from Stream interface, we have no means to determine the [FileProductionAttributes].
+This will most likely impact data production scenarios.
 
 ```rust
 ```
