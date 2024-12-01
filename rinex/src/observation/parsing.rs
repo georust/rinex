@@ -237,8 +237,8 @@ fn parse_signals_v2(
     // basic check that avoid entering the loop for nothing
     if systems_str_len < SVNN_SIZE {
         // does not look good (=rubbish first line)
-        #[cfg(feature = "log")]
-        error!("parse_sig_v2(aborted): empty content");
+        //#[cfg(feature = "log")]
+        //error!("parse_sig_v2(aborted): empty content");
         return;
     }
 
@@ -271,8 +271,8 @@ fn parse_signals_v2(
                 // that omit the constellation in the description
                 match head_constellation {
                     Some(Constellation::Mixed) | None => {
-                        #[cfg(feature = "log")]
-                        error!("parse_sig_v2(abort): no constell specs");
+                        //#[cfg(feature = "log")]
+                        //error!("parse_sig_v2(abort): no constell specs");
                         break;
                     },
                     Some(gnss) => {
@@ -282,8 +282,8 @@ fn parse_signals_v2(
                                 constellation: gnss,
                             };
                         } else {
-                            #[cfg(feature = "log")]
-                            error!("parse_sig_v2(abort): invalid sv");
+                            //#[cfg(feature = "log")]
+                            //error!("parse_sig_v2(abort): invalid sv");
                             break;
                         }
                     },
@@ -303,16 +303,16 @@ fn parse_signals_v2(
                 if let Some(observables) = head_observables.get(&Constellation::SBAS) {
                     observables
                 } else {
-                    #[cfg(feature = "log")]
-                    error!("parse_sig_v2 (sbas): no specs");
+                    //#[cfg(feature = "log")]
+                    //error!("parse_sig_v2 (sbas): no specs");
                     break;
                 }
             } else {
                 if let Some(observables) = head_observables.get(&sv.constellation) {
                     observables
                 } else {
-                    #[cfg(feature = "log")]
-                    error!("parse_sig_v2 ({}): no specs", sv.constellation);
+                    //#[cfg(feature = "log")]
+                    //error!("parse_sig_v2 ({}): no specs", sv.constellation);
                     break;
                 }
             };
@@ -320,16 +320,16 @@ fn parse_signals_v2(
             obs_ptr = 0;
             obs_identified = true;
 
-            #[cfg(feature = "log")]
-            debug!("{}: {:?}", sv, observables);
+            //#[cfg(feature = "log")]
+            //debug!("{}: {:?}", sv, observables);
         }
 
         let line_width = line.len();
         let trimmed_len = line.trim().len();
 
         if trimmed_len == 0 {
-            #[cfg(feature = "log")]
-            error!("empty line: \"{}\"", line);
+            //#[cfg(feature = "log")]
+            //error!("empty line: \"{}\"", line);
 
             obs_ptr += MAX_OBSERVABLES_LINE;
 
@@ -351,15 +351,15 @@ fn parse_signals_v2(
 
         let mut offset = 0;
 
-        #[cfg(feature = "log")]
-        debug!(
-            "line: \"{}\" [sv={}/{} obs={}/{}]",
-            line,
-            sv_ptr,
-            systems_str_len,
-            obs_ptr,
-            observables.len()
-        );
+        //#[cfg(feature = "log")]
+        //debug!(
+        //    "line: \"{}\" [sv={}/{} obs={}/{}]",
+        //    line,
+        //    sv_ptr,
+        //    systems_str_len,
+        //    obs_ptr,
+        //    observables.len()
+        //);
 
         // process all of them
         for _ in 0..num_obs {
@@ -371,8 +371,8 @@ fn parse_signals_v2(
             let end = (offset + OBSERVABLE_WIDTH).min(line_width);
             let slice = &line[offset..end];
 
-            #[cfg(feature = "log")]
-            debug!("observation: \"{}\" {}", slice, observables[obs_ptr]);
+            //#[cfg(feature = "log")]
+            //debug!("observation: \"{}\" {}", slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
@@ -385,7 +385,7 @@ fn parse_signals_v2(
                     },
                     #[cfg(feature = "log")]
                     Err(e) => {
-                        error!("parse_sig(v2) - lli: {}", e);
+                        //error!("parse_sig(v2) - lli: {}", e);
                     },
                     #[cfg(not(feature = "log"))]
                     Err(_) => {},
@@ -403,7 +403,7 @@ fn parse_signals_v2(
                     },
                     #[cfg(feature = "log")]
                     Err(e) => {
-                        error!("snr: {:?}", e);
+                        //error!("snr: {:?}", e);
                     },
                     #[cfg(not(feature = "log"))]
                     Err(_) => {},
@@ -427,8 +427,8 @@ fn parse_signals_v2(
             offset += OBSERVABLE_F14_WIDTH + 2;
 
             if obs_ptr == observables.len() {
-                #[cfg(feature = "log")]
-                debug!("{} completed", sv);
+                //#[cfg(feature = "log")]
+                //debug!("{} completed", sv);
 
                 sv_identified = false;
                 obs_identified = false;
@@ -438,8 +438,8 @@ fn parse_signals_v2(
                     return;
                 }
             } else {
-                #[cfg(feature = "log")]
-                debug!("{}/{}", obs_ptr, observables.len());
+                //#[cfg(feature = "log")]
+                //debug!("{}/{}", obs_ptr, observables.len());
             }
         } //num_obs
 
@@ -463,8 +463,8 @@ fn parse_signals_v3(
 
     // browse all lines
     for line in lines {
-        #[cfg(feature = "log")]
-        debug!("line: \"{}\"", line);
+        //#[cfg(feature = "log")]
+        //debug!("line: \"{}\"", line);
 
         // identify SV
         let sv_str = &line[0..SVNN_SIZE];
@@ -474,7 +474,7 @@ fn parse_signals_v3(
             },
             #[cfg(feature = "log")]
             Err(e) => {
-                error!("sv parsing: {}", e);
+                //error!("sv parsing: {}", e);
                 continue;
             },
             #[cfg(not(feature = "log"))]
@@ -491,8 +491,8 @@ fn parse_signals_v3(
         };
 
         if observables.is_none() {
-            #[cfg(feature = "log")]
-            error!("{}: no observable specs", sv);
+            //#[cfg(feature = "log")]
+            //error!("{}: no observable specs", sv);
             continue;
         }
 
@@ -522,8 +522,8 @@ fn parse_signals_v3(
                         lli = LliFlags::from_bits(unsigned);
                     },
                     Err(e) => {
-                        #[cfg(feature = "log")]
-                        error!("lli: {}", e);
+                        //#[cfg(feature = "log")]
+                        //error!("lli: {}", e);
                     },
                 }
             }
@@ -539,8 +539,8 @@ fn parse_signals_v3(
                         snr = Some(found);
                     },
                     Err(e) => {
-                        #[cfg(feature = "log")]
-                        error!("snr: {:?}", e);
+                        //#[cfg(feature = "log")]
+                        //error!("snr: {:?}", e);
                     },
                 }
             }

@@ -18,26 +18,26 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let rinex_c = match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
             let rinex_a = ctx_data
-                .observation()
+                .observation_data()
                 .ok_or(Error::MissingObservationRinex)?;
             rinex_a.merge(&rinex_b)?
         },
         RinexType::NavigationData => {
             let rinex_a = ctx_data
-                .brdc_navigation()
+                .brdc_navigation_data()
                 .ok_or(Error::MissingNavigationRinex)?;
             rinex_a.merge(&rinex_b)?
         },
         RinexType::MeteoData => {
-            let rinex_a = ctx_data.meteo().ok_or(Error::MissingMeteoRinex)?;
+            let rinex_a = ctx_data.meteo_data().ok_or(Error::MissingMeteoRinex)?;
             rinex_a.merge(&rinex_b)?
         },
         RinexType::IonosphereMaps => {
-            let rinex_a = ctx_data.ionex().ok_or(Error::MissingIONEX)?;
+            let rinex_a = ctx_data.ionex_data().ok_or(Error::MissingIONEX)?;
             rinex_a.merge(&rinex_b)?
         },
         RinexType::ClockData => {
-            let rinex_a = ctx_data.clock().ok_or(Error::MissingClockRinex)?;
+            let rinex_a = ctx_data.clock_data().ok_or(Error::MissingClockRinex)?;
             rinex_a.merge(&rinex_b)?
         },
         _ => unimplemented!(),

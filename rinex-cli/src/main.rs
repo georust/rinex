@@ -232,6 +232,7 @@ fn user_data_parsing(
 }
 
 pub fn main() -> Result<(), Error> {
+    // logs builder
     let mut builder = Builder::from_default_env();
     builder
         .target(Target::Stdout)
@@ -239,10 +240,8 @@ pub fn main() -> Result<(), Error> {
         .format_module_path(false)
         .init();
 
-    /*
-     * Build context defined by user
-     *   Parse all data, determine other useful information
-     */
+    // Build data context: parse all data
+    // and determine useful information for this session
     let cli = Cli::new();
     let max_recursive_depth = cli.recursive_depth();
 
@@ -304,7 +303,7 @@ pub fn main() -> Result<(), Error> {
     };
 
     // Form context
-    let ctx = Context {
+    let mut ctx = Context {
         name: ctx_stem.clone(),
         data: data_ctx,
         reference_site: {
@@ -359,7 +358,7 @@ pub fn main() -> Result<(), Error> {
     // On File Operations (Data synthesis)
     //  prepare one subfolder to store the output products
     if cli.has_fops_output_product() {
-        ctx.workspace.create_subdir("OUTPUT");
+        ctx.create_output_products_dir();
     }
 
     /*
@@ -389,7 +388,7 @@ pub fn main() -> Result<(), Error> {
             return Ok(());
         },
         Some(("diff", submatches)) => {
-            fops::diff(&ctx, submatches)?;
+            fops::diff(&mut ctx, submatches)?;
             return Ok(());
         },
         Some(("ppp", submatches)) => {

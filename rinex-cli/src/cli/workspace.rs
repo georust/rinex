@@ -56,6 +56,7 @@ impl Workspace {
         info!("{} has been generated", fullpath);
         fd
     }
+
     /// Opens root path with prefered web browser
     #[cfg(target_os = "linux")]
     pub fn open_with_web_browser(&self) {
@@ -68,6 +69,7 @@ impl Workspace {
             }
         }
     }
+
     /// Opens root path with prefered web browser
     #[cfg(target_os = "macos")]
     pub fn open_with_web_browser(&self) {
@@ -77,6 +79,7 @@ impl Workspace {
             .output()
             .expect("open() failed, can't open HTML content automatically");
     }
+
     /// Opens root path with prefered web browser
     #[cfg(target_os = "windows")]
     pub fn open_with_web_browser(&self) {
@@ -84,6 +87,16 @@ impl Workspace {
         Command::new("cmd")
             .arg("/C")
             .arg(format!(r#"start {}"#, fullpath))
+            .output()
+            .expect("failed to open generated HTML content");
+    }
+
+    /// Opens root path with prefered web browser
+    #[cfg(target_os = "android")]
+    pub fn open_with_web_browser(&self) {
+        let fullpath = self.root.to_string_lossy().to_string();
+        Command::new("xdg-open")
+            .args(&[fullpath])
             .output()
             .expect("failed to open generated HTML content");
     }

@@ -33,7 +33,7 @@ pub fn filegen(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> 
 #[cfg(feature = "csv")]
 fn write_csv(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
-    if let Some(rinex) = ctx_data.rinex(ProductType::Observation) {
+    if let Some(rinex) = ctx_data.get_rinex_data(ProductType::Observation) {
         ctx.workspace.create_subdir("OBSERVATIONS");
 
         let prod = custom_prod_attributes(rinex, submatches);
@@ -51,7 +51,7 @@ fn write_csv(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Re
             output.display()
         );
 
-        if let Some(brdc) = ctx_data.rinex(ProductType::BroadcastNavigation) {
+        if let Some(brdc) = ctx_data.get_rinex_data(ProductType::BroadcastNavigation) {
             ctx.workspace.create_subdir("BRDC");
             let prod = custom_prod_attributes(brdc, submatches);
             let output = ctx
@@ -67,7 +67,7 @@ fn write_csv(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Re
             );
         }
     }
-    if let Some(_) = ctx_data.sp3() {
+    if let Some(sp3) = ctx_data.sp3_data() {
         // TODO
         // write_sp3_csv(rinex, &output)?;
         // info!("{} dumped in {}", ProductType::HighPrecisionOrbit, output);
@@ -87,7 +87,7 @@ fn write(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result
         (ProductType::IONEX, "IONEX"),
         (ProductType::ANTEX, "ANTEX"),
     ] {
-        if let Some(rinex) = ctx_data.rinex(product) {
+        if let Some(rinex) = ctx_data.get_rinex_data(product) {
             ctx.workspace.create_subdir(dir);
             let prod = custom_prod_attributes(rinex, submatches);
             let filename = output_filename(rinex, matches, submatches, prod);

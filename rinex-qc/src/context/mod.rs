@@ -137,8 +137,9 @@ struct UserData {
     paths: Vec<PathBuf>,
 }
 
+/// [UniqueId] can differentiate between two identical [ProductType]s
 #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum UniqueId {
+pub enum UniqueId {
     /// GNSS receiver name/model differentiates a signal source
     Receiver(String),
     /// Data provider (agency) may differentiate some [ProductType]s

@@ -5,7 +5,7 @@ use crate::Error;
 use clap::ArgMatches;
 use rinex::prelude::{Duration, RinexType};
 use rinex::prod::DetailedProductionAttributes;
-use rinex_qc::prelude::{Filter, Preprocessing};
+use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 
 /// Time binning (batch split of equal duration) file operation
 pub fn time_binning(
@@ -14,6 +14,7 @@ pub fn time_binning(
     submatches: &ArgMatches,
 ) -> Result<(), Error> {
     let ctx_data = &ctx.data;
+
     let duration = matches
         .get_one::<Duration>("interval")
         .expect("duration is required");
@@ -24,12 +25,12 @@ pub fn time_binning(
 
     // RINEX time binning
     for (rinex_type, dir) in [
-        (RinexType::IonosphereMaps, "IONEX"),
-        (RinexType::DORIS, "DORIS"),
-        (RinexType::ObservationData, "OBSERVATIONS"),
-        (RinexType::MeteoData, "METEO"),
-        (RinexType::NavigationData, "BRDC"),
-        (RinexType::ClockData, "CLOCK"),
+        (ProductType::IONEX, "IONEX"),
+        (ProductType::DORIS, "DORIS"),
+        (ProductType::Observation, "OBSERVATIONS"),
+        (ProductType::MeteoObservation, "METEO"),
+        (ProductType::BroadcastNavigation, "BRDC"),
+        (ProductType::HighPrecisionClock, "CLOCK"),
     ] {
         // input data determination
 

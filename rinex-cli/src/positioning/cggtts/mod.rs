@@ -1,5 +1,6 @@
 //! CGGTTS special resolution opmoode.
 use clap::ArgMatches;
+use itertools::Itertools;
 
 use std::{cell::RefCell, collections::HashMap};
 
@@ -37,29 +38,10 @@ use crate::{
     },
 };
 
-// fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
-//     for ((k_sv, _), tracker) in trackers {
-//         if *k_sv == sv {
-//             tracker.reset();
-//         }
-//     }
-// }
+use super::rtk_carrier_cast;
 
-//TODO: see TODO down below
-// fn reset_sv_sig_tracker(
-//     sv_sig: (SV, Observable),
-//     trackers: &mut HashMap<(SV, Observable), SVTracker>,
-// ) {
-//     for (k, tracker) in trackers {
-//         if k == &sv_sig {
-//             tracker.reset();
-//         }
-//     }
-// }
-
-/*
- * Resolves CGGTTS tracks from input context
- */
+/// CGGTTS [Track]s resolution attempt from input [Context],
+/// [EphemerisSource], [ClockStateProvider] and [OrbitSource]
 pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     ctx: &Context,
     eph: &'a RefCell<EphemerisSource<'b>>,
@@ -97,326 +79,293 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     let mut trk_midpoint = Option::<Epoch>::None;
     let mut trackers = HashMap::<(SV, Observable), SVTracker>::new();
 
-    for ((t, flag), (_clk, vehicles)) in obs_data.observation_data() {
-        /*
-         * We only consider _valid_ epochs"
-         * TODO: make use of LLI marker here
-         */
-        if !flag.is_ok() {
+    // Consume all signals
+    for (key, observations) in obs_data.observations_iter() {
+        if !key.flag.is_ok() {
+            // Discards bad sampling conditions
             continue;
         }
 
-        // Nearest TROPO: TODO
+        let t = key.epoch;
+
+        // TODO: nearest tropo model (in time)
         // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
+        let tropo = TropoComponents::Unknown;
 
-        for (sv, rinex_obs) in vehicles {
-            // tries to form a candidate for each signal
-            for (observable, data) in rinex_obs {
-                let carrier = Carrier::from_observable(sv.constellation, observable);
-                if carrier.is_err() {
-                    continue; //can't proceed further
-                }
-
-                let carrier = carrier.unwrap();
-                let rtk_carrier = cast_rtk_carrier(carrier);
-
-                // We consider a reference Pseudo Range
-                // and possibly gather other signals later on
-                if !observable.is_pseudo_range_observable() {
-                    continue;
-                }
-
-                let mut ref_observable = observable.to_string();
-
-                let mut observations = vec![Observation {
-                    carrier: rtk_carrier,
-                    pseudo: Some(data.obs),
-                    ambiguity: None,
-                    doppler: None,
-                    phase: None,
-                    snr: data.snr.map(|snr| snr.into()),
-                }];
-
-                // Subsidary Pseudo Range (if needed)
-                if matches!(solver.cfg.method, Method::CPP | Method::PPP) {
-                    // add any other signal
-                    for (second_obs, second_data) in rinex_obs {
-                        if second_obs == observable {
-                            continue;
-                        }
-
-                        let rhs_carrier = Carrier::from_observable(sv.constellation, second_obs);
-
-                        if rhs_carrier.is_err() {
-                            continue;
-                        }
-
-                        let rhs_carrier = rhs_carrier.unwrap();
-                        let rhs_rtk_carrier = cast_rtk_carrier(rhs_carrier);
-
-                        if second_obs.is_pseudo_range_observable() {
-                            observations.push(Observation {
-                                carrier: rhs_rtk_carrier,
-                                doppler: None,
-                                phase: None,
-                                ambiguity: None,
-                                pseudo: Some(second_data.obs),
-                                snr: data.snr.map(|snr| snr.into()),
-                            });
-                        } else if second_obs.is_phase_range_observable() {
-                            let lambda = rhs_carrier.wavelength();
-                            if let Some(obs) = observations
-                                .iter_mut()
-                                .filter(|ob| ob.carrier == rhs_rtk_carrier)
-                                .reduce(|k, _| k)
-                            {
-                                obs.phase = Some(second_data.obs * lambda);
-                            } else {
-                                observations.push(Observation {
-                                    carrier: rhs_rtk_carrier,
-                                    doppler: None,
-                                    pseudo: None,
-                                    ambiguity: None,
-                                    phase: Some(second_data.obs * lambda),
-                                    snr: data.snr.map(|snr| snr.into()),
-                                });
-                            }
-                        } else if second_obs.is_doppler_observable() {
-                            if let Some(obs) = observations
-                                .iter_mut()
-                                .filter(|ob| ob.carrier == rhs_rtk_carrier)
-                                .reduce(|k, _| k)
-                            {
-                                obs.doppler = Some(second_data.obs);
-                            } else {
-                                observations.push(Observation {
-                                    phase: None,
-                                    carrier: rhs_rtk_carrier,
-                                    pseudo: None,
-                                    ambiguity: None,
-                                    doppler: Some(second_data.obs),
-                                    snr: data.snr.map(|snr| snr.into()),
-                                });
-                            }
-                        }
-
-                        // update ref. observable if this one is to serve as reference
-                        if rtk_reference_carrier(rtk_carrier) {
-                            ref_observable = second_obs.to_string();
-                        }
+        // Consume all SV + frequencies + pseudo range
+        for (sv, carrier, pr_observable) in observations
+            .signals
+            .iter()
+            .filter_map(|sig| {
+                if sig.observable.is_pseudo_range_observable() {
+                    // retrieve frequency
+                    if let Ok(carrier) = sig.observable.carrier(sig.sv.constellation) {
+                        Some((sig.sv, carrier, sig.observable.clone()))
+                    } else {
+                        None
                     }
-                }
-
-                let mut candidate = Candidate::new(*sv, *t, observations);
-
-                // customizations
-                match clock.next_clock_at(*t, *sv) {
-                    Some(corr) => {
-                        candidate.set_clock_correction(corr);
-                    },
-                    None => {
-                        error!("{} ({}) - no clock correction available", *t, *sv);
-                    },
-                }
-
-                if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
-                    if let Some(tgd) = eph.tgd() {
-                        debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
-                        candidate.set_group_delay(tgd);
-                    }
-                }
-
-                // TODO: Meteo
-                let tropo = TropoComponents::Unknown;
-                candidate.set_tropo_components(tropo);
-
-                let iono = if let Some(model) = kb_model(nav_data, *t) {
-                    IonoComponents::KbModel(model)
-                } else if let Some(model) = bd_model(nav_data, *t) {
-                    IonoComponents::BdModel(model)
-                } else if let Some(model) = ng_model(nav_data, *t) {
-                    IonoComponents::NgModel(model)
                 } else {
-                    // TODO STEC/IONEX
-                    IonoComponents::Unknown
-                };
+                    None
+                }
+            })
+            .unique()
+            .sorted()
+        {
+            let rtk_carrier = cast_rtk_carrier(carrier);
 
-                candidate.set_iono_components(iono);
+            let mut rtk_observations = vec![];
 
-                // TODO: RTK
-                //candidate.set_remote_observations(remote);
+            // add more observations (if we can or have to)
+            for rhs_signal in observations.signals.iter() {
+                if rhs_signal.sv == sv {
+                    if let Ok(rhs_carrier) =
+                        rhs_signal.observable.carrier(rhs_signal.sv.constellation)
+                    {
+                        let rtk_carrier = cast_rtk_carrier(carrier);
 
-                match solver.resolve(*t, &vec![candidate]) {
-                    Ok((t, pvt_solution)) => {
-                        let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
-
-                        let azimuth = pvt_data.azimuth;
-                        let elevation = pvt_data.elevation;
-
-                        let refsys = pvt_solution.dt.to_seconds();
-                        let correction = pvt_data.clock_correction.unwrap_or_default();
-                        let refsv = refsys + correction.to_seconds();
-
-                        /*
-                         * TROPO : always present
-                         *         convert to time delay (CGGTTS)
-                         */
-                        let mdtr = pvt_data.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
-
-                        let mdio = match pvt_data.iono_bias {
-                            Some(IonosphereBias::Modeled(bias)) => Some(bias),
-                            _ => None,
-                        };
-                        let msio = match pvt_data.iono_bias {
-                            Some(IonosphereBias::Measured(bias)) => Some(bias),
-                            _ => None,
-                        };
-                        debug!(
-                            "{:?} : new {}:{} solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
-                            t, sv, observable, elevation, azimuth, refsv, refsys
-                        );
-
-                        let fitdata = FitData {
-                            refsv,
-                            refsys,
-                            mdtr,
-                            mdio,
-                            msio,
-                            azimuth,
-                            elevation,
-                        };
-
-                        let target = &(*sv, observable.clone());
-
-                        let tracker = match trackers.get_mut(target) {
-                            None => {
-                                // initialize new tracker
-                                trackers.insert((*sv, observable.clone()), SVTracker::default());
-                                trackers.get_mut(target).unwrap()
-                            },
-                            Some(tracker) => tracker,
-                        };
-
-                        // // verify buffer continuity
-                        // if !tracker.no_gaps(dominant_sampling_period) {
-                        //     // on any discontinuity we need to reset
-                        //     // that tracker. This will abort the ongoing track.
-                        //     tracker.reset();
-                        //     warn!("{:?} - discarding {} track due to data gaps", t, sv);
-
-                        //     // push new measurement
-                        //     tracker.latch_measurement(t, fitdata);
-                        //     continue; // abort for this SV
-                        // }
-
-                        if next_release.is_some() {
-                            let next_release = next_release.unwrap();
-                            let trk_midpoint = trk_midpoint.unwrap();
-
-                            if t >= next_release {
-                                /* time to release a track */
-                                let ioe = 0; //TODO
-                                             // latch last measurement
-                                tracker.latch_measurement(t, fitdata);
-
-                                match tracker.fit(
-                                    ioe,
-                                    trk_duration,
-                                    dominant_sampling_period,
-                                    trk_midpoint,
-                                ) {
-                                    Ok(((trk_elev, trk_azi), trk_data, _iono_data)) => {
-                                        info!(
-                                            "{:?} : new {} cggtts solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
-                                            t,
-                                            sv,
-                                            trk_elev,
-                                            trk_azi,
-                                            trk_data.refsv,
-                                            trk_data.refsys
-                                        );
-
-                                        let track = match sv.constellation {
-                                            Constellation::Glonass => {
-                                                Track::new_glonass(
-                                                    *sv,
-                                                    next_release,
-                                                    trk_duration,
-                                                    CommonViewClass::SingleChannel,
-                                                    trk_elev,
-                                                    trk_azi,
-                                                    trk_data,
-                                                    match solver.cfg.method {
-                                                        Method::CPP | Method::PPP => {
-                                                            // TODO: grab IONOD from PVTSol
-                                                            None
-                                                        },
-                                                        _ => None,
-                                                    },
-                                                    0, // TODO "rcvr_channel" > 0 if known
-                                                    GlonassChannel::default(), //TODO
-                                                    &ref_observable,
-                                                )
-                                            },
-                                            _ => {
-                                                Track::new(
-                                                    *sv,
-                                                    next_release,
-                                                    trk_duration,
-                                                    CommonViewClass::SingleChannel,
-                                                    trk_elev,
-                                                    trk_azi,
-                                                    trk_data,
-                                                    match solver.cfg.method {
-                                                        Method::CPP | Method::PPP => {
-                                                            // TODO: grab IONOD from PVTSol
-                                                            None
-                                                        },
-                                                        _ => None,
-                                                    },
-                                                    0, // TODO "rcvr_channel" > 0 if known
-                                                    &ref_observable,
-                                                )
-                                            },
-                                        }; // match constellation
-                                        tracks.push(track);
-                                    },
-                                    Err(e) => {
-                                        warn!("{} - track fitting error: \"{}\"", t, e);
-                                        // TODO: most likely we should reset the SV signal tracker here
-                                    },
-                                } //.fit()
-
-                                // reset so we start a new track
-                                tracker.reset();
+                        if rhs_carrier == carrier {
+                            // insert pseudo range_m and SNR
+                            if rhs_signal.observable == pr_observable {
+                                rtk_observations.push(Observation::pseudo_range(
+                                    rtk_carrier,
+                                    rhs_signal.value,
+                                    rhs_signal.snr.map(|snr| snr.into()),
+                                ));
                             }
-                            // time to release a track
-                            else {
-                                tracker.latch_measurement(t, fitdata);
+
+                            // try to attach doppler if we can
+                            if rhs_signal.observable.is_doppler_observable() {
+                                rtk_observations[0].with_doppler(rhs_signal.value);
+                            }
+                        } else {
+                            // attach subsidary pseudo range (if we have to)
+                            if matches!(solver.cfg.method, Method::CPP | Method::PPP) {
+                                if rhs_signal.observable.is_pseudo_range_observable() {}
+                            }
+
+                            // attach phase range (if we have to)
+                            if solver.cfg.method == Method::PPP {
+                                if rhs_signal.observable.is_phase_range_observable() {}
                             }
                         }
-                        //release.is_none()
+                    }
+                }
+            }
+
+            // form candidate to propose
+            let mut candidate = Candidate::new(sv, t, rtk_observations);
+
+            // on board clock correction
+            match clock.next_clock_at(t, sv) {
+                Some(corr) => {
+                    candidate.set_clock_correction(corr);
+                },
+                None => {
+                    error!("{} ({}) - no clock correction available", t, sv);
+                },
+            }
+
+            // on board group delay
+            if let Some((_, _, eph)) = eph.borrow_mut().select(t, sv) {
+                if let Some(tgd) = eph.tgd() {
+                    debug!("{} ({}) - tgd: {}", t, sv, tgd);
+                    candidate.set_group_delay(tgd);
+                }
+            }
+
+            // Tropo
+            candidate.set_tropo_components(tropo);
+
+            // Iono
+            let iono = if let Some(model) = kb_model(nav_data, t) {
+                IonoComponents::KbModel(model)
+            } else if let Some(model) = bd_model(nav_data, t) {
+                IonoComponents::BdModel(model)
+            } else if let Some(model) = ng_model(nav_data, t) {
+                IonoComponents::NgModel(model)
+            } else {
+                // TODO STEC/IONEX
+                IonoComponents::Unknown
+            };
+
+            // Iono
+            candidate.set_iono_components(iono);
+
+            // TODO: RTK
+            //candidate.set_remote_observations(remote);
+
+            // resolution attempt
+            match solver.resolve(t, &vec![candidate]) {
+                Ok((t, pvt_solution)) => {
+                    let pvt_data = pvt_solution.sv.get(&sv).unwrap(); // infaillible
+
+                    let azimuth = pvt_data.azimuth;
+                    let elevation = pvt_data.elevation;
+
+                    let refsys = pvt_solution.dt.to_seconds();
+                    let correction = pvt_data.clock_correction.unwrap_or_default();
+                    let refsv = refsys + correction.to_seconds();
+
+                    /*
+                     * TROPO : always present
+                     *         convert to time delay (CGGTTS)
+                     */
+                    let mdtr = pvt_data.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
+
+                    let mdio = match pvt_data.iono_bias {
+                        Some(IonosphereBias::Modeled(bias)) => Some(bias),
+                        _ => None,
+                    };
+                    let msio = match pvt_data.iono_bias {
+                        Some(IonosphereBias::Measured(bias)) => Some(bias),
+                        _ => None,
+                    };
+                    debug!(
+                        "{:?} : new {}:{} solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
+                        t, sv, pr_observable, elevation, azimuth, refsv, refsys
+                    );
+
+                    let fitdata = FitData {
+                        refsv,
+                        refsys,
+                        mdtr,
+                        mdio,
+                        msio,
+                        azimuth,
+                        elevation,
+                    };
+
+                    let target = &(sv, pr_observable.clone());
+
+                    let tracker = match trackers.get_mut(target) {
+                        None => {
+                            // initialize new tracker
+                            trackers.insert((sv, pr_observable.clone()), SVTracker::default());
+                            trackers.get_mut(target).unwrap()
+                        },
+                        Some(tracker) => tracker,
+                    };
+
+                    // // verify buffer continuity
+                    // if !tracker.no_gaps(dominant_sampling_period) {
+                    //     // on any discontinuity we need to reset
+                    //     // that tracker. This will abort the ongoing track.
+                    //     tracker.reset();
+                    //     warn!("{:?} - discarding {} track due to data gaps", t, sv);
+
+                    //     // push new measurement
+                    //     tracker.latch_measurement(t, fitdata);
+                    //     continue; // abort for this SV
+                    // }
+
+                    if next_release.is_some() {
+                        let next_release = next_release.unwrap();
+                        let trk_midpoint = trk_midpoint.unwrap();
+
+                        if t >= next_release {
+                            /* time to release a track */
+                            let ioe = 0; //TODO
+                                         // latch last measurement
+                            tracker.latch_measurement(t, fitdata);
+
+                            match tracker.fit(
+                                ioe,
+                                trk_duration,
+                                dominant_sampling_period,
+                                trk_midpoint,
+                            ) {
+                                Ok(((trk_elev, trk_azi), trk_data, _iono_data)) => {
+                                    info!(
+                                        "{:?} : new {} cggtts solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
+                                        t,
+                                        sv,
+                                        trk_elev,
+                                        trk_azi,
+                                        trk_data.refsv,
+                                        trk_data.refsys
+                                    );
+
+                                    let track = match sv.constellation {
+                                        Constellation::Glonass => {
+                                            Track::new_glonass(
+                                                sv,
+                                                next_release,
+                                                trk_duration,
+                                                CommonViewClass::SingleChannel,
+                                                trk_elev,
+                                                trk_azi,
+                                                trk_data,
+                                                match solver.cfg.method {
+                                                    Method::CPP | Method::PPP => {
+                                                        // TODO: grab IONOD from PVTSol
+                                                        None
+                                                    },
+                                                    _ => None,
+                                                },
+                                                0, // TODO "rcvr_channel" > 0 if known
+                                                GlonassChannel::default(), //TODO
+                                                &pr_observable.to_string(),
+                                            )
+                                        },
+                                        _ => {
+                                            Track::new(
+                                                sv,
+                                                next_release,
+                                                trk_duration,
+                                                CommonViewClass::SingleChannel,
+                                                trk_elev,
+                                                trk_azi,
+                                                trk_data,
+                                                match solver.cfg.method {
+                                                    Method::CPP | Method::PPP => {
+                                                        // TODO: grab IONOD from PVTSol
+                                                        None
+                                                    },
+                                                    _ => None,
+                                                },
+                                                0, // TODO "rcvr_channel" > 0 if known
+                                                &pr_observable.to_string(),
+                                            )
+                                        },
+                                    }; // match constellation
+                                    tracks.push(track);
+                                },
+                                Err(e) => {
+                                    warn!("{} - track fitting error: \"{}\"", t, e);
+                                    // TODO: most likely we should reset the SV signal tracker here
+                                },
+                            } //.fit()
+
+                            // reset so we start a new track
+                            tracker.reset();
+                        }
+                        // time to release a track
                         else {
                             tracker.latch_measurement(t, fitdata);
                         }
-                    },
-                    Err(e) => {
-                        /*
-                         * Any PVT resolution failures would introduce a data gap
-                         * which is incompatible with CGGTTS track fitting
-                         */
-                        error!("pvt solver error - {}", e);
-                        // if let Some(tracker) = trackers.get_mut(&(*sv, observable.clone())) {
-                        //     tracker.reset();
-                        // }
-                    },
-                } //.pvt resolve
-            } // for all OBS
-        } //.sv()
-        next_release = Some(sched.next_track_start(*t));
+                    }
+                    //release.is_none()
+                    else {
+                        tracker.latch_measurement(t, fitdata);
+                    }
+                },
+                Err(e) => {
+                    /*
+                     * Any PVT resolution failures would introduce a data gap
+                     * which is incompatible with CGGTTS track fitting
+                     */
+                    error!("pvt solver error - {}", e);
+                    // if let Some(tracker) = trackers.get_mut(&(*sv, observable.clone())) {
+                    //     tracker.reset();
+                    // }
+                },
+            } //.pvt resolve
+        } // unique sv
+
+        next_release = Some(sched.next_track_start(t));
         trk_midpoint = Some(next_release.unwrap() - trk_duration / 2);
-        info!("{:?} - {} until next track", t, next_release.unwrap() - *t);
-    } //.observations()
+        info!("{:?} - {} until next track", t, next_release.unwrap() - t);
+    } //.observations(temporal)
 
     tracks.sort_by(|a, b| a.epoch.cmp(&b.epoch));
 

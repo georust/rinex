@@ -185,7 +185,7 @@ impl QcReport {
                 let mut items = HashMap::<ProductType, ProductReport>::new();
                 if !summary_only {
                     // one tab per RINEX product
-                    for product in [
+                    for product_id in [
                         ProductType::Observation,
                         ProductType::DORIS,
                         ProductType::MeteoObservation,
@@ -194,11 +194,9 @@ impl QcReport {
                         ProductType::IONEX,
                         ProductType::ANTEX,
                     ] {
-                        let rinex_type = product.to_rinex_type().unwrap();
-
-                        if let Some(rinex) = context.get_rinex_data(rinex_type) {
+                        if let Some(rinex) = context.get_rinex_data(product_id) {
                             if let Ok(report) = RINEXReport::new(rinex) {
-                                items.insert(product, ProductReport::RINEX(report));
+                                items.insert(product_id, ProductReport::RINEX(report));
                             }
                         }
                     }

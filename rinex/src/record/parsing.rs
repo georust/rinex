@@ -288,7 +288,7 @@ impl Record {
                                 &mut observations,
                             ) {
                                 Ok(key) => {
-                                    println!("key={:?}", key);
+                                    //println!("key={:?}", key);
                                     obs_rec.insert(key, observations.clone());
                                     comment_ts = key.epoch; // for comments storage
                                 },

@@ -5,8 +5,6 @@ use crate::{
 
 use std::path::Path;
 
-use rinex::prelude::RinexType;
-
 impl UserBlobData {
     /// Reference to internal [Rinex] data.
     pub fn as_rinex(&self) -> Option<&Rinex> {
@@ -72,18 +70,14 @@ impl QcContext {
     }
 
     /// Returns reference to inner [Rinex] for this [RinexType]
-    pub fn get_rinex_data(&self, rinex_type: RinexType) -> Option<&Rinex> {
-        let product_id = ProductType::from(rinex_type);
-
+    pub fn get_rinex_data(&self, product_id: ProductType) -> Option<&Rinex> {
         self.get_per_product_user_data(product_id)?
             .blob_data
             .as_rinex()
     }
 
-    /// Returns mutable reference to inner [Rinex] for this [RinexType]
-    pub fn get_rinex_data_mut(&mut self, rinex_type: RinexType) -> Option<&mut Rinex> {
-        let product_id = ProductType::from(rinex_type);
-
+    /// Returns mutable reference to inner [Rinex] for this [ProductType]
+    pub fn get_rinex_data_mut(&mut self, product_id: ProductType) -> Option<&mut Rinex> {
         self.get_per_product_user_data_mut(product_id)?
             .blob_data
             .as_mut_rinex()
@@ -91,71 +85,71 @@ impl QcContext {
 
     /// Returns reference to inner [ProductType::Observation] data
     pub fn observation_data(&self) -> Option<&Rinex> {
-        self.get_rinex_data(RinexType::ObservationData)
+        self.get_rinex_data(ProductType::Observation)
     }
 
     /// Returns reference to inner [ProductType::DORIS] RINEX data
     pub fn doris_data(&self) -> Option<&Rinex> {
-        self.get_rinex_data(RinexType::DORIS)
+        self.get_rinex_data(ProductType::DORIS)
     }
 
     /// Returns reference to inner [ProductType::BroadcastNavigation] data
     pub fn brdc_navigation_data(&self) -> Option<&Rinex> {
-        self.get_rinex_data(RinexType::NavigationData)
+        self.get_rinex_data(ProductType::BroadcastNavigation)
     }
 
-    /// Returns reference to inner [ProductType::Meteo] data
+    /// Returns reference to inner [ProductType::MeteoObservation] data
     pub fn meteo_data(&self) -> Option<&Rinex> {
-        self.get_rinex_data(RinexType::MeteoData)
+        self.get_rinex_data(ProductType::MeteoObservation)
     }
 
     /// Returns reference to inner [ProductType::HighPrecisionClock] data
     pub fn clock_data(&self) -> Option<&Rinex> {
-        self.get_rinex_data(RinexType::ClockData)
+        self.get_rinex_data(ProductType::HighPrecisionClock)
     }
 
     /// Returns reference to inner [ProductType::ANTEX] data
     pub fn antex_data(&self) -> Option<&Rinex> {
-        self.get_rinex_data(RinexType::AntennaData)
+        self.get_rinex_data(ProductType::ANTEX)
     }
 
     /// Returns reference to inner [ProductType::IONEX] data
     pub fn ionex_data(&self) -> Option<&Rinex> {
-        self.get_rinex_data(RinexType::IonosphereMaps)
+        self.get_rinex_data(ProductType::IONEX)
     }
 
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn observation_data_mut(&mut self) -> Option<&mut Rinex> {
-        self.get_rinex_data_mut(RinexType::ObservationData)
+        self.get_rinex_data_mut(ProductType::Observation)
     }
 
     /// Returns mutable reference to inner [ProductType::DORIS] RINEX data
     pub fn doris_data_mut(&mut self) -> Option<&mut Rinex> {
-        self.get_rinex_data_mut(RinexType::DORIS)
+        self.get_rinex_data_mut(ProductType::DORIS)
     }
-    /// Returns mutable reference to inner [ProductType::Observation] data
+    /// Returns mutable reference to inner [ProductType::BroadcastNavigation] data
     pub fn brdc_navigation_data_mut(&mut self) -> Option<&mut Rinex> {
-        self.get_rinex_data_mut(RinexType::NavigationData)
+        self.get_rinex_data_mut(ProductType::BroadcastNavigation)
     }
 
-    /// Returns reference to inner [ProductType::Meteo] data
+    /// Returns reference to inner [ProductType::MeteoObservation] data
     pub fn meteo_data_mut(&mut self) -> Option<&mut Rinex> {
-        self.get_rinex_data_mut(RinexType::MeteoData)
+        self.get_rinex_data_mut(ProductType::MeteoObservation)
     }
 
     /// Returns mutable reference to inner [ProductType::HighPrecisionClock] data
     pub fn clock_data_mut(&mut self) -> Option<&mut Rinex> {
-        self.get_rinex_data_mut(RinexType::ClockData)
+        self.get_rinex_data_mut(ProductType::HighPrecisionClock)
     }
 
     /// Returns mutable reference to inner [ProductType::ANTEX] data
     pub fn antex_data_mut(&mut self) -> Option<&mut Rinex> {
-        self.get_rinex_data_mut(RinexType::AntennaData)
+        self.get_rinex_data_mut(ProductType::ANTEX)
     }
 
     /// Returns mutable reference to inner [ProductType::IONEX] data
     pub fn ionex_data_mut(&mut self) -> Option<&mut Rinex> {
-        self.get_rinex_data_mut(RinexType::IonosphereMaps)
+        self.get_rinex_data_mut(ProductType::IONEX)
     }
 
     /// Returns true if [ProductType::Observation] are present in Self
@@ -163,18 +157,28 @@ impl QcContext {
         self.observation_data().is_some()
     }
 
-    /// Returns true if [ProductType::BroadcastNavigation] are present in Self
+    /// Returns true if [QcContext] contains [ProductType::BroadcastNavigation]
     pub fn has_brdc_navigation(&self) -> bool {
         self.brdc_navigation_data().is_some()
     }
 
-    /// Returns true if at least one [ProductType::DORIS] file is present
+    /// Returns true if [QcContext] contains [ProductType::DORIS]
     pub fn has_doris(&self) -> bool {
         self.doris_data().is_some()
     }
 
-    /// Returns true if [ProductType::MeteoObservation] are present in Self
+    /// Returns true if [QcContext] contains [ProductType::MeteoObservation]
     pub fn has_meteo(&self) -> bool {
         self.meteo_data().is_some()
+    }
+
+    /// Returns true if [QcContext] contains [ProductType::HighPrecisionClock]
+    pub fn has_clock(&self) -> bool {
+        self.clock_data().is_some()
+    }
+
+    /// Returns true if [QcContext] contains [ProductType::IONEX]
+    pub fn has_ionex(&self) -> bool {
+        self.ionex_data().is_some()
     }
 }

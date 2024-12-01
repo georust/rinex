@@ -1,5 +1,6 @@
 use std::{
     collections::hash_map::DefaultHasher,
+    fs::File,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
     str::FromStr,
@@ -61,39 +62,54 @@ pub struct Context {
 }
 
 impl Context {
-    /*
-     * Utility to determine the most major filename stem,
-     * to be used as the session workspace
-     */
+    /// Returns [Context] stem, used as session workspace
     pub fn context_stem(data: &QcContext) -> String {
-        let ctx_major_stem: &str = data
-            .primary_path()
-            .expect("failed to determine a context name")
-            .file_stem()
-            .expect("failed to determine a context name")
-            .to_str()
-            .expect("failed to determine a context name");
-        /*
-         * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
-         * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
-         */
-        let primary_stem: Vec<&str> = ctx_major_stem.split('.').collect();
-        primary_stem[0].to_string()
+        data.primary_path()
+            .expect("failed to define session")
+            .file_name()
+            .expect("failed to define session")
+            .to_string_lossy()
+            .to_string()
     }
-    /*
-     * Utility to create a file in this session
-     */
-    fn create_file(&self, path: &Path) -> std::fs::File {
-        std::fs::File::create(path).unwrap_or_else(|e| {
+
+    /// Use this if this session needs to generate output products
+    pub fn create_output_products_dir(&self) {
+        if self.data.has_brdc_navigation() {
+            self.workspace.create_subdir("OUTPUT/NAV");
+        }
+        if self.data.has_observation() {
+            self.workspace.create_subdir("OUTPUT/OBS");
+        }
+        if self.data.has_meteo() {
+            self.workspace.create_subdir("OUTPUT/METEO");
+        }
+        if self.data.has_doris() {
+            self.workspace.create_subdir("OUTPUT/DORIS");
+        }
+        if self.data.has_sp3() {
+            self.workspace.create_subdir("OUTPUT/SP3");
+        }
+        if self.data.has_ionex() {
+            self.workspace.create_subdir("OUTPUT/IONEX");
+        }
+        if self.data.has_clock() {
+            self.workspace.create_subdir("OUTPUT/CLOCK");
+        }
+    }
+
+    /// Macro to generate [File] from full [Path]
+    fn create_file(&self, path: &Path) -> File {
+        File::create(path).unwrap_or_else(|e| {
             panic!("failed to create {}: {:?}", path.display(), e);
         })
     }
-    // Returns True if this context is compatible with RTK positioning
+
+    /// Returns True if [Context] is compatible with RTK positioning
     pub fn rtk_compatible(&self) -> bool {
         if let Some(remote) = &self.reference_site {
-            self.data.observation().is_some()
+            self.data.observation_data().is_some()
                 && self.rx_ecef.is_some()
-                && remote.data.observation().is_some()
+                && remote.data.observation_data().is_some()
                 && remote.rx_ecef.is_some()
         } else {
             false
@@ -421,6 +437,7 @@ Otherwise it gets automatically picked up."))
                 .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
         }
     }
+
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
         matches!(
@@ -432,6 +449,7 @@ Otherwise it gets automatically picked up."))
                 | Some(("diff", _))
         )
     }
+
     /// True if forced report synthesis is requested
     pub fn force_report_synthesis(&self) -> bool {
         self.matches.get_flag("report-force")

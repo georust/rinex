@@ -348,11 +348,11 @@ impl<const M: usize> DecompressorExpert<M> {
             self.epoch_desc_len = self.epoch_descriptor.len();
         }
 
-        #[cfg(feature = "log")]
-        debug!(
-            "RECOVERED \"{}\" [{}]",
-            self.epoch_descriptor, self.epoch_desc_len
-        );
+        //#[cfg(feature = "log")]
+        //debug!(
+        //    "RECOVERED \"{}\" [{}]",
+        //    self.epoch_descriptor, self.epoch_desc_len
+        //);
 
         // numsat needs to be recovered right away,
         // because it is used to determine the next production size
@@ -549,8 +549,8 @@ impl<const M: usize> DecompressorExpert<M> {
         let mut produced = 0;
         let mut new_state = self.state;
 
-        #[cfg(feature = "log")]
-        debug!("[{}] LINE \"{}\"", self.sv, line);
+        //#[cfg(feature = "log")]
+        //debug!("[{}] LINE \"{}\"", self.sv, line);
 
         if self.v3 {
             // prepend SVNN identity
@@ -583,8 +583,8 @@ impl<const M: usize> DecompressorExpert<M> {
 
                     let slice = line[consumed..consumed + offset].trim();
 
-                    #[cfg(feature = "log")]
-                    debug!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
+                    //#[cfg(feature = "log")]
+                    //debug!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
 
                     if let Some(offset) = slice.find('&') {
                         if offset == 1 {
@@ -622,8 +622,8 @@ impl<const M: usize> DecompressorExpert<M> {
                     if slice.len() > 0 {
                         // this is a digit (highly compressed value)
 
-                        #[cfg(feature = "log")]
-                        debug!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
+                        //#[cfg(feature = "log")]
+                        //debug!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
 
                         if let Ok(value) = slice.parse::<i64>() {
                             if let Some(kernel) = self.obs_diff.get_mut(&(self.sv, ptr)) {
@@ -675,8 +675,8 @@ impl<const M: usize> DecompressorExpert<M> {
                     // grab slice
                     let slice = line[consumed..].trim();
 
-                    #[cfg(feature = "log")]
-                    debug!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
+                    //#[cfg(feature = "log")]
+                    //debug!("slice \"{}\" [{}/{}]", &slice, ptr + 1, self.numobs);
 
                     if let Some(offset) = slice.find('&') {
                         if offset == 1 {
@@ -763,20 +763,20 @@ impl<const M: usize> DecompressorExpert<M> {
                 let flags = textdiff.decompress("").trim_end();
                 let flags_len = flags.len();
 
-                #[cfg(feature = "log")]
-                debug!("PRESERVED \"{}\"", flags);
+                //#[cfg(feature = "log")]
+                //debug!("PRESERVED \"{}\"", flags);
 
                 Self::write_flags(flags, flags_len, self.numobs, self.v3, buf);
 
                 // conclude this SV
                 self.sv_ptr += 1;
 
-                #[cfg(feature = "log")]
-                debug!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
+                //#[cfg(feature = "log")]
+                //debug!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
 
                 if self.sv_ptr == self.numsat {
-                    #[cfg(feature = "log")]
-                    debug!("[END OF EPOCH]");
+                    //#[cfg(feature = "log")]
+                    //debug!("[END OF EPOCH]");
 
                     self.state = State::Epoch;
                 } else {
@@ -808,16 +808,16 @@ impl<const M: usize> DecompressorExpert<M> {
             // proceed to flags recovering
             let flags = &line[consumed..].trim_end();
 
-            #[cfg(feature = "log")]
-            debug!("FLAGS \"{}\"", flags);
+            //#[cfg(feature = "log")]
+            //debug!("FLAGS \"{}\"", flags);
 
             let kernel = self.flags_diff.get_mut(&self.sv).expect("internal error");
 
             let flags = kernel.decompress(flags);
             let flags_len = flags.len();
 
-            #[cfg(feature = "log")]
-            debug!("RECOVERED \"{}\"", flags);
+            //#[cfg(feature = "log")]
+            //debug!("RECOVERED \"{}\"", flags);
 
             // copy all flags to user
             Self::write_flags(flags, flags_len, self.numobs, self.v3, buf);
@@ -828,12 +828,12 @@ impl<const M: usize> DecompressorExpert<M> {
         // move on to next state
         self.sv_ptr += 1;
 
-        #[cfg(feature = "log")]
-        debug!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
+        //#[cfg(feature = "log")]
+        //debug!("[{} CONCLUDED {}/{}]", self.sv, self.sv_ptr, self.numsat);
 
         if self.sv_ptr == self.numsat {
-            #[cfg(feature = "log")]
-            debug!("[END OF EPOCH]");
+            //#[cfg(feature = "log")]
+            //debug!("[END OF EPOCH]");
 
             new_state = State::Epoch;
         } else {
