@@ -160,6 +160,8 @@ pub enum ParsingError {
     DorisStationIdentification,
     #[error("doris sat clock parsing")]
     DorisClockParsing,
+    #[error("ionex scaling exponent")]
+    IonexScalingExponent,
 }
 
 /// Errors that may rise in Formatting process

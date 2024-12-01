@@ -3,7 +3,7 @@ use crate::prelude::{ClockObservation, ObsKey, Observations, Rinex, RinexType, S
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-mod feature; // feature dependent, high level methods
+pub(crate) mod feature; // feature dependent, high level methods
 
 use std::collections::btree_map::{Iter, IterMut, Keys};
 

@@ -110,8 +110,8 @@ pub mod prelude {
         ClockObservation, EpochFlag, LliFlags, ObsKey, Observations, SignalObservation, SNR,
     };
 
-    pub use crate::meteo::MeteoKey;
     pub use crate::ionex::{IonexKey, IonexMapCoordinates, TEC};
+    pub use crate::meteo::MeteoKey;
 
     pub use crate::prod::ProductionAttributes;
     pub use crate::record::{Comments, Record};
@@ -164,7 +164,6 @@ pub mod prelude {
     #[cfg(feature = "rtcm")]
     #[cfg_attr(docsrs, doc(cfg(feature = "rtcm")))]
     pub use crate::rtcm::RTCM2RNX;
-
 }
 
 /// Package dedicated to file production.
@@ -188,9 +187,7 @@ use crate::{
     },
     header::processing::header_mask_mut,
     ionex::{
-        decim_mut as ionex_decim_mut,
-        mask_mut as ionex_mask_mut,
-        repair::repair_mut as ionex_repair_mut,
+        decim_mut as ionex_decim_mut, mask_mut as ionex_mask_mut, repair_mut as ionex_repair_mut,
     },
     meteo::{
         decim::decim_mut as meteo_decim_mut, mask::mask_mut as meteo_mask_mut,
@@ -852,13 +849,31 @@ impl Rinex {
         Ok(())
     }
 
-    /// Parses [RINEX] from local file.
+    /// Parses [Rinex] from local readable file.
     /// Will panic if provided file does not exist or is not readable.
+    /// See [Self::from_gzip_file] for seamless Gzip support.
+    ///
     /// If file name follows standard naming conventions, then internal definitions
-    /// will truly be complete. Otherwise [ProductionAttributes] cannot be determined.
-    /// If you want or need to (mostly in data production environment), you can either
+    /// will truly be complete. Otherwise [ProductionAttributes] cannot be fully determined.
+    /// If you want or need to you can either
     ///  1. define it yourself with further customization
     ///  2. use the smart guesser (after parsing): [Self::guess_production_attributes]
+    ///
+    /// This is typically needed in data production contexts.
+    ///
+    /// The parser automatically picks up the RINEX format and we support
+    /// all of them, CRINEX (Compat RINEX) is natively supported.
+    /// The SINEX format is not allowed here, this will be handed by the decided library.
+    ///
+    /// Compact Observation RINEX example:
+    /// ```
+    /// example
+    /// ```
+    ///
+    /// Navigation RINEX example:
+    /// ```
+    /// example
+    /// ```
     pub fn from_file(path: impl AsRef<Path>) -> Result<Rinex, ParsingError> {
         let path = path.as_ref();
 
@@ -907,9 +922,41 @@ impl Rinex {
         Ok(())
     }
 
-    /// Parses [RINEX] from local gzip compressed file.
+    /// Parses [Rinex] from local gzip compressed file.
     /// Will panic if provided file does not exist or is not readable.
     /// Refer to [Self::from_file] for more information.
+    ///
+    /// IONEX example:
+    /// ```
+    /// use rinex::prelude::Rinex;
+    ///
+    /// let rinex = Rinex::from_gzip_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
+    ///     .unwrap();
+    ///
+    /// assert!(rinex.is_ionex());
+    /// assert!(rinex.is_ionex_2d());
+    ///
+    /// let params = rinex.header.ionex
+    ///     .as_ref()
+    ///     .unwrap();
+    ///
+    /// // fixed altitude IONEX (=single isosurface)
+    /// assert_eq!(params.grid.height.start, 350.0);
+    /// assert_eq!(params.grid.height.end, 350.0);
+    ///     
+    /// // latitude grid
+    /// assert_eq!(params.grid.latitude.start, 87.5);
+    /// assert_eq!(params.grid.latitude.end, -87.5);
+    /// assert_eq!(params.grid.latitude.spacing, -2.5);
+    ///
+    /// // longitude grid
+    /// assert_eq!(params.grid.longitude.start, -180.0);
+    /// assert_eq!(params.grid.longitude.end, 180.0);
+    /// assert_eq!(params.grid.longitude.spacing, 5.0);
+
+    /// assert_eq!(params.elevation_cutoff, 0.0);
+    /// assert_eq!(params.mapping, None);
+    /// ```
     #[cfg(feature = "flate2")]
     #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
     pub fn from_gzip_file(path: impl AsRef<Path>) -> Result<Rinex, ParsingError> {
@@ -1794,6 +1841,8 @@ impl RepairTrait for Rinex {
             meteo_repair_mut(rec, r);
         } else if let Some(rec) = self.record.as_mut_doris() {
             doris_repair_mut(rec, r);
+        } else if let Some(rec) = self.record.as_mut_ionex() {
+            ionex_repair_mut(rec, r);
         }
     }
 }

@@ -1,11 +1,13 @@
 use crate::{
-    prelude::{Rinex, Epoch}
     ionex::{IonexKey, TEC},
+    prelude::{Epoch, Rinex},
 };
 
 impl Rinex {
-
     /// Returns IONEX TEC map borders.
+    /// Note that this is only based on Header definitions. If provided
+    /// content did not follow those specs (incorrect), the returned value here will not
+    /// reflect actual content.
     /// ## Output
     /// - (lat_min, lat_max): southernmost and northernmost latitude, in decimal degrees
     /// - (long_min, long_max): easternmost and westernmost longitude, in decimal degrees
@@ -20,10 +22,10 @@ impl Rinex {
     /// Designs an iterator over RMS TEC exclusively
     /// ```
     /// use rinex::prelude::*;
-    /// 
+    ///
     /// let rnx = Rinex::from_gzip_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
     ///     .unwrap();
-    /// 
+    ///
     /// for (t, lat, lon, alt, rms) in rnx.ionex_rms_tec_maps_iter() {
     ///     // t: Epoch
     ///     // lat: ddeg
@@ -33,8 +35,8 @@ impl Rinex {
     /// }
     /// ```
     pub fn ionex_rms_tec_maps_iter(&self) -> Box<dyn Iterator<Item = (IonexKey, f64)> + '_> {
-        Box::new(self.ionex_tec_maps_iter().flat_map(|(k, tec)| {
-            if let Some(rms) = tec.rms {
+        Box::new(self.ionex_tec_maps_iter().filter_map(|(k, tec)| {
+            if let Some(rms) = tec.rms_tec() {
                 Some((k, rms))
             } else {
                 None
@@ -43,6 +45,9 @@ impl Rinex {
     }
 
     /// Returns fixed altitude (in kilometers) if this is a 2D IONEX (only).
+    /// Note that this is only based on Header definitions. If provided
+    /// content did not follow those specs (incorrect), the returned value here will not
+    /// reflect actual content.
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
@@ -64,7 +69,10 @@ impl Rinex {
 
     /// Returns altitude range of this 3D IONEX TEC maps, expressed as {min, max}
     /// both in kilometers. Returns None if this is not a 3D IONEX.
-    /// 
+    /// Note that this is only based on Header definitions. If provided
+    /// content did not follow those specs (incorrect), the returned value here will not
+    /// reflect actual content.
+    ///
     /// ```
     /// example
     /// ```
@@ -81,17 +89,13 @@ impl Rinex {
     /// ending at highest altitude. See [Self::ionex_tec_maps_altitude_range] for
     /// useful information.
     pub fn ionex_tec_isosurface_iter(&self) -> Box<dyn Iterator<Item = (IonexKey, TEC)> + '_> {
-        Box::new(
-        )
+        Box::new([].into_iter())
     }
 
     /// Designs an RMS TEC isosurface iterator starting at lowest altitude,
     /// ending at highest altitude. See [Self::ionex_tec_maps_altitude_range] for
     /// useful information.
     pub fn ionex_rms_tec_isosurface_iter(&self) -> Box<dyn Iterator<Item = (IonexKey, TEC)> + '_> {
-        Box::new(
-        )
+        Box::new([].into_iter())
     }
-
-
 }

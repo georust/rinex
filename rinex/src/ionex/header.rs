@@ -1,23 +1,25 @@
-
 /// IONEX specific header fields
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    ionex::{RefSystem, MappingFunction, Grid, BiasSource},
-    prelude::{Epoch},
+    fmt_rinex,
+    ionex::{BiasSource, Grid, MappingFunction, RefSystem},
     linspace::Linspace,
+    prelude::{Epoch, FormattingError},
 };
 
 use std::{
     collections::HashMap,
-    io::{Write, BufWriter},
+    io::{BufWriter, Write},
 };
 
+#[cfg(feature = "processing")]
+use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 #[cfg(feature = "processing")]
-use qc_traits::{MaskOperand, FilterItem, MaskFilter};
+use crate::prelude::TimeScale;
 
 /// IONEX specific [HeaderFields]
 #[derive(Debug, Clone, PartialEq)]
@@ -62,9 +64,6 @@ pub struct HeaderFields {
 impl Default for HeaderFields {
     fn default() -> Self {
         Self {
-            epoch_of_first_map: Epoch::default(),
-            epoch_of_last_map: Epoch::default(),
-            reference: RefSystem::default(),
             exponent: -1,     // very important: allows missing EXPONENT fields
             map_dimension: 2, // 2D map by default
             mapping: None,
@@ -76,6 +75,9 @@ impl Default for HeaderFields {
             nb_stations: 0,
             nb_satellites: 0,
             dcbs: HashMap::new(),
+            reference: RefSystem::default(),
+            epoch_of_last_map: Epoch::default(),
+            epoch_of_first_map: Epoch::default(),
         }
     }
 }
@@ -144,12 +146,12 @@ impl HeaderFields {
             fmt_rinex(&format!("{}", self.elevation_cutoff), "ELEVATION CUTOFF")
         )?;
 
-        // mapping func
-        if let Some(func) = &self.mapping {
+        // mapping function
+        if let Some(map_f) = &self.mapping {
             writeln!(
                 w,
                 "{}",
-                fmt_rinex(&format!("{:?}", func), "MAPPING FUNCTION")
+                fmt_rinex(&format!("{:?}", map_f), "MAPPING FUNCTION")
             )?;
         } else {
             writeln!(w, "{}", fmt_rinex("NONE", "MAPPING FUNCTION"))?;
@@ -176,18 +178,21 @@ impl HeaderFields {
         s.epoch_of_last_map = t;
         s
     }
+
     /// Copies and builds Self with given Reference System
     pub fn with_reference_system(&self, reference: RefSystem) -> Self {
         let mut s = self.clone();
         s.reference = reference;
         s
     }
+
     /// Copies and sets exponent / scaling to currently use
     pub fn with_exponent(&self, e: i8) -> Self {
         let mut s = self.clone();
         s.exponent = e;
         s
     }
+
     /// Copies and sets model description
     pub fn with_description(&self, desc: &str) -> Self {
         let mut s = self.clone();
@@ -199,17 +204,20 @@ impl HeaderFields {
         }
         s
     }
+
     pub fn with_mapping_function(&self, mf: MappingFunction) -> Self {
         let mut s = self.clone();
         s.mapping = Some(mf);
         s
     }
+
     /// Copies & sets minimum elevation angle used.
     pub fn with_elevation_cutoff(&self, e: f32) -> Self {
         let mut s = self.clone();
         s.elevation_cutoff = e;
         s
     }
+
     pub fn with_observables(&self, o: &str) -> Self {
         let mut s = self.clone();
         if !o.is_empty() {
@@ -217,52 +225,61 @@ impl HeaderFields {
         }
         s
     }
+
     /// Returns true if this Ionosphere Maps describes
     /// a theoretical model, not measured data
     pub fn is_theoretical_model(&self) -> bool {
         self.observables.is_some()
     }
+
     /// Copies self and set number of stations
     pub fn with_nb_stations(&self, n: u32) -> Self {
         let mut s = self.clone();
         s.nb_stations = n;
         s
     }
+
     /// Copies self and set number of satellites
     pub fn with_nb_satellites(&self, n: u32) -> Self {
         let mut s = self.clone();
         s.nb_satellites = n;
         s
     }
+
     /// Copies & set Base Radius in km
     pub fn with_base_radius(&self, b: f32) -> Self {
         let mut s = self.clone();
         s.base_radius = b;
         s
     }
+
     pub fn with_map_dimension(&self, d: u8) -> Self {
         let mut s = self.clone();
         s.map_dimension = d;
         s
     }
+
     /// Adds latitude grid definition
     pub fn with_latitude_grid(&self, grid: Linspace) -> Self {
         let mut s = self.clone();
         s.grid.latitude = grid;
         s
     }
+
     /// Adds longitude grid definition
     pub fn with_longitude_grid(&self, grid: Linspace) -> Self {
         let mut s = self.clone();
         s.grid.longitude = grid;
         s
     }
+
     /// Adds altitude grid definition
     pub fn with_altitude_grid(&self, grid: Linspace) -> Self {
         let mut s = self.clone();
         s.grid.height = grid;
         s
     }
+
     /// Copies & sets Diffenretial Code Bias estimates
     /// for given vehicle
     pub fn with_dcb(&self, src: BiasSource, value: (f64, f64)) -> Self {
@@ -272,56 +289,36 @@ impl HeaderFields {
     }
 }
 
-
 #[cfg(feature = "processing")]
 impl HeaderFields {
-    /// Modifies in place Self, when applying preprocessing filter ops
+    /// Modifies [HeaderFields] by applying [MaskFilter] with mutable access.
     pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
         match f.operand {
             MaskOperand::NotEquals => {},
             MaskOperand::Equals => match &f.item {
                 FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    self.epoch_of_first_map = epoch.to_time_scale(ts);
-                    self.epoch_of_last_map = epoch.to_time_scale(ts);
+                    self.epoch_of_first_map = epoch.to_time_scale(TimeScale::UTC);
+                    self.epoch_of_last_map = epoch.to_time_scale(TimeScale::UTC);
                 },
                 FilterItem::SvItem(svs) => {
                     self.nb_satellites = svs.len() as u32;
                 },
                 _ => {},
             },
-            MaskOperand::GreaterThan => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if self.epoch_of_first_map < *epoch {
-                        self.epoch_of_first_map = epoch.to_time_scale(ts);
+            MaskOperand::GreaterThan | MaskOperand::GreaterEquals => match &f.item {
+                FilterItem::EpochItem(t) => {
+                    let t_utc = t.to_time_scale(TimeScale::UTC);
+                    if self.epoch_of_first_map < t_utc {
+                        self.epoch_of_first_map = t_utc;
                     }
                 },
                 _ => {},
             },
-            MaskOperand::GreaterEquals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if self.epoch_of_first_map < *epoch {
-                        self.epoch_of_first_map = epoch.to_time_scale(ts);
-                    }
-                },
-                _ => {},
-            },
-            MaskOperand::LowerThan => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if self.epoch_of_last_map > *epoch {
-                        self.epoch_of_last_map = epoch.to_time_scale(ts);
-                    }
-                },
-                _ => {},
-            },
-            MaskOperand::LowerEquals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    let ts = self.timescale();
-                    if self.epoch_of_last_map > *epoch {
-                        self.epoch_of_last_map = epoch.to_time_scale(ts);
+            MaskOperand::LowerThan | MaskOperand::LowerEquals => match &f.item {
+                FilterItem::EpochItem(t) => {
+                    let t_utc = t.to_time_scale(TimeScale::UTC);
+                    if self.epoch_of_last_map > t_utc {
+                        self.epoch_of_last_map = t_utc;
                     }
                 },
                 _ => {},

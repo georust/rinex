@@ -4,9 +4,7 @@ use qc_traits::Repair;
 
 /// Repairs all Zero (=null) values in [Record]
 fn repair_zero_mut(rec: &mut Record) {
-    rec.retain(|_, tec| {
-        tec.value > 0.0
-    });
+    rec.retain(|_, tec| tec.tec() > 0.0);
 }
 
 /// Applies [Repair] to [Record]

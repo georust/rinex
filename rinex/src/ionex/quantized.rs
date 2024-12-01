@@ -1,22 +1,98 @@
 //! IONEX Grid Quantization
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Quantized<T> {
-    value: T,
-    spacing: T,
-    q_factor: T,
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Quantized {
+    pub exponent: i8,
+    pub quantized: i32,
 }
 
-impl<T> Quantized<T> {
-    pub fn new(value: f64, spacing: f64) -> Self {
+impl Quantized {
+    /// Determines best suited exponent to quantize given value
+    pub fn find_exponent(value: f64) -> i8 {
+        let mut val = value;
+        let mut exponent = 0;
+
+        while val.fract() != 0.0 {
+            val *= 10.0;
+            exponent += 1;
+        }
+
+        exponent
+    }
+
+    /// Builds new [Quantized] value
+    pub fn new(value: f64, exponent: i8) -> Self {
+        let quantized = (value * 10.0_f64.powi(exponent as i32)).round() as i32;
         Self {
-            value,
-            spacing,
-            q_factor,
+            quantized,
+            exponent,
         }
     }
 
-    pub fn value(&self) -> f64 {
-        self.value as f64 * self.q_factor as f64 / self.spacing as f64
+    /// Returns real [f64] value
+    pub fn real_value(&self) -> f64 {
+        self.quantized as f64 * 10.0_f64.powi(-self.exponent as i32)
+    }
+
+    /// Returns quantized integer value
+    pub fn quantized_value(&self) -> i32 {
+        self.quantized
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Quantized;
+
+    #[test]
+    fn test_exponent_finder() {
+        assert_eq!(Quantized::find_exponent(5.0), 0);
+        assert_eq!(Quantized::find_exponent(5.5), 1);
+        assert_eq!(Quantized::find_exponent(0.5), 1);
+        assert_eq!(Quantized::find_exponent(1.25), 2);
+        assert_eq!(Quantized::find_exponent(0.25), 2);
+    }
+
+    #[test]
+    fn test_quantization() {
+        let q = Quantized::new(1.0, 0);
+        assert_eq!(
+            q,
+            Quantized {
+                quantized: 1,
+                exponent: 0,
+            },
+        );
+
+        let q = Quantized::new(1.0, 1);
+        assert_eq!(
+            q,
+            Quantized {
+                quantized: 10,
+                exponent: 1,
+            },
+        );
+
+        let q = Quantized::new(1.25, 2);
+        assert_eq!(
+            q,
+            Quantized {
+                quantized: 125,
+                exponent: 2,
+            },
+        );
+
+        let q = Quantized::new(-3.215, 3);
+        assert_eq!(
+            q,
+            Quantized {
+                quantized: -3215,
+                exponent: 3,
+            },
+        );
     }
 }

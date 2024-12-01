@@ -1,21 +1,14 @@
 use crate::{ionex::Record, prelude::qc::MergeError};
 
+use qc_traits::Merge;
+
 pub fn merge_mut(rec: &mut Record, rhs: &Record) -> Result<(), MergeError> {
-    for (eh, plane) in rhs {
-        if let Some(lhs_plane) = rec.get_mut(eh) {
-            for (latlon, plane) in plane {
-                if let Some(tec) = lhs_plane.get_mut(latlon) {
-                    if let Some(rms) = plane.rms {
-                        if tec.rms.is_none() {
-                            tec.rms = Some(rms);
-                        }
-                    }
-                } else {
-                    lhs_plane.insert(*latlon, plane.clone());
-                }
-            }
+    for (k, v) in rhs.iter() {
+        if let Some(tec) = rec.get_mut(&k) {
+            tec.merge_mut(&v)?;
         } else {
-            rec.insert(*eh, plane.clone());
+            // new TEC value in space and/or time
+            rec.insert(*k, v.clone());
         }
     }
     Ok(())

@@ -1,7 +1,4 @@
-use crate::{
-    ionex::Record,
-    prelude::Epoch,
-};
+use crate::{ionex::Record, prelude::Epoch};
 
 use qc_traits::{DecimationFilter, DecimationFilterType};
 
@@ -9,7 +6,7 @@ pub fn decim_mut(rec: &mut Record, f: &DecimationFilter) {
     if f.item.is_some() {
         todo!("targetted decimation not supported yet");
     }
-    
+
     match f.filter {
         DecimationFilterType::Modulo(r) => {
             let mut i = 0;
@@ -21,17 +18,17 @@ pub fn decim_mut(rec: &mut Record, f: &DecimationFilter) {
         },
         DecimationFilterType::Duration(interval) => {
             let mut last_retained = Option::<Epoch>::None;
-            rec.retain(|(e, _), _| {
+            rec.retain(|k, _| {
                 if let Some(last) = last_retained {
-                    let dt = *e - last;
+                    let dt = k.epoch - last;
                     if dt >= interval {
-                        last_retained = Some(*e);
+                        last_retained = Some(k.epoch);
                         true
                     } else {
                         false
                     }
                 } else {
-                    last_retained = Some(*e);
+                    last_retained = Some(k.epoch);
                     true // always retain 1st epoch
                 }
             });

@@ -7,6 +7,7 @@ use crate::prelude::{Carrier, LliFlags, ObsKey, Rinex, SignalObservation};
 #[cfg(docsrs)]
 use crate::prelude::{Epoch, EpochFlag, Observable};
 
+/// Supported signal [Combination]s
 #[derive(Debug, Copy, Clone)]
 pub enum Combination {
     /// Geometry Free (GF) combination
@@ -21,6 +22,7 @@ pub enum Combination {
     MelbourneWubbena,
 }
 
+/// Definition of a [SignalCombination]
 #[derive(Debug, Clone)]
 pub struct SignalCombination {
     pub combination: Combination,

@@ -1,14 +1,14 @@
 use crate::{
-    ionex::record::Record,
+    ionex::Record,
     prelude::{Duration, Epoch},
 };
 
 pub fn split(rec: &Record, t: Epoch) -> (Record, Record) {
     let before = rec
         .iter()
-        .flat_map(|((e, h), plane)| {
-            if *e < t {
-                Some(((*e, *h), plane.clone()))
+        .flat_map(|(k, v)| {
+            if k.epoch < t {
+                Some((*k, v.clone()))
             } else {
                 None
             }
@@ -17,9 +17,9 @@ pub fn split(rec: &Record, t: Epoch) -> (Record, Record) {
 
     let after = rec
         .iter()
-        .flat_map(|((e, h), plane)| {
-            if *e >= t {
-                Some(((*e, *h), plane.clone()))
+        .flat_map(|(k, v)| {
+            if k.epoch >= t {
+                Some((*k, v.clone()))
             } else {
                 None
             }
@@ -29,19 +29,20 @@ pub fn split(rec: &Record, t: Epoch) -> (Record, Record) {
     (before, after)
 }
 
-pub fn split_mut(rec: &mut Record, epoch: Epoch) -> Record {
+pub fn split_mut(rec: &mut Record, t: Epoch) -> Record {
     let after = rec
         .iter()
-        .flat_map(|((e, h), plane)| {
-            if *e >= epoch {
-                Some(((*e, *h), plane.clone()))
+        .flat_map(|(k, v)| {
+            if k.epoch >= t {
+                Some((*k, v.clone()))
             } else {
                 None
             }
         })
         .collect();
 
-    rec.retain(|(t, _), _| *t < epoch);
+    rec.retain(|k, _| k.epoch < t);
+
     after
 }
 

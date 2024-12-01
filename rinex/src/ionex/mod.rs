@@ -6,8 +6,8 @@ mod grid;
 mod header;
 mod parsing;
 mod quantized;
-mod system;
 mod rinex;
+mod system;
 
 #[cfg(feature = "processing")]
 mod decim;
@@ -16,16 +16,27 @@ mod decim;
 mod mask;
 
 #[cfg(feature = "processing")]
+mod repair;
+
+#[cfg(feature = "processing")]
 pub(crate) use decim::decim_mut;
 
 #[cfg(feature = "processing")]
 pub(crate) use mask::mask_mut;
 
+#[cfg(feature = "processing")]
+pub(crate) use repair::repair_mut;
+
 pub use grid::Grid;
 pub use header::HeaderFields;
 pub use system::RefSystem;
 
-use quantized::Quantized;
+pub(crate) use parsing::{
+    is_new_height_map, is_new_rms_map, is_new_tec_map, parse_height_map, parse_rms_map,
+    parse_tec_map,
+};
+
+pub(crate) use quantized::Quantized;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -77,63 +88,117 @@ pub enum BiasSource {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TEC {
     /// TEC estimate
-    pub tec: f64,
+    tec: Quantized,
     /// RMS (TEC)
-    pub rms: Option<f64>,
+    rms: Option<Quantized>,
+}
+impl TEC {
+    /// Builds new [TEC] estimate
+    pub(crate) fn new(tec: i32, exponent: i8) -> Self {
+        Self {
+            tec: Quantized {
+                exponent,
+                quantized: tec,
+            },
+            rms: None,
+        }
+    }
+
+    /// Updates RMS [TEC]
+    pub(crate) fn set_rms_tec(&mut self, rms: i32, exponent: i8) {
+        self.rms = Some(Quantized {
+            exponent,
+            quantized: rms,
+        });
+    }
+
+    /// Returns Total Electron Content estimate, in TECu.
+    pub fn tec(&self) -> f64 {
+        self.tec.real_value()
+    }
+
+    /// Returns Root Mean Square (TEC) if it was provided.
+    pub fn rms_tec(&self) -> Option<f64> {
+        let rms = self.rms?;
+        Some(rms.real_value())
+    }
+}
+
+#[cfg(feature = "qc")]
+use qc_traits::{Merge, MergeError};
+
+#[cfg(feature = "qc")]
+impl Merge for TEC {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
+        let mut s = self.clone();
+        s.merge_mut(&rhs);
+        Ok(s)
+    }
+
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
+        if self.rms.is_none() {
+            self.rms = rhs.rms.clone();
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct IonexMapCoordinates {
     /// Quantized latitude
-    latitude: Quantized<i16>,
+    latitude: Quantized,
     /// Quantized longitude
-    longitude: Quantized<i16>,
+    longitude: Quantized,
     /// Quantized altitude
-    altitude: Quantized<i16>,
+    altitude: Quantized,
 }
 
 impl IonexMapCoordinates {
-    /// Buildd new [IonexMapCoordinates]
-    /// ## Input
-    /// - lat_ddeg: latitude in decimal degrees
-    /// - dlat: latitude grid spacing (degrees)
-    /// - long_ddeg: longitude in decimal degrees
-    /// - dlon: longitude grid spacing (degrees)
-    /// - alt_km: altitude (km)
-    /// - dalt: altitude grid spacing (km)
-    pub fn new(
+    /// Builds new [IonexMapCoordinates]
+    pub(crate) fn new(
         lat_ddeg: f64,
-        dlat: f64,
+        lat_exponent: i8,
         long_ddeg: f64,
-        dlon: f64,
+        long_exponent: i8,
         alt_km: f64,
-        dalt: f64,
+        alt_exponent: i8,
     ) -> Self {
         Self {
-            latitude: Quantized::new(lat_ddeg, dlat),
-            longitude: Quantized::new(long_ddeg, dlon),
-            altitude: Quantized::new(alt_km, dalt),
+            latitude: Quantized::new(lat_ddeg, lat_exponent),
+            longitude: Quantized::new(long_ddeg, long_exponent),
+            altitude: Quantized::new(alt_km, alt_exponent),
         }
     }
 
     /// Returns latitude in degrees
     pub fn latitude_ddeg(&self) -> f64 {
-        self.latitude.value()
+        self.latitude.real_value()
+    }
+
+    /// Returns latitude in radians
+    pub fn latitude_rad(&self) -> f64 {
+        self.latitude_ddeg().to_radians()
     }
 
     /// Returns longitude in degrees
     pub fn longitude_ddeg(&self) -> f64 {
-        self.longitude.value()
+        self.longitude.real_value()
+    }
+
+    /// Returns longitude in radians
+    pub fn longitude_rad(&self) -> f64 {
+        self.longitude_ddeg().to_radians()
     }
 
     /// Returns longitude in kilometers
     pub fn altitude_km(&self) -> f64 {
-        self.altitude.value()
+        self.altitude.real_value()
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct IonexKey {
     /// [Epoch] of this [TEC] estimate.
     pub epoch: Epoch,

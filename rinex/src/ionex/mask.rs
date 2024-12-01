@@ -1,4 +1,3 @@
-
 use crate::ionex::Record;
 use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
