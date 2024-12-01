@@ -45,44 +45,24 @@ impl IonexReport {
                     true,
                 );
                 let mut buttons = Vec::<Button>::new();
+
                 // one trace(=map) per Epoch
                 for (epoch_index, epoch) in rnx.epoch_iter().enumerate() {
                     let label = epoch.to_string();
+
                     let lat = rnx
-                        .tec()
-                        .filter_map(
-                            |(t, lat, _, _, _)| {
-                                if t == epoch {
-                                    Some(lat)
-                                } else {
-                                    None
-                                }
-                            },
-                        )
+                        .ionex_rms_tec_maps_iter()
+                        .map(|(k, _)| k.coordinates.latitude_ddeg())
                         .collect::<Vec<_>>();
+
                     let long = rnx
-                        .tec()
-                        .filter_map(
-                            |(t, _, long, _, _)| {
-                                if t == epoch {
-                                    Some(long)
-                                } else {
-                                    None
-                                }
-                            },
-                        )
+                        .ionex_rms_tec_maps_iter()
+                        .map(|(k, _)| k.coordinates.longitude_ddeg())
                         .collect::<Vec<_>>();
+
                     let tec = rnx
-                        .tec()
-                        .filter_map(
-                            |(t, _, _, _, tec)| {
-                                if t == epoch {
-                                    Some(tec)
-                                } else {
-                                    None
-                                }
-                            },
-                        )
+                        .ionex_rms_tec_maps_iter()
+                        .map(|(_, v)| v)
                         .collect::<Vec<_>>();
 
                     let trace = Plot::density_mapbox(
@@ -94,6 +74,7 @@ impl IonexReport {
                         3,
                         epoch_index == 0,
                     );
+
                     plot.add_trace(trace);
 
                     buttons.push(
