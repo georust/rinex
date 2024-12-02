@@ -1,4 +1,5 @@
 #[cfg(feature = "doris")]
+#[cfg_attr(docsrs, doc(cfg(feature = "doris")))]
 mod feature;
 
 use std::collections::btree_map::{Iter, IterMut, Keys};
