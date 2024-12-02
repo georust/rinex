@@ -14,8 +14,7 @@ use std::str::from_utf8 as str_from_utf8;
 mod fid;
 mod src;
 
-// private
-use fid::FieldID;
+pub use fid::FieldID as GeoFieldId;
 
 // public
 pub use src::MonumentGeoMetadata;
@@ -26,13 +25,13 @@ pub use src::MonumentGeoMetadata;
 /// the vast majority of supported frames
 pub struct GeoStringFrame {
     /// [FieldID] frame identifier
-    pub(crate) fid: FieldID,
+    pub(crate) fid: GeoFieldId,
     /// Readable string
     pub string: String,
 }
 
 impl GeoStringFrame {
-    pub fn new(fid: FieldID, s: &str) -> Self {
+    pub fn new(fid: GeoFieldId, s: &str) -> Self {
         Self {
             fid,
             string: s.to_string(),

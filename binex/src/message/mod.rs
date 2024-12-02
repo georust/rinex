@@ -5,9 +5,9 @@ mod record; // Record: message content
 mod time; // Epoch encoding/decoding // checksum calc.
 
 pub use record::{
-    EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, MonumentGeoMetadata,
-    MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record, SBASEphemeris, Solutions,
-    SolutionsFrame, TemporalSolution, Velocity3d, VelocityNED3d,
+    EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, GeoStringFrame,
+    MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record, SBASEphemeris,
+    Solutions, SolutionsFrame, TemporalSolution, Velocity3d, VelocityNED3d,
 };
 
 pub use meta::Meta;

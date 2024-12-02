@@ -14,9 +14,10 @@ pub mod prelude {
     pub use crate::{
         decoder::Decoder,
         message::{
-            EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message, Meta,
-            MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record,
-            SBASEphemeris, Solutions, SolutionsFrame, TemporalSolution, Velocity3d, VelocityNED3d,
+            EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, GeoStringFrame,
+            Message, Meta, MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, PositionGeo3d,
+            Record, SBASEphemeris, Solutions, SolutionsFrame, TemporalSolution, Velocity3d,
+            VelocityNED3d,
         },
         stream::{ClosedSourceElement, Provider, StreamElement},
         ClosedSourceMeta, Error,

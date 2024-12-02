@@ -10,7 +10,8 @@ pub use ephemeris::{
     EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, SBASEphemeris,
 };
 
-pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
+pub use monument::{GeoFieldId, GeoStringFrame, MonumentGeoMetadata, MonumentGeoRecord};
+
 pub use solutions::{
     PositionEcef3d, PositionGeo3d, Solutions, SolutionsFrame, TemporalSolution, Velocity3d,
     VelocityNED3d,
