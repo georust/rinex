@@ -37,7 +37,7 @@ impl GALEphemeris {
     pub(crate) const fn encoding_size() -> usize {
         128
     }
-    pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+    pub(crate) fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = Self::encoding_size();
         if buf.len() < size {
             return Err(Error::NotEnoughBytes);
@@ -264,7 +264,7 @@ impl GALEphemeris {
         Ok(Self::encoding_size())
     }
 
-    pub fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+    pub(crate) fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if buf.len() < Self::encoding_size() {
             return Err(Error::NotEnoughBytes);
         }
@@ -367,55 +367,55 @@ mod test {
 
     #[test]
     fn gal_ephemeris() {
-        let buf = [0; 128];
+        for big_endian in [true, false] {
+            let buf = [0; 128];
+            let eph = GALEphemeris::decode(big_endian, &buf).unwrap();
 
-        let eph = GALEphemeris::decode(true, &buf).unwrap();
+            // test mirror
+            let mut target = [0; 100];
+            assert!(eph.encode(big_endian, &mut target).is_err());
 
-        // test mirror
-        let mut target = [0; 100];
-        assert!(eph.encode(true, &mut target).is_err());
+            let mut target = [0; 128];
+            let size = eph.encode(big_endian, &mut target).unwrap();
+            assert_eq!(size, 128);
+            assert_eq!(buf, target);
 
-        let mut target = [0; 128];
-        let size = eph.encode(true, &mut target).unwrap();
-        assert_eq!(size, 128);
-        assert_eq!(buf, target);
+            let eph = GALEphemeris {
+                sv_prn: 10,
+                clock_offset: 123.0,
+                clock_drift_rate: 130.0,
+                clock_drift: 150.0,
+                sqrt_a: 56.0,
+                m0_rad: 0.1,
+                e: 0.2,
+                cic: 0.3,
+                crc: 0.4,
+                cis: 0.5,
+                crs: 0.6,
+                cuc: 0.7,
+                cus: 0.8,
+                omega_0_rad: 0.9,
+                omega_rad: 59.0,
+                i0_rad: 61.0,
+                toe_week: 112,
+                tow: -10,
+                toe_s: -32,
+                bgd_e5a_e1_s: -3.14,
+                bgd_e5b_e1_s: -6.18,
+                iodnav: -25,
+                delta_n_semi_circles_s: 150.0,
+                omega_dot_semi_circles: 160.0,
+                idot_semi_circles_s: 5000.0,
+                sisa: 1000.0,
+                sv_health: 155,
+                source: 156,
+            };
 
-        let eph = GALEphemeris {
-            sv_prn: 10,
-            clock_offset: 123.0,
-            clock_drift_rate: 130.0,
-            clock_drift: 150.0,
-            sqrt_a: 56.0,
-            m0_rad: 0.1,
-            e: 0.2,
-            cic: 0.3,
-            crc: 0.4,
-            cis: 0.5,
-            crs: 0.6,
-            cuc: 0.7,
-            cus: 0.8,
-            omega_0_rad: 0.9,
-            omega_rad: 59.0,
-            i0_rad: 61.0,
-            toe_week: 112,
-            tow: -10,
-            toe_s: -32,
-            bgd_e5a_e1_s: -3.14,
-            bgd_e5b_e1_s: -6.18,
-            iodnav: -25,
-            delta_n_semi_circles_s: 150.0,
-            omega_dot_semi_circles: 160.0,
-            idot_semi_circles_s: 5000.0,
-            sisa: 1000.0,
-            sv_health: 155,
-            source: 156,
-        };
+            let mut target = [0; 128];
+            eph.encode(big_endian, &mut target).unwrap();
 
-        let mut target = [0; 128];
-        eph.encode(true, &mut target).unwrap();
-
-        let decoded = GALEphemeris::decode(true, &target).unwrap();
-
-        assert_eq!(eph, decoded);
+            let decoded = GALEphemeris::decode(big_endian, &target).unwrap();
+            assert_eq!(eph, decoded);
+        }
     }
 }

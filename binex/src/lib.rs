@@ -8,39 +8,40 @@ mod decoder;
 mod message;
 mod stream;
 
-pub(crate) mod constants;
 pub(crate) mod utils;
 
 pub mod prelude {
     pub use crate::{
         decoder::Decoder,
         message::{
-            EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message,
-            MonumentGeoMetadata, MonumentGeoRecord, Record, SBASEphemeris, TimeResolution,
+            EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, Message, Meta,
+            MonumentGeoMetadata, MonumentGeoRecord, PositionEcef3d, PositionGeo3d, Record,
+            SBASEphemeris, Solutions, SolutionsFrame, TemporalSolution, Velocity3d, VelocityNED3d,
         },
         stream::{ClosedSourceElement, Provider, StreamElement},
         ClosedSourceMeta, Error,
     };
     // re-export
-    pub use hifitime::Epoch;
+    pub use hifitime::{Epoch, TimeScale};
 }
 
+use crate::message::Meta;
 use crate::stream::Provider;
 
 /// [ClosedSourceMeta] helps identify a closed source message we cannot interprate.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct ClosedSourceMeta {
-    // decoded MID (as is)
+    /// Message ID "as is"
     pub mid: u32,
-    /// decoded MLEN (as is)
+    /// Message length (total payload) "as is"
     pub mlen: usize,
-    /// Whether this item is reversed or not
-    pub reversed: bool,
-    /// Whether this item uses enhanced CRC or not
-    pub enhanced_crc: bool,
-    /// Whether this is big endian encoded or not
-    pub big_endian: bool,
-    /// [Provider] of this message. Only this organization may continue the decoding process.
+    /// Size of chunk.
+    /// This library is designed to support all open source messages that are short.
+    /// Yet a BINEX (prototype) message may span 2^27 bytes.
+    pub size: usize,
+    /// [Meta] data that follows the open source protocol.
+    pub open_meta: Meta,
+    /// [Provider] of this message. Only this organization may fully decode this message.
     pub provider: Provider,
     // payload offset in buffer
     offset: usize,
@@ -57,8 +58,6 @@ pub enum Error {
     // InvalidStartofStream,
     /// Library limitation: reversed streams are not supported
     ReversedStream,
-    /// Library limitation: little endian streams are not verified yet
-    LittleEndianStream,
     /// Library limitation: enhanced CRC is not supported yet
     EnhancedCrc,
     /// Found an unsupported timescale that we cannot interprate.
@@ -75,6 +74,8 @@ pub enum Error {
     IncompleteMessage(usize),
     /// Library limitation: not all open source Messages supported yet
     NonSupportedMesssage(usize),
+    /// Library limtation: not all subrecords supported yet
+    NonSupportedSubRecord,
     /// Library limtation: should never happen, because this library
     /// will be designed to parse all open source [Message]s.
     /// This may happen as either we're still in development (bad internal design)

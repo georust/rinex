@@ -1,5 +1,5 @@
 //! BINEX Stream representation
-use crate::prelude::{ClosedSourceMeta, Message};
+use crate::prelude::{ClosedSourceMeta, Message, Meta};
 
 /// [Message] [Provider]
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -26,19 +26,19 @@ impl Provider {
     /// Identify potential closed source [Provider]
     /// from parsed MID (u32)
     pub(crate) fn match_any(mid: u32) -> Option<Self> {
-        if mid >= 0x80 && mid <= 0x87 {
+        if (0x80..=0x87).contains(&mid) {
             Some(Self::UCAR)
-        } else if mid >= 0x88 && mid <= 0xa7 {
+        } else if (0x88..=0xa7).contains(&mid) {
             Some(Self::Ashtech)
-        } else if mid >= 0xa8 && mid <= 0xaf {
+        } else if (0xa8..=0xaf).contains(&mid) {
             Some(Self::Topcon)
-        } else if mid >= 0xb0 && mid <= 0xb3 {
+        } else if (0xb0..=0xb3).contains(&mid) {
             Some(Self::GPSSolutions)
-        } else if mid >= 0xb4 && mid <= 0xb7 {
+        } else if (0xb4..=0xb7).contains(&mid) {
             Some(Self::NRCan)
-        } else if mid >= 0xb8 && mid <= 0xbf {
+        } else if (0xb8..=0xbf).contains(&mid) {
             Some(Self::JPL)
-        } else if mid >= 0xc0 && mid <= 0xc3 {
+        } else if (0xc0..=0xc3).contains(&mid) {
             Some(Self::ColoradoUnivBoulder)
         } else {
             None
@@ -50,11 +50,7 @@ impl Provider {
 /// This particular [StreamElement] can be either a part of a continuous serie or self sustainable.
 pub struct ClosedSourceElement<'a> {
     /// [ClosedSourceMeta]
-    pub meta: ClosedSourceMeta,
-    /// Size of this [StreamElement]: this is not
-    /// the size of the complete message, in case this is part
-    /// of a serie of [StreamElement]s.
-    pub size: usize,
+    pub closed_meta: ClosedSourceMeta,
     /// Raw data starting at first byte of undisclosed payload.
     pub raw: &'a [u8],
 }
@@ -62,12 +58,12 @@ pub struct ClosedSourceElement<'a> {
 impl<'a> ClosedSourceElement<'a> {
     /// Interprate this [ClosedSourceElement] using custom undisclosed method.
     pub fn interprate(&self, f: &dyn Fn(&[u8])) {
-        f(&self.raw[..self.size])
+        f(&self.raw[..self.closed_meta.size])
     }
 
     /// Returns reference to raw data "as is", since interpration is not possible
     pub fn raw(&self) -> &'a [u8] {
-        &self.raw[..self.size]
+        &self.raw[..self.closed_meta.size]
     }
 }
 
@@ -95,34 +91,29 @@ impl<'a> StreamElement<'a> {
 
     /// Creates a new self sustained closed source [StreamElement] provided by desired [Provider].
     /// ## Inputs
+    /// - meta: [Meta] data of this prototype
     /// - provider: specific [Provider]
-    /// - raw: content we can encode, decode but not interprate   
-    /// - size: size of this [StreamElement]
-    /// - mlen: total message lenth
-    /// - reversed: whether this uses the reversed stream algorithm or not
-    /// - enhanced_crc: whether this uses the enhanced CRC or not
-    /// - big_endian: whether we'll use "big" endianess when encoding, or not.
+    /// - mid: message ID
+    /// - mlen: total payload length (bytes)
+    /// - raw: chunk we can encode, decode but not fully interprate   
+    /// - size: size of this chunk
     pub fn new_prototype(
+        open_meta: Meta,
         provider: Provider,
         mid: u32,
+        mlen: usize,
         raw: &'a [u8],
         size: usize,
-        mlen: usize,
-        reversed: bool,
-        enhanced_crc: bool,
-        big_endian: bool,
     ) -> Self {
         Self::ClosedSource(ClosedSourceElement {
             raw,
-            size,
-            meta: ClosedSourceMeta {
+            closed_meta: ClosedSourceMeta {
                 mid,
                 mlen,
-                reversed,
-                enhanced_crc,
-                big_endian,
+                open_meta,
                 provider,
                 offset: 0,
+                size,
             },
         })
     }
@@ -130,150 +121,74 @@ impl<'a> StreamElement<'a> {
     /// Add one closed source [StreamElement]s provided by desired [Provider::JPL].
     /// While we can encode this into a BINEX stream, only this organization can fully interprate the resulting stream.
     /// ## Inputs
+    /// - meta: [Meta] of this message prototype
+    /// - mid: message ID
+    /// - mlen: total payload length (bytes)
     /// - raw: content we can encode, decode but not interprate
-    /// - size: size of the provided buffer (bytewise)
-    /// - total: total size of the closed source Message (bytewise)
-    /// - reversed: whether this uses the reversed stream algorithm or not
-    /// - enhanced_crc: whether this uses the enhanced CRC or not
-    /// - big_endian: whether we'll use "big" endianess when encoding, or not.
-    pub fn jpl_prototype(
-        raw: &'a [u8],
-        mid: u32,
-        size: usize,
-        total: usize,
-        reversed: bool,
-        enhanced_crc: bool,
-        big_endian: bool,
-    ) -> Self {
-        Self::new_prototype(
-            Provider::JPL,
-            mid,
-            raw,
-            size,
-            total,
-            reversed,
-            enhanced_crc,
-            big_endian,
-        )
+    /// - total: total size of the closed source Message (bytewise).
+    /// It's either equal to [Meta::mlen] if this prototype if self sustainable,
+    /// or larger, in case this prototype is only one element of a serie.
+    pub fn jpl_prototype(meta: Meta, mid: u32, mlen: usize, raw: &'a [u8], size: usize) -> Self {
+        Self::new_prototype(meta, Provider::JPL, mid, mlen, raw, size)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::JPL].
     /// While we can encode this into a BINEX stream, only this organization can fully interprate the resulting stream.
     /// ## Inputs
+    /// - meta: [Meta] of this message prototype
     /// - raw: content we can encode, decode but not interprate
-    /// - size: size of the provided buffer (bytewise)
-    /// - total: total size of the closed source Message (bytewise)
-    /// - reversed: whether this uses the reversed stream algorithm or not
-    /// - enhanced_crc: whether this uses the enhanced CRC or not
-    /// - big_endian: whether we'll use "big" endianess when encoding, or not.
-    pub fn igs_prototype(
-        raw: &'a [u8],
-        mid: u32,
-        size: usize,
-        total: usize,
-        reversed: bool,
-        enhanced_crc: bool,
-        big_endian: bool,
-    ) -> Self {
-        Self::new_prototype(
-            Provider::IGS,
-            mid,
-            raw,
-            size,
-            total,
-            reversed,
-            enhanced_crc,
-            big_endian,
-        )
+    /// - total: total size of the closed source Message (bytewise).
+    /// It's either equal to [Meta::mlen] if this prototype if self sustainable,
+    /// or larger, in case this prototype is only one element of a serie.
+    pub fn igs_prototype(meta: Meta, mid: u32, mlen: usize, raw: &'a [u8], size: usize) -> Self {
+        Self::new_prototype(meta, Provider::IGS, mid, mlen, raw, size)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::ColoradoUnivBoulder].
     /// While we can encode this into a BINEX stream, only this organization can fully interprate the resulting stream.
     /// ## Inputs
+    /// - meta: [Meta] of this message prototype
+    /// - mid: message ID
+    /// - mlen: total payload length (bytes)
     /// - raw: content we can encode, decode but not interprate
-    /// - size: size of the provided buffer (bytewise)
-    /// - total: total size of the closed source Message (bytewise)
-    /// - reversed: whether this uses the reversed stream algorithm or not
-    /// - enhanced_crc: whether this uses the enhanced CRC or not
-    /// - big_endian: whether we'll use "big" endianess when encoding, or not.
+    /// - total: total size of the closed source Message (bytewise).
+    /// It's either equal to [Meta::mlen] if this prototype if self sustainable,
+    /// or larger, in case this prototype is only one element of a serie.
     pub fn cuboulder_prototype(
-        raw: &'a [u8],
+        meta: Meta,
         mid: u32,
+        mlen: usize,
+        raw: &'a [u8],
         size: usize,
-        total: usize,
-        reversed: bool,
-        enhanced_crc: bool,
-        big_endian: bool,
     ) -> Self {
-        Self::new_prototype(
-            Provider::ColoradoUnivBoulder,
-            mid,
-            raw,
-            size,
-            total,
-            reversed,
-            enhanced_crc,
-            big_endian,
-        )
+        Self::new_prototype(meta, Provider::ColoradoUnivBoulder, mid, mlen, raw, size)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::NRCan].
     /// While we can encode this into a BINEX stream, only this organization can fully interprate the resulting stream.
     /// ## Inputs
+    /// - meta: [Meta] of this message prototype
+    /// - mid: message ID
+    /// - mlen: total payload length (bytes)
     /// - raw: content we can encode, decode but not interprate
-    /// - size: size of the provided buffer (bytewise)
-    /// - total: total size of the closed source Message (bytewise)
-    /// - reversed: whether this uses the reversed stream algorithm or not
-    /// - enhanced_crc: whether this uses the enhanced CRC or not
-    /// - big_endian: whether we'll use "big" endianess when encoding, or not.
-    pub fn nrcan_prototype(
-        raw: &'a [u8],
-        mid: u32,
-        size: usize,
-        total: usize,
-        reversed: bool,
-        enhanced_crc: bool,
-        big_endian: bool,
-    ) -> Self {
-        Self::new_prototype(
-            Provider::NRCan,
-            mid,
-            raw,
-            size,
-            total,
-            reversed,
-            enhanced_crc,
-            big_endian,
-        )
+    /// - total: total size of the closed source Message (bytewise).
+    /// It's either equal to [Meta::mlen] if this prototype if self sustainable,
+    /// or larger, in case this prototype is only one element of a serie.
+    pub fn nrcan_prototype(meta: Meta, mid: u32, mlen: usize, raw: &'a [u8], size: usize) -> Self {
+        Self::new_prototype(meta, Provider::NRCan, mid, mlen, raw, size)
     }
 
     /// Add one closed source [StreamElement]s provided by desired [Provider::UCAR].
     /// While we can encode this into a BINEX stream, only this organization can fully interprate the resulting stream.
     /// ## Inputs
+    /// - meta: [Meta] of this message prototype
+    /// - mid: message ID
+    /// - mlen: total payload length (bytes)
     /// - raw: content we can encode, decode but not interprate
-    /// - size: size of the provided buffer (bytewise)
-    /// - total: total size of the closed source Message (bytewise)
-    /// - reversed: whether this uses the reversed stream algorithm or not
-    /// - enhanced_crc: whether this uses the enhanced CRC or not
-    /// - big_endian: whether we'll use "big" endianess when encoding, or not.
-    pub fn ucar_prototype(
-        raw: &'a [u8],
-        mid: u32,
-        size: usize,
-        total: usize,
-        reversed: bool,
-        enhanced_crc: bool,
-        big_endian: bool,
-    ) -> Self {
-        Self::new_prototype(
-            Provider::UCAR,
-            mid,
-            raw,
-            size,
-            total,
-            reversed,
-            enhanced_crc,
-            big_endian,
-        )
+    /// - total: total size of the closed source Message (bytewise).
+    /// It's either equal to [Meta::mlen] if this prototype if self sustainable,
+    /// or larger, in case this prototype is only one element of a serie.
+    pub fn ucar_prototype(meta: Meta, mid: u32, mlen: usize, raw: &'a [u8], size: usize) -> Self {
+        Self::new_prototype(meta, Provider::UCAR, mid, mlen, raw, size)
     }
 }

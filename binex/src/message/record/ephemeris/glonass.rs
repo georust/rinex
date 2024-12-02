@@ -30,7 +30,7 @@ impl GLOEphemeris {
     pub(crate) const fn encoding_size() -> usize {
         135
     }
-    pub fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
+    pub(crate) fn encode(&self, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
         let size = Self::encoding_size();
         if buf.len() < size {
             return Err(Error::NotEnoughBytes);
@@ -174,7 +174,7 @@ impl GLOEphemeris {
         Ok(135)
     }
 
-    pub fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
+    pub(crate) fn decode(big_endian: bool, buf: &[u8]) -> Result<Self, Error> {
         if buf.len() < Self::encoding_size() {
             return Err(Error::NotEnoughBytes);
         }
@@ -251,47 +251,48 @@ mod test {
 
     #[test]
     fn glo_ephemeris() {
-        let buf = [0; 135];
-        let eph = GLOEphemeris::decode(true, &buf).unwrap();
+        for big_endian in [true, false] {
+            let buf = [0; 135];
+            let eph = GLOEphemeris::decode(big_endian, &buf).unwrap();
 
-        // test mirror
-        let mut encoded = [0; 100];
-        assert!(eph.encode(true, &mut encoded).is_err());
+            // test mirror
+            let mut encoded = [0; 100];
+            assert!(eph.encode(big_endian, &mut encoded).is_err());
 
-        let mut encoded = [0; 135];
-        let size = eph.encode(true, &mut encoded).unwrap();
-        assert_eq!(size, 135);
-        assert_eq!(buf, encoded);
+            let mut encoded = [0; 135];
+            let size = eph.encode(big_endian, &mut encoded).unwrap();
+            assert_eq!(size, 135);
+            assert_eq!(buf, encoded);
 
-        let eph = GLOEphemeris {
-            t_k_sec: 0,
-            slot: 1,
-            day: 2,
-            tod_s: 3,
-            clock_offset_s: 1.0,
-            clock_rel_freq_bias: 2.0,
-            x_km: 3.0,
-            vel_x_km: 4.0,
-            acc_x_km: 4.0,
-            y_km: 5.0,
-            vel_y_km: 6.0,
-            acc_y_km: 7.0,
-            z_km: 8.0,
-            vel_z_km: 9.0,
-            acc_z_km: 10.0,
-            sv_health: 100,
-            freq_channel: -20,
-            age_op_days: 123,
-            leap_s: 124,
-            tau_gps_s: 3.14,
-            l1_l2_gd: 6.28,
-        };
+            let eph = GLOEphemeris {
+                t_k_sec: 0,
+                slot: 1,
+                day: 2,
+                tod_s: 3,
+                clock_offset_s: 1.0,
+                clock_rel_freq_bias: 2.0,
+                x_km: 3.0,
+                vel_x_km: 4.0,
+                acc_x_km: 4.0,
+                y_km: 5.0,
+                vel_y_km: 6.0,
+                acc_y_km: 7.0,
+                z_km: 8.0,
+                vel_z_km: 9.0,
+                acc_z_km: 10.0,
+                sv_health: 100,
+                freq_channel: -20,
+                age_op_days: 123,
+                leap_s: 124,
+                tau_gps_s: 3.14,
+                l1_l2_gd: 6.28,
+            };
 
-        let mut encoded = [0; 135];
-        eph.encode(true, &mut encoded).unwrap();
+            let mut encoded = [0; 135];
+            eph.encode(big_endian, &mut encoded).unwrap();
 
-        let decoded = GLOEphemeris::decode(true, &encoded).unwrap();
-
-        assert_eq!(eph, decoded);
+            let decoded = GLOEphemeris::decode(big_endian, &encoded).unwrap();
+            assert_eq!(eph, decoded);
+        }
     }
 }

@@ -4,12 +4,17 @@ use crate::message::MessageID;
 
 mod ephemeris; // ephemeris frames
 mod monument; // geodetic marker // ephemeris frames
+mod solutions; // solutions frames
 
 pub use ephemeris::{
     EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, GPSRaw, SBASEphemeris,
 };
 
 pub use monument::{MonumentGeoMetadata, MonumentGeoRecord};
+pub use solutions::{
+    PositionEcef3d, PositionGeo3d, Solutions, SolutionsFrame, TemporalSolution, Velocity3d,
+    VelocityNED3d,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Record {
@@ -18,6 +23,8 @@ pub enum Record {
     MonumentGeo(MonumentGeoRecord),
     /// Ephemeris Frame
     EphemerisFrame(EphemerisFrame),
+    /// Solutions frame
+    Solutions(Solutions),
 }
 
 impl From<MonumentGeoRecord> for Record {
@@ -47,6 +54,10 @@ impl Record {
     pub fn new_ephemeris_frame(fr: EphemerisFrame) -> Self {
         Self::EphemerisFrame(fr)
     }
+    /// Builds new [Solutions]
+    pub fn new_solutions(sol: Solutions) -> Self {
+        Self::Solutions(sol)
+    }
     /// [MonumentGeoRecord] unwrapping attempt
     pub fn as_monument_geo(&self) -> Option<&MonumentGeoRecord> {
         match self {
@@ -61,17 +72,26 @@ impl Record {
             _ => None,
         }
     }
+    /// [Solutions] unwrapping attempt
+    pub fn as_solutions(&self) -> Option<&Solutions> {
+        match self {
+            Self::Solutions(sol) => Some(sol),
+            _ => None,
+        }
+    }
     /// Returns [MessageID] to associate to [Self] in stream header.
     pub(crate) fn to_message_id(&self) -> MessageID {
         match self {
             Self::EphemerisFrame(_) => MessageID::Ephemeris,
             Self::MonumentGeo(_) => MessageID::SiteMonumentMarker,
+            Self::Solutions(_) => MessageID::ProcessedSolutions,
         }
     }
 
     /// Returns internal encoding size
     pub(crate) fn encoding_size(&self) -> usize {
         match self {
+            Self::Solutions(sol) => sol.encoding_size(),
             Self::EphemerisFrame(fr) => fr.encoding_size(),
             Self::MonumentGeo(geo) => geo.encoding_size(),
         }

@@ -1,58 +1,73 @@
 //! Epoch encoding & decoding
-
+use crate::{utils::Utils, Error};
 use hifitime::prelude::{Epoch, TimeScale, Unit};
 
-use crate::{utils::Utils, Error};
-
 /// BINEX Time Resolution
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TimeResolution {
     /// One Byte Second = 250ms resolution on [Epoch]s
-    #[default]
     QuarterSecond = 0,
+    /// 4 Byte Minutes and 2 byte millisecond
+    MilliSecond = 1,
+}
+
+impl TimeResolution {
+    pub fn encoding_size(&self) -> usize {
+        match self {
+            Self::MilliSecond => 6,
+            Self::QuarterSecond => 5,
+        }
+    }
 }
 
 /// [Epoch] decoding attempt from buffered content.
 /// If buffer does not contain enough data (5 bytes needed), this returns [Error::NotEnoughBytes].
-pub(crate) fn decode_epoch(
+pub fn decode_epoch(
     big_endian: bool,
     time_res: TimeResolution,
     buf: &[u8],
     ts: TimeScale,
 ) -> Result<Epoch, Error> {
-    let min;
-    let qsec;
-
-    if buf.len() < 5 {
+    if buf.len() < time_res.encoding_size() {
         return Err(Error::NotEnoughBytes);
     }
+
+    let min = Utils::decode_u32(big_endian, buf)?;
+
     match time_res {
         TimeResolution::QuarterSecond => {
-            min = Utils::decode_u32(big_endian, buf)?;
-            qsec = buf[4];
+            let qsec = buf[4];
+            Ok(Epoch::from_duration(
+                (min as f64) * Unit::Minute + (qsec as f64 / 4.0) * Unit::Second,
+                ts,
+            ))
+        },
+        TimeResolution::MilliSecond => {
+            let ms = Utils::decode_u16(big_endian, &buf[4..])?;
+            Ok(Epoch::from_duration(
+                (min as f64) * Unit::Minute + (ms as f64) * Unit::Millisecond,
+                ts,
+            ))
         },
     }
-    Ok(Epoch::from_duration(
-        (min as f64) * Unit::Minute + (qsec as f64 / 4.0) * Unit::Second,
-        ts,
-    ))
 }
 
 /// [Epoch] encoding method.
 /// If buffer is too small (needs 5 bytes), this returns [Error::NotEnoughBytes].
 /// This is the exact [decode_epoch] mirror operation.
-/// We only support GPST, GST and BDT at the moment,
-/// it will return [Error::NonSupportedTimescale] for any other timescale.
-pub(crate) fn encode_epoch(t: Epoch, big_endian: bool, buf: &mut [u8]) -> Result<usize, Error> {
-    if buf.len() < 5 {
+pub fn encode_epoch(
+    t: Epoch,
+    time_res: TimeResolution,
+    big_endian: bool,
+    buf: &mut [u8],
+) -> Result<usize, Error> {
+    let size = time_res.encoding_size();
+    if buf.len() < size {
         return Err(Error::NotEnoughBytes);
     }
 
     let dt_s = t.duration.to_seconds();
     let total_mins = (dt_s / 60.0).round() as u32;
-
-    let total_qsec = (dt_s - (total_mins as f64) * 60.0) / 0.25;
-
     let bytes = total_mins.to_be_bytes();
 
     if big_endian {
@@ -67,8 +82,26 @@ pub(crate) fn encode_epoch(t: Epoch, big_endian: bool, buf: &mut [u8]) -> Result
         buf[3] = bytes[0];
     }
 
-    buf[4] = total_qsec as u8 & 0x7f; // 0xf0-0xff are excluded
-    Ok(5)
+    match time_res {
+        TimeResolution::MilliSecond => {
+            let total_msec = (dt_s - (total_mins as f64) * 60.0) * 1.0E3;
+            let bytes = ((total_msec as u16).min(59999)).to_be_bytes();
+
+            if big_endian {
+                buf[4] = bytes[0];
+                buf[5] = bytes[1];
+            } else {
+                buf[4] = bytes[1];
+                buf[5] = bytes[0];
+            }
+        },
+        TimeResolution::QuarterSecond => {
+            let total_qsec = (dt_s - (total_mins as f64) * 60.0) / 0.25;
+            buf[4] = total_qsec as u8 & 0x7f; // 0xf0-0xff are excluded
+        },
+    }
+
+    Ok(size)
 }
 
 /// GPST [Epoch] decoding attempt from buffered content.
@@ -108,15 +141,17 @@ mod test {
         assert!(decode_gpst_epoch(true, TimeResolution::QuarterSecond, &buf).is_err());
         let buf = [0, 0, 0];
         assert!(decode_gpst_epoch(true, TimeResolution::QuarterSecond, &buf).is_err());
+        let buf = [0, 0, 0, 0];
+        assert!(decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).is_err());
     }
 
     #[test]
-    fn gpst_sub_minute() {
+    fn gpst_qsec_sub_minute() {
         let big_endian = true;
 
         let mut buf = [0, 0, 0, 0, 0];
         let t = Epoch::from_gpst_seconds(10.0);
-        let _ = encode_epoch(t, big_endian, &mut buf).unwrap();
+        let _ = encode_epoch(t, TimeResolution::QuarterSecond, big_endian, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 0, 40]);
 
         let decoded = decode_epoch(
@@ -131,7 +166,7 @@ mod test {
 
         let mut buf = [0, 0, 0, 0, 0];
         let t = Epoch::from_gpst_seconds(0.75);
-        let _ = encode_epoch(t, big_endian, &mut buf).unwrap();
+        let _ = encode_epoch(t, TimeResolution::QuarterSecond, big_endian, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 0, 3]);
 
         let decoded = decode_epoch(
@@ -146,7 +181,7 @@ mod test {
 
         let mut buf = [0, 0, 0, 0, 0];
         let t = Epoch::from_gpst_seconds(10.75);
-        let _ = encode_epoch(t, big_endian, &mut buf).unwrap();
+        let _ = encode_epoch(t, TimeResolution::QuarterSecond, big_endian, &mut buf).unwrap();
         assert_eq!(buf, [0, 0, 0, 0, 43]);
 
         let decoded = decode_epoch(
@@ -161,8 +196,7 @@ mod test {
     }
 
     #[test]
-    fn gpst_epoch_decoding() {
-        // test QSEC
+    fn gpst_qsec_epoch_decoding() {
         for (buf, big_endian, gpst_epoch) in [
             ([0, 0, 0, 1, 0], true, Epoch::from_gpst_seconds(60.0)),
             ([0, 0, 0, 5, 0], true, Epoch::from_gpst_seconds(300.0)),
@@ -196,8 +230,51 @@ mod test {
 
             // test mirror op
             let mut test = [0, 0, 0, 0, 0];
-            let _ = encode_epoch(epoch, big_endian, &mut test).unwrap();
+            let _ =
+                encode_epoch(epoch, TimeResolution::QuarterSecond, big_endian, &mut test).unwrap();
             assert_eq!(test, buf, "encode_epoch failed for {}", epoch);
         }
+    }
+
+    #[test]
+    fn gpst_msec() {
+        let mut buf = [0, 0, 0, 0, 0, 0];
+        let t = Epoch::from_gpst_seconds(60.0);
+        encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
+        assert_eq!(buf, [0, 0, 0, 1, 0, 0]);
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
+        let mut buf = [0, 0, 0, 0, 0, 0];
+        let t = Epoch::from_gpst_seconds(61.0);
+        encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
+        assert_eq!(buf, [0, 0, 0, 1, 0x3, 0xe8]);
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
+        let mut buf = [0, 0, 0, 0, 0, 0];
+        let t = Epoch::from_gpst_seconds(1.1);
+        encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
+        assert_eq!(buf, [0, 0, 0, 0, 4, 76]);
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
+        let mut buf = [0, 0, 0, 0, 0, 0];
+        let t = Epoch::from_gpst_seconds(71.0);
+        encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
+        assert_eq!(buf, [0, 0, 0, 1, 0x2a, 0xf8]);
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
+
+        let mut buf = [0, 0, 0, 0, 0, 0];
+        let t = Epoch::from_gpst_seconds(60.100);
+        encode_epoch(t, TimeResolution::MilliSecond, true, &mut buf).unwrap();
+
+        let parsed = decode_gpst_epoch(true, TimeResolution::MilliSecond, &buf).unwrap();
+        assert_eq!(parsed, t);
     }
 }

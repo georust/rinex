@@ -22,6 +22,14 @@ or undisclosed elements. (private prototypes)
 
 * or use Message::decode to work on your own buffer directly.
 
+Current limitations
+===================
+
++ Big endian streams are fully validated & tested
++ Little endian streams are tested & verified but we don't have a dataset to confirm yet
++ Enhanced CRC (robust messaging) is not supported yet
++ MD5 checksum (very lengthy message prototypes) is implemented but not verified yet
+
 Message Decoding
 ================
 
@@ -45,14 +53,21 @@ loop {
             // fully interprated element
         },
         Some(Ok(StreamElement::ClosedSource(element))) => {
+            // grab content you will need to interpate
+            let closed_meta = element.closed_meta; 
+            let open_meta = closed_meta.open_meta;
+
             // verify this is your organization
-            if element.meta.provider == Provider::JPL {
+            if closed_meta.provider == Provider::JPL {
+
                 // grab fields that you probably need to decode
-                let mid = element.meta.mid;
-                let mlen = element.meta.mlen;
-                let big_endian = element.meta.big_endian;
-                let is_reversed = element.meta.reversed;
-                let enhanced_crc = element.meta.enhanced_crc;
+                let big_endian = open_meta.big_endian;
+                let is_reversed = open_meta.reversed;
+                let enhanced_crc = open_meta.enhanced_crc;
+
+                let mid = closed_meta.mid; // message ID
+                let mlen = closed_meta.mlen; // total message length
+                let chunk_size = closed_meta.size; // chunk length
 
                 // now, proceed to interpretation of this element,
                 // using undisclosed method
