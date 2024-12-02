@@ -1,6 +1,6 @@
 use crate::{
-    prelude::{Duration, Rinex},
     doris::{DorisKey, Station},
+    prelude::{Duration, Rinex},
 };
 
 impl Rinex {
@@ -9,7 +9,7 @@ impl Rinex {
         if let Some(doris) = &self.header.doris {
             Box::new(doris.stations.iter())
         } else {
-            Box::new([].iter())
+            Box::new([].into_iter())
         }
     }
 
@@ -25,27 +25,20 @@ impl Rinex {
     pub fn doris_satellite_clock_drift_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (DorisKey, f64)> + '_> {
-        Box::new()
+        Box::new([].into_iter())
     }
 
     /// Returns Iterator over all pseudo range observations from all ground stations, expressed in meters.
     pub fn doris_ground_station_pseudo_range_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (DorisKey, f64)> + '_> {
-        Box::new()
+        Box::new([].into_iter())
     }
 
     /// Returns Iterator over all phase range observations from all ground stations, expressed in meters.
     pub fn doris_ground_station_phase_range_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (DorisKey, f64)> + '_> {
-        Box::new()
-    }
-
-    /// Returns Iterator over all phase range observations from all ground stations
-    pub fn doris_ground_station_phase_range_iter(
-        &self,
-    ) -> Box<dyn Iterator<Item = (DorisKey, f64)> + '_> {
-        Box::new()
+        Box::new([].into_iter())
     }
 }
