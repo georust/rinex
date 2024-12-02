@@ -26,6 +26,11 @@ use anise::{
 
 mod rinex_ctx;
 
+// Context post processing.
+// This that can only be achieved by stacking more than one RINEX
+// and possibly one SP3.
+mod processing;
+
 #[cfg(feature = "sp3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 mod sp3_ctx;
