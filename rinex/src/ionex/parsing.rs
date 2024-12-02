@@ -120,7 +120,7 @@ pub fn parse_tec_map(
         for item in line.split_ascii_whitespace() {
             // data interpretation
             if let Ok(tec) = item.trim().parse::<i32>() {
-                let tec = TEC::new(tec, tec_exponent);
+                let tec = TEC::from_quantized(tec, tec_exponent);
 
                 let coordinates = IonexMapCoordinates::new(
                     fixed_lat,

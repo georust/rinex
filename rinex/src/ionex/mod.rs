@@ -94,7 +94,24 @@ pub struct TEC {
 }
 impl TEC {
     /// Builds new [TEC] estimate
-    pub(crate) fn new(tec: i32, exponent: i8) -> Self {
+    pub fn new(tec: f64) -> Self {
+        let exponent = Quantized::find_exponent(tec);
+        Self {
+            tec: Quantized::new(tec, exponent),
+            rms: None,
+        }
+    }
+
+    /// Builds new [TEC] estimate with associated RMS value
+    pub fn with_rms(&self, rms: f64) -> Self {
+        let mut s = self.clone();
+        let exponent = Quantized::find_exponent(rms);
+        s.rms = Some(Quantized::new(rms, exponent));
+        s
+    }
+
+    /// Builds new [TEC] estimate
+    pub(crate) fn from_quantized(tec: i32, exponent: i8) -> Self {
         Self {
             tec: Quantized {
                 exponent,
