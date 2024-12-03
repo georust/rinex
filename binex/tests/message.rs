@@ -31,7 +31,6 @@ fn test_crc8_geo() {
 
 #[test]
 fn test_crc16_geo() {
-
     let mut meta = Meta::default();
     meta.big_endian = true;
     meta.reversed = false;
