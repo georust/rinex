@@ -3,6 +3,9 @@ use crate::{
     prelude::{ClockObservation, Observable, SNR, SV},
 };
 
+#[cfg(feature = "ionex")]
+use crate::ionex::TEC;
+
 /// [SignalObservation] is the result of sampling one signal at
 /// one point in time, by a GNSS receiver.
 #[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
@@ -51,14 +54,28 @@ impl SignalObservation {
         }
     }
 
-    /// Returns Real Distance, by converting observed pseudo range,
-    /// and compensating for distant and local clock offsets.
-    /// See [p17-p18 of the RINEX specifications]. It makes only
-    /// sense to apply this method on Pseudo Range observations.
-    /// - rcvr_offset: receiver clock offset for this epoch, given in file
-    /// - sv_offset: sv clock offset
-    /// - bias: other (optionnal..) additive biases
-    pub fn pr_real_distance(&self, clock: ClockObservation, sv_offset: f64, biases: f64) -> f64 {
-        self.value + 299_792_458.0_f64 * (clock.offset_s - sv_offset) + biases
+    #[cfg(feature = "ionex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
+    /// Calculates the Ionosphere [TEC] from two Phase or Code range observations.
+    /// Currently limited to dual frequency Phase Range observations.
+    pub fn to_ionosphere_model(&self, rhs: &Self) -> Option<TEC> {
+        let same_physics = self.obserfable.same_physics(rhs);
+        let different_signals = self.observable.different_signals(rhs);
+        let self_is_l1 = self.observable.is_l1();
+        let is_phase = self.observable.is_phase_range_observable();
+
+        let carrier_1 = self.observable.carrier(self.sv.constellation);
+        let carrier_2 = rhs.observable.carrier(self.sv.constellation);
+        let both_ok = carrier_1.ok() && carrier_2.ok();
+        if same_physics && is_phase && both_ok {
+            let f_1 = carrier_1.frequency().powi(2);
+            let f_2 = carrier_2.frequency().powi(2);
+            Some(
+                1.0 / 40.308 * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value)
+                )
+        } else {
+            None
+        }
     }
+
 }
