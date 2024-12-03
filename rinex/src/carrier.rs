@@ -203,10 +203,18 @@ impl Carrier {
             Self::U2 => 401.25,
         }
     }
+
+    /// True if this [Carrier] matches a L1 pivot carrier
+    /// used in carrier recombinations
+    pub(crate) fn is_l1_pivot(&self) -> bool {
+        matches!(self, Self::L1 | Self::E1 | Self::B1I)
+    }
+
     /// Returns carrier wavelength
     pub fn wavelength(&self) -> f64 {
         299_792_458.0_f64 / self.frequency()
     }
+
     /// Returns channel bandwidth in MHz.
     pub fn bandwidth_mhz(&self) -> f64 {
         match self {

@@ -12,16 +12,13 @@ pub struct RNX2BIN<'a> {
     meta: Meta,
 }
 
-fn forge_monument_geo(rinex: &Rinex) -> MonumentGeoRecord {
+fn forge_monument_geo(rinex: &Rinex) -> Option<MonumentGeoRecord> {
     let t0 = rinex.first_epoch()?;
     let mut geo = MonumentGeoRecord::default();
     geo.epoch = t0;
     geo.meta = MonumentGeoMetadata::RNX2BIN;
-    geo.frames.push(GeoStringFrame::new(
-        GeoFieldId::SoftwareName,
-        &format!("geo-rust v{}", env!("CARGO_PKG_VERSION")),
-    ));
-    geo
+    geo = geo.with_software_name(&format!("geo-rust v{}", env!("CARGO_PKG_VERSION")));
+    Some(geo)
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -40,9 +37,9 @@ impl<'a> Iterator for RNX2BIN<'a> {
     type Item = Message;
     /// Consume [Rinex] into [Message] stream
     fn next(&mut self) -> Option<Self::Item> {
-        let content = match self.header_state {
+        let content = match self.state {
             State::HeaderPkgVersion => {
-                let mut geo = forge_monument_geo(&self.rinex);
+                let mut geo = forge_monument_geo(&self.rinex)?;
                 geo.comments
                     .push(format!("RNX2BIN from {}", self.rinex.header.rinex_type));
                 geo.comments.push("STREAM starting!".to_string());
@@ -50,7 +47,7 @@ impl<'a> Iterator for RNX2BIN<'a> {
                 Some(geo)
             },
             State::MonumentGeo => {
-                let mut geo = forge_monument_geo(&self.rinex);
+                let mut geo = forge_monument_geo(&self.rinex)?;
                 // TODO
                 // Geo::OperatorName
                 // Geo::ObserverName
@@ -70,22 +67,22 @@ impl<'a> Iterator for RNX2BIN<'a> {
                 Some(geo)
             },
             State::AnnounceHeaderComments => {
-                let mut geo = forge_monument_geo(&self.rinex);
-                geo.comments
-                    .push("RINEX Header comments following!".to_string());
+                let mut geo = forge_monument_geo(&self.rinex)?;
+                geo = geo.with_comment("RINEX Header comments following!");
                 self.state = State::HeaderComments;
+                Some(geo)
             },
             State::HeaderComments => {
-                let mut geo = forge_monument_geo(&self.rinex);
+                let mut geo = forge_monument_geo(&self.rinex)?;
                 for comment in self.rinex.header.comments.iter() {
-                    geo.comments.push(comment.to_string());
+                    geo = geo.with_comment(comment);
                 }
                 self.state = State::AnnounceRecord;
                 Some(geo)
             },
             State::AnnounceRecord => {
-                let mut geo = forge_monument_geo(&self.rinex);
-                geo.comments.push("RINEX RECORD starting!".to_string());
+                let mut geo = forge_monument_geo(&self.rinex)?;
+                geo = geo.with_comment("RINEX RECORD starting!");
                 self.state = State::Record;
                 Some(geo)
             },
@@ -104,7 +101,7 @@ impl<'a> Iterator for RNX2BIN<'a> {
             // forge new message
             Some(Message {
                 meta: self.meta,
-                record: content,
+                record: content.into(),
             })
         } else {
             None

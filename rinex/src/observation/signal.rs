@@ -59,18 +59,26 @@ impl SignalObservation {
     /// Calculates the Ionosphere [TEC] from two Phase or Code range observations.
     /// Currently limited to dual frequency Phase Range observations.
     pub fn to_ionosphere_model(&self, rhs: &Self) -> Option<TEC> {
-        let same_physics = self.obserfable.same_physics(rhs);
-        let different_signals = self.observable.different_signals(rhs);
-        let self_is_l1 = self.observable.is_l1();
+        let same_physics = self.observable.same_physics(&rhs.observable);
+        let different_signals = self.observable != rhs.observable;
+        let same_sv = self.sv == rhs.sv;
         let is_phase = self.observable.is_phase_range_observable();
 
         let carrier_1 = self.observable.carrier(self.sv.constellation);
         let carrier_2 = rhs.observable.carrier(self.sv.constellation);
-        let both_ok = carrier_1.ok() && carrier_2.ok();
-        if same_physics && is_phase && both_ok {
+        let both_ok = carrier_1.is_ok() && carrier_2.is_ok();
+
+        if same_physics && is_phase && same_sv && different_signals && both_ok {
+            let carrier_1 = carrier_1.unwrap();
+            let carrier_2 = carrier_2.unwrap();
             let f_1 = carrier_1.frequency().powi(2);
             let f_2 = carrier_2.frequency().powi(2);
-            Some(1.0 / 40.308 * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value))
+            if carrier_1.is_l1_pivot() && (f_1 != f_2) {
+                let tec = 1.0 / 40.308 * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value);
+                Some(TEC::new(tec))
+            } else {
+                None
+            }
         } else {
             None
         }

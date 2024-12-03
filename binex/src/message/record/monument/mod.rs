@@ -415,6 +415,13 @@ impl MonumentGeoRecord {
         }
     }
 
+    /// Define software name
+    pub fn with_software_name(&self, name: &str) -> Self {
+        let mut s = self.clone();
+        s.push_or_update(FieldID::SoftwareName, name);
+        s
+    }
+
     /// Define receiver model.
     pub fn with_receiver_model(&self, model: &str) -> Self {
         let mut s = self.clone();

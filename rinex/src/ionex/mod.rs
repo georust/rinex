@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 mod formatting;
 mod grid;
 mod header;
-mod iono;
 mod ipp;
 mod parsing;
 mod quantized;
@@ -31,7 +30,6 @@ pub(crate) use repair::repair_mut;
 
 pub use grid::Grid;
 pub use header::HeaderFields;
-pub use iono::IonosphericParameters;
 pub use ipp::IPPCoordinates;
 pub use system::RefSystem;
 
@@ -77,6 +75,21 @@ impl std::fmt::Display for MappingFunction {
     }
 }
 
+/// Modeled Ionosphere characteristics
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct IonosphereParameters {
+    /// Amplitude of the ionospheric delay (s)
+    pub amplitude_s: f64,
+    /// Period of the ionospheric delay (s)
+    pub period_s: f64,
+    /// Phase of the ionospheric delay (rad)
+    pub phase_rad: f64,
+    /// Slant factor is the projection factor
+    /// from a vertical signal propagation,
+    /// to actual angled shifted propagation (no unit)
+    pub slant_factor: f64,
+}
+
 /// Possible source of DCBs
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -96,6 +109,7 @@ pub struct TEC {
     /// RMS (TEC)
     rms: Option<Quantized>,
 }
+
 impl TEC {
     /// Builds new [TEC] estimate
     pub fn new(tec: f64) -> Self {

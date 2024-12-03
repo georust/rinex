@@ -74,24 +74,37 @@ impl Observable {
             Self::FrequencyRatio => matches!(rhs, Self::FrequencyRatio),
         }
     }
+
+    /// Returns true if this [Observable] is a Phase Range estimate
     pub fn is_phase_range_observable(&self) -> bool {
         matches!(self, Self::PhaseRange(_))
     }
+
+    /// Returns true if this [Observable] is a decoded Pseudo Range
     pub fn is_pseudo_range_observable(&self) -> bool {
         matches!(self, Self::PseudoRange(_))
     }
+
+    /// Returns true if this [Observable] is a doppler measurement
     pub fn is_doppler_observable(&self) -> bool {
         matches!(self, Self::Doppler(_))
     }
+
+    /// Returns true if this [Observable] is an SSI measurement
     pub fn is_ssi_observable(&self) -> bool {
         matches!(self, Self::SSI(_))
     }
+
     pub fn is_power_observable(&self) -> bool {
         matches!(self, Self::Power(_))
     }
+
+    /// Returns true if this [Observable] is a channel number (usually for Glonass FDMA)
     pub fn is_channel_number(&self) -> bool {
         matches!(self, Self::ChannelNumber(_))
     }
+
+    /// Returns the 2 or 3 letter code, in RINEX standardized format
     pub fn code(&self) -> Option<String> {
         match self {
             Self::PhaseRange(c) | Self::Doppler(c) | Self::SSI(c) | Self::PseudoRange(c) => {
@@ -104,9 +117,13 @@ impl Observable {
             _ => None,
         }
     }
+
+    /// Tries to reconstruct a [Carrier] signal from this [Observable].
+    /// This will work if our database knows this [Self::code].
     pub fn carrier(&self, c: Constellation) -> Result<Carrier, Error> {
         Carrier::from_observable(c, self)
     }
+
     /// Returns the code length (repetition period), expressed in seconds,
     /// of self: a valid Pseudo Range observable. This is not intended to be used
     /// on phase observables, although they are also determined from PRN codes.
