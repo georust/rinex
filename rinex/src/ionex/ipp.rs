@@ -1,7 +1,4 @@
-use crate::{
-    prelude::Epoch,
-    ionex::IonosphereModel,
-};
+use crate::{ionex::IonosphereModel, prelude::Epoch};
 
 /// IPPCoordinates; Ionosphere Pierce Point Coordinates,
 /// describe the location in space-time a signal pierced
@@ -33,8 +30,5 @@ impl IPPCoordinates {
     }
 
     /// Deduce [IonosphereParameters] from these [IPPCoordinates]
-    pub fn to_parameters_model(&self) -> IonosphereParameters {
-    }
+    pub fn to_parameters_model(&self) -> IonosphereParameters {}
 }
-
-

@@ -70,12 +70,9 @@ impl SignalObservation {
         if same_physics && is_phase && both_ok {
             let f_1 = carrier_1.frequency().powi(2);
             let f_2 = carrier_2.frequency().powi(2);
-            Some(
-                1.0 / 40.308 * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value)
-                )
+            Some(1.0 / 40.308 * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value))
         } else {
             None
         }
     }
-
 }

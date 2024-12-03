@@ -4,12 +4,12 @@ use std::collections::BTreeMap;
 mod formatting;
 mod grid;
 mod header;
+mod iono;
+mod ipp;
 mod parsing;
 mod quantized;
 mod rinex;
 mod system;
-mod iono;
-mod ipp;
 
 #[cfg(feature = "processing")]
 mod decim;
@@ -31,9 +31,9 @@ pub(crate) use repair::repair_mut;
 
 pub use grid::Grid;
 pub use header::HeaderFields;
-pub use system::RefSystem;
 pub use iono::IonosphericParameters;
 pub use ipp::IPPCoordinates;
+pub use system::RefSystem;
 
 pub(crate) use parsing::{
     is_new_height_map, is_new_rms_map, is_new_tec_map, parse_height_map, parse_rms_map,

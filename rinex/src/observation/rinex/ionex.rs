@@ -14,34 +14,6 @@ pub struct TECKey {
     pub sv: SV,
 }
 
-/// Supported signal [Combination]s
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Combination {
-    /// Geometry Free (GF) combination (same physics)
-    GeometryFree,
-    /// Ionosphere Free (IF) combination (same physics)
-    IonosphereFree,
-    /// Wide Lane (Wl) combination (same physics)
-    WideLane,
-    /// Narrow Lane (Nl) combination (same physics)
-    NarrowLane,
-    /// Melbourne-Wübbena (MW) combination (cross-mixed physics)
-    MelbourneWubbena,
-}
-
-/// Definition of a [SignalCombination]
-#[derive(Debug, Clone)]
-pub struct SignalCombination {
-    /// [Combination] that was formed
-    pub combination: Combination,
-    /// Reference [Observable]
-    pub reference: Observable,
-    /// Left hand side (compared) [Observable]
-    pub lhs: Observable,
-    /// Value, unit is meters of delay of the (lhs - reference) frequency
-    pub value: f64,
-}
-
 impl Rinex {
     /// Calculates Total Electron Contect (TEC) for each SV signal observed by this
     /// Observation RINEX. The TEC is evaluated using a dual frequency model:
