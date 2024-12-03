@@ -116,6 +116,26 @@ impl Rinex {
     /// - meta: BINEX encoding [Meta]
     /// ## Output
     /// - [RNX2BIN]: a BINEX [Message] Iterator
+    ///
+    /// This currently applies to Observation and Navigation RINEX.
+    /// Eventually, this should work well on any temporal RINEX,
+    /// that means all format but ANTEX.
+    /// ```
+    /// let rinex = Rinex::from_file(
+    ///     "../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx"
+    ///     ).unwrap();
+    ///
+    /// let mut buf = [0; 1024];
+    /// let mut streamer = rinex.rnx2bin();
+    ///
+    /// while let Some(msg) = streamer.next() {
+    ///     // usually you want to dump this message
+    ///     // and then stream to a writable I/O interface.
+    ///     // To do so, use the encode method and a temporary buffer:
+    ///     let size = msg.encode(&mut buf).unwrap();
+    ///     // send!
+    /// }
+    /// ```
     pub fn rnx2bin<'a>(&'a self, meta: Meta) -> RNX2BIN<'a> {
         RNX2BIN {
             meta,
