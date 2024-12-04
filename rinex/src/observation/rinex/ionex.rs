@@ -6,12 +6,16 @@ use itertools::Itertools;
 
 /// The [TEC] estimate is indexed by [TECKey] when
 /// calculated from Observation RINEX.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TECKey {
-    /// [Epoch] of estimation
-    pub epoch: Epoch,
     /// [SV] is the signal source
     pub sv: SV,
+    /// [Epoch] of estimation
+    pub epoch: Epoch,
+    /// RHS signal
+    pub rhs: Observable,
+    /// Reference (pivot) signal
+    pub reference: Observable,
 }
 
 impl Rinex {
@@ -26,37 +30,136 @@ impl Rinex {
             self.phase_range_sampling_ok_iter()
                 .zip(self.phase_range_sampling_ok_iter())
                 .filter_map(|((k_a, phase_a), (k_b, phase_b))| {
-                    let same_sv = phase_a.sv == phase_b.sv;
-                    let synchronous = k_a.epoch == k_b.epoch;
-                    let phase_a_is_l1 = phase_a.observable.to_string().contains('1');
-                    let phase_b_is_lj = !phase_a.observable.to_string().contains('1');
-                    if synchronous && same_sv && phase_a_is_l1 && phase_b_is_lj {
-                        if let Ok(carrier_a) = phase_a.observable.carrier(phase_a.sv.constellation)
-                        {
-                            if let Ok(carrier_b) =
-                                phase_b.observable.carrier(phase_b.sv.constellation)
-                            {
-                                let f_a = carrier_a.frequency().powi(2);
-                                let f_b = carrier_b.frequency().powi(2);
-                                let tec_u = f_a * f_b / (f_a - f_b) / 40.308
-                                    * (phase_a.value - phase_b.value);
-                                let exponent = QuantizedIonex::find_exponent(tec_u);
-                                let tec = TEC::new(tec_u);
-                                let key = TECKey {
-                                    epoch: k_a.epoch,
-                                    sv: phase_a.sv,
-                                };
-                                Some((key, tec))
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
+                    let tec = phase_a.tec_estimate(&phase_b)?;
+                    Some((
+                        TECKey {
+                            epoch: k_a.epoch,
+                            sv: phase_a.sv,
+                            rhs: phase_b.observable.clone(),
+                            reference: phase_a.observable.clone(),
+                        },
+                        tec,
+                    ))
                 }),
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rinex::prelude::Rinex;
+
+    // helper, calculates the TEC value
+    fn tec_calc() -> f64 {}
+
+    #[test]
+    fn dual_phase_range_tec_estimation() {
+        let path = format!(
+            "{}/test_resources/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR)"),
+        );
+
+        let rinex = Rinex::from_file(&path).unwrap();
+
+        let t0 = Epoch::from_gregorian_utc_at_midnight(2021, 12, 21);
+        let t1 = t0 + 30.0 * Unit::Seconds;
+        let t2 = t1 + 30.0 * Unit::Seconds;
+
+        let mut t0_g01_l1c_l2s_passed = false;
+        let mut t0_g01_l1c_l2w_passed = false;
+        let mut t0_g01_l1c_l5q_passed = false;
+        let mut t0_g07_l1c_l2s_passed = false;
+        let mut t0_g07_l1c_l2w_passed = false;
+        let mut t0_g07_l1c_l5q_passed = false;
+        let mut t0_e11_l1c_l5q_passed = false;
+        let mut t0_e11_l1c_l6q_passed = false;
+        let mut t0_e11_l1c_l7q_passed = false;
+
+        let mut t1_g01_l1c_l2s_passed = false;
+        let mut t1_g01_l1c_l2w_passed = false;
+        let mut t1_g01_l1c_l5q_passed = false;
+        let mut t1_g07_l1c_l2s_passed = false;
+        let mut t1_g07_l1c_l2w_passed = false;
+        let mut t1_g07_l1c_l5q_passed = false;
+        let mut t1_e11_l1c_l5q_passed = false;
+        let mut t1_e11_l1c_l6q_passed = false;
+        let mut t1_e11_l1c_l7q_passed = false;
+
+        let mut t2_g01_l1c_l2s_passed = false;
+        let mut t2_g01_l1c_l2w_passed = false;
+        let mut t2_g01_l1c_l5q_passed = false;
+        let mut t2_g07_l1c_l2s_passed = false;
+        let mut t2_g07_l1c_l2w_passed = false;
+        let mut t2_g07_l1c_l5q_passed = false;
+        let mut t1_e11_l1c_l5q_passed = false;
+        let mut t1_e11_l1c_l6q_passed = false;
+        let mut t1_e11_l1c_l7q_passed = false;
+
+        let tec = rinex.observation_dual_phase_ionosphere_tec();
+
+        for (k, tec) in tec {
+            match (k.epoch, k.sv, k.reference, k.rhs) {
+                (t0, g01, l1c, l2s) => {},
+                (t0, g01, l1c, l2w) => {},
+                (t0, g01, l1c, l5q) => {},
+                (t0, g07, l1c, l2s) => {},
+                (t0, g07, l1c, l2w) => {},
+                (t0, g07, l1c, l5q) => {},
+                (t0, e11, l1c, l5q) => {},
+                (t0, e11, l1c, l6q) => {},
+                (t0, e11, l1c, l7q) => {},
+                (t1, g01, l1c, l2s) => {},
+                (t1, g01, l1c, l2w) => {},
+                (t1, g01, l1c, l5q) => {},
+                (t1, g07, l1c, l2s) => {},
+                (t1, g07, l1c, l2w) => {},
+                (t1, g07, l1c, l5q) => {},
+                (t1, e11, l1c, l5q) => {},
+                (t1, e11, l1c, l6q) => {},
+                (t1, e11, l1c, l7q) => {},
+                (t2, g01, l1c, l2s) => {},
+                (t2, g01, l1c, l2w) => {},
+                (t2, g01, l1c, l5q) => {},
+                (t2, g07, l1c, l2s) => {},
+                (t2, g07, l1c, l2w) => {},
+                (t2, g07, l1c, l5q) => {},
+                (t2, e11, l1c, l5q) => {},
+                (t2, e11, l1c, l6q) => {},
+                (t2, e11, l1c, l7q) => {},
+                _ => {},
+            }
+        }
+
+        let t0_test_passed = t0_g01_l1c_l2s_passed
+            && t0_g01_l1c_l2w_passed
+            && t0_g01_l1c_l5q_passed
+            && t0_g07_l1c_l2s_passed
+            && t0_g07_l1c_l2w_passed
+            && t0_g07_l1c_l5q_passed
+            && t0_e11_l1c_l5q_passed
+            && t0_e11_l1c_l6q_passed
+            && t0_e11_l1c_l7q_passed;
+
+        let t1_test_passed = t1_g01_l1c_l2s_passed
+            && t1_g01_l1c_l2w_passed
+            && t1_g01_l1c_l5q_passed
+            && t1_g07_l1c_l2s_passed
+            && t1_g07_l1c_l2w_passed
+            && t1_g07_l1c_l5q_passed
+            && t1_e11_l1c_l5q_passed
+            && t1_e11_l1c_l6q_passed
+            && t1_e11_l1c_l7q_passed;
+
+        let t2_test_passed = t2_g01_l1c_l2s_passed
+            && t2_g01_l1c_l2w_passed
+            && t2_g01_l1c_l5q_passed
+            && t2_g07_l1c_l2s_passed
+            && t2_g07_l1c_l2w_passed
+            && t2_g07_l1c_l5q_passed
+            && t2_e11_l1c_l5q_passed
+            && t2_e11_l1c_l6q_passed
+            && t2_e11_l1c_l7q_passed;
+
+        let test_passed = t0_test_passed && t1_test_passed && t2_test_passed;
     }
 }

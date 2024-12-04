@@ -1,32 +1,52 @@
 RINEX / GNSS QC
 ===============
 
-The QC library was created to analyze complex GNSS datasets.  
-It currently accepts RINEX (all supported formats) and/or SP3 files, which are the
-basic requirements to precise navigation.
+The QC library is our core GNSS post processing library.  
+It allows stacking several RINEX (any supported format) and / or SP3 for
+enhanced capabilities. The main reason for this library, is that one RINEX format
+is not enough to permit post processed navigation.
 
-The Qc library generates a `QcReport` (also refered to as output product), from the input context.
-The report content depends on the provided combination of input files (also refered
-to as, input products). 
-QC standing for Quality Control, as it is a widely spread term in preprocessing
-applications, the QC may apply to navigation applications, atmosphere analysis
-and timing applications.
+The Qc library generates a `QcReport` (also refered to as output product), from the input context
+(also refered to, as Input Products). Currently, the geodetic report is our unique output product,
+the library will not generate other data. 
 
-The `QcReport` comprises one tab per input product (dedicated tab),
-may have tabs depending on the operations that the input context allows.
-For example SP3 and/or BRDC RINEX will enable the `Orbit Projection tab`.
+The report content depends on the provided combination of input files.  
+For example, providing Observation RINEX allows measurements to be plotted.  
+But only stacking Navigation RINEX will allow 3D projection, navigation and similar analysis. 
 
-The report is render in HTML and that is currently the only format we can render.
+The `QcReport` comprises one tab per input product (we call this the "dedicated" tab).  
+Depending on the input context, the geodetic report will be enhanced, for example with ionosphere analysis.
 
-`QcReport` allows customization with extra chapters, so you can append
-as many chapters as you need, depending on your requirements and capabilities,
-as long as you can implement the rendition Trait.
+The report is rendered in HTML, it is to this day the only format we can render. 
+This means the output products of this library are compatible with a web server, and the web browser
+is the standard option of the user to explore the results.
+
+The geodetic report can be customized with extra Tabs, also refered to as extra chapters.  
+This gives freendom to the user to enhance the basic report with custom information.  
+The only requirement for this, is to implement the rendition Trait.
+
+A report will always be rendered as long as your `QcContext` is not empty: at least one
+file has been loaded.
+
+## Default behavior
+
+The Qc library targets high precision by default. This will explain the choices
+we made for default features and capabilities.
 
 ## Create features
 
-- activate the `sp3` feature to support SP3 format
-- activate the `plot` feature for your reports to integrate graphs analysis
-- activate the `flate2` feature to directly load Gzip compressed input products
+- RINEX format is supported by default and is not optional.
+- The `sp3` feature allows stacking SP3 files in the `QcContext`
+- `flate2` feature allows to to directly load Gzip compressed input products
+- `plot` allows augmenting the geodetic report with graphs.
+
+## Default features
+
+SP3 support is provided by default, this means PPP is possible by default.  
+`flate2` is active by default, because `gzip` compression is very common when sharing
+GNSS datasets. For example, most FTP provide gzip compressed files.   
+`plot` is active by default, because GNSS data is complex and very broad, text based analysis is far 
+from enough to even understand the capabilities of the input products.
 
 ## RINEX analysis
 

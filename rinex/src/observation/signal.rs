@@ -74,26 +74,27 @@ impl SignalObservation {
 
     #[cfg(feature = "ionex")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
-    /// Calculates the Ionosphere [TEC] from two Phase or Code range observations.
-    /// Currently limited to dual frequency Phase Range observations.
+    /// Calculates the Ionosphere [TEC] from two Phase range observations.
     pub fn tec_estimate(&self, rhs: &Self) -> Option<TEC> {
-        let same_physics = self.observable.same_physics(&rhs.observable);
-        let different_signals = self.observable != rhs.observable;
         let same_sv = self.sv == rhs.sv;
-        let is_phase = self.observable.is_phase_range_observable();
+        let different_signals = self.observable != rhs.observable;
+
+        let phase_1 = self.observable.is_phase_range_observable();
+        let phase_2 = rhs.observable.is_phase_range_observable();
+        let both_phase = phase_1 && phase_2;
 
         let carrier_1 = self.observable.carrier(self.sv.constellation);
         let carrier_2 = rhs.observable.carrier(self.sv.constellation);
         let both_ok = carrier_1.is_ok() && carrier_2.is_ok();
 
-        if same_physics && is_phase && same_sv && different_signals && both_ok {
+        if both_phase && same_sv && different_signals && both_ok {
             let carrier_1 = carrier_1.unwrap();
             let carrier_2 = carrier_2.unwrap();
             let f_1 = carrier_1.frequency().powi(2);
             let f_2 = carrier_2.frequency().powi(2);
             if carrier_1.is_l1_pivot() && (f_1 != f_2) {
                 let tec = 1.0 / 40.308 * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value);
-                Some(TEC::new(tec))
+                Some(TEC::from_tec_m2(tec))
             } else {
                 None
             }
@@ -119,25 +120,42 @@ mod test {
         let g02 = SV::from_str("G02").unwrap();
 
         let l1c = Observable::from_str("L1C").unwrap();
+        let c1c = Observable::from_str("C1C").unwrap();
         let l2c = Observable::from_str("L2C").unwrap();
+        let c2c = Observable::from_str("C2C").unwrap();
         let l5c = Observable::from_str("L5C").unwrap();
 
         let g01_l1c = SignalObservation::new(g01, l1c.clone(), 1.0);
-        let g01_l2c = SignalObservation::new(g01, l2c.clone(), 2.0);
-        let g01_l5c = SignalObservation::new(g01, l5c.clone(), 3.0);
+        let g01_c1c = SignalObservation::new(g01, c1c.clone(), 2.0);
+        let g01_l2c = SignalObservation::new(g01, l2c.clone(), 3.0);
+        let g01_c2c = SignalObservation::new(g01, c2c.clone(), 4.0);
+        let g01_l5c = SignalObservation::new(g01, l5c.clone(), 5.0);
 
-        let g02_l1c = SignalObservation::new(g02, l1c.clone(), 4.0);
-        let g02_l2c = SignalObservation::new(g02, l2c.clone(), 5.0);
-        let g02_l5c = SignalObservation::new(g02, l5c.clone(), 6.0);
+        let g02_l1c = SignalObservation::new(g02, l1c.clone(), 6.0);
+        let g02_l2c = SignalObservation::new(g02, l2c.clone(), 7.0);
+        let g02_l5c = SignalObservation::new(g02, l5c.clone(), 8.0);
 
         // different SV: not ok!
         assert!(g01_l1c.tec_estimate(&g02_l2c).is_none());
+        // different SV same signal: not OK
+        assert!(g01_l1c.tec_estimate(&g02_l1c).is_none());
+        // Same signal: not ok!
+        assert!(g01_l1c.tec_estimate(&g01_l1c).is_none());
+        // Not phase: currently disabled!
+        assert!(g01_c1c.tec_estimate(&g01_c2c).is_none());
 
+        // Test L1-L2
         let tec = g01_l1c.tec_estimate(&g01_l2c).unwrap();
-
         assert_eq!(
             tec.tec(),
             gamma * f_l1 * f_l2 / (f_l1 - f_l2) * (g01_l1c.value - g01_l2c.value)
+        );
+
+        // Test L1-L5
+        let tec = g01_l1c.tec_estimate(&g01_l5c).unwrap();
+        assert_eq!(
+            tec.tec(),
+            gamma * f_l1 * f_l5 / (f_l1 - f_l5) * (g01_l1c.value - g01_l5c.value)
         );
     }
 }

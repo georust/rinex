@@ -12,13 +12,25 @@ edition = "2021"
 rust-version = "1.64"
 
 [features]
-default = [] # no features by default
 
-# Unlock support of high precision SP3 files.
-# When targetting highest precision analysis and solutions, like in PPP,
-# SP3 files are mandatory. When deactivated, we simply cannot load
-# such files into a context, only RINEX post processing is possible.
+# Default features
+#  - sp3: PPP compatible
+#  - flate2: gzip support
+default = [
+  "sp3",
+  "flate2",
+]
+
+# Support of SP3 High Precision Orbital attibutes,
+# which is required by PPP high precision post processed navigation.
 sp3 = ["dep:sp3"]
+
+# flate2 features allows to stack User Data from
+# .gzip compressed files natively
+flate2 = [
+    "sp3?/flate2",
+    "rinex/flate2",
+]
 
 # Unlock graphical analysis (plots rendering), otherwise reports are solely text based
 # plot = [

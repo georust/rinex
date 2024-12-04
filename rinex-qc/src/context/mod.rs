@@ -168,12 +168,19 @@ struct InputKey {
 /// GNSS data. It is dedicated to post processing workflows,
 /// precise timing or atmosphere analysis.
 pub struct QcContext {
-    /// Complex [UserData] stored by [InputKey] that makes them unique
-    user_data: HashMap<InputKey, UserData>,
     /// Latest Almanac to use during this session.
     pub almanac: Almanac,
     /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
+    /// Ground position as ideally described by provided User data.
+    /// This is an RX position that either serves as initial coordinates
+    /// in roaming application, or describes the ground station coordinates
+    /// in static applications. It is mandatory to "fix" it for post processed
+    /// navigation, either by providing data that describe it (self sustained [QcContext]),
+    /// or by manually defining this field.
+    pub ground_position: Option<Orbit>,
+    /// Complex [UserData] stored by [InputKey] that makes them unique
+    user_data: HashMap<InputKey, UserData>,
 }
 
 impl QcContext {
@@ -316,6 +323,12 @@ impl QcContext {
         })
     }
 
+    /// Define or overwrite the internal Ground position, expressed as [Orbit].
+    /// Refer to its definition for more information
+    pub fn set_ground_position(&mut self, rx_orbit: Orbit) {
+        self.ground_position = Some(rx_orbit);
+    }
+
     /// Returns general [TimeScale] for this [QcContext]
     pub fn timescale(&self) -> Option<TimeScale> {
         #[cfg(feature = "sp3")]
@@ -338,6 +351,35 @@ impl QcContext {
             Some(TimeScale::UTC)
         } else {
             None
+        }
+    }
+
+    /// Smart data loader, that will automatically pick up the provided
+    /// format (is supported).
+    pub fn load_file(&mut self, path: impl AsRef<Path>) -> Result<(), Error> {
+        if let Ok(rinex) = Rinex::from_file(path) {
+            self.load_rinex(path, rinex)?;
+            Ok(())
+        } else if let Ok(sp3) = SP3::from_file(path) {
+            self.load_sp3(path, sp3)?;
+            Ok(())
+        } else {
+            Err(Error::NonSupportedFileFormat)
+        }
+    }
+
+    /// Smart data loader, that will automatically pick up the provided
+    /// format (is supported).
+    #[cfg(feature = "flate2")]
+    pub fn load_gzip_file(&mut self, path: impl AsRef<Path>) -> Result<(), Error> {
+        if let Ok(rinex) = Rinex::from_gzip_file(path) {
+            self.load_rinex(path, rinex)?;
+            Ok(())
+        } else if let Ok(sp3) = SP3::from_gzip_file(path) {
+            self.load_sp3(path, sp3)?;
+            Ok(())
+        } else {
+            Err(Error::NonSupportedFileFormat)
         }
     }
 

@@ -104,18 +104,28 @@ pub enum BiasSource {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TEC {
-    /// TEC estimate
-    tec: Quantized,
+    /// TEC quantized in TEcu
+    tecu: Quantized,
     /// RMS (TEC)
     rms: Option<Quantized>,
 }
 
 impl TEC {
-    /// Builds new [TEC] estimate
-    pub fn new(tec: f64) -> Self {
-        let exponent = Quantized::find_exponent(tec);
+    /// Builds new [TEC] from TEC estimate expressed in TECu (=10^16 m-2)
+    pub fn from_tecu(tecu: f64) -> Self {
+        let exponent = Quantized::find_exponent(tecu);
         Self {
-            tec: Quantized::new(tec, exponent),
+            tecu: Quantized::new(tecu, exponent),
+            rms: None,
+        }
+    }
+
+    /// Builds new [TEC] from raw TEC estimate in m^-2
+    pub fn from_tec_m2(tec: f64) -> Self {
+        let tecu = tec * 10.0E-16;
+        let exponent = Quantized::find_exponent(tecu);
+        Self {
+            tecu: Quantized::new(tecu, exponent),
             rms: None,
         }
     }
@@ -128,12 +138,12 @@ impl TEC {
         s
     }
 
-    /// Builds new [TEC] estimate
-    pub(crate) fn from_quantized(tec: i32, exponent: i8) -> Self {
+    /// Builds new [TEC] from TEC quantization in TECu
+    pub(crate) fn from_quantized(tecu: i32, exponent: i8) -> Self {
         Self {
-            tec: Quantized {
+            tecu: Quantized {
                 exponent,
-                quantized: tec,
+                quantized: tecu,
             },
             rms: None,
         }
@@ -147,9 +157,14 @@ impl TEC {
         });
     }
 
-    /// Returns Total Electron Content estimate, in TECu.
+    /// Returns Total Electron Content estimate, in TECu (=10^-16 m-2)
+    pub fn tecu(&self) -> f64 {
+        self.tecu.real_value()
+    }
+
+    /// Returns Total Electron Content estimate, in m-2
     pub fn tec(&self) -> f64 {
-        self.tec.real_value()
+        self.tecu() * 10.0E16
     }
 
     /// Returns Root Mean Square (TEC) if it was provided.
