@@ -1,7 +1,7 @@
 use crate::{meteo::Record, prelude::Observable};
 use std::str::FromStr;
 
-use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
+use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 /// Applies [MaskFilter] to [Record]
 pub fn mask_mut(rec: &mut Record, mask: &MaskFilter) {

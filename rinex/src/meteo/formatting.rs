@@ -1,7 +1,4 @@
-use std::{
-    io::{BufWriter, Write},
-    str::FromStr,
-};
+use std::io::{BufWriter, Write};
 
 use crate::{
     epoch::format as format_epoch,

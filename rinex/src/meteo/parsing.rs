@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     epoch::parse_utc as parse_utc_epoch,
-    prelude::{Epoch, Header, MeteoKey, Observable, ParsingError, Version},
+    prelude::{Header, MeteoKey, ParsingError, Version},
 };
 
 /// Returns true if provided content matches the start of a new Meteo Epoch

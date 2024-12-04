@@ -1,8 +1,8 @@
 use crate::{
-    doris::{DorisKey, Observations, Station, StationObservation, StationSignalObservation},
+    doris::{DorisKey, Observations, Station, StationSignalObservation},
     epoch::parse_in_timescale as parse_epoch_in_timescale,
     observation::ClockObservation,
-    prelude::{Epoch, EpochFlag, Header, Observable, ParsingError, TimeScale},
+    prelude::{Epoch, EpochFlag, Header, ParsingError, TimeScale},
 };
 
 /// Returns true if forwarded content does match new DORIS measurement.

@@ -4,13 +4,10 @@ use thiserror::Error;
 use crate::{
     observable::Observable,
     observation::ClockObservation,
-    prelude::{Duration, Epoch, EpochFlag, FormattingError},
+    prelude::{Epoch, EpochFlag},
 };
 
-use std::{
-    collections::BTreeMap,
-    io::{BufWriter, Write},
-};
+use std::collections::BTreeMap;
 
 use gnss_rs::domes::Error as DomesParsingError;
 

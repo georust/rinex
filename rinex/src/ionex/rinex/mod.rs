@@ -3,7 +3,7 @@
 mod feature;
 
 use crate::{
-    ionex::{IonexKey, IonexMapCoordinates, TEC},
+    ionex::{IonexKey, TEC},
     prelude::{Rinex, RinexType},
 };
 
