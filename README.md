@@ -6,14 +6,14 @@ RINEX
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/)
 [![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex)
 
-[![minimum rustc: 1.64](https://img.shields.io/badge/minimum%20rustc-1.64-blue?logo=rust)](https://www.whatrustisit.com)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/georust/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/georust/rinex/blob/main/LICENSE-MIT) 
 
-Rust tool suites to parse, analyze and process [RINEX](https://en.wikipedia.org/wiki/RINEX) and GNSS data.
+Rust framework to parse [RINEX](https://en.wikipedia.org/wiki/RINEX), 
+SP3 files, and process GNSS data for navigation and much more.
 
-Use the [Github interface](https://github.com/georust/rinex/issues) to report issues and bugs.  
-You can also reach out to us on [Discord](https://discord.gg/Fp2aape).  
+Use the [Github interface](https://github.com/georust/rinex/issues) to report issues.    
+Reach out to us on [Discord](https://discord.gg/Fp2aape).  
 To keep track of the latest developments, read the [Changelog](https://github.com/georust/rinex/main/CHANGELOG.md)
 and keep an eye on the `#rinex` channel on Discord.
 
