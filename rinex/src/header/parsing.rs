@@ -37,14 +37,14 @@ impl Header {
         let mut version = Version::default();
         let mut constellation: Option<Constellation> = None;
 
-        let mut program = String::new();
-        let mut run_by = String::new();
-        let mut date = String::new();
-        let mut observer = String::new();
-        let mut agency = String::new();
-        let mut license: Option<String> = None;
-        let mut doi: Option<String> = None;
-        let mut station_url = String::new();
+        let mut program = Option::<String>::None;
+        let mut run_by = Option::<String>::None;
+        let mut date = Option::<String>::None;
+        let mut observer = Option::<String>::None;
+        let mut agency = Option::<String>::None;
+        let mut license = Option::<String>::None;
+        let mut doi = Option::<String>::None;
+        let mut station_url = Option::<String>::None;
         let mut geodetic_marker = Option::<GeodeticMarker>::None;
         let mut cospar = Option::<COSPAR>::None;
         let mut glo_channels: HashMap<SV, i8> = HashMap::new();
@@ -266,14 +266,22 @@ impl Header {
                 }
             } else if marker.contains("PGM / RUN BY / DATE") {
                 let (pgm, rem) = line.split_at(20);
-                program = pgm.trim().to_string();
-                let (rb, rem) = rem.split_at(20);
-                run_by = match rb.trim().eq("") {
-                    true => String::from("Unknown"),
-                    false => rb.trim().to_string(),
-                };
-                let (date_str, _) = rem.split_at(20);
-                date = date_str.trim().to_string();
+                let pgm = pgm.trim();
+                if pgm.len() > 0 {
+                    program = Some(pgm.to_string());
+                }
+
+                let (runby, rem) = rem.split_at(20);
+
+                let runby = runby.trim();
+                if runby.len() > 0 {
+                    run_by = Some(runby.to_string());
+                }
+
+                let date_str = rem.split_at(20).0.trim();
+                if date_str.len() > 0 {
+                    date = Some(date_str.to_string());
+                }
             } else if marker.contains("MARKER NAME") {
                 let name = content.split_at(20).0.trim();
                 geodetic_marker = Some(GeodeticMarker::default().with_name(name));
@@ -291,8 +299,16 @@ impl Header {
                 }
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
-                observer = obs.trim().to_string();
-                agency = ag.trim().to_string();
+                let obs = obs.trim();
+                let ag = ag.trim();
+
+                if obs.len() > 0 {
+                    observer = Some(obs.to_string());
+                }
+
+                if ag.len() > 0 {
+                    agency = Some(ag.to_string());
+                }
             } else if marker.contains("REC # / TYPE / VERS") {
                 if let Ok(receiver) = Receiver::from_str(content) {
                     rcvr = Some(receiver);
@@ -429,17 +445,23 @@ impl Header {
                 let parsed = Leap::from_str(leap_str)?;
                 leap = Some(parsed.clone());
             } else if marker.contains("DOI") {
-                let (content, _) = content.split_at(40); //  TODO: confirm please
-                doi = Some(content.trim().to_string())
+                let content = content.split_at(40).0.trim(); //  TODO: confirm please
+                if content.len() > 0 {
+                    doi = Some(content.to_string());
+                }
             } else if marker.contains("MERGED FILE") {
                 //TODO V > 3
                 // nb# of merged files
             } else if marker.contains("STATION INFORMATION") {
-                let url = content.split_at(40).0; //TODO confirm please
-                station_url = url.trim().to_string()
+                let url = content.split_at(40).0.trim(); //TODO confirm please
+                if url.len() > 0 {
+                    station_url = Some(url.to_string());
+                }
             } else if marker.contains("LICENSE OF USE") {
-                let lic = content.split_at(40).0; //TODO confirm please
-                license = Some(lic.trim().to_string())
+                let lic = content.split_at(40).0.trim(); //TODO confirm please
+                if lic.len() > 0 {
+                    license = Some(lic.to_string());
+                }
             } else if marker.contains("WAVELENGTH FACT L1/2") {
                 //TODO
             } else if marker.contains("APPROX POSITION XYZ") {

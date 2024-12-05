@@ -158,15 +158,27 @@ impl Header {
 
     /// Formats "PMG / RUN BY / DATE"
     fn format_prog_runby<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        let mut string = if let Some(program) = &self.program {
+            format!("{:<20}", program)
+        } else {
+            "                    ".to_string()
+        };
+
+        if let Some(runby) = &self.run_by {
+            string.push_str(runby);
+        } else {
+            string.push_str("                    ");
+        };
+
+        if let Some(date) = &self.date {
+            string.push_str(date);
+        } else {
+            string.push_str("                    ");
+        };
+
         // PGM / RUN BY / DATE
-        writeln!(
-            w,
-            "{}",
-            fmt_rinex(
-                &format!("{:<20}{:<20}{:<20}", self.program, self.run_by, self.date),
-                "PGM / RUN BY / DATE"
-            )
-        )?;
+        writeln!(w, "{}", fmt_rinex(&string, "PGM / RUN BY / DATE"),)?;
+
         Ok(())
     }
 
@@ -175,14 +187,20 @@ impl Header {
         &self,
         w: &mut BufWriter<W>,
     ) -> Result<(), FormattingError> {
-        writeln!(
-            w,
-            "{}",
-            fmt_rinex(
-                &format!("{:<20}{}", self.observer, self.agency),
-                "OBSERVER /AGENCY"
-            )
-        )?;
+        let mut string = if let Some(observer) = &self.observer {
+            format!("{:<20}", observer)
+        } else {
+            "                    ".to_string()
+        };
+
+        if let Some(agency) = &self.agency {
+            string.push_str(agency);
+        } else {
+            string.push_str("                    ");
+        };
+
+        writeln!(w, "{}", fmt_rinex(&string, "OBSERVER /AGENCY"),)?;
+
         Ok(())
     }
 

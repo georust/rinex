@@ -60,57 +60,54 @@ pub struct PcvCompensation {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Header {
-    /// revision for this `RINEX`
+    /// RINEX [Version]
     pub version: Version,
-    /// type of `RINEX` file
+    /// RINEX [Type]
     pub rinex_type: Type,
-    /// `GNSS` constellation system encountered in this file,
-    /// or reference GNSS constellation for the following data.
+    /// GNSS [Constellation] describing this entire file.
     pub constellation: Option<Constellation>,
-    /// comments extracted from `header` section
+    /// Comments from this section
     pub comments: Vec<String>,
-    /// program name
-    pub program: String,
-    /// program `run by`
-    pub run_by: String,
-    /// program's `date`
-    pub date: String,
-    /// optionnal station/marker/agency URL
-    pub station_url: String,
-    /// name of observer
-    pub observer: String,
-    /// name of production agency
-    pub agency: String,
-    /// optionnal [GeodeticMarker]
+    /// Possible software name (publishing software)
+    pub program: Option<String>,
+    /// Possible software operator
+    pub run_by: Option<String>,
+    /// Possible date of publication
+    pub date: Option<String>,
+    /// Possible station / agency URL
+    pub station_url: Option<String>,
+    /// Name of observer / operator
+    pub observer: Option<String>,
+    /// Production Agency
+    pub agency: Option<String>,
+    /// Possible [GeodeticMarker]
     pub geodetic_marker: Option<GeodeticMarker>,
     /// Glonass FDMA channels
     pub glo_channels: HashMap<SV, i8>,
-    /// Optional COSPAR number (launch information)
+    /// Possible COSPAR number (launch information)
     pub cospar: Option<COSPAR>,
-    /// optionnal leap seconds infos
+    /// Possible [Leap] seconds counter
     pub leap: Option<Leap>,
-    // /// Optionnal system time correction
-    // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
     pub ground_position: Option<GroundPosition>,
-    /// Optionnal observation wavelengths
+    /// Optionnal wavelength correction factors
     pub wavelengths: Option<(u32, u32)>,
-    /// Optionnal sampling interval (s)
+    /// Possible sampling interval
     pub sampling_interval: Option<Duration>,
-    /// Optionnal file license
+    /// Possible file license
     pub license: Option<String>,
-    /// Optionnal Object Identifier (IoT)
+    /// Possible Digital Object Identifier
     pub doi: Option<String>,
-    /// Optionnal GPS/UTC time difference
+    /// Optionnal GPS - UTC time difference
     pub gps_utc_delta: Option<u32>,
-    /// Optionnal Receiver information
+    /// Possible [Receiver] information
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr: Option<Receiver>,
-    /// Optionnal Receiver Antenna information
+    /// Possible information about Receiver [Antenna]
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr_antenna: Option<Antenna>,
-    /// Optionnal Vehicle Antenna information,
-    /// attached to a specifid SV, only exists in ANTEX records
+    /// Possible information about satellite vehicle antenna.
+    /// This only exists in ANTEX format.
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
     /// Possible Ionospheric Delay correction model, described in
@@ -205,9 +202,9 @@ impl Header {
     /// Copies and returns [Header] with generate information
     pub fn with_general_information(&self, program: &str, run_by: &str, agency: &str) -> Self {
         let mut s = self.clone();
-        s.program = program.to_string();
-        s.run_by = run_by.to_string();
-        s.agency = agency.to_string();
+        s.program = Some(program.to_string());
+        s.run_by = Some(run_by.to_string());
+        s.agency = Some(agency.to_string());
         s
     }
 
