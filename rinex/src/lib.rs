@@ -3,6 +3,15 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::type_complexity)]
 
+/*
+ * RINEX is part of the Geo-Rust framework.
+ * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al. 
+ * (cf. https://github.com/georust/rinex/graphs/contributors)
+ * This framework is shipped under either the Apache-2.0 or MIT License.
+ *
+ * Documentation: https://github.com/georust/rinex and associated Wiki.
+ */
+
 extern crate gnss_rs as gnss;
 extern crate num;
 
@@ -37,15 +46,15 @@ pub mod version;
 mod bibliography;
 mod constants;
 mod epoch;
-mod error; // error package
+mod error;
 mod ground_position;
 mod iterators;
-mod leap; // leap second
-mod linspace; // grid and linear spacing
+mod leap;
+mod linspace;
 mod observable;
 mod observation;
 mod production;
-mod sampling; // RINEX production infrastructure // physical observations
+mod sampling;
 
 #[cfg(feature = "qc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
