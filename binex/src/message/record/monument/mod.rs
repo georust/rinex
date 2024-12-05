@@ -437,7 +437,7 @@ impl MonumentGeoRecord {
     }
 
     /// Define receiver firmware version (if known).
-    pub fn with_receiver_firm_version(&self, version: &str) -> Self {
+    pub fn with_receiver_firmware_version(&self, version: &str) -> Self {
         let mut s = self.clone();
         s.push_or_update(FieldID::ReceiverFirmwareVersion, version);
         s
