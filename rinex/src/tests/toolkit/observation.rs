@@ -110,7 +110,8 @@ pub fn generic_observation_rinex_test(
     }
 
     if let Some(observer) = observer {
-        assert_eq!(dut.header.observer, observer);
+        let header = dut.header.observer.as_ref().unwrap();
+        assert_eq!(header, observer);
     }
 
     if let Some(marker) = geodetic_marker {

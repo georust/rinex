@@ -413,11 +413,7 @@ impl Rinex {
                     timeof_last_obs: params.timeof_last_obs,
                 });
 
-            self.header = self.header.with_general_information(
-                &format!("geo-rust v{}", env!("CARGO_PKG_VERSION")),
-                &self.header.run_by,
-                &self.header.agency,
-            );
+            self.header.program = Some(format!("geo-rust v{}", env!("CARGO_PKG_VERSION")));
         }
     }
     /// Returns a filename that would describe Self according to standard naming conventions.
@@ -706,7 +702,10 @@ impl Rinex {
     /// Guesses File [ProductionAttributes] from the actual Record content.
     /// This is particularly useful when working with datasets we are confident about,
     /// yet that do not follow standard naming conventions.
-    /// Here is an example of such use case:
+    /// Note that this method is infaillible, because we default to blank fields
+    /// in case we cannot retrieve them.
+    ///
+    /// Example:
     /// ```
     /// use rinex::prelude::*;
     ///
@@ -747,6 +746,7 @@ impl Rinex {
             Some(t0) => attributes.doy = t0.day_of_year().round() as u32,
             _ => {},
         }
+
         // notes on attribute."name"
         // - Non detailed OBS RINEX: this is usually the station name
         //   which can be named after a geodetic marker
@@ -761,18 +761,30 @@ impl Rinex {
                         if let Some(site) = &clk.site {
                             attributes.name = site.to_string();
                         } else {
-                            attributes.name = self.header.agency.to_string();
+                            if let Some(agency) = &self.header.agency {
+                                attributes.name = agency.to_string();
+                            }
                         }
                     },
                 },
-                _ => attributes.name = self.header.agency.to_string(),
+                _ => {
+                    if let Some(agency) = &self.header.agency {
+                        attributes.name = agency.to_string();
+                    }
+                },
             },
             RinexType::IonosphereMaps => {
-                attributes.name = self.header.agency.to_string();
+                if let Some(agency) = &self.header.agency {
+                    attributes.name = agency.to_string();
+                }
             },
             _ => match &self.header.geodetic_marker {
                 Some(marker) => attributes.name = marker.name.to_string(),
-                _ => attributes.name = self.header.agency.to_string(),
+                _ => {
+                    if let Some(agency) = &self.header.agency {
+                        attributes.name = agency.to_string();
+                    }
+                },
             },
         }
         if let Some(ref mut details) = attributes.details {

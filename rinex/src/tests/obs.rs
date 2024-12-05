@@ -122,7 +122,8 @@ fn v2_rovn0010_21o() {
             vec![],
         );
 
-    assert_eq!(dut.header.agency, "TU Delft for Deltares");
+    let agency = dut.header.agency.as_ref().unwrap();
+    assert_eq!(agency, "TU Delft for Deltares");
 }
 
 #[test]
