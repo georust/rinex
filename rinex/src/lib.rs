@@ -126,6 +126,13 @@ pub mod prelude {
         pub use crate::antex::AntennaMatcher;
     }
 
+    #[cfg(feature = "binex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
+    pub mod binex {
+        pub use crate::binex::RNX2BIN;
+        pub use binex::prelude::{Message, Meta};
+    }
+
     #[cfg(feature = "clock")]
     #[cfg_attr(docsrs, doc(cfg(feature = "clock")))]
     pub mod clock {

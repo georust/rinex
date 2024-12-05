@@ -86,6 +86,8 @@ It allows post processed navigation, it integrates a special CGGTTS solutions so
 All solutions our synthesized as an HTML geodetic report, which is our main solution to this day.
 The application is auto-generated for a few architectures, you can directly
 [download it from Github.com](https://github.com/georust/rinex/releases)
+* [`RNX2BIN`](rnx2bin/) dumps one RINEX or CRINEX into a binary file
+made of BINEX Messages.
 * [`RNX2CRX`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX).
 It is a light application that you can combined to `rinex-cli` for a complete workflow.
 * [`UBX2RNX`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   

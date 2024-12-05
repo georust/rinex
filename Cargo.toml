@@ -8,6 +8,7 @@ members = [
     "rinex", 
     "rinex-qc", 
     "rinex-cli", 
+    "rnx2bin", 
     "rnx2crx", 
     "sp3",
     "sinex",
