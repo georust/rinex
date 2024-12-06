@@ -13,8 +13,7 @@ use crate::{
     epoch::parse_ionex_utc as parse_ionex_utc_epoch,
     hatanaka::DecompressorExpert,
     ionex::{
-        is_new_height_map, is_new_rms_map, is_new_tec_map,
-        parse_height_map as parse_ionex_height_map, parse_rms_map as parse_ionex_rms_map,
+        is_new_height_map, is_new_rms_map, is_new_tec_map, parse_rms_map as parse_ionex_rms_map,
         parse_tec_map as parse_ionex_tec_map, Quantized as IonexQuantized, Record as IonexRecord,
     },
     is_rinex_comment,
@@ -165,7 +164,7 @@ impl Record {
         //  but others may exist:
         //  in this case we use the previously identified Epoch
         //  and attach other kinds of maps
-        let mut ionx_rec = IonexRecord::new();
+        let mut ionex_rec = IonexRecord::new();
         let mut ionex_t = Epoch::default();
         let mut ionex_tec_exponent = Default::default();
         let mut ionex_lat_exponent = Default::default();
@@ -350,13 +349,24 @@ impl Record {
                                     ionex_alt_exponent,
                                     ionex_tec_exponent,
                                     ionex_t,
-                                    &mut ionx_rec,
+                                    &mut ionex_rec,
                                 ) {
                                     Ok(()) => {},
                                     Err(e) => {},
                                 }
                             } else if is_new_rms_map(&epoch_buf[..60]) {
-                                panic!("new RMS map \"{}\"", &epoch_buf[..120]);
+                                match parse_ionex_rms_map(
+                                    &epoch_buf,
+                                    ionex_lat_exponent,
+                                    ionex_long_exponent,
+                                    ionex_alt_exponent,
+                                    ionex_tec_exponent,
+                                    ionex_t,
+                                    &mut ionex_rec,
+                                ) {
+                                    Ok(()) => {},
+                                    Err(e) => {},
+                                }
                             } else {
                                 panic!("new Height map \"{}\"", &epoch_buf[..120]);
                             }
@@ -384,7 +394,7 @@ impl Record {
         let record = match &header.rinex_type {
             Type::AntennaData => Record::AntexRecord(atx_rec),
             Type::ClockData => Record::ClockRecord(clk_rec),
-            Type::IonosphereMaps => Record::IonexRecord(ionx_rec),
+            Type::IonosphereMaps => Record::IonexRecord(ionex_rec),
             Type::MeteoData => Record::MeteoRecord(met_rec),
             Type::NavigationData => Record::NavRecord(nav_rec),
             Type::ObservationData => Record::ObsRecord(obs_rec),
