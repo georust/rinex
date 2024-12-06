@@ -199,6 +199,26 @@ pub fn parse_rms_map(
     Ok(())
 }
 
+/// Parses all Height map contained in following content.
+/// Not really well understood: not managed.
+/// ## Inputs
+///   - content: readable content (ASCII UTF-8)
+///   - lat_exponent: deduced from IONEX header for coordinates quantization
+///   - long_exponent: deduced from IONEX header for coordinates quantization
+///   - tec_exponent: kept up to date, for correct data interpretation
+///   - epoch: epoch of current map
+pub fn parse_height_map(
+    content: &str,
+    lat_exponent: i8,
+    long_exponent: i8,
+    alt_exponent: i8,
+    tec_exponent: i8,
+    epoch: Epoch,
+    record: &mut Record,
+) -> Result<(), ParsingError> {
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use super::{
@@ -286,7 +306,7 @@ mod test {
 
         let key = IonexKey { epoch, coordinates };
 
-        panic!("{:#?}", record);
+        println!("{:#?}", record);
 
         let tec = record
             .get(&key)

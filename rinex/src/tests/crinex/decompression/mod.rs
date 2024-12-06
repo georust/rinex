@@ -419,8 +419,8 @@ fn v1_zegv0010_21d() {
             "2.11",
             Some("MIXED"),
             false,
-            "GPS, GLO",
             "G07, G08, G10, G13, G15, G16, G18, G20, G21, G23, G26, G27, G30, R01, R02, R03, R08, R09, R15, R16, R17, R18, R19, R24",
+            "GPS, GLO",
             &[
                 ("GPS", "C1, C2, C5, L1, L2, L5, P1, P2, S1, S2, S5"),
             ],

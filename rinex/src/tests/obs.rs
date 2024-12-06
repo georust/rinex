@@ -202,7 +202,6 @@ fn v4_kms300dnk_r_2022_v3crx() {
 }
 
 #[test]
-#[ignore]
 fn v2_kosg0010_95o() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")

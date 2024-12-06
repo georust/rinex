@@ -13,7 +13,8 @@ use crate::{
     epoch::parse_ionex_utc as parse_ionex_utc_epoch,
     hatanaka::DecompressorExpert,
     ionex::{
-        is_new_height_map, is_new_rms_map, is_new_tec_map, parse_rms_map as parse_ionex_rms_map,
+        is_new_height_map, is_new_rms_map, is_new_tec_map,
+        parse_height_map as parse_ionex_height_map, parse_rms_map as parse_ionex_rms_map,
         parse_tec_map as parse_ionex_tec_map, Quantized as IonexQuantized, Record as IonexRecord,
     },
     is_rinex_comment,
@@ -368,7 +369,18 @@ impl Record {
                                     Err(e) => {},
                                 }
                             } else {
-                                panic!("new Height map \"{}\"", &epoch_buf[..120]);
+                                match parse_ionex_height_map(
+                                    &epoch_buf,
+                                    ionex_lat_exponent,
+                                    ionex_long_exponent,
+                                    ionex_alt_exponent,
+                                    ionex_tec_exponent,
+                                    ionex_t,
+                                    &mut ionex_rec,
+                                ) {
+                                    Ok(()) => {},
+                                    Err(e) => {},
+                                }
                             }
                         },
                     }
