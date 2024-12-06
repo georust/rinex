@@ -1,7 +1,7 @@
 //! BINEX to RINEX deserialization
 use std::io::Read;
 
-use crate::prelude::{Duration, Rinex};
+use crate::prelude::{Duration, Epoch, Rinex};
 
 use binex::prelude::{
     Decoder, EphemerisFrame, MonumentGeoRecord, Record as BinexRecord, StreamElement,
@@ -11,7 +11,7 @@ use binex::prelude::{
 /// RINEX file production coming from a BINEX stream.
 /// A BINEX stream being potentially infinite (as long as
 /// production hardware or data source exists on the other end)
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, PartialEq, Clone)]
 pub enum SnapshotMode {
     /// Dump as RINEX every day at midnight.
     /// This is the prefered [SnapshotMode] because
@@ -31,6 +31,7 @@ pub enum SnapshotMode {
 /// [Postponing] offers several options to postpone the BINEX message collection.
 /// It allows to accurately control when the stream listener picks up the
 /// BINEX content that should be collected.
+#[derive(Debug, Copy, PartialEq, Clone)]
 pub enum Postponing {
     /// RINEX collection starts on first valid BINEX byte
     None,
@@ -62,7 +63,6 @@ pub struct BIN2RNX<'a, R: Read> {
 impl<'a, R: Read> Iterator for BIN2RNX<'a, R> {
     type Item = Option<String>;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.decoder.next() {}
         // match self.decoder.next() {
         //     Some(Ok(element)) => match element {
         //         StreamElement::OpenSource(msg) => match msg.record {
@@ -80,6 +80,7 @@ impl<'a, R: Read> Iterator for BIN2RNX<'a, R> {
         //     Some(Err(e)) => None,
         //     None => None,
         // }
+        None
     }
 }
 
@@ -113,6 +114,7 @@ impl<'a, R: Read> BIN2RNX<'a, R> {
         Self {
             postponing,
             deploy_t: now,
+            snapshot_mode,
             decoder: Decoder::new(read),
             collecting: postponing == Postponing::None,
         }
@@ -120,8 +122,8 @@ impl<'a, R: Read> BIN2RNX<'a, R> {
 
     /// Creates a new [BIN2RNX] that will collect a [Rinex] daily
     /// with possible postponing
-    pub fn new_daily(postponing: Postponing, read: R) -> Self {
-        Self::new(SnapshotMode::Daily, postponing, read)
+    pub fn new_daily_midnight(postponing: Postponing, read: R) -> Self {
+        Self::new(SnapshotMode::DailyMidnight, postponing, read)
     }
 
     /// Creates a new [BIN2RNX] that will collect a [Rinex] twice a day
@@ -138,7 +140,7 @@ impl<'a, R: Read> BIN2RNX<'a, R> {
 
     /// Creates a new [BIN2RNX] that will collect a [Rinex] periodically,
     /// with possible postponing
-    pub fn new_periodic(period: Epoch, postponing: Postponing, read: R) -> Self {
+    pub fn new_periodic(period: Duration, postponing: Postponing, read: R) -> Self {
         Self::new(SnapshotMode::Period(period), postponing, read)
     }
 }
