@@ -18,6 +18,9 @@ use rinex::RINEXReport;
 mod orbit;
 use orbit::OrbitReport;
 
+mod iono;
+use iono::IonoReport;
+
 #[cfg(feature = "sp3")]
 mod sp3;
 
@@ -151,8 +154,9 @@ pub struct QcReport {
     // navi: Option<QcNavi>,
     /// Orbital projections (only when compatible)
     orbit: Option<OrbitReport>,
-    /// In depth analysis per input product.
-    /// In summary mode, these do not exist (empty).
+    /// Ionosphere Reporting (only when compatible)
+    iono: Option<IonoReport>,
+    /// One tab per input product.
     products: HashMap<ProductType, ProductReport>,
     /// Custom chapters
     custom_chapters: Vec<QcExtraPage>,
@@ -166,8 +170,12 @@ impl QcReport {
         } else {
             context.reference_position()
         };
+
         let summary = QcSummary::new(&context, &cfg);
         let summary_only = cfg.report == QcReportType::Summary;
+
+        let iono_report = IonoReport::new(&context, &cfg);
+
         Self {
             custom_chapters: Vec::new(),
             // navi: {
@@ -212,6 +220,7 @@ impl QcReport {
                 }
                 items
             },
+            iono: iono_report,
             #[cfg(not(feature = "sp3"))]
             orbit: {
                 if context.has_brdc_navigation() && !summary_only {

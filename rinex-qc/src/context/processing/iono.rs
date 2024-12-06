@@ -72,9 +72,6 @@ impl IPPCoordinates {
             piercing_t,
         }
     }
-
-    // Generate a Ionosphere IPP (Input Pierce Point) projection
-    // from SV orbital state and signal trajectory analysis.
 }
 
 impl QcContext {
