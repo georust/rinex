@@ -47,23 +47,26 @@ impl Rinex {
 
 #[cfg(test)]
 mod test {
-    use rinex::prelude::Rinex;
+    use crate::prelude::{Epoch, Rinex};
+    use hifitime::Unit;
 
-    // helper, calculates the TEC value
-    fn tec_calc() -> f64 {}
+    // helper, calculates the TEC value from two observation
+    fn tec_calc() -> f64 {
+        0.0
+    }
 
     #[test]
     fn dual_phase_range_tec_estimation() {
         let path = format!(
             "{}/test_resources/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
-            env!("CARGO_MANIFEST_DIR)"),
+            env!("CARGO_MANIFEST_DIR"),
         );
 
         let rinex = Rinex::from_file(&path).unwrap();
 
         let t0 = Epoch::from_gregorian_utc_at_midnight(2021, 12, 21);
-        let t1 = t0 + 30.0 * Unit::Seconds;
-        let t2 = t1 + 30.0 * Unit::Seconds;
+        let t1 = t0 + 30.0 * Unit::Second;
+        let t2 = t1 + 30.0 * Unit::Second;
 
         let mut t0_g01_l1c_l2s_passed = false;
         let mut t0_g01_l1c_l2w_passed = false;
@@ -91,9 +94,9 @@ mod test {
         let mut t2_g07_l1c_l2s_passed = false;
         let mut t2_g07_l1c_l2w_passed = false;
         let mut t2_g07_l1c_l5q_passed = false;
-        let mut t1_e11_l1c_l5q_passed = false;
-        let mut t1_e11_l1c_l6q_passed = false;
-        let mut t1_e11_l1c_l7q_passed = false;
+        let mut t2_e11_l1c_l5q_passed = false;
+        let mut t2_e11_l1c_l6q_passed = false;
+        let mut t2_e11_l1c_l7q_passed = false;
 
         let tec = rinex.observation_dual_phase_ionosphere_tec();
 
