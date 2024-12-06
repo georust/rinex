@@ -108,10 +108,44 @@ impl Split for Rinex {
             obs_split_even_dt(r, dt)
                 .into_iter()
                 .map(|rec| Record::ObsRecord(rec))
+                .collect::<Vec<_>>()
+        } else if let Some(r) = self.record.as_clock() {
+            clock_split_even_dt(r, dt)
+                .into_iter()
+                .map(|rec| Record::ClockRecord(rec))
+                .collect::<Vec<_>>()
+        } else if let Some(r) = self.record.as_meteo() {
+            meteo_split_even_dt(r, dt)
+                .into_iter()
+                .map(|rec| Record::MeteoRecord(rec))
+                .collect::<Vec<_>>()
+        } else if let Some(r) = self.record.as_ionex() {
+            ionex_split_even_dt(r, dt)
+                .into_iter()
+                .map(|rec| Record::IonexRecord(rec))
+                .collect::<Vec<_>>()
+        } else if let Some(r) = self.record.as_doris() {
+            doris_split_even_dt(r, dt)
+                .into_iter()
+                .map(|rec| Record::DorisRecord(rec))
+                .collect::<Vec<_>>()
         } else {
-            panic!("bad op");
+            Vec::new()
         };
 
-        Default::default()
+        // TODO:
+        // comments (timewise) should be split
+        // header section could be split as well:
+        //  impl split_event_dt on Header directly
+
+        records
+            .iter()
+            .map(|rec| Rinex {
+                header: self.header.clone(),
+                comments: self.comments.clone(),
+                prod_attr: self.prod_attr.clone(),
+                record: rec.clone(),
+            })
+            .collect()
     }
 }
