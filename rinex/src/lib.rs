@@ -5,7 +5,7 @@
 
 /*
  * RINEX is part of the Geo-Rust framework.
- * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al. 
+ * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al.
  * (cf. https://github.com/georust/rinex/graphs/contributors)
  * This framework is shipped under either the Apache-2.0 or MIT License.
  *
