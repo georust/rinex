@@ -57,11 +57,8 @@ fn parse_grid_specs(line: &str) -> Result<(f64, f64, f64, f64), ParsingError> {
     return Ok((fixed_lat, long1, long_spacing, fixed_alt));
 }
 
-pub fn parse_rms_map() {}
-pub fn parse_height_map() {}
-
 /// Parses all maps contained in following TEC description.
-/// This describes a serie of TEC point in volume.
+/// This describes a serie of TEC point on an isosurface.
 /// ## Inputs
 ///   - content: readable content (ASCII UTF-8)
 ///   - lat_exponent: deduced from IONEX header for coordinates quantization
@@ -137,6 +134,66 @@ pub fn parse_tec_map(
             }
 
             long += long_spacing;
+        }
+    }
+    Ok(())
+}
+
+/// Parses all RMS maps contained in following content.
+/// This describes the RMS value of each TEC previously parsed, for current isosurface.
+/// ## Inputs
+///   - content: readable content (ASCII UTF-8)
+///   - lat_exponent: deduced from IONEX header for coordinates quantization
+///   - long_exponent: deduced from IONEX header for coordinates quantization
+///   - tec_exponent: kept up to date, for correct data interpretation
+///   - epoch: epoch of current map
+pub fn parse_rms_map(
+    content: &str,
+    lat_exponent: i8,
+    long_exponent: i8,
+    alt_exponent: i8,
+    tec_exponent: i8,
+    epoch: Epoch,
+    record: &mut Record,
+) -> Result<(), ParsingError> {
+    let lines = content.lines();
+    let mut epoch = Epoch::default();
+
+    let mut fixed_lat = 0.0_f64;
+    let (mut long1, mut long_spacing) = (0.0_f64, 0.0_f64);
+    let mut fixed_alt = 0.0_f64;
+
+    let mut long = 0.0_f64; // current longitude (pointer)
+
+    for line in lines {
+        if line.len() > 60 {
+            let (content, marker) = line.split_at(60);
+            if marker.contains("END OF RMS MAP") {
+                return Ok(());
+            } else if marker.contains("EXPONENT") {
+                // should not have been presented (handled @ higher level)
+                continue; // avoid parsing
+            }
+        }
+
+        // proceed to parsing
+        for item in line.split_ascii_whitespace() {
+            if let Ok(tec) = item.trim().parse::<i32>() {
+                let coordinates = IonexMapCoordinates::new(
+                    fixed_lat,
+                    lat_exponent,
+                    long,
+                    long_exponent,
+                    fixed_alt,
+                    alt_exponent,
+                );
+
+                // we only augment previously parsed TEC values
+                let key = IonexKey { epoch, coordinates };
+                if let Some(v) = record.get_mut(&key) {
+                    v.set_quantized_rms(tec, tec_exponent);
+                }
+            }
         }
     }
     Ok(())

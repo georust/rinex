@@ -34,8 +34,7 @@ pub use ipp::IPPCoordinates;
 pub use system::RefSystem;
 
 pub(crate) use parsing::{
-    is_new_height_map, is_new_rms_map, is_new_tec_map, parse_height_map, parse_rms_map,
-    parse_tec_map,
+    is_new_height_map, is_new_rms_map, is_new_tec_map, parse_rms_map, parse_tec_map,
 };
 
 pub(crate) use quantized::Quantized;
@@ -150,7 +149,7 @@ impl TEC {
     }
 
     /// Updates RMS [TEC]
-    pub(crate) fn set_rms_tec(&mut self, rms: i32, exponent: i8) {
+    pub(crate) fn set_quantized_rms(&mut self, rms: i32, exponent: i8) {
         self.rms = Some(Quantized {
             exponent,
             quantized: rms,
