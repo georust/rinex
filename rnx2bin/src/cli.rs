@@ -48,29 +48,39 @@ impl Cli {
                             .action(ArgAction::SetTrue)
                             .help("Forge a Reversed BINEX Stream.")
                     )
-                    .next_help_heading("Output (Binary file)")
-                    .arg(
-                        Arg::new("short")
-                            .short('s')
-                            .long("short")
-                            .action(ArgAction::SetTrue)
-                            .help("Custom output name (example: output.bin), otherwise, standard convention is auto generated.")
-                    )
+                    .next_help_heading("Output")
                     .arg(
                         Arg::new("output")
                             .short('o')
                             .long("output")
                             .action(ArgAction::Set)
+                            .help("Custom output. When omitted, we will auto-generate a bin file.
+This can be either
+- a file name that we will generate
+- or a streaming interface, for example /dev/fifo0 that is writable and accepts raw bytes.
+In this case, the --io flag must be specified as well.
+either be a custom file name (example: output.bin), otherwise, standard convention is auto generated.")
+                    )
+                    .arg(
+                        Arg::new("io")
+                            .long("io")
+                            .action(ArgAction::SetTrue)
                             .help("Custom output name (example: output.bin), otherwise, standard convention is auto generated.")
+                    )
+                    .arg(
+                        Arg::new("short")
+                            .short('s')
+                            .long("short")
+                            .action(ArgAction::SetTrue)
+                            .help("Specify that the auto file name generator should prefer short (V2) file names")
                     )
                     .arg(
                         Arg::new("gzip")
                             .long("gzip")
                             .action(ArgAction::SetTrue)
-                            .help("Force gzip output, even coming from readable input.
-We preserve Gzip compression (output.bin.gz) if you're input RINEX is gzip compressed.
-But you can force the generation of compressed binary with this option."
-                            ))
+                            .help("Force gzip output, even coming from uncompressed input.
+This works on any type of output interface.")
+                    )
                     .get_matches()
             },
         }
@@ -86,6 +96,9 @@ But you can force the generation of compressed binary with this option."
     }
     pub fn gzip_output(&self) -> bool {
         self.matches.get_flag("gzip")
+    }
+    pub fn io_output(&self) -> bool {
+        self.matches.get_flag("io")
     }
     pub fn short_name(&self) -> bool {
         self.matches.get_flag("short")
