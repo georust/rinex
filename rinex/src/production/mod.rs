@@ -18,15 +18,17 @@
 
 use thiserror::Error;
 
-mod sequence;
-
-mod ppu;
-pub use ppu::PPU;
-
 mod ffu;
-pub use ffu::FFU;
-
+mod postponing;
+mod ppu;
+mod sequence;
+mod snapshot;
 mod source;
+
+pub use ffu::FFU;
+pub use postponing::Postponing;
+pub use ppu::PPU;
+pub use snapshot::SnapshotMode;
 pub use source::DataSource;
 
 #[derive(Error, Debug)]

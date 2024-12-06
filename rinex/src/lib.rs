@@ -7,7 +7,7 @@
  * RINEX is part of the Geo-Rust framework.
  * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al.
  * (cf. https://github.com/georust/rinex/graphs/contributors)
- * This framework is shipped under either the Apache-2.0 or MIT License.
+ * This framework is shipped under both Apache-2.0 and MIT License.
  *
  * Documentation: https://github.com/georust/rinex and associated Wiki.
  */
@@ -336,7 +336,7 @@ pub struct Rinex {
 }
 
 impl Rinex {
-    /// Builds a new `RINEX` struct from given header & body sections.
+    /// Builds a new [Rinex] struct from given header & body sections.
     pub fn new(header: Header, record: record::Record) -> Rinex {
         Rinex {
             header,
@@ -345,7 +345,38 @@ impl Rinex {
             prod_attr: None,
         }
     }
-    /// Returns a copy of self with given header attributes.
+
+    /// Builds a default Navigation [Rinex], useful in data production context.
+    pub fn basic_nav() -> Self {
+        Self {
+            prod_attr: None,
+            header: Header::basic_nav(),
+            comments: Default::default(),
+            record: Record::NavRecord(Default::default()),
+        }
+    }
+
+    /// Builds a default Observation [Rinex], useful in data production context.
+    pub fn basic_obs() -> Self {
+        Self {
+            prod_attr: None,
+            header: Header::basic_obs(),
+            comments: Default::default(),
+            record: Record::ObsRecord(Default::default()),
+        }
+    }
+
+    /// Builds a default Observation [CRINEX], useful in data production context.
+    pub fn basic_crinex() -> Self {
+        Self {
+            prod_attr: None,
+            comments: Default::default(),
+            header: Header::basic_crinex(),
+            record: Record::ObsRecord(Default::default()),
+        }
+    }
+
+    /// Copy and return this [Rinex] with updated [Header].
     pub fn with_header(&self, header: Header) -> Self {
         Self {
             header,
@@ -354,12 +385,14 @@ impl Rinex {
             prod_attr: self.prod_attr.clone(),
         }
     }
-    /// Replaces header section.
+
+    /// Replace [Header] with mutable access.
     pub fn replace_header(&mut self, header: Header) {
         self.header = header.clone();
     }
-    /// Returns a copy of self with given internal record.
-    pub fn with_record(&self, record: record::Record) -> Self {
+
+    /// Copy and return this [Rinex] with updated [Record]
+    pub fn with_record(&self, record: Record) -> Self {
         Rinex {
             header: self.header.clone(),
             comments: self.comments.clone(),
@@ -367,8 +400,9 @@ impl Rinex {
             prod_attr: self.prod_attr.clone(),
         }
     }
-    /// Replaces internal record.
-    pub fn replace_record(&mut self, record: record::Record) {
+
+    /// Replace [Record] with mutable access.
+    pub fn replace_record(&mut self, record: Record) {
         self.record = record.clone();
     }
 
@@ -902,7 +936,7 @@ impl Rinex {
     /// ```
     /// example
     /// ```
-    pub fn from_file(path: impl AsRef<Path>) -> Result<Rinex, ParsingError> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Rinex, ParsingError> {
         let path = path.as_ref();
 
         // deduce all we can from file name
@@ -943,7 +977,7 @@ impl Rinex {
     ///   * [Self::standard_filename] to generate a standardized filename
     ///   * [Self::guess_production_attributes] helps generate standardized filenames for
     ///     files that do not follow naming conventions
-    pub fn to_file(&self, path: impl AsRef<Path>) -> Result<(), FormattingError> {
+    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), FormattingError> {
         let fd = File::create(path)?;
         let mut writer = BufWriter::new(fd);
         self.format(&mut writer)?;
@@ -987,7 +1021,7 @@ impl Rinex {
     /// ```
     #[cfg(feature = "flate2")]
     #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
-    pub fn from_gzip_file(path: impl AsRef<Path>) -> Result<Rinex, ParsingError> {
+    pub fn from_gzip_file<P: AsRef<Path>>(path: P) -> Result<Rinex, ParsingError> {
         let path = path.as_ref();
 
         // deduce all we can from file name
@@ -1030,7 +1064,7 @@ impl Rinex {
     ///     files that do not follow naming conventions
     #[cfg(feature = "flate2")]
     #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
-    pub fn to_gzip_file(&self, path: impl AsRef<Path>) -> Result<(), FormattingError> {
+    pub fn to_gzip_file<P: AsRef<Path>>(&self, path: P) -> Result<(), FormattingError> {
         let fd = File::create(path)?;
         let compression = GzCompression::new(5);
         let mut writer = BufWriter::new(GzEncoder::new(fd, compression));
@@ -1416,13 +1450,11 @@ impl Rinex {
 
     /// Modifies [Rinex] in place with observation differentiation
     /// using the remote (RHS) counterpart,
-    /// for each identical signal and signal source.
-    /// This only applies to Observation or DORIS RINEX and has no
-    /// effect on any other formats.
-    /// This is particularly useful in exotic setup, to compare
-    /// phase observations of two GNSS receivers, especially when
-    /// sharing the same clock (spread / shared signal)
-    pub fn substract_mut(&mut self, rhs: &Self) {
+    /// for each identical observation.
+    /// This only applies to Observation RINEX, DORIS or Meteo RINEX.
+    /// This allows analyzing a local clock used as GNSS receiver reference clock
+    /// spread to dual GNSS receiver, by means of phase differential analysis.
+    pub fn observation_substract_mut(&mut self, rhs: &Self) {
         if let Some(rhs) = rhs.record.as_obs() {
             if let Some(rec) = self.record.as_mut_obs() {
                 for (k, v) in rec.iter_mut() {
@@ -1450,11 +1482,11 @@ impl Rinex {
     }
 
     /// Copies and returns new [Rinex] that is the result
-    /// of observation differentiation. See [Self::substract_mut] for more
+    /// of observation differentiation. See [Self::observation_substract_mut] for more
     /// information.
-    pub fn substract(&self, rhs: &Self) -> Self {
+    pub fn observation_substract(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.substract_mut(rhs);
+        s.observation_substract_mut(rhs);
         s
     }
 }

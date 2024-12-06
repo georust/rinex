@@ -32,9 +32,11 @@ into the workspace (this is our toolkit behavior), which may be improved (if tha
   - CRINEX decompression
   - RINEX parsing
   - A few post processing tasks
-- The BINEX library appears. Yet, it is not integrated to the toolkit.
-It is not 100% clear yet what would be the best approach to introduce "real-time" oriented interfaces,
-to our post-processing oriented applications.
+- The BINEX library appears (work in progress)
+  - RNX2BIN APi and Applications appear: serve your RINEX to binary as BINEX (I/O or file.bin)
+  - BIN2RNX APi and Applications appear: collect BINEX stream (I/O or dumped file) as RINEX
+- RTCM options appear (Work in progress)
+  - RNX2RTCM serve RINEX content as RTCM messages (I/O or file.bin)
 - Improved overall API documentation (`docrs`) 
 
 ### Breaking changes

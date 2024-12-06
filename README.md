@@ -74,6 +74,7 @@ mostly for testing and demonstration purposes.
 
 ### Applications
 
+* [`BIN2RNX`](bin2rnx/) is an application to collect a BINEX stream into RINEX files.
 * [`CRX2RNX`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX).
 It is a light application that you can combined to `rinex-cli` for a complete workflow.
 * [`RINEX-Cli`](rinex-cli/) is our main application.
