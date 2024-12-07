@@ -60,7 +60,7 @@ pub fn parse_epoch(header: &Header, line: &str) -> Result<Vec<(MeteoKey, f64)>, 
     loop {
         let end = (offset + 7).min(line_len);
         let slice = &line[offset..end];
-        println!("slice \"{}\"", slice);
+        //println!("slice \"{}\"", slice);
 
         if let Ok(value) = slice.trim().parse::<f64>() {
             ret.push((

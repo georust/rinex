@@ -365,9 +365,11 @@ impl QcContext {
         let path = path.as_ref();
         if let Ok(rinex) = Rinex::from_file(path) {
             self.load_rinex(path, rinex)?;
+            info!("{} RINEX has been loaded", path.display());
             Ok(())
         } else if let Ok(sp3) = SP3::from_file(path) {
             self.load_sp3(path, sp3)?;
+            info!("{} SP3 has been loaded", path.display());
             Ok(())
         } else {
             Err(Error::NonSupportedFileFormat)
@@ -381,10 +383,10 @@ impl QcContext {
         let path = path.as_ref();
         if let Ok(rinex) = Rinex::from_gzip_file(path) {
             self.load_rinex(path, rinex)?;
-            info!("{} RINEX \"{}\" has been loaded", path.display(), "t");
+            info!("{} RINEX has been loaded", path.display());
             Ok(())
         } else if let Ok(sp3) = SP3::from_gzip_file(path) {
-            info!("{} RINEX \"{}\" has been loaded", path.display(), "t");
+            info!("{} SP3 has been loaded", path.display());
             self.load_sp3(path, sp3)?;
             Ok(())
         } else {

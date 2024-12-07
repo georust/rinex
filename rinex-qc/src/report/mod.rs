@@ -283,12 +283,12 @@ impl QcReport {
                     }
                     p class="menu-label" {
                         a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
-                            "Documentation"
+                            "Wiki"
                         }
                     }
                     p class="menu-label" {
-                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
-                            "Bug Report"
+                        a href="https://github.com/georust/rinex/tree/main/tutorials" style="margin-left:29px" {
+                            "Tutorials"
                         }
                     }
                     p class="menu-label" {
@@ -297,6 +297,11 @@ impl QcReport {
                                 i class="fa-brands fa-github" {}
                             }
                             "Sources"
+                        }
+                    }
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
+                            "Bug Report"
                         }
                     }
                 } // menu-list
@@ -339,7 +344,12 @@ impl QcReport {
                     }
                     p class="menu-label" {
                         a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
-                            "Documentation"
+                            "Wiki"
+                        }
+                    }
+                    p class="menu-label" {
+                        a href="https://github.com/georust/rinex/tree/main/tutorials" style="margin-left:29px" {
+                            "Tutorials"
                         }
                     }
                     p class="menu-label" {

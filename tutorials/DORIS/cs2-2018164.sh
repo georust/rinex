@@ -5,4 +5,5 @@ DATA_DIR=test_resources
 DORIS=$DATA_DIR/DOR/V3/cs2rx18164.gz
 
 # Example: complete analysis
-./target/release/rinex-cli --fp $DORIS
+# -f: force report synthesis in all sessions (single file setup, single session analysis)
+./target/release/rinex-cli -f --fp $DORIS

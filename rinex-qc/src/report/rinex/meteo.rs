@@ -153,7 +153,7 @@ impl MeteoPage {
 
             let trace = Plot::timedomain_chart(
                 &observable.to_string(),
-                Mode::LinesMarkers,
+                Mode::Markers,
                 MarkerSymbol::TriangleUp,
                 &data_x,
                 data_y,
