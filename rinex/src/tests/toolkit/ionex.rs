@@ -1,10 +1,21 @@
 use std::str::FromStr;
 
 use crate::{
-    ionex::MappingFunction,
+    ionex::{IonexKey, IonexMapCoordinates, MappingFunction, Quantized},
     prelude::{Epoch, Header, Rinex, RinexType},
     tests::toolkit::{generic_rinex_test, TimeFrame},
 };
+
+pub struct TecPoint<'a> {
+    pub t: &'a str,
+    pub lat_ddeg: f64,
+    pub lat_exponent: i8,
+    pub long_ddeg: f64,
+    pub long_exponent: i8,
+    pub alt_km: f64,
+    pub alt_exponent: i8,
+    pub tecu: i32,
+}
 
 /// Basic tests for Observation [Rinex]
 fn basic_header_tests(
@@ -71,7 +82,6 @@ fn basic_header_tests(
 /// Generic test that we can use for Observation [Rinex]
 pub fn generic_ionex_test(
     dut: &Rinex,
-    model: Option<&Rinex>,
     version: &str,
     is_3d: bool,
     epoch_of_first_map: &str,
@@ -90,6 +100,7 @@ pub fn generic_ionex_test(
     elevation_cutoff: f32,
     mapping_function: Option<&str>,
     time_frame: TimeFrame,
+    tec_points: Vec<TecPoint>,
 ) {
     assert!(dut.is_ionex());
 
@@ -98,8 +109,6 @@ pub fn generic_ionex_test(
     } else {
         assert!(dut.is_ionex_2d());
     }
-
-    let dut_rec = dut.record.as_ionex().unwrap();
 
     generic_rinex_test(
         dut,
@@ -128,25 +137,30 @@ pub fn generic_ionex_test(
         mapping_function,
     );
 
-    // Test TEC in volume
-    // for tec in tec_points {
-    //     let k = point.key;
-    //     let values = dut_rec
-    //         .get(&k)
-    //         .expect(&format!("missing data point for {:?}", k));
+    // Verify TEC in 3D (volume + isosurface)
+    let dut_rec = dut.record.as_ionex().unwrap();
 
-    //     let mut passed = false;
+    for point in tec_points.iter() {
+        let epoch = Epoch::from_str(point.t).unwrap();
 
-    //     for signal in values.signals.iter() {
-    //         if signal.sv == point.signal.sv {
-    //             if signal.observable == point.signal.observable {
-    //                 assert_eq!(signal.value, point.signal.value);
-    //                 assert_eq!(signal.lli, point.signal.lli);
-    //                 //assert_eq!(signal.snr, point.signal.snr); //TODO unlock
-    //                 passed = true;
-    //             }
-    //         }
-    //     }
-    //     assert!(passed, "missing data point {:?}", point);
-    // }
+        let lat_ddeg = point.lat_ddeg;
+        let long_ddeg = point.long_ddeg;
+        let alt_km = point.alt_km;
+
+        let coordinates = IonexMapCoordinates::new(
+            lat_ddeg,
+            point.lat_exponent,
+            long_ddeg,
+            point.long_exponent,
+            alt_km,
+            point.alt_exponent,
+        );
+
+        let key = IonexKey { epoch, coordinates };
+
+        let tec = dut_rec.get(&key).expect(&format!(
+            "missing TEC for t={};lat={};long={};z={}",
+            epoch, lat_ddeg, long_ddeg, alt_km
+        ));
+    }
 }

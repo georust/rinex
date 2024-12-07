@@ -1,6 +1,6 @@
 use crate::{
     prelude::Rinex,
-    tests::toolkit::{generic_ionex_test, TimeFrame},
+    tests::toolkit::{generic_ionex_test, TecPoint, TimeFrame},
 };
 
 use std::path::Path;
@@ -23,7 +23,6 @@ fn v1_ckmg0020_22i() {
 
     generic_ionex_test(
         &dut,
-        None,
         "1.0",
         false,
         "2022-01-02T00:00:00 UTC",
@@ -42,6 +41,58 @@ fn v1_ckmg0020_22i() {
         0.0,
         None,
         TimeFrame::from_inclusive_csv("2022-01-02T00:00:00 UTC, 2022-01-02T23:00:00 UTC, 1 hour"),
+        vec![
+            TecPoint {
+                t: "2022-01-02T00:00:00 UTC",
+                lat_ddeg: 87.5,
+                lat_exponent: 1,
+                long_ddeg: -180.0,
+                long_exponent: 1,
+                alt_km: 350.0,
+                alt_exponent: 0, // null spacing
+                tecu: 92,
+            },
+            TecPoint {
+                t: "2022-01-02T00:00:00 UTC",
+                lat_ddeg: -2.5,
+                lat_exponent: 1,
+                long_ddeg: -160.0,
+                long_exponent: 1,
+                alt_km: 350.0,
+                alt_exponent: 0, // null spacing
+                tecu: 383,
+            },
+            TecPoint {
+                t: "2022-01-02T00:00:00 UTC",
+                lat_ddeg: -2.5,
+                lat_exponent: 1,
+                long_ddeg: -155.0,
+                long_exponent: 1,
+                alt_km: 350.0,
+                alt_exponent: 0, // null spacing
+                tecu: 385,
+            },
+            TecPoint {
+                t: "2022-01-02T00:00:00 UTC",
+                lat_ddeg: -2.5,
+                lat_exponent: 1,
+                long_ddeg: -150.0,
+                long_exponent: 1,
+                alt_km: 350.0,
+                alt_exponent: 0, // null spacing
+                tecu: 385,
+            },
+            TecPoint {
+                t: "2022-01-02T00:00:00 UTC",
+                lat_ddeg: -2.5,
+                lat_exponent: 1,
+                long_ddeg: -145.0,
+                long_exponent: 1,
+                alt_km: 350.0,
+                alt_exponent: 0, // null spacing
+                tecu: 384,
+            },
+        ],
     );
 }
 
@@ -64,7 +115,6 @@ fn v1_ckmg0090_12i() {
 
     generic_ionex_test(
         &dut,
-        None,
         "1.0",
         false,
         "2021-01-09T00:00:00 UTC",
@@ -83,6 +133,7 @@ fn v1_ckmg0090_12i() {
         0.0,
         None,
         TimeFrame::from_inclusive_csv("2021-01-09T00:00:00 UTC, 2021-01-09T23:00:00 UTC, 1 hour"),
+        vec![],
     );
 }
 
@@ -105,7 +156,6 @@ fn v1_jplg0010_17i() {
 
     generic_ionex_test(
         &dut,
-        None,
         "1.0",
         false,
         "2017-01-01T00:00:00 UTC",
@@ -124,5 +174,6 @@ fn v1_jplg0010_17i() {
         10.0,
         None,
         TimeFrame::from_inclusive_csv("2017-01-01T00:00:00 UTC, 2017-01-01T23:00:00 UTC, 2 hour"),
+        vec![],
     );
 }

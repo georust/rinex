@@ -11,7 +11,7 @@ pub use observation::{
 
 // IONEX test toolkit
 mod ionex;
-pub use ionex::generic_ionex_test;
+pub use ionex::{generic_ionex_test, TecPoint};
 
 // NAV RINEX dedicated tools
 pub mod nav;
