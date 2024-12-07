@@ -38,6 +38,7 @@ into the workspace (this is our toolkit behavior), which may be improved (if tha
 - RTCM options appear (Work in progress)
   - RNX2RTCM serve RINEX content as RTCM messages (I/O or file.bin)
 - Improved overall API documentation (`docrs`) 
+- Vastly improved testing ecosystem: more generic methods: code less but test more
 
 ### Breaking changes
 
