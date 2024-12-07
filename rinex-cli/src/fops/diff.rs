@@ -32,7 +32,7 @@ pub fn diff(ctx: &mut Context, matches: &ArgMatches) -> Result<(), Error> {
         .get_rinex_data_mut(ProductType::Observation)
         .expect("RINEX (A-B) requires Observation RINEX");
 
-    rinex_a.substract_mut(&rinex_b);
+    rinex_a.observation_substract_mut(&rinex_b);
 
     let prod = custom_prod_attributes(&rinex_a, matches);
 

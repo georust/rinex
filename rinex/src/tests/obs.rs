@@ -1,12 +1,10 @@
 use crate::{
-    prelude::{GeodeticMarker, Rinex, SV, Observable, ObsKey, Epoch, EpochFlag, SNR, LliFlags},
-    tests::toolkit::{generic_observation_rinex_test, SignalDataPoint, TimeFrame}, SignalObservation,
+    prelude::{Epoch, EpochFlag, GeodeticMarker, LliFlags, ObsKey, Observable, Rinex, SNR, SV},
+    tests::toolkit::{generic_observation_rinex_test, SignalDataPoint, TimeFrame},
+    SignalObservation,
 };
 
-use std::{
-    str::FromStr,
-    path::Path,
-};
+use std::{path::Path, str::FromStr};
 
 #[test]
 fn v2_aopr0010_17o() {

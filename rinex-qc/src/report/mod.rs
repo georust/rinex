@@ -155,7 +155,7 @@ pub struct QcReport {
     /// Orbital projections (only when compatible)
     orbit: Option<OrbitReport>,
     /// Ionosphere Reporting (only when compatible)
-    iono: Option<IonoReport>,
+    iono: IonoReport,
     /// One tab per input product.
     products: HashMap<ProductType, ProductReport>,
     /// Custom chapters

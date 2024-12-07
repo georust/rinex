@@ -56,7 +56,9 @@ struct Combination {
     rhs: Observable,
 }
 
-/// Frequency dependent pagination
+/// Frequency dependent pagination.
+/// This depicts all information we have, on a single signal from a particular freqency.
+/// This is obtained by splitting by [SV] (=signal source) and [Observable] (=freq+modulation+physics)
 struct FrequencyPage {
     /// Total SPP compatible epochs
     total_spp_epochs: usize,
@@ -68,13 +70,14 @@ struct FrequencyPage {
     sampling: SamplingReport,
     /// One plot per physics
     raw_plots: HashMap<Physics, Plot>,
-    /// One plot per combination,
+    /// One plot per possible [Combination],
     combination_plots: HashMap<Combination, Plot>,
     /// Code Multipath
     multipath_plot: Plot,
 }
 
 impl FrequencyPage {
+    /// Builds new [FrequencyPage] from this shrinked [Rinex]
     pub fn new(rinex: &Rinex) -> Self {
         let mut total_spp_epochs = 0;
         let mut total_cpp_epochs = 0;
@@ -86,6 +89,7 @@ impl FrequencyPage {
 
         let sampling = SamplingReport::from_rinex(rinex);
 
+        // Basic counters and observation analysis
         for (k, signal) in rinex.signal_observations_iter() {
             if k.epoch > prev_t {
                 if nb_pr > 1 {
@@ -106,49 +110,75 @@ impl FrequencyPage {
             }
             prev_t = k.epoch;
         }
+
         Self {
             sampling,
             total_cpp_epochs,
             total_spp_epochs,
             total_ppp_epochs,
-            combination_plots: HashMap::new(),
-            multipath_plot: Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true),
             raw_plots: {
                 let mut plots = HashMap::<Physics, Plot>::new();
-                let svnn = rinex.sv_iter().collect::<Vec<_>>();
-                let observables = rinex.observables_iter().collect::<Vec<_>>();
 
-                // draws carrier phase plot for all SV; per signal
-                for ob in observables {
-                    let physics = Physics::from_observable(ob);
+                // draws all data points (as is).
+                // Split by [SV] signal source and [Observable] (=freq;modulation;physics)
+                for observable in rinex.observables_iter() {
+                    // observable dependent, plot caracteristics
+                    let physics = Physics::from_observable(observable);
                     let title = physics.plot_title();
                     let y_label = physics.y_label();
                     let mut plot = Plot::timedomain_plot(&title, &title, &y_label, true);
 
-                    for sv in &svnn {
+                    for sv in rinex.sv_iter() {
                         let obs_x_ok = rinex
                             .signal_observations_iter()
-                            .flat_map(|(k, _)| if k.flag.is_ok() { Some(k.epoch) } else { None })
+                            .flat_map(|(k, signal)| {
+                                if k.flag.is_ok()
+                                    && signal.sv == sv
+                                    && &signal.observable == observable
+                                {
+                                    Some(k.epoch)
+                                } else {
+                                    None
+                                }
+                            })
                             .collect::<Vec<_>>();
 
                         let obs_y_ok = rinex
                             .signal_observations_iter()
-                            .flat_map(|(k, v)| if k.flag.is_ok() { Some(v.value) } else { None })
+                            .flat_map(|(k, signal)| {
+                                if k.flag.is_ok()
+                                    && signal.sv == sv
+                                    && &signal.observable == observable
+                                {
+                                    Some(signal.value)
+                                } else {
+                                    None
+                                }
+                            })
                             .collect::<Vec<_>>();
 
                         let trace = Plot::timedomain_chart(
-                            &format!("{}({})", sv, ob),
+                            &format!("{}({})", sv, observable),
                             Mode::Markers,
                             MarkerSymbol::Cross,
                             &obs_x_ok,
                             obs_y_ok,
                             true,
                         );
+
                         plot.add_trace(trace);
                     }
                     plots.insert(physics, plot);
                 }
                 plots
+            },
+            combination_plots: {
+                // TODO
+                HashMap::new()
+            },
+            multipath_plot: {
+                // TODO
+                Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true)
             },
         }
     }
@@ -245,10 +275,12 @@ struct ConstellationPage {
 }
 
 impl ConstellationPage {
+    /// Builds new [ConstellationPage] for  this [Rinex] shrink to this [Constellation]
     pub fn new(constellation: Constellation, rinex: &Rinex) -> Self {
-        let mut spp_compatible = false; // TODO
-        let mut cpp_compatible = false; // TODO
-        let mut ppp_compatible = false; // TODO
+        // TODO
+        let spp_compatible = false;
+        let cpp_compatible = false;
+        let ppp_compatible = false;
 
         let satellites = rinex.sv_iter().collect::<Vec<_>>();
         let sampling = SamplingReport::from_rinex(rinex);
@@ -421,6 +453,8 @@ impl Report {
             }
         }
     }
+
+    /// Builds new [Report] from this [Rinex]
     pub fn new(rinex: &Rinex) -> Self {
         Self {
             sampling: SamplingReport::from_rinex(rinex),

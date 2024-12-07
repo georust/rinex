@@ -1,7 +1,7 @@
 use crate::{
+    meteo::format as format_meteo_observations,
     observation::format as format_observations,
     prelude::{FormattingError, Header},
-    meteo::format as format_meteo_observations,
     record::Record,
 };
 

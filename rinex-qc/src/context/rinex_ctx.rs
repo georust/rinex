@@ -1,5 +1,5 @@
 use crate::{
-    context::{Error, InputKey, ProductType, QcContext, UniqueId, UserBlobData, UserData},
+    context::{Error, InputKey, ProductType, QcContext, UserBlobData, UserData},
     prelude::{Merge, Rinex},
 };
 
@@ -27,15 +27,12 @@ impl QcContext {
     /// Load a single [Rinex] into [QcContext].
     /// File revision must be supported, file must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_rinex(&mut self, path: &Path, rinex: Rinex) -> Result<(), Error> {
-        let unique_id = Self::unique_rinex_id(&rinex).unwrap_or_default();
+    pub fn load_rinex<P: AsRef<Path>>(&mut self, path: P, rinex: Rinex) -> Result<(), Error> {
+        let path = path.as_ref();
 
         let product_type = ProductType::from(rinex.header.rinex_type);
 
-        let key = InputKey {
-            unique_id,
-            product_type,
-        };
+        let key = InputKey { product_type };
 
         // extend context
         if let Some(data) = self.get_unique_user_data_mut(&key) {
@@ -54,20 +51,20 @@ impl QcContext {
         Ok(())
     }
 
-    /// Tries to determine a [UniqueId] for this [Rinex].
-    /// This for example, will return unique GNSS receiver identifier.
-    /// It is [RinexType] dependent.
-    fn unique_rinex_id(rinex: &Rinex) -> Option<UniqueId> {
-        // in special DORIS case: this is the unique satellite ID
-        // Otherwise use GNSS receiver (if specified)
-        if let Some(doris) = &rinex.header.doris {
-            Some(UniqueId::Satellite(doris.satellite.clone()))
-        } else if let Some(rcvr) = &rinex.header.rcvr {
-            Some(UniqueId::Receiver(format!("{}-{}", rcvr.model, rcvr.sn)))
-        } else {
-            None
-        }
-    }
+    // /// Tries to determine a [UniqueId] for this [Rinex].
+    // /// This for example, will return unique GNSS receiver identifier.
+    // /// It is [RinexType] dependent.
+    // fn unique_rinex_id(rinex: &Rinex) -> Option<UniqueId> {
+    //     // in special DORIS case: this is the unique satellite ID
+    //     // Otherwise use GNSS receiver (if specified)
+    //     if let Some(doris) = &rinex.header.doris {
+    //         Some(UniqueId::Satellite(doris.satellite.clone()))
+    //     } else if let Some(rcvr) = &rinex.header.rcvr {
+    //         Some(UniqueId::Receiver(format!("{}-{}", rcvr.model, rcvr.sn)))
+    //     } else {
+    //         None
+    //     }
+    // }
 
     /// Returns reference to inner [Rinex] for this [RinexType]
     pub fn get_rinex_data(&self, product_id: ProductType) -> Option<&Rinex> {

@@ -1323,9 +1323,8 @@ impl Rinex {
     /// );
     /// ```
     pub fn constellations_iter(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
-        // from .sv() (unique) iterator:
-        //  create a unique list of Constellations
-        Box::new(self.sv_iter().map(|sv| sv.constellation).unique())
+        // Creates a unique list from .sv_iter()
+        Box::new(self.sv_iter().map(|sv| sv.constellation).unique().sorted())
     }
 
     // /// Returns an Iterator over Unique Constellations, per Epoch
@@ -1451,10 +1450,10 @@ impl Rinex {
     /// Modifies [Rinex] in place with observation differentiation
     /// using the remote (RHS) counterpart, for each identical observation and signal source.
     /// This only applies to Observation RINEX (1), DORIS (2) or Meteo RINEX (3).
-    /// 1: only same [Observable] from same [SV] are differentiated 
+    /// 1: only same [Observable] from same [SV] are differentiated
     /// 2: only same [Observable] from same [Station] are diffentiated
     /// 3: only same [Observable] are differentiated.
-    /// 
+    ///
     /// This allows analyzing a local clock used as GNSS receiver reference clock
     /// spread to dual GNSS receiver, by means of phase differential analysis.
     pub fn observation_substract_mut(&mut self, rhs: &Self) {
@@ -1481,7 +1480,7 @@ impl Rinex {
             if let Some(rec) = self.record.as_mut_doris() {
                 for (k, v) in rec.iter_mut() {
                     if let Some(rhs) = rhs.get(&k) {
-                        for (k, v)  in v.signals.iter_mut() {
+                        for (k, v) in v.signals.iter_mut() {
                             if let Some(rhs) = rhs.signals.get(&k) {
                                 v.value -= rhs.value;
                             }

@@ -371,7 +371,7 @@ fn parse_signals_v2(
             let slice = &line[offset..end];
 
             //#[cfg(feature = "log")]
-            println!("observation: [{}] \"{}\" {}", sv, slice, observables[obs_ptr]);
+            //println!("observation: [{}] \"{}\" {}", sv, slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;

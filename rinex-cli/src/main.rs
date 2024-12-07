@@ -96,56 +96,20 @@ fn user_data_parsing(
 
                 // we support gzip encoding
                 if gzip_encoded {
-                    if let Ok(rinex) = Rinex::from_gzip_file(path) {
-                        let loading = ctx.load_rinex(path, rinex);
-                        if loading.is_ok() {
-                            info!("Loading RINEX file \"{}\"", path.display());
-                        } else {
-                            warn!(
-                                "failed to load RINEX file \"{}\": {}",
-                                path.display(),
-                                loading.err().unwrap()
-                            );
-                        }
-                    } else if let Ok(sp3) = SP3::from_gzip_file(path) {
-                        let loading = ctx.load_sp3(path, sp3);
-                        if loading.is_ok() {
-                            info!("Loading SP3 file \"{}\"", path.display());
-                        } else {
-                            warn!(
-                                "failed to load SP3 file \"{}\": {}",
-                                path.display(),
-                                loading.err().unwrap()
-                            );
-                        }
-                    } else {
-                        warn!("non supported file format \"{}\"", path.display());
+                    match ctx.load_gzip_file(path) {
+                        Ok(()) => {},
+                        Err(e) => {
+                            let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                            error!("\"{}\" File loading error: {}", filename, e);
+                        },
                     }
                 } else {
-                    if let Ok(rinex) = Rinex::from_file(path) {
-                        let loading = ctx.load_rinex(path, rinex);
-                        if loading.is_ok() {
-                            info!("Loading RINEX file \"{}\"", path.display());
-                        } else {
-                            warn!(
-                                "failed to load RINEX file \"{}\": {}",
-                                path.display(),
-                                loading.err().unwrap()
-                            );
-                        }
-                    } else if let Ok(sp3) = SP3::from_file(path) {
-                        let loading = ctx.load_sp3(path, sp3);
-                        if loading.is_ok() {
-                            info!("Loading SP3 file \"{}\"", path.display());
-                        } else {
-                            warn!(
-                                "failed to load SP3 file \"{}\": {}",
-                                path.display(),
-                                loading.err().unwrap()
-                            );
-                        }
-                    } else {
-                        warn!("non supported file format \"{}\"", path.display());
+                    match ctx.load_file(path) {
+                        Ok(()) => {},
+                        Err(e) => {
+                            let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                            error!("\"{}\" File loading error: {}", filename, e);
+                        },
                     }
                 }
             }
@@ -166,48 +130,20 @@ fn user_data_parsing(
 
         // we support gzip encoding
         if gzip_encoded {
-            if let Ok(rinex) = Rinex::from_gzip_file(path) {
-                let loading = ctx.load_rinex(path, rinex);
-                if loading.is_err() {
-                    warn!(
-                        "failed to load RINEX file \"{}\": {}",
-                        path.display(),
-                        loading.err().unwrap()
-                    );
-                }
-            } else if let Ok(sp3) = SP3::from_gzip_file(path) {
-                let loading = ctx.load_sp3(path, sp3);
-                if loading.is_err() {
-                    warn!(
-                        "failed to load SP3 file \"{}\": {}",
-                        path.display(),
-                        loading.err().unwrap()
-                    );
-                }
-            } else {
-                warn!("non supported file format \"{}\"", path.display());
+            match ctx.load_gzip_file(path) {
+                Ok(()) => {},
+                Err(e) => {
+                    let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                    error!("\"{}\" File loading error: {}", filename, e);
+                },
             }
         } else {
-            if let Ok(rinex) = Rinex::from_file(path) {
-                let loading = ctx.load_rinex(path, rinex);
-                if loading.is_err() {
-                    warn!(
-                        "failed to load RINEX file \"{}\": {}",
-                        path.display(),
-                        loading.err().unwrap()
-                    );
-                }
-            } else if let Ok(sp3) = SP3::from_file(path) {
-                let loading = ctx.load_sp3(path, sp3);
-                if loading.is_err() {
-                    warn!(
-                        "failed to load SP3 file \"{}\": {}",
-                        path.display(),
-                        loading.err().unwrap()
-                    );
-                }
-            } else {
-                warn!("non supported file format \"{}\"", path.display());
+            match ctx.load_file(path) {
+                Ok(()) => {},
+                Err(e) => {
+                    let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                    error!("\"{}\" File loading error: {}", filename, e);
+                },
             }
         }
     }
@@ -216,6 +152,8 @@ fn user_data_parsing(
     preprocess(&mut ctx, cli);
 
     match cli.matches.subcommand() {
+        // Special print in case of RTK
+        // it helps differentiate between remote and local context
         Some(("rtk", _)) => {
             if is_rover {
                 debug!("ROVER Dataset: {:?}", ctx);
@@ -224,6 +162,8 @@ fn user_data_parsing(
             }
         },
         _ => {
+            // Default print (normal use case)
+            // local context (=rover) only
             debug!("{:?}", ctx);
         },
     }
@@ -253,6 +193,7 @@ pub fn main() -> Result<(), Error> {
         max_recursive_depth,
         true,
     );
+
     let ctx_position = data_ctx.reference_position();
     let ctx_stem = Context::context_stem(&mut data_ctx);
 

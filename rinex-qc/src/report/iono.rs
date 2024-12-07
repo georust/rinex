@@ -1,5 +1,5 @@
 //! Ionosphere modeling and parameters tab
-use crate::prelude::{Config, QcContext};
+use crate::prelude::{Plot, QcConfig, QcContext};
 
 pub struct IonoReport {
     /// TEC plot per signal source, over time
@@ -10,10 +10,10 @@ pub struct IonoReport {
 
 impl IonoReport {
     /// Builds new [IonoReport] from [QcContext] using custom [Config]
-    pub fn new(context: &QcContext, cfg: &Config) -> Self {
+    pub fn new(context: &QcContext, cfg: &QcConfig) -> Self {
         let tec_plot = None;
         let ipp_proj = None;
-        None
+        Self { tec_plot, ipp_proj }
     }
 
     pub(crate) fn exists(&self) -> bool {

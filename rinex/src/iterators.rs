@@ -45,7 +45,7 @@ impl Rinex {
                         } else {
                             None
                         }
-                    })
+                    }),
             )
         } else {
             Box::new([].into_iter())
@@ -92,7 +92,7 @@ impl Rinex {
                         } else {
                             None
                         }
-                    })
+                    }),
             )
         } else {
             Box::new([].into_iter())
@@ -127,7 +127,7 @@ impl Rinex {
                         } else {
                             None
                         }
-                    })
+                    }),
             )
         } else {
             Box::new([].into_iter())

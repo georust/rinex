@@ -72,7 +72,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
             let (rinex_a, rinex_b) = rinex.split(*t);
 
             let input_path = ctx_data
-                .files_iter(Some(product_id), None)
+                .files_iter(Some(product_id))
                 .next()
                 .expect("failed to determine output file name");
 

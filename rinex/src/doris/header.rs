@@ -56,11 +56,7 @@ impl HeaderFields {
         )?;
 
         let num_stations = format!("{:<10}", self.stations.len());
-        write!(
-            w,
-            "{}",
-            fmt_rinex(&num_stations, "# OF STATIONS")
-        )?;
+        write!(w, "{}", fmt_rinex(&num_stations, "# OF STATIONS"))?;
 
         for station in self.stations.iter() {
             write!(

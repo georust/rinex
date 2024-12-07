@@ -164,15 +164,19 @@ pub fn generic_observation_rinex_test(
     // Test clock data points
     for point in clock_points {
         let k = point.key;
-        let values = dut_rec.get(&k).expect(&format!("missing clock data for {:?}", k));
+        let values = dut_rec
+            .get(&k)
+            .expect(&format!("missing clock data for {:?}", k));
         assert_eq!(values.clock, Some(point.clock));
     }
 
     // Test signal data points
     for point in signal_points {
         let k = point.key;
-        let values = dut_rec.get(&k).expect(&format!("missing data point for {:?}", k));
-        
+        let values = dut_rec
+            .get(&k)
+            .expect(&format!("missing data point for {:?}", k));
+
         let mut passed = false;
 
         for signal in values.signals.iter() {

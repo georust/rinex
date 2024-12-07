@@ -6,7 +6,8 @@ use std::collections::btree_map::{Iter, IterMut, Keys};
 
 use crate::{
     doris::{DorisKey, Observations, SignalKey, SignalObservation},
-    prelude::{Rinex, RinexType}, ClockObservation,
+    prelude::{Rinex, RinexType},
+    ClockObservation,
 };
 
 impl Rinex {

@@ -40,11 +40,8 @@ use rinex_qc::prelude::QcExtraPage;
 
 use gnss_rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,
-    NgModel, Solver,
+    NgModel, PVTSolutionType, Solver,
 };
-
-#[cfg(feature = "cggtts")]
-use gnss_rtk::prelude::PVTSolutionType;
 
 use thiserror::Error;
 

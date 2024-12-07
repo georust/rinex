@@ -13,7 +13,10 @@ use std::{
 use regex::Regex;
 
 use rinex::{
-    prelude::{nav::Almanac, GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale},
+    prelude::{
+        nav::{Almanac, Orbit},
+        GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale,
+    },
     types::Type as RinexType,
 };
 
@@ -84,13 +87,13 @@ impl std::fmt::Display for ProductType {
         match self {
             Self::ANTEX => write!(f, "ANTEX"),
             Self::IONEX => write!(f, "IONEX"),
-            Self::DORIS => write!(f, "DORIS RINEX"),
-            Self::Observation => write!(f, "Observation"),
-            Self::MeteoObservation => write!(f, "Meteo"),
-            Self::HighPrecisionClock => write!(f, "High Precision Clock"),
-            Self::BroadcastNavigation => write!(f, "Broadcast Navigation (BRDC)"),
+            Self::DORIS => write!(f, "DORIS"),
+            Self::Observation => write!(f, "Observation RINEX"),
+            Self::MeteoObservation => write!(f, "Meteo RINEX"),
+            Self::HighPrecisionClock => write!(f, "Clock RINEX"),
+            Self::BroadcastNavigation => write!(f, "Navigation RINEX"),
             #[cfg(feature = "sp3")]
-            Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
+            Self::HighPrecisionOrbit => write!(f, "SP3"),
         }
     }
 }
@@ -109,21 +112,21 @@ impl From<RinexType> for ProductType {
     }
 }
 
-impl ProductType {
-    pub(crate) fn to_rinex_type(&self) -> Option<RinexType> {
-        match self {
-            Self::Observation => Some(RinexType::ObservationData),
-            Self::ANTEX => Some(RinexType::AntennaData),
-            Self::BroadcastNavigation => Some(RinexType::NavigationData),
-            Self::DORIS => Some(RinexType::DORIS),
-            Self::IONEX => Some(RinexType::IonosphereMaps),
-            Self::MeteoObservation => Some(RinexType::MeteoData),
-            Self::HighPrecisionClock => Some(RinexType::ClockData),
-            #[cfg(feature = "sp3")]
-            Self::HighPrecisionOrbit => None,
-        }
-    }
-}
+// impl ProductType {
+//     pub(crate) fn to_rinex_type(&self) -> Option<RinexType> {
+//         match self {
+//             Self::Observation => Some(RinexType::ObservationData),
+//             Self::ANTEX => Some(RinexType::AntennaData),
+//             Self::BroadcastNavigation => Some(RinexType::NavigationData),
+//             Self::DORIS => Some(RinexType::DORIS),
+//             Self::IONEX => Some(RinexType::IonosphereMaps),
+//             Self::MeteoObservation => Some(RinexType::MeteoData),
+//             Self::HighPrecisionClock => Some(RinexType::ClockData),
+//             #[cfg(feature = "sp3")]
+//             Self::HighPrecisionOrbit => None,
+//         }
+//     }
+// }
 
 enum UserBlobData {
     /// RINEX content
@@ -142,24 +145,24 @@ struct UserData {
     paths: Vec<PathBuf>,
 }
 
-/// [UniqueId] can differentiate between two identical [ProductType]s
-#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum UniqueId {
-    /// GNSS receiver name/model differentiates a signal source
-    Receiver(String),
-    /// Data provider (agency) may differentiate some [ProductType]s
-    Agency(String),
-    /// A satellite may differentiate some [ProductType]s
-    Satellite(String),
-    /// Some [ProductType] are not differentiated
-    #[default]
-    None,
-}
+// /// [UniqueId] can differentiate between two identical [ProductType]s
+// #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// pub enum UniqueId {
+//     /// GNSS receiver name/model differentiates a signal source
+//     Receiver(String),
+//     /// Data provider (agency) may differentiate some [ProductType]s
+//     Agency(String),
+//     /// A satellite may differentiate some [ProductType]s
+//     Satellite(String),
+//     /// Some [ProductType] are not differentiated
+//     #[default]
+//     None,
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct InputKey {
-    /// [UniqueId] makes two identical [ProductType]s unique.
-    pub unique_id: UniqueId,
+    // /// [UniqueId] makes two identical [ProductType]s unique.
+    // pub unique_id: UniqueId,
     /// [ProductType] is the first level of uniqueness.
     pub product_type: ProductType,
 }
@@ -309,6 +312,7 @@ impl QcContext {
         Ok(Self {
             almanac,
             earth_cef,
+            ground_position: None,
             user_data: Default::default(),
         })
     }
@@ -319,6 +323,7 @@ impl QcContext {
         Ok(Self {
             almanac,
             earth_cef: frame,
+            ground_position: None,
             user_data: Default::default(),
         })
     }
@@ -355,8 +360,9 @@ impl QcContext {
     }
 
     /// Smart data loader, that will automatically pick up the provided
-    /// format (is supported).
-    pub fn load_file(&mut self, path: impl AsRef<Path>) -> Result<(), Error> {
+    /// format (if supported).
+    pub fn load_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
+        let path = path.as_ref();
         if let Ok(rinex) = Rinex::from_file(path) {
             self.load_rinex(path, rinex)?;
             Ok(())
@@ -369,13 +375,16 @@ impl QcContext {
     }
 
     /// Smart data loader, that will automatically pick up the provided
-    /// format (is supported).
+    /// format (if supported).
     #[cfg(feature = "flate2")]
-    pub fn load_gzip_file(&mut self, path: impl AsRef<Path>) -> Result<(), Error> {
+    pub fn load_gzip_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
+        let path = path.as_ref();
         if let Ok(rinex) = Rinex::from_gzip_file(path) {
             self.load_rinex(path, rinex)?;
+            info!("{} RINEX \"{}\" has been loaded", path.display(), "t");
             Ok(())
         } else if let Ok(sp3) = SP3::from_gzip_file(path) {
+            info!("{} RINEX \"{}\" has been loaded", path.display(), "t");
             self.load_sp3(path, sp3)?;
             Ok(())
         } else {
@@ -403,7 +412,7 @@ impl QcContext {
             ProductType::HighPrecisionOrbit,
         ] {
             // Returns first file loaded in this category.
-            if let Some(first) = self.files_iter(Some(product), None).next() {
+            if let Some(first) = self.files_iter(Some(product)).next() {
                 return Some(first);
             }
         }
@@ -429,67 +438,51 @@ impl QcContext {
         }
     }
 
+    /// Returns true when only a single file has been loaded in [QcContext]
+    pub fn single_file(&self) -> bool {
+        let mut count = 0;
+        for product in [
+            ProductType::Observation,
+            ProductType::BroadcastNavigation,
+            ProductType::MeteoObservation,
+            ProductType::HighPrecisionClock,
+            ProductType::IONEX,
+            ProductType::ANTEX,
+        ] {
+            count += self.files_iter(Some(product)).count();
+        }
+
+        #[cfg(feature = "sp3")]
+        {
+            count += self
+                .files_iter(Some(ProductType::HighPrecisionOrbit))
+                .count();
+        }
+
+        count == 1
+    }
+
     /// Returns local file names Iterator.
     /// Use [ProductType] filter to restrict to specific input [ProductType].
-    /// Use [UniqueId] filter to restrict to specific data source.
     pub fn files_iter(
         &self,
         product_id: Option<ProductType>,
-        source_id: Option<UniqueId>,
     ) -> Box<dyn Iterator<Item = &Path> + '_> {
         if let Some(product_id) = product_id {
-            if let Some(source_id) = source_id {
-                Box::new(
-                    self.user_data
-                        .iter()
-                        .filter_map(move |(k, v)| {
-                            if k.product_type == product_id {
-                                if k.unique_id == source_id {
-                                    Some(v.paths.iter().map(|k| k.as_path()))
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        })
-                        .flatten(),
-                )
-            } else {
-                Box::new(
-                    self.user_data
-                        .iter()
-                        .filter_map(move |(k, v)| {
-                            if k.product_type == product_id {
-                                Some(v.paths.iter().map(|k| k.as_path()))
-                            } else {
-                                None
-                            }
-                        })
-                        .flatten(),
-                )
-            }
+            Box::new(
+                self.user_data
+                    .iter()
+                    .filter_map(move |(k, v)| {
+                        if k.product_type == product_id {
+                            Some(v.paths.iter().map(|k| k.as_path()))
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten(),
+            )
         } else {
-            if let Some(source_id) = source_id {
-                Box::new(
-                    self.user_data
-                        .iter()
-                        .filter_map(move |(k, v)| {
-                            if k.unique_id == source_id {
-                                Some(v.paths.iter().map(|k| k.as_path()))
-                            } else {
-                                None
-                            }
-                        })
-                        .flatten(),
-                )
-            } else {
-                Box::new(
-                    self.user_data
-                        .iter()
-                        .flat_map(|(_, v)| v.paths.iter().map(|k| k.as_path())),
-                )
-            }
+            Box::new([].into_iter())
         }
     }
 
@@ -662,7 +655,9 @@ impl QcContext {
 impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Primary: \"{}\"", self.name())?;
+        if !self.single_file() {
+            writeln!(f, "Primary File is : \"{}\"", self.name())?;
+        }
         for product in [
             ProductType::Observation,
             ProductType::BroadcastNavigation,
@@ -670,13 +665,22 @@ impl std::fmt::Debug for QcContext {
             ProductType::HighPrecisionClock,
             ProductType::IONEX,
             ProductType::ANTEX,
-            #[cfg(feature = "sp3")]
-            ProductType::HighPrecisionOrbit,
         ] {
-            while let Some(path) = self.files_iter(Some(product), None).next() {
-                write!(f, "\n{}: ", product)?;
-                write!(f, "{:?}", path)?;
+            for absolute_path in self.files_iter(Some(product)) {
+                let file_name = absolute_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy();
+                writeln!(f, "{}: \"{}\"", product, file_name)?;
             }
+        }
+        #[cfg(feature = "sp3")]
+        for absolute_path in self.files_iter(Some(ProductType::HighPrecisionOrbit)) {
+            let file_name = absolute_path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy();
+            writeln!(f, "{}: \"{}\"", ProductType::HighPrecisionOrbit, file_name)?;
         }
         Ok(())
     }

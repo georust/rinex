@@ -1,5 +1,5 @@
 use crate::{
-    doris::{DorisKey, Observations, Station, SignalKey, SignalObservation},
+    doris::{DorisKey, Observations, SignalKey, SignalObservation, Station},
     epoch::parse_in_timescale as parse_epoch_in_timescale,
     observation::ClockObservation,
     prelude::{Epoch, EpochFlag, Header, ParsingError, TimeScale},

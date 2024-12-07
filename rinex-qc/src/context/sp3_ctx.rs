@@ -1,7 +1,7 @@
 //! SP3 enhanced user data (for PPP)
 
 use crate::{
-    context::{Error, InputKey, UniqueId, UserBlobData, UserData},
+    context::{Error, InputKey, UserBlobData, UserData},
     prelude::{Merge, ProductType, QcContext},
 };
 
@@ -30,13 +30,11 @@ impl QcContext {
     /// Load a single SP3 file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_sp3(&mut self, path: &Path, sp3: SP3) -> Result<(), Error> {
+    pub fn load_sp3<P: AsRef<Path>>(&mut self, path: P, sp3: SP3) -> Result<(), Error> {
+        let path = path.as_ref();
         let product_type = ProductType::HighPrecisionOrbit;
 
-        let key = InputKey {
-            product_type,
-            unique_id: Self::unique_sp3_id(&sp3),
-        };
+        let key = InputKey { product_type };
 
         // extend context blob
         if let Some(data) = self.get_unique_sp3_data_mut(&sp3.agency) {
@@ -53,12 +51,12 @@ impl QcContext {
         Ok(())
     }
 
-    /// Determines a [UniqueId] for this [SP3] (infaillible).
-    /// This for example, will return unique GNSS receiver identifier.
-    /// It is [RinexType] dependent.
-    fn unique_sp3_id(sp3: &SP3) -> UniqueId {
-        UniqueId::Agency(sp3.agency.clone())
-    }
+    // /// Determines a [UniqueId] for this [SP3] (infaillible).
+    // /// This for example, will return unique GNSS receiver identifier.
+    // /// It is [RinexType] dependent.
+    // fn unique_sp3_id(sp3: &SP3) -> UniqueId {
+    //     UniqueId::Agency(sp3.agency.clone())
+    // }
 
     pub fn sp3_data(&self) -> Option<&SP3> {
         self.get_per_product_user_data(ProductType::HighPrecisionOrbit)?
@@ -75,7 +73,6 @@ impl QcContext {
     pub fn get_unique_sp3_data(&self, agency: &str) -> Option<&SP3> {
         let key = InputKey {
             product_type: ProductType::HighPrecisionOrbit,
-            unique_id: UniqueId::Agency(agency.to_string()),
         };
 
         self.get_unique_user_data(&key)?.blob_data.as_sp3()
@@ -84,7 +81,6 @@ impl QcContext {
     pub fn get_unique_sp3_data_mut(&mut self, agency: &str) -> Option<&mut SP3> {
         let key = InputKey {
             product_type: ProductType::HighPrecisionOrbit,
-            unique_id: UniqueId::Agency(agency.to_string()),
         };
 
         self.get_unique_user_data_mut(&key)?.blob_data.as_mut_sp3()

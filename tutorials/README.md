@@ -85,6 +85,7 @@ Other file operations like RINEX files management is also demonstrated.
   - 2024-111 Nyalesund (NOR) 2024 glacier surveying (RTK compatible)
 - [QC](./QC) (other)
   - other QC and analysis examples (without surveying)
+- [OBS](./OBS) Simple Observation RINEX exploitation
 - [SP3](./SP3) high precision orbit applications 
   - Examples with SP3 data only 
   - SP3 for PPP
