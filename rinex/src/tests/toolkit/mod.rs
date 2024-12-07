@@ -9,6 +9,10 @@ pub use observation::{
     generic_observation_rinex_test, ClockDataPoint, SignalDataPoint,
 };
 
+// IONEX test toolkit
+mod ionex;
+pub use ionex::generic_ionex_test;
+
 // NAV RINEX dedicated tools
 pub mod nav;
 

@@ -340,9 +340,7 @@ impl Record {
                         },
 
                         Type::IonosphereMaps => {
-                            if is_new_tec_map(&epoch_buf[..60]) {
-                                panic!("new TEC map \"{}\"", &epoch_buf[..120]);
-
+                            if is_new_tec_map(&line_buf) {
                                 match parse_ionex_tec_map(
                                     &epoch_buf,
                                     ionex_lat_exponent,
@@ -355,7 +353,7 @@ impl Record {
                                     Ok(()) => {},
                                     Err(e) => {},
                                 }
-                            } else if is_new_rms_map(&epoch_buf[..60]) {
+                            } else if is_new_rms_map(&line_buf) {
                                 match parse_ionex_rms_map(
                                     &epoch_buf,
                                     ionex_lat_exponent,

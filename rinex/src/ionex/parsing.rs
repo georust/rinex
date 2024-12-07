@@ -71,11 +71,10 @@ pub fn parse_tec_map(
     long_exponent: i8,
     alt_exponent: i8,
     tec_exponent: i8,
-    mut epoch: Epoch,
+    epoch: Epoch,
     record: &mut Record,
 ) -> Result<(), ParsingError> {
     let lines = content.lines();
-    let mut epoch = Epoch::default();
 
     let mut fixed_lat = 0.0_f64;
     let (mut long1, mut long_spacing) = (0.0_f64, 0.0_f64);
@@ -322,21 +321,147 @@ mod test {
         )
         .unwrap();
 
-        let coordinates = IonexMapCoordinates::new(
-            87.5,
-            lat_exponent,
-            -180.0,
-            long_exponent,
-            450.0,
-            alt_exponent,
-        );
+        for (coordinates, quantized_tec) in [
+            (
+                IonexMapCoordinates::new(
+                    87.5,
+                    lat_exponent,
+                    -180.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                33,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    87.5,
+                    lat_exponent,
+                    -175.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                33,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    87.5,
+                    lat_exponent,
+                    -170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                32,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    87.5,
+                    lat_exponent,
+                    170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                34,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    87.5,
+                    lat_exponent,
+                    175.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                33,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    87.5,
+                    lat_exponent,
+                    180.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                33,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    85.0,
+                    lat_exponent,
+                    -180.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                36,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    85.0,
+                    lat_exponent,
+                    -175.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                36,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    85.0,
+                    lat_exponent,
+                    -170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                35,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    85.0,
+                    lat_exponent,
+                    170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                37,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    85.0,
+                    lat_exponent,
+                    175.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                37,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    85.0,
+                    lat_exponent,
+                    180.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                36,
+            ),
+        ] {
+            let key = IonexKey { epoch, coordinates };
 
-        let key = IonexKey { epoch, coordinates };
+            let tec = record
+                .get(&key)
+                .expect(&format!("missing value for {:?} data", key));
 
-        println!("{:#?}", record);
-
-        let tec = record
-            .get(&key)
-            .expect(&format!("missing value for {:?} data", key));
+            assert_eq!(tec.tecu.quantized, quantized_tec);
+        }
     }
 }
