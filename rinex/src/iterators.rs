@@ -1,4 +1,4 @@
-use crate::prelude::{Epoch, EpochFlag, Observable, Rinex};
+use crate::prelude::{Epoch, Observable, Rinex};
 
 impl Rinex {
     /// Returns temperature measurements iterator, values expressed in Celcius degrees.
@@ -39,13 +39,13 @@ impl Rinex {
         } else if self.is_doris() {
             Box::new(
                 self.doris_ground_station_signals_iter()
-                    .filter_map(|(k, v)| {
+                    .filter_map(|(k, v, s)| {
                         if v.observable == Observable::Temperature {
-                            Some((k.epoch, v.value))
+                            Some((k.epoch, s.value))
                         } else {
                             None
                         }
-                    }),
+                    })
             )
         } else {
             Box::new([].into_iter())
@@ -86,13 +86,13 @@ impl Rinex {
         } else if self.is_doris() {
             Box::new(
                 self.doris_ground_station_signals_iter()
-                    .filter_map(|(k, v)| {
+                    .filter_map(|(k, v, s)| {
                         if v.observable == Observable::Pressure {
-                            Some((k.epoch, v.value))
+                            Some((k.epoch, s.value))
                         } else {
                             None
                         }
-                    }),
+                    })
             )
         } else {
             Box::new([].into_iter())
@@ -121,13 +121,13 @@ impl Rinex {
         } else if self.is_doris() {
             Box::new(
                 self.doris_ground_station_signals_iter()
-                    .filter_map(|(k, v)| {
+                    .filter_map(|(k, v, s)| {
                         if v.observable == Observable::HumidityRate {
-                            Some((k.epoch, v.value))
+                            Some((k.epoch, s.value))
                         } else {
                             None
                         }
-                    }),
+                    })
             )
         } else {
             Box::new([].into_iter())

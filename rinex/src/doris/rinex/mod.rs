@@ -5,8 +5,8 @@ mod feature;
 use std::collections::btree_map::{Iter, IterMut, Keys};
 
 use crate::{
-    doris::{DorisKey, Observations, StationSignalObservation},
-    prelude::{Rinex, RinexType},
+    doris::{DorisKey, Observations, SignalKey, SignalObservation},
+    prelude::{Rinex, RinexType}, ClockObservation,
 };
 
 impl Rinex {
@@ -46,7 +46,7 @@ impl Rinex {
     /// Offset is offset to TAI timescale expressed as [Duration].
     pub fn doris_satellite_clock_offset_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (DorisKey, StationSignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (DorisKey, ClockObservation)> + '_> {
         Box::new([].into_iter())
     }
 
@@ -55,7 +55,7 @@ impl Rinex {
     /// one DORIS satellite per file. Use [Observable] to determine the signal, physics and signal modulation.
     pub fn doris_ground_station_signals_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (DorisKey, StationSignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (DorisKey, SignalKey, SignalObservation)> + '_> {
         Box::new([].into_iter())
     }
 }

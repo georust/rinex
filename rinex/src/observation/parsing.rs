@@ -232,7 +232,6 @@ fn parse_signals_v2(
     const MAX_OBSERVABLES_LINE: usize = 5; // max in a single line
     const OBSERVABLE_F14_WIDTH: usize = 14;
     const OBSERVABLE_WIDTH: usize = OBSERVABLE_F14_WIDTH + 2; // data +lli +snr +1separator
-    const MIN_LINE_WIDTH: usize = 1; // below 10 bytes, we're sure this line is empty (=not a single obs)
 
     // basic check that avoid entering the loop for nothing
     if systems_str_len < SVNN_SIZE {
@@ -372,13 +371,14 @@ fn parse_signals_v2(
             let slice = &line[offset..end];
 
             //#[cfg(feature = "log")]
-            //debug!("observation: \"{}\" {}", slice, observables[obs_ptr]);
+            println!("observation: [{}] \"{}\" {}", sv, slice, observables[obs_ptr]);
 
             // parse possible LLI
             let mut lli = Option::<LliFlags>::None;
 
             if slice.len() > OBSERVABLE_F14_WIDTH {
                 let lli_slice = &slice[OBSERVABLE_F14_WIDTH..OBSERVABLE_F14_WIDTH + 1];
+                //println!("lli: \"{}\"", lli_slice);
                 match lli_slice.parse::<u8>() {
                     Ok(unsigned) => {
                         lli = LliFlags::from_bits(unsigned);
@@ -397,6 +397,7 @@ fn parse_signals_v2(
 
             if slice.len() > OBSERVABLE_F14_WIDTH + 1 {
                 let snr_slice = &slice[OBSERVABLE_F14_WIDTH + 1..OBSERVABLE_F14_WIDTH + 2];
+                //println!("snr: \"{}\"", snr_slice);
                 match SNR::from_str(snr_slice) {
                     Ok(found) => {
                         snr = Some(found);
@@ -416,9 +417,9 @@ fn parse_signals_v2(
             if let Ok(value) = slice[..end].trim().parse::<f64>() {
                 signals.push(SignalObservation {
                     sv,
-                    value,
                     snr,
                     lli,
+                    value,
                     observable: observables[obs_ptr].clone(),
                 });
             }

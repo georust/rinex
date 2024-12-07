@@ -1,6 +1,6 @@
 use crate::{
     doris::{DorisKey, Station},
-    prelude::{Duration, Rinex},
+    prelude::Rinex,
 };
 
 impl Rinex {

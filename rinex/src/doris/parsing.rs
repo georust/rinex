@@ -1,5 +1,5 @@
 use crate::{
-    doris::{DorisKey, Observations, Station, StationSignalObservation},
+    doris::{DorisKey, Observations, Station, SignalKey, SignalObservation},
     epoch::parse_in_timescale as parse_epoch_in_timescale,
     observation::ClockObservation,
     prelude::{Epoch, EpochFlag, Header, ParsingError, TimeScale},
@@ -13,7 +13,7 @@ pub fn is_new_epoch(line: &str) -> bool {
 fn parse_new_station(
     line: &str,
     stations: &Vec<Station>,
-    signals: &mut Vec<StationSignalObservation>,
+    signals: &mut Vec<SignalObservation>,
 ) -> Result<(), ParsingError> {
     let line_len = line.len();
 
@@ -45,7 +45,7 @@ fn parse_new_station(
 
 fn parse_station_continuation(
     line: &str,
-    signals: &mut Vec<StationSignalObservation>,
+    signals: &mut Vec<SignalObservation>,
 ) -> Result<(), ParsingError> {
     let line_len = line.len();
 
@@ -132,7 +132,6 @@ pub fn parse_epoch(
         }
     }
 
-    observations.signals = signals;
     Ok((key, observations))
 }
 

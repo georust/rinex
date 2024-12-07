@@ -1,6 +1,7 @@
 use crate::{
     observation::format as format_observations,
     prelude::{FormattingError, Header},
+    meteo::format as format_meteo_observations,
     record::Record,
 };
 
@@ -14,6 +15,8 @@ impl Record {
     ) -> Result<(), FormattingError> {
         if let Some(rec) = self.as_obs() {
             format_observations(w, rec, header)
+        } else if let Some(rec) = self.as_meteo() {
+            format_meteo_observations(w, rec, header)
         } else {
             Ok(())
         }

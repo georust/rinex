@@ -1,9 +1,12 @@
 use crate::{
-    prelude::{GeodeticMarker, Rinex},
-    tests::toolkit::{generic_observation_rinex_test, TimeFrame},
+    prelude::{GeodeticMarker, Rinex, SV, Observable, ObsKey, Epoch, EpochFlag, SNR, LliFlags},
+    tests::toolkit::{generic_observation_rinex_test, SignalDataPoint, TimeFrame}, SignalObservation,
 };
 
-use std::path::Path;
+use std::{
+    str::FromStr,
+    path::Path,
+};
 
 #[test]
 fn v2_aopr0010_17o() {
@@ -272,7 +275,216 @@ fn v2_ajac3550() {
             None,
             None,
             TimeFrame::from_erratic_csv("2021-12-21T00:00:00 GPST, 2021-12-21T00:00:30 GPST"),
-            vec![],
+            vec![
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: 131857102.133,
+                        observable: Observable::from_str("L1").unwrap(),
+                        lli: None,
+                        snr: Some(SNR::from(6)),
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: 102745756.542,
+                        observable: Observable::from_str("L2").unwrap(),
+                        lli: LliFlags::from_bits(4),
+                        snr: Some(SNR::from(5)),
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: 25091572.300,
+                        observable: Observable::from_str("C1").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: 25091565.600,
+                        observable: Observable::from_str("P2").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: -411.138,
+                        observable: Observable::from_str("D1").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: -320.373,
+                        observable: Observable::from_str("D2").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: 35.300,
+                        observable: Observable::from_str("S2").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G08").unwrap(),
+                        value: 114374313.914,
+                        observable: Observable::from_str("L1").unwrap(),
+                        lli: None,
+                        snr: Some(SNR::from(8)),
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G08").unwrap(),
+                        value: 89122819.839,
+                        observable: Observable::from_str("L2").unwrap(),
+                        lli: LliFlags::from_bits(4),
+                        snr: Some(SNR::from(7)),
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G08").unwrap(),
+                        value: 21764705.880,
+                        observable: Observable::from_str("C1").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("S36").unwrap(),
+                        value: 197948874.430,
+                        observable: Observable::from_str("L1").unwrap(),
+                        lli: None,
+                        snr: Some(SNR::from(8)),
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("S36").unwrap(),
+                        value: 37668418.660,
+                        observable: Observable::from_str("C1").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: 131869667.223,
+                        observable: Observable::from_str("L1").unwrap(),
+                        lli: None,
+                        snr: Some(SNR::from(5)),
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: 25093963.200,
+                        observable: Observable::from_str("C1").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G07").unwrap(),
+                        value: -426.868,
+                        observable: Observable::from_str("D1").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+                SignalDataPoint {
+                    key: ObsKey {
+                        epoch: Epoch::from_str("2021-12-21T00:00:30 GPST").unwrap(),
+                        flag: EpochFlag::Ok,
+                    },
+                    signal: SignalObservation {
+                        sv: SV::from_str("G08").unwrap(),
+                        value: 114305043.723,
+                        observable: Observable::from_str("L1").unwrap(),
+                        lli: None,
+                        snr: None,
+                    },
+                },
+            ],
             vec![],
         );
 }

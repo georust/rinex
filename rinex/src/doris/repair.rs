@@ -5,9 +5,9 @@ use qc_traits::Repair;
 /// Repairs all Zero (=null) values in [Record]
 fn repair_zero_mut(rec: &mut Record) {
     rec.retain(|_, obs| {
-        obs.signals.retain(|signal| {
-            if signal.observable.is_pseudo_range_observable()
-                || signal.observable.is_phase_range_observable()
+        obs.signals.retain(|key, signal| {
+            if key.observable.is_pseudo_range_observable()
+                || key.observable.is_phase_range_observable()
             {
                 signal.value > 0.0
             } else {

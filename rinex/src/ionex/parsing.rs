@@ -167,7 +167,7 @@ pub fn parse_rms_map(
 
     for line in lines {
         if line.len() > 60 {
-            let (content, marker) = line.split_at(60);
+            let marker = line.split_at(60).1;
             if marker.contains("END OF RMS MAP") {
                 return Ok(());
             } else if marker.contains("EXPONENT") {
@@ -200,7 +200,7 @@ pub fn parse_rms_map(
 }
 
 /// Parses all Height map contained in following content.
-/// Not really well understood: not managed.
+/// Adjust the previously parsed isosurface to turn them into a real volume definition.
 /// ## Inputs
 ///   - content: readable content (ASCII UTF-8)
 ///   - lat_exponent: deduced from IONEX header for coordinates quantization
@@ -216,6 +216,33 @@ pub fn parse_height_map(
     epoch: Epoch,
     record: &mut Record,
 ) -> Result<(), ParsingError> {
+    let lines = content.lines();
+    let mut epoch = Epoch::default();
+
+    let mut fixed_lat = 0.0_f64;
+    let (mut long1, mut long_spacing) = (0.0_f64, 0.0_f64);
+    let mut fixed_alt = 0.0_f64;
+
+    let mut long = 0.0_f64; // current longitude (pointer)
+
+    for line in lines {
+        if line.len() > 60 {
+            let marker = line.split_at(60).1;
+            if marker.contains("END OF HEIGHT MAP") {
+                return Ok(());
+            } else if marker.contains("EXPONENT") {
+                // should not have been presented (handled @ higher level)
+                continue; // avoid parsing
+            }
+        }
+
+        // proceed to parsing
+        for item in line.split_ascii_whitespace() {
+            if let Ok(h_km) = item.trim().parse::<i32>() {
+                // Should adjust the altitude we previously parsed
+            }
+        }
+    }
     Ok(())
 }
 

@@ -72,7 +72,7 @@ impl<'a> Iterator for RNX2BIN<'a> {
                 if let Some(observer) = &self.header.observer {
                     geo = geo.with_observer(observer);
                 }
-                if let Some(marker) = &self.header.geodetic_marker {
+                if let Some(_marker) = &self.header.geodetic_marker {
                     //geo = geo.with_marker_name();
                     //geo = geo.with_marker_number();
                 }
@@ -81,7 +81,7 @@ impl<'a> Iterator for RNX2BIN<'a> {
                     geo = geo.with_receiver_serial_number(&rx.sn);
                     geo = geo.with_receiver_firmware_version(&rx.firmware);
                 }
-                if let Some(cospar) = &self.header.cospar {
+                if let Some(_cospar) = &self.header.cospar {
                     //geo = geo.with_reference_number(cospar);
                 }
                 if let Some(_position) = &self.header.ground_position {

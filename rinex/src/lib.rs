@@ -1449,9 +1449,12 @@ impl Rinex {
     }
 
     /// Modifies [Rinex] in place with observation differentiation
-    /// using the remote (RHS) counterpart,
-    /// for each identical observation.
-    /// This only applies to Observation RINEX, DORIS or Meteo RINEX.
+    /// using the remote (RHS) counterpart, for each identical observation and signal source.
+    /// This only applies to Observation RINEX (1), DORIS (2) or Meteo RINEX (3).
+    /// 1: only same [Observable] from same [SV] are differentiated 
+    /// 2: only same [Observable] from same [Station] are diffentiated
+    /// 3: only same [Observable] are differentiated.
+    /// 
     /// This allows analyzing a local clock used as GNSS receiver reference clock
     /// spread to dual GNSS receiver, by means of phase differential analysis.
     pub fn observation_substract_mut(&mut self, rhs: &Self) {
@@ -1475,9 +1478,25 @@ impl Rinex {
                 }
             }
         } else if let Some(rhs) = rhs.record.as_doris() {
-            if let Some(rec) = self.record.as_mut_doris() {}
+            if let Some(rec) = self.record.as_mut_doris() {
+                for (k, v) in rec.iter_mut() {
+                    if let Some(rhs) = rhs.get(&k) {
+                        for (k, v)  in v.signals.iter_mut() {
+                            if let Some(rhs) = rhs.signals.get(&k) {
+                                v.value -= rhs.value;
+                            }
+                        }
+                    }
+                }
+            }
         } else if let Some(rhs) = rhs.record.as_meteo() {
-            if let Some(rec) = self.record.as_mut_meteo() {}
+            if let Some(rec) = self.record.as_mut_meteo() {
+                for (k, v) in rec.iter_mut() {
+                    if let Some(rhs) = rhs.get(&k) {
+                        *v -= rhs;
+                    }
+                }
+            }
         }
     }
 

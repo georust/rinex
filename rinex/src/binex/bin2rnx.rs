@@ -83,7 +83,7 @@ impl<'a, R: Read> Iterator for BIN2RNX<'a, R> {
             Some(Ok(StreamElement::ClosedSource(_))) => {},
             #[cfg(feature = "log")]
             Some(Err(e)) => {
-                error!("binex decoding error: {}", e);
+                error!("binex decoding error: {:?}", e);
             },
             #[cfg(not(feature = "log"))]
             Some(Err(_)) => {},
@@ -255,7 +255,7 @@ impl<'a, R: Read> BIN2RNX<'a, R> {
             Some(Ok(StreamElement::ClosedSource(_))) => {},
             #[cfg(feature = "log")]
             Some(Err(e)) => {
-                error!("binex decoding error: {}", e);
+                error!("binex decoding error: {:?}", e);
             },
             #[cfg(not(feature = "log"))]
             Some(Err(_)) => {},

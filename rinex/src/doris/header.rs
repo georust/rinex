@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     doris::Station,
+    fmt_rinex,
     prelude::{Duration, Epoch, FormattingError, Observable},
 };
 
@@ -44,6 +45,31 @@ pub struct HeaderFields {
 impl HeaderFields {
     /// Formats [HeaderFields] into [BufWriter].
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        write!(w, "{}", fmt_rinex(&self.satellite, "SATELLITE NAME"))?;
+        write!(w, "{}", fmt_rinex(&self.satellite, "SATELLITE NAME"))?;
+
+        let l2_l1_date_offset = format!("D     {:10.3}", self.u2_s1_time_offset.to_seconds());
+        write!(
+            w,
+            "{}",
+            fmt_rinex(&l2_l1_date_offset, "L2 / L1 DATE OFFSET")
+        )?;
+
+        let num_stations = format!("{:<10}", self.stations.len());
+        write!(
+            w,
+            "{}",
+            fmt_rinex(&num_stations, "# OF STATIONS")
+        )?;
+
+        for station in self.stations.iter() {
+            write!(
+                w,
+                "{}",
+                fmt_rinex(&station.to_string(), "STATION REFERENCE")
+            )?;
+        }
+
         Ok(())
     }
 

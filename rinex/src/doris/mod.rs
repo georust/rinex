@@ -7,7 +7,7 @@ use crate::{
     prelude::{Epoch, EpochFlag},
 };
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use gnss_rs::domes::Error as DomesParsingError;
 
@@ -51,24 +51,22 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct StationSignalObservation {
-    /// [Observable] determines the physics, the signal and signal modulation.
-    pub observable: Observable,
-    /// Actual measurement, unit depends on [Observable]
-    pub value: f64,
+pub struct SignalObservation {
     /// M1 flag
     pub m1: Option<u8>,
     /// M2 flag
     pub m2: Option<u8>,
+    /// Actual measurement, unit depends on associated [Observable]
+    pub value: f64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct StationObservation {
-    /// Ground [Station]
+pub struct SignalKey {
+    /// [Observable] determines the physics, the signal and signal modulation.
+    pub observable: Observable,
+    /// [Station] is the signal source
     pub station: Station,
-    /// [StationSignalObservation]s
-    pub signals: Vec<StationSignalObservation>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -78,8 +76,8 @@ pub struct Observations {
     pub clock: ClockObservation,
     /// Whether [ClockObservation] was extrapolated or is an actual measurement.
     pub clock_extrapolated: bool,
-    /// Observed signals from ground [Station]s, as [StationSignalObservation]
-    pub signals: Vec<StationSignalObservation>,
+    /// Observed signals from ground [Station]s, as [SignalObservation]
+    pub signals: HashMap<SignalKey, SignalObservation>,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]

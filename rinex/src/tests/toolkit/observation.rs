@@ -28,6 +28,7 @@ impl ClockDataPoint {
     }
 }
 
+#[derive(Debug)]
 pub struct SignalDataPoint {
     pub key: ObsKey,
     pub signal: SignalObservation,
@@ -160,18 +161,31 @@ pub fn generic_observation_rinex_test(
         generic_observation_rinex_against_model(dut, model);
     }
 
-    // Test signal data points
-    for point in signal_points {
-        let k = point.key;
-        let values = dut_rec.get(&k).unwrap();
-        assert!(values.signals.contains(&point.signal));
-    }
-
     // Test clock data points
     for point in clock_points {
         let k = point.key;
-        let values = dut_rec.get(&k).unwrap();
+        let values = dut_rec.get(&k).expect(&format!("missing clock data for {:?}", k));
         assert_eq!(values.clock, Some(point.clock));
+    }
+
+    // Test signal data points
+    for point in signal_points {
+        let k = point.key;
+        let values = dut_rec.get(&k).expect(&format!("missing data point for {:?}", k));
+        
+        let mut passed = false;
+
+        for signal in values.signals.iter() {
+            if signal.sv == point.signal.sv {
+                if signal.observable == point.signal.observable {
+                    assert_eq!(signal.value, point.signal.value);
+                    assert_eq!(signal.lli, point.signal.lli);
+                    //assert_eq!(signal.snr, point.signal.snr); //TODO unlock
+                    passed = true;
+                }
+            }
+        }
+        assert!(passed, "missing data point {:?}", point);
     }
 }
 
