@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, tests::toolkit::generic_observation_rinex_test};
+    use crate::prelude::*;
     use std::path::PathBuf;
 
     #[test]

@@ -1,6 +1,7 @@
 use crate::{
     observation::LliFlags,
-    prelude::{ClockObservation, Observable, SNR, SV},
+    observation::{ClockObservation, SNR},
+    prelude::{Observable, SV},
 };
 
 #[cfg(feature = "ionex")]
@@ -106,7 +107,8 @@ impl SignalObservation {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::{Carrier, Observable, SignalObservation, SV};
+    use crate::observation::SignalObservation;
+    use crate::prelude::{Carrier, Observable, SV};
     use std::str::FromStr;
     #[test]
     fn test_dual_signal_tec_estimate() {

@@ -1,8 +1,8 @@
-use crate::ionex::{Quantized as QuantizedIonex, TEC};
-use crate::prelude::{
-    Carrier, Epoch, EpochFlag, LliFlags, ObsKey, Observable, Rinex, SignalObservation, SV,
+use crate::{
+    ionex::{Quantized as QuantizedIonex, TEC},
+    observation::{EpochFlag, LliFlags, ObsKey, SignalObservation},
+    prelude::{Carrier, Epoch, Observable, Rinex, SV},
 };
-use itertools::Itertools;
 
 /// The [TEC] estimate is indexed by [TECKey] when
 /// calculated from Observation RINEX.

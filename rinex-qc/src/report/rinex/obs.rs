@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use rinex::{
     carrier::Carrier,
     hardware::{Antenna, Receiver},
+    observation::Combination,
     prelude::{Constellation, Epoch, Observable, Rinex, SV},
 };
 
@@ -19,6 +20,11 @@ enum Physics {
     Doppler,
     Phase,
     PseudoRange,
+}
+
+struct UniqueCombinationKey {
+    sv: SV,
+    combination: Combination,
 }
 
 impl Physics {
@@ -51,11 +57,6 @@ impl Physics {
     }
 }
 
-struct Combination {
-    lhs: Observable,
-    rhs: Observable,
-}
-
 /// Frequency dependent pagination.
 /// This depicts all information we have, on a single signal from a particular freqency.
 /// This is obtained by splitting by [SV] (=signal source) and [Observable] (=freq+modulation+physics)
@@ -70,8 +71,6 @@ struct FrequencyPage {
     sampling: SamplingReport,
     /// One plot per physics
     raw_plots: HashMap<Physics, Plot>,
-    /// One plot per possible [Combination],
-    combination_plots: HashMap<Combination, Plot>,
     /// Code Multipath
     multipath_plot: Plot,
 }
@@ -172,10 +171,6 @@ impl FrequencyPage {
                 }
                 plots
             },
-            combination_plots: {
-                // TODO
-                HashMap::new()
-            },
             multipath_plot: {
                 // TODO
                 Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true)
@@ -270,8 +265,12 @@ struct ConstellationPage {
     ppp_compatible: bool,
     /// Signal dependent pagination
     frequencies: HashMap<String, FrequencyPage>,
-    /// SV per epoch
+    /// SV per epoch view
     sv_epoch: HashMap<Epoch, Vec<SV>>,
+    /// One plot per [Combination]
+    combinations_plot: HashMap<Combination, Plot>,
+    /// One plot per [Combination]
+    d_dt_combinations_plot: HashMap<Combination, Plot>,
 }
 
 impl ConstellationPage {
@@ -285,6 +284,60 @@ impl ConstellationPage {
         let satellites = rinex.sv_iter().collect::<Vec<_>>();
         let sampling = SamplingReport::from_rinex(rinex);
         let mut frequencies = HashMap::<String, FrequencyPage>::new();
+
+        let mut combinations_plot = HashMap::new();
+        let mut d_dt_combinations_plot = HashMap::new();
+
+        for combination in [Combination::GeometryFree, Combination::IonosphereFree] {
+            let plot_id = format!("obs_{:x}", combination);
+            let title = combination.to_string();
+
+            let mut plot = Plot::timedomain_plot(&plot_id, &title, "Meters of L1-L_j delay", true);
+            let mut d_dt_plot =
+                Plot::timedomain_plot(&plot_id, &title, "d/dt Meters of L1-L_j delay", true);
+
+            for sv in rinex.sv_iter() {
+                let sv_filter = Filter::equals(&sv.to_string()).unwrap();
+
+                let focused = rinex.filter(&sv_filter);
+
+                let mut data_x = HashMap::<Observable, Vec<Epoch>>::new();
+                let mut data_y = HashMap::<Observable, Vec<f64>>::new();
+                let mut data_dx = HashMap::<Observable, Vec<Epoch>>::new();
+                let mut data_dy = HashMap::<Observable, Vec<f64>>::new();
+
+                for (k, value) in focused.signals_combination(combination).iter() {
+                    if let Some(data_x) = data_x.get_mut(&k.reference) {
+                        data_x.push(k.epoch);
+                    } else {
+                        data_x.insert(k.reference.clone(), vec![k.epoch]);
+                    }
+                    if let Some(data_y) = data_y.get_mut(&k.reference) {
+                        data_y.push(*value);
+                    } else {
+                        data_y.insert(k.reference.clone(), vec![*value]);
+                    }
+                }
+
+                for observable in data_x.keys().sorted() {
+                    let data_x = data_x.get(observable).unwrap();
+                    let data_y = data_y.get(observable).unwrap();
+                    let tr = Plot::timedomain_chart(
+                        &format!("{}({})", sv, observable),
+                        Mode::Markers,
+                        MarkerSymbol::Cross,
+                        &data_x,
+                        data_y.to_vec(),
+                        true,
+                    );
+
+                    plot.add_trace(tr);
+                }
+            }
+
+            combinations_plot.insert(combination, plot);
+            d_dt_combinations_plot.insert(combination, d_dt_plot);
+        }
 
         for carrier in rinex.carrier_iter() {
             let mut observables = Vec::<Observable>::new();
@@ -312,6 +365,8 @@ impl ConstellationPage {
             cpp_compatible,
             ppp_compatible,
             sv_epoch: Default::default(),
+            combinations_plot,
+            d_dt_combinations_plot,
         }
     }
 }
@@ -402,6 +457,28 @@ impl Render for ConstellationPage {
                                 (self.frequencies.keys().sorted().join(", "))
                             }
                         }
+                        @for combination in self.combinations_plot.keys().sorted() {
+                            @if let Some(plot) = self.combinations_plot.get(combination) {
+                                tr {
+                                    th class="is-info" {
+                                        (format!("{} combination", combination))
+                                    }
+                                    td {
+                                        (plot.render())
+                                    }
+                                }
+                            }
+                            @if let Some(plot) = self.d_dt_combinations_plot.get(combination) {
+                                tr {
+                                    th class="is-info" {
+                                        (format!("d/dt {} combination", combination))
+                                    }
+                                    td {
+                                        (plot.render())
+                                    }
+                                }
+                            }
+                        }
                         @for signal in self.frequencies.keys().sorted() {
                             @if let Some(page) = self.frequencies.get(signal) {
                                 tr {
@@ -431,6 +508,7 @@ pub struct Report {
 }
 
 impl Report {
+    /// Rends Tabbed menu bar as [Markup]
     pub fn html_inline_menu_bar(&self) -> Markup {
         html! {
             a id="menu:obs" {

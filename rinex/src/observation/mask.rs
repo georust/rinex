@@ -2,7 +2,8 @@
 
 use crate::{
     observation::Record,
-    prelude::{Constellation, Observable, SNR},
+    observation::SNR,
+    prelude::{Constellation, Observable},
 };
 
 use rinex_qc_traits::{FilterItem, MaskFilter, MaskOperand};

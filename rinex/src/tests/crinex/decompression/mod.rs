@@ -94,7 +94,8 @@ pub fn run_raw_decompression_test(
 }
 
 use crate::{
-    prelude::{Epoch, EpochFlag, GeodeticMarker, MarkerType, Rinex, SV},
+    observation::EpochFlag,
+    prelude::{Epoch, GeodeticMarker, MarkerType, Rinex, SV},
     tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
 };
 

@@ -9,6 +9,9 @@ mod rinex; // high level methods
 mod signal;
 mod snr;
 
+#[cfg(feature = "obs")]
+pub use rinex::feature::{Combination, CombinationKey};
+
 #[cfg(feature = "processing")]
 pub(crate) mod mask; // mask Trait implementation
 
@@ -92,37 +95,3 @@ pub struct ObsKey {
 
 /// Observation [Record] are sorted by [Epoch] of observation and may have two different forms.
 pub type Record = BTreeMap<ObsKey, Observations>;
-
-// /// GNSS code bias estimation trait.
-// /// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1].
-// #[cfg(feature = "obs")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
-// pub trait Dcb {
-//     /// Returns Differential Code Bias estimates, sorted per (unique)
-//     /// signals combinations and for each individual SV.
-//     /// ```
-//     /// use rinex::prelude::*;
-//     /// use rinex::observation::*; // .dcb()
-//     ///
-//     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-//     ///    .unwrap();
-//     /// let dcb = rinex.dcb();
-//     /// ```
-//     fn dcb(&self) -> HashMap<String, BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>>;
-// }
-
-// #[cfg(feature = "obs")]
-// impl Combine for Record {
-//     fn combine(
-//         &self,
-//         c: Combination,
-//     ) -> HashMap<(Observable, Observable), BTreeMap<SV, BTreeMap<(Epoch, EpochFlag), f64>>> {
-//         match c {
-//             Combination::GeometryFree
-//             | Combination::IonosphereFree
-//             | Combination::NarrowLane
-//             | Combination::WideLane => dual_freq_combination(self, c),
-//             Combination::MelbourneWubbena => mw_combination(self),
-//         }
-//     }
-// }

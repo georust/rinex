@@ -9,6 +9,6 @@
 # -P : retain a few datasets
 ./target/release/rinex-cli \
     -f \
-    -P "G08,G15,G31" \
-    --fp test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.rnx
+    -P "G08,G15,G31,C15,C31,R03,E11" \
+    --fp test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz
 

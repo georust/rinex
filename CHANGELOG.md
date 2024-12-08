@@ -2,31 +2,32 @@ V0.17 (-rc)
 ===========
 
 The repo enters V0.17 validation stage.  
-A huge phase of library simplification was undertaken, it took quite some time because
-this repo contains a lot of stuff, but that did not involve difficulties.
-
-Starging from V0.17 (and its `-rc`), the RINEX, SP3 and QC API (libraries)
-have been vastly simplified, to help new contributions and facilitate post processing.
 
 ### Update
 
 - The crate features are documented in `Cargo.toml` in the form of `# Comments`
 - Broadcast radio navigation (ephemeris calculations) have been validated and tested
-- Major steps to SBAS augmented navigation, yet not fully completed.
+for BeiDou.
+- Although SBAS navigation is not fully supported yet, a few steps were taken toward
+complet support.
 
-- The QC library has been vastly improved. Currently, it renders a HTML report
-into the workspace (this is our toolkit behavior), which may be improved (if that proves useful) in near future.
-  - The HTML reports now integrate the Plotly graphs. The geodetic report is our unique User Interface
-  - Huge progress towards real and meaningful geodetic reports.
-  Sorted by physics, navigation report are presented per Constellation, possibility
-  to add SP3 for PPP, possibility to consider the PVT (post processed navigation) and CGGTTS
-  (special solutions) in the same report, to make it single and complete.
+- The QC library has been vastly improved. The geodetic repports look & feel is improved,
+the inner workings are improved. It facilitates future improvements. 
+Also, Graphs are directly incoporated to the geodetic reports, which make them complete and our
+unique output product. Custom extra chapters can be added to add PVT solutions for example.
 
 - Refactor of the inner folders inside `rinex/`
   - all RINEX types follow the same architecture. 
   For example, `parsing.rs` integrates the parsing logic.
   - improved features dependent architecture (less code and shorter files, clearer architecture)
-- Good progress towards Parsing / Dumping dual capability.
+
+- The RINEX and other internal libraries have been vastly simplified.
+Although that did not involve major difficulties, it demanded a lof ot time, because
+all RINEX types were simplified. In short, they are now reduced to 1D, of the form
+`Map<K, V>`, while previous forms could be up to 3 or 4D. This will vastly simplify
+the understanding of the inner objects, and it also facilitates post processing.
+
+- Good progress towards Parsing / Formatting dual capability.
 - The CRINEX infrastructure has been simplified and improved at the same time.
 - Benchmarks are now fully integrated to Github CI, that includes
   - CRINEX decompression

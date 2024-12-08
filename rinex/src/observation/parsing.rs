@@ -1,10 +1,10 @@
 //! Observation RINEX parsing
 use crate::{
     epoch::{parse_in_timescale as parse_epoch_in_timescale, parse_utc as parse_utc_epoch},
-    prelude::{
-        ClockObservation, Constellation, EpochFlag, Header, LliFlags, ObsKey, Observable,
-        Observations, ParsingError, SignalObservation, TimeScale, Version, SNR, SV,
+    observation::{
+        ClockObservation, EpochFlag, LliFlags, ObsKey, Observations, SignalObservation, SNR,
     },
+    prelude::{Constellation, Header, Observable, ParsingError, TimeScale, Version, SV},
 };
 
 use std::{
@@ -568,7 +568,8 @@ fn parse_signals_v3(
 mod test {
     use super::is_new_epoch;
     use crate::{
-        prelude::{Constellation, EpochFlag, Version},
+        observation::EpochFlag,
+        prelude::{Constellation, Version},
         tests::toolkit::generic_observation_epoch_decoding_test,
     };
 

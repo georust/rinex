@@ -39,6 +39,7 @@ pub mod ionex;
 pub mod marker;
 pub mod meteo;
 pub mod navigation;
+pub mod observation;
 pub mod record;
 pub mod types;
 pub mod version;
@@ -52,7 +53,6 @@ mod iterators;
 mod leap;
 mod linspace;
 mod observable;
-mod observation;
 mod production;
 mod sampling;
 
@@ -115,10 +115,6 @@ pub mod prelude {
 
     pub use crate::marker::{GeodeticMarker, MarkerType};
 
-    pub use crate::observation::{
-        ClockObservation, EpochFlag, LliFlags, ObsKey, Observations, SignalObservation, SNR,
-    };
-
     pub use crate::ionex::{IonexKey, IonexMapCoordinates, TEC};
     pub use crate::meteo::MeteoKey;
 
@@ -133,6 +129,17 @@ pub mod prelude {
     #[cfg_attr(docsrs, doc(cfg(feature = "antex")))]
     pub mod antex {
         pub use crate::antex::AntennaMatcher;
+    }
+
+    #[cfg(feature = "obs")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
+    pub mod obs {
+        pub use crate::carrier::Carrier;
+
+        pub use crate::observation::{
+            ClockObservation, Combination, CombinationKey, EpochFlag, LliFlags, ObsKey,
+            Observations, SignalObservation, SNR,
+        };
     }
 
     #[cfg(feature = "binex")]

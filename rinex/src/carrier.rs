@@ -207,7 +207,7 @@ impl Carrier {
     /// True if this [Carrier] matches a L1 pivot carrier
     /// used in carrier recombinations
     pub(crate) fn is_l1_pivot(&self) -> bool {
-        matches!(self, Self::L1 | Self::E1 | Self::B1I)
+        matches!(self, Self::L1 | Self::E1 | Self::B1A | Self::B1C)
     }
 
     /// Returns carrier wavelength

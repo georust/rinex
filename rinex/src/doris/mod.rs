@@ -2,9 +2,7 @@
 use thiserror::Error;
 
 use crate::{
-    observable::Observable,
-    observation::ClockObservation,
-    prelude::{Epoch, EpochFlag},
+    observable::Observable, observation::ClockObservation, observation::EpochFlag, prelude::Epoch,
 };
 
 use std::collections::{BTreeMap, HashMap};

@@ -6,10 +6,8 @@ use thiserror::Error;
 use rinex::{
     hardware::Receiver,
     navigation::{IonMessage, KbModel, KbRegionCode},
-    prelude::{
-        ClockObservation, Constellation, Duration, Epoch, EpochFlag, Header, LliFlags, Observable,
-        SignalObservation, TimeScale, SV,
-    },
+    observation::{ClockObservation, EpochFlag, LliFlags, SignalObservation},
+    prelude::{Constellation, Duration, Epoch, Header, Observable, TimeScale, SV},
 };
 
 extern crate gnss_rs as gnss;

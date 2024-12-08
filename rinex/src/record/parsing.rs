@@ -25,11 +25,12 @@ use crate::{
         record::{is_new_epoch as is_new_nav_epoch, parse_epoch as parse_nav_epoch},
         Record as NavRecord,
     },
+    observation::Observations,
     observation::{
         is_new_epoch as is_new_observation_epoch, parse_epoch as parse_observation_epoch,
         Record as ObservationRecord,
     },
-    prelude::{Constellation, Epoch, Header, Observations, ParsingError, TimeScale},
+    prelude::{Constellation, Epoch, Header, ParsingError, TimeScale},
     record::{Comments, Record},
     types::Type,
 };

@@ -1,5 +1,8 @@
 //! Observation specific high level methods
-use crate::prelude::{ClockObservation, ObsKey, Observations, Rinex, RinexType, SignalObservation};
+use crate::{
+    observation::{ClockObservation, ObsKey, Observations, SignalObservation},
+    prelude::{Rinex, RinexType},
+};
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
@@ -60,7 +63,7 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
         Box::new(
             self.observations_iter()
-                .flat_map(|(key, obs)| obs.signals.iter().map(move |sig| (*key, sig))),
+                .flat_map(|(key, obs)| obs.signals.iter().map(|sig| (*key, sig))),
         )
     }
 

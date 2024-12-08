@@ -1,7 +1,7 @@
 use crate::{
-    prelude::{Epoch, EpochFlag, GeodeticMarker, LliFlags, ObsKey, Observable, Rinex, SNR, SV},
+    observation::{EpochFlag, LliFlags, ObsKey, SignalObservation, SNR},
+    prelude::{Epoch, GeodeticMarker, Observable, Rinex, SV},
     tests::toolkit::{generic_observation_rinex_test, SignalDataPoint, TimeFrame},
-    SignalObservation,
 };
 
 use std::{path::Path, str::FromStr};

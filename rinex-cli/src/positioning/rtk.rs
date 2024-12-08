@@ -1,7 +1,8 @@
 use crate::{cli::Context, positioning::cast_rtk_carrier};
 
 use gnss_rtk::prelude::{Epoch, Observation as RTKObservation, SV};
-use rinex::prelude::{Carrier, ObsKey, SignalObservation};
+use rinex::observation::{ObsKey, SignalObservation};
+use rinex::prelude::Carrier;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

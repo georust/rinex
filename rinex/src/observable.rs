@@ -308,6 +308,23 @@ impl Observable {
             _ => None,
         }
     }
+
+    /// Returns true if this is the L1 pivot Ph or Code signal observation,
+    /// used in signal combinations
+    pub(crate) fn is_l1_pivot(&self, constellation: Constellation) -> bool {
+        if self.is_phase_range_observable() || self.is_pseudo_range_observable() {
+            if let Ok(carrier) = self.carrier(constellation) {
+                matches!(
+                    carrier,
+                    Carrier::L1 | Carrier::E1 | Carrier::G1(_) | Carrier::S1 | Carrier::B1A
+                )
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
 }
 
 impl std::fmt::Display for Observable {
@@ -488,5 +505,35 @@ mod test {
         assert_eq!(Observable::Doppler("D7Q".to_string()).to_string(), "D7Q",);
 
         assert_eq!(Observable::Doppler("C7X".to_string()).to_string(), "C7X",);
+    }
+
+    #[test]
+    fn test_same_physics() {
+        assert!(Observable::Temperature.same_physics(&Observable::Temperature));
+        assert!(!Observable::Pressure.same_physics(&Observable::Temperature));
+
+        let dop_l1 = Observable::Doppler("L1".to_string());
+        let dop_l1c = Observable::Doppler("L1C".to_string());
+        let dop_l2 = Observable::Doppler("L2".to_string());
+        let dop_l2w = Observable::Doppler("L2W".to_string());
+
+        let pr_l1 = Observable::PseudoRange("L1".to_string());
+        let pr_l1c = Observable::PseudoRange("L1C".to_string());
+        let pr_l2 = Observable::PseudoRange("L2".to_string());
+        let pr_l2w = Observable::PseudoRange("L2W".to_string());
+
+        assert!(dop_l1.same_physics(&dop_l1));
+        assert!(dop_l1c.same_physics(&dop_l1));
+        assert!(dop_l1c.same_physics(&dop_l2));
+        assert!(dop_l1c.same_physics(&dop_l2w));
+        assert!(!dop_l1.same_physics(&pr_l1));
+        assert!(!dop_l1.same_physics(&pr_l1c));
+        assert!(!dop_l1.same_physics(&pr_l2));
+        assert!(!dop_l1.same_physics(&pr_l2w));
+
+        assert!(pr_l1.same_physics(&pr_l1));
+        assert!(pr_l1.same_physics(&pr_l1c));
+        assert!(pr_l1.same_physics(&pr_l2));
+        assert!(pr_l1.same_physics(&pr_l2w));
     }
 }

@@ -1,10 +1,13 @@
 use std::str::FromStr;
 
 use crate::{
-    observation::{parse_epoch, HeaderFields},
+    observation::{
+        parse_epoch, ClockObservation, EpochFlag, HeaderFields, ObsKey, Observations,
+        SignalObservation,
+    },
     prelude::{
-        ClockObservation, Constellation, Epoch, EpochFlag, GeodeticMarker, GroundPosition, Header,
-        ObsKey, Observable, Observations, Rinex, RinexType, SignalObservation, Version, SV,
+        Constellation, Epoch, GeodeticMarker, GroundPosition, Header, Observable, Rinex, RinexType,
+        Version, SV,
     },
     tests::toolkit::{
         generic_null_rinex_test, generic_rinex_test, gnss_csv as gnss_from_csv,

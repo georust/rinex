@@ -2,7 +2,8 @@
 use crate::{
     epoch::format as epoch_format,
     observation::Record,
-    prelude::{ClockObservation, Header, ObsKey, RinexType, SV},
+    observation::{ClockObservation, ObsKey},
+    prelude::{Header, RinexType, SV},
     FormattingError,
 };
 
@@ -42,15 +43,16 @@ fn format_epoch_v3<W: Write>(
     let numsat = sv_list.len();
 
     if let Some(clock) = clock {
-        write!(
+        writeln!(
             w,
-            "> {}  {} {:2}",
+            "> {}  {} {:2}  {:13.4}",
             epoch_format(k.epoch, RinexType::ObservationData, 3),
             k.flag,
             numsat,
+            clock.offset_s,
         )?;
     } else {
-        write!(
+        writeln!(
             w,
             "> {}  {} {:2}",
             epoch_format(k.epoch, RinexType::ObservationData, 3),

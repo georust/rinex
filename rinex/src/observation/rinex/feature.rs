@@ -1,14 +1,15 @@
 //! Feature dependent high level methods
+use crate::{
+    observation::{EpochFlag, LliFlags, ObsKey, SignalObservation},
+    prelude::{Carrier, Epoch, Observable, Rinex, SV},
+};
 
 use itertools::Itertools;
 
-use crate::prelude::{Carrier, LliFlags, ObsKey, Observable, Rinex, SignalObservation};
-
-#[cfg(docsrs)]
-use crate::prelude::{Epoch, EpochFlag};
+use std::collections::{BTreeMap, HashMap};
 
 /// Supported signal [Combination]s
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum Combination {
     /// Geometry Free (GF) combination (same physics)
     GeometryFree,
@@ -22,17 +23,43 @@ pub enum Combination {
     MelbourneWubbena,
 }
 
-/// Definition of a [SignalCombination]
-#[derive(Debug, Clone)]
-pub struct SignalCombination {
-    /// [Combination] that was formed
-    pub combination: Combination,
+impl std::fmt::Display for Combination {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GeometryFree => write!(f, "Geometry Free"),
+            Self::IonosphereFree => write!(f, "Ionosphere Free"),
+            Self::WideLane => write!(f, "Wide Lane"),
+            Self::NarrowLane => write!(f, "Narrow Lane"),
+            Self::MelbourneWubbena => write!(f, "Melbourne-Wübbena"),
+        }
+    }
+}
+
+impl std::fmt::LowerHex for Combination {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GeometryFree => write!(f, "gf"),
+            Self::IonosphereFree => write!(f, "if"),
+            Self::WideLane => write!(f, "wl"),
+            Self::NarrowLane => write!(f, "nl"),
+            Self::MelbourneWubbena => write!(f, "mw"),
+        }
+    }
+}
+
+/// [CombinationKey] is how we sort signal combinations
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub struct CombinationKey {
+    /// [Epoch] of sampling
+    pub epoch: Epoch,
+    /// [EpochFlag]: sampling conditions
+    pub flag: EpochFlag,
+    /// [SV]: signal source
+    pub sv: SV,
+    /// Left Hand Side [Observable]
+    pub lhs: Observable,
     /// Reference [Observable]
     pub reference: Observable,
-    /// Left hand side (compared) [Observable]
-    pub lhs: Observable,
-    /// Value, unit is meters of delay of the (lhs - reference) frequency
-    pub value: f64,
 }
 
 impl Rinex {
@@ -109,7 +136,7 @@ impl Rinex {
         }))
     }
 
-    /// [Self::signals_observations_sampling_ok_iter()] with [Observable::PseudoRange] mask applied.
+    /// [Self::signal_observations_sampling_ok_iter()] with [Observable::PseudoRange] mask applied.
     /// ```
     /// use rinex::prelude::Rinex;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
@@ -176,12 +203,11 @@ impl Rinex {
     }
 
     /// Returns an Iterator over [Epoch]s where [Observable::PhaseRange] sampling and tracking took place in good conditions.
-    /// See [Rinex::signal_ok_iter()] for more information.
-    /// Use [Rinex::phase_range_sampling_ok_iter()] for testing only the sampling conditions.
-    /// Use [Rinex::phase_tracking_issues_iter()] for anomalies analysis.
+    /// Use [Rinex::phase_range_sampling_ok_iter()] to verify the sampling conditions only.
     /// NB: if [LliFlags] is missing, we consider the tracking was GOOD. Because some receivers omit or do not encode
     /// the [LliFlags] and would rather not stream out RINEX in such situation (and we would wind up with empty dataset).
-    /// Read the secondary example down below.
+    ///
+    /// Example 1: direct exploitation
     /// ```
     /// use rinex::prelude::Rinex;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
@@ -198,7 +224,7 @@ impl Rinex {
     /// }
     /// ```
     ///
-    /// You can design your own iterator to make sure [LliFlags] is present and tracking was definitely good:
+    /// Example 2: make sure [LliFlags] confirms the tracking conditions:
     /// ```
     /// use rinex::prelude::Rinex;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
@@ -206,7 +232,7 @@ impl Rinex {
     ///
     /// // retain only observations where [LliFlags] are present and sane.
     /// // You could even stack a minimal SNR.
-    /// let tracking_all_good = rinex.phase_range_tracking_ok_iter()
+    /// let tracking_confirmed = rinex.phase_range_tracking_ok_iter()
     ///     .filter_map(|(k, v)| {
     ///         if let Some(lli) = v.lli {
     ///             if lli.is_ok() {
@@ -219,7 +245,7 @@ impl Rinex {
     ///         }
     ///     });
     ///
-    /// for (key, signal) in rinex.tracking_all_good() {
+    /// for (key, signal) in rinex.tracking_confirmed() {
     ///     let t = key.epoch;
     ///     let flag = key.flag;
     ///     assert!(flag.is_ok(), "all abnormal flags filtered out");
@@ -312,24 +338,23 @@ impl Rinex {
         }))
     }
 
-    /// Copies and returns a new [Rinex] where given [LliFlags] mask condition is met
-    /// for all Phase data points (since [LliFlags] is only relevant to phase tracking).
-    /// Use this to modify your dataset.
-    pub fn phase_tracking_lli_and_mask(&self, and: LliFlags) -> Self {
+    /// Copies and returns a new [Rinex] where [LliFlags] mask (and mask) was applied.
+    /// This only impacts Observation RINEX.
+    pub fn observation_phase_tracking_lli_masking(&self, mask: LliFlags) -> Self {
         let mut s = self.clone();
-        s.phase_tracking_mut_lli_and_mask(and);
+        s.observation_phase_tracking_lli_masking_mut(mask);
         s
     }
 
-    /// Mutable [Self::phase_tracking_lli_and_mask] implementation.
-    /// Use this to modify your dataset in place.
-    pub fn phase_tracking_mut_lli_and_mask(&mut self, and: LliFlags) {
+    /// Mutable [Self::observation_phase_tracking_lli_masking] implementation.
+    /// This only impacts Observation RINEX.
+    pub fn observation_phase_tracking_lli_masking_mut(&mut self, mask: LliFlags) {
         if let Some(rec) = self.record.as_mut_obs() {
             rec.retain(|_, v| {
                 v.signals.retain(|sig| {
                     if sig.observable.is_phase_range_observable() {
                         if let Some(lli) = sig.lli {
-                            lli.intersects(and)
+                            lli.intersects(mask)
                         } else {
                             false
                         }
@@ -356,123 +381,740 @@ impl Rinex {
         Box::new(self.observation_keys().filter(|k| k.flag.is_ok()))
     }
 
-    // Design [SignalCombination]s iterator.
-    pub fn signal_combinations_iter(
-        &self,
-        combination: Combination,
-    ) -> Box<dyn Iterator<Item = (ObsKey, SignalCombination)> + '_> {
+    /// Form designed signal [Combination] from all observed signals.
+    /// Unit is depend on [Observable]s being combined.
+    /// But usually, [Observable::PhaseRange] and [Observable::PseudoRange] are intended here,
+    /// meaning the return value is in meters of recombined frequency propagation.
+    pub fn signals_combination(&self, combination: Combination) -> BTreeMap<CombinationKey, f64> {
+        let mut ret = BTreeMap::new();
         if combination == Combination::MelbourneWubbena {
-            // this is a cross-mixed combination
-
-            let phase = self
-                .signal_combinations_iter(Combination::WideLane)
-                .filter(|(_, comb)| comb.reference.is_phase_range_observable());
-
-            let code = self
-                .signal_combinations_iter(Combination::NarrowLane)
-                .filter(|(_, comb)| comb.reference.is_pseudo_range_observable());
-
-            Box::new(phase.zip(code).map(move |((k, phase), (_, code))| {
-                (
-                    k,
-                    SignalCombination {
-                        combination,
-                        reference: phase.reference.clone(),
-                        lhs: phase.lhs.clone(),
-                        value: phase.value - code.value,
-                    },
+            for ((k_1, v_1), (_, v_2)) in self
+                .signals_combination(Combination::WideLane)
+                .iter()
+                .filter(|(k, _)| k.reference.is_phase_range_observable())
+                .zip(
+                    self.signals_combination(Combination::NarrowLane)
+                        .iter()
+                        .filter(|(k, _)| k.reference.is_pseudo_range_observable()),
                 )
-            }))
+                .filter_map(|((k_1, v_1), (k_2, v_2))| {
+                    let lhs_1_code = k_1.lhs.code()?;
+                    let lhs_2_code = k_2.lhs.code()?;
+                    if lhs_1_code == lhs_2_code {
+                        Some(((k_1, v_1), (k_2, v_2)))
+                    } else {
+                        None
+                    }
+                })
+            {
+                let key = CombinationKey {
+                    epoch: k_1.epoch,
+                    flag: k_1.flag,
+                    sv: k_1.sv,
+                    lhs: k_1.lhs.clone(),
+                    reference: k_1.reference.clone(),
+                };
+                ret.insert(key, v_1 - v_2);
+            }
         } else {
-            Box::new(
-                self.signal_observations_iter()
-                    .zip(self.signal_observations_iter())
-                    .filter_map(move |((k_1, sig_1), (k_2, sig_2))| {
-                        // combine only synchronous observations
-                        let synchronous = k_1.epoch == k_2.epoch;
+            let mut pr_ref_value = HashMap::<SV, (Observable, f64, f64)>::new();
+            let mut phase_ref_value = HashMap::<SV, (Observable, f64, f64)>::new();
 
-                        // only same physics combinations at this point
-                        let same_physics = sig_1.observable.same_physics(&sig_2.observable);
+            for (k, v) in self.signal_observations_iter() {
+                let is_phase_range = v.observable.is_phase_range_observable();
+                let is_pseudo_range = v.observable.is_pseudo_range_observable();
 
-                        // consider only L1 on left hand iterator
-                        let sv_1 = sig_1.sv;
-                        let code_1 = sig_1.observable.to_string();
-                        let lhs_is_l1 = code_1.contains('1');
-                        let carrier_1 = sig_1.observable.carrier(sv_1.constellation);
+                if !is_phase_range && !is_pseudo_range {
+                    continue;
+                }
 
-                        // consider anything but L1 on right hand iterator
-                        let sv_2 = sig_2.sv;
-                        let code_2 = sig_2.observable.to_string();
-                        let rhs_is_lj = !code_2.contains('1');
-                        let carrier_2 = sig_1.observable.carrier(sv_2.constellation);
+                let is_l1_pivot = v.observable.is_l1_pivot(v.sv.constellation);
 
-                        // need correct frequency interpretation on both sides
-                        let carriers_ok = carrier_1.is_ok() && carrier_2.is_ok();
+                let carrier = v.observable.carrier(v.sv.constellation);
+                if carrier.is_err() {
+                    continue;
+                }
 
-                        if synchronous && same_physics && lhs_is_l1 && rhs_is_lj && carriers_ok {
-                            let f_1 = carrier_1.unwrap().frequency();
-                            let f_2 = carrier_2.unwrap().frequency();
+                let carrier = carrier.unwrap();
+                let freq = carrier.frequency();
+                let lambda = carrier.wavelength();
 
-                            let alpha = match combination {
-                                Combination::GeometryFree => 1.0,
-                                Combination::IonosphereFree => f_1.powi(2),
-                                Combination::WideLane => f_1,
-                                Combination::NarrowLane => f_1,
-                                Combination::MelbourneWubbena => {
-                                    unreachable!("mw combination");
-                                },
-                            };
+                if is_l1_pivot {
+                    if is_phase_range {
+                        phase_ref_value
+                            .insert(v.sv, (v.observable.clone(), freq, v.value * lambda));
+                    } else {
+                        pr_ref_value.insert(v.sv, (v.observable.clone(), freq, v.value));
+                    };
+                } else {
+                    let reference = if is_phase_range {
+                        &phase_ref_value
+                    } else {
+                        &pr_ref_value
+                    };
 
-                            let beta = match combination {
-                                Combination::GeometryFree => -1.0,
-                                Combination::IonosphereFree => -f_2.powi(2),
-                                Combination::WideLane => -f_2,
-                                Combination::NarrowLane => f_2,
-                                Combination::MelbourneWubbena => {
-                                    unreachable!("mw combination");
-                                },
-                            };
+                    if let Some((reference, f_1, ref_value)) = reference.get(&v.sv) {
+                        let alpha = match combination {
+                            Combination::GeometryFree => 1.0,
+                            Combination::IonosphereFree => f_1.powi(2),
+                            Combination::WideLane => *f_1,
+                            Combination::NarrowLane => *f_1,
+                            Combination::MelbourneWubbena => {
+                                unreachable!("mw combination");
+                            },
+                        };
 
-                            let gamma = match combination {
-                                Combination::GeometryFree => 1.0,
-                                Combination::IonosphereFree => (f_1.powi(2) - f_2.powi(2)),
-                                Combination::WideLane => f_1 - f_2,
-                                Combination::NarrowLane => f_1 + f_2,
-                                Combination::MelbourneWubbena => {
-                                    unreachable!("mw combination");
-                                },
-                            };
+                        let beta = match combination {
+                            Combination::GeometryFree => -1.0,
+                            Combination::IonosphereFree => -freq.powi(2),
+                            Combination::WideLane => -freq,
+                            Combination::NarrowLane => freq,
+                            Combination::MelbourneWubbena => {
+                                unreachable!("mw combination");
+                            },
+                        };
 
-                            let (v_lhs, v_rhs) = match combination {
-                                Combination::GeometryFree => {
-                                    if sig_1.observable.is_pseudo_range_observable() {
-                                        (sig_2.value, sig_1.value)
-                                    } else {
-                                        (sig_1.value, sig_2.value)
-                                    }
-                                },
-                                Combination::IonosphereFree => (sig_1.value, sig_2.value),
-                                Combination::WideLane => (sig_1.value, sig_2.value),
-                                Combination::NarrowLane => (sig_1.value, sig_2.value),
-                                Combination::MelbourneWubbena => {
-                                    unreachable!("mw combination");
-                                },
-                            };
+                        let gamma = match combination {
+                            Combination::GeometryFree => 1.0,
+                            Combination::IonosphereFree => f_1.powi(2) - freq.powi(2),
+                            Combination::WideLane => *f_1 - freq,
+                            Combination::NarrowLane => *f_1 + freq,
+                            Combination::MelbourneWubbena => {
+                                unreachable!("mw combination");
+                            },
+                        };
 
-                            Some((
-                                k_1,
-                                SignalCombination {
-                                    combination,
-                                    lhs: sig_1.observable.clone(),
-                                    reference: sig_2.observable.clone(),
-                                    value: (alpha * v_lhs + beta * v_rhs) / gamma,
-                                },
-                            ))
-                        } else {
-                            None
-                        }
-                    }),
-            )
+                        let (v_lhs, v_rhs) = match combination {
+                            Combination::GeometryFree => {
+                                if v.observable.is_phase_range_observable() {
+                                    (*ref_value, v.value * lambda)
+                                } else {
+                                    (v.value, *ref_value)
+                                }
+                            },
+                            _ => {
+                                if v.observable.is_phase_range_observable() {
+                                    (*ref_value * lambda, v.value)
+                                } else {
+                                    (*ref_value, v.value)
+                                }
+                            },
+                        };
+
+                        let combination = CombinationKey {
+                            epoch: k.epoch,
+                            flag: k.flag,
+                            sv: v.sv,
+                            lhs: v.observable.clone(),
+                            reference: reference.clone(),
+                        };
+
+                        ret.insert(combination, (alpha * v_lhs + beta * v_rhs) / gamma);
+                    } else {
+                        println!("t={}|sv={}: no ref!", k.epoch, v.sv);
+                    }
+                }
+            }
         }
+        ret
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::Combination;
+    use crate::prelude::{Carrier, Rinex};
+
+    #[test]
+    fn gf_signal_combination() {
+        let fullpath = format!(
+            "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let rinex = Rinex::from_file(&fullpath).unwrap();
+
+        let mut tests_passed = 0;
+
+        let gps_l1 = Carrier::L1.wavelength();
+        let gps_l2 = Carrier::L2.wavelength();
+        let gps_l5 = Carrier::L5.wavelength();
+
+        for (k, value) in rinex.signals_combination(Combination::GeometryFree) {
+            assert!(k.flag.is_ok(), "sampling flag has been deformed!");
+            let epoch = k.epoch.to_string();
+            let sv = k.sv.to_string();
+            let rhs = k.reference.to_string();
+            let lhs = k.lhs.to_string();
+
+            match epoch.as_str() {
+                "2021-12-21T00:00:00 GPST" => match sv.as_str() {
+                    "G01" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                assert_eq!(value, 129274705.784 * gps_l1 - 100733552.500 * gps_l2);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                assert_eq!(value, 129274705.784 * gps_l1 - 100733552.498 * gps_l2);
+                                tests_passed += 1;
+                            },
+                            "L5Q" => {
+                                assert_eq!(value, 129274705.784 * gps_l1 - 96536320.758 * gps_l5);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(value, 24600162.420 - 24600158.420);
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(value, 24600162.100 - 24600158.420);
+                                tests_passed += 1;
+                            },
+                            "C5Q" => {
+                                assert_eq!(value, 24600160.900 - 24600158.420);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    "G07" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                assert_eq!(value, 125167854.812 * gps_l1 - 97533394.668 * gps_l2);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                assert_eq!(value, 125167854.812 * gps_l1 - 97533382.650 * gps_l2);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(value, 23818653.000 - 23818653.240);
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(value, 23818652.720 - 23818653.240);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    _ => {},
+                },
+                _ => {},
+            }
+        }
+        assert_eq!(tests_passed, 10);
+    }
+
+    #[test]
+    fn if_signal_combination() {
+        let fullpath = format!(
+            "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let rinex = Rinex::from_file(&fullpath).unwrap();
+
+        let mut tests_passed = 0;
+
+        let gps_l1 = Carrier::L1.frequency().powi(2);
+        let gps_l2 = Carrier::L2.frequency().powi(2);
+        let gps_l5 = Carrier::L5.frequency().powi(2);
+
+        let gps_w1 = Carrier::L1.wavelength();
+        let gps_w2 = Carrier::L2.wavelength();
+        let gps_w5 = Carrier::L5.wavelength();
+
+        for (k, value) in rinex.signals_combination(Combination::IonosphereFree) {
+            assert!(k.flag.is_ok(), "sampling flag has been deformed!");
+            let epoch = k.epoch.to_string();
+            let sv = k.sv.to_string();
+            let rhs = k.reference.to_string();
+            let lhs = k.lhs.to_string();
+
+            match epoch.as_str() {
+                "2021-12-21T00:00:00 GPST" => match sv.as_str() {
+                    "G01" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        - gps_l2 * gps_w2 * 100733552.500)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        - gps_l2 * gps_w2 * 100733552.498)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L5Q" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        - gps_l5 * gps_w5 * 96536320.758)
+                                        / (gps_l1 - gps_l5))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 - gps_l2 * 24600162.420)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 - gps_l2 * 24600162.100)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C5Q" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 - gps_l5 * 24600160.900)
+                                        / (gps_l1 - gps_l5)
+                                );
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    "G07" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 125167854.812
+                                        - gps_l2 * gps_w2 * 97533394.668)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 125167854.812
+                                        - gps_l2 * gps_w2 * 97533382.650)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 23818653.240 - gps_l2 * 23818653.000)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 23818653.240 - gps_l2 * 23818652.720)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    _ => {},
+                },
+                _ => {},
+            }
+        }
+        assert_eq!(tests_passed, 10);
+    }
+
+    #[test]
+    fn wl_signal_combination() {
+        let fullpath = format!(
+            "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let rinex = Rinex::from_file(&fullpath).unwrap();
+
+        let mut tests_passed = 0;
+
+        let gps_l1 = Carrier::L1.frequency();
+        let gps_l2 = Carrier::L2.frequency();
+        let gps_l5 = Carrier::L5.frequency();
+
+        let gps_w1 = Carrier::L1.wavelength();
+        let gps_w2 = Carrier::L2.wavelength();
+        let gps_w5 = Carrier::L5.wavelength();
+
+        for (k, value) in rinex.signals_combination(Combination::WideLane) {
+            assert!(k.flag.is_ok(), "sampling flag has been deformed!");
+            let epoch = k.epoch.to_string();
+            let sv = k.sv.to_string();
+            let rhs = k.reference.to_string();
+            let lhs = k.lhs.to_string();
+
+            match epoch.as_str() {
+                "2021-12-21T00:00:00 GPST" => match sv.as_str() {
+                    "G01" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        - gps_l2 * gps_w2 * 100733552.500)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        - gps_l2 * gps_w2 * 100733552.498)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L5Q" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        - gps_l5 * gps_w5 * 96536320.758)
+                                        / (gps_l1 - gps_l5))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 - gps_l2 * 24600162.420)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 - gps_l2 * 24600162.100)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C5Q" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 - gps_l5 * 24600160.900)
+                                        / (gps_l1 - gps_l5)
+                                );
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    "G07" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 125167854.812
+                                        - gps_l2 * gps_w2 * 97533394.668)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 125167854.812
+                                        - gps_l2 * gps_w2 * 97533382.650)
+                                        / (gps_l1 - gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 23818653.240 - gps_l2 * 23818653.000)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 23818653.240 - gps_l2 * 23818652.720)
+                                        / (gps_l1 - gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    _ => {},
+                },
+                _ => {},
+            }
+        }
+        assert_eq!(tests_passed, 10);
+    }
+
+    #[test]
+    fn nl_signal_combination() {
+        let fullpath = format!(
+            "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let rinex = Rinex::from_file(&fullpath).unwrap();
+
+        let mut tests_passed = 0;
+
+        let gps_l1 = Carrier::L1.frequency();
+        let gps_l2 = Carrier::L2.frequency();
+        let gps_l5 = Carrier::L5.frequency();
+
+        let gps_w1 = Carrier::L1.wavelength();
+        let gps_w2 = Carrier::L2.wavelength();
+        let gps_w5 = Carrier::L5.wavelength();
+
+        for (k, value) in rinex.signals_combination(Combination::NarrowLane) {
+            assert!(k.flag.is_ok(), "sampling flag has been deformed!");
+            let epoch = k.epoch.to_string();
+            let sv = k.sv.to_string();
+            let rhs = k.reference.to_string();
+            let lhs = k.lhs.to_string();
+
+            match epoch.as_str() {
+                "2021-12-21T00:00:00 GPST" => match sv.as_str() {
+                    "G01" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        + gps_l2 * gps_w2 * 100733552.500)
+                                        / (gps_l1 + gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        + gps_l2 * gps_w2 * 100733552.498)
+                                        / (gps_l1 + gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L5Q" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 129274705.784
+                                        + gps_l5 * gps_w5 * 96536320.758)
+                                        / (gps_l1 + gps_l5))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 + gps_l2 * 24600162.420)
+                                        / (gps_l1 + gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 + gps_l2 * 24600162.100)
+                                        / (gps_l1 + gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C5Q" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 24600158.420 + gps_l5 * 24600160.900)
+                                        / (gps_l1 + gps_l5)
+                                );
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    "G07" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 125167854.812
+                                        + gps_l2 * gps_w2 * 97533394.668)
+                                        / (gps_l1 + gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let err = (value
+                                    - (gps_l1 * gps_w1 * 125167854.812
+                                        + gps_l2 * gps_w2 * 97533382.650)
+                                        / (gps_l1 + gps_l2))
+                                    .abs();
+                                assert!(err < 1.0E-6);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        "C1C" => match lhs.as_str() {
+                            "C2S" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 23818653.240 + gps_l2 * 23818653.000)
+                                        / (gps_l1 + gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            "C2W" => {
+                                assert_eq!(
+                                    value,
+                                    (gps_l1 * 23818653.240 + gps_l2 * 23818652.720)
+                                        / (gps_l1 + gps_l2)
+                                );
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    _ => {},
+                },
+                _ => {},
+            }
+        }
+        assert_eq!(tests_passed, 10);
+    }
+
+    #[test]
+    fn mw_signal_combination() {
+        let fullpath = format!(
+            "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let rinex = Rinex::from_file(&fullpath).unwrap();
+
+        let mut tests_passed = 0;
+
+        let gps_l1 = Carrier::L1.frequency();
+        let gps_l2 = Carrier::L2.frequency();
+        let gps_l5 = Carrier::L5.frequency();
+
+        for (k, value) in rinex.signals_combination(Combination::MelbourneWubbena) {
+            assert!(k.flag.is_ok(), "sampling flag has been deformed!");
+            let epoch = k.epoch.to_string();
+            let sv = k.sv.to_string();
+            let rhs = k.reference.to_string();
+            let lhs = k.lhs.to_string();
+
+            match epoch.as_str() {
+                "2021-12-21T00:00:00 GPST" => match sv.as_str() {
+                    "G01" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let phase = (gps_l1 * 129274705.784 - gps_l2 * 100733552.500)
+                                    / (gps_l1 - gps_l2);
+
+                                let code = (gps_l1 * 24600158.420 + gps_l2 * 24600162.420)
+                                    / (gps_l1 + gps_l2);
+
+                                assert_eq!(value, phase - code);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let phase = (gps_l1 * 129274705.784 - gps_l2 * 100733552.498)
+                                    / (gps_l1 - gps_l2);
+
+                                let code = (gps_l1 * 24600158.420 + gps_l2 * 24600162.100)
+                                    / (gps_l1 + gps_l2);
+
+                                assert_eq!(value, phase - code);
+                                tests_passed += 1;
+                            },
+                            "L5Q" => {
+                                let phase = (gps_l1 * 129274705.784 - gps_l5 * 96536320.758)
+                                    / (gps_l1 - gps_l5);
+
+                                let code = (gps_l1 * 24600158.420 + gps_l5 * 24600160.900)
+                                    / (gps_l1 + gps_l5);
+
+                                assert_eq!(value, phase - code);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    "G07" => match rhs.as_str() {
+                        "L1C" => match lhs.as_str() {
+                            "L2S" => {
+                                let phase = (gps_l1 * 125167854.812 - gps_l2 * 97533394.668)
+                                    / (gps_l1 - gps_l2);
+                                let code = (gps_l1 * 23818653.240 + gps_l2 * 23818653.000)
+                                    / (gps_l1 + gps_l2);
+                                assert_eq!(value, phase - code);
+                                tests_passed += 1;
+                            },
+                            "L2W" => {
+                                let phase = (gps_l1 * 125167854.812 - gps_l2 * 97533382.650)
+                                    / (gps_l1 - gps_l2);
+                                let code = (gps_l1 * 23818653.240 + gps_l2 * 23818652.720)
+                                    / (gps_l1 + gps_l2);
+                                assert_eq!(value, phase - code);
+                                tests_passed += 1;
+                            },
+                            obs => panic!("invalid LHS observable: {}", obs),
+                        },
+                        obs => panic!("invalid RHS (ref) observable: {}", obs),
+                    },
+                    _ => {},
+                },
+                _ => {},
+            }
+        }
+        assert_eq!(tests_passed, 5);
     }
 }
