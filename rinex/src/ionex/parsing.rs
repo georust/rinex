@@ -1,7 +1,7 @@
 //! IONEX maps parsing
 
 use crate::{
-    ionex::{IonexKey, IonexMapCoordinates, Record, TEC},
+    ionex::{IonexKey, IonexMapCoordinates, Quantized, Record, TEC},
     prelude::{Epoch, ParsingError},
 };
 
@@ -74,6 +74,7 @@ pub fn parse_tec_map(
     epoch: Epoch,
     record: &mut Record,
 ) -> Result<(), ParsingError> {
+    const NON_AVAILABLE_TEC_KEYWORD: &str = "9999";
     let lines = content.lines();
 
     let mut fixed_lat = 0.0_f64;
@@ -115,21 +116,25 @@ pub fn parse_tec_map(
         // proceed to parsing
         for item in line.split_ascii_whitespace() {
             // data interpretation
-            if let Ok(tec) = item.trim().parse::<i32>() {
-                let tec = TEC::from_quantized(tec, tec_exponent);
+            let item = item.trim();
+            if item != NON_AVAILABLE_TEC_KEYWORD {
+                if let Ok(tecu) = item.parse::<i32>() {
+                    let tec = TEC::from_quantized(tecu, tec_exponent);
 
-                let coordinates = IonexMapCoordinates::new(
-                    fixed_lat,
-                    lat_exponent,
-                    long,
-                    long_exponent,
-                    fixed_alt,
-                    alt_exponent,
-                );
+                    let quantized_lat = Quantized::new(fixed_lat, lat_exponent);
+                    let quantized_long = Quantized::new(long, long_exponent);
+                    let quantized_alt = Quantized::new(fixed_alt, alt_exponent);
 
-                let key = IonexKey { epoch, coordinates };
+                    let coordinates = IonexMapCoordinates::from_quantized(
+                        quantized_lat,
+                        quantized_long,
+                        quantized_alt,
+                    );
 
-                record.insert(key, tec);
+                    let key = IonexKey { epoch, coordinates };
+
+                    record.insert(key, tec);
+                }
             }
 
             long += long_spacing;
@@ -178,13 +183,14 @@ pub fn parse_rms_map(
         // proceed to parsing
         for item in line.split_ascii_whitespace() {
             if let Ok(tec) = item.trim().parse::<i32>() {
-                let coordinates = IonexMapCoordinates::new(
-                    fixed_lat,
-                    lat_exponent,
-                    long,
-                    long_exponent,
-                    fixed_alt,
-                    alt_exponent,
+                let quantized_lat = Quantized::new(fixed_lat, lat_exponent);
+                let quantized_long = Quantized::new(long, long_exponent);
+                let quantized_alt = Quantized::new(fixed_alt, alt_exponent);
+
+                let coordinates = IonexMapCoordinates::from_quantized(
+                    quantized_lat,
+                    quantized_long,
+                    quantized_alt,
                 );
 
                 // we only augment previously parsed TEC values
@@ -249,6 +255,7 @@ pub fn parse_height_map(
 mod test {
     use super::{
         is_new_height_map, is_new_rms_map, is_new_tec_map, parse_grid_specs, parse_tec_map,
+        Quantized,
     };
 
     use crate::{
@@ -275,21 +282,39 @@ mod test {
     fn grid_specs_parsing() {
         let content =
             "    87.5-180.0 180.0   5.0 450.0                            LAT/LON1/LON2/DLON/H";
-        let (fixed_lat, long1, long_spacing, fixed_alt) = parse_grid_specs(content).unwrap();
 
+        let (fixed_lat, long1, long_spacing, fixed_alt) = parse_grid_specs(content).unwrap();
         assert_eq!(fixed_lat, 87.5);
         assert_eq!(long1, -180.0);
         assert_eq!(long_spacing, 5.0);
         assert_eq!(fixed_alt, 450.0);
+
+        let content =
+            "     2.5-180.0 180.0   5.0 350.0                            LAT/LON1/LON2/DLON/H";
+
+        let (fixed_lat, long1, long_spacing, fixed_alt) = parse_grid_specs(content).unwrap();
+        assert_eq!(fixed_lat, 2.5);
+        assert_eq!(long1, -180.0);
+        assert_eq!(long_spacing, 5.0);
+        assert_eq!(fixed_alt, 350.0);
+
+        let content =
+            "    -2.5-180.0 180.0   5.0 250.0                            LAT/LON1/LON2/DLON/H";
+
+        let (fixed_lat, long1, long_spacing, fixed_alt) = parse_grid_specs(content).unwrap();
+        assert_eq!(fixed_lat, -2.5);
+        assert_eq!(long1, -180.0);
+        assert_eq!(long_spacing, 5.0);
+        assert_eq!(fixed_alt, 250.0);
     }
 
     #[test]
     fn tec_map_parsing() {
         let mut record = Record::default();
 
-        let lat_exponent = 1;
-        let long_exponent = 0;
-        let alt_exponent = 0;
+        let lat_exponent = Quantized::find_exponent(2.5);
+        let long_exponent = Quantized::find_exponent(5.0);
+        let alt_exponent = Quantized::find_exponent(0.0);
         let tec_exponent = -1;
         let epoch = Epoch::from_gregorian_utc_at_midnight(2017, 1, 1);
 
@@ -308,6 +333,24 @@ mod test {
    24   25   25   26   27   28   29   29   30   31   32   33   34   35   36   37
    38   39   39   40   41   41   41   41   42   42   42   41   41   41   41   40
    40   40   39   39   38   38   37   37   36
+    27.5-180.0 180.0   5.0 450.0                            LAT/LON1/LON2/DLON/H
+   235  230  222  212  200  187  173  157  141  126  110   95   92   92   92   92
+    92   92   92   92   92   92   92   92   92   92   92   92   92   92   92   92
+    92   92   92   92   92   92   92   92   92   92   92   92   92   92   92   92
+    92   92   92   92   92   92   92   92   92  104  120  136  151  166  180  193
+   205  215  224  231  236  239  240  239  235
+     2.5-180.0 180.0   5.0 450.0                            LAT/LON1/LON2/DLON/H
+   364  370  374  378  380  380  378  375  370  364  356  346  336  324  311  298
+   283  269  253  238  222  207  191  175  159  143  127  111   96   92   92   92
+    92   92   92   92   92   92   92   92   92   92   92   92   92   92   92   92
+    92   92   92   92   92  106  124  141  158  175  191  207  223  238  252  266
+   280  293  305  317  328  339  348  356  364
+    -2.5-180.0 180.0   5.0 450.0                            LAT/LON1/LON2/DLON/H
+   363  370  375  380  383  385  385  384  381  376  370  363  354  343  332  319
+   305  291  276  260  244  227  210  194  176  159  143  126  109   93   92   92
+    92   92   92   92   92   92   92   92   92   92   92   92   92   92   92   92
+    92   92   92   92  103  120  136  152  168  183  198  212  226  240  253  266
+   279  291  303  315  326  336  346  355  363
      1                                                      END OF TEC MAP      ";
 
         parse_tec_map(
@@ -454,14 +497,140 @@ mod test {
                 ),
                 36,
             ),
+            (
+                IonexMapCoordinates::new(
+                    27.5,
+                    lat_exponent,
+                    170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                240,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    27.5,
+                    lat_exponent,
+                    175.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                239,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    27.5,
+                    lat_exponent,
+                    180.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                235,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    2.5,
+                    lat_exponent,
+                    -170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                374,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    2.5,
+                    lat_exponent,
+                    170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                348,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    2.5,
+                    lat_exponent,
+                    175.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                356,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    2.5,
+                    lat_exponent,
+                    180.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                364,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    -2.5,
+                    lat_exponent,
+                    -170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                375,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    -2.5,
+                    lat_exponent,
+                    170.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                346,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    -2.5,
+                    lat_exponent,
+                    175.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                355,
+            ),
+            (
+                IonexMapCoordinates::new(
+                    -2.5,
+                    lat_exponent,
+                    180.0,
+                    long_exponent,
+                    450.0,
+                    alt_exponent,
+                ),
+                363,
+            ),
         ] {
             let key = IonexKey { epoch, coordinates };
 
             let tec = record
                 .get(&key)
-                .expect(&format!("missing value for {:?} data", key));
+                .expect(&format!("missing value at {:#?}", key));
 
             assert_eq!(tec.tecu.quantized, quantized_tec);
+
+            let tecu = tec.tecu();
+            let expected_tecu = quantized_tec as f64 * (10.0_f64).powi(tec_exponent as i32);
+            let err = (tecu - expected_tecu).abs();
+            assert!(err < 1.0E-5);
         }
     }
 }

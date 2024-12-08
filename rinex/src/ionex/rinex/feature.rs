@@ -4,8 +4,39 @@ use crate::{
 };
 
 impl Rinex {
+    /// Returns Iterator over TEC expressed in TECu (10^-16 m-2) per lattitude,
+    /// longitude in decimal degrees, and altitude in km.
+    /// ```
+    /// use rinex::prelude::*;
+    ///
+    /// let rnx = Rinex::from_gzip_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
+    ///     .unwrap();
+    ///
+    /// for (t, lat_ddeg, lon_ddeg, alt_km, tecu) in rnx.ionex_tecu_latlong_ddeg_alt_km_iter() {
+    ///     // ex: convert in other units
+    ///     let lat_rad = lat_ddeg.to_radians();
+    ///     let lon_rad = lon_ddeg.to_radians();
+    ///     let alt_m = alt_km /1000.0;
+    ///     let tec = tecu * 10.0E16; // m^-2
+    ///     // do something
+    /// }
+    /// ```
+    pub fn ionex_tecu_latlong_ddeg_alt_km_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, f64, f64, f64, f64)> + '_> {
+        Box::new(self.ionex_tec_maps_iter().map(|(k, v)| {
+            (
+                k.epoch,
+                k.coordinates.latitude_ddeg(),
+                k.coordinates.longitude_ddeg(),
+                k.coordinates.altitude_km(),
+                v.tecu(),
+            )
+        }))
+    }
+
     /// Returns IONEX TEC map borders.
-    /// Note that this is only based on Header definitions. If provided
+    /// NB: this is only based on Header definitions. If provided
     /// content did not follow those specs (incorrect), the returned value here will not
     /// reflect actual content.
     /// ## Output

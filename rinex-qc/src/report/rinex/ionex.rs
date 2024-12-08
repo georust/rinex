@@ -3,6 +3,8 @@ use maud::{html, Markup, Render};
 use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
+use itertools::Itertools;
+
 use crate::plot::{MapboxStyle, Plot, Visible};
 
 use plotly::{
@@ -44,31 +46,33 @@ impl IonexReport {
                     0,
                     true,
                 );
+
                 let mut buttons = Vec::<Button>::new();
 
-                // one trace(=map) per Epoch
+                // one trace(=one map) per Epoch
                 for (epoch_index, epoch) in rnx.epoch_iter().enumerate() {
                     let label = epoch.to_string();
 
-                    let lat = rnx
-                        .ionex_rms_tec_maps_iter()
-                        .map(|(k, _)| k.coordinates.latitude_ddeg())
-                        .collect::<Vec<_>>();
+                    let mut lat_ddeg = Vec::with_capacity(128);
+                    let mut long_ddeg = Vec::with_capacity(128);
+                    let mut tecu = Vec::with_capacity(128);
 
-                    let long = rnx
-                        .ionex_rms_tec_maps_iter()
-                        .map(|(k, _)| k.coordinates.longitude_ddeg())
-                        .collect::<Vec<_>>();
-
-                    let tec = rnx
-                        .ionex_rms_tec_maps_iter()
-                        .map(|(_, v)| v)
-                        .collect::<Vec<_>>();
+                    for (k, tec) in rnx.ionex_tec_maps_iter().filter_map(|(k, v)| {
+                        if k.epoch == epoch {
+                            Some((k, v))
+                        } else {
+                            None
+                        }
+                    }) {
+                        lat_ddeg.push(k.coordinates.latitude_ddeg());
+                        long_ddeg.push(k.coordinates.longitude_ddeg());
+                        tecu.push(tec.tecu());
+                    }
 
                     let trace = Plot::density_mapbox(
-                        lat.clone(),
-                        long.clone(),
-                        tec,
+                        lat_ddeg,
+                        long_ddeg,
+                        tecu,
                         &label,
                         0.6,
                         3,
@@ -141,7 +145,7 @@ impl Render for IonexReport {
                 }
                 tr {
                     th class="is-info" {
-                        "Time Interval"
+                        "Sampling Period"
                     }
                     td {
                         (self.sampling_interval.to_string())
@@ -199,6 +203,8 @@ impl Render for IonexReport {
                     }
                 }
                 tr {
+                    td {
+                    }
                     td {
                         (self.world_map.render())
                     }

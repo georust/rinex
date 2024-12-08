@@ -45,12 +45,12 @@ fn v1_ckmg0020_22i() {
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
                 lat_ddeg: 87.5,
-                lat_exponent: 1,
+                lat_exponent: -1,
                 long_ddeg: -180.0,
-                long_exponent: 1,
+                long_exponent: -1,
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
-                tecu: 92,
+                tecu: 9.2,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -60,7 +60,7 @@ fn v1_ckmg0020_22i() {
                 long_exponent: 1,
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
-                tecu: 383,
+                tecu: 38.3,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -70,7 +70,7 @@ fn v1_ckmg0020_22i() {
                 long_exponent: 1,
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
-                tecu: 385,
+                tecu: 38.5,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -80,7 +80,7 @@ fn v1_ckmg0020_22i() {
                 long_exponent: 1,
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
-                tecu: 385,
+                tecu: 38.5,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -90,7 +90,17 @@ fn v1_ckmg0020_22i() {
                 long_exponent: 1,
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
-                tecu: 384,
+                tecu: 38.4,
+            },
+            TecPoint {
+                t: "2022-01-02T00:00:00 UTC",
+                lat_ddeg: -40.0,
+                lat_exponent: 1,
+                long_ddeg: -175.0,
+                long_exponent: 1,
+                alt_km: 350.0,
+                alt_exponent: 0, // null spacing
+                tecu: 21.6,
             },
         ],
     );

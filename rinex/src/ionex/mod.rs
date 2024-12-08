@@ -140,9 +140,10 @@ impl TEC {
 
     /// Builds new [TEC] from TEC quantization in TECu
     pub(crate) fn from_quantized(tecu: i32, exponent: i8) -> Self {
+        // IONEX stores quantized TEC as i=10*-k TECu
         Self {
             tecu: Quantized {
-                exponent,
+                exponent: -exponent,
                 quantized: tecu,
             },
             rms: None,
@@ -152,7 +153,7 @@ impl TEC {
     /// Updates RMS [TEC]
     pub(crate) fn set_quantized_rms(&mut self, rms: i32, exponent: i8) {
         self.rms = Some(Quantized {
-            exponent,
+            exponent: -exponent,
             quantized: rms,
         });
     }
@@ -205,8 +206,9 @@ pub struct IonexMapCoordinates {
 }
 
 impl IonexMapCoordinates {
-    /// Builds new [IonexMapCoordinates]
-    pub(crate) fn new(
+    /// Builds new [IonexMapCoordinates] from coordinates expressed in ddeg
+    #[cfg(test)]
+    pub fn new(
         lat_ddeg: f64,
         lat_exponent: i8,
         long_ddeg: f64,
@@ -221,26 +223,28 @@ impl IonexMapCoordinates {
         }
     }
 
+    /// Builds new [IonexMapCoordinates] from [Quantized] coordinates
+    pub(crate) fn from_quantized(
+        latitude: Quantized,
+        longitude: Quantized,
+        altitude: Quantized,
+    ) -> Self {
+        Self {
+            latitude,
+            longitude,
+            altitude,
+        }
+    }
+
     /// Returns latitude in degrees
     pub fn latitude_ddeg(&self) -> f64 {
         self.latitude.real_value()
-    }
-
-    /// Returns latitude in radians
-    pub fn latitude_rad(&self) -> f64 {
-        self.latitude_ddeg().to_radians()
     }
 
     /// Returns longitude in degrees
     pub fn longitude_ddeg(&self) -> f64 {
         self.longitude.real_value()
     }
-
-    /// Returns longitude in radians
-    pub fn longitude_rad(&self) -> f64 {
-        self.longitude_ddeg().to_radians()
-    }
-
     /// Returns longitude in kilometers
     pub fn altitude_km(&self) -> f64 {
         self.altitude.real_value()
@@ -263,6 +267,7 @@ pub type Record = BTreeMap<IonexKey, TEC>;
 mod test {
     use super::*;
     use std::str::FromStr;
+
     #[test]
     fn test_mapping_func() {
         let content = "COSZ";
@@ -276,5 +281,29 @@ mod test {
         let content = "DONT";
         let func = MappingFunction::from_str(content);
         assert!(func.is_err());
+    }
+
+    #[test]
+    fn quantized_ionex_map_coords() {
+        let coords = IonexMapCoordinates::new(1.0, 1, 2.0, 1, 3.0, 1);
+        assert_eq!(coords.latitude_ddeg(), 1.0);
+        assert_eq!(coords.longitude_ddeg(), 2.0);
+        assert_eq!(coords.altitude_km(), 3.0);
+
+        let coords = IonexMapCoordinates::new(1.5, 1, 2.0, 1, 3.12, 2);
+        assert_eq!(coords.latitude_ddeg(), 1.5);
+        assert_eq!(coords.longitude_ddeg(), 2.0);
+        assert_eq!(coords.altitude_km(), 3.12);
+    }
+
+    #[test]
+    fn quantized_tec() {
+        let tec = TEC::from_quantized(30, -1);
+        assert_eq!(tec.tecu(), 3.0);
+        assert_eq!(tec.tec(), 3.0 * 10E16);
+
+        let tec = TEC::from_quantized(30, -2);
+        assert_eq!(tec.tecu(), 0.3);
+        assert_eq!(tec.tec(), 0.3 * 10E16);
     }
 }

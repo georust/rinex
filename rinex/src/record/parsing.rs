@@ -175,7 +175,7 @@ impl Record {
         if let Some(ionex) = &header.ionex {
             ionex_tec_exponent = ionex.exponent;
             ionex_lat_exponent = IonexQuantized::find_exponent(ionex.grid.latitude.spacing);
-            ionex_long_exponent = IonexQuantized::find_exponent(ionex.grid.latitude.spacing);
+            ionex_long_exponent = IonexQuantized::find_exponent(ionex.grid.longitude.spacing);
             ionex_alt_exponent = IonexQuantized::find_exponent(ionex.grid.height.spacing);
         }
 

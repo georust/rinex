@@ -35,7 +35,7 @@ impl Quantized {
 
     /// Returns real [f64] value
     pub fn real_value(&self) -> f64 {
-        self.quantized as f64 * 10.0_f64.powi(-self.exponent as i32)
+        self.quantized as f64 / 10.0_f64.powi(self.exponent as i32)
     }
 
     /// Returns quantized integer value
@@ -67,6 +67,7 @@ mod test {
                 exponent: 0,
             },
         );
+        assert_eq!(q.real_value(), 1.0);
 
         let q = Quantized::new(1.0, 1);
         assert_eq!(
@@ -76,6 +77,7 @@ mod test {
                 exponent: 1,
             },
         );
+        assert_eq!(q.real_value(), 1.0);
 
         let q = Quantized::new(1.25, 2);
         assert_eq!(
@@ -85,6 +87,7 @@ mod test {
                 exponent: 2,
             },
         );
+        assert_eq!(q.real_value(), 1.25);
 
         let q = Quantized::new(-3.215, 3);
         assert_eq!(

@@ -14,7 +14,7 @@ pub struct TecPoint<'a> {
     pub long_exponent: i8,
     pub alt_km: f64,
     pub alt_exponent: i8,
-    pub tecu: i32,
+    pub tecu: f64,
 }
 
 /// Basic tests for Observation [Rinex]
@@ -144,16 +144,22 @@ pub fn generic_ionex_test(
         let epoch = Epoch::from_str(point.t).unwrap();
 
         let lat_ddeg = point.lat_ddeg;
+        let lat_exponent = Quantized::find_exponent(lat_grid_spacing);
+
         let long_ddeg = point.long_ddeg;
+        let long_exponent = Quantized::find_exponent(long_grid_spacing);
+
         let alt_km = point.alt_km;
+        let h_grid_spacing = h_grid_spacing.unwrap_or(0.0);
+        let alt_exponent = Quantized::find_exponent(h_grid_spacing);
 
         let coordinates = IonexMapCoordinates::new(
             lat_ddeg,
-            point.lat_exponent,
+            lat_exponent,
             long_ddeg,
-            point.long_exponent,
+            long_exponent,
             alt_km,
-            point.alt_exponent,
+            alt_exponent,
         );
 
         let key = IonexKey { epoch, coordinates };
@@ -162,5 +168,13 @@ pub fn generic_ionex_test(
             "missing TEC for t={};lat={};long={};z={}",
             epoch, lat_ddeg, long_ddeg, alt_km
         ));
+
+        let error = (tec.tecu() - point.tecu).abs();
+        assert!(
+            error < 1.0E-5,
+            "bad tec value: {} versus {}",
+            tec.tecu(),
+            point.tecu
+        );
     }
 }

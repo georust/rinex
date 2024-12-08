@@ -16,7 +16,9 @@ impl Rinex {
     }
 
     /// Returns true if this IONEX only contains a single isosurface
-    /// at fixed altitude.
+    /// at fixed altitude. NB: this information only relies
+    /// on the [Header] section, not actual data analysis.
+    /// If [Record] content did not follow the specifications, this will be invalid.
     pub fn is_ionex_2d(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
             ionex.map_dimension == 2 && self.is_ionex()
@@ -26,6 +28,9 @@ impl Rinex {
     }
 
     /// Returns true if this IONEX contains several isosurface spanning [Self::ionex_altitude_range].
+    /// NB: this information only relies
+    /// on the [Header] section, not actual data analysis.
+    /// If [Record] content did not follow the specifications, this will be invalid.
     pub fn is_ionex_3d(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
             ionex.map_dimension == 3 && self.is_ionex()
