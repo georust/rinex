@@ -36,7 +36,7 @@ kml = { version = "0.8", optional = true }
 gpx = { version = "0.10", optional = true }
 csv = { version = "1.3", optional = true }
 
-plotly = "0.9"
+plotly = "0.11"
 # plotly = { path = "../../plotly-rs/plotly" }
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo" }
 

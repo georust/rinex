@@ -56,7 +56,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 statrs = { version = "0.16", optional = true }
 
-plotly = "0.9"
+plotly = "0.11"
 # plotly = { path = "../../plotly-rs/plotly" }
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
 
