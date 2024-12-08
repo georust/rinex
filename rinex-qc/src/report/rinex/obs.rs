@@ -22,11 +22,6 @@ enum Physics {
     PseudoRange,
 }
 
-struct UniqueCombinationKey {
-    sv: SV,
-    combination: Combination,
-}
-
 impl Physics {
     pub fn from_observable(observable: &Observable) -> Self {
         if observable.is_phase_range_observable() {
@@ -71,8 +66,6 @@ struct FrequencyPage {
     sampling: SamplingReport,
     /// One plot per physics
     raw_plots: HashMap<Physics, Plot>,
-    /// Code Multipath
-    multipath_plot: Plot,
 }
 
 impl FrequencyPage {
@@ -171,10 +164,6 @@ impl FrequencyPage {
                 }
                 plots
             },
-            multipath_plot: {
-                // TODO
-                Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true)
-            },
         }
     }
 }
@@ -267,10 +256,14 @@ struct ConstellationPage {
     frequencies: HashMap<String, FrequencyPage>,
     /// SV per epoch view
     sv_epoch: HashMap<Epoch, Vec<SV>>,
-    /// One plot per [Combination]
-    combinations_plot: HashMap<Combination, Plot>,
-    /// One plot per [Combination]
-    d_dt_combinations_plot: HashMap<Combination, Plot>,
+    /// GF plot
+    gf_plot: Plot,
+    /// d/dt GF plot
+    d_dt_gf_plot: Plot,
+    /// d/dt IF plot
+    d_dt_if_plot: Plot,
+    /// MP plot
+    mp_plot: Plot,
 }
 
 impl ConstellationPage {
@@ -285,58 +278,151 @@ impl ConstellationPage {
         let sampling = SamplingReport::from_rinex(rinex);
         let mut frequencies = HashMap::<String, FrequencyPage>::new();
 
-        let mut combinations_plot = HashMap::new();
-        let mut d_dt_combinations_plot = HashMap::new();
+        let mut gf_plot = Plot::timedomain_plot(
+            "obs_gf_plot",
+            "Geometry Free",
+            "L1-L_j meters delay (bias)",
+            true,
+        );
+
+        let mut d_dt_gf_plot = Plot::timedomain_plot(
+            "obs_d_dt_gf_plot",
+            "Geometry Free Variations",
+            "d/dt(bias)",
+            true,
+        );
+
+        let mut d_dt_if_plot = Plot::timedomain_plot(
+            "obs_gf_plot",
+            "Ionosphere Free variations",
+            "d/dt(bias)",
+            true,
+        );
 
         for combination in [Combination::GeometryFree, Combination::IonosphereFree] {
-            let plot_id = format!("obs_{:x}", combination);
-            let title = combination.to_string();
-
-            let mut plot = Plot::timedomain_plot(&plot_id, &title, "Meters of L1-L_j delay", true);
-            let mut d_dt_plot =
-                Plot::timedomain_plot(&plot_id, &title, "d/dt Meters of L1-L_j delay", true);
-
-            for sv in rinex.sv_iter() {
+            for (sv_index, sv) in rinex.sv_iter().enumerate() {
                 let sv_filter = Filter::equals(&sv.to_string()).unwrap();
 
                 let focused = rinex.filter(&sv_filter);
 
                 let mut data_x = HashMap::<Observable, Vec<Epoch>>::new();
                 let mut data_y = HashMap::<Observable, Vec<f64>>::new();
+
+                let mut prev = HashMap::<Observable, (Epoch, f64)>::new();
                 let mut data_dx = HashMap::<Observable, Vec<Epoch>>::new();
                 let mut data_dy = HashMap::<Observable, Vec<f64>>::new();
 
                 for (k, value) in focused.signals_combination(combination).iter() {
-                    if let Some(data_x) = data_x.get_mut(&k.reference) {
+                    if let Some(data_x) = data_x.get_mut(&k.lhs) {
                         data_x.push(k.epoch);
                     } else {
-                        data_x.insert(k.reference.clone(), vec![k.epoch]);
+                        data_x.insert(k.lhs.clone(), vec![k.epoch]);
                     }
-                    if let Some(data_y) = data_y.get_mut(&k.reference) {
+                    if let Some(data_y) = data_y.get_mut(&k.lhs) {
                         data_y.push(*value);
                     } else {
-                        data_y.insert(k.reference.clone(), vec![*value]);
+                        data_y.insert(k.lhs.clone(), vec![*value]);
+                    }
+                    if let Some((prev_t, prev_y)) = prev.get_mut(&k.lhs) {
+                        if let Some(data_x) = data_dx.get_mut(&k.lhs) {
+                            data_x.push(k.epoch);
+                        } else {
+                            data_dx.insert(k.lhs.clone(), vec![k.epoch]);
+                        }
+
+                        let dt = (k.epoch - *prev_t).to_seconds();
+                        let dy = *value - *prev_y;
+
+                        if let Some(data_y) = data_dy.get_mut(&k.lhs) {
+                            data_y.push(dy / dt);
+                        } else {
+                            data_dy.insert(k.lhs.clone(), vec![dy / dt]);
+                        }
+
+                        *prev_t = k.epoch;
+                        *prev_y = *value;
+                    } else {
+                        prev.insert(k.lhs.clone(), (k.epoch, *value));
                     }
                 }
 
-                for observable in data_x.keys().sorted() {
+                for (obs_index, observable) in data_x.keys().sorted().enumerate() {
                     let data_x = data_x.get(observable).unwrap();
                     let data_y = data_y.get(observable).unwrap();
+
+                    let data_dx = data_dx.get(observable).unwrap();
+                    let data_dy = data_dy.get(observable).unwrap();
+
                     let tr = Plot::timedomain_chart(
                         &format!("{}({})", sv, observable),
                         Mode::Markers,
                         MarkerSymbol::Cross,
-                        &data_x,
-                        data_y.to_vec(),
-                        true,
+                        &data_dx,
+                        data_dy.to_vec(),
+                        sv_index == 0 && obs_index == 0,
                     );
 
-                    plot.add_trace(tr);
+                    match combination {
+                        Combination::GeometryFree => {
+                            d_dt_gf_plot.add_trace(tr);
+
+                            let tr = Plot::timedomain_chart(
+                                &format!("{}({})", sv, observable),
+                                Mode::Markers,
+                                MarkerSymbol::Cross,
+                                &data_x,
+                                data_y.to_vec(),
+                                sv_index == 0 && obs_index == 0,
+                            );
+
+                            gf_plot.add_trace(tr);
+                        },
+                        Combination::IonosphereFree => {
+                            d_dt_if_plot.add_trace(tr);
+                        },
+                        _ => {},
+                    }
+                }
+            }
+        }
+
+        let mut mp_plot = Plot::timedomain_plot("obs_mp", "Multipath Bias", "Bias [m]", true);
+
+        for (sv_index, sv) in rinex.sv_iter().enumerate() {
+            let filter = Filter::equals(&sv.to_string()).unwrap();
+
+            let focused = rinex.filter(&filter);
+
+            let mut data_x = HashMap::<(Observable, Observable), Vec<Epoch>>::new();
+            let mut data_y = HashMap::<(Observable, Observable), Vec<f64>>::new();
+
+            for (k, v) in focused.signals_multipath().iter() {
+                if let Some(data_x) = data_x.get_mut(&(k.signal.clone(), k.rhs.clone())) {
+                    data_x.push(k.epoch);
+                } else {
+                    data_x.insert((k.signal.clone(), k.rhs.clone()), vec![k.epoch]);
+                }
+                if let Some(data_y) = data_y.get_mut(&(k.signal.clone(), k.rhs.clone())) {
+                    data_y.push(*v);
+                } else {
+                    data_y.insert((k.signal.clone(), k.rhs.clone()), vec![*v]);
                 }
             }
 
-            combinations_plot.insert(combination, plot);
-            d_dt_combinations_plot.insert(combination, d_dt_plot);
+            for (mp_index, ((ref_obs, rhs_obs), data_x)) in data_x.iter().enumerate() {
+                let data_y = data_y.get(&(ref_obs.clone(), rhs_obs.clone())).unwrap();
+
+                let tr = Plot::timedomain_chart(
+                    &format!("{}({}/{})", sv, ref_obs, rhs_obs),
+                    Mode::Markers,
+                    MarkerSymbol::Cross,
+                    data_x,
+                    data_y.to_vec(),
+                    sv_index == 0 && mp_index == 0,
+                );
+
+                mp_plot.add_trace(tr);
+            }
         }
 
         for carrier in rinex.carrier_iter() {
@@ -353,6 +439,7 @@ impl ConstellationPage {
                     Filter::equals(&observables.iter().map(|ob| ob.to_string()).join(", "))
                         .unwrap();
                 let focused = rinex.filter(&filter);
+
                 FrequencyPage::new(&focused);
                 frequencies.insert(format!("{:?}", carrier), FrequencyPage::new(&focused));
             }
@@ -365,8 +452,10 @@ impl ConstellationPage {
             cpp_compatible,
             ppp_compatible,
             sv_epoch: Default::default(),
-            combinations_plot,
-            d_dt_combinations_plot,
+            mp_plot,
+            gf_plot,
+            d_dt_gf_plot,
+            d_dt_if_plot,
         }
     }
 }
@@ -457,26 +546,36 @@ impl Render for ConstellationPage {
                                 (self.frequencies.keys().sorted().join(", "))
                             }
                         }
-                        @for combination in self.combinations_plot.keys().sorted() {
-                            @if let Some(plot) = self.combinations_plot.get(combination) {
-                                tr {
-                                    th class="is-info" {
-                                        (format!("{} combination", combination))
-                                    }
-                                    td {
-                                        (plot.render())
-                                    }
-                                }
+                        tr {
+                            th class="is-info" {
+                                "Geometry Free combination"
                             }
-                            @if let Some(plot) = self.d_dt_combinations_plot.get(combination) {
-                                tr {
-                                    th class="is-info" {
-                                        (format!("d/dt {} combination", combination))
-                                    }
-                                    td {
-                                        (plot.render())
-                                    }
-                                }
+                            td {
+                                (self.gf_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Geometry Free variations"
+                            }
+                            td {
+                                (self.d_dt_gf_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Ionosphere Free combination"
+                            }
+                            td {
+                                (self.d_dt_if_plot.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Signal Multipath"
+                            }
+                            td id="obs_mp" {
+                                (self.mp_plot.render())
                             }
                         }
                         @for signal in self.frequencies.keys().sorted() {
@@ -502,7 +601,9 @@ impl Render for ConstellationPage {
 pub struct Report {
     antenna: Option<Antenna>,
     receiver: Option<Receiver>,
+    has_clock: bool,
     clock_plot: Plot,
+    clock_drift_plot: Plot,
     sampling: SamplingReport,
     constellations: HashMap<String, ConstellationPage>,
 }
@@ -534,6 +635,43 @@ impl Report {
 
     /// Builds new [Report] from this [Rinex]
     pub fn new(rinex: &Rinex) -> Self {
+        let mut clock_x = Vec::<Epoch>::new();
+        let mut clock_y = Vec::<f64>::new();
+        let mut clock_dy = Vec::<f64>::new();
+
+        for (k, v) in rinex.clock_observations_iter() {
+            clock_x.push(k.epoch);
+            clock_y.push(v.offset_s);
+            clock_dy.push(v.drift_s_s);
+        }
+
+        let mut clock_plot = Plot::timedomain_plot("obs_rx_clock", "RX clock", "Second", true);
+
+        let trace = Plot::timedomain_chart(
+            "obs_rx_clock_offset",
+            Mode::Markers,
+            MarkerSymbol::Diamond,
+            &clock_x,
+            clock_y,
+            true,
+        );
+
+        clock_plot.add_trace(trace);
+
+        let mut clock_drift_plot =
+            Plot::timedomain_plot("obs_rx_clock", "RX clock drift", "Seconds / second", true);
+
+        let trace = Plot::timedomain_chart(
+            "obs_rx_clock_drift",
+            Mode::Markers,
+            MarkerSymbol::Diamond,
+            &clock_x,
+            clock_dy,
+            true,
+        );
+
+        clock_drift_plot.add_trace(trace);
+
         Self {
             sampling: SamplingReport::from_rinex(rinex),
             receiver: if let Some(rcvr) = &rinex.header.rcvr {
@@ -546,10 +684,9 @@ impl Report {
             } else {
                 None
             },
-            clock_plot: {
-                let mut plot = Plot::timedomain_plot("rx_clock", "Clock offset", "Second", true);
-                plot
-            },
+            has_clock: !clock_x.is_empty(),
+            clock_plot,
+            clock_drift_plot,
             constellations: {
                 let mut constellations = HashMap::<String, ConstellationPage>::new();
                 for constellation in rinex.constellations_iter() {
@@ -624,6 +761,31 @@ impl Render for Report {
                         }
                         td {
                             (self.sampling.render())
+                        }
+                    }
+                }
+                @if self.has_clock {
+                    table class="table is-bordered" {
+                        tr {
+                            th class="is-info" {
+                                "RX Clock"
+                            }
+                            tr {
+                                th class="is-info"  {
+                                    "Clock Offset"
+                                }
+                                td {
+                                    (self.clock_plot.render())
+                                }
+                            }
+                            tr {
+                                th class="is-info"  {
+                                    "Clock Drift"
+                                }
+                                td {
+                                    (self.clock_drift_plot.render())
+                                }
+                            }
                         }
                     }
                 }

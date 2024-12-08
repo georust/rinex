@@ -6,7 +6,10 @@ use crate::{
 
 use itertools::Itertools;
 
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ops::Mul,
+};
 
 /// Supported signal [Combination]s
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -60,6 +63,20 @@ pub struct CombinationKey {
     pub lhs: Observable,
     /// Reference [Observable]
     pub reference: Observable,
+}
+
+/// [MultipathKey] is how we sort code multipath values
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub struct MultipathKey {
+    /// [Epoch] of sampling
+    pub epoch: Epoch,
+    /// [SV]: signal source
+    pub sv: SV,
+    /// Phase reference [Observable]. Retrieve the
+    /// [Carrier] signal for which the MP applies, with [Observable::carrier].
+    pub signal: Observable,
+    /// Comparison Phase [Observable].
+    pub rhs: Observable,
 }
 
 impl Rinex {
@@ -387,6 +404,7 @@ impl Rinex {
     /// meaning the return value is in meters of recombined frequency propagation.
     pub fn signals_combination(&self, combination: Combination) -> BTreeMap<CombinationKey, f64> {
         let mut ret = BTreeMap::new();
+
         if combination == Combination::MelbourneWubbena {
             for ((k_1, v_1), (_, v_2)) in self
                 .signals_combination(Combination::WideLane)
@@ -417,8 +435,19 @@ impl Rinex {
                 ret.insert(key, v_1 - v_2);
             }
         } else {
-            let mut pr_ref_value = HashMap::<SV, (Observable, f64, f64)>::new();
-            let mut phase_ref_value = HashMap::<SV, (Observable, f64, f64)>::new();
+            let dominant_sampling = if let Some(dt) = self.header.sampling_interval {
+                dt
+            } else {
+                if let Some(dt) = self.dominant_sample_rate() {
+                    dt
+                } else {
+                    // can't proceed without sampling interval guess.
+                    return ret;
+                }
+            };
+
+            let mut pr_ref_value = HashMap::<SV, (Epoch, Observable, f64, f64)>::new();
+            let mut phase_ref_value = HashMap::<SV, (Epoch, Observable, f64, f64)>::new();
 
             for (k, v) in self.signal_observations_iter() {
                 let is_phase_range = v.observable.is_phase_range_observable();
@@ -441,10 +470,12 @@ impl Rinex {
 
                 if is_l1_pivot {
                     if is_phase_range {
-                        phase_ref_value
-                            .insert(v.sv, (v.observable.clone(), freq, v.value * lambda));
+                        phase_ref_value.insert(
+                            v.sv,
+                            (k.epoch, v.observable.clone(), freq, v.value * lambda),
+                        );
                     } else {
-                        pr_ref_value.insert(v.sv, (v.observable.clone(), freq, v.value));
+                        pr_ref_value.insert(v.sv, (k.epoch, v.observable.clone(), freq, v.value));
                     };
                 } else {
                     let reference = if is_phase_range {
@@ -453,7 +484,13 @@ impl Rinex {
                         &pr_ref_value
                     };
 
-                    if let Some((reference, f_1, ref_value)) = reference.get(&v.sv) {
+                    if let Some((last_seen, reference, f_1, ref_value)) = reference.get(&v.sv) {
+                        if k.epoch - *last_seen > dominant_sampling {
+                            // avoid moving forward on data gaps
+                            // guards against substraction (a - b) from two different epochs
+                            continue;
+                        }
+
                         let alpha = match combination {
                             Combination::GeometryFree => 1.0,
                             Combination::IonosphereFree => f_1.powi(2),
@@ -510,11 +547,114 @@ impl Rinex {
                         };
 
                         ret.insert(combination, (alpha * v_lhs + beta * v_rhs) / gamma);
-                    } else {
-                        println!("t={}|sv={}: no ref!", k.epoch, v.sv);
                     }
                 }
             }
+        }
+        ret
+    }
+
+    /// Calculates the signal multipath bias (as meters of propagation delay)
+    /// for all SV in sight and from dual frequency phase measurement.
+    /// Note that this is not the absolute multipath bias because
+    /// - it does not integrate the K_1_j "static" bias induced by differential code bias
+    /// between SV and RX. You should apply it yourself on the provided results
+    /// - the receiver own noise is contained in the result. Results should be averaged to mitigate.
+    pub fn signals_multipath(&self) -> HashMap<MultipathKey, f64> {
+        let mut ret = HashMap::new();
+
+        let dominant_sampling = if let Some(dt) = self.header.sampling_interval {
+            dt
+        } else {
+            if let Some(dt) = self.dominant_sample_rate() {
+                dt
+            } else {
+                // can't proceed without sampling interval guess.
+                return ret;
+            }
+        };
+
+        let mut t = Epoch::default();
+
+        // stores all encountered pseudo range
+        let mut rho = HashMap::<(SV, Observable), f64>::new();
+        // stores all encountered phase range
+        let mut phi = HashMap::<(SV, Observable), (f64, f64)>::new();
+
+        for (k, v) in self.signal_observations_iter() {
+            let is_ph = v.observable.is_phase_range_observable();
+            let is_pr = v.observable.is_pseudo_range_observable();
+            let carrier = v.observable.carrier(v.sv.constellation);
+
+            if !is_ph && !is_pr || carrier.is_err() {
+                continue;
+            }
+
+            let carrier = carrier.unwrap();
+            let freq = carrier.frequency().powi(2);
+            let lambda = carrier.wavelength();
+
+            if k.epoch - t > dominant_sampling {
+                // data gap
+                rho.clear();
+                phi.clear();
+            }
+
+            if k.epoch - t == dominant_sampling {
+                // new epoch
+                // try to compute from previously stored data, then reset
+                for ((phi_sv, phi_obs), (freq, phi_value)) in phi.iter() {
+                    let phi_code = phi_obs.code();
+                    if phi_code.is_none() {
+                        continue;
+                    }
+
+                    let phi_code = phi_code.unwrap();
+
+                    // locate associated pr
+                    for ((rho_sv, rho_obs), rho) in rho.iter() {
+                        let rho_code = rho_obs.code();
+                        if rho_code.is_none() {
+                            continue;
+                        }
+
+                        let rho_code = rho_code.unwrap();
+
+                        // same modulation / signal as reference phase
+                        if rho_code == phi_code && rho_sv == phi_sv {
+                            // now compute for any different l_j phase
+                            for ((phi_sv_j, phi_obs_j), (freq_j, phi_j)) in phi.iter() {
+                                if phi_sv_j == phi_sv {
+                                    if phi_obs_j != phi_obs {
+                                        let key = MultipathKey {
+                                            epoch: t,
+                                            sv: *phi_sv,
+                                            signal: phi_obs.clone(),
+                                            rhs: phi_obs_j.clone(),
+                                        };
+                                        let value = rho
+                                            - phi_value
+                                            - 2.0 * freq_j / (freq - freq_j) * (phi_value - phi_j);
+                                        ret.insert(key, value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                //reset
+                rho.clear();
+                phi.clear();
+            }
+
+            // store value
+            if is_pr {
+                rho.insert((v.sv, v.observable.clone()), v.value);
+            } else {
+                phi.insert((v.sv, v.observable.clone()), (freq, v.value * lambda));
+            }
+
+            t = k.epoch;
         }
         ret
     }
@@ -1116,5 +1256,58 @@ mod test {
             }
         }
         assert_eq!(tests_passed, 5);
+    }
+
+    #[test]
+    fn code_multipath() {
+        let fullpath = format!(
+            "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        let rinex = Rinex::from_file(&fullpath).unwrap();
+
+        let mut tests_passed = 0;
+
+        let gps_l1 = Carrier::L1.frequency();
+        let gps_l2 = Carrier::L2.frequency();
+        let gps_l5 = Carrier::L5.frequency();
+
+        let gps_w1 = Carrier::L1.wavelength();
+        let gps_w2 = Carrier::L1.wavelength();
+        let gps_w5 = Carrier::L1.wavelength();
+
+        let mut tests_passed = 0;
+
+        for (k, value) in rinex.signals_multipath() {
+            let epoch = k.epoch.to_string();
+            let signal = k.signal.to_string();
+            let sv = k.sv.to_string();
+            let rhs = k.rhs.to_string();
+
+            match epoch.as_str() {
+                "2021-12-21T00:00:00 GPST" => match sv.as_str() {
+                    "G01" => match signal.as_str() {
+                        "L1C" => match rhs.as_str() {
+                            "L2S" => {
+                                let err = (value
+                                    - 24600158.420
+                                    - 129274705.784 * gps_w1
+                                    - 2.0 * gps_l2 / (gps_l1 - gps_l2)
+                                        * (129274705.784 * gps_w1 - 100733552.500 * gps_w2))
+                                    .abs();
+                                assert!(err < 1.0E-6, "error too large: {}", value);
+                                tests_passed += 1;
+                            },
+                            _ => {},
+                        },
+                        _ => {},
+                    },
+                    _ => {}, // sv
+                },
+                _ => {}, // epoch
+            }
+        }
+        assert_eq!(tests_passed, 1);
     }
 }
