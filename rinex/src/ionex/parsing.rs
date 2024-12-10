@@ -78,7 +78,8 @@ pub fn parse_tec_map(
     let lines = content.lines();
 
     let mut fixed_lat = 0.0_f64;
-    let (mut long1, mut long_spacing) = (0.0_f64, 0.0_f64);
+    let mut long1;
+    let mut long_spacing = 0.0_f64;
     let mut fixed_alt = 0.0_f64;
 
     let mut long = 0.0_f64; // current longitude (pointer)
@@ -161,7 +162,6 @@ pub fn parse_rms_map(
     record: &mut Record,
 ) -> Result<(), ParsingError> {
     let lines = content.lines();
-    let mut epoch = Epoch::default();
 
     let mut fixed_lat = 0.0_f64;
     let (mut long1, mut long_spacing) = (0.0_f64, 0.0_f64);

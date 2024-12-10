@@ -1,8 +1,6 @@
 //! RTCM to RINEX deserialization
 use std::io::Read;
 
-use crate::prelude::Rinex;
-
 use rtcm_rs::next_msg_frame as next_rtcm_msg_frame;
 
 /// RTCM2RNX can deserialize a RTCM stream to RINEX Tokens.
@@ -36,7 +34,7 @@ impl<R: Read> Iterator for RTCM2RNX<R> {
         }
 
         match next_rtcm_msg_frame(&self.buf[self.ptr..]) {
-            (size, Some(fr)) => {},
+            (_, Some(_)) => {},
             (_, None) => {},
         }
 

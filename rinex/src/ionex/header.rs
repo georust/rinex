@@ -64,13 +64,18 @@ pub struct HeaderFields {
 impl Default for HeaderFields {
     fn default() -> Self {
         Self {
-            exponent: -1,     // very important: allows missing EXPONENT fields
-            map_dimension: 2, // 2D map by default
+            // default exponent value
+            // this is very important: it allows to support
+            // the parsing of IONEX that omit the exponent
+            exponent: -1,
+            // 2D by default
+            map_dimension: 2,
             mapping: None,
             observables: None,
             description: None,
             elevation_cutoff: 0.0,
-            base_radius: 0.0,
+            // Standard Earth radius [km]
+            base_radius: 6371.0,
             grid: Grid::default(),
             nb_stations: 0,
             nb_satellites: 0,

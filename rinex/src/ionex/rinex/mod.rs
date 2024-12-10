@@ -7,7 +7,7 @@ use crate::{
     prelude::{Rinex, RinexType},
 };
 
-use std::collections::btree_map::{Iter, IterMut, Keys};
+use std::collections::btree_map::Keys;
 
 impl Rinex {
     /// Returns true if this is a IONEX (special) [Rinex]

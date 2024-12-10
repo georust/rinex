@@ -177,6 +177,8 @@ pub enum FormattingError {
     MissingObservableDefinition,
     #[error("nav: unknown radio message")]
     NoNavigationDefinition,
+    #[error("nav: missing grid defs")]
+    NoGridDefinition,
 }
 
 /// General error (processing, analysis..)

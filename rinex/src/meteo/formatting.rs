@@ -2,7 +2,7 @@ use std::io::{BufWriter, Write};
 
 use crate::{
     epoch::format as format_epoch,
-    meteo::Record,
+    meteo::{MeteoKey, Record},
     prelude::{FormattingError, Header, RinexType},
 };
 
@@ -19,20 +19,26 @@ pub fn format<W: Write>(
         .as_ref()
         .ok_or(FormattingError::UndefinedObservables)?;
 
-    for t in record.keys().map(|k| k.epoch).unique().sorted() {
+    for epoch in record.keys().map(|k| k.epoch).unique().sorted() {
         writeln!(
             w,
             " {}",
-            format_epoch(t, RinexType::MeteoData, header.version.major)
+            format_epoch(epoch, RinexType::MeteoData, header.version.major)
         )?;
-        //// follow header definitions
-        //for observable in observables.codes.iter() {
-        //    if let Some(observation) = v.iter().filter(|obs| obs.observable == observable).reduce(|k, _| k) {
-        //        write!(w, "{:14.13} ", observation.value)?;
-        //    } else {
-        //        write!(w, "           ")?;
-        //    }
-        //}
+
+        // follow header definitions
+        for observable in observables.codes.iter() {
+            let key = MeteoKey {
+                epoch,
+                observable: observable.clone(),
+            };
+
+            if let Some(observation) = record.get(&key) {
+                write!(w, "{:14.13} ", observation)?;
+            } else {
+                write!(w, "           ")?;
+            }
+        }
     }
 
     Ok(())

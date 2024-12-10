@@ -1,16 +1,6 @@
 use std::str::FromStr;
-use thiserror::Error;
 
 use crate::prelude::{Constellation, ParsingError};
-
-/// Reference System parsing error
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("unknown reference system")]
-    UnknownRefSystem,
-    #[error("constellation parsing error")]
-    ConstellationParsing(#[from] gnss::constellation::ParsingError),
-}
 
 /// RefSystem "Reference System" describes either reference GNSS
 /// constellation, from which TEC maps were evaluated,

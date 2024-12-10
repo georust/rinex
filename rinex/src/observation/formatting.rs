@@ -69,10 +69,6 @@ fn format_v3<W: Write>(
     header: &Header,
     record: &Record,
 ) -> Result<(), FormattingError> {
-    const NUM_SV_PER_LINE: usize = 12;
-    const OBSERVATIONS_PER_LINE: usize = 5;
-    const END_OF_LINE_PADDING: &str = "\n                                ";
-
     let observables = &header
         .obs
         .as_ref()
@@ -106,8 +102,10 @@ fn format_v3<W: Write>(
                     .filter(|sig| sig.observable == *observable)
                     .reduce(|k, _| k)
                 {
+                    write!(w, "{:14.13}", observation.value)?;
                 } else {
                     // Blanking
+                    write!(w, "             ")?;
                 }
             }
         }
@@ -121,6 +119,7 @@ fn format_epoch_v2<W: Write>(
     sv_list: &[SV],
     clock: Option<ClockObservation>,
 ) -> Result<(), FormattingError> {
+    const NUM_SV_PER_LINE: usize = 12;
     let numsat = sv_list.len();
 
     if let Some(clock) = clock {
@@ -141,6 +140,13 @@ fn format_epoch_v2<W: Write>(
         )?;
     }
 
+    for (nth, sv) in sv_list.iter().enumerate() {
+        write!(w, "{:x}", sv)?;
+        if nth % NUM_SV_PER_LINE == NUM_SV_PER_LINE - 1 {
+            write!(w, "{}", '\n')?;
+        }
+    }
+
     Ok(())
 }
 
@@ -149,9 +155,7 @@ fn format_v2<W: Write>(
     header: &Header,
     record: &Record,
 ) -> Result<(), FormattingError> {
-    const NUM_SV_PER_LINE: usize = 12;
     const OBSERVATIONS_PER_LINE: usize = 5;
-    const END_OF_LINE_PADDING: &str = "\n                                ";
 
     let observables = &header
         .obs
@@ -179,15 +183,20 @@ fn format_v2<W: Write>(
                 .get(&sv.constellation)
                 .ok_or(FormattingError::MissingObservableDefinition)?;
 
-            for observable in observables.iter() {
+            for (nth, observable) in observables.iter().enumerate() {
                 if let Some(observation) = v
                     .signals
                     .iter()
                     .filter(|sig| sig.observable == *observable)
                     .reduce(|k, _| k)
                 {
+                    write!(w, "{:14.13}", observation.value)?;
                 } else {
                     // Blanking
+                    write!(w, "{:14.13}", " ")?;
+                }
+                if nth % OBSERVATIONS_PER_LINE == OBSERVATIONS_PER_LINE - 1 {
+                    write!(w, "{}", '\n')?;
                 }
             }
         }

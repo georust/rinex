@@ -182,7 +182,7 @@ use qc_traits::{Merge, MergeError};
 impl Merge for TEC {
     fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut s = self.clone();
-        s.merge_mut(&rhs);
+        s.merge_mut(&rhs)?;
         Ok(s)
     }
 

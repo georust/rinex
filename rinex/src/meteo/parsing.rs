@@ -1,10 +1,3 @@
-use num_integer::div_ceil;
-
-use std::{
-    collections::{BTreeMap, HashMap},
-    str::FromStr,
-};
-
 use crate::{
     epoch::parse_utc as parse_utc_epoch,
     prelude::{Header, MeteoKey, ParsingError, Version},

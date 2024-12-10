@@ -1,7 +1,6 @@
 //! Observation Record specific header fields
 
 use crate::{
-    fmt_rinex,
     hatanaka::CRINEX,
     prelude::{Constellation, Epoch, FormattingError, Observable, TimeScale},
 };

@@ -226,6 +226,16 @@ impl Record {
                 continue;
             }
 
+            // (special case) COMMENTS: store as is
+            if line_buf.contains("COMMENT") {
+                let content = line_buf.split_at(60).0.trim();
+                if let Some(comments) = comments.get_mut(&comment_ts) {
+                    comments.push(content.to_string());
+                } else {
+                    comments.insert(comment_ts, vec![content.to_string()]);
+                }
+            }
+
             // CRINEX special case:
             // - apply decompression algorithm prior moving forward
             // - decompress new pending line, which may recover several lines (in old V1 format)
@@ -247,7 +257,7 @@ impl Record {
                             line_buf.push('\n');
                         }
                     },
-                    Err(e) => {
+                    Err(_) => {
                         crinex_error = true;
                     },
                 }
@@ -352,7 +362,7 @@ impl Record {
                                     &mut ionex_rec,
                                 ) {
                                     Ok(()) => {},
-                                    Err(e) => {},
+                                    Err(_) => {},
                                 }
                             } else if is_new_rms_map(&line_buf) {
                                 match parse_ionex_rms_map(
@@ -365,7 +375,7 @@ impl Record {
                                     &mut ionex_rec,
                                 ) {
                                     Ok(()) => {},
-                                    Err(e) => {},
+                                    Err(_) => {},
                                 }
                             } else {
                                 match parse_ionex_height_map(
@@ -378,7 +388,7 @@ impl Record {
                                     &mut ionex_rec,
                                 ) {
                                     Ok(()) => {},
-                                    Err(e) => {},
+                                    Err(_) => {},
                                 }
                             }
                         },

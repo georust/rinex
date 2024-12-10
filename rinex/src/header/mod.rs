@@ -169,6 +169,11 @@ impl Header {
             .with_crinex(CRINEX::default())
     }
 
+    /// Builds a basic [Header] for IONEX
+    pub fn basic_ionex() -> Self {
+        Self::default().with_ionex_fields(IonexHeader::default())
+    }
+
     /// Generates the special "FILE MERGE" comment
     pub(crate) fn merge_comment(timestamp: Epoch) -> String {
         let (y, m, d, hh, mm, ss, _) = timestamp.to_gregorian_utc();
@@ -252,10 +257,17 @@ impl Header {
         s
     }
 
-    /// Copies and returns [Header] with a specific [ObservationHeader]
+    /// Copies and returns [Header] with specific [ObservationHeader]
     pub fn with_observation_fields(&self, fields: ObservationHeader) -> Self {
         let mut s = self.clone();
         s.obs = Some(fields);
+        s
+    }
+
+    /// Copies and returns [Header] with specific [IonexHeader]
+    pub fn with_ionex_fields(&self, fields: IonexHeader) -> Self {
+        let mut s = self.clone();
+        s.ionex = Some(fields);
         s
     }
 }

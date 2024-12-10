@@ -37,11 +37,6 @@ impl Quantized {
     pub fn real_value(&self) -> f64 {
         self.quantized as f64 / 10.0_f64.powi(self.exponent as i32)
     }
-
-    /// Returns quantized integer value
-    pub fn quantized_value(&self) -> i32 {
-        self.quantized
-    }
 }
 
 #[cfg(test)]
