@@ -2,22 +2,19 @@
 use thiserror::Error;
 
 use std::{
-    collections::HashMap,
+    collections::{hash_map::Keys, HashMap},
     env,
-    ffi::OsStr,
     fs::File,
     io::Read,
     path::{Path, PathBuf},
 };
 
+use itertools::Itertools;
 use regex::Regex;
 
-use rinex::{
-    prelude::{
-        nav::{Almanac, Orbit},
-        GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale,
-    },
-    types::Type as RinexType,
+use rinex::prelude::{
+    nav::{Almanac, Orbit},
+    GroundPosition, ParsingError as RinexParsingError, Rinex, TimeScale,
 };
 
 use anise::{
@@ -83,11 +80,9 @@ pub enum Error {
 // }
 
 enum UserData {
-    /// RINEX content
-    Rinex(Rinex),
+    RINEX(Rinex),
     #[cfg(feature = "sp3")]
-    /// SP3 content
-    Sp3(SP3),
+    SP3(SP3),
 }
 
 /// [QcContext] is a general structure capable to store most common
@@ -241,14 +236,15 @@ impl QcContext {
         }
     }
 
-    /// Initiates a new [QcContext] to work within the $GEORUST_WORKSPACE
-    /// env. variable, which needs to be definied. This is compatible
-    /// with building from sources and working within the Git repository
-    /// <https://github.com/georust/rinex>.
-    /// The [QcContext] will try to gather the daily JPL high precision kernels.
-    /// Gathering the high precision kernels requires daily internet access.
-    /// If the highest precision kernel cannot be gathered for this day,
-    /// the logs will let you know, and we rely on lower precision kernels.
+    /// Initiates a new [QcContext] to work within the Geo-Rust repository.
+    /// Use this if you cloned the repository yourself and intend to work
+    /// inside the provided workspace. This is particularly useful when using
+    /// our tutorials and/or provided example data.
+    /// Repo url: <https://github.com/georust/rinex>.
+    /// We will try to gather the daily JPL high precision kernels,
+    /// which requires to access the internet once a day.
+    /// If internet access is not feasible on this day, we rely on lowest
+    /// precision kernels and the logs will let you know.
     pub fn new_daily_high_precision_georust_workspace() -> Result<Self, Error> {
         let (almanac, earth_cef) = Self::build_almanac()?;
         Ok(Self::new(
@@ -259,7 +255,10 @@ impl QcContext {
     }
 
     /// Build new [QcContext] to work in custom workspace.
-    /// See [QcContext::new_daily_high_precision_georust_workspace] for more info.
+    /// We will try to gather the daily JPL high precision kernels,
+    /// which requires to access the internet once a day.
+    /// If internet access is not feasible on this day, we rely on lowest
+    /// precision kernels and the logs will let you know.
     pub fn new_daily_high_precision<P: AsRef<Path>>(workspace: P) -> Result<Self, Error> {
         let (almanac, earth_cef) = Self::build_almanac()?;
         Ok(Self::new(almanac, earth_cef, workspace))
@@ -346,7 +345,7 @@ impl QcContext {
     /// Returns path to File considered as Primary input product.
     /// If [QcContext] only holds one input product, it is obviously defined as Primary,
     /// whatever its kind.
-    pub fn primary_path(&self) -> Option<&Path> {
+    pub fn primary_name(&self) -> Option<String> {
         /*
          * Order is important: determines what format are prioritized
          * in the "primary" determination
@@ -363,143 +362,32 @@ impl QcContext {
             ProductType::HighPrecisionOrbit,
         ] {
             // Returns first file loaded in this category.
-            if let Some(first) = self.files_iter(Some(product)).next() {
-                return Some(first);
+            if let Some(first) = self
+                .meta_iter()
+                .filter(|meta| meta.product_id == product)
+                .next()
+            {
+                return Some(first.name.to_string());
             }
         }
-
         None
-    }
-
-    /// Returns name of this context.
-    /// Context is named after the file considered as Primary, see [Self::primary_path].
-    /// If no files were previously loaded, simply returns "Undefined".
-    pub fn name(&self) -> String {
-        if let Some(path) = self.primary_path() {
-            path.file_stem()
-                .unwrap_or(OsStr::new("Undefined"))
-                .to_string_lossy()
-                // removes possible .crx ; .gz extensions
-                .split('.')
-                .next()
-                .unwrap_or("Undefined")
-                .to_string()
-        } else {
-            "Undefined".to_string()
-        }
     }
 
     /// Returns true when only a single file has been loaded in [QcContext]
     pub fn single_file(&self) -> bool {
-        let mut count = 0;
-        for product in [
-            ProductType::Observation,
-            ProductType::BroadcastNavigation,
-            ProductType::MeteoObservation,
-            ProductType::HighPrecisionClock,
-            ProductType::IONEX,
-            ProductType::ANTEX,
-        ] {
-            count += self.files_iter(Some(product)).count();
-        }
-
-        #[cfg(feature = "sp3")]
-        {
-            count += self
-                .files_iter(Some(ProductType::HighPrecisionOrbit))
-                .count();
-        }
-
-        count == 1
+        self.meta_iter()
+            .map(|meta| meta.name.clone())
+            .unique()
+            .count()
+            == 1
     }
 
-    /// Returns local file names Iterator.
-    /// Use [ProductType] filter to restrict to specific input [ProductType].
-    pub fn files_iter(
-        &self,
-        product_id: Option<ProductType>,
-    ) -> Box<dyn Iterator<Item = &Path> + '_> {
-        if let Some(product_id) = product_id {
-            Box::new(
-                self.user_data
-                    .iter()
-                    .filter_map(move |(k, v)| {
-                        if k.product_type == product_id {
-                            Some(v.paths.iter().map(|k| k.as_path()))
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten(),
-            )
-        } else {
-            // chains all files_iter for all supported types
-            // Order is important here
-            Box::new(
-                self.files_iter(Some(ProductType::Observation))
-                    .chain(self.files_iter(Some(ProductType::BroadcastNavigation))),
-            )
-        }
+    pub(crate) fn meta_iter(&self) -> Keys<'_, MetaData, UserData> {
+        self.user_data.keys()
     }
 
-    /// Returns [UserData] for this [ProductType]
-    fn get_per_product_user_data(&self, product_id: ProductType) -> Option<&UserData> {
-        self.user_data
-            .iter()
-            .filter_map(|(k, user_data)| {
-                if k.product_type == product_id {
-                    Some(user_data)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-    }
-
-    /// Returns mutable [UserData] for this [ProductType]
-    fn get_per_product_user_data_mut(&mut self, product_id: ProductType) -> Option<&mut UserData> {
-        self.user_data
-            .iter_mut()
-            .filter_map(|(k, user_data)| {
-                if k.product_type == product_id {
-                    Some(user_data)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-    }
-
-    /// Returns [UserData] for this unique [UserDataKey] combination
-    fn get_unique_user_data(&self, key: &UserDataKey) -> Option<&UserData> {
-        self.user_data
-            .iter()
-            .filter_map(
-                |(k, user_data)| {
-                    if k == key {
-                        Some(user_data)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .reduce(|k, _| k)
-    }
-
-    /// Returns [UserData] for this unique [UserDataKey] combination
-    fn get_unique_user_data_mut(&mut self, key: &UserDataKey) -> Option<&mut UserData> {
-        self.user_data
-            .iter_mut()
-            .filter_map(
-                |(k, user_data)| {
-                    if k == key {
-                        Some(user_data)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .reduce(|k, _| k)
+    pub fn files_iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
+        Box::new(self.user_data.keys().map(|k| k.name.clone()).sorted())
     }
 
     /// True if [QcContext] is compatible with post processed navigation
@@ -612,8 +500,9 @@ impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.single_file() {
-            writeln!(f, "Primary File is : \"{}\"", self.name())?;
+            writeln!(f, "Context is: \"{}\"", self.primary_name().unwrap())?;
         }
+
         for product in [
             ProductType::Observation,
             ProductType::BroadcastNavigation,
@@ -622,22 +511,19 @@ impl std::fmt::Debug for QcContext {
             ProductType::IONEX,
             ProductType::ANTEX,
         ] {
-            for absolute_path in self.files_iter(Some(product)) {
-                let file_name = absolute_path
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy();
-                writeln!(f, "{}: \"{}\"", product, file_name)?;
+            for meta in self.meta_iter().filter(|meta| meta.product_id == product) {
+                writeln!(f, "{}: \"{}\"", meta.product_id, meta.name)?;
             }
         }
+
         #[cfg(feature = "sp3")]
-        for absolute_path in self.files_iter(Some(ProductType::HighPrecisionOrbit)) {
-            let file_name = absolute_path
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy();
-            writeln!(f, "{}: \"{}\"", ProductType::HighPrecisionOrbit, file_name)?;
+        for meta in self
+            .meta_iter()
+            .filter(|meta| meta.product_id == ProductType::HighPrecisionOrbit)
+        {
+            writeln!(f, "{}: \"{}\"", meta.product_id, meta.name)?;
         }
+
         Ok(())
     }
 }

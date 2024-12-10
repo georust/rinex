@@ -217,6 +217,7 @@ impl Plot {
             .name(name)
         //TODO alpha gradient per time
     }
+
     /// Builds new Polar plot
     pub fn polar_plot(
         plot_id: &str,
@@ -232,6 +233,9 @@ impl Plot {
             .y_axis(Axis::new().title(y_label).zero_line(true))
             .show_legend(show_legend)
             .auto_size(true);
+
+        plotly.set_layout(layout);
+
         Self {
             plotly,
             plot_id: plot_id.to_string(),

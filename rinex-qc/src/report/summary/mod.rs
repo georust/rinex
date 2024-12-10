@@ -30,11 +30,11 @@ impl QcSummary {
     pub fn new(context: &QcContext, cfg: &QcConfig) -> Self {
         Self {
             cfg: cfg.clone(),
-            name: context.name(),
             timescale: context.timescale(),
             bias_sum: QcBiasSummary::new(context),
             navi: QcNavPostSummary::new(context),
             reference_position: context.reference_position(),
+            name: context.primary_name().unwrap_or("Undefined".to_string()),
         }
     }
 }

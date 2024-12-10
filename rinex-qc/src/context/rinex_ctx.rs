@@ -9,7 +9,7 @@ impl UserData {
     /// Reference to internal [Rinex] data.
     pub fn as_rinex(&self) -> Option<&Rinex> {
         match self {
-            Self::Rinex(r) => Some(r),
+            Self::RINEX(r) => Some(r),
             _ => None,
         }
     }
@@ -17,7 +17,7 @@ impl UserData {
     /// Returns mutable reference to inner RINEX data.
     pub fn as_mut_rinex(&mut self) -> Option<&mut Rinex> {
         match self {
-            Self::Rinex(r) => Some(r),
+            Self::RINEX(r) => Some(r),
             _ => None,
         }
     }
@@ -29,23 +29,20 @@ impl QcContext {
     /// for this operation to be effective.
     pub fn load_rinex<P: AsRef<Path>>(&mut self, path: P, rinex: Rinex) -> Result<(), Error> {
         let path = path.as_ref();
-        let mut meta = MetaData::new(path);
-        meta.product_id = ProductType::from(rinex.header.rinex_type);
+
+        let mut meta = MetaData::new(path)?;
+
+        let product_id = ProductType::from(rinex.header.rinex_type);
+        meta.product_id = product_id;
 
         // extend context
-        if let Some(data) = self.get_rinex_data_mut(product_type) {
-            let lhs = data.as_mut_rinex().unwrap();
-            data.paths.push(path.to_path_buf());
-            lhs.merge_mut(&rinex)?;
+        if let Some(data) = self.get_rinex_data_mut(product_id) {
+            data.merge_mut(&rinex)?;
         } else {
             // insert new entry
-            let user = UserData {
-                paths: vec![path.to_path_buf()],
-                blob_data: UserData::Rinex(rinex),
-            };
-            self.user_data.insert(key, user);
+            let user = UserData::RINEX(rinex);
+            self.user_data.insert(meta, user);
         }
-
         Ok(())
     }
 
@@ -66,16 +63,26 @@ impl QcContext {
 
     /// Returns reference to inner [Rinex] for this [RinexType]
     pub fn get_rinex_data(&self, product_id: ProductType) -> Option<&Rinex> {
-        self.get_per_product_user_data(product_id)?
-            .blob_data
-            .as_rinex()
+        let (_, data) = self
+            .user_data
+            .iter()
+            .filter(|(k, _)| k.product_id == product_id)
+            .reduce(|k, _| k)?;
+
+        let rinex = data.as_rinex()?;
+        Some(rinex)
     }
 
     /// Returns mutable reference to inner [Rinex] for this [ProductType]
     pub fn get_rinex_data_mut(&mut self, product_id: ProductType) -> Option<&mut Rinex> {
-        self.get_per_product_user_data_mut(product_id)?
-            .blob_data
-            .as_mut_rinex()
+        let (_, data) = self
+            .user_data
+            .iter_mut()
+            .filter(|(k, _)| k.product_id == product_id)
+            .reduce(|k, _| k)?;
+
+        let rinex = data.as_mut_rinex()?;
+        Some(rinex)
     }
 
     /// Returns reference to inner [ProductType::Observation] data

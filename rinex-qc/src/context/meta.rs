@@ -1,6 +1,6 @@
 use crate::context::Error;
 use rinex::types::Type as RinexType;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ProductType {
@@ -122,6 +122,7 @@ impl MetaData {
 #[cfg(test)]
 mod test {
     use super::MetaData;
+
     #[test]
     fn test_meta_data() {
         let path = format!(
@@ -133,15 +134,14 @@ mod test {
 
         assert_eq!(meta.name, "aopr0010");
         assert_eq!(meta.extension, "17o");
-        assert!(!meta.chronologically_sorted());
 
         let path = format!(
             "{}/../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
             env!("CARGO_MANIFEST_DIR")
         );
+
         let meta = MetaData::new(&path).unwrap();
 
-        assert!(meta.chronologically_sorted());
         assert_eq!(meta.name, "ESBC00DNK_R_20201770000_01D_30S_MO");
         assert_eq!(meta.extension, "crx.gz");
     }

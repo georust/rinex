@@ -12,7 +12,7 @@ impl UserData {
     /// Reference to inner [SP3] data unwrapping attempt.
     pub fn as_sp3(&self) -> Option<&SP3> {
         match self {
-            Self::Sp3(s) => Some(s),
+            Self::SP3(s) => Some(s),
             _ => None,
         }
     }
@@ -20,7 +20,7 @@ impl UserData {
     /// Mutable reference to inner [SP3] data unwrapping attempt.
     pub fn as_mut_sp3(&mut self) -> Option<&mut SP3> {
         match self {
-            Self::Sp3(s) => Some(s),
+            Self::SP3(s) => Some(s),
             _ => None,
         }
     }
@@ -33,15 +33,15 @@ impl QcContext {
     pub fn load_sp3<P: AsRef<Path>>(&mut self, path: P, sp3: SP3) -> Result<(), Error> {
         let path = path.as_ref();
 
-        let mut meta = MetaData::new(path);
+        let mut meta = MetaData::new(path)?;
         meta.product_id = ProductType::HighPrecisionOrbit;
 
         // extend context blob
-        if let Some(data) = self.get_unique_sp3_data_mut(&sp3.agency) {
+        if let Some(data) = self.sp3_data_mut() {
             data.merge_mut(&sp3)?;
         } else {
             // insert new entry
-            self.user_data.insert(key, UserData::SP3(sp3));
+            self.user_data.insert(meta, UserData::SP3(sp3));
         }
 
         Ok(())
@@ -55,31 +55,25 @@ impl QcContext {
     // }
 
     pub fn sp3_data(&self) -> Option<&SP3> {
-        self.get_per_product_user_data(ProductType::HighPrecisionOrbit)?
-            .blob_data
-            .as_sp3()
+        let (_, data) = self
+            .user_data
+            .iter()
+            .filter(|(k, _)| k.product_id == ProductType::HighPrecisionOrbit)
+            .reduce(|k, _| k)?;
+
+        let sp3 = data.as_sp3()?;
+        Some(sp3)
     }
 
     pub fn sp3_data_mut(&mut self) -> Option<&mut SP3> {
-        self.get_per_product_user_data_mut(ProductType::HighPrecisionOrbit)?
-            .blob_data
-            .as_mut_sp3()
-    }
+        let (_, data) = self
+            .user_data
+            .iter_mut()
+            .filter(|(k, _)| k.product_id == ProductType::HighPrecisionOrbit)
+            .reduce(|k, _| k)?;
 
-    pub fn get_unique_sp3_data(&self, agency: &str) -> Option<&SP3> {
-        let key = UserDataKey {
-            product_type: ProductType::HighPrecisionOrbit,
-        };
-
-        self.get_unique_user_data(&key)?.blob_data.as_sp3()
-    }
-
-    pub fn get_unique_sp3_data_mut(&mut self, agency: &str) -> Option<&mut SP3> {
-        let key = UserDataKey {
-            product_type: ProductType::HighPrecisionOrbit,
-        };
-
-        self.get_unique_user_data_mut(&key)?.blob_data.as_mut_sp3()
+        let sp3 = data.as_mut_sp3()?;
+        Some(sp3)
     }
 
     /// Returns true if [ProductType::HighPrecisionOrbit] are present in Self

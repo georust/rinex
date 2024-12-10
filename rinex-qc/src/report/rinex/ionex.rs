@@ -3,8 +3,6 @@ use maud::{html, Markup, Render};
 use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
-use itertools::Itertools;
-
 use crate::plot::{MapboxStyle, Plot, Visible};
 
 use plotly::{
