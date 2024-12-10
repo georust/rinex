@@ -1,14 +1,14 @@
 //! SP3 enhanced user data (for PPP)
 
 use crate::{
-    context::{Error, UserBlobData, UserData, UserDataKey},
+    context::{meta::MetaData, Error, UserData},
     prelude::{Merge, ProductType, QcContext},
 };
 
 use sp3::prelude::SP3;
 use std::path::Path;
 
-impl UserBlobData {
+impl UserData {
     /// Reference to inner [SP3] data unwrapping attempt.
     pub fn as_sp3(&self) -> Option<&SP3> {
         match self {
@@ -32,20 +32,16 @@ impl QcContext {
     /// for this operation to be effective.
     pub fn load_sp3<P: AsRef<Path>>(&mut self, path: P, sp3: SP3) -> Result<(), Error> {
         let path = path.as_ref();
-        let product_type = ProductType::HighPrecisionOrbit;
 
-        let key = UserDataKey { product_type };
+        let mut meta = MetaData::new(path);
+        meta.product_id = ProductType::HighPrecisionOrbit;
 
         // extend context blob
         if let Some(data) = self.get_unique_sp3_data_mut(&sp3.agency) {
             data.merge_mut(&sp3)?;
         } else {
             // insert new entry
-            let user_data = UserData {
-                paths: vec![path.to_path_buf()],
-                blob_data: UserBlobData::Sp3(sp3),
-            };
-            self.user_data.insert(key, user_data);
+            self.user_data.insert(key, UserData::SP3(sp3));
         }
 
         Ok(())

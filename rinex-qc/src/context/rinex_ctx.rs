@@ -1,11 +1,11 @@
 use crate::{
-    context::{Error, ProductType, QcContext, UserBlobData, UserData, UserDataKey},
+    context::{meta::MetaData, Error, ProductType, QcContext, UserData},
     prelude::{Merge, Rinex},
 };
 
 use std::path::Path;
 
-impl UserBlobData {
+impl UserData {
     /// Reference to internal [Rinex] data.
     pub fn as_rinex(&self) -> Option<&Rinex> {
         match self {
@@ -29,19 +29,19 @@ impl QcContext {
     /// for this operation to be effective.
     pub fn load_rinex<P: AsRef<Path>>(&mut self, path: P, rinex: Rinex) -> Result<(), Error> {
         let path = path.as_ref();
-
-        let product_type = ProductType::from(rinex.header.rinex_type);
+        let mut meta = MetaData::new(path);
+        meta.product_id = ProductType::from(rinex.header.rinex_type);
 
         // extend context
         if let Some(data) = self.get_rinex_data_mut(product_type) {
-            let lhs = data.blob_data.as_mut_rinex().unwrap();
+            let lhs = data.as_mut_rinex().unwrap();
             data.paths.push(path.to_path_buf());
             lhs.merge_mut(&rinex)?;
         } else {
             // insert new entry
             let user = UserData {
                 paths: vec![path.to_path_buf()],
-                blob_data: UserBlobData::Rinex(rinex),
+                blob_data: UserData::Rinex(rinex),
             };
             self.user_data.insert(key, user);
         }

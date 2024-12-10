@@ -74,6 +74,7 @@ fn html_id(product: &ProductType) -> &str {
         ProductType::MeteoObservation => "meteo",
         #[cfg(feature = "sp3")]
         ProductType::HighPrecisionOrbit => "sp3",
+        ProductType::Undefined => "undefined",
     }
 }
 

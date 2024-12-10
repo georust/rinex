@@ -1,4 +1,5 @@
 use crate::context::Error;
+use rinex::types::Type as RinexType;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
