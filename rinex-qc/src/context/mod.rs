@@ -34,6 +34,10 @@ mod rinex_ctx;
 // and possibly one SP3.
 mod processing;
 
+pub(crate) mod meta;
+
+use meta::{MetaData, ProductType};
+
 #[cfg(feature = "sp3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 mod sp3_ctx;
@@ -53,63 +57,13 @@ pub enum Error {
     #[error("failed to extend gnss context")]
     ContextExtensionError(#[from] MergeError),
     #[error("non supported file format")]
-    NonSupportedFileFormat,
-    #[error("failed to determine filename")]
-    FileNameDetermination,
+    NonSupportedFormat,
+    #[error("failed to determine file name")]
+    FileName,
+    #[error("failed to determine file extension")]
+    FileExtension,
     #[error("invalid rinex format")]
     RinexParsingError(#[from] RinexParsingError),
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ProductType {
-    /// GNSS signal observations provided by Observation RINEX.
-    Observation,
-    /// Meteo observations provided by Meteo RINEX.
-    MeteoObservation,
-    /// DORIS signals observation provided by special RINEX.
-    DORIS,
-    /// Broadcast Navigation message described by Navigation RINEX.
-    BroadcastNavigation,
-    /// High precision clock states described by Clock RINEX.
-    HighPrecisionClock,
-    /// Antenna calibration information described by ANTEX.
-    ANTEX,
-    /// Precise Ionosphere maps described by IONEX.
-    IONEX,
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// High precision orbital attitude described by SP3.
-    HighPrecisionOrbit,
-}
-
-impl std::fmt::Display for ProductType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::ANTEX => write!(f, "ANTEX"),
-            Self::IONEX => write!(f, "IONEX"),
-            Self::DORIS => write!(f, "DORIS"),
-            Self::Observation => write!(f, "Observation RINEX"),
-            Self::MeteoObservation => write!(f, "Meteo RINEX"),
-            Self::HighPrecisionClock => write!(f, "Clock RINEX"),
-            Self::BroadcastNavigation => write!(f, "Navigation RINEX"),
-            #[cfg(feature = "sp3")]
-            Self::HighPrecisionOrbit => write!(f, "SP3"),
-        }
-    }
-}
-
-impl From<RinexType> for ProductType {
-    fn from(rt: RinexType) -> Self {
-        match rt {
-            RinexType::ObservationData => Self::Observation,
-            RinexType::NavigationData => Self::BroadcastNavigation,
-            RinexType::MeteoData => Self::MeteoObservation,
-            RinexType::ClockData => Self::HighPrecisionClock,
-            RinexType::IonosphereMaps => Self::IONEX,
-            RinexType::AntennaData => Self::ANTEX,
-            RinexType::DORIS => Self::DORIS,
-        }
-    }
 }
 
 // impl ProductType {
@@ -128,7 +82,7 @@ impl From<RinexType> for ProductType {
 //     }
 // }
 
-enum UserBlobData {
+enum UserData {
     /// RINEX content
     Rinex(Rinex),
     #[cfg(feature = "sp3")]
@@ -136,41 +90,12 @@ enum UserBlobData {
     Sp3(SP3),
 }
 
-/// [UserData] provides input storage and classification
-struct UserData {
-    /// [UserBlobData]
-    blob_data: UserBlobData,
-    /// Files [PathBuf] that contributed, for this [InputKey].
-    /// Stored in order of parsing.
-    paths: Vec<PathBuf>,
-}
-
-// /// [UniqueId] can differentiate between two identical [ProductType]s
-// #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-// pub enum UniqueId {
-//     /// GNSS receiver name/model differentiates a signal source
-//     Receiver(String),
-//     /// Data provider (agency) may differentiate some [ProductType]s
-//     Agency(String),
-//     /// A satellite may differentiate some [ProductType]s
-//     Satellite(String),
-//     /// Some [ProductType] are not differentiated
-//     #[default]
-//     None,
-// }
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct InputKey {
-    // /// [UniqueId] makes two identical [ProductType]s unique.
-    // pub unique_id: UniqueId,
-    /// [ProductType] is the first level of uniqueness.
-    pub product_type: ProductType,
-}
-
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,
 /// precise timing or atmosphere analysis.
 pub struct QcContext {
+    /// Workspace is where this session will generate data.
+    pub workspace: PathBuf,
     /// Latest Almanac to use during this session.
     pub almanac: Almanac,
     /// ECEF frame to use during this session. Based off [Almanac].
@@ -182,8 +107,8 @@ pub struct QcContext {
     /// navigation, either by providing data that describe it (self sustained [QcContext]),
     /// or by manually defining this field.
     pub ground_position: Option<Orbit>,
-    /// Complex [UserData] stored by [InputKey] that makes them unique
-    user_data: HashMap<InputKey, UserData>,
+    /// Complex [UserData] stored by [UserDataKey] that makes them unique
+    user_data: HashMap<MetaData, UserData>,
 }
 
 impl QcContext {
@@ -303,29 +228,41 @@ impl QcContext {
         }
     }
 
-    /// Create a new QcContext for which we will try to
-    /// retrieve the latest and highest precision [Almanac]
-    /// and reference [Frame] to work with. If you prefer
-    /// to manualy specify those, prefer the other constructor.
-    pub fn new() -> Result<Self, Error> {
-        let (almanac, earth_cef) = Self::build_almanac()?;
-        Ok(Self {
-            almanac,
-            earth_cef,
-            ground_position: None,
-            user_data: Default::default(),
-        })
-    }
-
-    /// Build new [QcContext] with given [Almanac] and desired [Frame],
-    /// which must be one of the available ECEF.
-    pub fn new_almanac(almanac: Almanac, frame: Frame) -> Result<Self, Error> {
-        Ok(Self {
+    /// Creates a new [QcContext] with specified [Almanac]
+    /// and reference [Frame] that must be Earth centered.
+    /// The session will generate data within desired workspace.
+    pub fn new<P: AsRef<Path>>(almanac: Almanac, frame: Frame, workspace: P) -> Self {
+        Self {
             almanac,
             earth_cef: frame,
             ground_position: None,
             user_data: Default::default(),
-        })
+            workspace: workspace.as_ref().to_path_buf(),
+        }
+    }
+
+    /// Initiates a new [QcContext] to work within the $GEORUST_WORKSPACE
+    /// env. variable, which needs to be definied. This is compatible
+    /// with building from sources and working within the Git repository
+    /// <https://github.com/georust/rinex>.
+    /// The [QcContext] will try to gather the daily JPL high precision kernels.
+    /// Gathering the high precision kernels requires daily internet access.
+    /// If the highest precision kernel cannot be gathered for this day,
+    /// the logs will let you know, and we rely on lower precision kernels.
+    pub fn new_daily_high_precision_georust_workspace() -> Result<Self, Error> {
+        let (almanac, earth_cef) = Self::build_almanac()?;
+        Ok(Self::new(
+            almanac,
+            earth_cef,
+            format!("{}/WORKSPACE", env!("CARGO_MANIFEST_DIR")),
+        ))
+    }
+
+    /// Build new [QcContext] to work in custom workspace.
+    /// See [QcContext::new_daily_high_precision_georust_workspace] for more info.
+    pub fn new_daily_high_precision<P: AsRef<Path>>(workspace: P) -> Result<Self, Error> {
+        let (almanac, earth_cef) = Self::build_almanac()?;
+        Ok(Self::new(almanac, earth_cef, workspace))
     }
 
     /// Define or overwrite the internal Ground position, expressed as [Orbit].
@@ -365,14 +302,20 @@ impl QcContext {
         let path = path.as_ref();
         if let Ok(rinex) = Rinex::from_file(path) {
             self.load_rinex(path, rinex)?;
-            info!("{} RINEX has been loaded", path.display());
+            info!(
+                "RINEX: \"{}\" has been loaded",
+                path.file_stem().unwrap_or_default().to_string_lossy()
+            );
             Ok(())
         } else if let Ok(sp3) = SP3::from_file(path) {
             self.load_sp3(path, sp3)?;
-            info!("{} SP3 has been loaded", path.display());
+            info!(
+                "SP3: \"{}\" has been loaded",
+                path.file_stem().unwrap_or_default().to_string_lossy()
+            );
             Ok(())
         } else {
-            Err(Error::NonSupportedFileFormat)
+            Err(Error::NonSupportedFormat)
         }
     }
 
@@ -383,14 +326,20 @@ impl QcContext {
         let path = path.as_ref();
         if let Ok(rinex) = Rinex::from_gzip_file(path) {
             self.load_rinex(path, rinex)?;
-            info!("{} RINEX has been loaded", path.display());
+            info!(
+                "RINEX: \"{}\" has been loaded",
+                path.file_stem().unwrap_or_default().to_string_lossy()
+            );
             Ok(())
         } else if let Ok(sp3) = SP3::from_gzip_file(path) {
-            info!("{} SP3 has been loaded", path.display());
             self.load_sp3(path, sp3)?;
+            info!(
+                "SP3: \"{}\" has been loaded",
+                path.file_stem().unwrap_or_default().to_string_lossy()
+            );
             Ok(())
         } else {
-            Err(Error::NonSupportedFileFormat)
+            Err(Error::NonSupportedFormat)
         }
     }
 
@@ -427,7 +376,7 @@ impl QcContext {
     /// If no files were previously loaded, simply returns "Undefined".
     pub fn name(&self) -> String {
         if let Some(path) = self.primary_path() {
-            path.file_name()
+            path.file_stem()
                 .unwrap_or(OsStr::new("Undefined"))
                 .to_string_lossy()
                 // removes possible .crx ; .gz extensions
@@ -484,7 +433,12 @@ impl QcContext {
                     .flatten(),
             )
         } else {
-            Box::new([].into_iter())
+            // chains all files_iter for all supported types
+            // Order is important here
+            Box::new(
+                self.files_iter(Some(ProductType::Observation))
+                    .chain(self.files_iter(Some(ProductType::BroadcastNavigation))),
+            )
         }
     }
 
@@ -516,8 +470,8 @@ impl QcContext {
             .reduce(|k, _| k)
     }
 
-    /// Returns [UserData] for this unique [InputKey] combination
-    fn get_unique_user_data(&self, key: &InputKey) -> Option<&UserData> {
+    /// Returns [UserData] for this unique [UserDataKey] combination
+    fn get_unique_user_data(&self, key: &UserDataKey) -> Option<&UserData> {
         self.user_data
             .iter()
             .filter_map(
@@ -532,8 +486,8 @@ impl QcContext {
             .reduce(|k, _| k)
     }
 
-    /// Returns [UserData] for this unique [InputKey] combination
-    fn get_unique_user_data_mut(&mut self, key: &InputKey) -> Option<&mut UserData> {
+    /// Returns [UserData] for this unique [UserDataKey] combination
+    fn get_unique_user_data_mut(&mut self, key: &UserDataKey) -> Option<&mut UserData> {
         self.user_data
             .iter_mut()
             .filter_map(
@@ -670,7 +624,7 @@ impl std::fmt::Debug for QcContext {
         ] {
             for absolute_path in self.files_iter(Some(product)) {
                 let file_name = absolute_path
-                    .file_name()
+                    .file_stem()
                     .unwrap_or_default()
                     .to_string_lossy();
                 writeln!(f, "{}: \"{}\"", product, file_name)?;
@@ -679,7 +633,7 @@ impl std::fmt::Debug for QcContext {
         #[cfg(feature = "sp3")]
         for absolute_path in self.files_iter(Some(ProductType::HighPrecisionOrbit)) {
             let file_name = absolute_path
-                .file_name()
+                .file_stem()
                 .unwrap_or_default()
                 .to_string_lossy();
             writeln!(f, "{}: \"{}\"", ProductType::HighPrecisionOrbit, file_name)?;

@@ -100,9 +100,9 @@ fn write(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result
                 .to_string_lossy()
                 .to_string();
 
-            rinex.to_file(&output_path).unwrap_or_else(|_| {
-                panic!("failed to generate {} RINEX \"{}\"", product, output_path)
-            });
+            rinex
+                .to_file(&output_path)
+                .unwrap_or_else(|_| panic!("failed to generate {} \"{}\"", product, output_path));
 
             info!("{} RINEX \"{}\" has been generated", product, output_path);
         }

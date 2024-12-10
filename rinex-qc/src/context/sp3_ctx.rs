@@ -1,7 +1,7 @@
 //! SP3 enhanced user data (for PPP)
 
 use crate::{
-    context::{Error, InputKey, UserBlobData, UserData},
+    context::{Error, UserBlobData, UserData, UserDataKey},
     prelude::{Merge, ProductType, QcContext},
 };
 
@@ -34,7 +34,7 @@ impl QcContext {
         let path = path.as_ref();
         let product_type = ProductType::HighPrecisionOrbit;
 
-        let key = InputKey { product_type };
+        let key = UserDataKey { product_type };
 
         // extend context blob
         if let Some(data) = self.get_unique_sp3_data_mut(&sp3.agency) {
@@ -71,7 +71,7 @@ impl QcContext {
     }
 
     pub fn get_unique_sp3_data(&self, agency: &str) -> Option<&SP3> {
-        let key = InputKey {
+        let key = UserDataKey {
             product_type: ProductType::HighPrecisionOrbit,
         };
 
@@ -79,7 +79,7 @@ impl QcContext {
     }
 
     pub fn get_unique_sp3_data_mut(&mut self, agency: &str) -> Option<&mut SP3> {
-        let key = InputKey {
+        let key = UserDataKey {
             product_type: ProductType::HighPrecisionOrbit,
         };
 

@@ -1,5 +1,5 @@
 use crate::{
-    context::{Error, InputKey, ProductType, QcContext, UserBlobData, UserData},
+    context::{Error, ProductType, QcContext, UserBlobData, UserData, UserDataKey},
     prelude::{Merge, Rinex},
 };
 
@@ -32,10 +32,8 @@ impl QcContext {
 
         let product_type = ProductType::from(rinex.header.rinex_type);
 
-        let key = InputKey { product_type };
-
         // extend context
-        if let Some(data) = self.get_unique_user_data_mut(&key) {
+        if let Some(data) = self.get_rinex_data_mut(product_type) {
             let lhs = data.blob_data.as_mut_rinex().unwrap();
             data.paths.push(path.to_path_buf());
             lhs.merge_mut(&rinex)?;
