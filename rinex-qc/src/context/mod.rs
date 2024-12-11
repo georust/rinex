@@ -9,7 +9,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use itertools::Itertools;
 use regex::Regex;
 
 use rinex::prelude::{
@@ -24,29 +23,26 @@ use anise::{
     prelude::Frame,
 };
 
-mod rinex_ctx;
+use qc_traits::{Filter, MergeError, Preprocessing, Repair, RepairTrait};
+
+#[cfg(feature = "sp3")]
+use sp3::prelude::SP3;
 
 // Context post processing.
 // This that can only be achieved by stacking more than one RINEX
 // and possibly one SP3.
 mod processing;
 
-pub(crate) mod meta;
+pub(crate) mod dataset;
+pub(crate) mod session;
 
-use meta::{MetaData, ProductType};
-
-#[cfg(feature = "sp3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-mod sp3_ctx;
-
-#[cfg(feature = "sp3")]
-use sp3::prelude::SP3;
-
-use qc_traits::{Filter, MergeError, Preprocessing, Repair, RepairTrait};
+use dataset::DataSet;
 
 /// Context Error
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("i/o error")]
+    IO,
     #[error("almanac error")]
     Alamanac(#[from] AlmanacError),
     #[error("planetary data error")]
@@ -63,28 +59,6 @@ pub enum Error {
     RinexParsingError(#[from] RinexParsingError),
 }
 
-// impl ProductType {
-//     pub(crate) fn to_rinex_type(&self) -> Option<RinexType> {
-//         match self {
-//             Self::Observation => Some(RinexType::ObservationData),
-//             Self::ANTEX => Some(RinexType::AntennaData),
-//             Self::BroadcastNavigation => Some(RinexType::NavigationData),
-//             Self::DORIS => Some(RinexType::DORIS),
-//             Self::IONEX => Some(RinexType::IonosphereMaps),
-//             Self::MeteoObservation => Some(RinexType::MeteoData),
-//             Self::HighPrecisionClock => Some(RinexType::ClockData),
-//             #[cfg(feature = "sp3")]
-//             Self::HighPrecisionOrbit => None,
-//         }
-//     }
-// }
-
-enum UserData {
-    RINEX(Rinex),
-    #[cfg(feature = "sp3")]
-    SP3(SP3),
-}
-
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,
 /// precise timing or atmosphere analysis.
@@ -95,15 +69,14 @@ pub struct QcContext {
     pub almanac: Almanac,
     /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
-    /// Ground position as ideally described by provided User data.
-    /// This is an RX position that either serves as initial coordinates
-    /// in roaming application, or describes the ground station coordinates
-    /// in static applications. It is mandatory to "fix" it for post processed
-    /// navigation, either by providing data that describe it (self sustained [QcContext]),
-    /// or by manually defining this field.
-    pub ground_position: Option<Orbit>,
-    /// Complex [UserData] stored by [UserDataKey] that makes them unique
-    user_data: HashMap<MetaData, UserData>,
+    /// Global data that may apply to both [DataSet] and enhanced capabilities.
+    /// This type of data is usually valid worlwide
+    global_data: GlobalDataSet,
+    /// [DataSet] that either represents the User main data or the rover 
+    /// in differential analysis.
+    rover_dataset: DataSet,
+    /// Possible remote [DataSet] that enables differential analysis
+    remote_dataset: DataSet,
 }
 
 impl QcContext {
@@ -226,205 +199,26 @@ impl QcContext {
     /// Creates a new [QcContext] with specified [Almanac]
     /// and reference [Frame] that must be Earth centered.
     /// The session will generate data within desired workspace.
-    pub fn new<P: AsRef<Path>>(almanac: Almanac, frame: Frame, workspace: P) -> Self {
-        Self {
+    pub fn new<P: AsRef<Path>>(almanac: Almanac, frame: Frame, workspace: P) -> Result<Self, Error> {
+        let s = Self {
             almanac,
             earth_cef: frame,
-            ground_position: None,
-            user_data: Default::default(),
+            rover_dataset: Default::default(),
+            remote_dataset: Default::default(),
             workspace: workspace.as_ref().to_path_buf(),
-        }
-    }
+        };
 
-    /// Initiates a new [QcContext] to work within the Geo-Rust repository.
-    /// Use this if you cloned the repository yourself and intend to work
-    /// inside the provided workspace. This is particularly useful when using
-    /// our tutorials and/or provided example data.
-    /// Repo url: <https://github.com/georust/rinex>.
-    /// We will try to gather the daily JPL high precision kernels,
-    /// which requires to access the internet once a day.
-    /// If internet access is not feasible on this day, we rely on lowest
-    /// precision kernels and the logs will let you know.
-    pub fn new_daily_high_precision_georust_workspace() -> Result<Self, Error> {
-        let (almanac, earth_cef) = Self::build_almanac()?;
-        Ok(Self::new(
-            almanac,
-            earth_cef,
-            format!("{}/WORKSPACE", env!("CARGO_MANIFEST_DIR")),
-        ))
+        s.deploy()?;
+        Ok(s)
     }
 
     /// Build new [QcContext] to work in custom workspace.
-    /// We will try to gather the daily JPL high precision kernels,
+    /// We will try to gather the daily JPL high precision data,
     /// which requires to access the internet once a day.
-    /// If internet access is not feasible on this day, we rely on lowest
-    /// precision kernels and the logs will let you know.
+    /// If download fails, we rely on an offline model.
     pub fn new_daily_high_precision<P: AsRef<Path>>(workspace: P) -> Result<Self, Error> {
         let (almanac, earth_cef) = Self::build_almanac()?;
-        Ok(Self::new(almanac, earth_cef, workspace))
-    }
-
-    /// Define or overwrite the internal Ground position, expressed as [Orbit].
-    /// Refer to its definition for more information
-    pub fn set_ground_position(&mut self, rx_orbit: Orbit) {
-        self.ground_position = Some(rx_orbit);
-    }
-
-    /// Returns general [TimeScale] for this [QcContext]
-    pub fn timescale(&self) -> Option<TimeScale> {
-        #[cfg(feature = "sp3")]
-        if let Some(sp3) = self.sp3_data() {
-            return Some(sp3.time_scale);
-        }
-
-        if let Some(obs) = self.observation_data() {
-            let first = obs.first_epoch()?;
-            Some(first.time_scale)
-        } else if let Some(dor) = self.doris_data() {
-            let first = dor.first_epoch()?;
-            Some(first.time_scale)
-        } else if let Some(clk) = self.clock_data() {
-            let first = clk.first_epoch()?;
-            Some(first.time_scale)
-        } else if self.meteo_data().is_some() {
-            Some(TimeScale::UTC)
-        } else if self.ionex_data().is_some() {
-            Some(TimeScale::UTC)
-        } else {
-            None
-        }
-    }
-
-    /// Smart data loader, that will automatically pick up the provided
-    /// format (if supported).
-    pub fn load_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
-        let path = path.as_ref();
-        if let Ok(rinex) = Rinex::from_file(path) {
-            self.load_rinex(path, rinex)?;
-            info!(
-                "RINEX: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else if let Ok(sp3) = SP3::from_file(path) {
-            self.load_sp3(path, sp3)?;
-            info!(
-                "SP3: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else {
-            Err(Error::NonSupportedFormat)
-        }
-    }
-
-    /// Smart data loader, that will automatically pick up the provided
-    /// format (if supported).
-    #[cfg(feature = "flate2")]
-    pub fn load_gzip_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
-        let path = path.as_ref();
-        if let Ok(rinex) = Rinex::from_gzip_file(path) {
-            self.load_rinex(path, rinex)?;
-            info!(
-                "RINEX: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else if let Ok(sp3) = SP3::from_gzip_file(path) {
-            self.load_sp3(path, sp3)?;
-            info!(
-                "SP3: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else {
-            Err(Error::NonSupportedFormat)
-        }
-    }
-
-    /// Returns path to File considered as Primary input product.
-    /// If [QcContext] only holds one input product, it is obviously defined as Primary,
-    /// whatever its kind.
-    pub fn primary_name(&self) -> Option<String> {
-        /*
-         * Order is important: determines what format are prioritized
-         * in the "primary" determination
-         */
-        for product in [
-            ProductType::Observation,
-            ProductType::DORIS,
-            ProductType::BroadcastNavigation,
-            ProductType::MeteoObservation,
-            ProductType::IONEX,
-            ProductType::ANTEX,
-            ProductType::HighPrecisionClock,
-            #[cfg(feature = "sp3")]
-            ProductType::HighPrecisionOrbit,
-        ] {
-            // Returns first file loaded in this category.
-            if let Some(first) = self
-                .meta_iter()
-                .filter(|meta| meta.product_id == product)
-                .next()
-            {
-                return Some(first.name.to_string());
-            }
-        }
-        None
-    }
-
-    /// Returns true when only a single file has been loaded in [QcContext]
-    pub fn single_file(&self) -> bool {
-        self.meta_iter()
-            .map(|meta| meta.name.clone())
-            .unique()
-            .count()
-            == 1
-    }
-
-    pub(crate) fn meta_iter(&self) -> Keys<'_, MetaData, UserData> {
-        self.user_data.keys()
-    }
-
-    pub fn files_iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
-        Box::new(self.user_data.keys().map(|k| k.name.clone()).sorted())
-    }
-
-    /// True if [QcContext] is compatible with post processed navigation
-    pub fn is_navi_compatible(&self) -> bool {
-        self.observation_data().is_some() && self.brdc_navigation_data().is_some()
-    }
-
-    /// True if [QcContext] is compatible with CPP positioning,
-    /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
-    pub fn is_cpp_compatible(&self) -> bool {
-        // TODO: improve: only PR
-        if let Some(obs) = self.observation_data() {
-            obs.carrier_iter().count() > 1
-        } else {
-            false
-        }
-    }
-
-    /// True if [QcContext] is compatible with PPP positioning,
-    /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>
-    pub fn is_ppp_compatible(&self) -> bool {
-        // TODO: check PH as well
-        self.is_cpp_compatible()
-    }
-
-    #[cfg(not(feature = "sp3"))]
-    /// SP3 support is required for 100% PPP compatibility
-    pub fn ppp_ultra_compatible(&self) -> bool {
-        false
-    }
-
-    #[cfg(feature = "sp3")]
-    pub fn is_ppp_ultra_compatible(&self) -> bool {
-        // TODO: improve
-        //      verify clock().ts and obs().ts do match
-        //      and have common time frame
-        self.clock_data().is_some() && self.sp3_has_clock() && self.is_ppp_compatible()
+        Self::new(almanac, earth_cef, workspace)
     }
 
     /// True if [QcContext] supports Ionosphere bias model optimization
@@ -439,7 +233,7 @@ impl QcContext {
 
     /// Returns possible Reference position defined in this context.
     /// Usually the Receiver location in the laboratory.
-    pub fn reference_position(&self) -> Option<GroundPosition> {
+    pub fn user_rover_position(&self) -> Option<GroundPosition> {
         if let Some(data) = self.observation_data() {
             if let Some(pos) = data.header.ground_position {
                 return Some(pos);
@@ -451,6 +245,31 @@ impl QcContext {
             }
         }
         None
+    }
+
+    /// Returns true if [QcContext] is RTK compatible
+    pub fn is_rtk_compatible(&self) -> bool {
+        !self.data_context.is_empty()
+        && !self.remote_context.is_empty()
+    }
+    
+    #[cfg(not(feature = "sp3"))]
+    /// SP3 support is required for 100% PPP compatibility
+    pub fn ppp_ultra_compatible(&self) -> bool {
+        false
+    }
+
+    #[cfg(feature = "sp3")]
+    pub fn is_ppp_ultra_compatible(&self) -> bool {
+        // TODO: improve
+        //      verify clock().ts and obs().ts do match
+        //      and have common time frame
+        self.clock_data().is_some() && self.sp3_has_clock() && self.is_ppp_compatible()
+    }
+
+    /// Returns possible remote positions
+    pub fn remote_position(&self) -> Option<GroundPosition> {
+
     }
 
     /// Apply preprocessing filter algorithm to mutable [QcContext].

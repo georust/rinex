@@ -1,7 +1,10 @@
 //! SP3 enhanced user data (for PPP)
 
 use crate::{
-    context::{meta::MetaData, Error, UserData},
+    context::{
+        Error,
+        dataset::{meta::MetaData, UserData},
+    },
     prelude::{Merge, ProductType, QcContext},
 };
 
@@ -26,7 +29,7 @@ impl UserData {
     }
 }
 
-impl QcContext {
+impl DataSet {
     /// Load a single SP3 file into Self.
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
@@ -41,7 +44,7 @@ impl QcContext {
             data.merge_mut(&sp3)?;
         } else {
             // insert new entry
-            self.user_data.insert(meta, UserData::SP3(sp3));
+            self.data.insert(meta, UserData::SP3(sp3));
         }
 
         Ok(())
