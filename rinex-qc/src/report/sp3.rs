@@ -148,6 +148,16 @@ impl Render for SP3Report {
                 table class="table is-bordered" {
                     tr {
                         th {
+                            button aria-label="File revision" data-balloon-pos="right" {
+                                "File revision"
+                            }
+                        }
+                        td {
+                            (self.version)
+                        }
+                    }
+                    tr {
+                        th {
                             button aria-label="Production Center" data-balloon-pos="right" {
                                 "Agency"
                             }
