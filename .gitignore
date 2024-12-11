@@ -10,12 +10,14 @@ Cargo.lock
 *.png
 *.jpg
 *.html
+*.dhall
 *.swp
 *.swo
 *.patch
 *.txt
 **/*.rs.bk
 .DS_Store
+*.rnx
 
 rinex/merge.rnx
 rinex/test.crx
