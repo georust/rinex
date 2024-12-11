@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use maud::{html, Markup, Render};
 
 /// GNSS receiver description
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Receiver {
     /// Receiver (hardware) model
@@ -57,7 +57,7 @@ impl FromStr for Receiver {
 }
 
 /// Antenna description
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Antenna {
     /// Hardware model / make descriptor

@@ -18,7 +18,7 @@ mod report;
 pub mod prelude {
     pub use crate::{
         cfg::{QcConfig, QcReportType},
-        context::{meta::ProductType, QcContext},
+        context::QcContext,
         report::{QcExtraPage, QcReport},
     };
     // Pub re-export

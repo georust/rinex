@@ -84,7 +84,7 @@ impl QcContext {
 
     /// Create a file inside the workspace and return [File] handle
     pub fn create_file(&self, name: &str) -> Result<File, Error> {
-        let  fd = File::create(self.workspace.join(name)).map_err(|_| Error::IO)?;
+        let fd = File::create(self.workspace.join(name)).map_err(|_| Error::IO)?;
         Ok(fd)
     }
 

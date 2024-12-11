@@ -11,10 +11,7 @@ mod rinex_ctx;
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 mod sp3_ctx;
 
-pub mod meta;
-use meta::MetaData;
 
-pub mod global;
 
 use std::collections::{
     HashMap,
@@ -44,54 +41,6 @@ pub struct DataSet {
 }
 
 impl DataSet {
-
-    /// Smart data loader, that will automatically pick up the provided
-    /// format (if supported) and load it into this [DataSet].
-    pub fn load_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
-        let path = path.as_ref();
-        if let Ok(rinex) = Rinex::from_file(path) {
-            self.load_rinex(path, rinex)?;
-            info!(
-                "RINEX: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else if let Ok(sp3) = SP3::from_file(path) {
-            self.load_sp3(path, sp3)?;
-            info!(
-                "SP3: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else {
-            Err(Error::NonSupportedFormat)
-        }
-    }
-
-    /// Smart data loader, that will automatically pick up the provided
-    /// format (if supported).
-    #[cfg(feature = "flate2")]
-    pub fn load_gzip_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
-        let path = path.as_ref();
-        if let Ok(rinex) = Rinex::from_gzip_file(path) {
-            self.load_rinex(path, rinex)?;
-            info!(
-                "RINEX: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else if let Ok(sp3) = SP3::from_gzip_file(path) {
-            self.load_sp3(path, sp3)?;
-            info!(
-                "SP3: \"{}\" has been loaded",
-                path.file_stem().unwrap_or_default().to_string_lossy()
-            );
-            Ok(())
-        } else {
-            Err(Error::NonSupportedFormat)
-        }
-    }
-
 
     /// Define or overwrite the internal Ground position, expressed as [Orbit].
     /// Refer to its definition for more information
@@ -189,8 +138,6 @@ impl DataSet {
         }
         None
     }
-
-
 
     /// True if [DataSet] is compatible with PPP positioning,
     /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>

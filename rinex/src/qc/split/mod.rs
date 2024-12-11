@@ -63,13 +63,13 @@ impl Split for Rinex {
                 record: r0,
                 header: self.header.clone(),
                 comments: self.comments.clone(),
-                prod_attr: self.prod_attr.clone(),
+                production: self.production.clone(),
             },
             Rinex {
                 record: r1,
                 header: self.header.clone(),
                 comments: self.comments.clone(),
-                prod_attr: self.prod_attr.clone(),
+                production: self.production.clone(),
             },
         )
     }
@@ -99,7 +99,7 @@ impl Split for Rinex {
             record,
             header: self.header.clone(),
             comments: self.comments.clone(),
-            prod_attr: self.prod_attr.clone(),
+            production: self.production.clone(),
         }
     }
 
@@ -143,7 +143,7 @@ impl Split for Rinex {
             .map(|rec| Rinex {
                 header: self.header.clone(),
                 comments: self.comments.clone(),
-                prod_attr: self.prod_attr.clone(),
+                production: self.production.clone(),
                 record: rec.clone(),
             })
             .collect()

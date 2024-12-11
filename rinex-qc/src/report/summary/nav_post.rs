@@ -16,10 +16,10 @@ pub struct QcNavPostSummary {
 impl QcNavPostSummary {
     pub fn new(context: &QcContext) -> Self {
         Self {
-            nav_compatible: context.is_navi_compatible(),
-            cpp_compatible: context.is_cpp_compatible(),
-            ppp_compatible: context.is_ppp_compatible(),
-            ppp_ultra_compatible: context.is_ppp_ultra_compatible(),
+            nav_compatible: false,
+            cpp_compatible: false,
+            ppp_compatible: false,
+            ppp_ultra_compatible: false,
         }
     }
 }

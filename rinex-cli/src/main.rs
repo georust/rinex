@@ -5,7 +5,7 @@
 //mod analysis; // basic analysis
 mod cli; // command line interface
 mod fops;
-mod positioning;
+//mod positioning;
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -13,10 +13,9 @@ use preprocessing::preprocess;
 mod report;
 use report::Report;
 
-use sp3::prelude::SP3;
 
 use rinex::prelude::{
-    FormattingError as RinexFormattingError, ParsingError as RinexParsingError, Rinex,
+    FormattingError as RinexFormattingError, ParsingError as RinexParsingError,
 };
 
 use rinex_qc::prelude::{MergeError, QcContext, QcExtraPage};

@@ -14,16 +14,32 @@ pub enum Error {
 use std::fmt::Display;
 use std::str::FromStr;
 
+#[derive(Debug, Copy, Clone, Default, Deserialize)]
+pub enum PreferedOrbit {
+    #[cfg(feature = "sp3")]
+    SP3,
+    #[default]
+    BrdcRadio,
+}
+
+impl std::fmt::Display for PreferedOrbit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "sp3")]
+            Self::SP3 => write!(f, "SP3"),
+            Self::BrdcRadio => write!(f, "Radio Broadcast"),
+        }
+    }
+}
+
 /// [QcReportType]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum QcReportType {
-    /// In [Summary] mode, only the summary section
+    /// In [QcReportType::Summary] mode, only the summary section
     /// of the report is to be generated. It is the lightest
     /// form we can generate.
     Summary,
-    /// In [Full] mode, we generate the [CombinedReport] as well,
-    /// which results from the consideration of all input [ProductType]s
-    /// at the same time.
+    /// In [QcReportType::Full] mode, all information is generated.
     #[default]
     Full,
 }
@@ -53,20 +69,28 @@ pub struct QcConfig {
     #[serde(default)]
     pub report: QcReportType,
     #[serde(default)]
-    pub manual_reference: Option<GroundPosition>,
+    pub prefered_orbit: PreferedOrbit,
     #[serde(default)]
-    /// When both SP3 and BRDC NAV are present,
-    /// SP3 is prefered for skyplot project: set true here to
-    /// also compute for BRDC NAV.
-    pub force_brdc_skyplot: bool,
+    pub undefined_should_contribute: bool,
+    #[serde(default)]
+    pub manual_reference: Option<GroundPosition>,
 }
 
 impl QcConfig {
     pub fn set_report_type(&mut self, report_type: QcReportType) {
         self.report = report_type;
     }
+    pub fn set_prefered_radio_orbit(&mut self) {
+        self.prefered_orbit = PreferedOrbit::BrdcRadio;
+    }
+    pub fn set_prefered_sp3_orbit(&mut self) {
+        self.prefered_orbit = PreferedOrbit::SP3;
+    }
     pub fn set_reference_position(&mut self, pos: GroundPosition) {
         self.manual_reference = Some(pos.clone());
+    }
+    pub fn undefined_should_contribute(&mut self) {
+        self.undefined_should_contribute = true;
     }
 }
 
