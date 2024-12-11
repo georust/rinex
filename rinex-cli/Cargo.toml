@@ -47,8 +47,8 @@ hifitime = { version = "4.0.0-beta", features = ["serde", "std"] }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 
 # gnss-rtk = { version = "=0.7.4", features = ["serde"] }
-gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+# gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
 # cggtts = { version = "4.1.6", features = ["serde", "scheduler"], optional = true }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }
