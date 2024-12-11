@@ -1,9 +1,14 @@
 //! GNSS processing context definition.
 use thiserror::Error;
 
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    fs::create_dir_all,
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use rinex::{
     merge::{Error as RinexMergeError, Merge as RinexMerge},
@@ -13,7 +18,11 @@ use rinex::{
 };
 
 use anise::{
-    almanac::{metaload::MetaFile, planetary::PlanetaryDataError},
+    almanac::{
+        metaload::MetaAlmanacError,
+        metaload::{MetaAlmanac, MetaFile},
+        planetary::PlanetaryDataError,
+    },
     constants::frames::{EARTH_ITRF93, IAU_EARTH_FRAME},
     errors::AlmanacError,
     prelude::Frame,
@@ -32,6 +41,8 @@ use qc_traits::{
 pub enum Error {
     #[error("almanac error")]
     Alamanac(#[from] AlmanacError),
+    #[error("almanac setup error")]
+    MetaAlamanac(#[from] MetaAlmanacError),
     #[error("planetary data error")]
     PlanetaryData(#[from] PlanetaryDataError),
     #[error("failed to extend gnss context")]
@@ -158,19 +169,23 @@ pub struct QcContext {
 }
 
 impl QcContext {
+    const ALMANAC_LOCAL_STRORAGE: &str = ".cache";
+
     fn nyx_anise_de440s_bsp() -> MetaFile {
         MetaFile {
             crc32: Some(1921414410),
             uri: String::from("http://public-data.nyxspace.com/anise/de440s.bsp"),
         }
     }
+
     fn nyx_anise_pck11_pca() -> MetaFile {
         MetaFile {
             crc32: Some(0x8213b6e9),
-            uri: String::from("http://public-data.nyxspace.com/anise/v0.4/pck11.pca"),
+            uri: String::from("http://public-data.nyxspace.com/anise/v0.5/pck11.pca"),
         }
     }
-    fn jpl_latest_high_prec_bpc() -> MetaFile {
+
+    fn nyx_anise_jpl_bpc() -> MetaFile {
         MetaFile {
             crc32: None,
             uri:
@@ -178,61 +193,80 @@ impl QcContext {
                     .to_string(),
         }
     }
-    /// Infaillible method to either download, retrieve or create
+
+    /// Method to either download, retrieve or create
     /// a basic [Almanac] and reference [Frame] to work with.
-    /// We always prefer the highest precision scenario.
-    /// On first deployment, it will require internet access.
-    /// We can only rely on lower precision kernels if we cannot access the cloud.
-    fn build_almanac() -> Result<(Almanac, Frame), Error> {
-        let almanac = Almanac::until_2035()?;
-        match almanac.load_from_metafile(Self::nyx_anise_de440s_bsp()) {
-            Ok(almanac) => {
-                info!("ANISE DE440S BSP has been loaded");
-                match almanac.load_from_metafile(Self::nyx_anise_pck11_pca()) {
-                    Ok(almanac) => {
-                        info!("ANISE PCK11 PCA has been loaded");
-                        match almanac.load_from_metafile(Self::jpl_latest_high_prec_bpc()) {
-                            Ok(almanac) => {
-                                info!("JPL high precision (daily) kernels loaded.");
-                                if let Ok(itrf93) = almanac.frame_from_uid(EARTH_ITRF93) {
-                                    info!("Deployed with highest precision context available.");
-                                    Ok((almanac, itrf93))
-                                } else {
-                                    let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
-                                    warn!("Failed to build ITRF93: relying on IAU model");
-                                    Ok((almanac, iau_earth))
-                                }
-                            },
-                            Err(e) => {
-                                let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
-                                error!("Failed to download JPL High precision kernels: {}", e);
-                                warn!("Relying on IAU frame model.");
-                                Ok((almanac, iau_earth))
-                            },
-                        }
-                    },
-                    Err(e) => {
-                        let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
-                        error!("Failed to download PCK11 PCA: {}", e);
-                        warn!("Relying on IAU frame model.");
-                        Ok((almanac, iau_earth))
-                    },
+    /// This will try to download the highest JPL model, and requires
+    /// internet access once a day.
+    /// If the JPL database cannot be accessed, we rely on an offline model.
+    fn build_almanac_frame_model() -> Result<(Almanac, Frame), Error> {
+        let mut initial_setup = false;
+
+        // Meta almanac for local storage management
+        let local_storage = format!(
+            "{}/{}/anise.dhall",
+            env!("CARGO_MANIFEST_DIR"),
+            Self::ALMANAC_LOCAL_STRORAGE
+        );
+
+        let mut meta_almanac = match MetaAlmanac::new(local_storage.clone()) {
+            Ok(meta) => {
+                debug!("(anise) from local storage");
+                meta
+            },
+            Err(_) => {
+                debug!("(anise) local storage setup");
+                initial_setup = true;
+                MetaAlmanac {
+                    files: vec![
+                        Self::nyx_anise_de440s_bsp(),
+                        Self::nyx_anise_pck11_pca(),
+                        Self::nyx_anise_jpl_bpc(),
+                    ],
                 }
             },
+        };
+
+        // download (if need be)
+        let almanac = meta_almanac.process(true)?;
+
+        if initial_setup {
+            let updated = meta_almanac.dumps()?;
+
+            let _ = create_dir_all(&format!(
+                "{}/{}",
+                env!("CARGO_MANIFEST_DIR"),
+                Self::ALMANAC_LOCAL_STRORAGE
+            ));
+
+            let mut fd = File::create(&local_storage)
+                .unwrap_or_else(|e| panic!("almanac storage setup error: {}", e));
+
+            fd.write_all(updated.as_bytes())
+                .unwrap_or_else(|e| panic!("almanac storage setup error: {}", e));
+        }
+
+        match almanac.frame_from_uid(EARTH_ITRF93) {
+            Ok(itrf93) => {
+                info!("highest precision context setup");
+                return Ok((almanac, itrf93));
+            },
             Err(e) => {
-                error!("Failed to load DE440S BSP: {}", e);
-                let iau_earth = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
-                warn!("Relying on IAU frame model.");
-                Ok((almanac, iau_earth))
+                error!("(anise) jpl_bpc: {}", e);
             },
         }
+
+        let earth_cef = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
+        warn!("deployed with offline model");
+        Ok((almanac, earth_cef))
     }
+
     /// Create a new QcContext for which we will try to
     /// retrieve the latest and highest precision [Almanac]
     /// and reference [Frame] to work with. If you prefer
     /// to manualy specify those, prefer the other constructor.
     pub fn new() -> Result<Self, Error> {
-        let (almanac, earth_cef) = Self::build_almanac()?;
+        let (almanac, earth_cef) = Self::build_almanac_frame_model()?;
         Ok(Self {
             almanac,
             earth_cef,
@@ -240,6 +274,7 @@ impl QcContext {
             files: HashMap::new(),
         })
     }
+
     /// Build new [QcContext] with given [Almanac] and desired [Frame],
     /// which must be one of the available ECEF.
     pub fn new_almanac(almanac: Almanac, frame: Frame) -> Result<Self, Error> {
@@ -250,6 +285,7 @@ impl QcContext {
             files: HashMap::new(),
         })
     }
+
     /// Returns main [TimeScale] for Self
     pub fn timescale(&self) -> Option<TimeScale> {
         #[cfg(feature = "sp3")]
@@ -274,6 +310,7 @@ impl QcContext {
             None
         }
     }
+
     /// Returns path to File considered as Primary product in this Context.
     /// When a unique file had been loaded, it is obviously considered Primary.
     pub fn primary_path(&self) -> Option<&PathBuf> {

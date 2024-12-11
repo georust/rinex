@@ -40,7 +40,7 @@ plotly = "0.9"
 # plotly = { path = "../../plotly-rs/plotly" }
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo" }
 
-anise = { version = "=0.4.2", features = ["embed_ephem"] }
+anise = { version = "=0.5.0", features = ["embed_ephem"] }
 hifitime = { version = "4.0.0-beta", features = ["serde", "std"] }
 
 # gnss-rs = { version = "2.2.3", features = ["serde"] }
