@@ -2341,7 +2341,7 @@ impl Rinex {
     ) -> Option<AzElRange> {
         let sv_orbit = self.sv_orbit(sv, t)?;
         let azelrange = almanac
-            .azimuth_elevation_range_sez(sv_orbit, rx_orbit)
+            .azimuth_elevation_range_sez(sv_orbit, rx_orbit, None, None)
             .ok()?;
         Some(azelrange)
     }
