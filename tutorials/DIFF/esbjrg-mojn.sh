@@ -1,10 +1,7 @@
 #!/bin/sh
-# OBS_RINEX(Esbjerg) - OBS_RINEX(Mojn)
-# This operation is very powerful to compare two GNSS receivers setup.
-# Especially when two clocks are synchronized or is split in the setup.
-# To perform the differentiation, you need a common timeframe and common signals.
-# For the lack of a better example, we use MOJNDNK and ESBJRG (DNK) that provided
-# data on the same day, and happen to be very close to one another
+# OBS_RINEX(Esbjerg) - OBS_RINEX(Mojn) (differential analysis)
+# Two stations operated by the same agency, located within
+# a few km of each other.
 WORKSPACE=WORKSPACE
 DATA_DIR=test_resources/CRNX/V3
 

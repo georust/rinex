@@ -27,11 +27,10 @@ pub fn write_obs_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error
         } else {
             "None".to_string()
         };
-
         for signal in observations.signals.iter() {
             let sv = signal.sv.to_string();
             let code = signal.observable.to_string();
-            let value = format!("{:.6E}", signal.value);
+            let value = format!("{:.12E}", signal.value);
 
             let lli = if let Some(lli) = signal.lli {
                 format!("{:?}", lli)
