@@ -57,6 +57,8 @@ mod test {
 
     #[test]
     fn dual_phase_range_tec_estimation() {
+        let gamma = 1.0 / 40.308;
+
         let path = format!(
             "{}/test_resources/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
             env!("CARGO_MANIFEST_DIR"),
@@ -67,6 +69,10 @@ mod test {
         let t0 = Epoch::from_gregorian_utc_at_midnight(2021, 12, 21);
         let t1 = t0 + 30.0 * Unit::Second;
         let t2 = t1 + 30.0 * Unit::Second;
+
+        let f_l1 = Carrier::L1.frequency().powi(2);
+        let f_l2 = Carrier::L2.frequency().powi(2);
+        let f_l5 = Carrier::L5.frequency().powi(2);
 
         let mut t0_g01_l1c_l2s_passed = false;
         let mut t0_g01_l1c_l2w_passed = false;
@@ -102,7 +108,9 @@ mod test {
 
         for (k, tec) in tec {
             match (k.epoch, k.sv, k.reference, k.rhs) {
-                (t0, g01, l1c, l2s) => {},
+                (t0, g01, l1c, l2s) => {
+                    assert_eq!(tec, gamma * f_l1 * f_l2 / (f_l1 - f_l2) * (1.0 - 2.0));
+                },
                 (t0, g01, l1c, l2w) => {},
                 (t0, g01, l1c, l5q) => {},
                 (t0, g07, l1c, l2s) => {},
