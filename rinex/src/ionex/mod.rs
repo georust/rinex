@@ -122,7 +122,7 @@ impl TEC {
 
     /// Builds new [TEC] from raw TEC estimate in m^-2
     pub fn from_tec_m2(tec: f64) -> Self {
-        let tecu = tec * 10.0E-16;
+        let tecu = tec / 10.0E16;
         let exponent = Quantized::find_exponent(tecu);
         Self {
             tecu: Quantized::new(tecu, exponent),
@@ -305,5 +305,9 @@ mod test {
         let tec = TEC::from_quantized(30, -2);
         assert_eq!(tec.tecu(), 0.3);
         assert_eq!(tec.tec(), 0.3 * 10E16);
+
+        let tec = TEC::from_tec_m2(1.0 * 10E16);
+        assert_eq!(tec.tecu(), 1.0);
+        assert_eq!(tec.tec(), 1.0 * 10E16);
     }
 }

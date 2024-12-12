@@ -77,6 +77,7 @@ impl SignalObservation {
     #[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
     /// Calculates the Ionosphere [TEC] from two Phase range observations.
     pub fn tec_estimate(&self, rhs: &Self) -> Option<TEC> {
+        const GAMMA: f64 = 1.0 / 40.308;
         let same_sv = self.sv == rhs.sv;
         let different_signals = self.observable != rhs.observable;
 
@@ -93,8 +94,9 @@ impl SignalObservation {
             let carrier_2 = carrier_2.unwrap();
             let f_1 = carrier_1.frequency().powi(2);
             let f_2 = carrier_2.frequency().powi(2);
-            if carrier_1.is_l1_pivot() && (f_1 != f_2) {
-                let tec = 1.0 / 40.308 * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value);
+            if carrier_1.is_l1_pivot() {
+                let tec = GAMMA * f_1 * f_2 / (f_1 - f_2) * (self.value - rhs.value);
+                panic!("tec={:.3E}", tec);
                 Some(TEC::from_tec_m2(tec))
             } else {
                 None
@@ -110,6 +112,7 @@ mod test {
     use crate::observation::SignalObservation;
     use crate::prelude::{Carrier, Observable, SV};
     use std::str::FromStr;
+
     #[test]
     fn test_dual_signal_tec_estimate() {
         let gamma = 1.0 / 40.308;
@@ -135,26 +138,30 @@ mod test {
 
         let g02_l1c = SignalObservation::new(g02, l1c.clone(), 6.0);
         let g02_l2c = SignalObservation::new(g02, l2c.clone(), 7.0);
-        let g02_l5c = SignalObservation::new(g02, l5c.clone(), 8.0);
 
         // different SV: not ok!
         assert!(g01_l1c.tec_estimate(&g02_l2c).is_none());
+
         // different SV same signal: not OK
         assert!(g01_l1c.tec_estimate(&g02_l1c).is_none());
+
         // Same signal: not ok!
         assert!(g01_l1c.tec_estimate(&g01_l1c).is_none());
+
         // Not phase: currently disabled!
         assert!(g01_c1c.tec_estimate(&g01_c2c).is_none());
 
         // Test L1-L2
         let tec = g01_l1c.tec_estimate(&g01_l2c).unwrap();
+
         assert_eq!(
             tec.tec(),
-            gamma * f_l1 * f_l2 / (f_l1 - f_l2) * (g01_l1c.value - g01_l2c.value)
+            gamma * f_l1 * f_l2 / (f_l1 - f_l2) * (g01_l2c.value - g01_l1c.value)
         );
 
         // Test L1-L5
         let tec = g01_l1c.tec_estimate(&g01_l5c).unwrap();
+
         assert_eq!(
             tec.tec(),
             gamma * f_l1 * f_l5 / (f_l1 - f_l5) * (g01_l1c.value - g01_l5c.value)

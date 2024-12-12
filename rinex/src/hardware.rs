@@ -40,6 +40,24 @@ impl Receiver {
         )?;
         Ok(())
     }
+
+    pub fn with_model(&self, model: &str) -> Self {
+        let mut s = self.clone();
+        s.model = model.to_string();
+        s
+    }
+
+    pub fn with_serial_number(&self, sn: &str) -> Self {
+        let mut s = self.clone();
+        s.sn = sn.to_string();
+        s
+    }
+
+    pub fn with_firmware(&self, firmware: &str) -> Self {
+        let mut s = self.clone();
+        s.firmware = firmware.to_string();
+        s
+    }
 }
 
 impl FromStr for Receiver {
@@ -117,30 +135,35 @@ impl Antenna {
         s.model = m.to_string();
         s
     }
+
     /// Sets desired Serial Number
     pub fn with_serial_number(&self, sn: &str) -> Self {
         let mut s = self.clone();
         s.sn = sn.to_string();
         s
     }
+
     /// Sets reference/base coordinates (3D)
     pub fn with_base_coordinates(&self, coords: (f64, f64, f64)) -> Self {
         let mut s = self.clone();
         s.coords = Some(coords);
         s
     }
+
     /// Sets antenna `h` eccentricity component
     pub fn with_height(&self, h: f64) -> Self {
         let mut s = self.clone();
         s.height = Some(h);
         s
     }
+
     /// Sets antenna `eastern` coordinates component
     pub fn with_eastern_component(&self, e: f64) -> Self {
         let mut s = self.clone();
         s.eastern = Some(e);
         s
     }
+
     /// Sets antenna `northern` coordiantes component
     pub fn with_northern_component(&self, n: f64) -> Self {
         let mut s = self.clone();

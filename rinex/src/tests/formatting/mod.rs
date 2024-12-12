@@ -1,42 +1,51 @@
 pub mod header;
 pub mod obs;
 
-use std::{io::Write, str::from_utf8};
+use std::collections::HashMap;
+use std::{
+    io::Write,
+    str::{from_utf8, from_utf8_unchecked},
+};
 
+#[derive(Debug)]
 pub struct Utf8Buffer {
-    inner: Vec<u8>,
+    pub inner: Vec<u8>,
 }
 
 impl Write for Utf8Buffer {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.inner.push_slice(buf);
+        for b in buf {
+            self.inner.push(*b);
+        }
         Ok(buf.len())
     }
-    fn flush(&mut self) {
+
+    fn flush(&mut self) -> std::io::Result<()> {
         self.inner.clear();
+        Ok(())
     }
 }
 
 impl Utf8Buffer {
-    pub fn new(capacity: usize) {
+    pub fn new(capacity: usize) -> Self {
         Self {
             inner: Vec::with_capacity(capacity),
         }
     }
 
     pub fn to_ascii_utf8(&self) -> String {
-        from_utf8(self.inner).to_string();
+        "".to_string()
     }
 }
 
 pub fn generic_formatted_lines_test(utf8_content: &str, test_values: HashMap<usize, &str>) {
-    let mut nb_tests = 0;
+    let mut nb_tests = 0usize;
     let total_tests = test_values.len();
-    for (nth, line) in utf8_content.lines() {
+    for (nth, line) in utf8_content.lines().enumerate() {
         if let Some(content) = test_values.get(&nth) {
-            assert_eq!(line, content);
+            assert_eq!(line, *content);
             nb_tests += 1;
         }
     }
-    assert!(nb_tests, total_tests);
+    assert_eq!(nb_tests, total_tests);
 }
