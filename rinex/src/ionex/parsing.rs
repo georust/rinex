@@ -1,7 +1,7 @@
 //! IONEX maps parsing
 
 use crate::{
-    ionex::{IonexKey, IonexMapCoordinates, Quantized, Record, TEC},
+    ionex::{IonexKey, Quantized, QuantizedCoordinates, Record, TEC},
     prelude::{Epoch, ParsingError},
 };
 
@@ -126,7 +126,7 @@ pub fn parse_tec_map(
                     let quantized_long = Quantized::new(long, long_exponent);
                     let quantized_alt = Quantized::new(fixed_alt, alt_exponent);
 
-                    let coordinates = IonexMapCoordinates::from_quantized(
+                    let coordinates = QuantizedCoordinates::from_quantized(
                         quantized_lat,
                         quantized_long,
                         quantized_alt,
@@ -187,7 +187,7 @@ pub fn parse_rms_map(
                 let quantized_long = Quantized::new(long, long_exponent);
                 let quantized_alt = Quantized::new(fixed_alt, alt_exponent);
 
-                let coordinates = IonexMapCoordinates::from_quantized(
+                let coordinates = QuantizedCoordinates::from_quantized(
                     quantized_lat,
                     quantized_long,
                     quantized_alt,
@@ -259,7 +259,7 @@ mod test {
     };
 
     use crate::{
-        ionex::{quantized, IonexKey, IonexMapCoordinates, Record},
+        ionex::{quantized, IonexKey, QuantizedCoordinates, Record},
         prelude::Epoch,
     };
 
@@ -366,7 +366,7 @@ mod test {
 
         for (coordinates, quantized_tecu) in [
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     87.5,
                     lat_exponent,
                     -180.0,
@@ -377,7 +377,7 @@ mod test {
                 33,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     87.5,
                     lat_exponent,
                     -175.0,
@@ -388,7 +388,7 @@ mod test {
                 33,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     87.5,
                     lat_exponent,
                     -170.0,
@@ -399,7 +399,7 @@ mod test {
                 32,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     87.5,
                     lat_exponent,
                     170.0,
@@ -410,7 +410,7 @@ mod test {
                 34,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     87.5,
                     lat_exponent,
                     175.0,
@@ -421,7 +421,7 @@ mod test {
                 33,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     87.5,
                     lat_exponent,
                     180.0,
@@ -432,7 +432,7 @@ mod test {
                 33,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     85.0,
                     lat_exponent,
                     -180.0,
@@ -443,7 +443,7 @@ mod test {
                 36,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     85.0,
                     lat_exponent,
                     -175.0,
@@ -454,7 +454,7 @@ mod test {
                 36,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     85.0,
                     lat_exponent,
                     -170.0,
@@ -465,7 +465,7 @@ mod test {
                 35,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     85.0,
                     lat_exponent,
                     170.0,
@@ -476,7 +476,7 @@ mod test {
                 37,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     85.0,
                     lat_exponent,
                     175.0,
@@ -487,7 +487,7 @@ mod test {
                 37,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     85.0,
                     lat_exponent,
                     180.0,
@@ -498,7 +498,7 @@ mod test {
                 36,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     27.5,
                     lat_exponent,
                     170.0,
@@ -509,7 +509,7 @@ mod test {
                 240,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     27.5,
                     lat_exponent,
                     175.0,
@@ -520,7 +520,7 @@ mod test {
                 239,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     27.5,
                     lat_exponent,
                     180.0,
@@ -531,7 +531,7 @@ mod test {
                 235,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     2.5,
                     lat_exponent,
                     -170.0,
@@ -542,7 +542,7 @@ mod test {
                 374,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     2.5,
                     lat_exponent,
                     170.0,
@@ -553,7 +553,7 @@ mod test {
                 348,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     2.5,
                     lat_exponent,
                     175.0,
@@ -564,7 +564,7 @@ mod test {
                 356,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     2.5,
                     lat_exponent,
                     180.0,
@@ -575,7 +575,7 @@ mod test {
                 364,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     -2.5,
                     lat_exponent,
                     -170.0,
@@ -586,7 +586,7 @@ mod test {
                 375,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     -2.5,
                     lat_exponent,
                     170.0,
@@ -597,7 +597,7 @@ mod test {
                 346,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     -2.5,
                     lat_exponent,
                     175.0,
@@ -608,7 +608,7 @@ mod test {
                 355,
             ),
             (
-                IonexMapCoordinates::new(
+                QuantizedCoordinates::new(
                     -2.5,
                     lat_exponent,
                     180.0,

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    ionex::{IonexKey, IonexMapCoordinates, MappingFunction, Quantized},
+    ionex::{IonexKey, MappingFunction, Quantized, QuantizedCoordinates},
     prelude::{Epoch, Header, Rinex, RinexType},
     tests::toolkit::{generic_rinex_test, TimeFrame},
 };
@@ -153,7 +153,7 @@ pub fn generic_ionex_test(
         let h_grid_spacing = h_grid_spacing.unwrap_or(0.0);
         let alt_exponent = Quantized::find_exponent(h_grid_spacing);
 
-        let coordinates = IonexMapCoordinates::new(
+        let coordinates = QuantizedCoordinates::new(
             lat_ddeg,
             lat_exponent,
             long_ddeg,

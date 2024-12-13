@@ -115,7 +115,6 @@ pub mod prelude {
 
     pub use crate::marker::{GeodeticMarker, MarkerType};
 
-    pub use crate::ionex::{IonexKey, IonexMapCoordinates, TEC};
     pub use crate::meteo::MeteoKey;
 
     pub use crate::prod::ProductionAttributes;
@@ -130,6 +129,10 @@ pub mod prelude {
     pub mod antex {
         pub use crate::antex::AntennaMatcher;
     }
+
+    #[cfg(feature = "ionex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
+    pub use crate::ionex::{IonexKey, QuantizedCoordinates, TEC};
 
     #[cfg(feature = "obs")]
     #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
@@ -326,14 +329,11 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 /// }
 /// ```
 pub struct Rinex {
-    /// `header` field contains general information
+    /// [Header] gives general information and describes following content.
     pub header: Header,
-    /// `comments` : list of extra readable information,   
-    /// found in `record` section exclusively.    
-    /// Comments extracted from `header` sections are exposed in `header.comments`
+    /// [Comments] stored as they appeared in file body
     pub comments: Comments,
-    /// `record` contains `RINEX` file body
-    /// and is type and constellation dependent
+    /// [Record] is the actual file content and is heavily [RinexType] dependent
     pub record: Record,
     /*
      * File Production attributes, attached to Self
