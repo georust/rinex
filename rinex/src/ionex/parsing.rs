@@ -259,7 +259,7 @@ mod test {
     };
 
     use crate::{
-        ionex::{IonexKey, IonexMapCoordinates, Record},
+        ionex::{quantized, IonexKey, IonexMapCoordinates, Record},
         prelude::Epoch,
     };
 
@@ -364,7 +364,7 @@ mod test {
         )
         .unwrap();
 
-        for (coordinates, quantized_tec) in [
+        for (coordinates, quantized_tecu) in [
             (
                 IonexMapCoordinates::new(
                     87.5,
@@ -625,12 +625,10 @@ mod test {
                 .get(&key)
                 .expect(&format!("missing value at {:#?}", key));
 
-            assert_eq!(tec.tecu.quantized, quantized_tec);
-
             let tecu = tec.tecu();
-            let expected_tecu = quantized_tec as f64 * (10.0_f64).powi(tec_exponent as i32);
-            let err = (tecu - expected_tecu).abs();
-            assert!(err < 1.0E-5);
+            let expected = quantized_tecu as f64 * 10.0_f64.powi(tec_exponent as i32);
+            let err = (tecu - expected).abs();
+            assert!(err < 1.0E-6);
         }
     }
 }
