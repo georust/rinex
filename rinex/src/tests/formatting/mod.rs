@@ -2,10 +2,7 @@ pub mod header;
 pub mod obs;
 
 use std::collections::HashMap;
-use std::{
-    io::Write,
-    str::{from_utf8, from_utf8_unchecked},
-};
+use std::{io::Write, str::from_utf8};
 
 #[derive(Debug)]
 pub struct Utf8Buffer {
@@ -34,7 +31,7 @@ impl Utf8Buffer {
     }
 
     pub fn to_ascii_utf8(&self) -> String {
-        std::str::from_utf8(&self.inner).unwrap().to_string()
+        from_utf8(&self.inner).unwrap().to_string()
     }
 }
 

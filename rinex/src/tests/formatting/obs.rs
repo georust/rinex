@@ -15,6 +15,8 @@ fn mixed_header_formatting() {
 
     let gps = Constellation::GPS;
     let gal = Constellation::Galileo;
+    let glo = Constellation::Glonass;
+    let bds = Constellation::BeiDou;
 
     let l1c = Observable::PhaseRange("L1C".to_string());
     let c1c = Observable::PseudoRange("C1C".to_string());
@@ -73,6 +75,26 @@ fn mixed_header_formatting() {
         s5q.clone(),
         l1x.clone(),
         l2x.clone(),
+        l1p.clone(),
+        l2p.clone(),
+    ];
+
+    let glo_codes = vec![l1c.clone(), c1c.clone()];
+
+    let bds_codes = vec![
+        l1c.clone(),
+        c1c.clone(),
+        d1c.clone(),
+        s1c.clone(),
+        l2c.clone(),
+        c2c.clone(),
+        d2c.clone(),
+        s2c.clone(),
+        l5c.clone(),
+        c5c.clone(),
+        d5c.clone(),
+        s5c.clone(),
+        l1p.clone(),
     ];
 
     let mut hd = HeaderFields::default()
@@ -81,14 +103,42 @@ fn mixed_header_formatting() {
 
     hd.codes.insert(gps, gps_codes);
     hd.codes.insert(gal, gal_codes);
+    hd.codes.insert(glo, glo_codes);
+    hd.codes.insert(bds, bds_codes);
 
     hd.format(&mut buf, 3).unwrap();
 
     let content = buf.into_inner().unwrap().to_ascii_utf8();
 
-    let test_values = HashMap::<usize, &str>::from_iter([(0usize, "test")].into_iter());
-
-    generic_formatted_lines_test(&content, test_values);
+    generic_formatted_lines_test(
+        &content,
+        HashMap::from_iter([
+            (
+                0,
+                "G   14 L1C C1C D1C S1C L2C C2C D2C S2C L5C C5C D5C S5C L1P  SYS / # / OBS TYPES",
+            ),
+            (
+                1,
+                "       L2P                                                  SYS / # / OBS TYPES",
+            ),
+            (
+                2,
+                "R    2 L1C C1C                                              SYS / # / OBS TYPES",
+            ),
+            (
+                3,
+                "C   13 L1C C1C D1C S1C L2C C2C D2C S2C L5C C5C D5C S5C L1P  SYS / # / OBS TYPES",
+            ),
+            (
+                4,
+                "E   16 L1C C1C D1C S1C L2C C2C D2C S2C L5Q C5Q D5Q S5Q L1X  SYS / # / OBS TYPES",
+            ),
+            (
+                5,
+                "       L2X L1P L2P                                          SYS / # / OBS TYPES",
+            ),
+        ]),
+    );
 }
 
 #[test]

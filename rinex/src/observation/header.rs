@@ -45,34 +45,62 @@ impl HeaderFields {
         major: u8,
     ) -> Result<(), FormattingError> {
         match major {
-            1 | 2 => {
-                if let Some((_constell, observables)) = self.codes.iter().next() {
-                    write!(w, "{:6}", observables.len())?;
-                    for (nth, observable) in observables.iter().enumerate() {
-                        if (nth % 9) == 8 {
-                            write!(w, "# / TYPES OF OBSERV\n      ")?;
-                        }
-                        write!(w, "    {}", observable)?;
-                    }
-                }
-            },
-            _ => {
-                for (constell, observables) in &self.codes {
-                    write!(w, "{:x}{:5}", constell, observables.len(),)?;
-                    for (nth, observable) in observables.iter().enumerate() {
-                        if (nth % 13) == 12 {
-                            write!(w, "SYS / # / OBS TYPES\n        ")?;
-                        }
-                        write!(w, " {}", observable)?;
-                    }
-                }
-            },
+            1 | 2 => self.format_v1_observables(w)?,
+            _ => self.format_v3_observables(w)?,
         }
 
-        // must take place after list of observables:
-        //  TODO DCBS compensations
-        //  TODO PCVs compensations
+        //TODO scaling
+        //TODO DCBs
+        Ok(())
+    }
 
+    fn format_v1_observables<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        for (constell, observables) in self.codes.iter() {
+            let mut ptr = 0;
+            write!(w, "{:x}{:5}", constell, observables.len())?;
+            for (nth, observable) in observables.iter().enumerate() {
+                if (nth % 9) == 8 {
+                    writeln!(w, "# / TYPES OF OBSERV")?;
+                }
+                if nth > 0 && (nth % 9) == 0 {
+                    write!(w, "    ")?;
+                }
+                write!(w, "    {}", observable)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn format_v3_observables<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        for constell in self.codes.keys().sorted() {
+            let observables = self.codes.get(&constell).unwrap();
+
+            write!(w, "{:x}{:5}", constell, observables.len())?;
+
+            let mut modulo = 0;
+            for (nth, observable) in observables.iter().enumerate() {
+                if nth > 0 && (nth % 13) == 0 {
+                    write!(w, "      ")?;
+                }
+
+                write!(w, " {}", observable)?;
+
+                if (nth % 13) == 12 {
+                    writeln!(w, "  SYS / # / OBS TYPES")?;
+                }
+
+                modulo = nth % 13;
+            }
+
+            if modulo != 12 {
+                writeln!(
+                    w,
+                    "{:>width$}",
+                    "SYS / # / OBS TYPES",
+                    width = 79 - 6 - (modulo + 1) * 4
+                )?;
+            }
+        }
         Ok(())
     }
 
