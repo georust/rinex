@@ -119,7 +119,7 @@ pub fn parse_tec_map(
             // data interpretation
             let item = item.trim();
             if item != NON_AVAILABLE_TEC_KEYWORD {
-                if let Ok(tecu) = item.parse::<i32>() {
+                if let Ok(tecu) = item.parse::<i64>() {
                     let tec = TEC::from_quantized(tecu, tec_exponent);
 
                     let quantized_lat = Quantized::new(fixed_lat, lat_exponent);
@@ -182,7 +182,7 @@ pub fn parse_rms_map(
 
         // proceed to parsing
         for item in line.split_ascii_whitespace() {
-            if let Ok(tec) = item.trim().parse::<i32>() {
+            if let Ok(tec) = item.trim().parse::<i64>() {
                 let quantized_lat = Quantized::new(fixed_lat, lat_exponent);
                 let quantized_long = Quantized::new(long, long_exponent);
                 let quantized_alt = Quantized::new(fixed_alt, alt_exponent);

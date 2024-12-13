@@ -145,7 +145,7 @@ impl Rinex {
         &self,
     ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
         Box::new(self.signal_observations_iter().filter_map(|(k, sig)| {
-            if !k.flag.is_ok() {
+            if k.flag.is_ok() {
                 Some((k, sig))
             } else {
                 None

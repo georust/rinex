@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Quantized {
     pub exponent: i8,
-    pub quantized: i32,
+    pub quantized: i64,
 }
 
 impl Quantized {
@@ -26,7 +26,7 @@ impl Quantized {
 
     /// Builds new [Quantized] value
     pub fn new(value: f64, exponent: i8) -> Self {
-        let quantized = (value * 10.0_f64.powi(exponent as i32)).round() as i32;
+        let quantized = (value * 10.0_f64.powi(exponent as i32)).round() as i64;
         Self {
             quantized,
             exponent,

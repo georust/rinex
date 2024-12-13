@@ -139,7 +139,7 @@ impl TEC {
     }
 
     /// Builds new [TEC] from TEC quantization in TECu
-    pub(crate) fn from_quantized(tecu: i32, exponent: i8) -> Self {
+    pub(crate) fn from_quantized(tecu: i64, exponent: i8) -> Self {
         // IONEX stores quantized TEC as i=10*-k TECu
         Self {
             tecu: Quantized {
@@ -151,7 +151,7 @@ impl TEC {
     }
 
     /// Updates RMS [TEC]
-    pub(crate) fn set_quantized_rms(&mut self, rms: i32, exponent: i8) {
+    pub(crate) fn set_quantized_rms(&mut self, rms: i64, exponent: i8) {
         self.rms = Some(Quantized {
             exponent: -exponent,
             quantized: rms,
@@ -309,5 +309,14 @@ mod test {
         let tec = TEC::from_tec_m2(1.0 * 10E16);
         assert_eq!(tec.tecu(), 1.0);
         assert_eq!(tec.tec(), 1.0 * 10E16);
+        assert_eq!(tec, TEC::from_tecu(1.0));
+
+        let tec = TEC::from_tec_m2(3.5 * 10E16);
+        assert_eq!(tec.tecu(), 3.5);
+        assert_eq!(tec.tec(), 3.5 * 10E16);
+        assert_eq!(tec, TEC::from_tecu(3.5));
+
+        let tec = TEC::from_tec_m2(190355078157525800.0);
+        assert_eq!(tec.tec(), 1.903550781575258e17);
     }
 }
