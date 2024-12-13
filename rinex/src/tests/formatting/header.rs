@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::io::BufWriter;
 
 #[test]
-fn obs_gps_header_formatting() {
+fn obs_header_formatting() {
     let mut buf = BufWriter::new(Utf8Buffer::new(1024));
 
     let header = Header::basic_obs()

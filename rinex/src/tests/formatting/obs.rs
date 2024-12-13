@@ -10,7 +10,77 @@ use crate::{
 use std::io::BufWriter;
 
 #[test]
-fn mixed_header_formatting() {
+fn obs_v1_header_formatting() {
+    let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+
+    let gps = Constellation::GPS;
+
+    let l1 = Observable::PhaseRange("L1".to_string());
+    let c1 = Observable::PseudoRange("C1".to_string());
+    let d1 = Observable::Doppler("D1".to_string());
+    let s1 = Observable::SSI("S1".to_string());
+    let p1 = Observable::PseudoRange("P1".to_string());
+
+    let l2 = Observable::PhaseRange("L2".to_string());
+    let c2 = Observable::PseudoRange("C2".to_string());
+    let d2 = Observable::Doppler("D2".to_string());
+    let s2 = Observable::SSI("S2".to_string());
+    let p2 = Observable::PseudoRange("P2".to_string());
+
+    let l5 = Observable::PhaseRange("L5".to_string());
+    let c5 = Observable::PseudoRange("C5".to_string());
+    let d5 = Observable::Doppler("D5".to_string());
+    let s5 = Observable::SSI("S5".to_string());
+
+    let gps_codes = vec![
+        c1.clone(),
+        c2.clone(),
+        c5.clone(),
+        l1.clone(),
+        l2.clone(),
+        l5.clone(),
+        p1.clone(),
+        p2.clone(),
+        s1.clone(),
+        s2.clone(),
+        s5.clone(),
+    ];
+
+    let mut hd = HeaderFields::default()
+        .with_timeof_first_obs(Epoch::from_str("2020-01-01T00:00:00 GPST").unwrap())
+        .with_timeof_last_obs(Epoch::from_str("2020-01-01T23:30:00 GPST").unwrap());
+
+    hd.codes.insert(gps, gps_codes);
+
+    hd.format(&mut buf, 2).unwrap();
+
+    let content = buf.into_inner().unwrap().to_ascii_utf8();
+
+    generic_formatted_lines_test(
+        &content,
+        HashMap::from_iter([
+            (
+                0,
+                "  2020     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS",
+            ),
+            (
+                1,
+                "  2020     1     1    23    30    0.0000000     GPS         TIME OF LAST OBS",
+            ),
+            (
+                2,
+                "    11    C1    C2    C5    L1    L2    L5    P1    P2    S1# / TYPES OF OBSERV",
+            ),
+            (
+                3,
+                "          S2    S5                                          # / TYPES OF OBSERV",
+            ),
+        ]),
+    );
+}
+
+#[test]
+fn obs_v3_header_formatting() {
     let mut buf = BufWriter::new(Utf8Buffer::new(1024));
 
     let gps = Constellation::GPS;

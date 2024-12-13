@@ -4,6 +4,7 @@ mod test {
     use itertools::Itertools;
     use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
     use std::str::FromStr;
+
     #[test]
     #[cfg(feature = "flate2")]
     fn obs_gnss_v3_esbcdnk() {
@@ -34,6 +35,7 @@ mod test {
         );
         assert_eq!(dut.sv_iter().count(), 5, "mask:constell(SBAS) failed");
     }
+
     #[test]
     fn obs_sv_v3_duth0630() {
         let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
@@ -47,6 +49,7 @@ mod test {
         let rnx = rnx.filter(&mask);
         assert_eq!(rnx.sv_iter().count(), 2);
     }
+
     #[test]
     fn obs_gnss_v3_duth0630() {
         let mut rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();

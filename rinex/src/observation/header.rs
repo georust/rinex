@@ -1,6 +1,7 @@
 //! Observation Record specific header fields
 
 use crate::{
+    epoch::epoch_decompose as epoch_decomposition,
     hatanaka::CRINEX,
     prelude::{Constellation, Epoch, FormattingError, Observable, TimeScale},
 };
@@ -44,6 +45,26 @@ impl HeaderFields {
         w: &mut BufWriter<W>,
         major: u8,
     ) -> Result<(), FormattingError> {
+        if let Some(t) = self.timeof_first_obs {
+            let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(t);
+            let nanos = 0;
+            writeln!(
+                w,
+                "{:6} {:5} {:5} {:5} {:5} {:4}.{:07}     {:x}         TIME OF FIRST OBS",
+                y, m, d, hh, mm, ss, nanos, t.time_scale,
+            )?;
+        }
+
+        if let Some(t) = self.timeof_last_obs {
+            let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(t);
+            let nanos = 0;
+            writeln!(
+                w,
+                "{:6} {:5} {:5} {:5} {:5} {:4}.{:07}     {:x}         TIME OF LAST OBS",
+                y, m, d, hh, mm, ss, nanos, t.time_scale,
+            )?;
+        }
+
         match major {
             1 | 2 => self.format_v1_observables(w)?,
             _ => self.format_v3_observables(w)?,
@@ -55,17 +76,31 @@ impl HeaderFields {
     }
 
     fn format_v1_observables<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
-        for (constell, observables) in self.codes.iter() {
-            let mut ptr = 0;
-            write!(w, "{:x}{:5}", constell, observables.len())?;
+        if let Some((_, observables)) = self.codes.iter().next() {
+            write!(w, "{:6}", observables.len())?;
+            let mut modulo = 0;
+
             for (nth, observable) in observables.iter().enumerate() {
+                if nth > 0 && (nth % 9) == 0 {
+                    write!(w, "      ")?;
+                }
+
+                write!(w, "    {}", observable)?;
+
                 if (nth % 9) == 8 {
                     writeln!(w, "# / TYPES OF OBSERV")?;
                 }
-                if nth > 0 && (nth % 9) == 0 {
-                    write!(w, "    ")?;
-                }
-                write!(w, "    {}", observable)?;
+
+                modulo = nth % 9;
+            }
+
+            if modulo != 7 {
+                writeln!(
+                    w,
+                    "{:>width$}",
+                    "# / TYPES OF OBSERV",
+                    width = 79 - 6 - (modulo + 1) * 6
+                )?;
             }
         }
         Ok(())

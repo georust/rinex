@@ -203,3 +203,83 @@ fn format_v2<W: Write>(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::{format_epoch_v2, format_epoch_v3};
+
+    use crate::prelude::{
+        obs::{EpochFlag, ObsKey},
+        Epoch, SV,
+    };
+
+    use std::io::BufWriter;
+    use std::str::FromStr;
+
+    use crate::tests::formatting::Utf8Buffer;
+
+    #[test]
+    fn test_fmt_epoch_v2() {
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+
+        let key = ObsKey {
+            flag: EpochFlag::Ok,
+            epoch: Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap(),
+        };
+
+        let sv_list = [
+            SV::from_str("G01").unwrap(),
+            SV::from_str("G02").unwrap(),
+            SV::from_str("G03").unwrap(),
+            SV::from_str("G04").unwrap(),
+            SV::from_str("G05").unwrap(),
+            SV::from_str("G06").unwrap(),
+            SV::from_str("G07").unwrap(),
+            SV::from_str("G08").unwrap(),
+            SV::from_str("G09").unwrap(),
+            SV::from_str("G10").unwrap(),
+        ];
+
+        format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
+
+        let content = buf.into_inner().unwrap().to_ascii_utf8();
+
+        assert_eq!(
+            content,
+            " 17  1  1  0  0  0.0000000  0 10G03G08G14G16G22G23G26G27G31G32\n",
+        );
+    }
+
+    #[test]
+    fn test_fmt_epoch_v3() {
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+
+        let key = ObsKey {
+            flag: EpochFlag::Ok,
+            epoch: Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap(),
+        };
+
+        let sv_list = [
+            SV::from_str("G01").unwrap(),
+            SV::from_str("G02").unwrap(),
+            SV::from_str("G03").unwrap(),
+            SV::from_str("G04").unwrap(),
+            SV::from_str("G05").unwrap(),
+            SV::from_str("G06").unwrap(),
+            SV::from_str("G07").unwrap(),
+            SV::from_str("G08").unwrap(),
+            SV::from_str("G09").unwrap(),
+            SV::from_str("G10").unwrap(),
+        ];
+
+        format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
+
+        let content = buf.into_inner().unwrap().to_ascii_utf8();
+
+        assert_eq!(
+            content,
+            " 2021  1  1  0  0  0.0000000  0 10G03G08G14G16G22G23G26G27G31G32\n",
+        );
+    }
+}

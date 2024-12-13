@@ -178,7 +178,7 @@ impl Header {
     pub(crate) fn merge_comment(timestamp: Epoch) -> String {
         let (y, m, d, hh, mm, ss, _) = timestamp.to_gregorian_utc();
         format!(
-            "georust-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
+            "geo-rust-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
             env!("CARGO_PKG_VERSION"),
             y,
             m,
@@ -271,5 +271,30 @@ impl Header {
         let mut s = self.clone();
         s.ionex = Some(fields);
         s
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::{Epoch, Header};
+    use std::str::FromStr;
+    #[test]
+    fn test_merge_comment() {
+        let version = env!("CARGO_PKG_VERSION");
+        let j2000 = Epoch::from_str("2000-01-01T00:00:00 UTC").unwrap();
+        let comment = Header::merge_comment(j2000);
+        // assert_eq!(
+        //     comment,
+        //     format!(
+        //         "geo-rust-{:<11}   FILE MERGE  {}{}{} {}{}{} {:x}",
+        //         y,
+        //         m,
+        //         d,
+        //         hh,
+        //         mm,
+        //         ss,
+        //         j2000.time_scale,
+        //     ),
+        // );
     }
 }

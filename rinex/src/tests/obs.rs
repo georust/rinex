@@ -40,6 +40,10 @@ fn v2_aopr0010_17o() {
             vec![],
             vec![],
         );
+
+    let dumped = dut.to_file("v2_aopr0010_17o.txt").unwrap();
+
+    let parsed = Rinex::from_file("v2_aopr0010_17o.txt").unwrap();
 }
 
 #[test]
