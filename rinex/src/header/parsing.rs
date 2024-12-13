@@ -478,17 +478,14 @@ impl Header {
 
                 ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
             } else if marker.contains("ANT # / TYPE") {
-                let (model, rem) = content.split_at(20);
-                let (sn, _) = rem.split_at(20);
-                if let Some(a) = &mut rcvr_antenna {
-                    *a = a.with_model(model.trim()).with_serial_number(sn.trim());
-                } else {
-                    rcvr_antenna = Some(
-                        Antenna::default()
-                            .with_model(model.trim())
-                            .with_serial_number(sn.trim()),
-                    );
-                }
+                let (sn, rem) = content.split_at(20);
+                let (model, _) = rem.split_at(20);
+
+                rcvr_antenna = Some(
+                    Antenna::default()
+                        .with_model(model.trim())
+                        .with_serial_number(sn.trim()),
+                );
             } else if marker.contains("ANTENNA: DELTA X/Y/Z") {
                 // Antenna Base/Reference Coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();

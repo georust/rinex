@@ -25,18 +25,11 @@ pub struct CRINEX {
 impl CRINEX {
     /// Formats [CRINEX] into [BufWriter]
     pub fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
-        write!(w, "{:<width$}", self.version, width = 20)?;
-        write!(w, "{:<width$}", "COMPACT RINEX FORMAT", width = 20)?;
-
         writeln!(
             w,
-            "{value:<width$} CRINEX VERS   / TYPE",
-            value = "",
-            width = 19
+            "{}                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE",
+            self.version,
         )?;
-
-        write!(w, "{:<width$}", self.prog, width = 20)?;
-        write!(w, "{:20}", "")?;
 
         let (y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
 
@@ -55,16 +48,18 @@ impl CRINEX {
             _ => "Dec",
         };
 
-        let date = format!(
-            "{:02}-{}-{} {:02}:{:02}",
+        write!(w, "{}", self.prog)?;
+        write!(w, "{:<width$}", "", width = 40 - self.prog.len())?;
+
+        writeln!(
+            w,
+            "{:02}-{}-{} {:02}:{:02}     CRINEX PROG / DATE",
             d,
             formatted_month,
             y - 2000,
             hh,
-            mm
-        );
-        write!(w, "{:<width$}", date, width = 20)?;
-        writeln!(w, "CRINEX PROG / DATE")?;
+            mm,
+        )?;
 
         Ok(())
     }

@@ -166,7 +166,7 @@ impl Header {
         Self::default()
             .with_type(Type::ObservationData)
             .with_constellation(Constellation::Mixed)
-            .with_crinex(CRINEX::default())
+            .with_observation_fields(ObservationHeader::default().with_crinex(CRINEX::default()))
     }
 
     /// Builds a basic [Header] for IONEX
@@ -178,7 +178,7 @@ impl Header {
     pub(crate) fn merge_comment(timestamp: Epoch) -> String {
         let (y, m, d, hh, mm, ss, _) = timestamp.to_gregorian_utc();
         format!(
-            "rustrnx-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
+            "georust-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
             env!("CARGO_PKG_VERSION"),
             y,
             m,
@@ -214,10 +214,12 @@ impl Header {
     }
 
     /// Copies and returns [Header] with special [CRINEX] fields
-    pub fn with_crinex(&self, c: CRINEX) -> Self {
+    pub(crate) fn with_crinex(&self, c: CRINEX) -> Self {
         let mut s = self.clone();
         if let Some(ref mut obs) = s.obs {
             obs.crinex = Some(c)
+        } else {
+            s.obs = Some(ObservationHeader::default().with_crinex(c));
         }
         s
     }

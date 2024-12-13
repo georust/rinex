@@ -34,7 +34,7 @@ impl Utf8Buffer {
     }
 
     pub fn to_ascii_utf8(&self) -> String {
-        "".to_string()
+        std::str::from_utf8(&self.inner).unwrap().to_string()
     }
 }
 

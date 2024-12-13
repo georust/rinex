@@ -30,7 +30,7 @@ pub struct Receiver {
 impl Receiver {
     /// Formats [Receiver] into [BufWriter]
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
-        write!(
+        writeln!(
             w,
             "{}",
             fmt_rinex(
@@ -101,7 +101,7 @@ impl Antenna {
         writeln!(
             w,
             "{}",
-            fmt_rinex(&format!("{:<20}{}", self.model, self.sn), "ANT # / TYPE")
+            fmt_rinex(&format!("{:<20}{}", self.sn, self.model), "ANT # / TYPE")
         )?;
         if let Some(coords) = &self.coords {
             writeln!(
