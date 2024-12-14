@@ -1,10 +1,12 @@
 use crate::{
     observation::{EpochFlag, LliFlags, ObsKey, SignalObservation, SNR},
     prelude::{Epoch, GeodeticMarker, Observable, Rinex, SV},
-    tests::toolkit::{generic_observation_rinex_test, SignalDataPoint, TimeFrame},
+    tests::toolkit::{
+        generic_observation_rinex_test, generic_rinex_comparison, SignalDataPoint, TimeFrame,
+    },
 };
 
-use std::{path::Path, str::FromStr};
+use std::{fs::remove_file, path::Path, str::FromStr};
 
 #[test]
 fn v2_aopr0010_17o() {
@@ -40,6 +42,12 @@ fn v2_aopr0010_17o() {
             vec![],
             vec![],
         );
+
+    dut.to_file("v2_aopr0010_17o.txt").unwrap();
+
+    let parsed = Rinex::from_file("v2_aopr0010_17o.txt").unwrap();
+    generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v2_aopr0010_17o.txt");
 }
 
 #[test]
@@ -76,6 +84,12 @@ fn v2_npaz3550_21o() {
         vec![],
         vec![],
     );
+
+    dut.to_file("v2_npaz3550_21o.txt").unwrap();
+
+    let parsed = Rinex::from_file("v2_npaz3550_21o.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v2_npaz3550_21o.txt");
 }
 
 #[test]
@@ -125,6 +139,12 @@ fn v2_rovn0010_21o() {
 
     let agency = dut.header.agency.as_ref().unwrap();
     assert_eq!(agency, "TU Delft for Deltares");
+
+    dut.to_file("v2_rovn0010_21o.txt").unwrap();
+
+    let parsed = Rinex::from_file("v2_rovn0010_21o.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v2_rovn0010_21o.txt");
 }
 
 #[test]
@@ -160,6 +180,12 @@ fn v3_duth0630() {
             vec![],
             vec![],
         );
+
+    dut.to_file("v3_duth0630.txt").unwrap();
+
+    let parsed = Rinex::from_file("v3_duth0630.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v3_duth0630.txt");
 }
 
 #[test]
@@ -239,6 +265,12 @@ fn v2_kosg0010_95o() {
         vec![],
         vec![],
     );
+
+    dut.to_file("v2_kosg0010_95o.txt").unwrap();
+
+    let parsed = Rinex::from_file("v2_kosg0010_95o.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v2_kosg0010_95o.txt");
 }
 
 #[test]
@@ -485,6 +517,12 @@ fn v2_ajac3550() {
             ],
             vec![],
         );
+
+    //dut.to_file("v2_ajac3550.txt").unwrap();
+
+    //let parsed = Rinex::from_file("v2_ajac3550.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v2_ajac3550.txt");
 }
 
 #[test]
@@ -521,4 +559,10 @@ fn v3_noa10630() {
         vec![],
         vec![],
     );
+
+    dut.to_file("v3_noa10630.txt").unwrap();
+
+    let parsed = Rinex::from_file("v3_noa10630.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v3_noa10630.txt");
 }

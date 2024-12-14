@@ -5,6 +5,7 @@ mod antex;
 mod compression;
 mod crinex;
 mod filename;
+pub mod formatting;
 mod parsing;
 mod production;
 

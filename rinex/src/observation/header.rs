@@ -1,6 +1,7 @@
 //! Observation Record specific header fields
 
 use crate::{
+    epoch::epoch_decompose as epoch_decomposition,
     hatanaka::CRINEX,
     prelude::{Constellation, Epoch, FormattingError, Observable, TimeScale},
 };
@@ -44,36 +45,105 @@ impl HeaderFields {
         w: &mut BufWriter<W>,
         major: u8,
     ) -> Result<(), FormattingError> {
-        match major {
-            1 | 2 => {
-                if let Some((_constell, observables)) = self.codes.iter().next() {
-                    write!(w, "{:6}", observables.len())?;
-                    for (nth, observable) in observables.iter().enumerate() {
-                        if (nth % 9) == 8 {
-                            write!(w, "# / TYPES OF OBSERV\n      ")?;
-                        }
-                        write!(w, "    {}", observable)?;
-                    }
-                }
-            },
-            _ => {
-                for (constell, observables) in &self.codes {
-                    write!(w, "{:x}{:5}", constell, observables.len(),)?;
-                    for (nth, observable) in observables.iter().enumerate() {
-                        if (nth % 13) == 12 {
-                            write!(w, "SYS / # / OBS TYPES\n        ")?;
-                        }
-                        write!(w, " {}", observable)?;
-                    }
-                }
-            },
+        if let Some(t) = self.timeof_first_obs {
+            let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(t);
+            let nanos = 0;
+            writeln!(
+                w,
+                "{:6} {:5} {:5} {:5} {:5} {:4}.{:07}     {:x}         TIME OF FIRST OBS",
+                y, m, d, hh, mm, ss, nanos, t.time_scale,
+            )?;
         }
 
-        // must take place after list of observables:
-        //  TODO DCBS compensations
-        //  TODO PCVs compensations
+        if let Some(t) = self.timeof_last_obs {
+            let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(t);
+            let nanos = 0;
+            writeln!(
+                w,
+                "{:6} {:5} {:5} {:5} {:5} {:4}.{:07}     {:x}         TIME OF LAST OBS",
+                y, m, d, hh, mm, ss, nanos, t.time_scale,
+            )?;
+        }
 
+        match major {
+            1 | 2 => self.format_v1_observables(w)?,
+            _ => self.format_v3_observables(w)?,
+        }
+
+        //TODO scaling
+        //TODO DCBs
         Ok(())
+    }
+
+    fn format_v1_observables<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        if let Some((_, observables)) = self.codes.iter().next() {
+            write!(w, "{:6}", observables.len())?;
+            let mut modulo = 0;
+
+            for (nth, observable) in observables.iter().enumerate() {
+                if nth > 0 && (nth % 9) == 0 {
+                    write!(w, "      ")?;
+                }
+
+                write!(w, "    {}", observable)?;
+
+                if (nth % 9) == 8 {
+                    writeln!(w, "# / TYPES OF OBSERV")?;
+                }
+
+                modulo = nth % 9;
+            }
+
+            if modulo != 7 {
+                writeln!(
+                    w,
+                    "{:>width$}",
+                    "# / TYPES OF OBSERV",
+                    width = 79 - 6 - (modulo + 1) * 6
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn format_v3_observables<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        for constell in self.codes.keys().sorted() {
+            let observables = self.codes.get(&constell).unwrap();
+
+            write!(w, "{:x}{:5}", constell, observables.len())?;
+
+            let mut modulo = 0;
+            for (nth, observable) in observables.iter().enumerate() {
+                if nth > 0 && (nth % 13) == 0 {
+                    write!(w, "      ")?;
+                }
+
+                write!(w, " {}", observable)?;
+
+                if (nth % 13) == 12 {
+                    writeln!(w, "  SYS / # / OBS TYPES")?;
+                }
+
+                modulo = nth % 13;
+            }
+
+            if modulo != 12 {
+                writeln!(
+                    w,
+                    "{:>width$}",
+                    "SYS / # / OBS TYPES",
+                    width = 79 - 6 - (modulo + 1) * 4
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Add "TIME OF FIRST OBS" field
+    pub(crate) fn with_crinex(&self, c: CRINEX) -> Self {
+        let mut s = self.clone();
+        s.crinex = Some(c);
+        s
     }
 
     /// Add "TIME OF FIRST OBS" field

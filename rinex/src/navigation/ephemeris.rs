@@ -829,10 +829,11 @@ impl Ephemeris {
     ) -> AlmanacResult<AzElRange> {
         let (rx_x_km, rx_y_km, rx_z_km) = rx_position_km;
         let (tx_x_km, tx_y_km, tx_z_km) = sv_position_km;
-        almanac.azimuth_elevation_range_sez(
-            Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, fixed_body_frame),
-            Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, fixed_body_frame),
-        )
+
+        let rx_orbit = Orbit::from_position(rx_x_km, rx_y_km, rx_z_km, t, fixed_body_frame);
+        let tx_orbit = Orbit::from_position(tx_x_km, tx_y_km, tx_z_km, t, fixed_body_frame);
+
+        almanac.azimuth_elevation_range_sez(rx_orbit, tx_orbit, None, None)
     }
     /// Returns True if Self is Valid at specified `t`.
     /// NB: this only applies to MEO Ephemerides, not GEO Ephemerides,

@@ -227,6 +227,7 @@ impl Plot {
         show_legend: bool,
     ) -> Self {
         let mut plotly = Plotly::new();
+
         let layout = Layout::new()
             .title(title)
             .x_axis(Axis::new().title(x_label).zero_line(true))

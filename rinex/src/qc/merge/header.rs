@@ -179,7 +179,7 @@ impl Merge for Header {
         // add special comment
         let now = Epoch::now().map_err(|_| MergeError::Other)?;
 
-        let merge_comment = Self::merge_comment(now);
+        let merge_comment = Self::merge_comment(env!("CARGO_PKG_VERSION"), now);
         self.comments.push(merge_comment);
         Ok(())
     }

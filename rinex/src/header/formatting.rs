@@ -17,9 +17,17 @@ impl Header {
                 crinex.format(w)?;
             }
         }
+
         self.format_rinex_version(w)?;
-        self.format_prog_runby(w)?;
-        self.format_observer_agency(w)?;
+
+        if self.program.is_some() || self.run_by.is_some() || self.date.is_some() {
+            self.format_prog_runby(w)?;
+        }
+
+        if self.observer.is_some() || self.agency.is_some() {
+            self.format_observer_agency(w)?;
+        }
+
         self.format_comments(w)?;
         self.format_rinex_dependent(w)?;
 
@@ -75,6 +83,19 @@ impl Header {
                         )
                     )?;
                 },
+                Some(Constellation::Mixed) => {
+                    writeln!(
+                        w,
+                        "{}",
+                        fmt_rinex(
+                            &format!(
+                                "{:6}.{:02}           NAVIGATION DATA     MIXED",
+                                major, minor
+                            ),
+                            "RINEX VERSION / TYPE"
+                        )
+                    )?;
+                },
                 Some(c) => {
                     writeln!(
                         w,
@@ -91,6 +112,19 @@ impl Header {
                 _ => panic!("constellation must be specified when formatting a NavigationData"),
             },
             Type::ObservationData => match self.constellation {
+                Some(Constellation::Mixed) => {
+                    writeln!(
+                        w,
+                        "{}",
+                        fmt_rinex(
+                            &format!(
+                                "{:6}.{:02}           OBSERVATION DATA    M (MIXED)",
+                                major, minor,
+                            ),
+                            "RINEX VERSION / TYPE"
+                        )
+                    )?;
+                },
                 Some(c) => {
                     writeln!(
                         w,
@@ -165,7 +199,8 @@ impl Header {
         };
 
         if let Some(runby) = &self.run_by {
-            string.push_str(runby);
+            let formatted = format!("{:<20}", runby);
+            string.push_str(&formatted);
         } else {
             string.push_str("                    ");
         };
@@ -199,7 +234,7 @@ impl Header {
             string.push_str("                    ");
         };
 
-        writeln!(w, "{}", fmt_rinex(&string, "OBSERVER /AGENCY"),)?;
+        writeln!(w, "{}", fmt_rinex(&string, "OBSERVER / AGENCY"),)?;
 
         Ok(())
     }

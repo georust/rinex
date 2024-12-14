@@ -115,7 +115,6 @@ pub mod prelude {
 
     pub use crate::marker::{GeodeticMarker, MarkerType};
 
-    pub use crate::ionex::{IonexKey, IonexMapCoordinates, TEC};
     pub use crate::meteo::MeteoKey;
 
     pub use crate::prod::ProductionAttributes;
@@ -130,6 +129,10 @@ pub mod prelude {
     pub mod antex {
         pub use crate::antex::AntennaMatcher;
     }
+
+    #[cfg(feature = "ionex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
+    pub use crate::ionex::{IonexKey, QuantizedCoordinates, TEC};
 
     #[cfg(feature = "obs")]
     #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
@@ -326,12 +329,11 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 /// }
 /// ```
 pub struct Rinex {
-    /// [Header] gives general information and describes following [Record] content.
+    /// [Header] gives general information and describes following content.
     pub header: Header,
-    /// [Comments] as found during record parsing, stored "as is"
+    /// [Comments] stored as they appeared in file body
     pub comments: Comments,
-    /// [Record] contains the actual file content. It is type
-    /// and constellation dependent.
+    /// [Record] is the actual file content and is heavily [RinexType] dependent
     pub record: Record,
     /// [ProductionAttributes] filled
     pub production: ProductionAttributes,
@@ -1601,7 +1603,7 @@ impl Rinex {
     ) -> Option<AzElRange> {
         let sv_orbit = self.sv_orbit(sv, t)?;
         let azelrange = almanac
-            .azimuth_elevation_range_sez(sv_orbit, rx_orbit)
+            .azimuth_elevation_range_sez(sv_orbit, rx_orbit, None, None)
             .ok()?;
         Some(azelrange)
     }

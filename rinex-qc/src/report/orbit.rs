@@ -350,7 +350,7 @@ impl OrbitReport {
                             MarkerSymbol::Circle,
                             None,
                             1.0,
-                            true,
+                            sv_index < 2,
                         );
                         map_proj.add_trace(map);
                     }

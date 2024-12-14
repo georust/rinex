@@ -5,7 +5,7 @@ use rand::{distributions::Alphanumeric, Rng};
 // OBS RINEX dedicated tools
 mod observation;
 pub use observation::{
-    generic_observation_epoch_decoding_test, generic_observation_rinex_against_model,
+    generic_comparison as generic_observation_comparison, generic_observation_epoch_decoding_test,
     generic_observation_rinex_test, ClockDataPoint, SignalDataPoint,
 };
 
@@ -23,7 +23,7 @@ pub use doris::check_stations as doris_check_stations;
 
 // Meteo RINEX dedicated tests
 mod meteo;
-pub use meteo::{generic_meteo_rinex_against_model, generic_meteo_rinex_test};
+pub use meteo::{generic_comparison as generic_meteo_comparison, generic_meteo_rinex_test};
 
 pub mod timeframe;
 pub use timeframe::TimeFrame;
@@ -110,6 +110,24 @@ pub fn generic_constant_rinex_test(dut: &Rinex, constant: f64, epsilon: f64) {
 /// Verifies that all contained data is Null
 pub fn generic_null_rinex_test(dut: &Rinex) {
     generic_constant_rinex_test(dut, 0.0, 1.0E-9);
+}
+
+/// Compares strict equality between [A, B]
+/// for all supported types, with panic on any single error;
+/// and meaningful error report
+pub fn generic_rinex_comparison(dut: &Rinex, model: &Rinex) {
+    // Headers strict equality
+    assert_eq!(
+        dut.header, model.header,
+        "header mismatch, got {:#?} expecting {:#?}",
+        dut.header, model.header
+    );
+
+    if dut.is_observation_rinex() && model.is_observation_rinex() {
+        generic_observation_comparison(&dut, &model);
+    } else if dut.is_meteo_rinex() && model.is_meteo_rinex() {
+        generic_meteo_comparison(&dut, &model);
+    }
 }
 
 /*

@@ -65,26 +65,18 @@ mod test {
             "failed to merge NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx into NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx"
         );
 
-        // dump
-        // let merged = merged.unwrap();
-        // assert!(
-        //     merged.to_file("merge.txt").is_ok(),
-        //     "failed to generate file previously merged"
-        // );
-        // assert!(
-        //     merged.is_merged(),
-        //     "is_merged() should be true after merging!"
-        // );
+        let merged = merged.unwrap();
+
+        merged
+            .to_file("cbw-merged.txt")
+            .expect("failed to generate file!");
+
+        assert!(merged.is_merged());
 
         // parse back
-        //let rnx = Rinex::from_file("merge.txt");
-        //assert!(rnx.is_ok(), "Failed to parsed back previously merged file");
+        let rnx = Rinex::from_file("cbw-merged.txt").unwrap();
 
-        //let rnx = rnx.unwrap();
-        //assert!(
-        //    rnx.is_merged(),
-        //    "failed to identify a merged file correctly"
-        //);
+        assert!(rnx.is_merged());
 
         /*
          * Unlock reciprocity test in near future
@@ -94,10 +86,10 @@ mod test {
         // assert_eq!(rnx, merged, "Merge::ops reciprocity");
 
         // remove file we just generated
-        let _ = std::fs::remove_file("merge.txt");
+        let _ = std::fs::remove_file("cbw-merged.txt");
     }
+
     #[test]
-    #[ignore]
     fn merge_obs() {
         let test_resources = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -123,12 +115,8 @@ mod test {
         let rnx_b = Rinex::from_file(&path).unwrap();
 
         let merged = rnx_a.merge(&rnx_b);
-        assert!(
-            merged.is_ok(),
-            "failed to merge OBS/V2/npaz3550.21o into OBS/V2/AJAC3550.21O"
-        );
-
         let merged = merged.unwrap();
+        assert!(merged.is_merged());
 
         generic_observation_rinex_test(
             &merged,
@@ -154,27 +142,18 @@ mod test {
             vec![],
         );
 
-        // TODO
-        // // dump
-        // assert!(
-        //     merged.to_file("merge.txt").is_ok(),
-        //     "failed to dump merged file",
-        // );
-
-        assert!(
-            merged.is_merged(),
-            "is_merged() false on file we just merged"
-        );
+        merged.to_file("ajac-merge.txt").unwrap();
 
         // parse back
-        let rnx = Rinex::from_file("merge.txt").expect("failed to parse back merged file");
+        let rnx = Rinex::from_file("ajac-merge.txt").unwrap();
 
         assert!(
             rnx.is_merged(),
             "failed to identify a merged file correctly"
         );
 
-        let _ = fs_remove_file("merge.txt"); // cleanup
+        // remove file we just generated
+        let _ = fs_remove_file("ajac-merged.txt");
     }
 
     // #[cfg(feature = "antex")]

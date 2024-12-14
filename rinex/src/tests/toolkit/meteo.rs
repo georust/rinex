@@ -7,12 +7,17 @@ use crate::{
 };
 
 /// [Rinex] against [Rinex] model verification
-pub fn generic_meteo_rinex_against_model(
-    dut: &Rinex,
-    model: &Rinex,
-    filename: &str,
-    _epsilon: f64,
-) {
+pub fn generic_comparison(dut: &Rinex, model: &Rinex) {
+    // verify sensors
+    let dut_sensors = dut.meteo_sensors_iter().collect::<Vec<_>>();
+    let expected_sensors = model.meteo_sensors_iter().collect::<Vec<_>>();
+    assert_eq!(dut_sensors, expected_sensors);
+
+    // verify observables
+    let dut_content = dut.observables_iter().sorted().collect::<Vec<_>>();
+    let expected_content = dut.observables_iter().sorted().collect::<Vec<_>>();
+    assert_eq!(dut_content, expected_content);
+
     let rec_dut = dut
         .record
         .as_meteo()
@@ -23,30 +28,19 @@ pub fn generic_meteo_rinex_against_model(
         .as_meteo()
         .expect("failed to unwrap rinex record");
 
-    // verify constellations
-    let dut_sensors = dut.meteo_sensors_iter().collect::<Vec<_>>();
-    let expected_sensors = model.meteo_sensors_iter().collect::<Vec<_>>();
-    assert_eq!(dut_sensors, expected_sensors);
+    for (k, v) in rec_model.iter() {
+        if let Some(dut_v) = rec_dut.get(&k) {
+            assert_eq!(v, dut_v);
+        } else {
+            panic!("missing entry at {}:{}", k.epoch, k.observable);
+        }
+    }
 
-    // verify observables
-    let dut_content = dut.observables_iter().sorted().collect::<Vec<_>>();
-    let expected_content = dut.observables_iter().sorted().collect::<Vec<_>>();
-    assert_eq!(dut_content, expected_content);
-
-    for (k, _) in rec_dut.iter() {
+    for (k, v) in rec_dut.iter() {
         assert!(
             rec_model.get(k).is_some(),
             "found unexpected content: {:?}",
             k
-        );
-    }
-
-    for (k, v) in rec_model.iter() {
-        let dut = rec_dut.get(k).expect(&format!("missing content {:?}", k));
-        assert_eq!(
-            v, dut,
-            "found invalid measurement {}({})",
-            k.epoch, k.observable
         );
     }
 }
@@ -64,14 +58,11 @@ fn basic_header_tests(dut: &Header) {
 /// Generic test that we can use for Observation [Rinex]
 pub fn generic_meteo_rinex_test(
     dut: &Rinex,
-    model: Option<&Rinex>,
     version: &str,
     observables_csv: &str,
     time_frame: TimeFrame,
 ) {
     assert!(dut.is_meteo_rinex());
-
-    let rec = dut.record.as_meteo().expect("meteo unwrapping failure");
 
     generic_rinex_test(
         dut,
@@ -83,19 +74,4 @@ pub fn generic_meteo_rinex_test(
     );
 
     basic_header_tests(&dut.header);
-
-    // verify observables
-    let model = observables_csv
-        .split(',')
-        .map(|ob| Observable::from_str(ob.trim()).unwrap())
-        .sorted()
-        .collect::<Vec<_>>();
-
-    let observables = dut.observables_iter().cloned().collect::<Vec<_>>();
-
-    assert_eq!(
-        observables, model,
-        "invalid observables {:?}/{:?}",
-        observables, model
-    );
 }

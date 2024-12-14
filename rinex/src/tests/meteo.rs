@@ -1,16 +1,18 @@
 use crate::{
     prelude::Rinex,
-    tests::toolkit::{generic_meteo_rinex_test, TimeFrame},
+    tests::toolkit::{generic_meteo_rinex_test, generic_rinex_comparison, TimeFrame},
 };
+
+use std::fs::remove_file;
 
 #[test]
 fn v2_abvi0010_15m() {
-    let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
-    let rinex = Rinex::from_file(path).unwrap();
+    let path: String =
+        env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
 
+    let dut = Rinex::from_file(path).unwrap();
     generic_meteo_rinex_test(
-        &rinex,
-        None,
+        &dut,
         "2.11",
         "PR, TD, HR, WS, WD, RI, HI",
         TimeFrame::from_erratic_csv(
@@ -92,6 +94,11 @@ fn v2_abvi0010_15m() {
                         2015-01-01T23:59:00 UTC",
         ),
     );
+
+    dut.to_file("v2_abvi0010_15m.txt").unwrap();
+    let parsed = Rinex::from_file("v2_abvi0010_15m.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v2_abvi0010_15m.txt");
 }
 
 #[test]
@@ -99,27 +106,37 @@ fn v2_abvi0010_15m() {
 fn v3_pots00deu() {
     let path = env!("CARGO_MANIFEST_DIR").to_owned()
         + "/../test_resources/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz";
-    let rinex = Rinex::from_gzip_file(path).unwrap();
+
+    let dut = Rinex::from_gzip_file(path).unwrap();
 
     generic_meteo_rinex_test(
-        &rinex,
-        None,
+        &dut,
         "3.05",
         "HR, PR, TD",
         TimeFrame::from_inclusive_csv("2023-09-11T00:00:00 UTC, 22023-09-11T23:55:00 UTC, 300s"),
     );
+
+    dut.to_file("v3_pots00deu.txt").unwrap();
+    let parsed = Rinex::from_file("v3_pots00deu.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v3_pots00deu.txt");
 }
 
 #[test]
 fn v4_example_1() {
     let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V4/example1.txt";
-    let rinex = Rinex::from_file(path).unwrap();
+
+    let dut = Rinex::from_file(path).unwrap();
 
     generic_meteo_rinex_test(
-        &rinex,
-        None,
+        &dut,
         "4.00",
         "PR, TD, HR",
         TimeFrame::from_inclusive_csv("2021-01-07T00:00:00 UTC, 2021-01-07T00:02:00 UTC, 30s"),
     );
+
+    dut.to_file("v4_example_1.txt").unwrap();
+    let parsed = Rinex::from_file("v4_example_1.txt").unwrap();
+    //generic_rinex_comparison(&parsed, &dut);
+    let _ = remove_file("v4_example_1.txt");
 }

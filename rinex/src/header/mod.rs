@@ -18,6 +18,7 @@ use crate::{
     version::Version,
 };
 
+use itertools::Itertools;
 use std::collections::HashMap;
 
 mod formatting;
@@ -166,7 +167,7 @@ impl Header {
         Self::default()
             .with_type(Type::ObservationData)
             .with_constellation(Constellation::Mixed)
-            .with_crinex(CRINEX::default())
+            .with_observation_fields(ObservationHeader::default().with_crinex(CRINEX::default()))
     }
 
     /// Builds a basic [Header] for IONEX
@@ -174,19 +175,53 @@ impl Header {
         Self::default().with_ionex_fields(IonexHeader::default())
     }
 
+    /// Formats the package version (possibly shortenned, in case of lengthy release)
+    /// to fit within a formatted COMMENT
+    pub(crate) fn format_pkg_version(version: &str) -> String {
+        version
+            .split('.')
+            .enumerate()
+            .filter_map(|(nth, v)| {
+                if nth < 2 {
+                    Some(v.to_string())
+                } else if nth == 2 {
+                    Some(
+                        v.split('-')
+                            .filter_map(|v| {
+                                if v == "rc" {
+                                    Some("rc".to_string())
+                                } else {
+                                    let mut s = String::new();
+                                    s.push_str(&v[0..1]);
+                                    Some(s)
+                                }
+                            })
+                            .join(""),
+                    )
+                } else {
+                    None
+                }
+            })
+            .join(".")
+    }
+
     /// Generates the special "FILE MERGE" comment
-    pub(crate) fn merge_comment(timestamp: Epoch) -> String {
+    pub(crate) fn merge_comment(pkg_version: &str, timestamp: Epoch) -> String {
+        let formatted_version = Self::format_pkg_version(pkg_version);
+
         let (y, m, d, hh, mm, ss, _) = timestamp.to_gregorian_utc();
         format!(
-            "rustrnx-{:<11} FILE MERGE          {}{}{} {}{}{} {:x}",
-            env!("CARGO_PKG_VERSION"),
+            "geo-rust v{} {:>width$}          {}{:02}{:02} {:02}{:02}{:02} {:x}",
+            formatted_version,
+            "FILE MERGE",
             y,
             m,
             d,
             hh,
             mm,
             ss,
-            timestamp.time_scale
+            timestamp.time_scale,
+            width = 19 - formatted_version.len(),
         )
     }
 
@@ -214,10 +249,12 @@ impl Header {
     }
 
     /// Copies and returns [Header] with special [CRINEX] fields
-    pub fn with_crinex(&self, c: CRINEX) -> Self {
+    pub(crate) fn with_crinex(&self, c: CRINEX) -> Self {
         let mut s = self.clone();
         if let Some(ref mut obs) = s.obs {
             obs.crinex = Some(c)
+        } else {
+            s.obs = Some(ObservationHeader::default().with_crinex(c));
         }
         s
     }
@@ -269,5 +306,59 @@ impl Header {
         let mut s = self.clone();
         s.ionex = Some(fields);
         s
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::{Epoch, Header};
+    use std::str::FromStr;
+
+    #[test]
+    fn test_merge_comment() {
+        let j2000 = Epoch::from_str("2000-01-01T00:00:00 UTC").unwrap();
+
+        for (pkg_version, formatted, comment) in [
+            (
+                "1.0.0",
+                "1.0.0",
+                "geo-rust v1.0.0     FILE MERGE          20000101 000000 UTC",
+            ),
+            (
+                "10.0.0",
+                "10.0.0",
+                "geo-rust v10.0.0    FILE MERGE          20000101 000000 UTC",
+            ),
+            (
+                "0.17.0",
+                "0.17.0",
+                "geo-rust v0.17.0    FILE MERGE          20000101 000000 UTC",
+            ),
+            (
+                "0.17.1",
+                "0.17.1",
+                "geo-rust v0.17.1    FILE MERGE          20000101 000000 UTC",
+            ),
+            (
+                "0.17.1-alpha",
+                "0.17.1a",
+                "geo-rust v0.17.1a   FILE MERGE          20000101 000000 UTC",
+            ),
+            (
+                "0.17.1-rc",
+                "0.17.1rc",
+                "geo-rust v0.17.1rc  FILE MERGE          20000101 000000 UTC",
+            ),
+            (
+                "0.17.1-rc-1",
+                "0.17.1rc1",
+                "geo-rust v0.17.1rc1 FILE MERGE          20000101 000000 UTC",
+            ),
+        ] {
+            assert_eq!(Header::format_pkg_version(pkg_version), formatted);
+
+            let generated = Header::merge_comment(pkg_version, j2000);
+            assert_eq!(generated, comment,);
+        }
     }
 }
