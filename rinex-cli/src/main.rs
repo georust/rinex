@@ -13,10 +13,7 @@ use preprocessing::preprocess;
 mod report;
 use report::Report;
 
-
-use rinex::prelude::{
-    FormattingError as RinexFormattingError, ParsingError as RinexParsingError,
-};
+use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
 
 use rinex_qc::prelude::{MergeError, QcContext, QcExtraPage};
 

@@ -91,12 +91,22 @@ impl SkyContext {
     }
 
     /// Loads a new [SP3] into this [SkyContext]
+    #[cfg(feature = "sp3")]
     pub fn load_sp3(&mut self, meta: MetaData, data: SP3) -> Result<(), Error> {
         // SP3 are always uniquely identified
         let key = SkyDataIdentifier {
             meta,
             agency: data.agency.to_string(),
         };
+
+        if let Some(inner) = self.identified.get_mut(&key) {
+            match inner {
+                SkyDataEnum::SP3(sp3) => sp3.merge_mut(&data)?,
+                SkyDataEnum::BrdcNavigation(_) => {
+                    return Err(Error::DataIndexingIssue);
+                },
+            }
+        }
 
         Ok(())
     }
