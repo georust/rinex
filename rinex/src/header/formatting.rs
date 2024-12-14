@@ -199,7 +199,8 @@ impl Header {
         };
 
         if let Some(runby) = &self.run_by {
-            string.push_str(runby);
+            let formatted = format!("{:<20}", runby);
+            string.push_str(&formatted);
         } else {
             string.push_str("                    ");
         };

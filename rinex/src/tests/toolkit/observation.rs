@@ -159,11 +159,6 @@ pub fn generic_observation_rinex_test(
     let null_dut = dut.observation_substract(&dut);
     generic_null_rinex_test(&null_dut);
 
-    // Check against provided model
-    if let Some(model) = model {
-        generic_observation_rinex_against_model(dut, model);
-    }
-
     // Test clock data points
     for point in clock_points {
         let k = point.key;
@@ -197,13 +192,11 @@ pub fn generic_observation_rinex_test(
 }
 
 /// [Rinex] against [Rinex] model verification
-pub fn generic_observation_rinex_against_model(dut: &Rinex, model: &Rinex) {
-    let rec_dut = dut.record.as_obs().expect("failed to unwrap rinex record");
-
-    let rec_model = model
-        .record
-        .as_obs()
-        .expect("failed to unwrap rinex record");
+pub fn generic_comparison(dut: &Rinex, model: &Rinex) {
+    // verify SV
+    let dut_content = dut.sv_iter().sorted().collect::<Vec<_>>();
+    let expected_content = model.sv_iter().sorted().collect::<Vec<_>>();
+    assert_eq!(dut_content, expected_content);
 
     // verify constellations
     let dut_content = dut.constellations_iter().sorted().collect::<Vec<_>>();
@@ -217,22 +210,57 @@ pub fn generic_observation_rinex_against_model(dut: &Rinex, model: &Rinex) {
 
     // TODO : verify carriers
 
-    for (k, _) in rec_dut.iter() {
-        assert!(
-            rec_model.get(k).is_some(),
-            "found unexpected content: {:?}",
-            k
-        );
+    // Point by point strict equality
+    let dut = dut.record.as_obs().unwrap();
+    let model = model.record.as_obs().unwrap();
+
+    for (k, model_v) in model.iter() {
+        if let Some(dut_v) = dut.get(&k) {
+            assert_eq!(model_v.clock, dut_v.clock, "invalid clock observation");
+
+            for model_sig in model_v.signals.iter() {
+                if let Some(dut_sig) = dut_v
+                    .signals
+                    .iter()
+                    .filter(|sig| sig.sv == model_sig.sv && sig.observable == model_sig.observable)
+                    .reduce(|k, _| k)
+                {
+                    assert_eq!(
+                        dut_sig, model_sig,
+                        "invalid signal observation @ {}:{} {}",
+                        model_sig.sv, model_sig.observable, k.epoch
+                    );
+                } else {
+                    panic!(
+                        "missing observation for {}:{} @{}",
+                        model_sig.sv, model_sig.observable, k.epoch
+                    );
+                }
+            }
+        } else {
+            panic!("missing record entry at {:#?}", k);
+        }
     }
 
-    for (k, v) in rec_model.iter() {
-        let dut = rec_dut.get(k).expect(&format!("missing content {:?}", k));
-
-        // clock comparison
-        assert_eq!(v.clock, dut.clock);
-
-        // signal comparison
-        assert_eq!(v.signals, dut.signals);
+    for (k, dut_v) in dut.iter() {
+        if let Some(model_v) = model.get(&k) {
+            for signal in dut_v.signals.iter() {
+                if model_v
+                    .signals
+                    .iter()
+                    .filter(|sig| sig.sv == signal.sv && sig.observable == signal.observable)
+                    .reduce(|k, _| k)
+                    .is_none()
+                {
+                    panic!(
+                        "found unexpected signal observation at {}:{} at {}",
+                        signal.sv, signal.observable, k.epoch
+                    );
+                }
+            }
+        } else {
+            panic!("found unexpected content at {:#?}", k);
+        }
     }
 }
 
