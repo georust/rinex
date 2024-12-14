@@ -131,13 +131,10 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                     .map_err(|_| ParsingError::EpochParsing)?;
 
                 /* old RINEX problem: YY sometimes encoded on two digits */
-                if y < 100 {
-                    if y < 80 {
-                        // RINEX did not exist prior 1989
-                        y += 2000;
-                    } else {
-                        y += 1900;
-                    }
+                if y > 79 && y <= 99 {
+                    y += 1900;
+                } else if y < 79 {
+                    y += 2000;
                 }
             },
             1 => {

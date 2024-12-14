@@ -20,7 +20,7 @@ pub fn format<W: Write>(
         .ok_or(FormattingError::UndefinedObservables)?;
 
     for epoch in record.keys().map(|k| k.epoch).unique().sorted() {
-        writeln!(
+        write!(
             w,
             " {}",
             format_epoch(epoch, RinexType::MeteoData, header.version.major)
@@ -34,11 +34,12 @@ pub fn format<W: Write>(
             };
 
             if let Some(observation) = record.get(&key) {
-                write!(w, "{:14.13} ", observation)?;
+                write!(w, "{:5.4}", observation)?;
             } else {
                 write!(w, "           ")?;
             }
         }
+        write!(w, "{}", '\n')?;
     }
 
     Ok(())
