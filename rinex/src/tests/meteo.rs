@@ -13,7 +13,6 @@ fn v2_abvi0010_15m() {
     let dut = Rinex::from_file(path).unwrap();
     generic_meteo_rinex_test(
         &dut,
-        None,
         "2.11",
         "PR, TD, HR, WS, WD, RI, HI",
         TimeFrame::from_erratic_csv(
@@ -112,7 +111,6 @@ fn v3_pots00deu() {
 
     generic_meteo_rinex_test(
         &dut,
-        None,
         "3.05",
         "HR, PR, TD",
         TimeFrame::from_inclusive_csv("2023-09-11T00:00:00 UTC, 22023-09-11T23:55:00 UTC, 300s"),
@@ -132,7 +130,6 @@ fn v4_example_1() {
 
     generic_meteo_rinex_test(
         &dut,
-        None,
         "4.00",
         "PR, TD, HR",
         TimeFrame::from_inclusive_csv("2021-01-07T00:00:00 UTC, 2021-01-07T00:02:00 UTC, 30s"),

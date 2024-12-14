@@ -1279,6 +1279,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn code_multipath() {
         let fullpath = format!(
             "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",

@@ -23,7 +23,7 @@ pub use doris::check_stations as doris_check_stations;
 
 // Meteo RINEX dedicated tests
 mod meteo;
-pub use meteo::{generic_meteo_rinex_against_model, generic_meteo_rinex_test};
+pub use meteo::{generic_comparison as generic_meteo_comparison, generic_meteo_rinex_test};
 
 pub mod timeframe;
 pub use timeframe::TimeFrame;
@@ -125,6 +125,8 @@ pub fn generic_rinex_comparison(dut: &Rinex, model: &Rinex) {
 
     if dut.is_observation_rinex() && model.is_observation_rinex() {
         generic_observation_comparison(&dut, &model);
+    } else if dut.is_meteo_rinex() && model.is_meteo_rinex() {
+        generic_meteo_comparison(&dut, &model);
     }
 }
 
