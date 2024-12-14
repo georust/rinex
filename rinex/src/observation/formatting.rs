@@ -141,8 +141,14 @@ fn format_epoch_v2<W: Write>(
     }
 
     for (nth, sv) in sv_list.iter().enumerate() {
+        if nth > 0 && (nth % NUM_SV_PER_LINE) == 0 {
+            write!(w, "                                             ")?;
+        }
         write!(w, "{:x}", sv)?;
-        if nth % NUM_SV_PER_LINE == NUM_SV_PER_LINE - 1 {
+        if nth < numsat - 1 && nth % NUM_SV_PER_LINE == NUM_SV_PER_LINE - 1 {
+            write!(w, "{}", '\n')?;
+        }
+        if nth == numsat - 1 {
             write!(w, "{}", '\n')?;
         }
     }
@@ -221,44 +227,187 @@ mod test {
 
     #[test]
     fn test_fmt_epoch_v2() {
-        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
-
         let key = ObsKey {
             flag: EpochFlag::Ok,
-            epoch: Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap(),
+            epoch: Epoch::from_str("2017-01-01T00:00:00 GPST").unwrap(),
         };
 
         let sv_list = [
-            SV::from_str("G01").unwrap(),
-            SV::from_str("G02").unwrap(),
             SV::from_str("G03").unwrap(),
-            SV::from_str("G04").unwrap(),
-            SV::from_str("G05").unwrap(),
-            SV::from_str("G06").unwrap(),
-            SV::from_str("G07").unwrap(),
             SV::from_str("G08").unwrap(),
-            SV::from_str("G09").unwrap(),
-            SV::from_str("G10").unwrap(),
+            SV::from_str("G14").unwrap(),
+            SV::from_str("G16").unwrap(),
+            SV::from_str("G22").unwrap(),
+            SV::from_str("G23").unwrap(),
+            SV::from_str("G26").unwrap(),
+            SV::from_str("G27").unwrap(),
+            SV::from_str("G31").unwrap(),
+            SV::from_str("G32").unwrap(),
         ];
 
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
         format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
 
         let content = buf.into_inner().unwrap().to_ascii_utf8();
-
         assert_eq!(
             content,
             " 17  1  1  0  0  0.0000000  0 10G03G08G14G16G22G23G26G27G31G32\n",
+        );
+
+        let sv_list = [
+            SV::from_str("G07").unwrap(),
+            SV::from_str("G23").unwrap(),
+            SV::from_str("G26").unwrap(),
+            SV::from_str("G20").unwrap(),
+            SV::from_str("G21").unwrap(),
+            SV::from_str("G18").unwrap(),
+            SV::from_str("R24").unwrap(),
+            SV::from_str("R09").unwrap(),
+            SV::from_str("G08").unwrap(),
+            SV::from_str("G27").unwrap(),
+            SV::from_str("G10").unwrap(),
+            SV::from_str("G16").unwrap(),
+            SV::from_str("R18").unwrap(),
+            SV::from_str("G13").unwrap(),
+            SV::from_str("R01").unwrap(),
+            SV::from_str("R16").unwrap(),
+            SV::from_str("R17").unwrap(),
+            SV::from_str("G15").unwrap(),
+            SV::from_str("R02").unwrap(),
+            SV::from_str("R15").unwrap(),
+        ];
+
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+        format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
+
+        let content = buf.into_inner().unwrap().to_ascii_utf8();
+        assert_eq!(
+            content,
+            " 17  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16
+                                             R18G13R01R16R17G15R02R15\n",
+        );
+
+        let sv_list = [
+            SV::from_str("G07").unwrap(),
+            SV::from_str("G23").unwrap(),
+            SV::from_str("G26").unwrap(),
+            SV::from_str("G20").unwrap(),
+            SV::from_str("G21").unwrap(),
+            SV::from_str("G18").unwrap(),
+            SV::from_str("R24").unwrap(),
+            SV::from_str("R09").unwrap(),
+            SV::from_str("G08").unwrap(),
+            SV::from_str("G27").unwrap(),
+            SV::from_str("G10").unwrap(),
+            SV::from_str("G16").unwrap(),
+            SV::from_str("R18").unwrap(),
+        ];
+
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+        format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
+
+        let content = buf.into_inner().unwrap().to_ascii_utf8();
+        assert_eq!(
+            content,
+            " 17  1  1  0  0  0.0000000  0 13G07G23G26G20G21G18R24R09G08G27G10G16
+                                             R18\n",
+        );
+
+        let sv_list = [
+            SV::from_str("G07").unwrap(),
+            SV::from_str("G23").unwrap(),
+            SV::from_str("G26").unwrap(),
+            SV::from_str("G20").unwrap(),
+            SV::from_str("G21").unwrap(),
+            SV::from_str("G18").unwrap(),
+            SV::from_str("R24").unwrap(),
+            SV::from_str("R09").unwrap(),
+            SV::from_str("G08").unwrap(),
+            SV::from_str("G27").unwrap(),
+            SV::from_str("G10").unwrap(),
+            SV::from_str("G16").unwrap(),
+            SV::from_str("R18").unwrap(),
+            SV::from_str("G13").unwrap(),
+            SV::from_str("R01").unwrap(),
+            SV::from_str("R16").unwrap(),
+            SV::from_str("R17").unwrap(),
+            SV::from_str("G15").unwrap(),
+            SV::from_str("R02").unwrap(),
+            SV::from_str("R15").unwrap(),
+            SV::from_str("C01").unwrap(),
+            SV::from_str("C02").unwrap(),
+            SV::from_str("C03").unwrap(),
+            SV::from_str("C04").unwrap(),
+        ];
+
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+        format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
+
+        let content = buf.into_inner().unwrap().to_ascii_utf8();
+        assert_eq!(
+            content,
+            " 17  1  1  0  0  0.0000000  0 24G07G23G26G20G21G18R24R09G08G27G10G16
+                                             R18G13R01R16R17G15R02R15C01C02C03C04\n",
+        );
+
+        let sv_list = [
+            SV::from_str("G07").unwrap(),
+            SV::from_str("G23").unwrap(),
+            SV::from_str("G26").unwrap(),
+            SV::from_str("G20").unwrap(),
+            SV::from_str("G21").unwrap(),
+            SV::from_str("G18").unwrap(),
+            SV::from_str("R24").unwrap(),
+            SV::from_str("R09").unwrap(),
+            SV::from_str("G08").unwrap(),
+            SV::from_str("G27").unwrap(),
+            SV::from_str("G10").unwrap(),
+            SV::from_str("G16").unwrap(),
+            SV::from_str("R18").unwrap(),
+            SV::from_str("G13").unwrap(),
+            SV::from_str("R01").unwrap(),
+            SV::from_str("R16").unwrap(),
+            SV::from_str("R17").unwrap(),
+            SV::from_str("G15").unwrap(),
+            SV::from_str("R02").unwrap(),
+            SV::from_str("R15").unwrap(),
+            SV::from_str("C01").unwrap(),
+            SV::from_str("C02").unwrap(),
+            SV::from_str("C03").unwrap(),
+            SV::from_str("C04").unwrap(),
+            SV::from_str("C05").unwrap(),
+        ];
+
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+        format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
+
+        let content = buf.into_inner().unwrap().to_ascii_utf8();
+        assert_eq!(
+            content,
+            " 17  1  1  0  0  0.0000000  0 25G07G23G26G20G21G18R24R09G08G27G10G16
+                                             R18G13R01R16R17G15R02R15C01C02C03C04
+                                             C05\n",
         );
     }
 
     #[test]
     fn test_fmt_epoch_v3() {
-        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
-
         let key = ObsKey {
             flag: EpochFlag::Ok,
             epoch: Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap(),
         };
+
+        let sv_list = [
+            SV::from_str("G01").unwrap(),
+            SV::from_str("G02").unwrap(),
+            SV::from_str("G03").unwrap(),
+            SV::from_str("G04").unwrap(),
+        ];
+
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+        format_epoch_v3(&mut buf, &key, &sv_list, None).unwrap();
+        let content = buf.into_inner().unwrap().to_ascii_utf8();
+        assert_eq!(content, "> 2021 01 01 00 00  0.0000000  0  4\n",);
 
         let sv_list = [
             SV::from_str("G01").unwrap(),
@@ -273,13 +422,9 @@ mod test {
             SV::from_str("G10").unwrap(),
         ];
 
-        format_epoch_v2(&mut buf, &key, &sv_list, None).unwrap();
-
+        let mut buf = BufWriter::new(Utf8Buffer::new(1024));
+        format_epoch_v3(&mut buf, &key, &sv_list, None).unwrap();
         let content = buf.into_inner().unwrap().to_ascii_utf8();
-
-        assert_eq!(
-            content,
-            " 2021  1  1  0  0  0.0000000  0 10G03G08G14G16G22G23G26G27G31G32\n",
-        );
+        assert_eq!(content, "> 2021 01 01 00 00  0.0000000  0 10\n",);
     }
 }
