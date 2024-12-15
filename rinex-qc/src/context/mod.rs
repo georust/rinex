@@ -43,6 +43,7 @@ pub(crate) mod session;
 use crate::{
     cfg::{QcConfig, QcFrameModel},
     context::{meta::MetaData, obs::ObservationDataSet},
+    report::QcReport,
     QcError,
 };
 
@@ -174,11 +175,10 @@ impl QcContext {
 
         let (almanac, earth_cef) = Self::build_almanac_frame_model(cfg.navi.frame_model)?;
 
-        match earth_cef {
-            EARTH_ITRF93 => {},
-            _ => {
-                cfg.navi.frame_model = QcFrameModel::IAU;
-            },
+        if earth_cef == EARTH_ITRF93 {
+            cfg.navi.frame_model = QcFrameModel::ITRF93;
+        } else {
+            cfg.navi.frame_model = QcFrameModel::IAU;
         }
 
         let s = Self {
@@ -286,6 +286,14 @@ impl QcContext {
         if let Some(data_set) = &mut self.observations {
             data_set.repair_mut(repair);
         }
+    }
+
+    /// Synthesize a [QcReport], performs analysis
+    /// and calculations to fill the report according to [QcConfig] preset.
+    /// Report synthesis is not rendition! You need to use the
+    /// rendition trait when you want to.
+    pub fn report_synthesis(&self) -> QcReport {
+        QcReport::new(self)
     }
 }
 

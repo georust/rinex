@@ -13,13 +13,13 @@ mod cfg;
 pub mod plot;
 
 mod context;
-//mod report;
+mod report;
 
 pub mod prelude {
     pub use crate::{
         cfg::{ConfigError, QcConfig, QcReportType},
-        //context::QcContext,
-        //report::{QcExtraPage, QcReport},
+        context::QcContext,
+        report::{QcExtraPage, QcReport},
     };
     // Pub re-export
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};

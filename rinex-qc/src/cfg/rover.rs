@@ -13,20 +13,24 @@ pub struct QcCustomRoverOpts {
 impl Render for QcCustomRoverOpts {
     fn render(&self) -> Markup {
         html! {
-            tr {
-                th {
-                    "Reference position"
-                }
-                @if let Some(manual) = self.manual_reference {
-                    td {
-                        "Manual (User Defined)"
-                    }
-                    td {
-                        (manual.render())
-                    }
-                } else {
-                    td {
-                        "RINEX"
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tr {
+                        th {
+                            "Reference position"
+                        }
+                        @if let Some(manual) = self.manual_reference {
+                            td {
+                                "Manual (User Defined)"
+                            }
+                            td {
+                                (manual.render())
+                            }
+                        } else {
+                            td {
+                                "RINEX"
+                            }
+                        }
                     }
                 }
             }

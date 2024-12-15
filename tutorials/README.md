@@ -62,7 +62,8 @@ Other file operations like RINEX files management is also demonstrated.
   - CPP for CGGTTS synthesis
   - PPP for CGGTTS synthesis
   - CGGTTS and common view comparison
-- [Config](./config) are special preset that some tutorials may use
+- [CONFIG](./CONFIG) are special preset to operate the toolbox
+more precisely. It contains a fully commented example for each script.
 - [CRX2RNX](./CRX2RNX) CRINEX decompression to readable RINEX (file I/O)
 - [RNX2CRX](./RNX2CRX) RINEX compression to compact CRINEX (file I/O)
 - [Galileo](./GAL) constellation post-processing

@@ -44,12 +44,16 @@ pub struct QcReportOpts {
 impl Render for QcReportOpts {
     fn render(&self) -> Markup {
         html! {
-            tr {
-                th {
-                    "Report Type"
-                }
-                td {
-                    (self.report_type.to_string())
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tr {
+                        th {
+                            "Report Type"
+                        }
+                        td {
+                            (self.report_type.to_string())
+                        }
+                    }
                 }
             }
         }

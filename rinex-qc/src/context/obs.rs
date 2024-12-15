@@ -27,6 +27,21 @@ impl std::fmt::Display for ObservationUniqueId {
     }
 }
 
+impl std::str::FromStr for ObservationUniqueId {
+    type Err = QcError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("rcvr:") {
+            Ok(Self::Receiver(s[4..].to_string()))
+        } else if s.starts_with("ant:") {
+            Ok(Self::Antenna(s[3..].to_string()))
+        } else if s.starts_with("geo") {
+            Ok(Self::GeodeticMarker(s[3..].to_string()))
+        } else {
+            Err(QcError::DataIndexingIssue)
+        }
+    }
+}
+
 impl ObservationUniqueId {
     fn new(cfg: &QcPreferedObsSorting, rinex: &Rinex) -> Option<Self> {
         match cfg {
@@ -96,6 +111,11 @@ impl ObservationDataSet {
 }
 
 impl QcContext {
+    /// True if QcObservationsDataSet is not empty
+    pub fn has_observations(&self) -> bool {
+        self.observations.is_some()
+    }
+
     /// Loads a new Observation [Rinex] into this [QcContext]
     pub(crate) fn load_observation_rinex(
         &mut self,
@@ -174,7 +194,7 @@ mod test {
 
         ctx.load_file(&path).unwrap();
 
-        let observations = ctx.observations.expect("load_rinex failure");
+        let observations = ctx.observations.as_ref().expect("load_rinex failure");
         assert!(observations.designated_rover.is_none());
         assert_eq!(observations.inner.len(), 1);
 
@@ -211,5 +231,38 @@ mod test {
             observations.inner.get(&key).is_some(),
             "invalid gnss receiver indexing"
         );
+    }
+
+    #[test]
+    fn observation_stacking() {
+        let path_1 = format!(
+            "{}/../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        let path_2 = format!(
+            "{}/../test_resources/OBS/V3/VLNS0630.22O",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        let cfg = QcConfig::default();
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_file(&path_1).unwrap();
+        ctx.load_file(&path_1).unwrap();
+
+        let observations = ctx.observations.expect("load_rinex failure");
+        assert!(observations.designated_rover.is_none());
+        assert_eq!(observations.inner.len(), 1);
+
+        let cfg = QcConfig::default();
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_file(&path_1).unwrap();
+        ctx.load_file(&path_2).unwrap();
+
+        let observations = ctx.observations.expect("load_rinex failure");
+        assert!(observations.designated_rover.is_none());
+        assert_eq!(observations.inner.len(), 2);
     }
 }

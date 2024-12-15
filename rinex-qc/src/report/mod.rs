@@ -1,15 +1,18 @@
 //! Generic analysis report
 use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
-use std::collections::HashMap;
-use thiserror::Error;
-
-use crate::prelude::{QcConfig, QcContext, QcReportType};
 
 // // shared analysis, that may apply to several products
 // mod shared;
 
+mod obs;
+pub(crate) mod shared;
 mod summary;
-use summary::QcSummary;
+
+use crate::{
+    cfg::{QcConfig, QcReportType},
+    context::QcContext,
+    report::{obs::QcObservationsReport, summary::QcSummary},
+};
 
 // mod rinex;
 // use rinex::RINEXReport;
@@ -30,20 +33,6 @@ use summary::QcSummary;
 // #[cfg(feature = "sp3")]
 // use sp3::SP3Report;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("non supported RINEX format")]
-    NonSupportedRINEX,
-    #[error("sampling analysis failed to return")]
-    SamplingAnalysis,
-    #[error("missing Clock RINEX header")]
-    MissingClockHeader,
-    #[error("missing Meteo RINEX header")]
-    MissingMeteoHeader,
-    #[error("missing IONEX header")]
-    MissingIonexHeader,
-}
-
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
     /// tab for pagination
@@ -58,29 +47,41 @@ pub struct QcExtraPage {
 pub struct QcReport {
     /// Report Summary (always present)
     summary: QcSummary,
-    /// Custom chapters
+    /// Custom chapters (user created)
     custom_chapters: Vec<QcExtraPage>,
+    /// One page per Observations
+    observations: Option<QcObservationsReport>,
 }
 
 impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
-    pub fn new(context: &QcContext, cfg: &QcConfig) -> Self {
-        let summary_only = cfg.report == QcReportType::Summary;
+    pub fn new(ctx: &QcContext) -> Self {
+        let summary_only = ctx.cfg.report.report_type == QcReportType::Summary;
         if summary_only {
-            Self::summary_only(context, cfg)
+            Self::summary_only(ctx)
         } else {
-            Self::summary_only(context, cfg)
+            Self {
+                summary: QcSummary::new(ctx),
+                custom_chapters: Vec::new(),
+                observations: if ctx.has_observations() {
+                    Some(QcObservationsReport::new(ctx))
+                } else {
+                    None
+                },
+            }
         }
     }
 
     /// Generates a summary only report
-    pub fn summary_only(context: &QcContext, cfg: &QcConfig) -> Self {
-        let summary = QcSummary::new(&context, cfg);
+    pub fn summary_only(ctx: &QcContext) -> Self {
+        let summary = QcSummary::new(&ctx);
         Self {
             summary,
             custom_chapters: Vec::new(),
+            observations: Default::default(),
         }
     }
+
     // navi: {
     //    if summary.navi.nav_compatible && !summary_only {
     //        Some(QcNavi::new(context))
@@ -98,9 +99,8 @@ impl QcReport {
         self.custom_chapters.push(chapter);
     }
 
-    /// Generates a menu bar to nagivate [Self]
-    #[cfg(not(feature = "sp3"))]
-    fn menu_bar(&self) -> Markup {
+    /// Generates a menu bar to nagivate
+    fn html_menu_bar(&self) -> Markup {
         html! {
             aside class="menu" {
                 p class="menu-label" {
@@ -115,65 +115,28 @@ impl QcReport {
                             "Summary"
                         }
                     }
-                    @for product in self.products.keys().sorted() {
-                        @if let Some(report) = self.products.get(&product) {
-                            li {
-                                (report.html_inline_menu_bar())
-                            }
-                        }
-                    }
-                    @for chapter in self.custom_chapters.iter() {
+                    @ if let Some(observations) = &self.observations {
                         li {
-                            (chapter.tab.render())
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
-                            "Wiki"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/tree/main/tutorials" style="margin-left:29px" {
-                            "Tutorials"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex" {
-                            span class="icon" {
-                                i class="fa-brands fa-github" {}
+                            a id="menu:observations" {
+                                span class="icon" {
+                                    i class="fa-solid fa-tower-broadcast" {}
+                                }
+                                "Observations"
                             }
-                            "Sources"
+                            (observations.html_menu_bar())
                         }
                     }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
-                            "Bug Report"
-                        }
-                    }
-                } // menu-list
-            }//menu
-        }
-    }
-    /// Generates a menu bar to nagivate [Self]
-    #[cfg(feature = "sp3")]
-    fn menu_bar(&self) -> Markup {
-        html! {
-            aside class="menu" {
-                p class="menu-label" {
-                    (format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION")))
-                }
-                ul class="menu-list" {
-                    li {
-                        a id="menu:summary" {
-                            span class="icon" {
-                                i class="fa fa-home" {}
-                            }
-                            "Summary"
-                        }
-                    }
-                    @for chapter in self.custom_chapters.iter() {
+                    @ if !self.custom_chapters.is_empty() {
                         li {
-                            (chapter.tab.render())
+                            a id="menu:custom-chapters" {
+                                ul class="menu-list" {
+                                    @for chapter in self.custom_chapters.iter() {
+                                        li {
+                                            (chapter.tab.render())
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     p class="menu-label" {
@@ -231,14 +194,14 @@ impl Render for QcReport {
                         div id="body" {
                             div class="columns is-fullheight" {
                                 div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile" {
-                                    (self.menu_bar())
-                                } // id=menubar
+                                    (self.html_menu_bar())
+                                }
                                 div class="hero is-fullheight" {
                                     div id="summary" class="container is-main" style="display:block" {
                                         div class="section" {
                                             (self.summary.render())
                                         }
-                                    }//id=summary
+                                    }
                                     div id="extra-chapters" class="container" style="display:block" {
                                         @for chapter in self.custom_chapters.iter() {
                                             div id=(chapter.html_id) class="container is-main" style="display:none" {

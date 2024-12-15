@@ -2,7 +2,8 @@ use thiserror::Error;
 
 use maud::{html, Markup, Render};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+
+use std::path::{Path, PathBuf};
 
 pub mod navi;
 pub mod report;
@@ -69,31 +70,43 @@ pub struct QcConfig {
     pub rover: QcCustomRoverOpts,
 }
 
+impl QcConfig {
+    pub fn with_workspace<P: AsRef<Path>>(&self, path: P) -> Self {
+        let mut s = self.clone();
+        s.workspace = path.as_ref().to_path_buf();
+        s
+    }
+}
+
 impl Render for QcConfig {
     fn render(&self) -> Markup {
         html! {
-            tr {
-                th class="is-info" {
-                    "Reporting"
-                }
-                td {
-                    (self.report.render())
-                }
-            }
-            tr {
-                th class="is-info" {
-                    "Navigation settings"
-                }
-                td {
-                    (self.navi.render())
-                }
-            }
-            tr {
-                th class="is-info" {
-                    "Rover settings"
-                }
-                td {
-                    (self.rover.render())
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tr {
+                        th class="is-info" {
+                            "Reporting"
+                        }
+                        td {
+                            (self.report.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Navigation settings"
+                        }
+                        td {
+                            (self.navi.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Rover settings"
+                        }
+                        td {
+                            (self.rover.render())
+                        }
+                    }
                 }
             }
         }

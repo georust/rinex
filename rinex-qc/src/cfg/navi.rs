@@ -13,8 +13,8 @@ pub enum QcFrameModel {
 impl std::fmt::Display for QcFrameModel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ITRF93 => write!(f, "ITRF93"),
             Self::IAU => write!(f, "IAU"),
+            Self::ITRF93 => write!(f, "ITRF93"),
         }
     }
 }
@@ -64,20 +64,24 @@ pub struct QcNaviOpts {
 impl Render for QcNaviOpts {
     fn render(&self) -> Markup {
         html! {
-            tr {
-                th {
-                    "Frame Model"
-                }
-                td {
-                    (self.frame_model.to_string())
-                }
-            }
-            tr {
-                th {
-                    "Prefered Orbits"
-                }
-                td {
-                    (self.prefered_orbits.to_string())
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tr {
+                        th {
+                            "Frame Model"
+                        }
+                        td {
+                            (self.frame_model.to_string())
+                        }
+                    }
+                    tr {
+                        th {
+                            "Prefered Orbits"
+                        }
+                        td {
+                            (self.prefered_orbits.to_string())
+                        }
+                    }
                 }
             }
         }

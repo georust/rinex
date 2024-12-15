@@ -1,7 +1,7 @@
 use maud::{html, Markup, Render};
 use rinex::prelude::{GroundPosition, TimeScale};
 
-use crate::prelude::{QcConfig, QcContext};
+use crate::{cfg::QcConfig, context::QcContext};
 
 mod nav_post;
 use nav_post::QcNavPostSummary;
@@ -22,11 +22,11 @@ pub struct QcSummary {
 }
 
 impl QcSummary {
-    pub fn new(context: &QcContext, cfg: &QcConfig) -> Self {
+    pub fn new(ctx: &QcContext) -> Self {
         Self {
-            cfg: cfg.clone(),
-            navi: QcNavPostSummary::new(context),
-            bias_sum: QcBiasSummary::new(context),
+            cfg: ctx.cfg.clone(),
+            navi: QcNavPostSummary::new(ctx),
+            bias_sum: QcBiasSummary::new(ctx),
         }
     }
 }
@@ -39,9 +39,15 @@ impl Render for QcSummary {
                     tbody {
                         tr {
                             th class="is-info" {
-                                button aria-label="Context / Dataset compliancy" data-balloon-pos="right" {
-                                    "Compliancy"
-                                }
+                                "QC Settings"
+                            }
+                            td {
+                                (self.cfg.render())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Compliancy"
                             }
                             td {
                                 (self.navi.render())
@@ -49,9 +55,7 @@ impl Render for QcSummary {
                         }
                         tr {
                             th class="is-info" {
-                                button aria-label="Physical and Environmental bias analysis & cancellation capabilities" data-balloon-pos="right" {
-                                    "Bias"
-                                }
+                                "Bias"
                             }
                             td {
                                 (self.bias_sum.render())
