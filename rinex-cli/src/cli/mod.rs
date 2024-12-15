@@ -14,9 +14,6 @@ use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
 
 mod fops;
 mod positioning;
-mod workspace;
-
-pub use workspace::Workspace;
 
 use fops::{diff, filegen, merge, split, time_binning};
 
@@ -31,51 +28,20 @@ impl Default for Cli {
     }
 }
 
-pub struct RemoteReferenceSite {
-    pub data: QcContext,
-    pub rx_ecef: Option<(f64, f64, f64)>,
-}
-
 /// Context defined by User.
 pub struct Context {
     /// Quiet option
     pub quiet: bool,
     /// Data context defined by user.
     /// In differential opmode, this is the ROVER.
-    pub data: QcContext,
-    /// Remote reference site (secondary dataset) defined by User.
-    /// Serves as reference point in differential techniques.
-    pub reference_site: Option<RemoteReferenceSite>,
-    /// Context name is derived from the primary file loaded in Self,
-    /// and mostly used in output products generation.
-    pub name: String,
-    /// Workspace is the place where this session will generate data.
-    /// By default it is set to $WORKSPACE/$PRIMARYFILE.
-    /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
-    /// $PRIMARYFILE is determined from the most major file contained in the dataset.
-    pub workspace: Workspace,
-    /// (RX) reference position to be used in further analysis.
-    /// It is either (priority order is important)
-    ///  1. manually defined by CLI
-    ///  2. determined from dataset
-    pub rx_ecef: Option<(f64, f64, f64)>,
+    pub qc_context: QcContext,
 }
 
 impl Context {
-    /// Returns [Context] stem, used as session workspace
-    pub fn context_stem(data: &QcContext) -> String {
-        data.primary_path()
-            .expect("failed to define session")
-            .file_name()
-            .expect("failed to define session")
-            .to_string_lossy()
-            .to_string()
-    }
-
     /// Use this if this session needs to generate output products
     pub fn create_output_products_dir(&self) {
-        if self.data.has_brdc_navigation() {
-            self.workspace.create_subdir("OUTPUT/NAV");
+        if self.qc_context() {
+            self.qc_context.create_subdir("OUTPUT/NAV");
         }
         if self.data.has_observation() {
             self.workspace.create_subdir("OUTPUT/OBS");
@@ -94,25 +60,6 @@ impl Context {
         }
         if self.data.has_clock() {
             self.workspace.create_subdir("OUTPUT/CLOCK");
-        }
-    }
-
-    /// Macro to generate [File] from full [Path]
-    fn create_file(&self, path: &Path) -> File {
-        File::create(path).unwrap_or_else(|e| {
-            panic!("failed to create {}: {:?}", path.display(), e);
-        })
-    }
-
-    /// Returns True if [Context] is compatible with RTK positioning
-    pub fn rtk_compatible(&self) -> bool {
-        if let Some(remote) = &self.reference_site {
-            self.data.observation_data().is_some()
-                && self.rx_ecef.is_some()
-                && remote.data.observation_data().is_some()
-                && remote.rx_ecef.is_some()
-        } else {
-            false
         }
     }
 }

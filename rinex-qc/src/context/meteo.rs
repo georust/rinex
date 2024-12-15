@@ -97,8 +97,4 @@ impl MeteoContext {
     pub fn has_unidentified_data(&self) -> bool {
         self.unidentified.len() > 0
     }
-
-    pub fn empty_data_set(&self) -> bool {
-        !self.has_identified_data() && !self.has_unidentified_data()
-    }
 }

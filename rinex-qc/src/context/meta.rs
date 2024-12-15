@@ -1,5 +1,6 @@
-use crate::context::Error;
 use std::path::Path;
+
+use crate::QcError;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MetaData {
@@ -7,21 +8,24 @@ pub struct MetaData {
     pub name: String,
     /// File extension
     pub extension: String,
+    /// Unique ID (if any)
+    pub unique_id: Option<String>,
 }
 
 impl MetaData {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    /// Determine basic [MetaData] from provided [Path].
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, QcError> {
         let path = path.as_ref();
 
         let name = path
             .file_stem()
-            .ok_or(Error::FileName)?
+            .ok_or(QcError::FileName)?
             .to_string_lossy()
             .to_string();
 
         let mut extension = path
             .extension()
-            .ok_or(Error::FileName)?
+            .ok_or(QcError::FileName)?
             .to_string_lossy()
             .to_string();
 
@@ -38,7 +42,14 @@ impl MetaData {
             } else {
                 extension.to_string()
             },
+            unique_id: None,
         })
+    }
+
+    /// Attach a unique identifier to this [MetaData].
+    /// The unique identifier will identify the dataset uniquely
+    pub fn set_unique_id(&mut self, unique_id: &str) {
+        self.unique_id = Some(unique_id.to_string());
     }
 }
 

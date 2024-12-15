@@ -15,7 +15,7 @@ use report::Report;
 
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
 
-use rinex_qc::prelude::{MergeError, QcContext, QcExtraPage};
+use rinex_qc::prelude::{MergeError, QcConfig, QcContext, QcExtraPage};
 
 use std::{io::Error as IoError, path::Path};
 
@@ -55,8 +55,8 @@ pub enum Error {
     MissingMeteoRinex,
     #[error("missing Clock RINEX")]
     MissingClockRinex,
-    #[error("positioning solver error")]
-    PositioningSolverError(#[from] positioning::Error),
+    // #[error("positioning solver error")]
+    // PositioningSolverError(#[from] positioning::Error),
     #[cfg(feature = "csv")]
     #[error("csv export error")]
     CsvError(#[from] CsvError),
@@ -72,8 +72,10 @@ fn user_data_parsing(
     max_depth: usize,
     is_rover: bool,
 ) -> QcContext {
-    let mut ctx =
-        QcContext::new().unwrap_or_else(|e| panic!("failed to initialize new context {}", e));
+    let cfg = QcConfig::default();
+
+    let mut ctx = QcContext::new_daily_high_precision(cfg, cli.workspace())
+        .unwrap_or_else(|e| panic!("failed to initialize new context {}", e));
 
     // recursive dir loader
     for dir in directories.iter() {

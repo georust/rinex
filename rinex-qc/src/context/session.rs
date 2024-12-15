@@ -1,4 +1,4 @@
-use crate::context::{Error, QcContext};
+use crate::{context::QcContext, QcError};
 
 use std::fs::{create_dir_all, File};
 
@@ -69,30 +69,37 @@ impl QcContext {
     //     trace!("workspace tree generated");
     // }
 
-    /// Session deployment
-    pub fn deploy(&self) -> Result<(), Error> {
-        create_dir_all(&self.workspace).map_err(|_| Error::IO)?;
+    /// Session deployment.
+    /// This method should be called once prior running the session.
+    pub fn deploy(&self) -> Result<(), QcError> {
+        create_dir_all(&self.cfg.workspace).map_err(|_| QcError::IO)?;
+        Ok(())
+    }
+
+    /// Verifies that stacked data set and overall context is sane.
+    /// This should be called once prior actual deployment, to avoid
+    /// potential errors in the processing or unfeasible operations.
+    pub fn verify(&self) -> Result<(), QcError> {
         Ok(())
     }
 
     /// Create a subdir inside the workspace, usually
     /// to generate output products.
-    pub fn create_subdir(&self, subdir: &str) -> Result<(), Error> {
-        create_dir_all(self.workspace.join(subdir)).map_err(|_| Error::IO)?;
+    pub fn create_subdir(&self, subdir: &str) -> Result<(), QcError> {
+        create_dir_all(self.cfg.workspace.join(subdir)).map_err(|_| QcError::IO)?;
         Ok(())
     }
 
     /// Create a file inside the workspace and return [File] handle
-    pub fn create_file(&self, name: &str) -> Result<File, Error> {
-        let fd = File::create(self.workspace.join(name)).map_err(|_| Error::IO)?;
+    pub fn create_file(&self, name: &str) -> Result<File, QcError> {
+        let fd = File::create(self.cfg.workspace.join(name)).map_err(|_| QcError::IO)?;
         Ok(fd)
     }
 
-    /// Utilities to open selected path, with prefered web browser
-    /// Opens root path with prefered web browser
+    /// Open workpace in web browser
     #[cfg(target_os = "linux")]
-    pub fn open_with_web_browser(&self) {
-        let fullpath = self.workspace.to_string_lossy().to_string();
+    pub fn open_workspace_with_browser(&self) {
+        let fullpath = self.cfg.workspace.to_string_lossy().to_string();
         let web_browsers = vec!["firefox", "chromium"];
         for browser in web_browsers {
             let child = Command::new(browser).arg(fullpath.clone()).spawn();
@@ -102,34 +109,34 @@ impl QcContext {
         }
     }
 
-    /// Opens root path with prefered web browser
+    /// Open workpace in web browser
     #[cfg(target_os = "macos")]
-    pub fn open_with_web_browser(&self) {
-        let fullpath = self.workspace.to_string_lossy().to_string();
+    pub fn open_workspace_with_browser(&self) {
+        let fullpath = self.cfg.workspace.to_string_lossy().to_string();
         Command::new("open")
             .args(&[fullpath])
             .output()
-            .expect("open() failed, can't open HTML content automatically");
+            .expect("failed to open workspace");
     }
 
-    /// Opens root path with prefered web browser
+    /// Open workpace in web browser
     #[cfg(target_os = "windows")]
-    pub fn open_with_web_browser(&self) {
-        let fullpath = self.workspace.to_string_lossy().to_string();
+    pub fn open_workspace_with_browser(&self) {
+        let fullpath = self.cfg.workspace.to_string_lossy().to_string();
         Command::new("cmd")
             .arg("/C")
             .arg(format!(r#"start {}"#, fullpath))
             .output()
-            .expect("failed to open generated HTML content");
+            .expect("failed to open workspace");
     }
 
-    /// Opens root path with prefered web browser
+    /// Open workpace in web browser
     #[cfg(target_os = "android")]
-    pub fn open_with_web_browser(&self) {
-        let fullpath = self.workspace.to_string_lossy().to_string();
+    pub fn open_workspace_with_browser(&self) {
+        let fullpath = self.cfg.workspace.to_string_lossy().to_string();
         Command::new("xdg-open")
             .args(&[fullpath])
             .output()
-            .expect("failed to open generated HTML content");
+            .expect("failed to open workspace");
     }
 }
