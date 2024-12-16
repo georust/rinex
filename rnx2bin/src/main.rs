@@ -1,6 +1,8 @@
 mod cli;
 use cli::Cli;
 
+use log::{debug, info};
+
 use rinex::prelude::{binex::RNX2BIN, FormattingError, ParsingError, Rinex};
 
 use std::{
@@ -13,58 +15,48 @@ use flate2::{write::GzEncoder, Compression};
 use thiserror::Error;
 
 /// Supported output types
-pub enum Output<W: Write> {
+pub enum Output {
     // Simple file
-    File(W),
+    File(File),
     // Gzip compressed file
-    GzipFile(W),
-    // Writable I/O
-    IO(W),
-    // Gzip Stream through I/O
-    GzipIO(W),
+    GzipFile(GzEncoder<File>),
 }
 
-impl<W: Write> Write for Output<W> {}
+impl Write for Output {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        Ok(0)
+    }
 
-impl<W: Write> Output<W> {
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            Self::File(fd) => fd.flush(),
+            Self::GzipFile(fd) => fd.flush(),
+        }
+    }
+}
+
+impl Output {
     pub fn new(
         rinex: &Rinex,
         gzip_in: bool,
         workspace: &Path,
         gzip_out: bool,
         short_name: bool,
-        io_output: bool,
         custom_name: Option<&String>,
     ) -> Self {
         if let Some(custom) = custom_name {
-            // custom output specified
-            if io_output {
-                // this must be a fullpath: workspace is disregarded
-                let mut fd = File::open(custom)
-                    .unwrap_or_else(|e| panic!("Failed to create file within workspace"));
+            let path = workspace.join(custom);
 
-                if gzip_out {
-                    println!("Gzip streaming to I/O interface: {}", custom);
-                    let mut fd = GzEncoder::new(fd, Compression::new(5));
-                    Output::GzipIo(fd)
-                } else {
-                    println!("Streaming to I/O interface: {}", custom);
-                    Output::Io(fd)
-                }
+            let mut fd = File::create(&path)
+                .unwrap_or_else(|e| panic!("Failed to create file within workspace"));
+
+            if gzip_in || gzip_out {
+                info!("Generating custom gzip file: {}", path.display());
+                let mut fd = GzEncoder::new(fd, Compression::new(5));
+                Output::GzipFile(fd)
             } else {
-                let path = workspace.join(custom);
-
-                let mut fd = File::create(&path)
-                    .unwrap_or_else(|e| panic!("Failed to create file within workspace"));
-
-                if gzip_in || gzip_out {
-                    println!("Generating custom gzip file: {}", path);
-                    let mut fd = GzEncoder::new(fd, Compression::new(5));
-                    Output::GzipFile(fd)
-                } else {
-                    println!("Generating custom file: {}", path);
-                    Output::File(fd)
-                }
+                info!("Generating custom file: {}", path.display());
+                Output::File(fd)
             }
         } else {
             // auto generated name
@@ -74,7 +66,7 @@ impl<W: Write> Output<W> {
                 suffix.push_str(".gz");
             }
 
-            let auto = rinex.standard_filename(short_name, Some(suffix), None);
+            let auto = rinex.standard_filename(short_name, Some(&suffix), None);
 
             let path = workspace.join(auto);
 
@@ -82,11 +74,11 @@ impl<W: Write> Output<W> {
                 .unwrap_or_else(|e| panic!("Failed to create file within workspace"));
 
             if gzip_in || gzip_out {
-                println!("Generating gzip file: {}", path);
+                info!("Generating gzip file: {}", path.display());
                 let mut fd = GzEncoder::new(fd, Compression::new(5));
                 Output::GzipFile(fd)
             } else {
-                println!("Generating file: {}", path);
+                info!("Generating file: {}", path.display());
                 Output::File(fd)
             }
         }
@@ -111,19 +103,24 @@ fn workspace(cli: &Cli) -> PathBuf {
     }
 }
 
-fn binex_streaming<W: Write>(output: Output<W>, rnx2bin: &mut RNX2BIN) {
+fn binex_streaming(output: &mut Output, rnx2bin: &mut RNX2BIN) {
     const BUF_SIZE: usize = 4096;
     let mut buf = [0; BUF_SIZE];
+    debug!("RNX2BIN streaming!");
+    loop {
+        match rnx2bin.next() {
+            Some(msg) => {
+                msg.encode(&mut buf, BUF_SIZE)
+                    .unwrap_or_else(|e| panic!("BINEX encoding error: {:?}", e));
 
-    while let Some(msg) = rnx2bin.next() {
-        msg.encode(&mut buf, BUF_SIZE)
-            .unwrap_or_else(|e| panic!("BINEX encoding error: {:?}", e));
+                output
+                    .write(&buf)
+                    .unwrap_or_else(|e| panic!("I/O error: {}", e));
 
-        buf = [0; BUF_SIZE];
-
-        output
-            .write(&buf)
-            .unwrap_or_else(|e| panic!("I/O error: {}", e));
+                buf = [0; BUF_SIZE];
+            },
+            None => {},
+        }
     }
 }
 
@@ -137,7 +134,6 @@ fn main() -> Result<(), Error> {
     let output_name = cli.output_name();
     let gzip_out = cli.gzip_output();
     let short_name = cli.short_name();
-    let io_out = cli.io_output();
 
     let extension = input_path
         .extension()
@@ -152,20 +148,19 @@ fn main() -> Result<(), Error> {
         Rinex::from_file(input_path)?
     };
 
-    let mut rnx2bin = rinex
-        .rnx2bin(meta)
-        .unwrap_or_else(|e| panic!("RNX2BIN internally failed with: {}", e));
-
-    let output = Output::new(
-        &rnx2bin,
+    let mut output = Output::new(
+        &rinex,
         gzip_input,
         &workspace,
         gzip_out,
         short_name,
-        io_out,
         output_name,
     );
 
-    binex_streaming(output, &mut rnx2bin);
+    let mut rnx2bin = rinex
+        .rnx2bin(meta)
+        .unwrap_or_else(|| panic!("RNX2BIN internal failure"));
+
+    binex_streaming(&mut output, &mut rnx2bin);
     Ok(())
 }
