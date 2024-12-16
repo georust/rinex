@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
     "binex", 
+    "bin2rnx",
     "crx2rnx", 
     "qc-traits", 
     "rinex", 
