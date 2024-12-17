@@ -40,6 +40,7 @@ pub mod marker;
 pub mod meteo;
 pub mod navigation;
 pub mod observation;
+pub mod production;
 pub mod record;
 pub mod types;
 pub mod version;
@@ -53,7 +54,6 @@ mod iterators;
 mod leap;
 mod linspace;
 mod observable;
-mod production;
 mod sampling;
 
 #[cfg(feature = "qc")]
@@ -148,7 +148,7 @@ pub mod prelude {
     #[cfg(feature = "binex")]
     #[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
     pub mod binex {
-        pub use crate::binex::RNX2BIN;
+        pub use crate::binex::{BIN2RNX, RNX2BIN};
         pub use binex::prelude::{Message, Meta};
     }
 

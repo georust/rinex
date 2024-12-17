@@ -270,4 +270,14 @@ impl<'a, R: Read> BIN2RNX<'a, R> {
             info!("bin2rnx now deployed: production is pending");
         }
     }
+
+    /// Obtain reference to collected Observation RINEX
+    pub fn obs_rinex(&self) -> &Rinex {
+        &self.obs_rinex
+    }
+
+    /// Obtain reference to collected Navigation RINEX
+    pub fn nav_rinex(&self) -> &Rinex {
+        &self.nav_rinex
+    }
 }
