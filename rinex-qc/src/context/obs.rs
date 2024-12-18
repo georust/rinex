@@ -113,7 +113,7 @@ impl ObservationDataSet {
 impl QcContext {
     /// True if QcObservationsDataSet is not empty
     pub fn has_observations(&self) -> bool {
-        self.observations.is_some()
+        self.obs_dataset.is_some()
     }
 
     /// Loads a new Observation [Rinex] into this [QcContext]
@@ -132,7 +132,7 @@ impl QcContext {
         }
 
         // Now proceed to stacking
-        if let Some(observations) = &mut self.observations {
+        if let Some(observations) = &mut self.obs_dataset {
             if let Some(entry) = observations.inner.get_mut(&meta) {
                 entry.merge_mut(&data)?;
             } else {
@@ -142,7 +142,7 @@ impl QcContext {
             // First Observation entry
             let mut data_set = ObservationDataSet::default();
             data_set.inner.insert(meta.clone(), data);
-            self.observations = Some(data_set);
+            self.obs_dataset = Some(data_set);
         }
 
         Ok(())
@@ -170,8 +170,9 @@ mod test {
         let mut ctx = QcContext::new(cfg).unwrap();
 
         ctx.load_file(&path).unwrap();
+        assert!(ctx.has_observations());
 
-        let observations = ctx.observations.expect("load_rinex failure");
+        let observations = ctx.obs_dataset.expect("load_rinex failure");
         assert!(observations.designated_rover.is_none());
         assert_eq!(observations.inner.len(), 1);
 
@@ -193,8 +194,9 @@ mod test {
         let mut ctx = QcContext::new(cfg).unwrap();
 
         ctx.load_file(&path).unwrap();
+        assert!(ctx.has_observations());
 
-        let observations = ctx.observations.as_ref().expect("load_rinex failure");
+        let observations = ctx.obs_dataset.as_ref().expect("load_rinex failure");
         assert!(observations.designated_rover.is_none());
         assert_eq!(observations.inner.len(), 1);
 
@@ -217,7 +219,7 @@ mod test {
 
         ctx.load_file(&path).unwrap();
 
-        let observations = ctx.observations.expect("load_rinex failure");
+        let observations = ctx.obs_dataset.expect("load_rinex failure");
         assert!(observations.designated_rover.is_none());
         assert_eq!(observations.inner.len(), 1);
 
@@ -249,9 +251,12 @@ mod test {
         let mut ctx = QcContext::new(cfg).unwrap();
 
         ctx.load_file(&path_1).unwrap();
-        ctx.load_file(&path_1).unwrap();
+        assert!(ctx.has_observations());
 
-        let observations = ctx.observations.expect("load_rinex failure");
+        ctx.load_file(&path_1).unwrap();
+        assert!(ctx.has_observations());
+
+        let observations = ctx.obs_dataset.expect("load_rinex failure");
         assert!(observations.designated_rover.is_none());
         assert_eq!(observations.inner.len(), 1);
 
@@ -259,9 +264,12 @@ mod test {
         let mut ctx = QcContext::new(cfg).unwrap();
 
         ctx.load_file(&path_1).unwrap();
-        ctx.load_file(&path_2).unwrap();
+        assert!(ctx.has_observations());
 
-        let observations = ctx.observations.expect("load_rinex failure");
+        ctx.load_file(&path_2).unwrap();
+        assert!(ctx.has_observations());
+
+        let observations = ctx.obs_dataset.expect("load_rinex failure");
         assert!(observations.designated_rover.is_none());
         assert_eq!(observations.inner.len(), 2);
     }

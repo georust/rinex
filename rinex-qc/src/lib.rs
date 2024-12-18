@@ -13,6 +13,7 @@ mod cfg;
 pub mod plot;
 
 mod context;
+mod navigation;
 mod report;
 
 pub mod prelude {

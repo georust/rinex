@@ -31,7 +31,7 @@ mod processing;
 pub(crate) mod meta;
 pub(crate) mod obs;
 //pub(crate) mod navi;
-// pub(crate) mod clock;
+pub(crate) mod clock;
 // pub(crate) mod iono;
 // pub(crate) mod meteo;
 pub(crate) mod rnx;
@@ -42,7 +42,7 @@ pub(crate) mod session;
 
 use crate::{
     cfg::{QcConfig, QcFrameModel},
-    context::{meta::MetaData, obs::ObservationDataSet},
+    context::{clock::ClockDataSet, meta::MetaData, obs::ObservationDataSet},
     report::QcReport,
     QcError,
 };
@@ -58,7 +58,9 @@ pub struct QcContext {
     /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
     /// [ObservationDataSet]
-    pub(crate) observations: Option<ObservationDataSet>,
+    pub(crate) obs_dataset: Option<ObservationDataSet>,
+    /// [ClockDataSet]
+    pub(crate) clk_dataset: Option<ClockDataSet>,
     // /// [SkyContext] that applies worldwidely
     // sky_context: SkyContext,
     // /// [MeteoContext] that either applies regionally or worldwidely
@@ -185,12 +187,8 @@ impl QcContext {
             cfg,
             almanac,
             earth_cef,
-            observations: Default::default(),
-            // sky_context: Default::default(),
-            // clk_context: Default::default(),
-            // iono_context: Default::default(),
-            // meteo_context: Default::default(),
-            // user_rover_observations: Default::default(),
+            obs_dataset: Default::default(),
+            clk_dataset: Default::default(),
         };
 
         s.deploy()?;
@@ -274,7 +272,10 @@ impl QcContext {
         // self.sky_context.filter_mut(&filter);
         // self.meteo_context.filter_mut(&filter);
         // self.iono_context.filter_mut(&filter);
-        if let Some(dataset) = &mut self.observations {
+        if let Some(dataset) = &mut self.obs_dataset {
+            dataset.filter_mut(&filter);
+        }
+        if let Some(dataset) = &mut self.clk_dataset {
             dataset.filter_mut(&filter);
         }
     }
@@ -283,7 +284,10 @@ impl QcContext {
         // self.sky_context.repair_mut(repair);
         // self.meteo_context.repair_mut(repair);
         // self.iono_context.repair_mut(repair);
-        if let Some(data_set) = &mut self.observations {
+        if let Some(data_set) = &mut self.obs_dataset {
+            data_set.repair_mut(repair);
+        }
+        if let Some(data_set) = &mut self.clk_dataset {
             data_set.repair_mut(repair);
         }
     }
@@ -300,8 +304,11 @@ impl QcContext {
 impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(observations) = &self.observations {
-            write!(f, "{:?}", observations)?;
+        if let Some(dataset) = &self.obs_dataset {
+            write!(f, "{:?}", dataset)?;
+        }
+        if let Some(dataset) = &self.clk_dataset {
+            write!(f, "{:?}", dataset)?;
         }
         Ok(())
     }

@@ -12,6 +12,9 @@ impl QcContext {
             RinexType::ObservationData => {
                 self.load_observation_rinex(meta, rinex);
             },
+            RinexType::ClockData => {
+                self.load_clock_rinex(meta, rinex);
+            },
             _ => {
                 panic!("not supported!");
             },
