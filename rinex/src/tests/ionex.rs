@@ -1,8 +1,10 @@
 use crate::{
     prelude::Rinex,
-    tests::toolkit::{generic_ionex_test, TecPoint, TimeFrame},
+    tests::toolkit::{generic_ionex_comparison, generic_ionex_test, TecPoint, TimeFrame},
 };
 
+use std::fs::remove_file;
+use std::io::Write;
 use std::path::Path;
 
 #[test]
@@ -104,6 +106,13 @@ fn v1_ckmg0020_22i() {
             },
         ],
     );
+
+    dut.to_file("v1_ckmg0020_22i.txt").unwrap();
+
+    let parsed = Rinex::from_file("v1_ckmg0020_22i.txt").unwrap();
+    generic_ionex_comparison(parsed, dut);
+
+    let _ = remove_file("v1_ckmg0020_22i.txt");
 }
 
 #[test]

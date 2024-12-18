@@ -178,3 +178,23 @@ pub fn generic_ionex_test(
         );
     }
 }
+
+fn generic_comparison(dut: &Rinex, model: &Rinex) {
+    assert_eq!(dut.is_ionex_2d(), dut.is_ionex_2d(), "invalid dimensions");
+    assert_eq!(dut.is_ionex_3d(), dut.is_ionex_3d(), "invalid dimensions");
+
+    let dut = dut.record.as_ionex().unwrap();
+    let model = model.record.as_ionex().unwrap();
+
+    for (k, tec) in dut.iter() {
+        if let Some(tec_model) = model.get(&k) {
+            assert_eq!(tec.tecu(), tec_model.tecu(), "invalid TECu");
+        } else {
+            panic!("found unexpected data @ {:?}", k);
+        }
+    }
+
+    for (k, tec) in model.iter() {
+        assert!(dut.get(&t).is_some(), "missing data @ {:?}", k);
+    }
+}

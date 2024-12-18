@@ -12,7 +12,7 @@ pub(crate) mod feature; // feature dependent, high level methods
 #[cfg(feature = "ionex")]
 #[cfg_attr(docsrs, doc(cfg(feature = "obs")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "ionex")))]
-pub(crate) mod ionex; // ionex + obs capabilities
+pub(crate) mod tec; // ionex + obs capabilities
 
 use std::collections::btree_map::{Iter, IterMut, Keys};
 
