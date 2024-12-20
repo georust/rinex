@@ -1,54 +1,81 @@
-use std::collections::HashMap;
-
-use rinex::prelude::{nav::Orbit, Duration, Epoch, SV};
-
 use rinex::prelude::Rinex;
 
-use crate::context::{MetaData, QcContext, QcError};
+use crate::context::{QcContext, QcError};
 
-use qc_traits::{Filter, Merge, Preprocessing, Repair, RepairTrait};
+use qc_traits::Merge;
 
-pub enum NavigationUniqueId {
-    Agency(String),
-}
-
-impl std::fmt::Display for NavigationUniqueId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Agency(ag) => write!(f, "ag:{}", ag),
-        }
-    }
-}
-
-impl std::str::FromStr for NavigationUniqueId {
-    type Err = QcError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("ag:") {
-            Ok(Self::Agency(s[3..].to_string()))
-        } else {
-            Err(QcError::DataIndexingIssue)
-        }
-    }
+pub struct NavigationDataSet {
+    /// internal RINEX storage
+    pub(crate) rinex: Rinex,
 }
 
 impl QcContext {
     pub fn has_navigation_data(&self) -> bool {
-        !self.obs_dataset.is_empty()
+        self.nav_dataset.is_some()
     }
 
     /// Loads a new Navigation [Rinex] into this [QcContext]
-    pub(crate) fn load_navigation_rinex(
-        &mut self,
-        meta: &mut MetaData,
-        data: Rinex,
-    ) -> Result<(), QcError> {
-        // Now proceed to stacking
-        if let Some(entry) = self.nav_dataset.get_mut(&meta) {
-            entry.merge_mut(&data)?;
+    pub(crate) fn load_navigation_rinex(&mut self, data: Rinex) -> Result<(), QcError> {
+        // proceed to stacking
+        if let Some(nav) = &mut self.nav_dataset {
+            nav.rinex.merge_mut(&data)?;
         } else {
-            self.nav_dataset.insert(meta.clone(), data);
+            self.nav_dataset = Some(NavigationDataSet { rinex: data });
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::{cfg::QcConfig, context::QcContext};
+
+    #[test]
+    fn navigation_indexing() {
+        let path = format!(
+            "{}/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        // Default indexing
+        let cfg = QcConfig::default();
+
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_file(&path).unwrap();
+        assert!(ctx.has_navigation_data());
+    }
+
+    #[test]
+    fn navigation_stacking() {
+        let path_1 = format!(
+            "{}/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        let path_2 = format!(
+            "{}/../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        let cfg = QcConfig::default();
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_file(&path_1).unwrap();
+        assert!(ctx.has_navigation_data());
+
+        ctx.load_file(&path_1).unwrap();
+        assert!(ctx.has_navigation_data());
+
+        let cfg = QcConfig::default();
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_file(&path_1).unwrap();
+        assert!(ctx.has_navigation_data());
+
+        ctx.load_file(&path_2).unwrap();
+        assert!(ctx.has_navigation_data());
     }
 }

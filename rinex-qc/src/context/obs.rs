@@ -7,37 +7,39 @@ use crate::{
 
 use log::debug;
 
-use std::collections::HashMap;
-
-use qc_traits::{Filter, Merge, Preprocessing, Repair, RepairTrait};
+use qc_traits::Merge;
 
 pub enum ObservationUniqueId {
     Receiver(String),
     Antenna(String),
+    Operator(String),
     GeodeticMarker(String),
-}
-
-impl std::fmt::Display for ObservationUniqueId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Receiver(rx) => write!(f, "rcvr:{}", rx),
-            Self::Antenna(ant) => write!(f, "ant:{}", ant),
-            Self::GeodeticMarker(geo) => write!(f, "geo:{}", geo),
-        }
-    }
 }
 
 impl std::str::FromStr for ObservationUniqueId {
     type Err = QcError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with("rcvr:") {
-            Ok(Self::Receiver(s[4..].to_string()))
+            Ok(Self::Receiver(s[5..].to_string()))
         } else if s.starts_with("ant:") {
-            Ok(Self::Antenna(s[3..].to_string()))
-        } else if s.starts_with("geo") {
-            Ok(Self::GeodeticMarker(s[3..].to_string()))
+            Ok(Self::Antenna(s[4..].to_string()))
+        } else if s.starts_with("geo:") {
+            Ok(Self::GeodeticMarker(s[4..].to_string()))
+        } else if s.starts_with("op:") {
+            Ok(Self::Operator(s[3..].to_string()))
         } else {
             Err(QcError::DataIndexingIssue)
+        }
+    }
+}
+
+impl std::fmt::Display for ObservationUniqueId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Receiver(rx) => write!(f, "rcvr:{}", rx),
+            Self::Operator(op) => write!(f, "op:{}", op),
+            Self::Antenna(ant) => write!(f, "ant:{}", ant),
+            Self::GeodeticMarker(geo) => write!(f, "geo:{}", geo),
         }
     }
 }

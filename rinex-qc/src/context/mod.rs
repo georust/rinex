@@ -1,27 +1,16 @@
 //! User Data (input products) definitions
-use thiserror::Error;
 
 use std::{collections::HashMap, env, fs::create_dir_all, fs::File, io::Write, path::Path};
 
-use rinex::{
-    hardware::Receiver,
-    prelude::{nav::Almanac, ParsingError as RinexParsingError, Rinex},
-};
+use rinex::prelude::{nav::Almanac, Rinex};
 
 use anise::{
-    almanac::{
-        metaload::{MetaAlmanac, MetaAlmanacError, MetaFile},
-        planetary::PlanetaryDataError,
-    },
+    almanac::metaload::{MetaAlmanac, MetaFile},
     constants::frames::{EARTH_ITRF93, IAU_EARTH_FRAME},
-    errors::AlmanacError,
     prelude::Frame,
 };
 
-use qc_traits::{Filter, MergeError, Preprocessing, Repair, RepairTrait};
-
-#[cfg(feature = "sp3")]
-use sp3::prelude::SP3;
+use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 
 // Context post processing.
 // This that can only be achieved by stacking more than one RINEX
@@ -40,6 +29,7 @@ use crate::{
         // clock::ClockDataSet,
         // sky::SkyContext,
         meta::MetaData,
+        nav::NavigationDataSet,
     },
     report::QcReport,
     QcError,
@@ -57,8 +47,8 @@ pub struct QcContext {
     pub earth_cef: Frame,
     /// Observation [Rinex] stored by GNSS receivers
     pub obs_dataset: HashMap<MetaData, Rinex>,
-    /// Navigation [Rinex] stored by production agencies
-    pub nav_dataset: HashMap<MetaData, Rinex>,
+    /// Possible [NavigationDataSet]
+    pub nav_dataset: Option<NavigationDataSet>,
     // pub(crate) sky_context: Option<SkyContext>,
     // pub(crate) clk_dataset: Option<ClockDataSet>,
     // /// [MeteoContext] that either applies regionally or worldwidely
@@ -216,7 +206,7 @@ impl QcContext {
         let mut meta = MetaData::new(path)?;
 
         if let Ok(rinex) = Rinex::from_file(path) {
-            self.load_rinex(&mut meta, rinex);
+            self.load_rinex(&mut meta, rinex)?;
             info!(
                 "{} (RINEX) loaded",
                 path.file_stem().unwrap_or_default().to_string_lossy()
@@ -245,7 +235,7 @@ impl QcContext {
         let mut meta = MetaData::new(path)?;
 
         if let Ok(rinex) = Rinex::from_gzip_file(path) {
-            self.load_rinex(&mut meta, rinex);
+            self.load_rinex(&mut meta, rinex)?;
             info!(
                 "RINEX: \"{}\" loaded",
                 path.file_stem().unwrap_or_default().to_string_lossy()
@@ -270,8 +260,8 @@ impl QcContext {
         for (_, rinex) in self.obs_dataset.iter_mut() {
             rinex.filter_mut(&filter);
         }
-        for (_, rinex) in self.nav_dataset.iter_mut() {
-            rinex.filter_mut(&filter);
+        if let Some(nav_dataset) = &mut self.nav_dataset {
+            nav_dataset.rinex.filter_mut(&filter);
         }
     }
 
@@ -295,9 +285,6 @@ impl std::fmt::Debug for QcContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, _) in &self.obs_dataset {
             write!(f, "Observation RINEX: {}", k.name)?;
-        }
-        for (k, _) in &self.nav_dataset {
-            write!(f, "Navigation RINEX: {}", k.name)?;
         }
         Ok(())
     }
