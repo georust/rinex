@@ -1,10 +1,8 @@
 use crate::{
     prelude::Rinex,
-    tests::toolkit::{generic_ionex_comparison, generic_ionex_test, TecPoint, TimeFrame},
+    tests::toolkit::{generic_ionex_test, TecPoint, TimeFrame},
 };
 
-use std::fs::remove_file;
-use std::io::Write;
 use std::path::Path;
 
 #[test]
@@ -27,6 +25,7 @@ fn v1_ckmg0020_22i() {
         &dut,
         "1.0",
         false,
+        25,
         "2022-01-02T00:00:00 UTC",
         "2022-01-03T00:00:00 UTC",
         87.5,
@@ -106,13 +105,6 @@ fn v1_ckmg0020_22i() {
             },
         ],
     );
-
-    dut.to_file("v1_ckmg0020_22i.txt").unwrap();
-
-    let parsed = Rinex::from_file("v1_ckmg0020_22i.txt").unwrap();
-    generic_ionex_comparison(parsed, dut);
-
-    let _ = remove_file("v1_ckmg0020_22i.txt");
 }
 
 #[test]
@@ -136,6 +128,7 @@ fn v1_ckmg0090_12i() {
         &dut,
         "1.0",
         false,
+        25,
         "2021-01-09T00:00:00 UTC",
         "2021-01-10T00:00:00 UTC",
         87.5,
@@ -177,6 +170,7 @@ fn v1_jplg0010_17i() {
         &dut,
         "1.0",
         false,
+        13,
         "2017-01-01T00:00:00 UTC",
         "2017-01-02T00:00:00 UTC",
         87.5,

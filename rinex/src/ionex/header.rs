@@ -25,6 +25,8 @@ use crate::prelude::TimeScale;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
+    /// Total number of TEC maps
+    pub number_of_maps: usize,
     /// Epoch of first map
     pub epoch_of_first_map: Epoch,
     /// Epoch of last map
@@ -68,6 +70,7 @@ impl Default for HeaderFields {
             // this is very important: it allows to support
             // the parsing of IONEX that omit the exponent
             exponent: -1,
+            number_of_maps: 0,
             // 2D by default
             map_dimension: 2,
             mapping: None,
@@ -171,12 +174,20 @@ impl HeaderFields {
         Ok(())
     }
 
+    /// Copies self and returns with updated number of maps
+    pub fn with_number_of_maps(&self, num: usize) -> Self {
+        let mut s = self.clone();
+        s.number_of_maps = num;
+        s
+    }
+
     /// Copies self with given time of first map
     pub fn with_epoch_of_first_map(&self, t: Epoch) -> Self {
         let mut s = self.clone();
         s.epoch_of_first_map = t;
         s
     }
+
     /// Copies self with given time of last map
     pub fn with_epoch_of_last_map(&self, t: Epoch) -> Self {
         let mut s = self.clone();

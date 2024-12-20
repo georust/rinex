@@ -1,8 +1,9 @@
 //! OBS RINEX formatting
 use crate::{
     epoch::format as epoch_format,
+    hatanaka::Compressor,
     observation::Record,
-    observation::{ClockObservation, ObsKey},
+    observation::{ClockObservation, HeaderFields, ObsKey},
     prelude::{Header, RinexType, SV},
     FormattingError,
 };
@@ -14,24 +15,39 @@ use log::error;
 
 use itertools::Itertools;
 
-/// Formats one epoch according to standard definitions.
-/// ## Inputs
-/// - major: RINEX revision major
-/// - key: [ObsKey]
-/// - clock: possible [ClockObservation]
-/// - signals: [SignalObservation]s
-/// ## Returns
-/// - formatter string according to standard specifications
 pub fn format<W: Write>(
     w: &mut BufWriter<W>,
     record: &Record,
     header: &Header,
 ) -> Result<(), FormattingError> {
-    if header.version.major < 3 {
-        format_v2(w, header, record)
+    let major = header.version.major;
+
+    let header = header
+        .obs
+        .as_ref()
+        .ok_or(FormattingError::UndefinedObservables)?;
+
+    if header.crinex.is_some() {
+        format_compressed(w, record, header)
     } else {
-        format_v3(w, header, record)
+        if major < 3 {
+            format_v2(w, header, record)
+        } else {
+            format_v3(w, header, record)
+        }
     }
+}
+
+/// Compressed format (non readable yet still ASCII)
+/// following the Hatanaka Compression algorithm.
+/// We use this in the RNX2CRX operation.
+pub fn format_compressed<W: Write>(
+    w: &mut BufWriter<W>,
+    record: &Record,
+    header: &HeaderFields,
+) -> Result<(), FormattingError> {
+    let mut compressor = Compressor::default();
+    compressor.format(w, record, header)
 }
 
 fn format_epoch_v3<W: Write>(
@@ -66,14 +82,10 @@ fn format_epoch_v3<W: Write>(
 
 fn format_v3<W: Write>(
     w: &mut BufWriter<W>,
-    header: &Header,
+    header: &HeaderFields,
     record: &Record,
 ) -> Result<(), FormattingError> {
-    let observables = &header
-        .obs
-        .as_ref()
-        .ok_or(FormattingError::UndefinedObservables)?
-        .codes;
+    let observables = &header.codes;
 
     for (k, v) in record.iter() {
         // retrieve unique sv list
@@ -160,17 +172,13 @@ fn format_epoch_v2<W: Write>(
 
 fn format_v2<W: Write>(
     w: &mut BufWriter<W>,
-    header: &Header,
+    header: &HeaderFields,
     record: &Record,
 ) -> Result<(), FormattingError> {
     const BLANKING: &str = "        ";
     const OBSERVATIONS_PER_LINE: usize = 5;
 
-    let observables = &header
-        .obs
-        .as_ref()
-        .ok_or(FormattingError::UndefinedObservables)?
-        .codes;
+    let observables = &header.codes;
 
     for (key, observations) in record.iter() {
         // Form unique SV list @t

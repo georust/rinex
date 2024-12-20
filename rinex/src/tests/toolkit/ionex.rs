@@ -22,6 +22,7 @@ fn basic_header_tests(
     dut: &Header,
     epoch_of_first_map: &str,
     epoch_of_last_map: &str,
+    nb_maps: usize,
     lat_grid_start: f64,
     lat_grid_end: f64,
     lat_grid_spacing: f64,
@@ -42,6 +43,8 @@ fn basic_header_tests(
     assert!(dut.ionex.is_some());
 
     let specs = dut.ionex.as_ref().expect("missing specific specs");
+
+    assert_eq!(specs.number_of_maps, nb_maps);
 
     let epoch_of_first_map = Epoch::from_str(epoch_of_first_map.trim()).unwrap();
     assert_eq!(specs.epoch_of_first_map, epoch_of_first_map);
@@ -84,6 +87,7 @@ pub fn generic_ionex_test(
     dut: &Rinex,
     version: &str,
     is_3d: bool,
+    nb_maps: usize,
     epoch_of_first_map: &str,
     epoch_of_last_map: &str,
     lat_grid_start: f64,
@@ -122,6 +126,7 @@ pub fn generic_ionex_test(
         &dut.header,
         epoch_of_first_map,
         epoch_of_last_map,
+        nb_maps,
         lat_grid_start,
         lat_grid_end,
         lat_grid_spacing,
@@ -176,25 +181,5 @@ pub fn generic_ionex_test(
             tec.tecu(),
             point.tecu
         );
-    }
-}
-
-fn generic_comparison(dut: &Rinex, model: &Rinex) {
-    assert_eq!(dut.is_ionex_2d(), dut.is_ionex_2d(), "invalid dimensions");
-    assert_eq!(dut.is_ionex_3d(), dut.is_ionex_3d(), "invalid dimensions");
-
-    let dut = dut.record.as_ionex().unwrap();
-    let model = model.record.as_ionex().unwrap();
-
-    for (k, tec) in dut.iter() {
-        if let Some(tec_model) = model.get(&k) {
-            assert_eq!(tec.tecu(), tec_model.tecu(), "invalid TECu");
-        } else {
-            panic!("found unexpected data @ {:?}", k);
-        }
-    }
-
-    for (k, tec) in model.iter() {
-        assert!(dut.get(&t).is_some(), "missing data @ {:?}", k);
     }
 }

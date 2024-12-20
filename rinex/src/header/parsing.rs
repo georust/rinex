@@ -806,6 +806,10 @@ impl Header {
                 //   if "DESCRIPTION" is to be encountered in other RINEX
                 //   we can safely test RinexType here because its already been determined
                 ionex = ionex.with_description(content.trim());
+            } else if marker.contains("# OF MAPS IN FILE") {
+                if let Ok(num) = content.trim().parse::<usize>() {
+                    ionex = ionex.with_number_of_maps(num);
+                }
             } else if marker.contains("EPOCH OF FIRST MAP") {
                 if let Ok(epoch) = parse_ionex_utc_epoch(content.trim()) {
                     ionex = ionex.with_epoch_of_first_map(epoch);

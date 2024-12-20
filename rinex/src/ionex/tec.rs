@@ -11,6 +11,8 @@ pub struct TEC {
     tecu: Quantized,
     /// RMS (TEC)
     rms: Option<Quantized>,
+    /// Altitude offset for complex 3D height map
+    height: Option<Quantized>,
 }
 
 impl TEC {
@@ -18,8 +20,9 @@ impl TEC {
     pub fn from_tecu(tecu: f64) -> Self {
         let exponent = Quantized::find_exponent(tecu);
         Self {
-            tecu: Quantized::new(tecu, exponent),
             rms: None,
+            height: None,
+            tecu: Quantized::new(tecu, exponent),
         }
     }
 
@@ -28,8 +31,9 @@ impl TEC {
         let tecu = tec / 10.0E16;
         let exponent = Quantized::find_exponent(tecu);
         Self {
-            tecu: Quantized::new(tecu, exponent),
             rms: None,
+            height: None,
+            tecu: Quantized::new(tecu, exponent),
         }
     }
 
@@ -45,11 +49,12 @@ impl TEC {
     pub(crate) fn from_quantized(tecu: i64, exponent: i8) -> Self {
         // IONEX stores quantized TEC as i=10*-k TECu
         Self {
-            tecu: Quantized {
-                exponent: -exponent,
-                quantized: tecu,
-            },
             rms: None,
+            height: None,
+            tecu: Quantized {
+                quantized: tecu,
+                exponent: -exponent,
+            },
         }
     }
 
@@ -75,6 +80,12 @@ impl TEC {
     pub fn rms_tec(&self) -> Option<f64> {
         let rms = self.rms?;
         Some(rms.real_value())
+    }
+
+    /// Returns possible altitude offset [km]
+    pub(crate) fn height_offset_km(&self) -> Option<f64> {
+        let height = self.height?;
+        Some(height.real_value())
     }
 }
 
