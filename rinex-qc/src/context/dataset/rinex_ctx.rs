@@ -1,5 +1,6 @@
 use crate::{
-    context::{meta::MetaData, Error, ProductType, QcContext, UserData},
+    context::dataset::{meta::MetaData, DataSet, UserData},
+    context::{Error},
     prelude::{Merge, Rinex},
 };
 
@@ -23,7 +24,7 @@ impl UserData {
     }
 }
 
-impl QcContext {
+impl DataSet {
     /// Load a single [Rinex] into [QcContext].
     /// File revision must be supported, file must be correctly formatted
     /// for this operation to be effective.
@@ -41,7 +42,7 @@ impl QcContext {
         } else {
             // insert new entry
             let user = UserData::RINEX(rinex);
-            self.user_data.insert(meta, user);
+            self.data.insert(meta, user);
         }
         Ok(())
     }
@@ -64,7 +65,7 @@ impl QcContext {
     /// Returns reference to inner [Rinex] for this [RinexType]
     pub fn get_rinex_data(&self, product_id: ProductType) -> Option<&Rinex> {
         let (_, data) = self
-            .user_data
+            .data
             .iter()
             .filter(|(k, _)| k.product_id == product_id)
             .reduce(|k, _| k)?;
@@ -76,7 +77,7 @@ impl QcContext {
     /// Returns mutable reference to inner [Rinex] for this [ProductType]
     pub fn get_rinex_data_mut(&mut self, product_id: ProductType) -> Option<&mut Rinex> {
         let (_, data) = self
-            .user_data
+            .data
             .iter_mut()
             .filter(|(k, _)| k.product_id == product_id)
             .reduce(|k, _| k)?;

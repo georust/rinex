@@ -58,9 +58,17 @@ are 100% dedicated to CGGTTS, sometimes we solve standard and CGGTTS solutions a
   - Navigation with GEO augmentation
 - [BINEX](./BINEX) demonstrations
   - The only open source real time oriented GNSS format
-- [CGGTTS](./CGGTTS) examples
-  - Code based navigation for CGGTTS synthesis
-  - CGGTTS from PPP solutions
+- [CGGTTS](./CGGTTS) oriented examples
+  - CPP for CGGTTS synthesis
+  - PPP for CGGTTS synthesis
+  - CGGTTS and common view comparison
+- [CONFIG](./CONFIG) are special preset to operate the toolbox
+more precisely. It contains a fully commented example for each script.
+- [CRX2RNX](./CRX2RNX) CRINEX decompression to readable RINEX (file I/O)
+- [RNX2CRX](./RNX2CRX) RINEX compression to compact CRINEX (file I/O)
+- [Galileo](./GAL) constellation post-processing
+  - Esbjerg and Mojn (DNK) stations surveying
+- [Galileo with SBAS augmentation](./GAL_SBAS)
 - [Clock](./CLK) special RINEX applications
   - Precise Clock products
   - SP3 and Clock comparison (for PPP)

@@ -1,6 +1,6 @@
 use crate::{
-    cli::Context,
-    positioning::{Buffer, EphemerisSource},
+    prelude::QcContext,
+    navigation::buffer::Buffer,
 };
 
 use std::{cell::RefCell, collections::HashMap};
@@ -12,9 +12,8 @@ use rinex::prelude::Carrier;
 
 use anise::errors::AlmanacError;
 
-pub struct Orbits<'a, 'b> {
+pub struct OrbitalContext<'a, 'b> {
     eos: bool,
-    has_precise: bool,
     eph: &'a RefCell<EphemerisSource<'b>>,
     buff: HashMap<SV, Buffer<(f64, f64, f64)>>,
     iter: Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + 'a>,
@@ -29,8 +28,8 @@ fn sun_unit_vector(almanac: &Almanac, t: Epoch) -> Result<Vector3<f64>, AlmanacE
     ))
 }
 
-impl<'a, 'b> Orbits<'a, 'b> {
-    pub fn new(ctx: &'a Context, eph: &'a RefCell<EphemerisSource<'b>>) -> Self {
+impl QcContext {
+    pub fn orbital_context(&self) -> OrbitalContext {
         let has_precise = ctx.data.sp3_data().is_some();
         let mut s = Self {
             eph,
@@ -83,6 +82,9 @@ impl<'a, 'b> Orbits<'a, 'b> {
         }
         s
     }
+}
+
+impl<'a, 'b> OrbitalContext<'a, 'b> {
     fn consume_one(&mut self) {
         if let Some((t, sv, (x_km, y_km, z_km))) = self.iter.next() {
             if let Some(buf) = self.buff.get_mut(&sv) {

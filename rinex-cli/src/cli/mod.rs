@@ -14,9 +14,6 @@ use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
 
 mod fops;
 mod positioning;
-mod workspace;
-
-pub use workspace::Workspace;
 
 use fops::{diff, filegen, merge, split, time_binning};
 
@@ -31,90 +28,12 @@ impl Default for Cli {
     }
 }
 
-pub struct RemoteReferenceSite {
-    pub data: QcContext,
-    pub rx_ecef: Option<(f64, f64, f64)>,
-}
-
 /// Context defined by User.
-pub struct Context {
+pub struct CliContext {
     /// Quiet option
     pub quiet: bool,
-    /// Data context defined by user.
-    /// In differential opmode, this is the ROVER.
-    pub data: QcContext,
-    /// Remote reference site (secondary dataset) defined by User.
-    /// Serves as reference point in differential techniques.
-    pub reference_site: Option<RemoteReferenceSite>,
-    /// Context name is derived from the primary file loaded in Self,
-    /// and mostly used in output products generation.
-    pub name: String,
-    /// Workspace is the place where this session will generate data.
-    /// By default it is set to $WORKSPACE/$PRIMARYFILE.
-    /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
-    /// $PRIMARYFILE is determined from the most major file contained in the dataset.
-    pub workspace: Workspace,
-    /// (RX) reference position to be used in further analysis.
-    /// It is either (priority order is important)
-    ///  1. manually defined by CLI
-    ///  2. determined from dataset
-    pub rx_ecef: Option<(f64, f64, f64)>,
-}
-
-impl Context {
-    /// Returns [Context] stem, used as session workspace
-    pub fn context_stem(data: &QcContext) -> String {
-        data.primary_path()
-            .expect("failed to define session")
-            .file_name()
-            .expect("failed to define session")
-            .to_string_lossy()
-            .to_string()
-    }
-
-    /// Use this if this session needs to generate output products
-    pub fn create_output_products_dir(&self) {
-        if self.data.has_brdc_navigation() {
-            self.workspace.create_subdir("OUTPUT/NAV");
-        }
-        if self.data.has_observation() {
-            self.workspace.create_subdir("OUTPUT/OBS");
-        }
-        if self.data.has_meteo() {
-            self.workspace.create_subdir("OUTPUT/METEO");
-        }
-        if self.data.has_doris() {
-            self.workspace.create_subdir("OUTPUT/DORIS");
-        }
-        if self.data.has_sp3() {
-            self.workspace.create_subdir("OUTPUT/SP3");
-        }
-        if self.data.has_ionex() {
-            self.workspace.create_subdir("OUTPUT/IONEX");
-        }
-        if self.data.has_clock() {
-            self.workspace.create_subdir("OUTPUT/CLOCK");
-        }
-    }
-
-    /// Macro to generate [File] from full [Path]
-    fn create_file(&self, path: &Path) -> File {
-        File::create(path).unwrap_or_else(|e| {
-            panic!("failed to create {}: {:?}", path.display(), e);
-        })
-    }
-
-    /// Returns True if [Context] is compatible with RTK positioning
-    pub fn rtk_compatible(&self) -> bool {
-        if let Some(remote) = &self.reference_site {
-            self.data.observation_data().is_some()
-                && self.rx_ecef.is_some()
-                && remote.data.observation_data().is_some()
-                && remote.rx_ecef.is_some()
-        } else {
-            false
-        }
-    }
+    /// Data context defined by user, expressed as [QcContext].
+    pub qc_context: QcContext,
 }
 
 impl Cli {
@@ -314,6 +233,7 @@ Otherwise it gets automatically picked up."))
             matches: cmd.get_matches(),
         }
     }
+
     /// Recursive browser depth
     pub fn recursive_depth(&self) -> usize {
         if let Some(depth) = self.matches.get_one::<u8>("depth") {
@@ -322,6 +242,17 @@ Otherwise it gets automatically picked up."))
             5
         }
     }
+
+    /// True when -q (quiet) option is active
+    pub fn quiet(&self) -> bool {
+        self.matches.get_flag("quiet")
+    }
+
+    /// True if forced report synthesis is requested
+    pub fn force_report_synthesis(&self) -> bool {
+        self.matches.get_flag("report-force")
+    }
+
     /// Returns individual input ROVER -d
     pub fn rover_directories(&self) -> Vec<&String> {
         if let Some(dirs) = self.matches.get_many::<String>("directory") {
@@ -330,6 +261,7 @@ Otherwise it gets automatically picked up."))
             Vec::new()
         }
     }
+
     /// Returns individual input ROVER -fp
     pub fn rover_files(&self) -> Vec<&String> {
         if let Some(fp) = self.matches.get_many::<String>("filepath") {
@@ -338,6 +270,7 @@ Otherwise it gets automatically picked up."))
             Vec::new()
         }
     }
+
     /// Returns individual input BASE STATION -d
     pub fn base_station_directories(&self) -> Vec<&String> {
         match self.matches.subcommand() {
@@ -351,6 +284,7 @@ Otherwise it gets automatically picked up."))
             _ => Vec::new(),
         }
     }
+
     /// Returns individual input BASE STATION -fp
     pub fn base_station_files(&self) -> Vec<&String> {
         match self.matches.subcommand() {
@@ -364,6 +298,7 @@ Otherwise it gets automatically picked up."))
             _ => Vec::new(),
         }
     }
+
     /// Returns preproc ops
     pub fn preprocessing(&self) -> Vec<&String> {
         if let Some(filters) = self.matches.get_many::<String>("preprocessing") {
@@ -372,33 +307,43 @@ Otherwise it gets automatically picked up."))
             Vec::new()
         }
     }
+
     pub fn gps_filter(&self) -> bool {
         self.matches.get_flag("gps-filter")
     }
+
     pub fn glo_filter(&self) -> bool {
         self.matches.get_flag("glo-filter")
     }
+
     pub fn gal_filter(&self) -> bool {
         self.matches.get_flag("gal-filter")
     }
+
     pub fn bds_filter(&self) -> bool {
         self.matches.get_flag("bds-filter")
     }
+
     pub fn bds_geo_filter(&self) -> bool {
         self.matches.get_flag("bds-geo-filter")
     }
+
     pub fn qzss_filter(&self) -> bool {
         self.matches.get_flag("qzss-filter")
     }
+
     pub fn sbas_filter(&self) -> bool {
         self.matches.get_flag("sbas-filter")
     }
+
     pub fn irnss_filter(&self) -> bool {
         self.matches.get_flag("irnss-filter")
     }
+
     pub fn zero_repair(&self) -> bool {
         self.matches.get_flag("zero-repair")
     }
+
     /*
      * faillible 3D coordinates parsing
      * it's better to panic if the descriptor is badly format
@@ -418,16 +363,19 @@ Otherwise it gets automatically picked up."))
             .unwrap_or_else(|_| panic!("failed to parse z coordinates"));
         (x, y, z)
     }
+
     fn manual_ecef(&self) -> Option<(f64, f64, f64)> {
         let desc = self.matches.get_one::<String>("rx-ecef")?;
         let ecef = Self::parse_3d_coordinates(desc);
         Some(ecef)
     }
+
     fn manual_geodetic(&self) -> Option<(f64, f64, f64)> {
         let desc = self.matches.get_one::<String>("rx-geo")?;
         let geo = Self::parse_3d_coordinates(desc);
         Some(geo)
     }
+
     /// Returns RX Position possibly specified by user
     pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
         if let Some(position) = self.manual_ecef() {
@@ -450,10 +398,6 @@ Otherwise it gets automatically picked up."))
         )
     }
 
-    /// True if forced report synthesis is requested
-    pub fn force_report_synthesis(&self) -> bool {
-        self.matches.get_flag("report-force")
-    }
     /*
      * We hash all vital CLI information.
      * This helps in determining whether we need to update an existing report
@@ -480,22 +424,24 @@ Otherwise it gets automatically picked up."))
         string.hash(&mut hasher);
         hasher.finish()
     }
+
     /// Returns QcConfig from command line
     pub fn qc_config(&self) -> QcConfig {
-        QcConfig {
-            manual_reference: if let Some(manual) = self.manual_position() {
-                Some(GroundPosition::from_ecef_wgs84(manual))
+        QcConfig::default().with_workspace(&self.workspace_path())
+    }
+
+    fn workspace_path(&self) -> String {
+        if let Ok(workspace) = std::env::var("GEORUST_WORKSPACE") {
+            workspace.to_string()
+        } else {
+            if let Some(workspace) = self.matches.get_one::<String>("workspace") {
+                workspace.to_string()
             } else {
-                None
-            },
-            report: if self.matches.get_flag("report-sum") {
-                QcReportType::Summary
-            } else {
-                QcReportType::Full
-            },
-            force_brdc_skyplot: self.matches.get_flag("report-brdc-sky"),
+                "WORKSPACE".to_string()
+            }
         }
     }
+
     /// Customized / manually defined output to be generated
     pub fn custom_output_name(&self) -> Option<&String> {
         self.matches.get_one::<String>("output-name")

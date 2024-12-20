@@ -1,32 +1,37 @@
 RINEX / GNSS QC
 ===============
 
-The QC library is our core GNSS post processing library.  
-It allows stacking several RINEX (any supported format) and / or SP3 for
-enhanced capabilities. The main reason for this library, is that one RINEX format
-is not enough to permit post processed navigation.
+The QC library is our core GNSS post processing library.
 
-The Qc library generates a `QcReport` (also refered to as output product), from the input context
-(also refered to, as Input Products). Currently, the geodetic report is our unique output product,
-the library will not generate other data. 
+It allows stacking GNSS data to form a complex superset that answers the requirements
+of post processed navigation. The QC library currently supports RINEX and SP3 datasets,
+but other formats may be introduced in the future.
 
-The report content depends on the provided combination of input files.  
-For example, providing Observation RINEX allows measurements to be plotted.  
-But only stacking Navigation RINEX will allow 3D projection, navigation and similar analysis. 
+## Input 
 
-The `QcReport` comprises one tab per input product (we call this the "dedicated" tab).  
-Depending on the input context, the geodetic report will be enhanced, for example with ionosphere analysis.
+`QcContext` is the main structure. It allows stacking and indexing RINEX datasets correctly.
+When built with the `sp3` feature, SP3 data sets may be loaded as well. It operates according
+to the `QcConfig` structure, that allows controlling a session easily. 
 
-The report is rendered in HTML, it is to this day the only format we can render. 
-This means the output products of this library are compatible with a web server, and the web browser
-is the standard option of the user to explore the results.
+## Workspace
 
-The geodetic report can be customized with extra Tabs, also refered to as extra chapters.  
-This gives freendom to the user to enhance the basic report with custom information.  
-The only requirement for this, is to implement the rendition Trait.
+A session will generate data into the `workspace`. The workspace location is defined
+manually in the `QcConfig`uration file. The library will make sure the workspace exists
+and will create it for you: all you need is write access to it.
 
-A report will always be rendered as long as your `QcContext` is not empty: at least one
-file has been loaded.
+## Reporting
+
+A session will generate a `QcReport` (also refered to as output product). 
+Its content is highly dependent on the input context. For example, you can only form
+navigation solutions if your context allows post processed navigation.
+
+Since the QC library can always generate a report, you can actually use it to
+understand what your dataset actually permits (especially with `summary` reporting style). 
+You can also use the session logs that will let you know how your session could be enhanced.
+
+The report is rendered in HTML and are therefore compatible with a web server and a web browser.  
+Extra chapters with custom content are allowed, it allows the user to form a complex geodetic report
+with chapters that initial Qc library is not aware of. All you need to do is implement the rendition `Trait`.
 
 ## Default behavior
 

@@ -335,11 +335,8 @@ pub struct Rinex {
     pub comments: Comments,
     /// [Record] is the actual file content and is heavily [RinexType] dependent
     pub record: Record,
-    /*
-     * File Production attributes, attached to Self
-     * parsed from files that follow stadard naming conventions
-     */
-    prod_attr: Option<ProductionAttributes>,
+    /// [ProductionAttributes] filled
+    pub production: ProductionAttributes,
 }
 
 impl Rinex {
@@ -349,16 +346,16 @@ impl Rinex {
             header,
             record,
             comments: record::Comments::new(),
-            prod_attr: None,
+            production: ProductionAttributes::default(),
         }
     }
 
     /// Builds a default Navigation [Rinex], useful in data production context.
     pub fn basic_nav() -> Self {
         Self {
-            prod_attr: None,
             header: Header::basic_nav(),
             comments: Default::default(),
+            production: ProductionAttributes::default(),
             record: Record::NavRecord(Default::default()),
         }
     }
@@ -366,9 +363,9 @@ impl Rinex {
     /// Builds a default Observation [Rinex], useful in data production context.
     pub fn basic_obs() -> Self {
         Self {
-            prod_attr: None,
             header: Header::basic_obs(),
             comments: Default::default(),
+            production: ProductionAttributes::default(),
             record: Record::ObsRecord(Default::default()),
         }
     }
@@ -376,9 +373,9 @@ impl Rinex {
     /// Builds a default Observation [CRINEX], useful in data production context.
     pub fn basic_crinex() -> Self {
         Self {
-            prod_attr: None,
             comments: Default::default(),
             header: Header::basic_crinex(),
+            production: ProductionAttributes::default(),
             record: Record::ObsRecord(Default::default()),
         }
     }
@@ -389,7 +386,7 @@ impl Rinex {
             header,
             record: self.record.clone(),
             comments: self.comments.clone(),
-            prod_attr: self.prod_attr.clone(),
+            production: self.production.clone(),
         }
     }
 
@@ -401,10 +398,10 @@ impl Rinex {
     /// Copy and return this [Rinex] with updated [Record]
     pub fn with_record(&self, record: Record) -> Self {
         Rinex {
+            record,
             header: self.header.clone(),
             comments: self.comments.clone(),
-            record,
-            prod_attr: self.prod_attr.clone(),
+            production: self.production.clone(),
         }
     }
 
@@ -447,8 +444,8 @@ impl Rinex {
         }
     }
 
-    /// Converts a CRINEX (compressed RINEX) into readable RINEX.
-    /// This has no effect if self is not an Observation RINEX.
+    /// Copies and convert this supposedly Compact (compressed) [Rinex] into
+    /// readable [Rinex]. This has no effect if this [Rinex] is not a compressed Observation RINEX.
     pub fn crnx2rnx(&self) -> Self {
         let mut s = self.clone();
         s.crnx2rnx_mut();
@@ -473,17 +470,23 @@ impl Rinex {
             self.header.program = Some(format!("geo-rust v{}", env!("CARGO_PKG_VERSION")));
         }
     }
-    /// Returns a filename that would describe Self according to standard naming conventions.
-    /// For this information to be 100% complete, Self must come from a file
-    /// that follows these conventions itself.
-    /// Otherwise you must provide [ProductionAttributes] yourself with "custom".
-    /// In any case, this method is infaillible. You will just lack more or
-    /// less information, depending on current context.
-    /// If you're working with Observation, Navigation or Meteo data,
-    /// and prefered shorter filenames (V2 like format): force short to "true".
-    /// Otherwse, we will prefer modern V3 like formats.
-    /// Use "suffix" to append a custom suffix like ".gz" for example.
-    /// NB this will only output uppercase filenames (as per standard specs).
+
+    /// Returns a file name that would describe this [Rinex] according to standard naming conventions.
+    /// For this information to be 100% complete, this [Rinex] must originate a file that
+    /// followed standard naming conventions itself.
+    ///
+    /// Otherwise you must provide [ProductionAttributes] yourself with "custom" values
+    /// to fullfil the remaining fields.
+    ///
+    /// In any case, this method is infaillible: we will always generate something,
+    /// missing fields are blanked.
+    ///
+    /// NB: this method
+    ///  - generates an upper case [String] as per standard conventions.
+    ///  - prefers lengthy (V3) names as opposed to short (V2) file names,
+    /// when applied to Observation, Navigation and Meteo formats.
+    /// Use "short" to change that default behavior.
+    ///  - you can use "suffix" to append a custom suffix to the standard name right away.
     /// ```
     /// use rinex::prelude::*;
     /// // Parse a File that follows standard naming conventions
@@ -506,23 +509,11 @@ impl Rinex {
                     Some(ref custom) => {
                         custom.name[..std::cmp::min(3, custom.name.len())].to_string()
                     },
-                    None => {
-                        if let Some(attr) = &self.prod_attr {
-                            attr.name.clone()
-                        } else {
-                            "XXX".to_string()
-                        }
-                    },
+                    None => self.production.name.clone(),
                 };
                 let region = match &custom {
                     Some(ref custom) => custom.region.unwrap_or('G'),
-                    None => {
-                        if let Some(attr) = &self.prod_attr {
-                            attr.region.unwrap_or('G')
-                        } else {
-                            'G'
-                        }
-                    },
+                    None => self.production.region.unwrap_or('G'),
                 };
                 let ddd = match &custom {
                     Some(ref custom) => format!("{:03}", custom.doy),
@@ -531,7 +522,7 @@ impl Rinex {
                             let ddd = epoch.day_of_year().round() as u32;
                             format!("{:03}", ddd)
                         } else {
-                            "DDD".to_string()
+                            format!("{:03}", self.production.doy)
                         }
                     },
                 };
@@ -542,7 +533,7 @@ impl Rinex {
                             let yy = epoch_decompose(epoch).0;
                             format!("{:02}", yy - 2_000)
                         } else {
-                            "YY".to_string()
+                            format!("{:02}", self.production.year - 2_000)
                         }
                     },
                 };
@@ -551,13 +542,7 @@ impl Rinex {
             RinexType::ObservationData | RinexType::MeteoData | RinexType::NavigationData => {
                 let name = match custom {
                     Some(ref custom) => custom.name.clone(),
-                    None => {
-                        if let Some(attr) = &self.prod_attr {
-                            attr.name.clone()
-                        } else {
-                            "XXXX".to_string()
-                        }
-                    },
+                    None => self.production.name.clone(),
                 };
                 let ddd = match &custom {
                     Some(ref custom) => format!("{:03}", custom.doy),
@@ -609,17 +594,14 @@ impl Rinex {
                             }
                         },
                         None => {
-                            if let Some(attr) = &self.prod_attr {
-                                if let Some(details) = &attr.details {
-                                    details.batch
-                                } else {
-                                    0
-                                }
+                            if let Some(details) = &self.production.details {
+                                details.batch
                             } else {
                                 0
                             }
                         },
                     };
+
                     let country = match &custom {
                         Some(ref custom) => {
                             if let Some(details) = &custom.details {
@@ -629,42 +611,37 @@ impl Rinex {
                             }
                         },
                         None => {
-                            if let Some(attr) = &self.prod_attr {
-                                if let Some(details) = &attr.details {
-                                    details.country.to_string()
-                                } else {
-                                    "CCC".to_string()
-                                }
+                            if let Some(details) = &self.production.details {
+                                details.country.to_string()
                             } else {
                                 "CCC".to_string()
                             }
                         },
                     };
+
                     let src = match &header.rcvr {
                         Some(_) => 'R', // means GNSS rcvr
                         None => {
-                            if let Some(attr) = &self.prod_attr {
-                                if let Some(details) = &attr.details {
-                                    details.data_src.to_char()
-                                } else {
-                                    'U' // means unspecified
-                                }
+                            if let Some(details) = &self.production.details {
+                                details.data_src.to_char()
                             } else {
-                                'U' // means unspecified
+                                'U' // means: unspecified
                             }
                         },
                     };
+
                     let yyyy = match &custom {
                         Some(ref custom) => format!("{:04}", custom.year),
                         None => {
-                            if let Some(epoch) = self.first_epoch() {
-                                let yy = epoch_decompose(epoch).0;
+                            if let Some(t0) = self.first_epoch() {
+                                let yy = epoch_decompose(t0).0;
                                 format!("{:04}", yy)
                             } else {
                                 "YYYY".to_string()
                             }
                         },
                     };
+
                     let (hh, mm) = match &custom {
                         Some(ref custom) => {
                             if let Some(details) = &custom.details {
@@ -682,6 +659,7 @@ impl Rinex {
                             }
                         },
                     };
+
                     // FFU sampling rate
                     let ffu = match self.dominant_sample_rate() {
                         Some(duration) => FFU::from(duration).to_string(),
@@ -701,27 +679,31 @@ impl Rinex {
                             }
                         },
                     };
+
                     // ffu only in OBS file names
                     let ffu = match rinextype {
                         RinexType::ObservationData => Some(ffu),
                         _ => None,
                     };
+
                     // PPU periodicity
-                    let ppu = if let Some(ref custom) = custom {
-                        if let Some(details) = &custom.details {
-                            details.ppu
-                        } else {
-                            PPU::Unspecified
-                        }
-                    } else if let Some(ref attr) = self.prod_attr {
-                        if let Some(details) = &attr.details {
-                            details.ppu
-                        } else {
-                            PPU::Unspecified
-                        }
-                    } else {
-                        PPU::Unspecified
+                    let ppu = match custom {
+                        Some(custom) => {
+                            if let Some(details) = &custom.details {
+                                details.ppu
+                            } else {
+                                PPU::Unspecified
+                            }
+                        },
+                        None => {
+                            if let Some(details) = &self.production.details {
+                                details.ppu
+                            } else {
+                                PPU::Unspecified
+                            }
+                        },
                     };
+
                     let fmt = match rinextype {
                         RinexType::ObservationData => "MO".to_string(),
                         RinexType::MeteoData => "MM".to_string(),
@@ -731,7 +713,9 @@ impl Rinex {
                         },
                         _ => unreachable!("unreachable fmt"),
                     };
+
                     let ext = if is_crinex { "crx" } else { "rnx" };
+
                     ProductionAttributes::rinex_long_format(
                         &name,
                         batch,
@@ -789,7 +773,7 @@ impl Rinex {
     /// ```
     pub fn guess_production_attributes(&self) -> ProductionAttributes {
         // start from content identified from the filename
-        let mut attributes = self.prod_attr.clone().unwrap_or_default();
+        let mut attributes = self.production.clone();
 
         let first_epoch = self.first_epoch();
         let last_epoch = self.last_epoch();
@@ -844,6 +828,7 @@ impl Rinex {
                 },
             },
         }
+
         if let Some(ref mut details) = attributes.details {
             if let Some((_, _, _, hh, mm, _, _)) = first_epoch_gregorian {
                 details.hh = hh;
@@ -900,11 +885,11 @@ impl Rinex {
         // Comments are preserved and store "as is"
         let (record, comments) = Record::parse(&mut header, reader)?;
 
-        Ok(Rinex {
+        Ok(Self {
             header,
-            record,
             comments,
-            prod_attr: None,
+            record,
+            production: Default::default(),
         })
     }
 
@@ -950,21 +935,20 @@ impl Rinex {
         let file_attributes = match path.file_name() {
             Some(filename) => {
                 let filename = filename.to_string_lossy().to_string();
-                if let Ok(attrs) = ProductionAttributes::from_str(&filename) {
-                    Some(attrs)
+                if let Ok(prod) = ProductionAttributes::from_str(&filename) {
+                    prod
                 } else {
-                    None
+                    ProductionAttributes::default()
                 }
             },
-            _ => None,
+            _ => ProductionAttributes::default(),
         };
 
         let fd = File::open(path).expect("from_file: open error");
 
         let mut reader = BufReader::new(fd);
-        let mut rinex = Rinex::parse(&mut reader)?;
-
-        rinex.prod_attr = file_attributes;
+        let mut rinex = Self::parse(&mut reader)?;
+        rinex.production = file_attributes;
         Ok(rinex)
     }
 
@@ -1035,21 +1019,21 @@ impl Rinex {
         let file_attributes = match path.file_name() {
             Some(filename) => {
                 let filename = filename.to_string_lossy().to_string();
-                if let Ok(attrs) = ProductionAttributes::from_str(&filename) {
-                    Some(attrs)
+                if let Ok(prod) = ProductionAttributes::from_str(&filename) {
+                    prod
                 } else {
-                    None
+                    ProductionAttributes::default()
                 }
             },
-            _ => None,
+            _ => ProductionAttributes::default(),
         };
 
         let fd = File::open(path).expect("from_file: open error");
 
         let reader = GzDecoder::new(fd);
         let mut reader = BufReader::new(reader);
-        let mut rinex = Rinex::parse(&mut reader)?;
-        rinex.prod_attr = file_attributes;
+        let mut rinex = Self::parse(&mut reader)?;
+        rinex.production = file_attributes;
         Ok(rinex)
     }
 

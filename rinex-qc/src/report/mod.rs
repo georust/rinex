@@ -1,141 +1,37 @@
 //! Generic analysis report
-use itertools::Itertools;
 use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
-use std::collections::HashMap;
-use thiserror::Error;
 
-use crate::prelude::{ProductType, QcConfig, QcContext, QcReportType};
+// // shared analysis, that may apply to several products
+// mod shared;
 
-// shared analysis, that may apply to several products
-mod shared;
-
+mod obs;
+pub(crate) mod shared;
 mod summary;
-use summary::QcSummary;
 
-mod rinex;
-use rinex::RINEXReport;
+use crate::{
+    cfg::{QcConfig, QcReportType},
+    context::QcContext,
+    report::{obs::QcObservationsReport, summary::QcSummary},
+};
 
-mod orbit;
-use orbit::OrbitReport;
+// mod rinex;
+// use rinex::RINEXReport;
 
-mod iono;
-use iono::IonoReport;
+// mod orbit;
+// use orbit::OrbitReport;
 
-#[cfg(feature = "sp3")]
-mod sp3;
+// mod iono;
+// use iono::IonoReport;
+
+// #[cfg(feature = "sp3")]
+// mod sp3;
 
 // preprocessed navi
 // mod navi;
 // use navi::QcNavi;
 
-#[cfg(feature = "sp3")]
-use sp3::SP3Report;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("non supported RINEX format")]
-    NonSupportedRINEX,
-    #[error("sampling analysis failed to return")]
-    SamplingAnalysis,
-    #[error("missing Clock RINEX header")]
-    MissingClockHeader,
-    #[error("missing Meteo RINEX header")]
-    MissingMeteoHeader,
-    #[error("missing IONEX header")]
-    MissingIonexHeader,
-}
-
-enum ProductReport {
-    /// RINEX products report
-    RINEX(RINEXReport),
-    #[cfg(feature = "sp3")]
-    /// SP3 product report
-    SP3(SP3Report),
-}
-
-impl ProductReport {
-    pub fn html_inline_menu_bar(&self) -> Markup {
-        match self {
-            #[cfg(feature = "sp3")]
-            Self::SP3(report) => report.html_inline_menu_bar(),
-            Self::RINEX(report) => report.html_inline_menu_bar(),
-        }
-    }
-}
-
-fn html_id(product: &ProductType) -> &str {
-    match product {
-        ProductType::IONEX => "ionex",
-        ProductType::DORIS => "doris",
-        ProductType::ANTEX => "antex",
-        ProductType::Observation => "obs",
-        ProductType::BroadcastNavigation => "brdc",
-        ProductType::HighPrecisionClock => "clk",
-        ProductType::MeteoObservation => "meteo",
-        #[cfg(feature = "sp3")]
-        ProductType::HighPrecisionOrbit => "sp3",
-        ProductType::Undefined => "undefined",
-    }
-}
-
-impl Render for ProductReport {
-    fn render(&self) -> Markup {
-        match self {
-            Self::RINEX(report) => match report {
-                RINEXReport::Obs(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                },
-                RINEXReport::Doris(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                },
-                RINEXReport::Ionex(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                },
-                RINEXReport::Nav(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                },
-                RINEXReport::Clk(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                },
-                RINEXReport::Meteo(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                },
-            },
-            #[cfg(feature = "sp3")]
-            Self::SP3(report) => {
-                html! {
-                    div class="section" {
-                        (report.render())
-                    }
-                }
-            },
-        }
-    }
-}
+// #[cfg(feature = "sp3")]
+// use sp3::SP3Report;
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -151,111 +47,60 @@ pub struct QcExtraPage {
 pub struct QcReport {
     /// Report Summary (always present)
     summary: QcSummary,
-    // /// Preprocessed NAVI (only when compatible)
-    // navi: Option<QcNavi>,
-    /// Orbital projections (only when compatible)
-    orbit: Option<OrbitReport>,
-    /// Ionosphere Reporting (only when compatible)
-    iono: IonoReport,
-    /// One tab per input product.
-    products: HashMap<ProductType, ProductReport>,
-    /// Custom chapters
+    /// Custom chapters (user created)
     custom_chapters: Vec<QcExtraPage>,
+    /// One page per Observations
+    observations: Option<QcObservationsReport>,
 }
 
 impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
-    pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
-        let ref_position = if let Some(position) = cfg.manual_reference {
-            Some(position)
+    pub fn new(ctx: &QcContext) -> Self {
+        let summary_only = ctx.cfg.report.report_type == QcReportType::Summary;
+        if summary_only {
+            Self::summary_only(ctx)
         } else {
-            context.reference_position()
-        };
-
-        let summary = QcSummary::new(&context, &cfg);
-        let summary_only = cfg.report == QcReportType::Summary;
-
-        let iono_report = IonoReport::new(&context, &cfg);
-
-        Self {
-            custom_chapters: Vec::new(),
-            // navi: {
-            //    if summary.navi.nav_compatible && !summary_only {
-            //        Some(QcNavi::new(context))
-            //    } else {
-            //        None
-            //    }
-            //},
-            // Build the report, which comprises
-            //   1. one general (high level) context tab
-            //   2. one tab per product type (which can have sub tabs itself)
-            //   3. one complex tab for "shared" analysis
-            products: {
-                let mut items = HashMap::<ProductType, ProductReport>::new();
-                if !summary_only {
-                    // one tab per RINEX product
-                    for product_id in [
-                        ProductType::Observation,
-                        ProductType::DORIS,
-                        ProductType::MeteoObservation,
-                        ProductType::BroadcastNavigation,
-                        ProductType::HighPrecisionClock,
-                        ProductType::IONEX,
-                        ProductType::ANTEX,
-                    ] {
-                        if let Some(rinex) = context.get_rinex_data(product_id) {
-                            if let Ok(report) = RINEXReport::new(rinex) {
-                                items.insert(product_id, ProductReport::RINEX(report));
-                            }
-                        }
-                    }
-
-                    // one tab for SP3 when supported
-                    #[cfg(feature = "sp3")]
-                    if let Some(sp3) = context.sp3_data() {
-                        items.insert(
-                            ProductType::HighPrecisionOrbit,
-                            ProductReport::SP3(SP3Report::new(sp3)),
-                        );
-                    }
-                }
-                items
-            },
-            iono: iono_report,
-            #[cfg(not(feature = "sp3"))]
-            orbit: {
-                if context.has_brdc_navigation() && !summary_only {
-                    Some(OrbitReport::new(
-                        context,
-                        ref_position,
-                        cfg.force_brdc_skyplot,
-                    ))
+            Self {
+                summary: QcSummary::new(ctx),
+                custom_chapters: Vec::new(),
+                observations: if ctx.has_observations() {
+                    Some(QcObservationsReport::new(ctx))
                 } else {
                     None
-                }
-            },
-            #[cfg(feature = "sp3")]
-            orbit: {
-                if (context.has_sp3() || context.has_brdc_navigation()) && !summary_only {
-                    Some(OrbitReport::new(
-                        context,
-                        ref_position,
-                        cfg.force_brdc_skyplot,
-                    ))
-                } else {
-                    None
-                }
-            },
-            summary,
+                },
+            }
         }
     }
+
+    /// Generates a summary only report
+    pub fn summary_only(ctx: &QcContext) -> Self {
+        let summary = QcSummary::new(&ctx);
+        Self {
+            summary,
+            custom_chapters: Vec::new(),
+            observations: Default::default(),
+        }
+    }
+
+    // navi: {
+    //    if summary.navi.nav_compatible && !summary_only {
+    //        Some(QcNavi::new(context))
+    //    } else {
+    //        None
+    //    }
+    //},
+    // Build the report, which comprises
+    //   1. one general (high level) context tab
+    //   2. one tab per product type (which can have sub tabs itself)
+    //   3. one complex tab for "shared" analysis
+
     /// Add a custom chapter to the report
     pub fn add_chapter(&mut self, chapter: QcExtraPage) {
         self.custom_chapters.push(chapter);
     }
-    /// Generates a menu bar to nagivate [Self]
-    #[cfg(not(feature = "sp3"))]
-    fn menu_bar(&self) -> Markup {
+
+    /// Generates a menu bar to nagivate
+    fn html_menu_bar(&self) -> Markup {
         html! {
             aside class="menu" {
                 p class="menu-label" {
@@ -270,77 +115,28 @@ impl QcReport {
                             "Summary"
                         }
                     }
-                    @for product in self.products.keys().sorted() {
-                        @if let Some(report) = self.products.get(&product) {
-                            li {
-                                (report.html_inline_menu_bar())
-                            }
-                        }
-                    }
-                    @for chapter in self.custom_chapters.iter() {
+                    @ if let Some(observations) = &self.observations {
                         li {
-                            (chapter.tab.render())
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
-                            "Wiki"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/tree/main/tutorials" style="margin-left:29px" {
-                            "Tutorials"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex" {
-                            span class="icon" {
-                                i class="fa-brands fa-github" {}
+                            a id="menu:observations" {
+                                span class="icon" {
+                                    i class="fa-solid fa-tower-broadcast" {}
+                                }
+                                "Observations"
                             }
-                            "Sources"
+                            (observations.html_menu_bar())
                         }
                     }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
-                            "Bug Report"
-                        }
-                    }
-                } // menu-list
-            }//menu
-        }
-    }
-    /// Generates a menu bar to nagivate [Self]
-    #[cfg(feature = "sp3")]
-    fn menu_bar(&self) -> Markup {
-        html! {
-            aside class="menu" {
-                p class="menu-label" {
-                    (format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION")))
-                }
-                ul class="menu-list" {
-                    li {
-                        a id="menu:summary" {
-                            span class="icon" {
-                                i class="fa fa-home" {}
-                            }
-                            "Summary"
-                        }
-                    }
-                    @for product in self.products.keys().sorted() {
-                        @if let Some(report) = self.products.get(&product) {
-                            li {
-                                (report.html_inline_menu_bar())
-                            }
-                        }
-                    }
-                    @if let Some(orbit) = &self.orbit {
+                    @ if !self.custom_chapters.is_empty() {
                         li {
-                            (orbit.html_inline_menu_bar())
-                        }
-                    }
-                    @for chapter in self.custom_chapters.iter() {
-                        li {
-                            (chapter.tab.render())
+                            a id="menu:custom-chapters" {
+                                ul class="menu-list" {
+                                    @for chapter in self.custom_chapters.iter() {
+                                        li {
+                                            (chapter.tab.render())
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     p class="menu-label" {
@@ -398,25 +194,12 @@ impl Render for QcReport {
                         div id="body" {
                             div class="columns is-fullheight" {
                                 div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile" {
-                                    (self.menu_bar())
-                                } // id=menubar
+                                    (self.html_menu_bar())
+                                }
                                 div class="hero is-fullheight" {
                                     div id="summary" class="container is-main" style="display:block" {
                                         div class="section" {
                                             (self.summary.render())
-                                        }
-                                    }//id=summary
-                                    @for product in self.products.keys().sorted() {
-                                        @if let Some(report) = self.products.get(product) {
-                                            div id=(html_id(product)) class="container is-main" style="display:none" {
-                                                (report.render())
-                                            }
-                                        }
-                                    }
-                                    // TODO: it should be feasible to run without SP3 support
-                                    @if let Some(orbit) = &self.orbit {
-                                        div id="orbit" class="container is-main" style="display:none" {
-                                            (orbit.render())
                                         }
                                     }
                                     div id="extra-chapters" class="container" style="display:block" {

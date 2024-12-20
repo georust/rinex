@@ -1,79 +1,6 @@
-use crate::context::Error;
-use rinex::types::Type as RinexType;
 use std::path::Path;
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ProductType {
-    /// Non Supported or unknown product
-    #[default]
-    Undefined,
-    /// GNSS signal observations provided by Observation RINEX.
-    Observation,
-    /// Meteo observations provided by Meteo RINEX.
-    MeteoObservation,
-    /// DORIS signals observation provided by special RINEX.
-    DORIS,
-    /// Broadcast Navigation message described by Navigation RINEX.
-    BroadcastNavigation,
-    /// High precision clock states described by Clock RINEX.
-    HighPrecisionClock,
-    /// Antenna calibration information described by ANTEX.
-    ANTEX,
-    /// Precise Ionosphere maps described by IONEX.
-    IONEX,
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// High precision orbital attitude described by SP3.
-    HighPrecisionOrbit,
-}
-
-impl std::fmt::Display for ProductType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Undefined => write!(f, "Undefined"),
-            Self::ANTEX => write!(f, "ANTEX"),
-            Self::IONEX => write!(f, "IONEX"),
-            Self::DORIS => write!(f, "DORIS"),
-            Self::Observation => write!(f, "Observation RINEX"),
-            Self::MeteoObservation => write!(f, "Meteo RINEX"),
-            Self::HighPrecisionClock => write!(f, "Clock RINEX"),
-            Self::BroadcastNavigation => write!(f, "Navigation RINEX"),
-            #[cfg(feature = "sp3")]
-            Self::HighPrecisionOrbit => write!(f, "SP3"),
-        }
-    }
-}
-
-impl std::fmt::LowerHex for ProductType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::ANTEX => write!(f, "ANTEX"),
-            Self::IONEX => write!(f, "IONEX"),
-            Self::DORIS => write!(f, "DORIS"),
-            Self::Observation => write!(f, "OBS"),
-            Self::Undefined => write!(f, "UNDEFINED"),
-            Self::MeteoObservation => write!(f, "METEO"),
-            Self::HighPrecisionClock => write!(f, "CLOCK"),
-            Self::BroadcastNavigation => write!(f, "BRDC"),
-            #[cfg(feature = "sp3")]
-            Self::HighPrecisionOrbit => write!(f, "SP3"),
-        }
-    }
-}
-
-impl From<RinexType> for ProductType {
-    fn from(rt: RinexType) -> Self {
-        match rt {
-            RinexType::ObservationData => Self::Observation,
-            RinexType::NavigationData => Self::BroadcastNavigation,
-            RinexType::MeteoData => Self::MeteoObservation,
-            RinexType::ClockData => Self::HighPrecisionClock,
-            RinexType::IonosphereMaps => Self::IONEX,
-            RinexType::AntennaData => Self::ANTEX,
-            RinexType::DORIS => Self::DORIS,
-        }
-    }
-}
+use crate::QcError;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MetaData {
@@ -81,23 +8,24 @@ pub struct MetaData {
     pub name: String,
     /// File extension
     pub extension: String,
-    /// Product Type
-    pub product_id: ProductType,
+    /// Unique ID (if any)
+    pub unique_id: Option<String>,
 }
 
 impl MetaData {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    /// Determine basic [MetaData] from provided [Path].
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, QcError> {
         let path = path.as_ref();
 
         let name = path
             .file_stem()
-            .ok_or(Error::FileName)?
+            .ok_or(QcError::FileName)?
             .to_string_lossy()
             .to_string();
 
         let mut extension = path
             .extension()
-            .ok_or(Error::FileName)?
+            .ok_or(QcError::FileName)?
             .to_string_lossy()
             .to_string();
 
@@ -114,8 +42,14 @@ impl MetaData {
             } else {
                 extension.to_string()
             },
-            product_id: Default::default(),
+            unique_id: None,
         })
+    }
+
+    /// Attach a unique identifier to this [MetaData].
+    /// The unique identifier will identify the dataset uniquely
+    pub fn set_unique_id(&mut self, unique_id: &str) {
+        self.unique_id = Some(unique_id.to_string());
     }
 }
 

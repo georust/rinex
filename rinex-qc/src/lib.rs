@@ -13,12 +13,13 @@ mod cfg;
 pub mod plot;
 
 mod context;
+mod navigation;
 mod report;
 
 pub mod prelude {
     pub use crate::{
-        cfg::{QcConfig, QcReportType},
-        context::{meta::ProductType, QcContext},
+        cfg::{ConfigError, QcConfig, QcReportType},
+        context::QcContext,
         report::{QcExtraPage, QcReport},
     };
     // Pub re-export
@@ -29,4 +30,38 @@ pub mod prelude {
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
     pub use std::path::Path;
+}
+
+use qc_traits::MergeError;
+use thiserror::Error;
+
+use anise::{
+    almanac::{metaload::MetaAlmanacError, planetary::PlanetaryDataError},
+    errors::AlmanacError,
+};
+
+use rinex::prelude::ParsingError as RinexParsingError;
+
+#[derive(Debug, Error)]
+pub enum QcError {
+    #[error("i/o error")]
+    IO,
+    #[error("almanac error")]
+    Alamanac(#[from] AlmanacError),
+    #[error("alamanc setup issue: {0}")]
+    MetaAlamanac(#[from] MetaAlmanacError),
+    #[error("frame model error: {0}")]
+    FrameModel(#[from] PlanetaryDataError),
+    #[error("internal indexing/sorting issue")]
+    DataIndexingIssue,
+    #[error("failed to extend gnss context")]
+    ContextExtensionError(#[from] MergeError),
+    #[error("non supported file format")]
+    NonSupportedFormat,
+    #[error("failed to determine file name")]
+    FileName,
+    #[error("failed to determine file extension")]
+    FileExtension,
+    #[error("invalid rinex format")]
+    RinexParsingError(#[from] RinexParsingError),
 }

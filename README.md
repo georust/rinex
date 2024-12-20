@@ -64,6 +64,13 @@ If you need to reference this work, please use the following model:
 - [RTK-RS](https://github.com/rtk-rs/gnss-rtk): Precise Positioning (calculations) in Rust
 * [GNSS](https://github.com/rtk-rs/gnss) in Rust
 
+## Getting started
+
+- [Read our wiki introduction](https://github.com/georust/rinex/wiki) and learn
+how to load your dataset
+- [Browse our tutorials](https://github.com/georust/rinex/wiki) and find what you're interested in
+- [Refer to our config scripts example](./tutorials/CONFIG) for advanced operations
+
 Repo architecture
 =================
 
