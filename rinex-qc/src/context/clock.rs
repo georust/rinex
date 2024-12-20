@@ -4,9 +4,11 @@ use crate::{
     QcError,
 };
 
+use itertools::Itertools;
+
 use std::collections::HashMap;
 
-use rinex::prelude::DOMES;
+use rinex::prelude::{Epoch, SV, DOMES};
 
 use qc_traits::{Filter, Merge, Preprocessing, Repair, RepairTrait};
 
@@ -71,14 +73,14 @@ impl ClockDataSet {
 }
 
 impl QcContext {
+
     /// Returns true if [QcContext] contains at least one
     /// precise clock RINEX product.
     pub fn has_precise_clock(&self) -> bool {
         self.clk_dataset.is_some()
     }
 
-    pub fn clock_iter(&self) -> Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a> {}
-
+    
     pub(crate) fn load_clock_rinex(
         &mut self,
         meta: &mut MetaData,

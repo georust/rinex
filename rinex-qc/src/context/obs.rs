@@ -74,46 +74,10 @@ impl ObservationUniqueId {
     }
 }
 
-#[derive(Default)]
-pub struct ObservationDataSet {
-    /// Designated ROVER in case of RTK
-    pub designated_rover: Option<String>,
-    /// Observation [Rinex] sorted by [MetaData]
-    pub inner: HashMap<MetaData, Rinex>,
-}
-
-impl std::fmt::Debug for ObservationDataSet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(rover) = &self.designated_rover {
-            write!(f, "Designated ROVER: {}", rover)?;
-        }
-        for meta in self.inner.keys() {
-            write!(f, "Observation RINEX: {}", meta.name)?;
-        }
-        Ok(())
-    }
-}
-
-impl ObservationDataSet {
-    /// Applies [Filter] to whole data set without limitation
-    pub fn filter_mut(&mut self, filter: &Filter) {
-        for (_, inner) in self.inner.iter_mut() {
-            inner.filter_mut(&filter);
-        }
-    }
-
-    /// Applies [Repair]ment to whole data set without limitation
-    pub fn repair_mut(&mut self, repair: Repair) {
-        for (_, inner) in self.inner.iter_mut() {
-            inner.repair_mut(repair);
-        }
-    }
-}
-
 impl QcContext {
     /// True if QcObservationsDataSet is not empty
     pub fn has_observations(&self) -> bool {
-        self.obs_dataset.is_some()
+        !self.obs_dataset.is_empty()
     }
 
     /// Loads a new Observation [Rinex] into this [QcContext]
@@ -132,17 +96,10 @@ impl QcContext {
         }
 
         // Now proceed to stacking
-        if let Some(observations) = &mut self.obs_dataset {
-            if let Some(entry) = observations.inner.get_mut(&meta) {
-                entry.merge_mut(&data)?;
-            } else {
-                observations.inner.insert(meta.clone(), data);
-            }
+        if let Some(entry) = self.obs_dataset.get_mut(&meta) {
+            entry.merge_mut(&data)?;
         } else {
-            // First Observation entry
-            let mut data_set = ObservationDataSet::default();
-            data_set.inner.insert(meta.clone(), data);
-            self.obs_dataset = Some(data_set);
+            self.obs_dataset.insert(meta.clone(), data);
         }
 
         Ok(())
@@ -170,11 +127,9 @@ mod test {
         let mut ctx = QcContext::new(cfg).unwrap();
 
         ctx.load_file(&path).unwrap();
-        assert!(ctx.has_observations());
 
-        let observations = ctx.obs_dataset.expect("load_rinex failure");
-        assert!(observations.designated_rover.is_none());
-        assert_eq!(observations.inner.len(), 1);
+        assert!(ctx.has_observations());
+        assert_eq!(ctx.obs_dataset.len(), 1);
 
         let key = MetaData {
             name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
@@ -183,7 +138,7 @@ mod test {
         };
 
         assert!(
-            observations.inner.get(&key).is_some(),
+            ctx.obs_dataset.get(&key).is_some(),
             "invalid gnss receiver indexing"
         );
 
@@ -194,11 +149,9 @@ mod test {
         let mut ctx = QcContext::new(cfg).unwrap();
 
         ctx.load_file(&path).unwrap();
-        assert!(ctx.has_observations());
 
-        let observations = ctx.obs_dataset.as_ref().expect("load_rinex failure");
-        assert!(observations.designated_rover.is_none());
-        assert_eq!(observations.inner.len(), 1);
+        assert!(ctx.has_observations());
+        assert_eq!(ctx.obs_dataset.len(), 1);
 
         let key = MetaData {
             name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
@@ -207,7 +160,7 @@ mod test {
         };
 
         assert!(
-            observations.inner.get(&key).is_some(),
+            ctx.obs_dataset.get(&key).is_some(),
             "invalid gnss receiver indexing"
         );
 
@@ -219,9 +172,8 @@ mod test {
 
         ctx.load_file(&path).unwrap();
 
-        let observations = ctx.obs_dataset.expect("load_rinex failure");
-        assert!(observations.designated_rover.is_none());
-        assert_eq!(observations.inner.len(), 1);
+        assert!(ctx.has_observations());
+        assert_eq!(ctx.obs_dataset.len(), 1);
 
         let key = MetaData {
             name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
@@ -230,7 +182,7 @@ mod test {
         };
 
         assert!(
-            observations.inner.get(&key).is_some(),
+            ctx.obs_dataset.get(&key).is_some(),
             "invalid gnss receiver indexing"
         );
     }
@@ -256,9 +208,7 @@ mod test {
         ctx.load_file(&path_1).unwrap();
         assert!(ctx.has_observations());
 
-        let observations = ctx.obs_dataset.expect("load_rinex failure");
-        assert!(observations.designated_rover.is_none());
-        assert_eq!(observations.inner.len(), 1);
+        assert_eq!(ctx.obs_dataset.len(), 1);
 
         let cfg = QcConfig::default();
         let mut ctx = QcContext::new(cfg).unwrap();
@@ -268,9 +218,6 @@ mod test {
 
         ctx.load_file(&path_2).unwrap();
         assert!(ctx.has_observations());
-
-        let observations = ctx.obs_dataset.expect("load_rinex failure");
-        assert!(observations.designated_rover.is_none());
-        assert_eq!(observations.inner.len(), 2);
+        assert_eq!(ctx.obs_dataset.len(), 2);
     }
 }

@@ -54,13 +54,7 @@ pub struct QcObservationsReport {
 
 impl QcObservationsReport {
     pub fn new(ctx: &QcContext) -> Self {
-        let observations = ctx.obs_dataset.as_ref().unwrap();
         let mut pages = Vec::new();
-
-        for (k, v) in observations.inner.iter() {
-            pages.push(QcObservationReportPage::new(k, v));
-        }
-
         Self { pages }
     }
 

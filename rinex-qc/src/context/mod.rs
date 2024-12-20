@@ -29,20 +29,18 @@ use sp3::prelude::SP3;
 mod processing;
 
 pub(crate) mod meta;
+pub(crate) mod nav;
 pub(crate) mod obs;
-//pub(crate) mod navi;
-pub(crate) mod clock;
-// pub(crate) mod iono;
-// pub(crate) mod meteo;
 pub(crate) mod rnx;
-// pub(crate) mod rtk;
 pub(crate) mod session;
-// pub(crate) mod sky;
-// pub(crate) mod user_rover;
 
 use crate::{
     cfg::{QcConfig, QcFrameModel},
-    context::{clock::ClockDataSet, meta::MetaData, obs::ObservationDataSet},
+    context::{
+        // clock::ClockDataSet,
+        // sky::SkyContext,
+        meta::MetaData,
+    },
     report::QcReport,
     QcError,
 };
@@ -57,12 +55,12 @@ pub struct QcContext {
     pub almanac: Almanac,
     /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
-    /// [ObservationDataSet]
-    pub(crate) obs_dataset: Option<ObservationDataSet>,
-    /// [ClockDataSet]
-    pub(crate) clk_dataset: Option<ClockDataSet>,
-    // /// [SkyContext] that applies worldwidely
-    // sky_context: SkyContext,
+    /// Observation [Rinex] stored by GNSS receivers
+    pub obs_dataset: HashMap<MetaData, Rinex>,
+    /// Navigation [Rinex] stored by production agencies
+    pub nav_dataset: HashMap<MetaData, Rinex>,
+    // pub(crate) sky_context: Option<SkyContext>,
+    // pub(crate) clk_dataset: Option<ClockDataSet>,
     // /// [MeteoContext] that either applies regionally or worldwidely
     // meteo_context: MeteoContext,
     // /// [ClockContext] that either applies worldwidely
@@ -188,7 +186,7 @@ impl QcContext {
             almanac,
             earth_cef,
             obs_dataset: Default::default(),
-            clk_dataset: Default::default(),
+            nav_dataset: Default::default(),
         };
 
         s.deploy()?;
@@ -269,26 +267,17 @@ impl QcContext {
     }
 
     pub fn filter_mut(&mut self, filter: &Filter) {
-        // self.sky_context.filter_mut(&filter);
-        // self.meteo_context.filter_mut(&filter);
-        // self.iono_context.filter_mut(&filter);
-        if let Some(dataset) = &mut self.obs_dataset {
-            dataset.filter_mut(&filter);
+        for (_, rinex) in self.obs_dataset.iter_mut() {
+            rinex.filter_mut(&filter);
         }
-        if let Some(dataset) = &mut self.clk_dataset {
-            dataset.filter_mut(&filter);
+        for (_, rinex) in self.nav_dataset.iter_mut() {
+            rinex.filter_mut(&filter);
         }
     }
 
     pub fn repair_mut(&mut self, repair: Repair) {
-        // self.sky_context.repair_mut(repair);
-        // self.meteo_context.repair_mut(repair);
-        // self.iono_context.repair_mut(repair);
-        if let Some(data_set) = &mut self.obs_dataset {
-            data_set.repair_mut(repair);
-        }
-        if let Some(data_set) = &mut self.clk_dataset {
-            data_set.repair_mut(repair);
+        for (_, rinex) in self.obs_dataset.iter_mut() {
+            rinex.repair_mut(repair);
         }
     }
 
@@ -304,11 +293,11 @@ impl QcContext {
 impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(dataset) = &self.obs_dataset {
-            write!(f, "{:?}", dataset)?;
+        for (k, _) in &self.obs_dataset {
+            write!(f, "Observation RINEX: {}", k.name)?;
         }
-        if let Some(dataset) = &self.clk_dataset {
-            write!(f, "{:?}", dataset)?;
+        for (k, _) in &self.nav_dataset {
+            write!(f, "Navigation RINEX: {}", k.name)?;
         }
         Ok(())
     }

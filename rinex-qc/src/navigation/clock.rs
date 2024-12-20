@@ -1,4 +1,4 @@
-use rinex::prelude::SV;
+use rinex::prelude::{SV, Epoch};
 
 use crate::{context::QcContext, navigation::Buffer};
 
@@ -10,10 +10,10 @@ use std::{cell::RefCell, collections::HashMap};
 //    fn next_clock_at(&mut self, t: Epoch, sv: SV) -> Option<ClockCorrection>;
 //}
 
-pub struct ClockContext<'a> {
+pub struct ClockContext {
     eos: bool,
-    precise_buffer: HashMap<SV, Buffer<f64>>,
-    precise_iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
+    //precise_buffer: HashMap<SV, Buffer<f64>>,
+    //precise_iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
     // eph: &'a RefCell<EphemerisSource<'b>>,
     // iter: Box<dyn Iterator<Item = (Epoch, SV, f64)> + 'a>,
 }
@@ -58,17 +58,12 @@ pub struct ClockContext<'a> {
 //}
 
 impl QcContext {
+
     /// Create efficient [ClockContext] dedicated to browsing
     /// entire [QcContext] once and synchronously.
     pub fn clock_context(&self) -> ClockContext {
         ClockContext {
             eos: false,
-            precise_buffer: HashMap::new(),
-            precise_iter: if let Some(clk) = &self.clk_dataset {
-                clk.precise_clock()
-            } else {
-                Box::new([].into_iter())
-            },
         }
         //let has_precise = ctx.data.clock_data().is_some();
         //let mut s = Self {
@@ -92,6 +87,7 @@ impl QcContext {
         //}
         //s
     }
+
 }
 
 //    fn consume_many(&mut self, n: usize) {
