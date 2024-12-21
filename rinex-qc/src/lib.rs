@@ -21,6 +21,7 @@ pub mod prelude {
         cfg::{ConfigError, QcConfig, QcReportType},
         context::QcContext,
         report::{QcExtraPage, QcReport},
+        QcError,
     };
     // Pub re-export
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};

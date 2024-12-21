@@ -1,8 +1,8 @@
-use crate::cli::Context;
 use crate::fops::{custom_prod_attributes, output_filename};
 use crate::Error;
 use clap::ArgMatches;
-use rinex_qc::prelude::ProductType;
+
+use rinex_qc::prelude::QcContext;
 
 #[cfg(feature = "csv")]
 use crate::fops::csv::{
@@ -11,101 +11,60 @@ use crate::fops::csv::{
     write_obs_rinex as write_obs_rinex_csv,
 };
 
-/*
- * Dumps current context (usually preprocessed)
- * into either RINEX/SP3 format (maintaining consistent format) or CSV
- */
-pub fn filegen(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
+/// Dump current context (possibly preprocessed) data context
+/// into encountered formats (all formats preserved)
+/// For example: RINEX will produce RINEX.
+/// --csv export exists.
+/// The --rnx2crx and --crx2rnx may have already been applied and
+/// are naturally taken into account.
+pub fn filegen(
+    ctx: &QcContext,
+    matches: &ArgMatches,
+    submatches: &ArgMatches,
+) -> Result<(), Error> {
     #[cfg(feature = "csv")]
     if submatches.get_flag("csv") {
         write_csv(ctx, matches, submatches)?;
         return Ok(());
     }
+
     #[cfg(not(feature = "csv"))]
     if submatches.get_flag("csv") {
-        panic!("Not available. Activate `csv` feature first.")
+        panic!("Not available. Compile with `csv` feature.")
     }
 
     write(ctx, matches, submatches)?;
     Ok(())
 }
 
-#[cfg(feature = "csv")]
-fn write_csv(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
-    let ctx_data = &ctx.data;
-    if let Some(rinex) = ctx_data.get_rinex_data(ProductType::Observation) {
-        ctx.workspace.create_subdir("OBSERVATIONS");
+//#[cfg(feature = "csv")]
+fn write_csv(ctx: &QcContext, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
+    for (meta, rinex) in ctx.obs_dataset.iter() {
+        let fullpath = ctx.cfg.workspace.join(&meta.name);
 
-        let prod = custom_prod_attributes(rinex, submatches);
+        rinex
+            .to_file(&fullpath)
+            .unwrap_or_else(|_| panic!("failed to generate \"{}\"", meta.name));
 
-        let output = ctx
-            .workspace
-            .root
-            .join("OBSERVATIONS")
-            .join(output_filename(rinex, matches, submatches, prod));
-        write_obs_rinex_csv(rinex, &output)?;
+        write_obs_rinex_csv(rinex, &fullpath)?;
 
-        info!(
-            "{} dumped in {}",
-            ProductType::Observation,
-            output.display()
-        );
-
-        if let Some(brdc) = ctx_data.get_rinex_data(ProductType::BroadcastNavigation) {
-            ctx.workspace.create_subdir("BRDC");
-            let prod = custom_prod_attributes(brdc, submatches);
-            let output = ctx
-                .workspace
-                .root
-                .join("BRDC")
-                .join(output_filename(brdc, matches, submatches, prod));
-            write_nav_rinex_csv(rinex, brdc, &output)?;
-            info!(
-                "{} dumped in {}",
-                ProductType::BroadcastNavigation,
-                output.display()
-            );
-        }
+        info!("OBSERVATION RINEX \"{}\" dumped as csv", meta.name);
     }
-    if let Some(sp3) = ctx_data.sp3_data() {
-        // TODO
-        // write_sp3_csv(rinex, &output)?;
-        // info!("{} dumped in {}", ProductType::HighPrecisionOrbit, output);
-    }
+
     Ok(())
 }
 
-fn write(ctx: &Context, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
-    let ctx_data = &ctx.data;
-    for (product, dir) in [
-        (ProductType::DORIS, "DORIS"),
-        (ProductType::Observation, "OBSERVATIONS"),
-        (ProductType::MeteoObservation, "METEO"),
-        (ProductType::BroadcastNavigation, "BRDC"),
-        (ProductType::HighPrecisionClock, "CLOCK"),
-        (ProductType::HighPrecisionOrbit, "SP3"),
-        (ProductType::IONEX, "IONEX"),
-        (ProductType::ANTEX, "ANTEX"),
-    ] {
-        if let Some(rinex) = ctx_data.get_rinex_data(product) {
-            ctx.workspace.create_subdir(dir);
-            let prod = custom_prod_attributes(rinex, submatches);
-            let filename = output_filename(rinex, matches, submatches, prod);
+fn write(ctx: &QcContext, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
+    for (meta, rinex) in ctx.obs_dataset.iter() {
+        let auto_generated_name = rinex.standard_filename(false, None, None);
+        let fullpath = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
 
-            let output_path = ctx
-                .workspace
-                .root
-                .join(dir)
-                .join(filename)
-                .to_string_lossy()
-                .to_string();
+        rinex
+            .to_file(&fullpath)
+            .unwrap_or_else(|_| panic!("failed to generate OBSERVATION \"{}\"", meta.name));
 
-            rinex
-                .to_file(&output_path)
-                .unwrap_or_else(|_| panic!("failed to generate {} \"{}\"", product, output_path));
-
-            info!("{} RINEX \"{}\" has been generated", product, output_path);
-        }
+        info!("OBSERVATION RINEX \"{}\" has been generated", meta.name);
     }
+
     Ok(())
 }

@@ -18,4 +18,22 @@ impl QcContext {
             _ => Err(QcError::NonSupportedFormat),
         }
     }
+
+    /// Converts all internal Compressed RINEx (CRINEx) to RINEx (if any).
+    /// This only impacts possibly loaded Observation RINEX files and has
+    /// no effect if none are present.
+    pub fn crx2rnx_mut(&mut self) {
+        for (_, rinex) in &mut self.obs_dataset {
+            rinex.crnx2rnx_mut();
+        }
+    }
+
+    /// Converts all internal readable RINEx to CRINEx (if any).
+    /// This only impacts possibly loaded Observation RINEX files and has
+    /// no effect if none are present.
+    pub fn rnx2crx_mut(&mut self) {
+        for (_, rinex) in &mut self.obs_dataset {
+            rinex.rnx2crnx_mut();
+        }
+    }
 }

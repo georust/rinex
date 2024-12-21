@@ -7,19 +7,20 @@ extern crate gnss_rs as gnss;
 use std::io::Write;
 use std::{io::Error as IoError, path::Path};
 
-//mod analysis; // basic analysis
-mod cli; // command line interface
-         // mod fops;
-         //mod positioning;
-
+//mod analysis;
+mod cli;
+mod fops;
 mod preprocessing;
+
 use preprocessing::preprocess;
 
 // mod report;
 // use report::Report;
 
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
-use rinex_qc::prelude::{MergeError, QcConfig, QcContext, QcExtraPage, Render};
+use rinex_qc::prelude::{MergeError, QcContext, QcError, QcExtraPage, Render};
+
+use crate::fops::filegen as fops_filegen;
 
 use walkdir::WalkDir;
 
@@ -41,18 +42,8 @@ pub enum Error {
     StdioError(#[from] IoError),
     #[error("rinex parsing")]
     RinexParsing(#[from] RinexParsingError),
-    #[error("rinex formatting")]
-    RinexFormatting(#[from] RinexFormattingError),
-    #[error("missing OBS RINEX")]
-    MissingObservationRinex,
-    #[error("missing (BRDC) NAV RINEX")]
-    MissingNavigationRinex,
-    #[error("missing IONEX")]
-    MissingIONEX,
-    #[error("missing Meteo RINEX")]
-    MissingMeteoRinex,
-    #[error("missing Clock RINEX")]
-    MissingClockRinex,
+    #[error("qc error")]
+    QcError(#[from] QcError),
     // #[error("positioning solver error")]
     // PositioningSolverError(#[from] positioning::Error),
     #[cfg(feature = "csv")]
@@ -147,9 +138,19 @@ fn user_data_parsing(
     // Preprocessing: Resampling, Filtering..
     preprocess(&mut ctx, cli);
 
+    // Possible requested data transformation(s)
+    if cli.rnx2crx() {
+        info!("rnx2crx: internal compression");
+        ctx.rnx2crx_mut();
+    }
+    if cli.crx2rnx() {
+        info!("crx2rnx: internal decompression");
+        ctx.crx2rnx_mut();
+    }
+
+    // Special print in case of RTK
+    // it helps differentiate between remote and local context
     match cli.matches.subcommand() {
-        // Special print in case of RTK
-        // it helps differentiate between remote and local context
         Some(("rtk", _)) => {
             if is_rover {
                 debug!("ROVER Dataset: {:?}", ctx);
@@ -198,24 +199,24 @@ pub fn main() -> Result<(), Error> {
     // let ctx_position = data_ctx.reference_position();
     // let ctx_stem = Context::context_stem(&mut data_ctx);
 
-    // On File Operations (Data synthesis)
-    //  prepare one subfolder to store the output products
-    if cli.has_fops_output_product() {}
+    // When output product needs to be generated (other than simple report.html)
+    // we put them into seperate folders
+    if cli.has_fops_output_product() {
+        for (k, _) in ctx.qc_context.obs_dataset.iter() {
+            ctx.qc_context.create_subdir(&k.name)?;
+        }
+    }
 
-    /*
-     * Exclusive opmodes
-     */
     let mut extra_pages = Vec::<QcExtraPage>::new();
 
+    // Exclusive opmodes (mostlye file operations)
+    // We handle them right here and exit early.
+    // Avoids proceed to report synthesis (default opmode).
     match cli.matches.subcommand() {
-        /*
-         *  File operations abort here and do not windup in analysis opmode.
-         *  Users needs to then deploy analysis mode on previously generated files.
-         */
-        // Some(("filegen", submatches)) => {
-        //     fops::filegen(&ctx, &cli.matches, submatches)?;
-        //     return Ok(());
-        // },
+        Some(("filegen", submatches)) => {
+            fops_filegen(&ctx.qc_context, &cli.matches, submatches)?;
+            return Ok(());
+        },
         // Some(("merge", submatches)) => {
         //     fops::merge(&ctx, submatches)?;
         //     return Ok(());

@@ -41,7 +41,7 @@ impl Cli {
     pub fn new() -> Self {
         let cmd =
                 Command::new("rinex-cli")
-                    .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
+                    .author("Guillaume W. Bres <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
                     .about("RINEX post processing")
                     .long_about("RINEX-Cli is the command line interface
@@ -114,48 +114,9 @@ but you can extend that with --depth. Refer to -f for more information."))
                         .value_parser(value_parser!(PathBuf))
                         .help("Define custom workspace location. See --help.")
                         .long_help("The Workspace is where Output Products are to be generated.
-By default the $RINEX_WORKSPACE variable is prefered if it is defined.
-You can also use this flag to customize it. 
-If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
-        .next_help_heading("Output customization")
-        .arg(
-            Arg::new("output-name")
-                .short('o')
-                .action(ArgAction::Set)
-                .help("Customize output file or report name.
-In analysis opmode, report is named index.html by default, this will redefine that.
-In file operations (filegen, etc..) we can manually define output filenames with this option."))
-        .next_help_heading("Report customization")
-        .arg(
-            Arg::new("report-sum")
-                .long("sum")
-                .action(ArgAction::SetTrue)
-                .help("Restrict report to summary header only (quicker rendition)")
-        )
-        .arg(
-            Arg::new("report-force")
-                .short('f')
-                .long("force")
-                .action(ArgAction::SetTrue)
-                .help("Force report synthesis.
-By default, report synthesis happens once per input set (file combnation and cli options).
-Use this option to force report regeneration.
-This has no effect on file operations that do not synthesize a report."))
-        .arg(
-            Arg::new("report-brdc-sky")
-                .long("brdc-sky")
-                .action(ArgAction::SetTrue)
-                .help("When SP3 and/or BRDC RINEX is present,
-the skyplot (compass) projection is only calculated from the SP3 coordinates (highest precision). 
-Use this option to also calculate it from radio messages (for comparison purposes for example).")
-        )
-        .arg(
-            Arg::new("report-nostats")
-                .long("nostats")
-                .action(ArgAction::SetTrue)
-                .help("Hide statistical annotations that might be present in some plots.
-This has no effect on applications compiled without plot and statistical options.")
-        )
+By default the $GEORUST_WORKSPACE variable is prefered.
+Use -w to manually define it and avoid using the environment variable.
+When no workspace is defined, we simply create a local folder."))
         .next_help_heading("Preprocessing")
             .arg(Arg::new("gps-filter")
                 .short('G')
@@ -195,11 +156,56 @@ This has no effect on applications compiled without plot and statistical options
                 .value_delimiter(';')
                 .action(ArgAction::Append)
                 .help("Filter designer. Refer to []."))
-            .next_help_heading("RINEX Repair")
+        .next_help_heading("Data Reporting")
+        .arg(
+            Arg::new("report-sum")
+                .long("sum")
+                .action(ArgAction::SetTrue)
+                .help("Restrict report to a summary only (quicker rendition)")
+        )
+        .arg(
+            Arg::new("output-name")
+                .short('o')
+                .action(ArgAction::Set)
+                .help("Customize output file or report name.
+In analysis opmode, report is named index.html by default, this will redefine that.
+In file operations (filegen, etc..) we can manually define output filenames with this option."))
+        .arg(
+            Arg::new("report-force")
+                .short('f')
+                .long("force")
+                .action(ArgAction::SetTrue)
+                .help("Force report synthesis.
+By default, report synthesis happens once per input set (file combnation and cli options).
+Use this option to force report regeneration.
+This has no effect on file operations that do not synthesize a report."))
+        .arg(
+            Arg::new("report-brdc-sky")
+                .long("brdc-sky")
+                .action(ArgAction::SetTrue)
+                .help("When SP3 and/or BRDC RINEX is present,
+the skyplot (compass) projection is only calculated from the SP3 coordinates (highest precision). 
+Use this option to also calculate it from radio messages (for comparison purposes for example).")
+        )
+            .next_help_heading("RINEX Data (specific)")
+                .arg(
+                    Arg::new("rnx2crx")
+                        .long("rnx2crx")
+                        .action(ArgAction::SetTrue)
+                        .help("Convert all observations to CRINEX (if any).
+In file synthesis, we will only generate compressed RINEX.")
+                )
+                .arg(
+                    Arg::new("crx2rnx")
+                        .long("crx2rnx")
+                        .action(ArgAction::SetTrue)
+                        .help("Convert all compressed observations to RINEX (if any).
+In file synthesis, we will only generate readable RINEX.")
+                )
                 .arg(Arg::new("zero-repair")
                     .short('z')
                     .action(ArgAction::SetTrue)
-                    .help("Remove all zero (=null) values. See --help")
+                    .help("(Zero Repair) remove all zero (=null) values. See --help")
                     .long_help("
 Removes all zero (null) values from data records.
 Specifically in NAV and OBS RINEX. Null NAV records are forbidden.
@@ -342,6 +348,14 @@ Otherwise it gets automatically picked up."))
 
     pub fn zero_repair(&self) -> bool {
         self.matches.get_flag("zero-repair")
+    }
+
+    pub fn rnx2crx(&self) -> bool {
+        self.matches.get_flag("rnx2crx")
+    }
+
+    pub fn crx2rnx(&self) -> bool {
+        self.matches.get_flag("crx2rnx")
     }
 
     /*

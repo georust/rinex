@@ -1,17 +1,16 @@
 Scripts
 =======
 
-This serie helps and illustrates most of the capabilities of the software contained
-in this repo and the ecosystem. We split the examples by topic. For each topic, you will find
-at least one example.
+This folder will help you get started and illustrates all the capabilities of the toolbox.  
+Topics are split by either opmodes or specific constellations.
 
-Before trying to understand our examples, you should read the part of our Wiki
-that explains [how to load your data into the toolbox](https://github.com/georust/wiki)
+Before trying to run your own processing pipeline, you should understand 
+[how to load your own data into the toolbox](https://github.com/georust/wiki)
 
 Getting started
 ===============
 
-Our examples expect the binaries to have been generated with all features activated (heaviest form):
+Our examples expect the binaries to have been generated with all features activated:
 
 ```bash
 # download the toolbox and dataset
@@ -33,6 +32,8 @@ For example, this will make you see any trace
 export RUST_LOG=trace
 ```
 
+When working with the toolbox, use the `$GEORUST\_WORKSPACE` variable or `-w` to define your own.
+
 Tutorials
 =========
 
@@ -44,9 +45,9 @@ This is also sometimes referred to as "real time" surveying, because it is exact
 navigating in real-time, except that the radio messages were stored as RINEX files, which
 allows to replay them later.
 
-`-sum` scripts emphasize that the analysis is generated with the `-summary` option.
+`-sum` scripts emphasize that the analysis is restricted to summary report.
 
-CGGTTS solutions are special timing oriented navigation solutions. Some of our surveys
+`CGGTTS` solutions are special timing oriented navigation solutions. Some of our surveys
 are 100% dedicated to CGGTTS, sometimes we solve standard and CGGTTS solutions at the same time.
 
 - [48H](./48H) two RINEX datasets at once and more

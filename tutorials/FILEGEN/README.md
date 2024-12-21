@@ -1,10 +1,14 @@
 File generation
 ===============
 
-`filegen` specifies we do not want to generate a geodetic report but output products instead.  
+`filegen` is our option to specify you would like to generate RINEx or SP3 products,
+instead of the analysis report. It is particularly useful to take advantage of our preprocessor (`-P`)
+to generate your own "customized" data.
 
-In data production (like any file operations) we have an interface to customize the data production
-context, which is identical accross all file operations.
+A combintion of several runs, for example an initial `merge`, followed by `filegen` with
+a custom filter can create complex processing pipelines.
 
-`filegen` also allows converting the RINEX data fields to CSV, which can be convenient to forward
-to yet another tool in your post processing pipeline.
+`filegen` is compatible with `--csv`, like any other file operation, to dump to CSV instead
+of RINEx. The `rnx2crx` and `crx2rnx` options may also apply, depending on the output you want to synthesis.
+When synthesizing RINEx, the file naming conventions may be applied and the customization options are still relevant
+in this opmode.
