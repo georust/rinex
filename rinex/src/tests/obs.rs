@@ -184,7 +184,7 @@ fn v3_duth0630() {
     dut.to_file("v3_duth0630.txt").unwrap();
 
     let parsed = Rinex::from_file("v3_duth0630.txt").unwrap();
-    //generic_rinex_comparison(&parsed, &dut);
+    generic_rinex_comparison(&parsed, &dut);
     let _ = remove_file("v3_duth0630.txt");
 }
 

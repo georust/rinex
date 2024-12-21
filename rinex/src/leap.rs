@@ -1,4 +1,4 @@
-//! Leap second described in Header
+//! Leap second counter
 use crate::{
     prelude::{ParsingError, TimeScale},
     FormattingError,
@@ -30,23 +30,26 @@ impl Leap {
     // Format [Leap] into [BufWriter]
     pub fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         if let Some(delta) = &self.delta_tls {
-            writeln!(
+            write!(
                 w,
-                "{:6}{:6}{:6}{:6} {:<10}      LEAP SECONDS",
+                "{:6}{:6}{:6}{:6} ",
                 self.leap,
                 delta,
                 self.week.unwrap_or(0),
                 self.day.unwrap_or(0),
-                self.timescale.unwrap_or_default()
             )?;
         } else {
-            writeln!(
-                w,
-                "{:6}                                  {:<10}      LEAP SECONDS",
-                self.leap,
-                self.timescale.unwrap_or_default()
-            )?;
+            write!(w, "{:6}                   ", self.leap,)?;
         }
+
+        if let Some(ts) = self.timescale {
+            write!(w, "{:x}", ts)?;
+        } else {
+            write!(w, "   ")?;
+        }
+
+        writeln!(w, "                                LEAP SECONDS")?;
+
         Ok(())
     }
 
@@ -135,8 +138,13 @@ impl std::str::FromStr for Leap {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::{Leap, TimeScale};
-    use std::str::FromStr;
+
+    use crate::{
+        prelude::{Leap, TimeScale},
+        tests::formatting::Utf8Buffer,
+    };
+
+    use std::{io::BufWriter, str::FromStr};
 
     #[test]
     fn leap_second_basic() {
@@ -176,6 +184,31 @@ mod test {
                 delta_tls: Some(18),
                 timescale: Some(TimeScale::GPST),
             }
+        );
+    }
+
+    #[test]
+    fn leap_formatting() {
+        let leap = Leap::from_str("18").unwrap();
+        let mut buf = BufWriter::new(Utf8Buffer::new(256));
+        leap.format(&mut buf).unwrap();
+
+        let ascii = buf.into_inner().unwrap().to_ascii_utf8();
+
+        assert_eq!(
+            &ascii,
+            "    18                                                      LEAP SECONDS\n"
+        );
+
+        let leap = Leap::from_str("18    18  2185     7").unwrap();
+        let mut buf = BufWriter::new(Utf8Buffer::new(256));
+        leap.format(&mut buf).unwrap();
+
+        let ascii = buf.into_inner().unwrap().to_ascii_utf8();
+
+        assert_eq!(
+            &ascii,
+            "    18    18  2185     7                                    LEAP SECONDS\n"
         );
     }
 }

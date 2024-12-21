@@ -112,7 +112,7 @@ fn format_v3<W: Write>(
         for constell in constell_list.iter() {
             // by sorted SV
             for sv in sv_list.iter().filter(|sv| sv.constellation == *constell) {
-                write!(w, "{:x} ", sv)?;
+                write!(w, "{:x}", sv)?;
 
                 // following header definition
                 let observables = observables
@@ -126,22 +126,24 @@ fn format_v3<W: Write>(
                         .filter(|sig| sig.sv == *sv && sig.observable == *observable)
                         .reduce(|k, _| k)
                     {
-                        write!(w, "{:14.13}", observation.value)?;
+                        write!(w, "{:14.3}", observation.value)?;
 
                         if let Some(lli) = &observation.lli {
-                            write!(w, "{}", lli.bits())?;
+                            //write!(w, "{}", lli.bits())?;
+                            write!(w, " ")?;
                         } else {
-                            write!(w, "{}", ' ')?;
+                            write!(w, " ")?;
                         }
 
                         if let Some(snr) = &observation.snr {
-                            write!(w, "{:x}", snr)?;
+                            //write!(w, "{:x}", snr)?;
+                            write!(w, " ")?;
                         } else {
-                            write!(w, "{}", ' ')?;
+                            write!(w, " ")?;
                         }
                     } else {
                         // Blanking
-                        write!(w, "             ")?;
+                        write!(w, "{:14.3}", "")?;
                     }
                 }
                 write!(w, "{}", '\n')?;

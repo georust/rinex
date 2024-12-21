@@ -12,6 +12,8 @@ use std::io::{BufWriter, Write};
 impl Header {
     /// Formats [Header] into [Write]able interface, using efficient buffering.
     pub fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        const NUM_GLO_CHANNELS_PER_LINE: usize = 8;
+
         if let Some(obs) = &self.obs {
             if let Some(crinex) = &obs.crinex {
                 crinex.format(w)?;
@@ -55,6 +57,36 @@ impl Header {
 
         if let Some(leap) = self.leap {
             leap.format(w)?;
+        }
+
+        let num_channels = self.glo_channels.len();
+
+        if num_channels > 0 {
+            write!(w, "{:3} ", num_channels,)?;
+        }
+
+        let mut modulo = 0;
+        for (nth, (sv, channel)) in self.glo_channels.iter().enumerate() {
+            write!(w, "{:x} {:2} ", sv, channel,)?;
+
+            if nth == NUM_GLO_CHANNELS_PER_LINE - 1 {
+                write!(w, "GLONASS SLOT / FRQ #\n    ")?;
+            } else {
+                if (nth % NUM_GLO_CHANNELS_PER_LINE) == NUM_GLO_CHANNELS_PER_LINE - 1 {
+                    write!(w, "GLONASS SLOT / FRQ #\n    ")?;
+                }
+            }
+
+            modulo = nth % NUM_GLO_CHANNELS_PER_LINE;
+        }
+
+        if modulo > 0 && modulo != NUM_GLO_CHANNELS_PER_LINE - 1 {
+            writeln!(
+                w,
+                "{:>width$}",
+                "GLONASS SLOT / FRQ #",
+                width = 79 - 9 - (modulo + 1) * 6
+            )?;
         }
 
         //TODO
