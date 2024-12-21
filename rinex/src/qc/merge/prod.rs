@@ -13,9 +13,9 @@ impl Merge for ProductionAttributes {
     }
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         merge_mut_option(&mut self.region, &rhs.region);
-        merge_mut_option(&mut self.details, &rhs.details);
-        if let Some(lhs) = &mut self.details {
-            if let Some(rhs) = &rhs.details {
+        merge_mut_option(&mut self.v3_details, &rhs.v3_details);
+        if let Some(lhs) = &mut self.v3_details {
+            if let Some(rhs) = &rhs.v3_details {
                 merge_mut_option(&mut lhs.ffu, &rhs.ffu);
                 /*
                  * Data source is downgraded to "Unknown"

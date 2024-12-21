@@ -117,6 +117,11 @@ but you can extend that with --depth. Refer to -f for more information."))
 By default the $GEORUST_WORKSPACE variable is prefered.
 Use -w to manually define it and avoid using the environment variable.
 When no workspace is defined, we simply create a local folder."))
+                    .arg(Arg::new("zip")
+                        .long("zip")
+                        .action(ArgAction::SetTrue)
+                        .help("Enforce gzip compression on any synthesized output.
+NB: this applies to any synthesized output, whether it is data files like RINEx or HTML reports."))
         .next_help_heading("Preprocessing")
             .arg(Arg::new("gps-filter")
                 .short('G')
@@ -208,12 +213,20 @@ In file synthesis, we will only generate readable RINEX.")
                     .help("(Zero Repair) remove all zero (=null) values. See --help")
                     .long_help("
 Removes all zero (null) values from data records.
-Specifically in NAV and OBS RINEX. Null NAV records are forbidden.
-Null OBS RINEX are also most likely invalid.
-To determine whether some null Observations exist (most likely invalid), simply
-generate a first report and study the provided observations.
-The `ppp` solver will most likely encounter Physical Non Sense Errors.
-Null NAV RINEX content is also invalid by definition."))
+NB: this does not apply every possible fields but specific.
+When applied to NAV RINEx: Null NAV records are always forbidden
+so we apply it safely.
+When applied to OBS RINEx: we only repair Zero Phase and Decoded Range, which are physically incorrect and result of a local receiver internal error.
+Synthesize your observations and analyze them.
+Zero repair is here to fix physical non-senses that may be reported by the ppp solver."))
+                .arg(Arg::new("short")
+                    .short('s')
+                    .long("short")
+                    .action(ArgAction::SetTrue)
+                    .help("Prefered (V2/deprecated) shortened filenames when synthesizing RINEx files.
+NB: this toolbox prefers V3/longer filenames.
+NB(2): this only applies to Meteo/Obs/NAV RINEx."))
+
             .next_help_heading("Receiver Antenna")
                 .arg(Arg::new("rx-ecef")
                     .long("rx-ecef")

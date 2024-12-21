@@ -587,14 +587,14 @@ impl Rinex {
                     /* long /V3 like format */
                     let batch = match &custom {
                         Some(ref custom) => {
-                            if let Some(details) = &custom.details {
+                            if let Some(details) = &custom.v3_details {
                                 details.batch
                             } else {
                                 0
                             }
                         },
                         None => {
-                            if let Some(details) = &self.production.details {
+                            if let Some(details) = &self.production.v3_details {
                                 details.batch
                             } else {
                                 0
@@ -604,14 +604,14 @@ impl Rinex {
 
                     let country = match &custom {
                         Some(ref custom) => {
-                            if let Some(details) = &custom.details {
+                            if let Some(details) = &custom.v3_details {
                                 details.country.to_string()
                             } else {
                                 "CCC".to_string()
                             }
                         },
                         None => {
-                            if let Some(details) = &self.production.details {
+                            if let Some(details) = &self.production.v3_details {
                                 details.country.to_string()
                             } else {
                                 "CCC".to_string()
@@ -622,7 +622,7 @@ impl Rinex {
                     let src = match &header.rcvr {
                         Some(_) => 'R', // means GNSS rcvr
                         None => {
-                            if let Some(details) = &self.production.details {
+                            if let Some(details) = &self.production.v3_details {
                                 details.data_src.to_char()
                             } else {
                                 'U' // means: unspecified
@@ -644,7 +644,7 @@ impl Rinex {
 
                     let (hh, mm) = match &custom {
                         Some(ref custom) => {
-                            if let Some(details) = &custom.details {
+                            if let Some(details) = &custom.v3_details {
                                 (format!("{:02}", details.hh), format!("{:02}", details.mm))
                             } else {
                                 ("HH".to_string(), "MM".to_string())
@@ -665,7 +665,7 @@ impl Rinex {
                         Some(duration) => FFU::from(duration).to_string(),
                         None => {
                             if let Some(ref custom) = custom {
-                                if let Some(details) = &custom.details {
+                                if let Some(details) = &custom.v3_details {
                                     if let Some(ffu) = details.ffu {
                                         ffu.to_string()
                                     } else {
@@ -689,14 +689,14 @@ impl Rinex {
                     // PPU periodicity
                     let ppu = match custom {
                         Some(custom) => {
-                            if let Some(details) = &custom.details {
+                            if let Some(details) = &custom.v3_details {
                                 details.ppu
                             } else {
                                 PPU::Unspecified
                             }
                         },
                         None => {
-                            if let Some(details) = &self.production.details {
+                            if let Some(details) = &self.production.v3_details {
                                 details.ppu
                             } else {
                                 PPU::Unspecified
@@ -829,7 +829,7 @@ impl Rinex {
             },
         }
 
-        if let Some(ref mut details) = attributes.details {
+        if let Some(ref mut details) = attributes.v3_details {
             if let Some((_, _, _, hh, mm, _, _)) = first_epoch_gregorian {
                 details.hh = hh;
                 details.mm = mm;
@@ -841,7 +841,7 @@ impl Rinex {
                 }
             }
         } else {
-            attributes.details = Some(DetailedProductionAttributes {
+            attributes.v3_details = Some(DetailedProductionAttributes {
                 batch: 0,                      // see notes down below
                 country: "XXX".to_string(),    // see notes down below
                 data_src: DataSource::Unknown, // see notes down below

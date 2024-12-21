@@ -284,7 +284,7 @@ impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, _) in &self.obs_dataset {
-            write!(f, "Observation RINEX: {}", k.name)?;
+            write!(f, "Observation RINex: {}", k.name)?;
         }
         Ok(())
     }

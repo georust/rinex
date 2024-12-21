@@ -58,10 +58,9 @@ pub struct ProductionAttributes {
     pub year: u32,
     /// Production Day of Year (DOY)
     pub doy: u32,
-    /// Detailed production attributes only apply to NAV + OBS RINEX
-    /// files. They can only be attached from filenames that follow
-    /// the current standardized long format.
-    pub details: Option<DetailedProductionAttributes>,
+    /// Detailed production attributes that only apply to
+    /// modern Navigation or Observations (either Meteo or Observation) RINEx.
+    pub v3_details: Option<DetailedProductionAttributes>,
     /// Optional Regional code present in IONEX file names.
     /// 'G' means Global (World wide) TEC map(s).
     pub region: Option<char>,
@@ -178,7 +177,7 @@ impl std::str::FromStr for ProductionAttributes {
                     "I" => fname.chars().nth(3),
                     _ => None,
                 },
-                details: None,
+                v3_details: None,
             })
         } else {
             let offset = fname.find('.').unwrap_or(0);
@@ -211,7 +210,7 @@ impl std::str::FromStr for ProductionAttributes {
                         .map_err(|_| Error::NonStandardFileName)?
                 },
                 region: None, // IONEX files only use a short format
-                details: Some(DetailedProductionAttributes {
+                v3_details: Some(DetailedProductionAttributes {
                     batch,
                     country: fname[6..9].to_string(),
                     ppu: PPU::from_str(&fname[24..27])?,
@@ -411,7 +410,7 @@ mod test {
             assert_eq!(attrs.name, name);
             assert_eq!(attrs.year, year);
             assert_eq!(attrs.doy, doy);
-            assert_eq!(attrs.details, Some(detail));
+            assert_eq!(attrs.v3_details, Some(detail));
         }
     }
     #[test]

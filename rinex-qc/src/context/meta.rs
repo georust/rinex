@@ -1,6 +1,8 @@
-use std::path::Path;
+use std::{path::Path, str::FromStr};
 
 use crate::QcError;
+
+use rinex::prelude::ProductionAttributes as RINexProductionAttributes;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MetaData {
@@ -17,31 +19,37 @@ impl MetaData {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, QcError> {
         let path = path.as_ref();
 
-        let name = path
+        let mut name = path
             .file_stem()
             .ok_or(QcError::FileName)?
             .to_string_lossy()
             .to_string();
 
-        let mut extension = path
-            .extension()
-            .ok_or(QcError::FileName)?
-            .to_string_lossy()
-            .to_string();
+        let mut extension = if name.ends_with(".crx") {
+            "crx".to_string()
+        } else {
+            "".to_string()
+        };
+
+        // If this Meta is consitent with modern RINEx V3:
+        // simply retain only "name" field
+        if let Ok(prod) = RINexProductionAttributes::from_str(&name) {
+            if let Some(v3_details) = prod.v3_details {
+                name = format!("{}{:02}{}", prod.name, v3_details.batch, v3_details.country);
+            }
+        }
+
+        if let Some(path_extension) = path.extension() {
+            let path_extension = path_extension.to_string_lossy();
+            if extension.len() > 0 {
+                extension.push('.');
+            }
+            extension.push_str(&path_extension);
+        }
 
         Ok(Self {
-            name: if let Some(offset) = name.as_str().find('.') {
-                name[..offset].to_string()
-            } else {
-                name.to_string()
-            },
-            extension: if let Some(offset) = name.as_str().find('.') {
-                extension.insert(0, '.');
-                extension.insert_str(0, &name[offset + 1..]);
-                extension.to_string()
-            } else {
-                extension.to_string()
-            },
+            name,
+            extension,
             unique_id: None,
         })
     }
@@ -76,7 +84,7 @@ mod test {
 
         let meta = MetaData::new(&path).unwrap();
 
-        assert_eq!(meta.name, "ESBC00DNK_R_20201770000_01D_30S_MO");
+        assert_eq!(meta.name, "ESBC00DNK");
         assert_eq!(meta.extension, "crx.gz");
     }
 }

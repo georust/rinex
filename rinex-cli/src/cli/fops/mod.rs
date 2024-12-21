@@ -16,28 +16,13 @@ use rinex::prod::{DataSource, FFU, PPU};
  */
 #[cfg(not(feature = "csv"))]
 lazy_static! {
-    pub static ref SHARED_GENERAL_ARGS : Vec<Arg> = vec![
+    pub static ref SHARED_GENERAL_ARGS: Vec<Arg> = vec![
         Arg::new("batch")
             .short('b')
             .long("batch")
             .required(false)
             .value_parser(value_parser!(u8))
             .help("Set # (number ID) in case this file is part of a file serie"),
-        Arg::new("short")
-            .short('s')
-            .long("short")
-            .action(ArgAction::SetTrue)
-            .help("Prefer (deprecated) short filenames as historically used.
-Otherwise, this ecosystem prefers modern (longer) filenames that contain more information."),
-        Arg::new("gzip")
-            .long("gzip")
-            .action(ArgAction::SetTrue)
-            .help("Force .gzip compressed file generation, even if input data is not."),
-        Arg::new("unzip")
-            .long("unzip")
-            .action(ArgAction::SetTrue)
-            .help("Force plain/readable file generation. By default, if input data is gzip compressed, we will preserve
-the input compression. Use this to bypass."),
         Arg::new("csv")
             .long("csv")
             .action(ArgAction::SetTrue)
@@ -46,75 +31,71 @@ the input compression. Use this to bypass."),
             .short('a')
             .long("agency")
             .required(false)
-            .help("Define a custom agency name, possibly overwriting
-what the original filename did define (according to conventions)."),
+            .help(
+                "Define a custom agency name, possibly overwriting
+what the original filename did define (according to conventions)."
+            ),
         Arg::new("country")
             .short('c')
             .long("country")
             .required(false)
-            .help("Define a custom (3 letter) country code.
-This code should represent where the Agency is located."),
+            .help(
+                "Define a custom (3 letter) country code.
+This code should represent where the Agency is located."
+            ),
         Arg::new("source")
             .long("src")
             .required(false)
             .value_name("[RCVR,STREAM]")
             .value_parser(value_parser!(DataSource))
-            .help("Define the data source.
+            .help(
+                "Define the data source.
 In RINEX standards, we use \"RCVR\" when data was sampled from a hardware receiver.
-Use \"STREAM\" for other stream data source, like RTCM for example.")
+Use \"STREAM\" for other stream data source, like RTCM for example."
+            )
     ];
 }
 
 #[cfg(feature = "csv")]
 lazy_static! {
-    pub static ref SHARED_GENERAL_ARGS : Vec<Arg> = vec![
+    pub static ref SHARED_GENERAL_ARGS: Vec<Arg> = vec![
         Arg::new("batch")
             .short('b')
             .long("batch")
             .required(false)
             .value_parser(value_parser!(u8))
             .help("Set # (number ID) in case this file is part of a file serie"),
-        Arg::new("short")
-            .short('s')
-            .long("short")
-            .action(ArgAction::SetTrue)
-            .help("Prefer (deprecated) short filenames as historically used.
-Otherwise, this ecosystem prefers modern (longer) filenames that contain more information."),
-        Arg::new("gzip")
-            .long("gzip")
-            .action(ArgAction::SetTrue)
-            .help("Force .gzip compressed file generation, even if input data is not."),
-        Arg::new("unzip")
-            .long("unzip")
-            .action(ArgAction::SetTrue)
-            .help("Force plain/readable file generation. By default, if input data is gzip compressed, we will preserve
-the input compression. Use this to bypass."),
-        Arg::new("csv")
-            .long("csv")
-            .action(ArgAction::SetTrue)
-            .help("Extract dataset and generate as CSV instead of RINEX.
+        Arg::new("csv").long("csv").action(ArgAction::SetTrue).help(
+            "Extract dataset and generate as CSV instead of RINEX.
 Use this when targetting third party tools.
-Only applies to Observation / Meteo RINEX files"),
+Only applies to Observation / Meteo RINEX files"
+        ),
         Arg::new("agency")
             .short('a')
             .long("agency")
             .required(false)
-            .help("Define a custom agency name, possibly overwriting
-what the original filename did define (according to conventions)."),
+            .help(
+                "Define a custom agency name, possibly overwriting
+what the original filename did define (according to conventions)."
+            ),
         Arg::new("country")
             .short('c')
             .long("country")
             .required(false)
-            .help("Define a custom (3 letter) country code.
-This code should represent where the Agency is located."),
+            .help(
+                "Define a custom (3 letter) country code.
+This code should represent where the Agency is located."
+            ),
         Arg::new("source")
             .long("src")
             .required(false)
             .value_name("[RCVR,STREAM]")
             .value_parser(value_parser!(DataSource))
-            .help("Define the data source.
+            .help(
+                "Define the data source.
 In RINEX standards, we use \"RCVR\" when data was sampled from a hardware receiver.
-Use \"STREAM\" for other stream data source, like RTCM for example.")
+Use \"STREAM\" for other stream data source, like RTCM for example."
+            )
     ];
 }
 

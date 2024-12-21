@@ -97,28 +97,54 @@ fn format_v3<W: Write>(
             .sorted()
             .collect::<Vec<_>>();
 
+        // retrieve unique constellation list
+        let constell_list = sv_list
+            .iter()
+            .map(|sv| sv.constellation)
+            .unique()
+            .sorted()
+            .collect::<Vec<_>>();
+
         // encode new epoch
         format_epoch_v3(w, k, &sv_list, v.clock)?;
 
-        // by sorted SV
-        for sv in sv_list.iter() {
-            // following header definition
-            let observables = observables
-                .get(&sv.constellation)
-                .ok_or(FormattingError::MissingObservableDefinition)?;
+        // by sorted constellation then SV
+        for constell in constell_list.iter() {
+            // by sorted SV
+            for sv in sv_list.iter().filter(|sv| sv.constellation == *constell) {
+                write!(w, "{:x} ", sv)?;
 
-            for observable in observables.iter() {
-                if let Some(observation) = v
-                    .signals
-                    .iter()
-                    .filter(|sig| sig.observable == *observable)
-                    .reduce(|k, _| k)
-                {
-                    write!(w, "{:14.13}", observation.value)?;
-                } else {
-                    // Blanking
-                    write!(w, "             ")?;
+                // following header definition
+                let observables = observables
+                    .get(&sv.constellation)
+                    .ok_or(FormattingError::MissingObservableDefinition)?;
+
+                for observable in observables.iter() {
+                    if let Some(observation) = v
+                        .signals
+                        .iter()
+                        .filter(|sig| sig.sv == *sv && sig.observable == *observable)
+                        .reduce(|k, _| k)
+                    {
+                        write!(w, "{:14.13}", observation.value)?;
+
+                        if let Some(lli) = &observation.lli {
+                            write!(w, "{}", lli.bits())?;
+                        } else {
+                            write!(w, "{}", ' ')?;
+                        }
+
+                        if let Some(snr) = &observation.snr {
+                            write!(w, "{:x}", snr)?;
+                        } else {
+                            write!(w, "{}", ' ')?;
+                        }
+                    } else {
+                        // Blanking
+                        write!(w, "             ")?;
+                    }
                 }
+                write!(w, "{}", '\n')?;
             }
         }
     }

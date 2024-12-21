@@ -143,6 +143,7 @@ fn user_data_parsing(
         info!("rnx2crx: internal compression");
         ctx.rnx2crx_mut();
     }
+
     if cli.crx2rnx() {
         info!("crx2rnx: internal decompression");
         ctx.crx2rnx_mut();
