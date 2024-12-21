@@ -206,6 +206,9 @@ pub fn main() -> Result<(), Error> {
         for (k, _) in ctx.qc_context.obs_dataset.iter() {
             ctx.qc_context.create_subdir(&k.name)?;
         }
+        for (k, _) in ctx.qc_context.meteo_dataset.iter() {
+            ctx.qc_context.create_subdir(&k.name)?;
+        }
     }
 
     let mut extra_pages = Vec::<QcExtraPage>::new();

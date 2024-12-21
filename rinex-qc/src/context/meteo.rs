@@ -1,100 +1,67 @@
-use std::collections::HashMap;
-
 use rinex::prelude::Rinex;
 
-use crate::context::{Error, MetaData};
+use crate::context::{meta::MetaData, QcContext, QcError};
 
-use qc_traits::{Filter, Merge, Preprocessing, Repair, RepairTrait};
+use qc_traits::Merge;
 
-/// Global data identifier, allows identifing a specific set within
-/// multiple [GlobalData]
+impl QcContext {
+    pub fn has_meteo_data(&self) -> bool {
+        !self.meteo_dataset.is_empty()
+    }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct MeteoDataIdentifier {
-    pub agency: String,
-    pub meta: MetaData,
+    /// Loads a new Meteo [Rinex] into this [QcContext]
+    pub(crate) fn load_meteo_rinex(&mut self, meta: &MetaData, data: Rinex) -> Result<(), QcError> {
+        if let Some(rinex) = self.meteo_dataset.get_mut(&meta) {
+            rinex.merge_mut(&data)?;
+        } else {
+            self.meteo_dataset.insert(meta.clone(), data);
+        }
+        Ok(())
+    }
 }
 
-#[derive(Default)]
-pub struct MeteoContext {
-    identified: HashMap<MeteoDataIdentifier, Rinex>,
-    unidentified: HashMap<MetaData, Rinex>,
-}
+#[cfg(test)]
+mod test {
 
-impl MeteoContext {
-    /// Loads a new [Rinex] into this [MeteoContext]
-    pub fn load_rinex(&mut self, meta: &MetaData, data: Rinex) -> Result<(), Error> {
-        // try to obtain a unique identifier
-        let header = &data.header;
+    use crate::{cfg::QcConfig, context::QcContext};
 
-        let unique_key = if let Some(agency) = &header.agency {
-            Some(MeteoDataIdentifier {
-                agency: agency.clone(),
-                meta: meta.clone(),
-            })
-        } else {
-            None
-        };
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn meteo_indexing() {
+        let path = format!(
+            "{}/../test_resources/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz",
+            env!("CARGO_MANIFEST_DIR")
+        );
 
-        if let Some(unique_key) = unique_key {
-            self.load_unique_rinex(unique_key, data)?;
-        } else {
-            self.load_unsorted_rinex(&meta, data)?
-        }
+        // Default indexing
+        let cfg = QcConfig::default();
 
-        Ok(())
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_gzip_file(&path).unwrap();
+        assert!(ctx.has_meteo_data());
     }
 
-    fn load_unsorted_rinex(&mut self, meta: &MetaData, data: Rinex) -> Result<(), Error> {
-        if let Some(inner) = self.unidentified.get_mut(&meta) {
-            inner.merge_mut(&data)?;
-        } else {
-            self.unidentified.insert(meta.clone(), data);
-        }
-        Ok(())
-    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn meteo_stacking() {
+        let path_1 = format!(
+            "{}/../test_resources/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz",
+            env!("CARGO_MANIFEST_DIR")
+        );
 
-    fn load_unique_rinex(
-        &mut self,
-        unique_id: MeteoDataIdentifier,
-        data: Rinex,
-    ) -> Result<(), Error> {
-        if let Some(inner) = self.identified.get_mut(&unique_id) {
-            inner.merge_mut(&data);
-        } else {
-            self.identified.insert(unique_id, data);
-        }
-        Ok(())
-    }
+        let path_2 = format!(
+            "{}/../test_resources/MET/V2/abvi0010.15m",
+            env!("CARGO_MANIFEST_DIR")
+        );
 
-    pub fn filter_mut(&mut self, filter: &Filter) {
-        for (_, data) in self.unidentified.iter_mut() {
-            data.filter_mut(filter);
-        }
-        for (_, data) in self.identified.iter_mut() {
-            data.filter_mut(filter);
-        }
-    }
+        let cfg = QcConfig::default();
+        let mut ctx = QcContext::new(cfg).unwrap();
 
-    pub fn repair_mut(&mut self, repair: Repair) {
-        for (_, data) in self.unidentified.iter_mut() {
-            data.repair_mut(repair);
-        }
-        for (_, data) in self.identified.iter_mut() {
-            data.repair_mut(repair);
-        }
-    }
+        ctx.load_gzip_file(&path_1).unwrap();
+        assert!(ctx.has_meteo_data());
 
-    /// Returns list of Agencies that provided data for this context
-    pub fn agencies_iter(&self) -> Box<dyn Iterator<Item = &String> + '_> {
-        Box::new(self.identified.keys().map(|k| &k.agency))
-    }
-
-    pub fn has_identified_data(&self) -> bool {
-        self.identified.len() > 0
-    }
-
-    pub fn has_unidentified_data(&self) -> bool {
-        self.unidentified.len() > 0
+        ctx.load_file(&path_2).unwrap();
+        assert!(ctx.has_meteo_data());
     }
 }

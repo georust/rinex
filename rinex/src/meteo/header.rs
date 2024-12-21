@@ -27,13 +27,32 @@ pub struct HeaderFields {
 impl HeaderFields {
     /// Formats [HeaderFields] into [BufWriter].
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        const NUM_OBSERVABLES_PER_LINE: usize = 9;
+
         write!(w, "{:6}", self.codes.len())?;
+        let mut modulo = 0;
 
         for (nth, observable) in self.codes.iter().enumerate() {
-            if (nth % 9) == 8 {
+            if nth > 0 && (nth % NUM_OBSERVABLES_PER_LINE) == 0 {
+                write!(w, "      ")?;
+            }
+
+            write!(w, "    {}", observable)?;
+
+            if (nth % NUM_OBSERVABLES_PER_LINE) == NUM_OBSERVABLES_PER_LINE - 1 {
                 write!(w, "# / TYPES OF OBSERV\n      ")?;
             }
-            write!(w, "    {}", observable)?;
+
+            modulo = nth % NUM_OBSERVABLES_PER_LINE;
+        }
+
+        if modulo != 7 {
+            writeln!(
+                w,
+                "{:>width$}",
+                "# / TYPES OF OBSERV",
+                width = 79 - 6 - (modulo + 1) * 6
+            )?;
         }
 
         for sensor in self.sensors.iter() {

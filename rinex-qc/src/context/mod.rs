@@ -18,6 +18,7 @@ use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 mod processing;
 
 pub(crate) mod meta;
+pub(crate) mod meteo;
 pub(crate) mod nav;
 pub(crate) mod obs;
 pub(crate) mod rnx;
@@ -29,7 +30,6 @@ use crate::{
         // clock::ClockDataSet,
         // sky::SkyContext,
         meta::MetaData,
-        nav::NavigationDataSet,
     },
     report::QcReport,
     QcError,
@@ -45,10 +45,12 @@ pub struct QcContext {
     pub almanac: Almanac,
     /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
-    /// Observation [Rinex] stored by GNSS receivers
+    /// Observation [Rinex] stored by [MetaData]
     pub obs_dataset: HashMap<MetaData, Rinex>,
-    /// Possible [NavigationDataSet]
-    pub nav_dataset: Option<NavigationDataSet>,
+    /// Possible Navigation [Rinex]
+    pub nav_dataset: Option<Rinex>,
+    /// Meteo [Rinex] stored by [MetaData]
+    pub meteo_dataset: HashMap<MetaData, Rinex>,
     // pub(crate) sky_context: Option<SkyContext>,
     // pub(crate) clk_dataset: Option<ClockDataSet>,
     // /// [MeteoContext] that either applies regionally or worldwidely
@@ -177,6 +179,7 @@ impl QcContext {
             earth_cef,
             obs_dataset: Default::default(),
             nav_dataset: Default::default(),
+            meteo_dataset: Default::default(),
         };
 
         s.deploy()?;
@@ -260,8 +263,11 @@ impl QcContext {
         for (_, rinex) in self.obs_dataset.iter_mut() {
             rinex.filter_mut(&filter);
         }
-        if let Some(nav_dataset) = &mut self.nav_dataset {
-            nav_dataset.rinex.filter_mut(&filter);
+        if let Some(rinex) = &mut self.nav_dataset {
+            rinex.filter_mut(&filter);
+        }
+        for (_, rinex) in self.meteo_dataset.iter_mut() {
+            rinex.filter_mut(&filter);
         }
     }
 

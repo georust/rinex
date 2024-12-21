@@ -129,15 +129,13 @@ fn format_v3<W: Write>(
                         write!(w, "{:14.3}", observation.value)?;
 
                         if let Some(lli) = &observation.lli {
-                            //write!(w, "{}", lli.bits())?;
-                            write!(w, " ")?;
+                            write!(w, "{}", lli.bits())?;
                         } else {
                             write!(w, " ")?;
                         }
 
                         if let Some(snr) = &observation.snr {
-                            //write!(w, "{:x}", snr)?;
-                            write!(w, " ")?;
+                            write!(w, "{:x}", snr)?;
                         } else {
                             write!(w, " ")?;
                         }

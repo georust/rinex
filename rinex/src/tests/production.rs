@@ -61,39 +61,6 @@ mod test {
     #[test]
     #[ignore]
     #[cfg(feature = "flate2")]
-    fn meteo_v2() {
-        let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/";
-        for file in std::fs::read_dir(folder).unwrap() {
-            let fp = file.unwrap();
-            let fp = fp.path();
-            testbench(fp.to_str().unwrap());
-        }
-    }
-    #[test]
-    #[ignore]
-    #[cfg(feature = "flate2")]
-    fn meteo_v3() {
-        let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V3/";
-        for file in std::fs::read_dir(folder).unwrap() {
-            let fp = file.unwrap();
-            let fp = fp.path();
-            testbench(fp.to_str().unwrap());
-        }
-    }
-    #[test]
-    #[ignore]
-    #[cfg(feature = "flate2")]
-    fn meteo_v4() {
-        let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V4/";
-        for file in std::fs::read_dir(folder).unwrap() {
-            let fp = file.unwrap();
-            let fp = fp.path();
-            testbench(fp.to_str().unwrap());
-        }
-    }
-    #[test]
-    #[ignore]
-    #[cfg(feature = "flate2")]
     fn clocks_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V2/";
         for file in std::fs::read_dir(folder).unwrap() {

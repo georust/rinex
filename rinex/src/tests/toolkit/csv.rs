@@ -13,7 +13,6 @@ pub fn observables_csv(observable_csv: &str) -> Vec<Observable> {
         .collect::<Vec<Observable>>()
         .into_iter()
         .unique()
-        .sorted()
         .collect()
 }
 

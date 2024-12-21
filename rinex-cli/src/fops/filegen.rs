@@ -1,4 +1,4 @@
-use crate::fops::{custom_prod_attributes, output_filename};
+use crate::fops::custom_prod_attributes;
 use crate::Error;
 use clap::ArgMatches;
 
@@ -6,6 +6,7 @@ use rinex_qc::prelude::QcContext;
 
 #[cfg(feature = "csv")]
 use crate::fops::csv::{
+    write_meteo_rinex as write_meteo_rinex_csv,
     write_nav_rinex as write_nav_rinex_csv,
     // write_sp3 as write_sp3_csv,
     write_obs_rinex as write_obs_rinex_csv,
@@ -40,21 +41,24 @@ pub fn filegen(
 //#[cfg(feature = "csv")]
 fn write_csv(ctx: &QcContext, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
     for (meta, rinex) in ctx.obs_dataset.iter() {
-        let fullpath = ctx.cfg.workspace.join(&meta.name);
-
-        rinex
-            .to_file(&fullpath)
-            .unwrap_or_else(|_| panic!("failed to generate \"{}\"", meta.name));
-
+        let auto_generated_name = rinex.standard_filename(false, Some(".csv"), None);
+        let fullpath = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
         write_obs_rinex_csv(rinex, &fullpath)?;
+        info!("OBSERVATION RINex \"{}\" dumped as csv", meta.name);
+    }
 
-        info!("OBSERVATION RINEX \"{}\" dumped as csv", meta.name);
+    for (meta, rinex) in ctx.meteo_dataset.iter() {
+        let auto_generated_name = rinex.standard_filename(false, Some(".csv"), None);
+        let fullpath = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
+        write_meteo_rinex_csv(rinex, &fullpath)?;
+        info!("METEO RINex \"{}\" dumped as csv", meta.name);
     }
 
     Ok(())
 }
 
 fn write(ctx: &QcContext, matches: &ArgMatches, submatches: &ArgMatches) -> Result<(), Error> {
+    // OBS RINex
     for (meta, rinex) in ctx.obs_dataset.iter() {
         let auto_generated_name = rinex.standard_filename(false, None, None);
         let fullpath = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
@@ -63,7 +67,19 @@ fn write(ctx: &QcContext, matches: &ArgMatches, submatches: &ArgMatches) -> Resu
             .to_file(&fullpath)
             .unwrap_or_else(|_| panic!("failed to generate OBSERVATION \"{}\"", meta.name));
 
-        info!("OBSERVATION RINEX \"{}\" has been generated", meta.name);
+        info!("OBSERVATION RINex \"{}\" has been generated", meta.name);
+    }
+
+    // METEO RINex
+    for (meta, rinex) in ctx.meteo_dataset.iter() {
+        let auto_generated_name = rinex.standard_filename(false, None, None);
+        let fullpath = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
+
+        rinex
+            .to_file(&fullpath)
+            .unwrap_or_else(|_| panic!("failed to generate OBSERVATION \"{}\"", meta.name));
+
+        info!("METEO RINex \"{}\" has been generated", meta.name);
     }
 
     Ok(())

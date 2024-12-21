@@ -273,7 +273,7 @@ fn obs_v3_header_formatting() {
 
     let mut hd = HeaderFields::default()
         .with_timeof_first_obs(Epoch::from_str("2020-01-01T00:00:00 GPST").unwrap())
-        .with_timeof_last_obs(Epoch::from_str("2020-01-01T00:00:00 GPST").unwrap());
+        .with_timeof_last_obs(Epoch::from_str("2020-01-01T23:00:00 GPST").unwrap());
 
     hd.codes.insert(gps, gps_codes);
     hd.codes.insert(gal, gal_codes);
@@ -289,26 +289,34 @@ fn obs_v3_header_formatting() {
         HashMap::from_iter([
             (
                 0,
-                "G   14 L1C C1C D1C S1C L2C C2C D2C S2C L5C C5C D5C S5C L1P  SYS / # / OBS TYPES",
+                "  2020     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS",
             ),
             (
                 1,
-                "       L2P                                                  SYS / # / OBS TYPES",
+                "  2020     1     1    23     0    0.0000000     GPS         TIME OF LAST OBS",
             ),
             (
                 2,
-                "R    2 L1C C1C                                              SYS / # / OBS TYPES",
+                "G   14 L1C C1C D1C S1C L2C C2C D2C S2C L5C C5C D5C S5C L1P  SYS / # / OBS TYPES",
             ),
             (
                 3,
-                "C   13 L1C C1C D1C S1C L2C C2C D2C S2C L5C C5C D5C S5C L1P  SYS / # / OBS TYPES",
+                "       L2P                                                  SYS / # / OBS TYPES",
             ),
             (
                 4,
-                "E   16 L1C C1C D1C S1C L2C C2C D2C S2C L5Q C5Q D5Q S5Q L1X  SYS / # / OBS TYPES",
+                "R    2 L1C C1C                                              SYS / # / OBS TYPES",
             ),
             (
                 5,
+                "C   13 L1C C1C D1C S1C L2C C2C D2C S2C L5C C5C D5C S5C L1P  SYS / # / OBS TYPES",
+            ),
+            (
+                6,
+                "E   16 L1C C1C D1C S1C L2C C2C D2C S2C L5Q C5Q D5Q S5Q L1X  SYS / # / OBS TYPES",
+            ),
+            (
+                7,
                 "       L2X L1P L2P                                          SYS / # / OBS TYPES",
             ),
         ]),

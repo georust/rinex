@@ -97,7 +97,7 @@ fn v2_abvi0010_15m() {
 
     dut.to_file("v2_abvi0010_15m.txt").unwrap();
     let parsed = Rinex::from_file("v2_abvi0010_15m.txt").unwrap();
-    //generic_rinex_comparison(&parsed, &dut);
+    generic_rinex_comparison(&parsed, &dut);
     let _ = remove_file("v2_abvi0010_15m.txt");
 }
 
@@ -118,7 +118,7 @@ fn v3_pots00deu() {
 
     dut.to_file("v3_pots00deu.txt").unwrap();
     let parsed = Rinex::from_file("v3_pots00deu.txt").unwrap();
-    //generic_rinex_comparison(&parsed, &dut);
+    generic_rinex_comparison(&parsed, &dut);
     let _ = remove_file("v3_pots00deu.txt");
 }
 
@@ -137,6 +137,6 @@ fn v4_example_1() {
 
     dut.to_file("v4_example_1.txt").unwrap();
     let parsed = Rinex::from_file("v4_example_1.txt").unwrap();
-    //generic_rinex_comparison(&parsed, &dut);
+    generic_rinex_comparison(&parsed, &dut);
     let _ = remove_file("v4_example_1.txt");
 }

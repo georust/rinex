@@ -50,36 +50,20 @@ pub fn parse_epoch(header: &Header, line: &str) -> Result<Vec<(MeteoKey, f64)>, 
     let mut obs_ptr = 0;
 
     // parse all remaining fields
-    loop {
-        let end = (offset + 7).min(line_len);
+    for code in codes.iter() {
+        let end = (offset + 7).min(line_len - 1);
         let slice = &line[offset..end];
-        //println!("slice \"{}\"", slice);
-
         if let Ok(value) = slice.trim().parse::<f64>() {
             ret.push((
                 MeteoKey {
                     epoch,
-                    observable: codes[obs_ptr].clone(),
+                    observable: code.clone(),
                 },
                 value,
             ));
         }
-
         offset += 7;
-        obs_ptr += 1;
-
-        if offset >= line_len {
-            break;
-        }
-
-        if obs_ptr >= nb_obs {
-            // Buffer would overflow.
-            // But that means we're actually receiving bad content
-            // with resepect to header description
-            break;
-        }
     }
-
     Ok(ret)
 }
 

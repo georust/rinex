@@ -50,6 +50,21 @@ pub fn write_obs_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error
     Ok(())
 }
 
+/// Dumps Meteo [Rinex] to CSV
+pub fn write_meteo_rinex<P: AsRef<Path>>(rnx: &Rinex, path: P) -> Result<(), Error> {
+    let mut w = Writer::from_path(path)?;
+
+    w.write_record(&["Epoch", "RINEX Code", "Value"])?;
+
+    for (key, observation) in rnx.meteo_observations_iter() {
+        let t = key.epoch.to_string();
+        let code = key.observable.to_string();
+        let observation = format!("{:7.4}", observation);
+        w.write_record(&[&t, &code, &observation])?;
+    }
+    Ok(())
+}
+
 /// Dumps Navigation [Rinex] to CSV
 pub fn write_nav_rinex(obs: &Rinex, brdc: &Rinex, path: &Path) -> Result<(), Error> {
     let mut orbit_w = Writer::from_path(path)?;

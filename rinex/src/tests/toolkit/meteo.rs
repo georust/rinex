@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use crate::{
     prelude::{Header, Observable, Rinex, RinexType},
-    tests::toolkit::{generic_rinex_test, TimeFrame},
+    tests::toolkit::{generic_rinex_test, observables_csv, TimeFrame},
 };
 
 /// [Rinex] against [Rinex] model verification
@@ -56,13 +56,14 @@ fn basic_header_tests(dut: &Header) {
 }
 
 /// Generic test that we can use for Observation [Rinex]
-pub fn generic_meteo_rinex_test(
-    dut: &Rinex,
-    version: &str,
-    observables_csv: &str,
-    time_frame: TimeFrame,
-) {
+pub fn generic_meteo_rinex_test(dut: &Rinex, version: &str, obs_csv: &str, time_frame: TimeFrame) {
     assert!(dut.is_meteo_rinex());
+
+    let mut observables = observables_csv(obs_csv);
+    observables.sort();
+
+    let found = dut.observables_iter().sorted().cloned().collect::<Vec<_>>();
+    assert_eq!(found, observables);
 
     generic_rinex_test(
         dut,

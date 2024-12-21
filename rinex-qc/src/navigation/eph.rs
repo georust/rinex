@@ -100,7 +100,6 @@ impl QcContext {
             buffer: HashMap::with_capacity(8),
             iter: Box::new(
                 nav_dataset
-                    .rinex
                     .ephemeris()
                     .map(|(t, (_, sv, eph))| (sv, t, eph)),
             ),

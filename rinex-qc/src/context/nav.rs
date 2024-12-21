@@ -4,11 +4,6 @@ use crate::context::{QcContext, QcError};
 
 use qc_traits::Merge;
 
-pub struct NavigationDataSet {
-    /// internal RINEX storage
-    pub(crate) rinex: Rinex,
-}
-
 impl QcContext {
     pub fn has_navigation_data(&self) -> bool {
         self.nav_dataset.is_some()
@@ -18,9 +13,9 @@ impl QcContext {
     pub(crate) fn load_navigation_rinex(&mut self, data: Rinex) -> Result<(), QcError> {
         // proceed to stacking
         if let Some(nav) = &mut self.nav_dataset {
-            nav.rinex.merge_mut(&data)?;
+            nav.merge_mut(&data)?;
         } else {
-            self.nav_dataset = Some(NavigationDataSet { rinex: data });
+            self.nav_dataset = Some(data);
         }
 
         Ok(())

@@ -126,7 +126,10 @@ pub fn generic_observation_rinex_test(
     let specs = dut.header.obs.as_ref().unwrap();
     for (gnss, observable_csv) in gnss_observ_csv {
         let gnss = Constellation::from_str(gnss).unwrap();
-        let expected = observable_from_csv(observable_csv);
+
+        let mut expected = observable_from_csv(observable_csv);
+        expected.sort();
+
         let found = specs
             .codes
             .get(&gnss)
@@ -135,6 +138,7 @@ pub fn generic_observation_rinex_test(
             .cloned()
             .sorted()
             .collect::<Vec<_>>();
+
         assert_eq!(found, expected);
     }
 
@@ -275,6 +279,7 @@ pub fn generic_observation_epoch_decoding_test(
     key_epoch: &str,
     key_flag: EpochFlag,
     clock: Option<ClockObservation>,
+    signals: Vec<SignalObservation>,
 ) {
     // build [Header]
     let t0 = Epoch::from_str(timeof_first_obs).unwrap();
@@ -305,5 +310,20 @@ pub fn generic_observation_epoch_decoding_test(
     assert_eq!(obs.clock, clock);
     assert_eq!(obs.signals.len(), num_signals);
 
-    // TODO: test data points
+    for signal in signals.iter() {
+        let mut found = false;
+        for parsed in obs.signals.iter() {
+            if signal.sv == parsed.sv {
+                if signal.observable == parsed.observable {
+                    assert_eq!(signal.value, parsed.value);
+                    assert_eq!(signal.lli, parsed.lli);
+                    assert_eq!(signal.snr, parsed.snr);
+                    found = true;
+                }
+            }
+        }
+        if !found {
+            panic!("signal not found={}({})", signal.sv, signal.observable);
+        }
+    }
 }

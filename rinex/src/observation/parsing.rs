@@ -464,9 +464,6 @@ fn parse_signals_v3(
 
     // browse all lines
     for line in lines {
-        //#[cfg(feature = "log")]
-        //debug!("line: \"{}\"", line);
-
         // identify SV
         let sv_str = &line[0..SVNN_SIZE];
         match SV::from_str(sv_str) {
@@ -492,8 +489,6 @@ fn parse_signals_v3(
         };
 
         if observables.is_none() {
-            //#[cfg(feature = "log")]
-            //error!("{}: no observable specs", sv);
             continue;
         }
 
@@ -515,9 +510,8 @@ fn parse_signals_v3(
             let mut lli = Option::<LliFlags>::None;
 
             if slice.len() > OBSERVABLE_F14_WIDTH {
-                let start = offset + OBSERVABLE_F14_WIDTH;
+                let start = offset + OBSERVABLE_F14_WIDTH - 1;
                 let lli_slice = &line[start..start + 1];
-
                 match lli_slice.parse::<u8>() {
                     Ok(unsigned) => {
                         lli = LliFlags::from_bits(unsigned);
@@ -532,17 +526,11 @@ fn parse_signals_v3(
             let mut snr = Option::<SNR>::None;
 
             if slice.len() > OBSERVABLE_F14_WIDTH + 1 {
-                let start = offset + OBSERVABLE_F14_WIDTH + 1;
+                let start = offset + OBSERVABLE_F14_WIDTH;
                 let snr_slice = &line[start..start + 1];
 
-                match SNR::from_str(snr_slice) {
-                    Ok(found) => {
-                        snr = Some(found);
-                    },
-                    Err(e) => {
-                        //#[cfg(feature = "log")]
-                        //error!("snr: {:?}", e);
-                    },
+                if let Ok(value) = snr_slice.parse::<u8>() {
+                    snr = Some(SNR::from(value));
                 }
             }
 
@@ -568,10 +556,11 @@ fn parse_signals_v3(
 mod test {
     use super::is_new_epoch;
     use crate::{
-        observation::EpochFlag,
-        prelude::{Constellation, Version},
+        observation::{EpochFlag, SignalObservation, SNR},
+        prelude::{Constellation, Observable, Version, SV},
         tests::toolkit::generic_observation_epoch_decoding_test,
     };
+    use std::str::FromStr;
 
     #[test]
     fn test_new_epoch() {
@@ -638,6 +627,36 @@ G09  25493930.890   133971510.403 6        41.250                    25493926.95
             "2022-03-04T00:00:00 GPST",
             EpochFlag::Ok,
             None,
+            vec![
+                SignalObservation {
+                    sv: SV::from_str("G01").unwrap(),
+                    observable: Observable::from_str("C1C").unwrap(),
+                    value: 20832393.682,
+                    lli: None,
+                    snr: None,
+                },
+                SignalObservation {
+                    sv: SV::from_str("G01").unwrap(),
+                    observable: Observable::from_str("L1C").unwrap(),
+                    value: 109474991.854,
+                    lli: None,
+                    snr: Some(SNR::from(8)),
+                },
+                SignalObservation {
+                    sv: SV::from_str("G01").unwrap(),
+                    observable: Observable::from_str("S1C").unwrap(),
+                    value: 49.5,
+                    lli: None,
+                    snr: None,
+                },
+                SignalObservation {
+                    sv: SV::from_str("G09").unwrap(),
+                    observable: Observable::from_str("L1C").unwrap(),
+                    value: 133971510.403,
+                    lli: None,
+                    snr: Some(SNR::from(6)),
+                },
+            ],
         );
     }
 
@@ -659,6 +678,7 @@ G04  21342618.100   112156219.39808      2167.688          48.250    21342617.44
             "2022-03-04T00:00:00 GPST",
             EpochFlag::Ok,
             None,
+            vec![],
         );
     }
 
@@ -698,6 +718,7 @@ G30R01R02R03R08R09R15R16R17R18R19R24
             "2021-01-01T00:00:00 GPST",
             EpochFlag::Ok,
             None,
+            vec![],
         );
     }
 
@@ -753,6 +774,7 @@ G30R01R02R03R08R09R15R16R17R18R19R24
             "2021-12-21T00:00:30 GPST",
             EpochFlag::Ok,
             None,
+            vec![],
         );
     }
 
@@ -790,6 +812,7 @@ G30R01R02R03R08R09R15R16R17R18R19R24
             "2019-03-12T16:36:00 GPST",
             EpochFlag::Ok,
             None,
+            vec![],
         );
     }
 }

@@ -13,6 +13,7 @@ impl QcContext {
         // Classification is rinex type dependent
         let rinex_type = rinex.header.rinex_type;
         match rinex_type {
+            RinexType::MeteoData => self.load_meteo_rinex(meta, rinex),
             RinexType::ObservationData => self.load_observation_rinex(meta, rinex),
             RinexType::NavigationData => self.load_navigation_rinex(rinex),
             _ => Err(QcError::NonSupportedFormat),
