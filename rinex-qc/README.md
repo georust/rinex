@@ -145,6 +145,41 @@ while let Some(pvt) = solver.next() {
 }
 ```
 
+## KML, GPX tracks
+
+When built with the `kml` or `gpx` features, the `Qc` library allows
+you to directly form such tracks from your navigation solutions:
+
+```rust
+use rinex_qc::prelude::*;
+
+// default setup
+let cfg = QcConfig::default();
+
+// deploy
+let mut ctx = QcContext::new(cfg)
+    .unwrap();
+
+// stack a RINex
+ctx.load_gzip_file(
+    "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    .unwrap();
+
+// stack a BRDC RINex
+ctx.load_gzip_file(
+    "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    .unwrap();
+
+// Collect track as KML
+let kml = ctx.kml_track_solutions()
+    .unwrap();
+
+// Collect tracks a GPX
+let gpx = ctx.gpx_track_solutions()
+    .unwrap();
+
+```
+
 ## CGGTTS tracker and solutions solver
 
 The `Qc` library is able to perform the challenging task of precise timing resolution,
