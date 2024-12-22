@@ -94,12 +94,9 @@ let cfg = QcConfig::default();
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-let path = Path::new(
-    "../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz"
-);
-let rinex = Rinex::from_path(&path)
+ctx.load_gzip_file(
+    "../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     .unwrap();
-ctx.load_rinex(&path, rinex);
 
 // Generate a report
 let report = QcReport::new(&ctx, cfg);
