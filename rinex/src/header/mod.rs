@@ -58,7 +58,7 @@ pub struct PcvCompensation {
 }
 
 /// Describes `RINEX` file header
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Header {
     /// RINEX [Version]
@@ -136,6 +136,48 @@ pub struct Header {
     /// DORIS RINEX specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub doris: Option<DorisHeader>,
+}
+
+impl Default for Header {
+    fn default() -> Self {
+        Self {
+            version: Version::new(4, 0),
+            rinex_type: Type::ObservationData,
+            constellation: Some(Constellation::Mixed),
+            program: Some(format!(
+                "geo-rust v{}",
+                Self::format_pkg_version(env!("CARGO_PKG_VERSION"))
+            )),
+            obs: Some(Default::default()),
+            date: Default::default(),
+            dcb_compensations: Default::default(),
+            license: Default::default(),
+            comments: Default::default(),
+            run_by: Default::default(),
+            station_url: Default::default(),
+            observer: Default::default(),
+            agency: Default::default(),
+            geodetic_marker: Default::default(),
+            glo_channels: Default::default(),
+            gps_utc_delta: None,
+            sampling_interval: None,
+            leap: None,
+            ground_position: None,
+            wavelengths: None,
+            cospar: None,
+            doi: None,
+            ionex: None,
+            meteo: None,
+            doris: None,
+            clock: None,
+            antex: None,
+            rcvr: None,
+            rcvr_antenna: None,
+            sv_antenna: None,
+            ionod_corrections: Default::default(),
+            pcv_compensations: Default::default(),
+        }
+    }
 }
 
 impl Header {
