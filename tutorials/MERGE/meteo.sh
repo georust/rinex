@@ -1,11 +1,19 @@
 #! /bin/sh
 DIR=test_resources/MET/V2
 
-# merge
+# Use --short to generate similar V2-like files
 ./target/release/rinex-cli \
-    --fp $DIR/cari0010.07m \
-    merge $DIR/clar0020.00m
+    --short \
+    --fp $DIR/clar0020.00m \
+    merge $DIR/abvi0010.15m
 
-# analyze
+# Add --zip to gzip compress at the same time
 ./target/release/rinex-cli \
-    --fp WORKSPACE/
+    --zip \
+    --short \
+    --fp $DIR/clar0020.00m \
+    merge $DIR/abvi0010.15m
+
+# analyze any output product by loading it back into the toolbox
+./target/release/rinex-cli \
+    --fp WORKSPACE/clar0020/CLAR0020.00M.gz

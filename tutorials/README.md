@@ -93,12 +93,16 @@ a specific preset stored here.
   - Observed TEC versus laboratory (IONEX) comparison
   - IPP projections
   - Reconstructed signal delay from observed signals
-- [IONEX](./IONEX) format specific examples
-  - Map projection
+- [IONex](./IONex) format specific examples
+  - Resampling
+  - TEC map projection
 - [JMF: sampled by J.M. Friedt @ femto-st.fr](./JMF) french lab
   - 2024-092 Mobile phone observations (Paris/urban)
   - 2024-110 Nyalesund (NOR) 2024 glacier surveying (RTK compatible)
   - 2024-111 Nyalesund (NOR) 2024 glacier surveying (RTK compatible)
+- [Merge](./MERGE) special file operation
+  - Merge (RINex (a), RINex (b)) into a new RINex
+  - Merge (SP3 (a), SP3 (b)) into a new SP3
 - [Meteo](./METEO) special RINEX applications
   - Modern Meteo observations (QC)
   - Meteo for accurate Troposphere Modelling in PPP

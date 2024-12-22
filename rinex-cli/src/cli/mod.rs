@@ -43,10 +43,10 @@ impl Cli {
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
-                    .about("RINEX post processing")
-                    .long_about("RINEX-Cli is the command line interface
-to operate the RINEX/SP3/RTK toolkit, until a GUI is made available.
-Use it to analyze data, perform file operations and resolve navigation solutions.")
+                    .about("RINex and SP3 post processing")
+                    .long_about("RINex-cli is a command line
+to post process RINex and possibly stacked SP3 data.
+It uses the RINex, SP3, RTK and Nyx-Space ecosystem.")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
                     .arg(Arg::new("filepath")
@@ -120,8 +120,8 @@ When no workspace is defined, we simply create a local folder."))
                     .arg(Arg::new("zip")
                         .long("zip")
                         .action(ArgAction::SetTrue)
-                        .help("Enforce gzip compression on any synthesized output.
-NB: this applies to any synthesized output, whether it is data files like RINEx or HTML reports."))
+                        .help("Gzip compress your output directly.
+NB: this applies to all output product, whether they are data files like RINex or HTML reports."))
         .next_help_heading("Preprocessing")
             .arg(Arg::new("gps-filter")
                 .short('G')
@@ -163,7 +163,7 @@ NB: this applies to any synthesized output, whether it is data files like RINEx 
                 .help("Filter designer. Refer to []."))
         .next_help_heading("Data Reporting")
         .arg(
-            Arg::new("report-sum")
+            Arg::new("summary")
                 .long("sum")
                 .action(ArgAction::SetTrue)
                 .help("Restrict report to a summary only (quicker rendition)")
@@ -184,14 +184,6 @@ In file operations (filegen, etc..) we can manually define output filenames with
 By default, report synthesis happens once per input set (file combnation and cli options).
 Use this option to force report regeneration.
 This has no effect on file operations that do not synthesize a report."))
-        .arg(
-            Arg::new("report-brdc-sky")
-                .long("brdc-sky")
-                .action(ArgAction::SetTrue)
-                .help("When SP3 and/or BRDC RINEX is present,
-the skyplot (compass) projection is only calculated from the SP3 coordinates (highest precision). 
-Use this option to also calculate it from radio messages (for comparison purposes for example).")
-        )
             .next_help_heading("RINEX Data (specific)")
                 .arg(
                     Arg::new("rnx2crx")
@@ -214,19 +206,18 @@ In file synthesis, we will only generate readable RINEX.")
                     .long_help("
 Removes all zero (null) values from data records.
 NB: this does not apply every possible fields but specific.
-When applied to NAV RINEx: Null NAV records are always forbidden
-so we apply it safely.
-When applied to OBS RINEx: we only repair Zero Phase and Decoded Range, which are physically incorrect and result of a local receiver internal error.
-Synthesize your observations and analyze them.
-Zero repair is here to fix physical non-senses that may be reported by the ppp solver."))
-                .arg(Arg::new("short")
+When applied to NAV RINEx: Null NAV records are always forbidden so we repair them.
+When applied to OBS RINEx: we null Phase and Decoded Ranges are patched, because they are physically
+incorrect and most likely, the result of a receiver internal error.
+Use the geodetic report to monitor whether your data contains incorrect data points.
+The `ppp` mode will report physical non-sense on such data points."))
+                .arg(Arg::new("short-rinex")
                     .short('s')
                     .long("short")
                     .action(ArgAction::SetTrue)
-                    .help("Prefered (V2/deprecated) shortened filenames when synthesizing RINEx files.
-NB: this toolbox prefers V3/longer filenames.
-NB(2): this only applies to Meteo/Obs/NAV RINEx."))
-
+                    .help("Prefer (V2) short file names when synthesizing RINex files.
+NB: this toolbox uses V3 / long file names by default.
+NB(2): this only applies to Meteo, Observation and Navigation RINex."))
             .next_help_heading("Receiver Antenna")
                 .arg(Arg::new("rx-ecef")
                     .long("rx-ecef")
@@ -472,5 +463,15 @@ Otherwise it gets automatically picked up."))
     /// Customized / manually defined output to be generated
     pub fn custom_output_name(&self) -> Option<&String> {
         self.matches.get_one::<String>("output-name")
+    }
+
+    /// Prefer short V2 like RINex file names
+    pub fn short_rinex_file_name(&self) -> bool {
+        self.matches.get_flag("short-rinex")
+    }
+
+    /// Apply gzip compression out the output
+    pub fn gzip_encoding(&self) -> bool {
+        self.matches.get_flag("zip")
     }
 }

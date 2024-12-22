@@ -102,6 +102,9 @@ impl Merge for Rinex {
     }
 
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
+        self.header.merge_mut(&rhs.header)?;
+        self.production.merge_mut(&rhs.production)?;
+
         if let Some(lhs) = self.record.as_mut_nav() {
             if let Some(rhs) = rhs.record.as_nav() {
                 return merge_mut_nav(lhs, rhs);

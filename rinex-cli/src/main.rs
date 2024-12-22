@@ -20,7 +20,7 @@ use preprocessing::preprocess;
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
 use rinex_qc::prelude::{MergeError, QcContext, QcError, QcExtraPage, Render};
 
-use crate::fops::filegen as fops_filegen;
+use crate::fops::{filegen as fops_filegen, merge as fops_merge};
 
 use walkdir::WalkDir;
 
@@ -42,10 +42,10 @@ pub enum Error {
     StdioError(#[from] IoError),
     #[error("rinex parsing")]
     RinexParsing(#[from] RinexParsingError),
+    #[error("rinex formatting")]
+    RinexFormatting(#[from] RinexFormattingError),
     #[error("qc error")]
     QcError(#[from] QcError),
-    // #[error("positioning solver error")]
-    // PositioningSolverError(#[from] positioning::Error),
     #[cfg(feature = "csv")]
     #[error("csv export error")]
     CsvError(#[from] CsvError),
@@ -197,9 +197,6 @@ pub fn main() -> Result<(), Error> {
         qc_context: qc_ctx,
     };
 
-    // let ctx_position = data_ctx.reference_position();
-    // let ctx_stem = Context::context_stem(&mut data_ctx);
-
     // When output product needs to be generated (other than simple report.html)
     // we put them into seperate folders
     if cli.has_fops_output_product() {
@@ -221,10 +218,10 @@ pub fn main() -> Result<(), Error> {
             fops_filegen(&ctx.qc_context, &cli.matches, submatches)?;
             return Ok(());
         },
-        // Some(("merge", submatches)) => {
-        //     fops::merge(&ctx, submatches)?;
-        //     return Ok(());
-        // },
+        Some(("merge", submatches)) => {
+            fops_merge(&ctx.qc_context, &cli, submatches)?;
+            return Ok(());
+        },
         // Some(("split", submatches)) => {
         //     fops::split(&ctx, submatches)?;
         //     return Ok(());

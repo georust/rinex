@@ -211,7 +211,7 @@ impl QcContext {
         if let Ok(rinex) = Rinex::from_file(path) {
             self.load_rinex(&mut meta, rinex)?;
             info!(
-                "{} (RINEX) loaded",
+                "{} (RINex) loaded",
                 path.file_stem().unwrap_or_default().to_string_lossy()
             );
             return Ok(());

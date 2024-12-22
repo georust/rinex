@@ -1,6 +1,6 @@
 //mod diff;
 mod filegen;
-// mod merge;
+mod merge;
 // mod split;
 // mod tbin;
 
@@ -9,7 +9,7 @@ pub mod csv;
 
 //pub use diff::diff;
 pub use filegen::filegen;
-//pub use merge::merge;
+pub use merge::merge;
 //pub use split::split;
 //pub use tbin::time_binning;
 
