@@ -1,7 +1,7 @@
 mod cli;
 use cli::Cli;
 
-use rinex::prelude::{Epoch, FormattingError, ParsingError, Rinex};
+use rinex::prelude::{FormattingError, ParsingError, Rinex};
 
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -24,14 +24,43 @@ fn workspace(cli: &Cli) -> PathBuf {
     }
 }
 
+fn create_workspace(path: &PathBuf) {
+    std::fs::create_dir_all(path).unwrap_or_else(|_| {
+        panic!(
+            "failed to create workspace \"{}\": permission denied",
+            path.to_string_lossy(),
+        )
+    });
+}
+
+fn input_name(path: &PathBuf) -> String {
+    let stem = path
+        .file_stem()
+        .expect("failed to determine input file name")
+        .to_str()
+        .expect("failed to determine input file name");
+
+    if stem.ends_with(".crx") {
+        stem.strip_suffix(".crx")
+            .expect("failed to determine input file name")
+            .to_string()
+    } else {
+        stem.to_string()
+    }
+}
+
 fn main() -> Result<(), Error> {
     let cli = Cli::new();
+
     let input_path = cli.input_path();
+    let input_name = input_name(&input_path);
+
     let short_name = cli.matches.get_flag("short");
     let output_name = cli.output_name();
     let gzip_out = cli.gzip_encoding();
 
-    let workspace = workspace(&cli);
+    let workspace_path = workspace(&cli).join(&input_name);
+    create_workspace(&workspace_path);
 
     let extension = input_path
         .extension()
@@ -50,12 +79,12 @@ fn main() -> Result<(), Error> {
 
     // output path
     let output_path = if let Some(output_name) = output_name {
-        workspace.join(output_name)
+        workspace_path.join(output_name)
     } else {
         let suffix = if gzip_out { Some(".gz") } else { None };
 
         let auto = rinex.standard_filename(short_name, suffix, None);
-        workspace.join(auto)
+        workspace_path.join(auto)
     };
 
     let output_file_name = output_path

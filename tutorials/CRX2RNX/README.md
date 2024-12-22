@@ -14,3 +14,7 @@ A compression order of 5 is said to be the optimal (following Y. Hatanaka's orig
 But keep in mind that CRINEX is not a lossless compression when it comes to signal observations: 
 the higher the compression order, the larger the error.
 
+To decompress CRINex into readable RINex, you have two options
+
+- either use the dedicated `crx2rnx` simplistic tool, which only performs this operation
+- or use the `--crx2rnx` option of `rinex-cli` when synthesizing RINex

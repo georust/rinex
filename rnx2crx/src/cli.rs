@@ -14,7 +14,7 @@ impl Cli {
                 Command::new("rnx2crx")
                     .author("Guillaume W. Bres <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
-                    .about("RINEX compression tool")
+                    .about("RINex to CRINex (compact RINex) compression tool")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
                     .arg(
@@ -37,16 +37,17 @@ Both will not work well if your input does not follow standard conventions at al
                             .action(ArgAction::Set)
                             .help("Custom output file name. Otherwise, we follow standard conventions."))
                     .arg(
-                        Arg::new("gz")
-                            .long("gz")
+                        Arg::new("zip")
+                            .long("zip")
                             .action(ArgAction::SetTrue)
-                            .help("Force Gzip compression on the output.")
+                            .help("Gzip compress the output directly.")
                     )
                     .arg(
                         Arg::new("workspace")
                             .short('w')
                             .action(ArgAction::Set)
-                            .help("Define custom workspace.")
+                            .help("Define custom workspace. The $GEORUST_WORKSPACE
+variable is automatically picked-up and prefered by default.")
                     )
                     .get_matches()
             },
@@ -62,6 +63,6 @@ Both will not work well if your input does not follow standard conventions at al
         self.matches.get_one::<String>("workspace")
     }
     pub fn gzip_encoding(&self) -> bool {
-        self.matches.get_flag("gz")
+        self.matches.get_flag("zip")
     }
 }

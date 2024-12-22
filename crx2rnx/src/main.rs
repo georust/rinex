@@ -73,11 +73,7 @@ fn main() -> Result<(), Error> {
         Rinex::from_file(&input_path)?
     };
 
-    let suffix = if gzip_input || gzip_output {
-        Some(".gz")
-    } else {
-        None
-    };
+    let suffix = if gzip_output { Some(".gz") } else { None };
 
     rinex.crnx2rnx_mut(); // convert to RINEX
 
@@ -89,7 +85,7 @@ fn main() -> Result<(), Error> {
     let output_path = workspace_path.join(output_name.clone());
 
     // dump as RINEX
-    if gzip_input || gzip_output {
+    if gzip_output {
         rinex.to_gzip_file(&output_path)?;
     } else {
         rinex.to_file(output_path)?;

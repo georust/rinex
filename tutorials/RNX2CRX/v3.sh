@@ -5,11 +5,13 @@
 RNX2CRX=./target/release/rnx2crx
 FOLDER=test_resources/OBS/V3
 
-# short file example
-$RNX2CRX $FOLDER/pdel0010.21o
+# V3 (modern) with V2 like filename:
+# use --short to generate similar name
+$RNX2CRX --short $FOLDER/pdel0010.21o
 
-# force .gz compression manually on the output
-$RNX2CRX --gz $FOLDER/pdel0010.21o
+# Use --zip to compress at the same time
+$RNX2CRX --short --zip $FOLDER/pdel0010.21o
 
-# realistic file, .gz compression is preserved
-$RNX2CRX $FOLDER/240506_glacier_station.obs.gz
+# V3 example
+# Use --zip to preserve Gzip compression
+$RNX2CRX --zip $FOLDER/240506_glacier_station.obs.gz

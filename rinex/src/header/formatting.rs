@@ -222,7 +222,7 @@ impl Header {
         }
     }
 
-    /// Formats "PMG / RUN BY / DATE"
+    /// Formats "PGM / RUN BY / DATE"
     fn format_prog_runby<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         let mut string = if let Some(program) = &self.program {
             format!("{:<20}", program)
