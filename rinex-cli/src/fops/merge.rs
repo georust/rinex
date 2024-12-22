@@ -4,6 +4,12 @@ use std::path::PathBuf;
 
 use crate::{cli::Cli, preprocessing::preprocess_rinex};
 
+#[cfg(feature = "csv")]
+use crate::fops::csv::{
+    write_meteo_rinex as csv_write_meteo_rinex, write_nav_rinex as csv_write_nav_rinex,
+    write_obs_rinex as csv_write_obs_rinex,
+};
+
 use rinex_qc::prelude::{Merge, QcContext};
 
 use rinex::prelude::{Rinex, RinexType};
@@ -112,6 +118,27 @@ pub fn merge(ctx: &QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Err
     let auto_generated = rinex_c.standard_filename(short_rinex, suffix, None);
 
     let output_path = ctx.cfg.workspace.join(name).join(auto_generated);
+
+    if !matches.get_flag("csv") {}
+
+    #[cfg(feature = "csv")]
+    if matches.get_flag("csv") {
+        match rinex_b.header.rinex_type {
+            RinexType::ObservationData => {
+                csv_write_obs_rinex(&rinex_c, &output_path)?;
+                info!("\"{}\" has been generated", output_path.display());
+                return Ok(());
+            },
+            RinexType::MeteoData => {
+                csv_write_meteo_rinex(&rinex_c, &output_path)?;
+                info!("\"{}\" has been generated", output_path.display());
+                return Ok(());
+            },
+            rinex_type => {
+                panic!("cannot format {} to csv yet", rinex_type);
+            },
+        }
+    }
 
     if gzip_encoding {
         rinex_c.to_gzip_file(&output_path)?;

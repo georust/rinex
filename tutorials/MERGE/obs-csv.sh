@@ -1,13 +1,25 @@
 #! /bin/sh
-DIR=test_resources/CRNX/V3
-FILTER="GPS" # GPS only
+DIR=test_resources/OBS/V3
 
-# Split batch file, generate gzip compressed files
+# example: preprocessing prior merge
+FILTER="C1C,L1C,L2P,C2P"
+
+# -P: preprocess
+# --short: generate a similar V2-like name 
+# merge: B into A
+# --csv: dump as CSV instead of RINex
 ./target/release/rinex-cli \
     -P $FILTER \
-    --fp $DIR/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    merge $DIR/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz
+    --short \
+    --fp $DIR/VLNS0010.22O \
+    merge $DIR/VLNS0630.22O \
+    --csv
 
-# analyze merged file
+# Use --zip to gzip your CSV product
 ./target/release/rinex-cli \
-    --fp WORKSPACE/ESBC00DNK_R_20201770000_01D_30S_MO/OUTPUT/ESBC00DNK00DNK_R_20201772359_01D_30S_MO.crx
+    -P $FILTER \
+    --short \
+    --zip \
+    --fp $DIR/VLNS0010.22O \
+    merge $DIR/VLNS0630.22O \
+    --csv
