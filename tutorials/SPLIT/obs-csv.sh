@@ -1,5 +1,4 @@
 #! /bin/sh
-
 NOON="2020-06-25T12:00:00"
 TEST_FILE=test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 
@@ -12,27 +11,17 @@ TEST_FILE=test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 # with standardized files.
 
 # -P: any preprocessing pipeline may apply
+# --csv: output to CSV directly after split
 ./target/release/rinex-cli \
     -P "GPS;L1C,C1C" \
     --fp $TEST_FILE \
-    split $NOON
+    split $NOON \
+    --csv
 
-# --zip: force gzip compression on your output product
+# --zip: gzip compress your CSV directly
 ./target/release/rinex-cli \
     -P "GPS;L1C,C1C" \
     --zip \
     --fp $TEST_FILE \
-    split $NOON
-
-# --crx2rnx: decompress the CRINex format and output as RINex instead
-./target/release/rinex-cli \
-    -P "GPS;L1C,C1C" \
-    --crx2rnx \
-    --zip \
-    --fp $TEST_FILE \
-    split $NOON
-
-# Analyze any output product by loading it back in to the toolbox.
-# Here we analyze the morning file set
-./target/release/rinex-cli \
-    --fp WORKSPACE/ESBC00DNK/ESBC00DNK_R_20201770000_01D_30S_MO.crx
+    split $NOON \
+    --csv

@@ -1,4 +1,3 @@
-use crate::fops::custom_prod_attributes;
 use crate::Error;
 use clap::ArgMatches;
 
@@ -7,7 +6,7 @@ use rinex_qc::prelude::QcContext;
 #[cfg(feature = "csv")]
 use crate::fops::csv::{
     write_meteo_rinex as write_meteo_rinex_csv,
-    write_nav_rinex as write_nav_rinex_csv,
+    // write_nav_rinex as write_nav_rinex_csv,
     // write_sp3 as write_sp3_csv,
     write_obs_rinex as write_obs_rinex_csv,
 };
@@ -52,6 +51,13 @@ fn write_csv(ctx: &QcContext, matches: &ArgMatches, submatches: &ArgMatches) -> 
         let fullpath = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
         write_meteo_rinex_csv(rinex, &fullpath)?;
         info!("METEO RINex \"{}\" dumped as csv", meta.name);
+    }
+
+    if let Some(_nav) = &ctx.nav_dataset {
+        //let auto_generated_name = nav.standard_filename(false, Some(".csv"), None);
+        //let fullpath = ctx.cfg.workspace.join(&auto_generated_name);
+        //write_nav_rinex_csv(rinex, &fullpath)?;
+        //info!("NAV RINex \"{}\" dumped as csv", auto_generated_name);
     }
 
     Ok(())

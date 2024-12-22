@@ -2,8 +2,15 @@ use crate::Error;
 use clap::ArgMatches;
 
 use crate::cli::Cli;
-use rinex::prelude::{Epoch, Rinex};
+use rinex::prelude::{Epoch, Rinex, RinexType};
 use rinex_qc::prelude::{QcContext, Split};
+
+#[cfg(feature = "csv")]
+use crate::fops::csv::{
+    write_meteo_rinex as csv_write_meteo_rinex,
+    // write_nav_rinex as csv_write_nav_rinex,
+    write_obs_rinex as csv_write_obs_rinex,
+};
 
 /// Dump and generate new [Rinex]
 fn generate_dual_rinex(
@@ -43,6 +50,25 @@ fn generate_dual_rinex(
     } else {
         ctx.cfg.workspace.join(name_b)
     };
+
+    #[cfg(feature = "csv")]
+    if csv {
+        match rinex_a.header.rinex_type {
+            RinexType::ObservationData => {
+                csv_write_obs_rinex(&rinex_a, &path_a)
+                    .unwrap_or_else(|e| panic!("failed to dump as csv: {}", e));
+
+                csv_write_obs_rinex(&rinex_b, &path_b)
+                    .unwrap_or_else(|e| panic!("failed to dump as csv: {}", e));
+            },
+            RinexType::MeteoData => {},
+            RinexType::NavigationData => {},
+            rinex_type => {
+                panic!("cannot format {} to CSV yet", rinex_type);
+            },
+        }
+        return Ok(());
+    }
 
     if gzip_encoding {
         rinex_b.to_gzip_file(&path_b)?;
