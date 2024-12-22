@@ -20,7 +20,7 @@ use preprocessing::preprocess;
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
 use rinex_qc::prelude::{MergeError, QcContext, QcError, QcExtraPage, Render};
 
-use crate::fops::{filegen as fops_filegen, merge as fops_merge};
+use crate::fops::{filegen as fops_filegen, merge as fops_merge, split as fops_split};
 
 use walkdir::WalkDir;
 
@@ -222,10 +222,10 @@ pub fn main() -> Result<(), Error> {
             fops_merge(&ctx.qc_context, &cli, submatches)?;
             return Ok(());
         },
-        // Some(("split", submatches)) => {
-        //     fops::split(&ctx, submatches)?;
-        //     return Ok(());
-        // },
+        Some(("split", submatches)) => {
+            fops_split(&ctx.qc_context, &cli, submatches)?;
+            return Ok(());
+        },
         // Some(("tbin", submatches)) => {
         //     fops::time_binning(&ctx, &cli.matches, submatches)?;
         //     return Ok(());

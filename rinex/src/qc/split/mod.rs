@@ -2,10 +2,12 @@ use crate::prelude::{qc::Split, Duration, Epoch, Record, Rinex};
 
 mod clock;
 mod doris;
+mod header;
 mod ionex;
 mod meteo;
 mod nav;
 mod obs;
+mod production;
 
 use obs::{split as obs_split, split_even_dt as obs_split_even_dt, split_mut as obs_split_mut};
 
@@ -29,6 +31,9 @@ use doris::{
 
 impl Split for Rinex {
     fn split(&self, t: Epoch) -> (Self, Self) {
+        let (h0, h1) = self.header.split(t);
+        let (p0, p1) = self.production.split(t);
+
         let (r0, r1) = if let Some(r) = self.record.as_obs() {
             let (r0, r1) = obs_split(r, t);
             (Record::ObsRecord(r0), Record::ObsRecord(r1))
@@ -61,15 +66,15 @@ impl Split for Rinex {
         (
             Rinex {
                 record: r0,
-                header: self.header.clone(),
+                header: h0,
+                production: p0,
                 comments: self.comments.clone(),
-                production: self.production.clone(),
             },
             Rinex {
                 record: r1,
-                header: self.header.clone(),
+                header: h1,
+                production: p1,
                 comments: self.comments.clone(),
-                production: self.production.clone(),
             },
         )
     }

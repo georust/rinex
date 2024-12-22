@@ -1,84 +1,115 @@
-use crate::cli::Context;
-use crate::fops::custom_prod_attributes;
 use crate::Error;
 use clap::ArgMatches;
+
+use crate::cli::Cli;
 use rinex::prelude::{Epoch, Rinex};
-use rinex_qc::prelude::{ProductType, Split};
-use std::path::Path;
+use rinex_qc::prelude::{QcContext, Split};
 
 /// Dump and generate new [Rinex]
-fn generate_rinex(
-    ctx: &Context,
-    product_id: ProductType,
-    input_path: &Path,
-    rinex: &Rinex,
-    matches: &ArgMatches,
+fn generate_dual_rinex(
+    ctx: &QcContext,
+    rinex_a: &Rinex,
+    rinex_b: &Rinex,
+    csv: bool,
+    short_filename: bool,
+    gzip_encoding: bool,
+    subdir: Option<String>,
 ) -> Result<(), Error> {
-    let prod = custom_prod_attributes(&rinex, matches);
+    if let Some(subdir) = &subdir {
+        ctx.create_subdir(&subdir)
+            .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
+    }
 
-    let extension = input_path
-        .extension()
-        .expect("failed to determine input file name")
-        .to_string_lossy();
+    let suffix = if gzip_encoding { Some(".gz") } else { None };
 
-    let suffix = if extension.eq("gz") {
-        Some(".gz")
+    let name_a = rinex_a.standard_filename(short_filename, suffix, None);
+
+    let path_a = if let Some(subdir) = &subdir {
+        ctx.cfg.workspace.join(subdir).join(name_a)
     } else {
-        None
+        ctx.cfg.workspace.join(name_a)
     };
 
-    let mut filename = rinex.standard_filename(false, suffix, Some(prod));
+    if gzip_encoding {
+        rinex_a.to_gzip_file(&path_a)?;
+    } else {
+        rinex_a.to_file(&path_a)?;
+    }
 
-    // Can't we find a better output product name ?
-    let t0 = rinex
-        .first_epoch()
-        .expect("failed to generate output file name");
+    let name_b = rinex_b.standard_filename(short_filename, suffix, None);
 
-    let (y, m, d, hh, mm, ss, _) = t0.to_gregorian_utc();
+    let path_b = if let Some(subdir) = &subdir {
+        ctx.cfg.workspace.join(subdir).join(name_b)
+    } else {
+        ctx.cfg.workspace.join(name_b)
+    };
 
-    filename.push_str(&format!("{}{}{}_{}{}{}", y, m, d, hh, mm, ss));
+    if gzip_encoding {
+        rinex_b.to_gzip_file(&path_b)?;
+    } else {
+        rinex_b.to_file(&path_b)?;
+    }
 
-    let output = ctx.workspace.root.join(filename);
-
-    rinex.to_file(&output)?;
-    info!(
-        "{} RINEX \"{}\" has been generated",
-        product_id,
-        output.to_string_lossy()
-    );
     Ok(())
 }
 
 /// Split all input files (per [ProductType]) at specified [Epoch]
-pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
-    let ctx_data = &ctx.data;
-
+pub fn split(ctx: &QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Error> {
     let t = matches
         .get_one::<Epoch>("split")
         .expect("split epoch is required");
 
-    if let Some(sp3) = ctx_data.sp3_data() {
-        let (sp3_a, sp3_b) = sp3.split(*t);
+    let csv = matches.get_flag("csv");
+    let short_rinex = cli.short_rinex_file_name();
+    let gzip_encoding = cli.gzip_encoding();
+
+    // apply to all internal products
+    for (meta, rinex) in &ctx.obs_dataset {
+        ctx.create_subdir(&meta.name)
+            .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
+
+        let (rinex_a, rinex_b) = rinex.split(*t);
+
+        generate_dual_rinex(
+            ctx,
+            &rinex_a,
+            &rinex_b,
+            csv,
+            short_rinex,
+            gzip_encoding,
+            Some(meta.name.clone()),
+        )
+        .unwrap_or_else(|e| panic!("file synthesis error: {}", e));
     }
 
-    for product_id in [
-        ProductType::Observation,
-        ProductType::MeteoObservation,
-        ProductType::BroadcastNavigation,
-        ProductType::HighPrecisionClock,
-        ProductType::IONEX,
-    ] {
-        if let Some(rinex) = ctx_data.get_rinex_data(product_id) {
-            let (rinex_a, rinex_b) = rinex.split(*t);
+    if let Some(rinex) = &ctx.nav_dataset {
+        let (rinex_a, rinex_b) = rinex.split(*t);
 
-            let input_path = ctx_data
-                .files_iter(Some(product_id))
-                .next()
-                .expect("failed to determine output file name");
+        generate_dual_rinex(
+            ctx,
+            &rinex_a,
+            &rinex_b,
+            csv,
+            short_rinex,
+            gzip_encoding,
+            None,
+        )
+        .unwrap_or_else(|e| panic!("file synthesis error: {}", e));
+    }
 
-            generate_rinex(ctx, product_id, input_path, &rinex_a, &matches)?;
-            generate_rinex(ctx, product_id, input_path, &rinex_b, &matches)?;
-        }
+    if let Some(ionex) = &ctx.ionex_dataset {
+        let (rinex_a, rinex_b) = ionex.split(*t);
+
+        generate_dual_rinex(
+            ctx,
+            &rinex_a,
+            &rinex_b,
+            csv,
+            short_rinex,
+            gzip_encoding,
+            None,
+        )
+        .unwrap_or_else(|e| panic!("file synthesis error: {}", e));
     }
 
     Ok(())
