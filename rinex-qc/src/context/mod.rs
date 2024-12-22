@@ -17,6 +17,7 @@ use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 // and possibly one SP3.
 mod processing;
 
+pub(crate) mod ionex;
 pub(crate) mod meta;
 pub(crate) mod meteo;
 pub(crate) mod nav;
@@ -49,6 +50,8 @@ pub struct QcContext {
     pub obs_dataset: HashMap<MetaData, Rinex>,
     /// Possible Navigation [Rinex]
     pub nav_dataset: Option<Rinex>,
+    /// Possible IONEx [Rinex]
+    pub ionex_dataset: Option<Rinex>,
     /// Meteo [Rinex] stored by [MetaData]
     pub meteo_dataset: HashMap<MetaData, Rinex>,
     // pub(crate) sky_context: Option<SkyContext>,
@@ -180,6 +183,7 @@ impl QcContext {
             obs_dataset: Default::default(),
             nav_dataset: Default::default(),
             meteo_dataset: Default::default(),
+            ionex_dataset: Default::default(),
         };
 
         s.deploy()?;
@@ -240,7 +244,7 @@ impl QcContext {
         if let Ok(rinex) = Rinex::from_gzip_file(path) {
             self.load_rinex(&mut meta, rinex)?;
             info!(
-                "RINEX: \"{}\" loaded",
+                "{} (RINex) loaded",
                 path.file_stem().unwrap_or_default().to_string_lossy()
             );
             return Ok(());
@@ -264,6 +268,9 @@ impl QcContext {
             rinex.filter_mut(&filter);
         }
         if let Some(rinex) = &mut self.nav_dataset {
+            rinex.filter_mut(&filter);
+        }
+        if let Some(rinex) = &mut self.ionex_dataset {
             rinex.filter_mut(&filter);
         }
         for (_, rinex) in self.meteo_dataset.iter_mut() {

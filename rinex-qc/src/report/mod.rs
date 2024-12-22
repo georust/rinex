@@ -104,11 +104,11 @@ impl QcReport {
         html! {
             aside class="menu" {
                 p class="menu-label" {
-                    (format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION")))
+                    (format!("RINEX-Qc v{}", env!("CARGO_PKG_VERSION")))
                 }
                 ul class="menu-list" {
                     li {
-                        a id="menu:summary" {
+                        a id="qc-summary" class="qc-sidemenu" {
                             span class="icon" {
                                 i class="fa fa-home" {}
                             }
@@ -117,25 +117,11 @@ impl QcReport {
                     }
                     @ if let Some(observations) = &self.observations {
                         li {
-                            a id="menu:observations" {
+                            a id="qc-observations" class="qc-sidemenu" {
                                 span class="icon" {
                                     i class="fa-solid fa-tower-broadcast" {}
                                 }
                                 "Observations"
-                            }
-                            (observations.html_menu_bar())
-                        }
-                    }
-                    @ if !self.custom_chapters.is_empty() {
-                        li {
-                            a id="menu:custom-chapters" {
-                                ul class="menu-list" {
-                                    @for chapter in self.custom_chapters.iter() {
-                                        li {
-                                            (chapter.tab.render())
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
@@ -186,111 +172,26 @@ impl Render for QcReport {
                     link rel="stylesheet" href="https://unpkg.com/balloon-css/balloon.min.css";
                 }//head
                 body {
-                        div id="title" {
-                            title {
-                                "RINEX QC"
+                    div id="title" {
+                        title {
+                            "RINEX QC"
+                        }
+                    }
+                    div id="body" {
+                        div class="columns is-fullheight" {
+                            div class="column is-3 is-sidebar-menu is-hidden-mobile" {
+                                (self.html_menu_bar())
                             }
-                        }
-                        div id="body" {
-                            div class="columns is-fullheight" {
-                                div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile" {
-                                    (self.html_menu_bar())
+                            div class="hero is-fullheight" {
+                                div id="summary" class="container is-main" style="display:block" {
+                                    div class="section" {
+                                        (self.summary.render())
+                                    }
                                 }
-                                div class="hero is-fullheight" {
-                                    div id="summary" class="container is-main" style="display:block" {
-                                        div class="section" {
-                                            (self.summary.render())
-                                        }
-                                    }
-                                    div id="extra-chapters" class="container" style="display:block" {
-                                        @for chapter in self.custom_chapters.iter() {
-                                            div id=(chapter.html_id) class="container is-main" style="display:none" {
-                                                (chapter.content.render())
-                                            }
-                                            div id=(&format!("end:{}", chapter.html_id)) style="display:none" {
-                                            }
-                                        }
-                                    }
-                                }//class=hero
-                            } // class=columns
-                        }
-                        script {
-                          (PreEscaped(
-"
-		var sidebar_menu = document.getElementById('menubar');
-		var main_pages = document.getElementsByClassName('is-main');
-		var sub_pages = document.getElementsByClassName('is-page');
-
-		sidebar_menu.onclick = function (evt) {
-			var clicked_id = evt.originalTarget.id;
-			var category = clicked_id.substring(5).split(':')[0];
-			var tab = clicked_id.substring(5).split(':')[1];
-			var is_tab = clicked_id.split(':').length == 3;
-			var menu_subtabs = document.getElementsByClassName('menu:subtab');
-			console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' + is_tab);
-
-			if (is_tab == true) {
-				// show tabs for this category
-				var cat_tabs = 'menu:'+category;
-				for (var i = 0; i < menu_subtabs.length; i++) {
-					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
-						menu_subtabs[i].style = 'display:block';
-					} else {
-						menu_subtabs[i].style = 'display:none';
-					}
-				}
-				// hide any other main page
-				for (var i = 0; i < main_pages.length; i++) {
-					if (main_pages[i].id != category) {
-						main_pages[i].style = 'display:none';
-					}
-				}
-				// show specialized content
-				var targetted_content = 'body:' + category + ':' + tab;
-				for (var i = 0; i < sub_pages.length; i++) {
-					if (sub_pages[i].id == targetted_content) {
-						sub_pages[i].style = 'display:block';
-					} else {
-						sub_pages[i].style = 'display:none';
-					}
-				}
-			} else {
-				// show tabs for this category
-				var cat_tabs = 'menu:'+category;
-				for (var i = 0; i < menu_subtabs.length; i++) {
-					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
-						menu_subtabs[i].style = 'display:block';
-					} else {
-						menu_subtabs[i].style = 'display:none';
-					}
-				}
-				// hide any other main page
-				for (var i = 0; i < main_pages.length; i++) {
-					if (main_pages[i].id == category) {
-						main_pages[i].style = 'display:block';
-					} else {
-						main_pages[i].style = 'display:none';
-					}
-				}
-				// click on parent: show first specialized content
-				var done = false;
-				for (var i = 0; i < sub_pages.length; i++) {
-					if (done == false) {
-						if (sub_pages[i].id.includes('body:'+category)) {
-							sub_pages[i].style = 'display:block';
-							done = true;
-						} else {
-							sub_pages[i].style = 'display:none';
-						}
-					} else {
-						sub_pages[i].style = 'display:none';
-					}
-				}
-			}
-		}
-"
-                        ))} //JS
-                }//body
+                            }//class=hero
+                        } // class=columns
+                    }
+                }
             }
         }
     }

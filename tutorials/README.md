@@ -102,6 +102,7 @@ a specific preset stored here.
   - 2024-111 Nyalesund (NOR) 2024 glacier surveying (RTK compatible)
 - [Merge](./MERGE) special file operation
   - Merge (RINex (a), RINex (b)) into a new RINex
+  - Merge (IONex (a), IONex (b)) into a new IONex
   - Merge (SP3 (a), SP3 (b)) into a new SP3
 - [Meteo](./METEO) special RINEX applications
   - Modern Meteo observations (QC)

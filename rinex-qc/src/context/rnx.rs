@@ -16,6 +16,7 @@ impl QcContext {
             RinexType::MeteoData => self.load_meteo_rinex(meta, rinex),
             RinexType::ObservationData => self.load_observation_rinex(meta, rinex),
             RinexType::NavigationData => self.load_navigation_rinex(rinex),
+            RinexType::IonosphereMaps => self.load_ionex(rinex),
             _ => Err(QcError::NonSupportedFormat),
         }
     }

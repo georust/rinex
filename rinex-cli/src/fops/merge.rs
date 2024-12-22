@@ -51,14 +51,19 @@ pub fn merge(ctx: &QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Err
                 .as_ref()
                 .unwrap_or_else(|| panic!("missing Navigation RINex counterpart"));
 
-            let meta = merge_path
+            let file_stem = merge_path
                 .file_stem()
                 .expect("failed to determine output file name")
                 .to_string_lossy()
                 .to_string();
 
+            let meta = file_stem.split('.').collect::<Vec<_>>()[0];
+
+            ctx.create_subdir(&meta)
+                .unwrap_or_else(|e| panic!("failed to create output directory: {}", e));
+
             let rinex_c = rinex_a.merge(&rinex_b)?;
-            (meta, rinex_c)
+            (meta.to_string(), rinex_c)
         },
         RinexType::MeteoData => {
             let meta = ctx.meteo_dataset.keys().collect::<Vec<_>>()[0];
@@ -72,7 +77,24 @@ pub fn merge(ctx: &QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Err
             (meta.name.clone(), rinex_c)
         },
         RinexType::IonosphereMaps => {
-            panic!("cannot merge IONex yet");
+            let rinex_a = ctx
+                .ionex_dataset
+                .as_ref()
+                .unwrap_or_else(|| panic!("missing IONex counterpart"));
+
+            let file_stem = merge_path
+                .file_stem()
+                .expect("failed to determine output file name")
+                .to_string_lossy()
+                .to_string();
+
+            let meta = file_stem.split('.').collect::<Vec<_>>()[0];
+
+            ctx.create_subdir(&meta)
+                .unwrap_or_else(|e| panic!("failed to create output directory: {}", e));
+
+            let rinex_c = rinex_a.merge(&rinex_b)?;
+            (meta.to_string(), rinex_c)
         },
         RinexType::ClockData => {
             panic!("cannot merge Clock RINex yet");
