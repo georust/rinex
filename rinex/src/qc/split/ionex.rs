@@ -46,6 +46,26 @@ pub fn split_mut(rec: &mut Record, t: Epoch) -> Record {
     after
 }
 
-pub fn split_even_dt(rec: &Record, _duration: Duration) -> Vec<Record> {
-    Vec::new()
+pub fn split_even_dt(rec: &Record, dt: Duration) -> Vec<Record> {
+    let mut pending = Record::new();
+    let mut ret = Vec::<Record>::new();
+
+    let mut t0 = Option::<Epoch>::None;
+
+    for (k, v) in rec.iter() {
+        if let Some(t) = t0 {
+            if k.epoch > t + dt {
+                // reset: new chunk
+                t0 = Some(k.epoch);
+                ret.push(pending);
+                pending = Record::new();
+            }
+        } else {
+            t0 = Some(k.epoch);
+        }
+
+        pending.insert(k.clone(), v.clone());
+    }
+
+    ret
 }

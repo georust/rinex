@@ -1,103 +1,76 @@
-use crate::cli::Context;
-use crate::Error;
 use clap::ArgMatches;
 
-use crate::fops::custom_prod_attributes;
-use rinex::prelude::{Rinex, Version};
-use rinex_qc::prelude::ProductType;
+use crate::{cli::Cli, Error};
+
+use rinex::prelude::{Rinex, RinexType};
 use std::path::PathBuf;
+
+use rinex_qc::prelude::QcContext;
 
 /// Observation RINEX (a -b) special differential operation.
 /// Dumps result into workspace.
-pub fn diff(ctx: &mut Context, matches: &ArgMatches) -> Result<(), Error> {
-    let ctx_data = &mut ctx.data;
+pub fn diff(ctx: &mut QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Error> {
+    let gzip_encoding = cli.gzip_encoding();
+    let short_rinex_name = cli.short_rinex_file_name();
+    let csv = matches.get_flag("csv");
 
     // retrieve and parse (B) input
     let path_b = matches.get_one::<PathBuf>("file").unwrap();
 
     let extension = path_b
         .extension()
-        .expect("failed to determine output file extension");
+        .expect("failed to determine output file name")
+        .to_string_lossy()
+        .to_string();
 
     let gzip_encoded = extension.eq("gz");
 
+    let suffix = if gzip_encoding { Some(".gz") } else { None };
+
+    // parse input
     let rinex_b = if gzip_encoded {
-        Rinex::from_gzip_file(&path_b).expect("failed to load diff(a-b*) file")
+        Rinex::from_gzip_file(&path_b)
     } else {
-        Rinex::from_file(&path_b).expect("failed to load diff(a-b*) file")
+        Rinex::from_file(&path_b)
     };
 
-    // retrieve and modify (A) OBSERVATION RINEX (only!)
-    let rinex_a = ctx_data
-        .get_rinex_data_mut(ProductType::Observation)
-        .expect("RINEX (A-B) requires Observation RINEX");
+    let rinex_b = rinex_b.unwrap_or_else(|e| panic!("failed to parse provided file: {}", e));
 
-    rinex_a.observation_substract_mut(&rinex_b);
-
-    let prod = custom_prod_attributes(&rinex_a, matches);
-
-    // determine new revision
-    let major_a = rinex_a.header.version.major;
-    let major_b = rinex_b.header.version.major;
-    let major = major_a.min(major_b);
-
-    let minor_a = rinex_b.header.version.minor;
-    let minor_b = rinex_b.header.version.minor;
-    let minor = minor_a.min(minor_b);
-
-    rinex_a.header.version = Version::new(major, minor);
-
-    let short_filename = if major > 2 { false } else { true };
-
-    // grab standardized name
-    // (remove potential .crx / .rnx extension in modern case)
-    // we handle it ourselves in this custom name
-    let standardized = rinex_a.standard_filename(short_filename, None, Some(prod));
-    let standardized_len = standardized.len();
-
-    let mut filename = String::new();
-
-    if major > 2 {
-        filename.push_str(&standardized[..standardized_len - 3]);
-    } else {
-        filename.push_str(&standardized);
+    // prepare for output
+    match rinex_b.header.rinex_type {
+        RinexType::ObservationData => {
+            for (meta, _) in &ctx.obs_dataset {
+                ctx.create_subdir(&meta.name)
+                    .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
+            }
+        },
+        _ => {},
     }
 
-    // Ouptut is (A-RX(b)_diff + extension)
-    if let Some(rcvr) = &rinex_b.header.rcvr {
-        filename.push('-');
-        filename.push_str(&rcvr.model.to_ascii_uppercase());
-        filename.push_str(&rcvr.sn);
+    // diff only applies to
+    //  METEO; DORIS and OBS RINex
+    match rinex_b.header.rinex_type {
+        RinexType::ObservationData => {
+            for (meta, rinex) in &mut ctx.obs_dataset {
+                rinex.observation_substract_mut(&rinex_b);
+                let auto_generated_name = rinex.standard_filename(short_rinex_name, suffix, None);
+
+                let path = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
+
+                #[cfg(feature = "csv")]
+                if csv {}
+
+                if gzip_encoding {
+                    rinex.to_gzip_file(path)?;
+                } else {
+                    rinex.to_file(path)?;
+                }
+            }
+        },
+        RinexType::MeteoData => {},
+        RinexType::DORIS => {},
+        rinex_type => panic!("`diff` does not apply to {}", rinex_type),
     }
 
-    filename.push_str("_diff");
-
-    let is_crinex = if let Some(obs_b) = &rinex_b.header.obs {
-        obs_b.crinex.is_some()
-    } else {
-        false
-    };
-
-    if major > 2 {
-        if is_crinex {
-            filename.push_str(".crx");
-        } else {
-            filename.push_str(".rnx");
-        }
-    }
-
-    // format also follows (B) input
-    if gzip_encoded {
-        filename.push_str(".gz");
-    }
-
-    let fullpath = ctx.workspace.root.join(&filename);
-
-    // Dump data and exit
-    rinex_a.to_file(&fullpath)?;
-    info!(
-        "OBS RINEX \"{}\" has been generated",
-        fullpath.to_string_lossy()
-    );
     Ok(())
 }

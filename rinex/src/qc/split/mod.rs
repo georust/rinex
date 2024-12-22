@@ -134,6 +134,11 @@ impl Split for Rinex {
                 .into_iter()
                 .map(|rec| Record::DorisRecord(rec))
                 .collect::<Vec<_>>()
+        } else if let Some(r) = self.record.as_nav() {
+            nav_split_even_dt(r, dt)
+                .into_iter()
+                .map(|rec| Record::NavRecord(rec))
+                .collect::<Vec<_>>()
         } else {
             Vec::new()
         };

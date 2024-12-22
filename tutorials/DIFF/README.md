@@ -1,12 +1,24 @@
 DIFF
 ====
 
-RINEX(A) - RINEX(B) differential analysis and example applications.
+`diff` is a differential operation that applies to either Observation,
+Meteo or DORIS RINex. It applies equation (a-b) where b is considered "reference",
+on identical observations. We only differentiate the same observation:
 
-RINEX differential analysis is useful to permit several yet different
-and exotic measurements. For example, you can use phase differentiation to compare a local clock that is spread into two separate receivers. For that particular scenario, see our [phase-clock](./phase-clock.sh) example.
+- observations must be "synchronous" ie., reported as sampled at the same "instant"
+by the GNSS receiver or meteo sensor
+- same signal source (SV)
+- same physics: phase is differenced with phase
+- same modulations: L1 is substracted to L1.
 
-RINEX differentiation applies to all observations format. 
-[esbjrg-mojn](./esbjrg-mojn) is a demonstration of that.
+The differential operation may allow several exotic measurements.
+For example, substracting phase observed by two GNSS receivers that share a common clock,
+may serve as a clock measurement system.
 
-Observations need to be made synchronously and we only differentiate identical observations (same physics, same signal and modulation).
+Like any other file operation, `diff` supports all file synthesis options,
+including export to CSV.
+
+Examples:
+ - `phase-clock.sh` substracts phase measurements observed by two GNSS receivers
+ that share a common clock
+ - `esbjrg-mojn` asynchronous close range stations comparison

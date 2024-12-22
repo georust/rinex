@@ -3,7 +3,7 @@ use crate::ProductionAttributes;
 use qc_traits::Split;
 
 impl Split for ProductionAttributes {
-    fn split(&self, t: hifitime::Epoch) -> (Self, Self)
+    fn split(&self, _t: hifitime::Epoch) -> (Self, Self)
     where
         Self: Sized,
     {

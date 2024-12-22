@@ -20,7 +20,10 @@ use preprocessing::preprocess;
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
 use rinex_qc::prelude::{MergeError, QcContext, QcError, QcExtraPage, Render};
 
-use crate::fops::{filegen as fops_filegen, merge as fops_merge, split as fops_split};
+use crate::fops::{
+    diff as fops_diff, filegen as fops_filegen, merge as fops_merge, split as fops_split,
+    tbin as fops_tbin,
+};
 
 use walkdir::WalkDir;
 
@@ -192,7 +195,7 @@ pub fn main() -> Result<(), Error> {
         true,
     );
 
-    let ctx = CliContext {
+    let mut ctx = CliContext {
         quiet: cli.quiet(),
         qc_context: qc_ctx,
     };
@@ -226,14 +229,14 @@ pub fn main() -> Result<(), Error> {
             fops_split(&ctx.qc_context, &cli, submatches)?;
             return Ok(());
         },
-        // Some(("tbin", submatches)) => {
-        //     fops::time_binning(&ctx, &cli.matches, submatches)?;
-        //     return Ok(());
-        // },
-        // Some(("diff", submatches)) => {
-        //     fops::diff(&mut ctx, submatches)?;
-        //     return Ok(());
-        // },
+        Some(("tbin", submatches)) => {
+            fops_tbin(&ctx.qc_context, &cli, submatches)?;
+            return Ok(());
+        },
+        Some(("diff", submatches)) => {
+            fops_diff(&mut ctx.qc_context, &cli, submatches)?;
+            return Ok(());
+        },
         // Some(("ppp", submatches)) => {
         //     let chapter = positioning::precise_positioning(&cli, &ctx, false, submatches)?;
         //     extra_pages.push(chapter);

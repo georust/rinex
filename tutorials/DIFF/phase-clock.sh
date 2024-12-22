@@ -6,11 +6,25 @@ WORKSPACE=WORKSPACE
 DATA_DIR=test_resources/OBS/V3
 
 # Generate ""differenced"" observation RINEX=obs(A)-obs(B)
-# diff is a file operations: a RINEX is dumped, no report synthesized.
+# -o: custom output name
+#     we currently have no easy way to format dirty or incomplete
+#     files like those
 ./target/release/rinex-cli \
+    -o DIFFERENCED \
     --fp $DATA_DIR/OB713520.23O.gz \
     diff $DATA_DIR/gps.23O.gz
 
-# Open previous results: generate a report
+# Output "differenced" RINex as CSV directly.
+# --gzip may apply here as well, to zip it directly
+# -o: custom output name
+#     we currently have no easy way to format dirty or incomplete
+#     files like those
 ./target/release/rinex-cli \
-    --fp $WORKSPACE/OB713520/DIFFERENCED.23O.gz
+    -o DIFFERENCED \
+    --fp $DATA_DIR/OB713520.23O.gz \
+    diff $DATA_DIR/gps.23O.gz \
+    --csv
+
+# Analyze any output product by loading it back into the toolbox
+# ./target/release/rinex-cli \
+#    --fp $WORKSPACE/OB713520/DIFFERENCED.23O.gz

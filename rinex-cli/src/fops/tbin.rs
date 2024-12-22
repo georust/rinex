@@ -1,93 +1,85 @@
-use crate::cli::Context;
-use crate::fops::custom_prod_attributes;
-use crate::fops::output_filename;
-use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::{Duration, RinexType};
-use rinex::prod::DetailedProductionAttributes;
-use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
+use rinex::prelude::Duration;
+use rinex_qc_traits::Split;
+
+use crate::{cli::Cli, Error};
+
+use rinex_qc::prelude::QcContext;
 
 /// Time binning (batch split of equal duration) file operation
-pub fn time_binning(
-    ctx: &Context,
-    matches: &ArgMatches,
-    submatches: &ArgMatches,
-) -> Result<(), Error> {
-    let ctx_data = &ctx.data;
-
-    let duration = matches
+pub fn tbin(ctx: &QcContext, cli: &Cli, submatches: &ArgMatches) -> Result<(), Error> {
+    // parse fixed duration
+    let dt = submatches
         .get_one::<Duration>("interval")
         .expect("duration is required");
 
-    if *duration == Duration::ZERO {
+    if *dt == Duration::ZERO {
         panic!("invalid (null) duration");
     }
 
-    // RINEX time binning
-    for (rinex_type, dir) in [
-        (ProductType::IONEX, "IONEX"),
-        (ProductType::DORIS, "DORIS"),
-        (ProductType::Observation, "OBSERVATIONS"),
-        (ProductType::MeteoObservation, "METEO"),
-        (ProductType::BroadcastNavigation, "BRDC"),
-        (ProductType::HighPrecisionClock, "CLOCK"),
-    ] {
-        // input data determination
+    let short_name = cli.short_rinex_file_name();
+    let gzip_encoding = cli.gzip_encoding();
 
-        if let Some(rinex) = ctx_data.get_rinex_data(rinex_type) {
-            // create work dir
-            ctx.workspace.create_subdir(dir);
+    let suffix = if gzip_encoding { Some(".gz") } else { None };
 
-            // time frame determination
-            let (mut first, end) = (
-                rinex
-                    .first_epoch()
-                    .expect("failed to determine first epoch"),
-                rinex.last_epoch().expect("failed to determine last epoch"),
-            );
+    // tbin applies to any temporal format
+    // 1. prepare output
+    for (meta, _) in &ctx.obs_dataset {
+        ctx.create_subdir(&meta.name)
+            .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
+    }
+    for (meta, _) in &ctx.meteo_dataset {
+        ctx.create_subdir(&meta.name)
+            .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
+    }
 
-            let mut last = first + *duration;
-
-            // production attributes: initialize Batch counter
-            let mut prod = custom_prod_attributes(rinex, submatches);
-            if let Some(ref mut details) = prod.details {
-                details.batch = 0_u8;
+    for (meta, rinex) in &ctx.obs_dataset {
+        for split in rinex.split_even_dt(*dt).iter() {
+            let auto_generated_name = split.standard_filename(short_name, suffix, None);
+            let path = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
+            if gzip_encoding {
+                split.to_gzip_file(path)?;
             } else {
-                let mut details = DetailedProductionAttributes::default();
-                details.batch = 0_u8;
-                prod.details = Some(details);
-            };
-
-            // run time binning algorithm
-            while last <= end {
-                let lower = Filter::lower_than(&last.to_string()).unwrap();
-                let greater = Filter::greater_equals(&first.to_string()).unwrap();
-
-                debug!("batch: {} < {}", first, last);
-                let batch = rinex.filter(&lower).filter(&greater);
-
-                // generate standardized name
-                let filename = output_filename(&batch, matches, submatches, prod.clone());
-
-                let output = ctx
-                    .workspace
-                    .root
-                    .join("OUTPUT")
-                    .join(&filename)
-                    .to_string_lossy()
-                    .to_string();
-
-                batch.to_file(&output)?;
-                info!("\"{}\" ({}) has been generated", output, rinex_type);
-
-                first += *duration;
-                last += *duration;
-
-                if let Some(ref mut details) = prod.details {
-                    details.batch += 1;
-                }
+                split.to_file(path)?;
             }
         }
     }
+
+    for (meta, rinex) in &ctx.meteo_dataset {
+        for split in rinex.split_even_dt(*dt).iter() {
+            let auto_generated_name = split.standard_filename(short_name, suffix, None);
+            let path = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
+            if gzip_encoding {
+                split.to_gzip_file(path)?;
+            } else {
+                split.to_file(path)?;
+            }
+        }
+    }
+
+    if let Some(nav) = &ctx.nav_dataset {
+        for split in nav.split_even_dt(*dt).iter() {
+            let auto_generated_name = split.standard_filename(short_name, suffix, None);
+            let path = ctx.cfg.workspace.join(auto_generated_name);
+            if gzip_encoding {
+                split.to_gzip_file(path)?;
+            } else {
+                split.to_file(path)?;
+            }
+        }
+    }
+
+    if let Some(ionex) = &ctx.ionex_dataset {
+        for split in ionex.split_even_dt(*dt).iter() {
+            let auto_generated_name = split.standard_filename(short_name, suffix, None);
+            let path = ctx.cfg.workspace.join(auto_generated_name);
+            if gzip_encoding {
+                split.to_gzip_file(path)?;
+            } else {
+                split.to_file(path)?;
+            }
+        }
+    }
+
     Ok(())
 }

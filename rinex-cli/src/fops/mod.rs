@@ -1,17 +1,17 @@
-//mod diff;
+mod diff;
 mod filegen;
 mod merge;
 mod split;
-// mod tbin;
+mod tbin;
 
 #[cfg(feature = "csv")]
 pub mod csv;
 
-//pub use diff::diff;
+pub use diff::diff;
 pub use filegen::filegen;
 pub use merge::merge;
 pub use split::split;
-//pub use tbin::time_binning;
+pub use tbin::tbin;
 
 use clap::ArgMatches;
 

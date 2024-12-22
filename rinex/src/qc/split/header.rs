@@ -18,6 +18,12 @@ impl Split for Header {
             }
         }
 
+        if let Some(obs) = &mut b.obs {
+            if let Some(timeof) = &mut obs.timeof_first_obs {
+                *timeof = std::cmp::max(*timeof, t);
+            }
+        }
+
         if let Some(doris) = &mut a.doris {
             if let Some(timeof) = &mut doris.timeof_first_obs {
                 *timeof = std::cmp::min(*timeof, t);
@@ -27,9 +33,19 @@ impl Split for Header {
             }
         }
 
+        if let Some(obs) = &mut b.doris {
+            if let Some(timeof) = &mut obs.timeof_first_obs {
+                *timeof = std::cmp::max(*timeof, t);
+            }
+        }
+
         if let Some(ion) = &mut a.ionex {
             ion.epoch_of_first_map = std::cmp::min(ion.epoch_of_first_map, t);
             ion.epoch_of_last_map = std::cmp::max(ion.epoch_of_last_map, t);
+        }
+
+        if let Some(ion) = &mut b.ionex {
+            ion.epoch_of_first_map = std::cmp::max(ion.epoch_of_first_map, t);
         }
 
         (a, b)

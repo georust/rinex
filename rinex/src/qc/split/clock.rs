@@ -27,10 +27,10 @@ pub fn split(rec: &Record, epoch: Epoch) -> (Record, Record) {
     (r0, r1)
 }
 
-pub fn split_mut(rec: &mut Record, t: Epoch) -> Record {
+pub fn split_mut(_rec: &mut Record, _t: Epoch) -> Record {
     Record::default()
 }
 
-pub fn split_even_dt(rec: &Record, _duration: Duration) -> Vec<Record> {
+pub fn split_even_dt(_rec: &Record, _duration: Duration) -> Vec<Record> {
     Vec::new()
 }
