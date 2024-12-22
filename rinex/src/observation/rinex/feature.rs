@@ -143,10 +143,10 @@ impl Rinex {
     /// ```
     pub fn signal_observations_sampling_ok_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
         Box::new(self.signal_observations_iter().filter_map(|(k, sig)| {
             if k.flag.is_ok() {
-                Some((k, sig))
+                Some((k.epoch, sig))
             } else {
                 None
             }
@@ -171,7 +171,7 @@ impl Rinex {
     /// ```
     pub fn pseudo_range_sampling_ok_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
         Box::new(
             self.signal_observations_sampling_ok_iter()
                 .filter_map(|(k, sig)| {
@@ -206,7 +206,7 @@ impl Rinex {
     /// ```
     pub fn phase_range_sampling_ok_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
         Box::new(
             self.signal_observations_sampling_ok_iter()
                 .filter_map(|(k, sig)| {
@@ -274,7 +274,7 @@ impl Rinex {
     /// ```
     pub fn phase_range_tracking_ok_iter(
         &self,
-    ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
         Box::new(self.phase_range_sampling_ok_iter().filter_map(|(k, sig)| {
             if let Some(lli) = sig.lli {
                 if lli.intersects(LliFlags::OK_OR_UNKNOWN) {

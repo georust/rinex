@@ -43,26 +43,40 @@ use anise::{
 
 use rinex::prelude::ParsingError as RinexParsingError;
 
+/// [QcCtxError] wraps I/O and context creation errors,
+/// basically early deployment errors and file related issues.
 #[derive(Debug, Error)]
-pub enum QcError {
+pub enum QcCtxError {
     #[error("i/o error")]
     IO,
-    #[error("almanac error")]
+    #[error("almanac error: {0}")]
     Alamanac(#[from] AlmanacError),
     #[error("alamanc setup issue: {0}")]
     MetaAlamanac(#[from] MetaAlmanacError),
     #[error("frame model error: {0}")]
     FrameModel(#[from] PlanetaryDataError),
-    #[error("internal indexing/sorting issue")]
-    DataIndexingIssue,
-    #[error("failed to extend gnss context")]
-    ContextExtensionError(#[from] MergeError),
-    #[error("non supported file format")]
+    #[error("data sorting issue")]
+    DataIndexing,
+    #[error("data stacking")]
+    Stacking(#[from] MergeError),
+    #[error("non supported format")]
     NonSupportedFormat,
-    #[error("failed to determine file name")]
+    #[error("file name determination")]
     FileName,
-    #[error("failed to determine file extension")]
+    #[error("file extension determination")]
     FileExtension,
-    #[error("invalid rinex format")]
-    RinexParsingError(#[from] RinexParsingError),
+    #[error("rinex parsing")]
+    RinexParsing(#[from] RinexParsingError),
+}
+
+/// [QcError] wraps all post processing errors,
+/// so actual data exploitation.
+#[derive(Debug, Error)]
+pub enum QcError {
+    #[error("no ephemeris source")]
+    NoEphemeris,
+    #[error("no signal source")]
+    NoSignal,
+    #[error("signal source initlization")]
+    SignalSourceInit,
 }

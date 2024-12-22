@@ -9,37 +9,40 @@ use std::collections::HashMap;
 
 pub struct EphemerisContext<'a> {
     eos: bool,
-    sv: SV,
-    toc: Epoch,
     buffer: HashMap<SV, Vec<(Epoch, Ephemeris)>>,
     iter: Box<dyn Iterator<Item = (SV, &'a Epoch, &'a Ephemeris)> + 'a>,
 }
 
 impl<'a> EphemerisContext<'a> {
-    fn consume_one(&mut self) {
-        if let Some((sv, toc, eph)) = self.iter.next() {
-            if let Some(buffer) = self.buffer.get_mut(&sv) {
-                buffer.push((*toc, eph.clone()));
+    fn consume_until(&mut self, sel_t: Epoch, sel_sv: SV) {
+        loop {
+            if let Some((sv, toc, eph)) = self.iter.next() {
+                // store
+                if let Some(data) = self.buffer.get_mut(&sv) {
+                    data.push((*toc, eph.clone()));
+                } else {
+                    // new
+                    self.buffer.insert(sv, vec![(*toc, eph.clone())]);
+                }
+
+                // verify validity; but we only test for specific target
+                // others are simply buffered
+                if sel_sv == sv {
+                    if !eph.is_valid(sv, sel_t) {
+                        break;
+                    }
+                }
             } else {
-                self.buffer.insert(sv, vec![(*toc, eph.clone())]);
+                self.eos = true;
+                println!("EOS!!");
+                break;
             }
-            self.sv = sv;
-            self.toc = *toc;
-        } else {
-            if !self.eos {
-                info!("{}({}): consumed all epochs", self.toc, self.sv);
-            }
-            self.eos = true;
         }
     }
 
-    fn consume_many(&mut self, n: usize) {
-        for _ in 0..n {
-            self.consume_one();
-        }
-    }
-
-    fn try_select(&self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, &Ephemeris)> {
+    /// Select closest [Ephemeris] in buffer, computes ToE at the same time.  
+    /// NB: ToE does not exist for SBAS, ToC is simply copied to maintain the API.
+    fn closest_in_time(&self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, &Ephemeris)> {
         let buffer = self.buffer.get(&sv)?;
         let sv_ts = sv.constellation.timescale()?;
         if sv.constellation.is_sbas() {
@@ -69,19 +72,21 @@ impl<'a> EphemerisContext<'a> {
     }
 
     /// Select appropriate [Ephemeris] for navigation purposes
+    /// ## Input
+    /// - t: desired [Epoch]
+    /// - sv: desired [SV]
+    /// ## Output
+    /// - toc: [Epoch]
+    /// - toe: [Epoch]
+    /// - eph: [Ephemeris]
     pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
-        let mut attempt = 0;
-        loop {
-            if let Some((toc_i, toe_i, eph_i)) = self.try_select(t, sv) {
-                return Some((toc_i, toe_i, eph_i.clone()));
-            } else {
-                self.consume_one();
-                attempt += 1;
-            }
-            if attempt == 10 {
-                return None;
-            }
+        if self.eos {
+            // end of stream already reached
+            return None;
         }
+        self.consume_until(t, sv);
+        let (toc, toe, eph) = self.closest_in_time(t, sv)?;
+        Some((toc, toe, eph.clone()))
     }
 }
 
@@ -95,8 +100,6 @@ impl QcContext {
 
         Some(EphemerisContext {
             eos: false,
-            sv: Default::default(),
-            toc: Default::default(),
             buffer: HashMap::with_capacity(8),
             iter: Box::new(
                 nav_dataset
@@ -104,5 +107,45 @@ impl QcContext {
                     .map(|(t, (_, sv, eph))| (sv, t, eph)),
             ),
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::{cfg::QcConfig, context::QcContext};
+    use rinex::prelude::{Epoch, SV};
+    use std::str::FromStr;
+
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn test_ephemeris_buffer() {
+        let cfg = QcConfig::default();
+
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_gzip_file(format!(
+            "{}/../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap();
+
+        ctx.load_gzip_file(format!(
+            "{}/../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap();
+
+        let mut ctx = ctx.ephemeris_context().expect("ephemeris context failure");
+
+        for (t, sv, exists) in [(
+            Epoch::from_str("2020-06-25T04:30:00 GPST").unwrap(),
+            SV::from_str("G01").unwrap(),
+            true,
+        )] {
+            if exists {
+                let (toc, toe, eph) = ctx.select(t, sv).unwrap();
+            }
+        }
     }
 }

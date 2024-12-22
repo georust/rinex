@@ -2,7 +2,7 @@ use crate::{
     cfg::QcPreferedObsSorting,
     context::{meta::MetaData, QcContext},
     prelude::Rinex,
-    QcError,
+    QcCtxError,
 };
 
 use log::debug;
@@ -17,7 +17,7 @@ pub enum ObservationUniqueId {
 }
 
 impl std::str::FromStr for ObservationUniqueId {
-    type Err = QcError;
+    type Err = QcCtxError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with("rcvr:") {
             Ok(Self::Receiver(s[5..].to_string()))
@@ -28,7 +28,7 @@ impl std::str::FromStr for ObservationUniqueId {
         } else if s.starts_with("op:") {
             Ok(Self::Operator(s[3..].to_string()))
         } else {
-            Err(QcError::DataIndexingIssue)
+            Err(QcCtxError::DataIndexing)
         }
     }
 }
@@ -87,7 +87,7 @@ impl QcContext {
         &mut self,
         meta: &mut MetaData,
         data: Rinex,
-    ) -> Result<(), QcError> {
+    ) -> Result<(), QcCtxError> {
         // Designate an Indexing ID following prefered method
         if let Some(unique_id) = ObservationUniqueId::new(&self.cfg.obs_sorting, &data) {
             debug!(

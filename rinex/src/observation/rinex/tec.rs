@@ -38,7 +38,7 @@ impl Rinex {
         let dt = dt.unwrap();
 
         for (k, ph) in self.phase_range_sampling_ok_iter() {
-            if k.epoch >= t + dt {
+            if k >= t + dt {
                 for ph_i in phases.iter() {
                     for ph_j in phases.iter() {
                         if let Some(tec) = ph_i.tec_estimate(&ph_j) {
@@ -57,7 +57,7 @@ impl Rinex {
                 phases.clear();
             }
 
-            t = k.epoch;
+            t = k;
             phases.push(ph.clone());
         }
 

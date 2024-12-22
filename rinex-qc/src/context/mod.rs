@@ -1,5 +1,3 @@
-//! User Data (input products) definitions
-
 use std::{collections::HashMap, env, fs::create_dir_all, fs::File, io::Write, path::Path};
 
 use rinex::prelude::{nav::Almanac, Rinex};
@@ -33,7 +31,7 @@ use crate::{
         meta::MetaData,
     },
     report::QcReport,
-    QcError,
+    QcCtxError,
 };
 
 /// [QcContext] is a general structure capable to store most common
@@ -99,7 +97,7 @@ impl QcContext {
     /// This will try to download the highest JPL model, and requires
     /// internet access once a day.
     /// If the JPL database cannot be accessed, we rely on an offline model.
-    fn build_almanac_frame_model(prefered: QcFrameModel) -> Result<(Almanac, Frame), QcError> {
+    fn build_almanac_frame_model(prefered: QcFrameModel) -> Result<(Almanac, Frame), QcCtxError> {
         let mut initial_setup = false;
 
         // Meta almanac for local storage management
@@ -165,7 +163,7 @@ impl QcContext {
     }
 
     /// Creates a new [QcContext] with [QcConfig] configuration preset.
-    pub fn new(cfg: QcConfig) -> Result<Self, QcError> {
+    pub fn new(cfg: QcConfig) -> Result<Self, QcCtxError> {
         let mut cfg = cfg.clone();
 
         let (almanac, earth_cef) = Self::build_almanac_frame_model(cfg.navi.frame_model)?;
@@ -208,7 +206,7 @@ impl QcContext {
 
     /// Smart data loader, that will automatically pick up the provided
     /// format (if supported) and load it into this [DataSet].
-    pub fn load_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcError> {
+    pub fn load_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcCtxError> {
         let path = path.as_ref();
         let mut meta = MetaData::new(path)?;
 
@@ -231,13 +229,13 @@ impl QcContext {
         //     return Ok(());
         // }
 
-        Err(QcError::NonSupportedFormat)
+        Err(QcCtxError::NonSupportedFormat)
     }
 
     /// Smart data loader, that will automatically pick up the provided
     /// format (if supported).
     #[cfg(feature = "flate2")]
-    pub fn load_gzip_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcError> {
+    pub fn load_gzip_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcCtxError> {
         let path = path.as_ref();
         let mut meta = MetaData::new(path)?;
 
@@ -260,7 +258,7 @@ impl QcContext {
         //     return Ok(());
         // }
 
-        Err(QcError::NonSupportedFormat)
+        Err(QcCtxError::NonSupportedFormat)
     }
 
     pub fn filter_mut(&mut self, filter: &Filter) {

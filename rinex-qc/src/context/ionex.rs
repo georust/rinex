@@ -1,6 +1,9 @@
 use rinex::prelude::Rinex;
 
-use crate::context::{QcContext, QcError};
+use crate::{
+    context::QcContext,
+    QcCtxError,
+};
 
 use qc_traits::Merge;
 
@@ -10,7 +13,7 @@ impl QcContext {
     }
 
     /// Loads a new IONex [Rinex] into this [QcContext]
-    pub(crate) fn load_ionex(&mut self, data: Rinex) -> Result<(), QcError> {
+    pub(crate) fn load_ionex(&mut self, data: Rinex) -> Result<(), QcCtxError> {
         // proceed to stacking
         if let Some(rinex) = &mut self.ionex_dataset {
             rinex.merge_mut(&data)?;

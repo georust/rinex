@@ -1,4 +1,4 @@
-use crate::{context::QcContext, QcError};
+use crate::{context::QcContext, QcCtxError};
 
 use std::fs::{create_dir_all, File};
 
@@ -71,28 +71,28 @@ impl QcContext {
 
     /// Session deployment.
     /// This method should be called once prior running the session.
-    pub fn deploy(&self) -> Result<(), QcError> {
-        create_dir_all(&self.cfg.workspace).map_err(|_| QcError::IO)?;
+    pub fn deploy(&self) -> Result<(), QcCtxError> {
+        create_dir_all(&self.cfg.workspace).map_err(|_| QcCtxError::IO)?;
         Ok(())
     }
 
     /// Verifies that stacked data set and overall context is sane.
     /// This should be called once prior actual deployment, to avoid
     /// potential errors in the processing or unfeasible operations.
-    pub fn verify(&self) -> Result<(), QcError> {
+    pub fn verify(&self) -> Result<(), QcCtxError> {
         Ok(())
     }
 
     /// Create a subdir inside the workspace, usually
     /// to generate output products.
-    pub fn create_subdir(&self, subdir: &str) -> Result<(), QcError> {
-        create_dir_all(self.cfg.workspace.join(subdir)).map_err(|_| QcError::IO)?;
+    pub fn create_subdir(&self, subdir: &str) -> Result<(), QcCtxError> {
+        create_dir_all(self.cfg.workspace.join(subdir)).map_err(|_| QcCtxError::IO)?;
         Ok(())
     }
 
     /// Create a file inside the workspace and return [File] handle
-    pub fn create_file(&self, name: &str) -> Result<File, QcError> {
-        let fd = File::create(self.cfg.workspace.join(name)).map_err(|_| QcError::IO)?;
+    pub fn create_file(&self, name: &str) -> Result<File, QcCtxError> {
+        let fd = File::create(self.cfg.workspace.join(name)).map_err(|_| QcCtxError::IO)?;
         Ok(fd)
     }
 

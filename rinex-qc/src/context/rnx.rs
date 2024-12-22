@@ -1,6 +1,6 @@
 use crate::{
     context::{meta::MetaData, QcContext},
-    QcError,
+    QcCtxError,
 };
 
 use rinex::prelude::{Rinex, RinexType};
@@ -9,7 +9,7 @@ impl QcContext {
     /// Load a single [Rinex] into [QcContext].
     /// File revision must be supported, file must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_rinex(&mut self, meta: &mut MetaData, rinex: Rinex) -> Result<(), QcError> {
+    pub fn load_rinex(&mut self, meta: &mut MetaData, rinex: Rinex) -> Result<(), QcCtxError> {
         // Classification is rinex type dependent
         let rinex_type = rinex.header.rinex_type;
         match rinex_type {
@@ -17,7 +17,7 @@ impl QcContext {
             RinexType::ObservationData => self.load_observation_rinex(meta, rinex),
             RinexType::NavigationData => self.load_navigation_rinex(rinex),
             RinexType::IonosphereMaps => self.load_ionex(rinex),
-            _ => Err(QcError::NonSupportedFormat),
+            _ => Err(QcCtxError::NonSupportedFormat),
         }
     }
 

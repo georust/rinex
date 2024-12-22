@@ -1,6 +1,9 @@
 use rinex::prelude::Rinex;
 
-use crate::context::{QcContext, QcError};
+use crate::{
+    context::QcContext,
+    QcCtxError,
+};
 
 use qc_traits::Merge;
 
@@ -10,7 +13,7 @@ impl QcContext {
     }
 
     /// Loads a new Navigation [Rinex] into this [QcContext]
-    pub(crate) fn load_navigation_rinex(&mut self, data: Rinex) -> Result<(), QcError> {
+    pub(crate) fn load_navigation_rinex(&mut self, data: Rinex) -> Result<(), QcCtxError> {
         // proceed to stacking
         if let Some(nav) = &mut self.nav_dataset {
             nav.merge_mut(&data)?;

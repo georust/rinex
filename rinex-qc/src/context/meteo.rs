@@ -1,6 +1,9 @@
 use rinex::prelude::Rinex;
 
-use crate::context::{meta::MetaData, QcContext, QcError};
+use crate::{
+    QcCtxError,
+    context::{meta::MetaData, QcContext},
+};
 
 use qc_traits::Merge;
 
@@ -10,7 +13,7 @@ impl QcContext {
     }
 
     /// Loads a new Meteo [Rinex] into this [QcContext]
-    pub(crate) fn load_meteo_rinex(&mut self, meta: &MetaData, data: Rinex) -> Result<(), QcError> {
+    pub(crate) fn load_meteo_rinex(&mut self, meta: &MetaData, data: Rinex) -> Result<(), QcCtxError> {
         if let Some(rinex) = self.meteo_dataset.get_mut(&meta) {
             rinex.merge_mut(&data)?;
         } else {

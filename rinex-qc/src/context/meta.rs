@@ -1,6 +1,6 @@
 use std::{path::Path, str::FromStr};
 
-use crate::QcError;
+use crate::QcCtxError;
 
 use rinex::prelude::ProductionAttributes as RINexProductionAttributes;
 
@@ -16,12 +16,12 @@ pub struct MetaData {
 
 impl MetaData {
     /// Determine basic [MetaData] from provided [Path].
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, QcError> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, QcCtxError> {
         let path = path.as_ref();
 
         let mut name = path
             .file_stem()
-            .ok_or(QcError::FileName)?
+            .ok_or(QcCtxError::FileName)?
             .to_string_lossy()
             .to_string();
 

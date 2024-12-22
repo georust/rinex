@@ -47,7 +47,7 @@ maud = "0.26"
 map_3d = "0.1.5"
 regex = "1"
 crc32fast = "1"
-thiserror = "1"
+thiserror = "2"
 strum = "0.26"
 itertools = "0.13.0"
 strum_macros = "0.26"
@@ -62,6 +62,14 @@ hifitime = "4.0.0-beta"
 
 # gnss-rs = { version = "2.2.3", features = ["serde"] }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+
+# gnss-rtk = { version = "=0.7.4", features = ["serde"] }
+gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
+# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+
+# cggtts = { version = "4.1.6", features = ["serde", "scheduler"], optional = true }
+# cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }
+cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"], optional = true }
 
 rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.2.1", features = ["processing"] }
