@@ -138,6 +138,7 @@ pub fn post_process(
                     .into_iter()
                     .collect(),
                 children: vec![],
+                style_url: None,
             }));
         }
     }
