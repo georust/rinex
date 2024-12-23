@@ -94,6 +94,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     let mut tracks = Vec::<Track>::new();
     let sched = Scheduler::new(trk_duration);
     let mut next_release = Option::<Epoch>::None;
+    let mut should_release = false;
     let mut trk_midpoint = Option::<Epoch>::None;
     let mut trackers = HashMap::<(SV, Observable), SVTracker>::new();
 
@@ -313,7 +314,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                             let next_release = next_release.unwrap();
                             let trk_midpoint = trk_midpoint.unwrap();
 
-                            if t >= next_release {
+                            if should_release {
                                 /* time to release a track */
                                 let ioe = 0; //TODO
                                              // latch last measurement
@@ -414,6 +415,10 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
             } // for all OBS
         } //.sv()
         next_release = Some(sched.next_track_start(*t));
+        // If the last epoch is reached, should release track
+        let next_release_duration = next_release.unwrap() - *t;
+        should_release = (next_release_duration <= dominant_sampling_period)
+            && (next_release_duration > Duration::ZERO);
         trk_midpoint = Some(next_release.unwrap() - trk_duration / 2);
         info!("{:?} - {} until next track", t, next_release.unwrap() - *t);
     } //.observations()
