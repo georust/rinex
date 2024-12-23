@@ -1,5 +1,5 @@
 use maud::{html, Markup, Render};
-use rinex::prelude::{GroundPosition, TimeScale};
+use rinex::prelude::TimeScale;
 
 use crate::{cfg::QcConfig, context::QcContext};
 

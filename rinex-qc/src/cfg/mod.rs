@@ -115,7 +115,6 @@ impl Render for QcConfig {
 
 #[cfg(test)]
 mod test {
-    use rinex::prelude::GroundPosition;
     use serde_json;
     use std::{fs::File, io::Write};
 
@@ -133,7 +132,6 @@ mod test {
     #[test]
     fn manual_reference_json_config() {
         let mut cfg = QcConfig::default();
-        cfg.rover.manual_reference = Some(GroundPosition::default());
 
         let mut fd = File::create("manual-ref.json").unwrap();
 

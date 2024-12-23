@@ -196,3 +196,11 @@ impl<'a> gnss_rtk::prelude::OrbitSource for OrbitSource<'a> {
 //         }
 //     }
 // }
+
+impl QcContext {
+    /// Form an [OrbitSource] from this [QcContext]
+    pub(crate) fn orbit_source(&self) -> Option<OrbitSource> {
+        let eph_ctx = self.ephemeris_context()?;
+        Some(OrbitSource { eph_ctx })
+    }
+}

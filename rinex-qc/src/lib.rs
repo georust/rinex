@@ -73,10 +73,8 @@ pub enum QcCtxError {
 /// so actual data exploitation.
 #[derive(Debug, Error)]
 pub enum QcError {
-    #[error("no ephemeris source")]
-    NoEphemeris,
+    #[error("orbital source design")]
+    OrbitalSource,
     #[error("no signal source")]
-    NoSignal,
-    #[error("signal source initlization")]
-    SignalSourceInit,
+    SignalSource,
 }

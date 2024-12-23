@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     context::{meta::MetaData, QcContext},
-    navigation::eph::EphemerisContext,
+    navigation::{orbit::OrbitSource, signal::SignalSource},
     QcError,
 };
 
@@ -63,13 +63,10 @@ fn carrier_from_rtk(carrier: &RTKCarrier) -> Carrier {
 /// [NavPvtSolver] is an efficient structure to consume [QcContext]
 /// and resolve all possible [PVTSolution]s from it.
 pub struct NavPvtSolver<'a> {
-    t: Epoch,
-    eos: bool,
     pool: Vec<Candidate>,
-    rtk_solver: Solver<OrbitSource<'a>>,
-    signal_buffer: Vec<SignalObservation>,
+    signal: SignalSource<'a>,
+    solver: Solver<OrbitSource<'a>>,
     observations: HashMap<RTKCarrier, Observation>,
-    signal_iter: Box<dyn Iterator<Item = (Epoch, &'a SignalObservation)> + 'a>,
 }
 
 impl<'a> NavPvtSolver<'a> {}
@@ -78,52 +75,28 @@ impl<'a> Iterator for NavPvtSolver<'a> {
     type Item = PVTSolution;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // gather signals from ongoing epoch
-        let mut t = Option::<Epoch>::None;
+        let collected = self.signal.collect_epoch();
 
-        loop {
-            if let Some((k, v)) = self.signal_iter.next() {
-                if t.is_none() {
-                    t = Some(k);
-                }
-
-                let t = t.unwrap();
-                if k > t {
-                    // new epoch: abort
-                    // TODO: this simplistic implementation looses one observation
-                    // per new epoch
-                    break;
-                }
-
-                self.signal_buffer.push(v.clone());
-            } else {
-                // EOS
-                info!("consumed all signals");
-                return None;
-            }
+        if collected.is_none() {
+            info!("consumed all signals");
+            return None;
         }
 
-        let t = t.unwrap();
+        // gather candidates
+        let (t, signals) = collected.unwrap();
 
-        // clear residues from past attempt
-        self.pool.clear();
-        self.signal_buffer.clear();
-
-        // form all possible candidates
-        let sv_list = self
-            .signal_buffer
+        let sv_list = signals
             .iter()
             .map(|sig| sig.sv)
             .unique()
             .collect::<Vec<_>>();
 
-        // per SV
+        // per unique SV
         for sv in sv_list.iter() {
             self.observations.clear();
 
-            // per carrier signals
-            for carrier in self
-                .signal_buffer
+            // per unique carrier
+            for carrier in signals
                 .iter()
                 .filter_map(|sig| {
                     if sig.sv == *sv {
@@ -139,8 +112,7 @@ impl<'a> Iterator for NavPvtSolver<'a> {
                 .unique()
             {
                 // gather observations
-
-                for signal in self.signal_buffer.iter().filter_map(|sig| {
+                for signal in signals.iter().filter_map(|sig| {
                     if sig.sv == *sv {
                         let mut is_interesting = sig.observable.is_phase_range_observable();
                         is_interesting |= sig.observable.is_pseudo_range_observable();
@@ -197,18 +169,31 @@ impl<'a> Iterator for NavPvtSolver<'a> {
                 }
 
                 // append to queue
+                let mut observations = Vec::new();
                 for (_, observation) in self.observations.iter() {
-                    self.candidates
-                        .push(Candidate::new(*sv, t, self.observations));
+                    observations.push(observation.clone());
                 }
+
+                self.pool.push(Candidate::new(*sv, t, observations));
             }
         }
 
         // attempt resolution
-        match self.rtk_solver.resolve(t, &self.pool) {
-            Ok((_, pvt)) => Some(pvt),
+        match self.solver.resolve(t, &self.pool) {
+            Ok((_, pvt)) => {
+                // clear for next time
+                self.pool.clear();
+                self.observations.clear();
+
+                Some(pvt)
+            },
             Err(e) => {
                 error!("rtk error: {}", e);
+
+                // clear for next time
+                self.pool.clear();
+                self.observations.clear();
+
                 None
             },
         }
@@ -225,26 +210,60 @@ impl QcContext {
         initial: Option<Orbit>,
     ) -> Result<NavPvtSolver, QcError> {
         // Obtain orbital source
-        let eph_ctx = self.ephemeris_context().ok_or(QcError::NoEphemeris)?;
-        let orbit = OrbitSource { eph_ctx };
+        let orbit = self.orbit_source().ok_or(QcError::OrbitalSource)?;
 
         // Obtain signal source
-        let signal_src = self.obs_dataset.get(&meta).ok_or(QcError::NoSignal)?;
-        let t = signal_src.first_epoch().ok_or(QcError::SignalSourceInit)?;
-        let signal_iter = signal_src.signal_observations_sampling_ok_iter();
+        let signal = self.signal_source(&meta).ok_or(QcError::SignalSource)?;
 
         // Deploy solver: share almanac & reference frame model
-        let rtk_solver =
+        let solver =
             Solver::new_almanac_frame(&cfg, initial, orbit, self.almanac.clone(), self.earth_cef);
 
         Ok(NavPvtSolver {
-            t,
-            eos: false,
-            rtk_solver,
-            signal_iter,
+            solver,
+            signal,
             pool: Vec::with_capacity(8),
             observations: HashMap::with_capacity(8),
-            signal_buffer: Vec::with_capacity(32),
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::{
+        cfg::QcConfig,
+        context::{meta::MetaData, QcContext},
+        navigation::pvt::NavPvtSolver,
+    };
+
+    use gnss_rtk::prelude::Config as RTKConfig;
+
+    #[test]
+    pub fn pvt_solver() {
+        let cfg = QcConfig::default();
+
+        let mut ctx = QcContext::new(cfg).unwrap();
+
+        ctx.load_gzip_file(&format!(
+            "{}/../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+            env!("CARGO_MANIFEST_DIR"),
+        ))
+        .unwrap();
+
+        ctx.load_gzip_file(&format!(
+            "{}/../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz",
+            env!("CARGO_MANIFEST_DIR"),
+        ))
+        .unwrap();
+
+        let rtk_cfg = RTKConfig::default();
+        let meta = MetaData {
+            name: "ESBC00DNK",
+            extension: "gz",
+            unique_id: None,
+        };
+
+        let mut nav_pvt = ctx.nav_pvt_solver(rtk_cfg, meta, None);
     }
 }
