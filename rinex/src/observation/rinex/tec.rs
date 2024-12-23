@@ -30,7 +30,7 @@ impl Rinex {
         let mut ret = HashMap::new();
         let mut phases = Vec::<SignalObservation>::new();
 
-        let dt = self.dominant_sample_rate();
+        let dt = self.dominant_sampling_interval();
         if dt.is_none() {
             return ret;
         }

@@ -438,7 +438,7 @@ impl Rinex {
             let dominant_sampling = if let Some(dt) = self.header.sampling_interval {
                 dt
             } else {
-                if let Some(dt) = self.dominant_sample_rate() {
+                if let Some(dt) = self.dominant_sampling_interval() {
                     dt
                 } else {
                     // can't proceed without sampling interval guess.
@@ -566,7 +566,7 @@ impl Rinex {
         let dominant_sampling = if let Some(dt) = self.header.sampling_interval {
             dt
         } else {
-            if let Some(dt) = self.dominant_sample_rate() {
+            if let Some(dt) = self.dominant_sampling_interval() {
                 dt
             } else {
                 // can't proceed without sampling interval guess.

@@ -667,7 +667,7 @@ impl Rinex {
                     };
 
                     // FFU sampling rate
-                    let ffu = match self.dominant_sample_rate() {
+                    let ffu = match self.dominant_sampling_interval() {
                         Some(duration) => FFU::from(duration).to_string(),
                         None => {
                             if let Some(ref custom) = custom {
@@ -858,7 +858,7 @@ impl Rinex {
                     },
                     _ => PPU::Unspecified,
                 },
-                ffu: self.dominant_sample_rate().map(FFU::from),
+                ffu: self.dominant_sampling_interval().map(FFU::from),
                 hh: match first_epoch_gregorian {
                     Some((_, _, _, hh, _, _, _)) => hh,
                     _ => 0,

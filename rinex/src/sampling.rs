@@ -23,16 +23,17 @@ impl Rinex {
     pub fn timeseries(&self) -> Option<TimeSeries> {
         let start = self.first_epoch()?;
         let end = self.last_epoch()?;
-        let dt = self.dominant_sample_rate()?;
+        let dt = self.dominant_sampling_interval()?;
         Some(TimeSeries::inclusive(start, end, dt))
     }
 
-    /// Returns sample rate used by the data receiver.
-    pub fn sample_rate(&self) -> Option<Duration> {
+    /// Returns sample rate report by the GNSS receiver (if any).
+    /// NB: this is not actual data set analysis.
+    pub fn sampling_interval(&self) -> Option<Duration> {
         self.header.sampling_interval
     }
 
-    /// Returns dominant sample rate
+    /// Returns dominant sampling period, expressed as [Duration], by actual data analysis.
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
@@ -41,10 +42,16 @@ impl Rinex {
     ///     rnx.dominant_sample_rate(),
     ///     Some(Duration::from_seconds(60.0)));
     /// ```
-    pub fn dominant_sample_rate(&self) -> Option<Duration> {
+    pub fn dominant_sampling_interval(&self) -> Option<Duration> {
         self.sampling_histogram()
             .max_by(|(_, pop_i), (_, pop_j)| pop_i.cmp(pop_j))
             .map(|dominant| dominant.0)
+    }
+
+    /// Returns dominant sample rate (in Hertz) by actual data analysis.
+    pub fn dominant_sampling_rate_hz(&self) -> Option<f64> {
+        let interval = self.dominant_sampling_interval()?;
+        Some(1.0 / interval.to_seconds())
     }
 
     /// Histogram analysis on Epoch interval. Although
@@ -140,10 +147,10 @@ impl Rinex {
         let sample_rate: Duration = match tolerance {
             Some(dt) => dt, // user defined
             None => {
-                match self.dominant_sample_rate() {
+                match self.dominant_sampling_interval() {
                     Some(dt) => dt,
                     None => {
-                        match self.sample_rate() {
+                        match self.sampling_interval() {
                             Some(dt) => dt,
                             None => {
                                 // not enough information
@@ -168,5 +175,24 @@ impl Rinex {
                     }
                 }),
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::Rinex;
+
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn glacier_20240506_dominant_sample_rate() {
+        let rnx = Rinex::from_gzip_file(format!(
+            "{}/../test_resources/OBS/V3/240506_glacier_station.obs.gz",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap();
+
+        let sampling_rate_hz = rnx.dominant_sampling_rate_hz().unwrap();
+
+        assert_eq!(sampling_rate_hz, 1.0);
     }
 }
