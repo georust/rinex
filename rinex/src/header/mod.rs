@@ -4,7 +4,6 @@ use crate::{
     antex::HeaderFields as AntexHeader,
     clock::HeaderFields as ClockHeader,
     doris::HeaderFields as DorisHeader,
-    ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
     hatanaka::CRINEX,
     ionex::HeaderFields as IonexHeader,
@@ -26,6 +25,12 @@ mod parsing;
 
 #[cfg(feature = "qc")]
 mod qc;
+
+#[cfg(feature = "nav")]
+use anise::{
+    math::Vector6,
+    prelude::{Frame, Orbit},
+};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -89,8 +94,8 @@ pub struct Header {
     pub cospar: Option<COSPAR>,
     /// Possible [Leap] seconds counter
     pub leap: Option<Leap>,
-    /// Station approximate coordinates
-    pub ground_position: Option<GroundPosition>,
+    /// Approximate coordinates expressed in ECEF m
+    pub rx_position: Option<(f64, f64, f64)>,
     /// Optionnal wavelength correction factors
     pub wavelengths: Option<(u32, u32)>,
     /// Possible sampling interval
@@ -162,7 +167,7 @@ impl Default for Header {
             gps_utc_delta: None,
             sampling_interval: None,
             leap: None,
-            ground_position: None,
+            rx_position: None,
             wavelengths: None,
             cospar: None,
             doi: None,
@@ -347,6 +352,36 @@ impl Header {
     pub fn with_ionex_fields(&self, fields: IonexHeader) -> Self {
         let mut s = self.clone();
         s.ionex = Some(fields);
+        s
+    }
+
+    /// Converts approximate coordinates to an [Orbit]
+    /// at given point in spacetime and using [Frame] model
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    pub fn rx_orbit(&self, t: Epoch, fr: Frame) -> Option<Orbit> {
+        let (x_ecef_m, y_ecef_m, z_ecef_m) = self.rx_position?;
+
+        let pos_vel = Vector6::new(
+            x_ecef_m / 1000.0,
+            y_ecef_m / 1000.0,
+            z_ecef_m / 1000.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+
+        Some(Orbit::from_cartesian_pos_vel(pos_vel, t, fr))
+    }
+
+    /// Copies and define new rx position, from an [Orbit]
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    pub fn with_rx_orbit(&self, orbit: Orbit) -> Self {
+        let mut s = self.clone();
+        let state = orbit.to_cartesian_pos_vel();
+        let (x_ecef_km, y_ecef_km, z_ecef_km) = (state[0], state[1], state[2]);
+        s.rx_position = Some((x_ecef_km * 1.0E3, y_ecef_km * 1.0E3, z_ecef_km * 1.0E3));
         s
     }
 }

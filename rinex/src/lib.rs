@@ -49,7 +49,6 @@ mod bibliography;
 mod constants;
 mod epoch;
 mod error;
-mod ground_position;
 mod iterators;
 mod leap;
 mod linspace;
@@ -101,7 +100,6 @@ pub mod prelude {
         carrier::Carrier,
         doris::Station,
         error::{Error, FormattingError, ParsingError},
-        ground_position::GroundPosition,
         hatanaka::{
             Decompressor, DecompressorExpert, DecompressorExpertIO, DecompressorIO, CRINEX,
         },

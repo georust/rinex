@@ -84,7 +84,7 @@ impl<'a> Iterator for RNX2BIN<'a> {
                 if let Some(_cospar) = &self.header.cospar {
                     //geo = geo.with_reference_number(cospar);
                 }
-                if let Some(_position) = &self.header.ground_position {
+                if let Some(_position) = &self.header.rx_position {
                     //geo = geo.with_site_location();
                 }
                 if !self.header.comments.is_empty() {

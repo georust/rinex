@@ -45,11 +45,14 @@ impl Header {
             marker.format(w)?;
         }
 
-        if let Some(position) = self.ground_position {
+        if let Some((x_ecef_m, y_ecef_m, z_ecef_m)) = self.rx_position {
             writeln!(
                 w,
                 "{}",
-                fmt_rinex(&format!("{:X}", position), "APPROX POSITION XYZ")
+                fmt_rinex(
+                    &format!("{:15.14} {:15.14} {:15.14}", x_ecef_m, y_ecef_m, z_ecef_m),
+                    "APPROX POSITION XYZ"
+                )
             )?;
         }
 

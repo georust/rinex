@@ -56,7 +56,7 @@ impl Merge for Header {
         merge_mut_option(&mut self.cospar, &rhs.cospar);
         merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
         merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
-        merge_mut_option(&mut self.ground_position, &rhs.ground_position);
+        merge_mut_option(&mut self.rx_position, &rhs.rx_position);
         merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
         merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
 

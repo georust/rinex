@@ -4,7 +4,6 @@ use crate::{
     clock::{ClockProfileType, HeaderFields as ClockHeader, WorkClock},
     doris::{HeaderFields as DorisHeader, Station as DorisStation},
     epoch::parse_ionex_utc as parse_ionex_utc_epoch,
-    ground_position::GroundPosition,
     hardware::{Antenna, Receiver, SvAntenna},
     hatanaka::CRINEX,
     header::{DcbCompensation, Header, PcvCompensation},
@@ -53,7 +52,9 @@ impl Header {
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
-        let mut ground_position: Option<GroundPosition> = None;
+
+        let mut rx_position: Option<_> = Option::<(f64, f64, f64)>::None;
+
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
         let mut ionod_corrections = HashMap::<Constellation, IonMessage>::with_capacity(4);
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
@@ -436,7 +437,7 @@ impl Header {
 
                 for sensor in meteo.sensors.iter_mut() {
                     if sensor.observable == observable {
-                        *sensor = sensor.with_position(GroundPosition::from_ecef_wgs84((x, y, z)));
+                        *sensor = sensor.with_position((x, y, z));
                         *sensor = sensor.with_height(h);
                     }
                 }
@@ -467,16 +468,16 @@ impl Header {
             } else if marker.contains("APPROX POSITION XYZ") {
                 // station base coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                let x = items[0].trim();
-                let x = f64::from_str(x).or(Err(ParsingError::Coordinates))?;
+                let x_ecef_m = items[0].trim();
+                let x_ecef_m = f64::from_str(x_ecef_m).or(Err(ParsingError::Coordinates))?;
 
-                let y = items[1].trim();
-                let y = f64::from_str(y).or(Err(ParsingError::Coordinates))?;
+                let y_ecef_m = items[1].trim();
+                let y_ecef_m = f64::from_str(y_ecef_m).or(Err(ParsingError::Coordinates))?;
 
-                let z = items[2].trim();
-                let z = f64::from_str(z).or(Err(ParsingError::Coordinates))?;
+                let z_ecef_m = items[2].trim();
+                let z_ecef_m = f64::from_str(z_ecef_m).or(Err(ParsingError::Coordinates))?;
 
-                ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
+                rx_position = Some((x_ecef_m, y_ecef_m, z_ecef_m));
             } else if marker.contains("ANT # / TYPE") {
                 let (sn, rem) = content.split_at(20);
                 let (model, _) = rem.split_at(20);
@@ -896,7 +897,7 @@ impl Header {
             cospar,
             glo_channels,
             leap,
-            ground_position,
+            rx_position,
             ionod_corrections,
             dcb_compensations,
             pcv_compensations,

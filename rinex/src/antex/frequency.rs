@@ -73,52 +73,55 @@ impl Default for Frequency {
 }
 
 impl Frequency {
-    /// Returns ARP in geodetic coordinates expressed in decimal degrees.
-    /// Reference point must be in the same coordinates system.
-    pub fn arp_geodetic(&self, ref_pos: (f64, f64, f64)) -> (f64, f64, f64) {
-        map_3d::enu2geodetic(
-            self.east * 10.0E-3,
-            self.north * 10.0E-3,
-            self.up * 10.0E-3,
-            ref_pos.0,
-            ref_pos.1,
-            ref_pos.2,
-            map_3d::Ellipsoid::WGS84,
-        )
-    }
-    /// Returns ARP coordinates in ECEF system.
-    pub fn arp_ecef(&self, ref_pos: (f64, f64, f64)) -> (f64, f64, f64) {
-        map_3d::enu2ecef(
-            self.east * 10.0E-3,
-            self.north * 10.0E-3,
-            self.up * 10.0E-3,
-            ref_pos.0,
-            ref_pos.1,
-            ref_pos.2,
-            map_3d::Ellipsoid::WGS84,
-        )
-    }
-    /// Returns ARP coordinates as North Earth Down coordinates
-    pub fn arp_ned(&self, ref_pos: (f64, f64, f64)) -> (f64, f64, f64) {
-        let ecef = map_3d::enu2ecef(
-            self.east * 10.0E-3,
-            self.north * 10.0E-3,
-            self.up * 10.0E-3,
-            ref_pos.0,
-            ref_pos.1,
-            ref_pos.2,
-            map_3d::Ellipsoid::WGS84,
-        );
-        map_3d::ecef2ned(
-            ecef.0,
-            ecef.1,
-            ecef.2,
-            ref_pos.0,
-            ref_pos.1,
-            ref_pos.2,
-            map_3d::Ellipsoid::WGS84,
-        )
-    }
+    // /// Returns ARP in geodetic coordinates expressed in decimal degrees.
+    // /// Reference point must be in the same coordinates system.
+    // pub fn arp_geodetic(&self, ref_pos: (f64, f64, f64)) -> (f64, f64, f64) {
+    //     map_3d::enu2geodetic(
+    //         self.east * 10.0E-3,
+    //         self.north * 10.0E-3,
+    //         self.up * 10.0E-3,
+    //         ref_pos.0,
+    //         ref_pos.1,
+    //         ref_pos.2,
+    //         map_3d::Ellipsoid::WGS84,
+    //     )
+    // }
+
+    // /// Returns ARP coordinates in ECEF system.
+    // pub fn arp_ecef(&self, ref_pos: (f64, f64, f64)) -> (f64, f64, f64) {
+    //     map_3d::enu2ecef(
+    //         self.east * 10.0E-3,
+    //         self.north * 10.0E-3,
+    //         self.up * 10.0E-3,
+    //         ref_pos.0,
+    //         ref_pos.1,
+    //         ref_pos.2,
+    //         map_3d::Ellipsoid::WGS84,
+    //     )
+    // }
+
+    // /// Returns ARP coordinates as North Earth Down coordinates
+    // pub fn arp_ned(&self, ref_pos: (f64, f64, f64)) -> (f64, f64, f64) {
+    //     let ecef = map_3d::enu2ecef(
+    //         self.east * 10.0E-3,
+    //         self.north * 10.0E-3,
+    //         self.up * 10.0E-3,
+    //         ref_pos.0,
+    //         ref_pos.1,
+    //         ref_pos.2,
+    //         map_3d::Ellipsoid::WGS84,
+    //     );
+    //     map_3d::ecef2ned(
+    //         ecef.0,
+    //         ecef.1,
+    //         ecef.2,
+    //         ref_pos.0,
+    //         ref_pos.1,
+    //         ref_pos.2,
+    //         map_3d::Ellipsoid::WGS84,
+    //     )
+    // }
+
     pub fn with_carrier(&self, carrier: Carrier) -> Self {
         let mut f = self.clone();
         f.carrier = carrier;

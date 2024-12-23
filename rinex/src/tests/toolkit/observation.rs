@@ -6,8 +6,7 @@ use crate::{
         SignalObservation,
     },
     prelude::{
-        Constellation, Epoch, GeodeticMarker, GroundPosition, Header, Observable, Rinex, RinexType,
-        Version, SV,
+        Constellation, Epoch, GeodeticMarker, Header, Observable, Rinex, RinexType, Version, SV,
     },
     tests::toolkit::{
         generic_null_rinex_test, generic_rinex_test, gnss_csv as gnss_from_csv,
@@ -106,11 +105,8 @@ pub fn generic_observation_rinex_test(
 
     basic_header_tests(&dut.header, timeof_first_obs, timeof_last_obs);
 
-    if let Some((x_m, y_m, z_m)) = ground_ref_wgs84_m {
-        assert_eq!(
-            dut.header.ground_position,
-            Some(GroundPosition::from_ecef_wgs84((x_m, y_m, z_m)))
-        );
+    if let Some((x_ecef_m, y_ecef_m, z_ecef_m)) = ground_ref_wgs84_m {
+        assert_eq!(dut.header.rx_position, Some((x_ecef_m, y_ecef_m, z_ecef_m)));
     }
 
     if let Some(observer) = observer {

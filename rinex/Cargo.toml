@@ -29,7 +29,6 @@ rust-version = "1.64"
 # - geo
 # - wkt
 # - strum/macros
-# - map_3d: replaced by ANISE
 # - regex
 # - num/num-integer (.div_ceil)
 ################################################################
@@ -117,7 +116,6 @@ regex = "1"
 strum = "0.26"
 thiserror = "2"
 lazy_static = "1.4"
-map_3d = "0.1.5"
 num-derive = "0.4"
 itertools = "0.13.0"
 

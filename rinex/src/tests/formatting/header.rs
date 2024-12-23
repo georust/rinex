@@ -103,7 +103,7 @@ fn crinex_mixed_header_formatting() {
                 "     4.00           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE",
             ),
             (
-                3,
+                4,
                 "                                                            END OF HEADER",
             ),
         ]),
