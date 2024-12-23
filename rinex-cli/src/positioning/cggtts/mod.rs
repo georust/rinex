@@ -417,11 +417,8 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         next_release = Some(sched.next_track_start(*t));
         // If the last epoch is reached, should release track
         let next_release_duration = next_release.unwrap() - *t;
-        should_release = (
-            next_release_duration <= dominant_sampling_period
-        ) && (
-            next_release_duration > Duration::ZERO
-        );
+        should_release = (next_release_duration <= dominant_sampling_period)
+            && (next_release_duration > Duration::ZERO);
         trk_midpoint = Some(next_release.unwrap() - trk_duration / 2);
         info!("{:?} - {} until next track", t, next_release.unwrap() - *t);
     } //.observations()
