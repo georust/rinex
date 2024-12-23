@@ -10,7 +10,6 @@ pub struct Buffer<K: TemporalIndexing, T> {
 }
 
 impl<K: TemporalIndexing, T> Buffer<K, T> {
-
     /// Creates a new [Buffer] with "size" prealloc
     pub fn new(size: usize) -> Self {
         Self {

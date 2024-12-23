@@ -60,17 +60,6 @@ fn carrier_from_rtk(carrier: &RTKCarrier) -> Carrier {
     }
 }
 
-pub struct OrbitSource<'a> {
-    eph_ctx: EphemerisContext<'a>,
-}
-
-impl<'a> gnss_rtk::prelude::OrbitSource for OrbitSource<'a> {
-    fn next_at(&mut self, t: Epoch, sv: SV, fr: Frame, order: usize) -> Option<Orbit> {
-        let (toc, _, sel_eph) = self.eph_ctx.select(t, sv)?;
-        sel_eph.kepler2position(sv, toc, t)
-    }
-}
-
 /// [NavPvtSolver] is an efficient structure to consume [QcContext]
 /// and resolve all possible [PVTSolution]s from it.
 pub struct NavPvtSolver<'a> {
@@ -107,7 +96,6 @@ impl<'a> Iterator for NavPvtSolver<'a> {
                 }
 
                 self.signal_buffer.push(v.clone());
-            
             } else {
                 // EOS
                 info!("consumed all signals");
@@ -131,7 +119,6 @@ impl<'a> Iterator for NavPvtSolver<'a> {
 
         // per SV
         for sv in sv_list.iter() {
-
             self.observations.clear();
 
             // per carrier signals
@@ -211,18 +198,15 @@ impl<'a> Iterator for NavPvtSolver<'a> {
 
                 // append to queue
                 for (_, observation) in self.observations.iter() {
-                    self.candidates.push(Candidate::new(*sv, t, self.observations));
+                    self.candidates
+                        .push(Candidate::new(*sv, t, self.observations));
                 }
-
             }
-                
         }
 
         // attempt resolution
         match self.rtk_solver.resolve(t, &self.pool) {
-            Ok((_, pvt)) => {
-                Some(pvt)
-            },
+            Ok((_, pvt)) => Some(pvt),
             Err(e) => {
                 error!("rtk error: {}", e);
                 None

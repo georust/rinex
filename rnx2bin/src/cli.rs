@@ -54,18 +54,7 @@ impl Cli {
                             .short('o')
                             .long("output")
                             .action(ArgAction::Set)
-                            .help("Custom output. When omitted, we will auto-generate a bin file.
-This can be either
-- a file name that we will generate
-- or a streaming interface, for example /dev/fifo0 that is writable and accepts raw bytes.
-In this case, the --io flag must be specified as well.
-either be a custom file name (example: output.bin), otherwise, standard convention is auto generated.")
-                    )
-                    .arg(
-                        Arg::new("io")
-                            .long("io")
-                            .action(ArgAction::SetTrue)
-                            .help("Custom output name (example: output.bin), otherwise, standard convention is auto generated.")
+                            .help("Custom output. When omitted, we will auto-generate a bin file.")
                     )
                     .arg(
                         Arg::new("short")
@@ -75,11 +64,10 @@ either be a custom file name (example: output.bin), otherwise, standard conventi
                             .help("Specify that the auto file name generator should prefer short (V2) file names")
                     )
                     .arg(
-                        Arg::new("gzip")
-                            .long("gzip")
+                        Arg::new("zip")
+                            .long("zip")
                             .action(ArgAction::SetTrue)
-                            .help("Force gzip output, even coming from uncompressed input.
-This works on any type of output interface.")
+                            .help("Gzip compress your output directly.")
                     )
                     .get_matches()
             },
@@ -95,10 +83,7 @@ This works on any type of output interface.")
         self.matches.get_one::<String>("workspace")
     }
     pub fn gzip_output(&self) -> bool {
-        self.matches.get_flag("gzip")
-    }
-    pub fn io_output(&self) -> bool {
-        self.matches.get_flag("io")
+        self.matches.get_flag("zip")
     }
     pub fn short_name(&self) -> bool {
         self.matches.get_flag("short")

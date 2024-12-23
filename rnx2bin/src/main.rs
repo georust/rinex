@@ -47,12 +47,12 @@ impl Output {
         if let Some(custom) = custom_name {
             let path = workspace.join(custom);
 
-            let mut fd = File::create(&path)
-                .unwrap_or_else(|e| panic!("Failed to create file within workspace"));
+            let fd = File::create(&path)
+                .unwrap_or_else(|e| panic!("Failed to create file within workspace: {}", e));
 
             if gzip_in || gzip_out {
                 info!("Generating custom gzip file: {}", path.display());
-                let mut fd = GzEncoder::new(fd, Compression::new(5));
+                let fd = GzEncoder::new(fd, Compression::new(5));
                 Output::GzipFile(fd)
             } else {
                 info!("Generating custom file: {}", path.display());
@@ -61,8 +61,7 @@ impl Output {
         } else {
             // auto generated name
             let mut suffix = ".bin".to_string();
-
-            if gzip_in || gzip_out {
+            if gzip_out {
                 suffix.push_str(".gz");
             }
 
@@ -70,12 +69,12 @@ impl Output {
 
             let path = workspace.join(auto);
 
-            let mut fd = File::create(&path)
-                .unwrap_or_else(|e| panic!("Failed to create file within workspace"));
+            let fd = File::create(&path)
+                .unwrap_or_else(|e| panic!("Failed to create file within workspace: {}", e));
 
             if gzip_in || gzip_out {
                 info!("Generating gzip file: {}", path.display());
-                let mut fd = GzEncoder::new(fd, Compression::new(5));
+                let fd = GzEncoder::new(fd, Compression::new(5));
                 Output::GzipFile(fd)
             } else {
                 info!("Generating file: {}", path.display());

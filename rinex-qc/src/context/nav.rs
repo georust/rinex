@@ -1,9 +1,6 @@
 use rinex::prelude::Rinex;
 
-use crate::{
-    context::QcContext,
-    QcCtxError,
-};
+use crate::{context::QcContext, QcCtxError};
 
 use qc_traits::Merge;
 
