@@ -313,11 +313,9 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                             let next_release = next_release.unwrap();
                             let trk_midpoint = trk_midpoint.unwrap();
 
-                            if t >= next_release {
+                            if t > next_release {
                                 /* time to release a track */
                                 let ioe = 0; //TODO
-                                             // latch last measurement
-                                tracker.latch_measurement(t, fitdata);
 
                                 match tracker.fit(
                                     ioe,
@@ -389,6 +387,8 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
 
                                 // reset so we start a new track
                                 tracker.reset();
+                                // latch first measurement
+                                tracker.latch_measurement(t, fitdata);
                             }
                             // time to release a track
                             else {
