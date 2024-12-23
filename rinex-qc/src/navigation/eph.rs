@@ -7,6 +7,8 @@ use crate::context::QcContext;
 
 use std::collections::HashMap;
 
+use log::error;
+
 pub struct EphemerisContext<'a> {
     eos: bool,
     buffer: HashMap<SV, Vec<(Epoch, Ephemeris)>>,
@@ -34,7 +36,6 @@ impl<'a> EphemerisContext<'a> {
                 }
             } else {
                 self.eos = true;
-                println!("EOS!!");
                 break;
             }
         }
@@ -45,22 +46,17 @@ impl<'a> EphemerisContext<'a> {
     fn closest_in_time(&self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, &Ephemeris)> {
         let buffer = self.buffer.get(&sv)?;
         let sv_ts = sv.constellation.timescale()?;
+
         if sv.constellation.is_sbas() {
             buffer
                 .iter()
-                .filter_map(|(toc_i, eph_i)| {
-                    if t >= *toc_i {
-                        Some((*toc_i, *toc_i, eph_i))
-                    } else {
-                        None
-                    }
-                })
+                .map(|(toc_i, eph_i)| (*toc_i, *toc_i, eph_i))
                 .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())
         } else {
             buffer
                 .iter()
                 .filter_map(|(toc_i, eph_i)| {
-                    if eph_i.is_valid(sv, t) && t >= *toc_i {
+                    if eph_i.is_valid(sv, t) {
                         let toe_i = eph_i.toe(sv_ts)?;
                         Some((*toc_i, toe_i, eph_i))
                     } else {
@@ -80,11 +76,10 @@ impl<'a> EphemerisContext<'a> {
     /// - toe: [Epoch]
     /// - eph: [Ephemeris]
     pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
-        if self.eos {
-            // end of stream already reached
-            return None;
+        if !self.eos {
+            self.consume_until(t, sv);
         }
-        self.consume_until(t, sv);
+
         let (toc, toe, eph) = self.closest_in_time(t, sv)?;
         Some((toc, toe, eph.clone()))
     }

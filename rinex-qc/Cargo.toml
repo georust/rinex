@@ -19,11 +19,19 @@ rust-version = "1.64"
 default = [
   "sp3",
   "flate2",
+  "nav",
+  "cggtts",
 ]
 
 # Support of SP3 High Precision Orbital attibutes,
 # which is required by PPP high precision post processed navigation.
 sp3 = ["dep:sp3"]
+
+# Support for post process navigation
+nav = ["dep:gnss-rtk"]
+
+# Support for special timing solutions solver
+cggtts = ["dep:cggtts"]
 
 # flate2 features allows to stack User Data from
 # .gzip compressed files natively
@@ -46,7 +54,6 @@ log = "0.4"
 maud = "0.26"
 map_3d = "0.1.5"
 regex = "1"
-crc32fast = "1"
 thiserror = "2"
 strum = "0.26"
 itertools = "0.13.0"
@@ -63,9 +70,9 @@ hifitime = "4.0.0-beta"
 # gnss-rs = { version = "2.2.3", features = ["serde"] }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 
-# gnss-rtk = { version = "=0.7.4", features = ["serde"] }
-gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
-# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
+# gnss-rtk = { version = "=0.7.4", features = ["serde"], optional = true }
+gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"], optional = true }
+# gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"], optional = true }
 
 # cggtts = { version = "4.1.6", features = ["serde", "scheduler"], optional = true }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }

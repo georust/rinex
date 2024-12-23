@@ -5,6 +5,8 @@ use crate::{
     QcCtxError,
 };
 
+use std::collections::hash_map::Keys;
+
 use log::debug;
 
 use qc_traits::Merge;
@@ -15,6 +17,8 @@ pub enum ObservationUniqueId {
     Operator(String),
     GeodeticMarker(String),
 }
+
+use anise::prelude::Orbit;
 
 impl std::str::FromStr for ObservationUniqueId {
     type Err = QcCtxError;
@@ -80,6 +84,29 @@ impl QcContext {
     /// True if QcObservationsDataSet is not empty
     pub fn has_observations(&self) -> bool {
         !self.obs_dataset.is_empty()
+    }
+
+    pub fn observations_meta(&self) -> Keys<'_, MetaData, Rinex> {
+        self.obs_dataset.keys()
+    }
+
+    pub fn meta_rx_position_ecef(&self, meta: &MetaData) -> Option<(f64, f64, f64)> {
+        for (k, v) in self.obs_dataset.iter() {
+            if k == meta {
+                return v.header.rx_position;
+            }
+        }
+        None
+    }
+
+    pub fn meta_rx_orbit(&self, meta: &MetaData) -> Option<Orbit> {
+        for (k, v) in self.obs_dataset.iter() {
+            if k == meta {
+                let t = v.first_epoch()?;
+                return v.header.rx_orbit(t, self.earth_cef);
+            }
+        }
+        None
     }
 
     /// Loads a new Observation [Rinex] into this [QcContext]

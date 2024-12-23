@@ -1,19 +1,24 @@
-use crate::{
-    navigation::{buffer::Buffer, eph::EphemerisContext},
-    prelude::QcContext,
-};
+use crate::{navigation::eph::EphemerisContext, prelude::QcContext};
 
-use std::{cell::RefCell, collections::HashMap};
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
+use std::sync::Arc;
 
-use gnss_rtk::prelude::{Almanac, Epoch, Frame, Orbit, Vector3, EARTH_J2000, SUN_J2000, SV};
+use gnss_rtk::prelude::{Epoch, Frame, Orbit, SV};
 
-pub struct OrbitSource<'a> {
-    eph_ctx: EphemerisContext<'a>,
+pub struct OrbitalContext<'a, 'b> {
+    eph_ctx: &'a RefCell<EphemerisContext<'b>>,
 }
 
-impl<'a> gnss_rtk::prelude::OrbitSource for OrbitSource<'a> {
-    fn next_at(&mut self, t: Epoch, sv: SV, fr: Frame, order: usize) -> Option<Orbit> {
-        let (toc, _, sel_eph) = self.eph_ctx.select(t, sv)?;
+impl<'a, 'b> OrbitalContext<'a, 'b> {
+    pub fn new(eph_ctx: &'a RefCell<EphemerisContext<'b>>) -> Self {
+        Self { eph_ctx }
+    }
+}
+
+impl<'a, 'b> gnss_rtk::prelude::OrbitSource for OrbitalContext<'a, 'b> {
+    fn next_at(&mut self, t: Epoch, sv: SV, _: Frame, _: usize) -> Option<Orbit> {
+        let (toc, _, sel_eph) = self.eph_ctx.borrow_mut().select(t, sv)?;
         sel_eph.kepler2position(sv, toc, t)
     }
 }
@@ -196,11 +201,3 @@ impl<'a> gnss_rtk::prelude::OrbitSource for OrbitSource<'a> {
 //         }
 //     }
 // }
-
-impl QcContext {
-    /// Form an [OrbitSource] from this [QcContext]
-    pub(crate) fn orbit_source(&self) -> Option<OrbitSource> {
-        let eph_ctx = self.ephemeris_context()?;
-        Some(OrbitSource { eph_ctx })
-    }
-}

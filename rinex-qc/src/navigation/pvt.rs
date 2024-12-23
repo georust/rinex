@@ -1,20 +1,23 @@
-use log::info;
-use std::collections::HashMap;
+use log::{error, info};
+
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
     context::{meta::MetaData, QcContext},
-    navigation::{orbit::OrbitSource, signal::SignalSource},
+    navigation::{clock::ClockContext, orbit::OrbitalContext, signal::SignalSource},
     QcError,
 };
 
 use itertools::Itertools;
 
 use gnss_rtk::prelude::{
-    Candidate, Carrier as RTKCarrier, Config as RTKConfig, Epoch, Frame, Observation, Orbit,
-    PVTSolution, Solver, SV,
+    Candidate, Carrier as RTKCarrier, ClockCorrection, Config as RTKConfig, Epoch,
+    Error as RTKError, Frame, Observation, Orbit, PVTSolution, Solver, SV,
 };
 
 use rinex::prelude::{obs::SignalObservation, Carrier, Observable};
+
+use super::eph::EphemerisContext;
 
 /// Converts [Carrier] to [RTKCarrier]
 fn carrier_to_rtk(carrier: &Carrier) -> Option<RTKCarrier> {
@@ -65,14 +68,15 @@ fn carrier_from_rtk(carrier: &RTKCarrier) -> Carrier {
 pub struct NavPvtSolver<'a> {
     pool: Vec<Candidate>,
     signal: SignalSource<'a>,
-    solver: Solver<OrbitSource<'a>>,
+    solver: Solver,
+    eph_ctx: RefCell<EphemerisContext<'a>>,
     observations: HashMap<RTKCarrier, Observation>,
 }
 
 impl<'a> NavPvtSolver<'a> {}
 
 impl<'a> Iterator for NavPvtSolver<'a> {
-    type Item = PVTSolution;
+    type Item = Result<PVTSolution, RTKError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let collected = self.signal.collect_epoch();
@@ -81,6 +85,12 @@ impl<'a> Iterator for NavPvtSolver<'a> {
             info!("consumed all signals");
             return None;
         }
+
+        // orbital snapshot
+        let orbit = OrbitalContext::new(&self.eph_ctx);
+
+        // clock snapshot
+        let clock = ClockContext::new(&self.eph_ctx);
 
         // gather candidates
         let (t, signals) = collected.unwrap();
@@ -167,25 +177,44 @@ impl<'a> Iterator for NavPvtSolver<'a> {
                         _ => unreachable!("filtered out"),
                     }
                 }
+            }
 
-                // append to queue
-                let mut observations = Vec::new();
-                for (_, observation) in self.observations.iter() {
-                    observations.push(observation.clone());
+            // create pool
+            let mut observations = Vec::new();
+            for (_, observation) in self.observations.iter() {
+                observations.push(observation.clone());
+            }
+
+            self.pool.push(Candidate::new(*sv, t, observations));
+        }
+
+        // candidate(s) customization(s)
+        for cd in self.pool.iter_mut() {
+            if let Some((toc, _, eph)) = self.eph_ctx.borrow_mut().select(t, cd.sv) {
+                if let Some(dt) = eph.clock_correction(toc, t, cd.sv, 5) {
+                    let correction = ClockCorrection::without_relativistic_correction(dt);
+                    cd.set_clock_correction(correction);
+                } else {
+                    error!("{}({}): clock correction", cd.t, cd.sv);
                 }
-
-                self.pool.push(Candidate::new(*sv, t, observations));
+            } else {
+                error!("{}({}): ephemeris selection", cd.t, cd.sv);
             }
         }
 
+        panic!(
+            "pool: {:?}",
+            self.pool.iter().map(|cd| cd.sv).collect::<Vec<_>>()
+        );
+
         // attempt resolution
-        match self.solver.resolve(t, &self.pool) {
+        match self.solver.resolve(t, &self.pool, orbit) {
             Ok((_, pvt)) => {
                 // clear for next time
                 self.pool.clear();
                 self.observations.clear();
 
-                Some(pvt)
+                Some(Ok(pvt))
             },
             Err(e) => {
                 error!("rtk error: {}", e);
@@ -193,8 +222,7 @@ impl<'a> Iterator for NavPvtSolver<'a> {
                 // clear for next time
                 self.pool.clear();
                 self.observations.clear();
-
-                None
+                Some(Err(e))
             },
         }
     }
@@ -209,20 +237,20 @@ impl QcContext {
         meta: &MetaData,
         initial: Option<Orbit>,
     ) -> Result<NavPvtSolver, QcError> {
-        // Obtain orbital source
-        let orbit = self.orbit_source().ok_or(QcError::OrbitalSource)?;
+        // Obtain ephemeris context
+        let eph_ctx = self.ephemeris_context().ok_or(QcError::EphemerisSource)?;
 
         // Obtain signal source
         let signal = self.signal_source(&meta).ok_or(QcError::SignalSource)?;
 
         // Deploy solver: share almanac & reference frame model
-        let solver =
-            Solver::new_almanac_frame(&cfg, initial, orbit, self.almanac.clone(), self.earth_cef);
+        let solver = Solver::new_almanac_frame(&cfg, initial, self.almanac.clone(), self.earth_cef);
 
         Ok(NavPvtSolver {
             solver,
             signal,
             pool: Vec::with_capacity(8),
+            eph_ctx: RefCell::new(eph_ctx),
             observations: HashMap::with_capacity(8),
         })
     }
@@ -234,7 +262,6 @@ mod test {
     use crate::{
         cfg::QcConfig,
         context::{meta::MetaData, QcContext},
-        navigation::pvt::NavPvtSolver,
     };
 
     use gnss_rtk::prelude::Config as RTKConfig;
@@ -259,11 +286,11 @@ mod test {
 
         let rtk_cfg = RTKConfig::default();
         let meta = MetaData {
-            name: "ESBC00DNK",
-            extension: "gz",
-            unique_id: None,
+            name: "ESBC00DNK".to_string(),
+            extension: "crx.gz".to_string(),
+            unique_id: Some("rcvr:SEPT POLARX5".to_string()),
         };
 
-        let mut nav_pvt = ctx.nav_pvt_solver(rtk_cfg, meta, None);
+        let _ = ctx.nav_pvt_solver(rtk_cfg, &meta, None).unwrap();
     }
 }

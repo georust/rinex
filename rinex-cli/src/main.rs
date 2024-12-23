@@ -10,6 +10,7 @@ use std::{io::Error as IoError, path::Path};
 //mod analysis;
 mod cli;
 mod fops;
+mod ppp;
 mod preprocessing;
 
 use preprocessing::preprocess;
@@ -17,12 +18,19 @@ use preprocessing::preprocess;
 // mod report;
 // use report::Report;
 
-use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
-use rinex_qc::prelude::{MergeError, QcContext, QcError, QcExtraPage, Render};
+use rinex_qc::{
+    prelude::{MergeError, QcContext, QcExtraPage, Render},
+    QcCtxError, QcError,
+};
 
-use crate::fops::{
-    diff as fops_diff, filegen as fops_filegen, merge as fops_merge, split as fops_split,
-    tbin as fops_tbin,
+use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
+
+use crate::{
+    fops::{
+        diff as fops_diff, filegen as fops_filegen, merge as fops_merge, split as fops_split,
+        tbin as fops_tbin,
+    },
+    ppp::ppp,
 };
 
 use walkdir::WalkDir;
@@ -47,8 +55,10 @@ pub enum Error {
     RinexParsing(#[from] RinexParsingError),
     #[error("rinex formatting")]
     RinexFormatting(#[from] RinexFormattingError),
-    #[error("qc error")]
-    QcError(#[from] QcError),
+    #[error("qc dataset error: {0}")]
+    QcContext(#[from] QcCtxError),
+    #[error("qc post processing error: {0}")]
+    QcPostProcessing(#[from] QcError),
     #[cfg(feature = "csv")]
     #[error("csv export error")]
     CsvError(#[from] CsvError),
@@ -237,10 +247,12 @@ pub fn main() -> Result<(), Error> {
             fops_diff(&mut ctx.qc_context, &cli, submatches)?;
             return Ok(());
         },
-        // Some(("ppp", submatches)) => {
-        //     let chapter = positioning::precise_positioning(&cli, &ctx, false, submatches)?;
-        //     extra_pages.push(chapter);
-        // },
+        Some(("ppp", submatches)) => {
+            // PPP is a report customization: do not abort this process.
+            // It is infaillible: the report being generated is either augmented or not.
+            // The whole process generates debug traces.
+            ppp(&ctx.qc_context, &cli, submatches);
+        },
         // Some(("rtk", submatches)) => {
         //     let chapter = positioning::precise_positioning(&cli, &ctx, true, submatches)?;
         //     extra_pages.push(chapter);

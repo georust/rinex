@@ -25,6 +25,10 @@ pub mod prelude {
     };
     // Pub re-export
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
+
+    #[cfg(feature = "nav")]
+    pub use gnss_rtk::prelude::{Config as RTKConfig, Method as RTKMethod};
+
     pub use maud::{html, Markup, Render};
     pub use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait, Split};
     pub use rinex::prelude::{nav::Almanac, Error as RinexError, Rinex};
@@ -73,8 +77,12 @@ pub enum QcCtxError {
 /// so actual data exploitation.
 #[derive(Debug, Error)]
 pub enum QcError {
+    #[error("ephemeris source design")]
+    EphemerisSource,
     #[error("orbital source design")]
     OrbitalSource,
+    #[error("clock source design")]
+    ClockSource,
     #[error("no signal source")]
     SignalSource,
 }
