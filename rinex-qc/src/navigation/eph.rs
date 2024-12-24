@@ -12,12 +12,12 @@ use log::error;
 pub struct EphemerisContext<'a> {
     eos: bool,
     buffer: HashMap<SV, Vec<(Epoch, Epoch, Ephemeris)>>,
-    iter: Box<dyn Iterator<Item = (SV, &'a Epoch, &'a Ephemeris)> + 'a>,
+    iter: Box<dyn Iterator<Item = (SV, Epoch, &'a Ephemeris)> + 'a>,
 }
 
 impl<'a> EphemerisContext<'a> {
     /// Bufferize content until ephemeris is valid for [SV] at [Epoch]
-    fn bufferize_until_validity(&mut self, sel_t: Epoch, sel_sv: SV) {
+    fn bufferize_until_valid(&mut self, sel_t: Epoch, sel_sv: SV) {
         // timescale needs to be determined
         let sel_ts = sel_sv.constellation.timescale();
         if sel_ts.is_none() {
@@ -34,10 +34,10 @@ impl<'a> EphemerisContext<'a> {
                 if let Some(toe) = eph.toe(sel_ts) {
                     // store
                     if let Some(data) = self.buffer.get_mut(&sv) {
-                        data.push((*toc, toe, eph.clone()));
+                        data.push((toc, toe, eph.clone()));
                     } else {
                         // new
-                        self.buffer.insert(sv, vec![(*toc, toe, eph.clone())]);
+                        self.buffer.insert(sv, vec![(toc, toe, eph.clone())]);
                     }
 
                     // exit(stop bffering) when validity is obtained for target.
@@ -98,7 +98,7 @@ impl<'a> EphemerisContext<'a> {
     /// - eph: [Ephemeris]
     pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
         if !self.eos {
-            self.bufferize_until_validity(t, sv);
+            self.bufferize_until_valid(t, sv);
         }
 
         let (toc, toe, eph) = self.closest_in_time(t, sv)?;
@@ -121,8 +121,8 @@ impl QcContext {
             buffer: HashMap::with_capacity(8),
             iter: Box::new(
                 nav_dataset
-                    .ephemeris()
-                    .map(|(t, (_, sv, eph))| (sv, t, eph)),
+                    .nav_ephemeris_frames_iter()
+                    .map(|(k, v)| (k.sv, k.epoch, v)),
             ),
         })
     }

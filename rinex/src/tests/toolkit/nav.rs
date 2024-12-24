@@ -1,4 +1,7 @@
-use crate::prelude::Rinex;
+use crate::{
+    prelude::{Rinex, RinexType},
+    tests::toolkit::{generic_rinex_test, sv_csv as sv_csv_parser, TimeFrame},
+};
 
 // use crate::navigation::KbModel;
 // use crate::navigation::NgModel;
@@ -25,6 +28,34 @@ use crate::prelude::Rinex;
 //         assert_eq!(parsed, model);
 //     }
 // }
+
+pub fn generic_test(
+    dut: &Rinex,
+    version: &str,
+    header_constellation: &str,
+    time_frame: Option<TimeFrame>,
+    sv_csv: &str,
+    nb_ephemeris: usize,
+) {
+    assert!(dut.is_navigation_rinex());
+
+    let _ = dut.record.as_nav().unwrap();
+
+    let mut sv = sv_csv_parser(sv_csv);
+    sv.sort();
+
+    generic_rinex_test(
+        dut,
+        version,
+        Some(header_constellation),
+        RinexType::NavigationData,
+        time_frame,
+    );
+
+    assert_eq!(dut.sv_iter().collect::<Vec<_>>(), sv);
+
+    assert_eq!(dut.nav_ephemeris_frames_iter().count(), nb_ephemeris);
+}
 
 pub fn generic_comparison(dut: &Rinex, model: &Rinex) {
     let dut = dut.record.as_nav().unwrap();

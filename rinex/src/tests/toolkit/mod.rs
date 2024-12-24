@@ -14,7 +14,9 @@ pub use ionex::{generic_ionex_test, TecPoint};
 
 // NAV RINEX dedicated tools
 mod nav;
-pub use nav::generic_comparison as generic_navigation_comparison;
+pub use nav::{
+    generic_comparison as generic_navigation_comparison, generic_test as generic_navigation_test,
+};
 
 // DORIS RINEX dedicated tools
 mod doris;

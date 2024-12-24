@@ -27,7 +27,7 @@ mod ionex;
 #[cfg(feature = "meteo")]
 mod meteo;
 
-//#[cfg(feature = "nav")]
-//mod nav;
+#[cfg(feature = "nav")]
+mod nav;
 
 mod obs;

@@ -42,7 +42,7 @@ impl Ephemeris {
     }
 
     /// Returns abstract orbital parameter from readable description and
-    /// interprated as f64 (which always works, whatever inner data type).
+    /// interprated as f64.
     pub fn get_orbit_f64(&self, field: &str) -> Option<f64> {
         if let Some(value) = self.orbits.get(field) {
             let value = value.as_f64()?;
@@ -72,6 +72,17 @@ impl Ephemeris {
     pub fn tgd(&self) -> Option<Duration> {
         let tgd_s = self.get_orbit_f64("tgd")?;
         Some(Duration::from_seconds(tgd_s))
+    }
+
+    /// Returns glonass frequency channel, in case this is a Glonass [Ephemeris] message,
+    /// with described channel.
+    pub fn glonass_freq_channel(&self) -> Option<i8> {
+        if let Some(value) = self.orbits.get("channel") {
+            let value = value.as_i8()?;
+            Some(value)
+        } else {
+            None
+        }
     }
 
     /// Return ToE expressed as [Epoch]
@@ -196,29 +207,6 @@ impl Ephemeris {
                     None
                 }
             },
-        }
-    }
-}
-
-#[cfg(test)]
-#[cfg(feature = "nav")]
-mod epoch_serde {
-    use crate::prelude::Epoch;
-    use serde::{self, Deserialize, Deserializer};
-    use std::str::FromStr;
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Epoch, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: Option<String> = Option::deserialize(deserializer)?;
-        if let Some(s) = s {
-            if let Ok(e) = Epoch::from_str(&s) {
-                Ok(e)
-            } else {
-                panic!("failed to deserialize epoch");
-            }
-        } else {
-            panic!("failed to deserialize epoch");
         }
     }
 }
