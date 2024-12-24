@@ -202,11 +202,6 @@ impl<'a> Iterator for NavPvtSolver<'a> {
             }
         }
 
-        panic!(
-            "pool: {:?}",
-            self.pool.iter().map(|cd| cd.sv).collect::<Vec<_>>()
-        );
-
         // attempt resolution
         match self.solver.resolve(t, &self.pool, orbit) {
             Ok((_, pvt)) => {

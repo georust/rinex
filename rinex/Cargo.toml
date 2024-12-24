@@ -23,11 +23,9 @@ rust-version = "1.64"
 ################################################################
 # Note for devs:
 #
-# remove ground_position.rs: replace by Orbit
-#
 # [Dependencies] see if we can get rid of
-# - geo
-# - wkt
+# - geo: either replaced by Orbit, and 3D does not exist anyway
+# - wkt:
 # - strum/macros
 # - regex
 # - num/num-integer (.div_ceil)

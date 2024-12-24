@@ -7,7 +7,7 @@ pub fn split(rec: &Record, epoch: Epoch) -> (Record, Record) {
     let r0 = rec
         .iter()
         .flat_map(|(k, v)| {
-            if k < &epoch {
+            if k.epoch < epoch {
                 Some((*k, v.clone()))
             } else {
                 None
@@ -17,7 +17,7 @@ pub fn split(rec: &Record, epoch: Epoch) -> (Record, Record) {
     let r1 = rec
         .iter()
         .flat_map(|(k, v)| {
-            if k >= &epoch {
+            if k.epoch >= epoch {
                 Some((*k, v.clone()))
             } else {
                 None
@@ -30,10 +30,16 @@ pub fn split(rec: &Record, epoch: Epoch) -> (Record, Record) {
 pub fn split_mut(rec: &mut Record, t: Epoch) -> Record {
     let r1 = rec
         .iter()
-        .flat_map(|(k, v)| if *k >= t { Some((*k, v.clone())) } else { None })
+        .flat_map(|(k, v)| {
+            if k.epoch >= t {
+                Some((*k, v.clone()))
+            } else {
+                None
+            }
+        })
         .collect();
 
-    rec.retain(|k, _| *k < t);
+    rec.retain(|k, _| k.epoch < t);
     r1
 }
 
@@ -45,14 +51,14 @@ pub fn split_even_dt(rec: &Record, dt: Duration) -> Vec<Record> {
 
     for (k, v) in rec.iter() {
         if let Some(t) = t0 {
-            if *k > t + dt {
+            if k.epoch > t + dt {
                 // reset: new chunk
-                t0 = Some(*k);
+                t0 = Some(k.epoch);
                 ret.push(pending);
                 pending = Record::new();
             }
         } else {
-            t0 = Some(*k);
+            t0 = Some(k.epoch);
         }
 
         pending.insert(*k, v.clone());

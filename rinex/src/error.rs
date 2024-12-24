@@ -44,6 +44,8 @@ pub enum ParsingError {
     ObservableParsing,
     #[error("constellation parsing")]
     ConstellationParsing(#[from] ConstellationParsingError),
+    #[error("undefined constellation: bad header?")]
+    UndefinedConstellation,
     #[error("sv parsing")]
     SVParsing(#[from] SVParsingError),
     #[error("cospar parsing")]

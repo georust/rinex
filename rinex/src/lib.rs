@@ -86,12 +86,9 @@ use itertools::Itertools;
 use antex::{Antenna, AntennaMatcher, AntennaSpecific, FrequencyDependentData};
 use epoch::epoch_decompose;
 use hatanaka::CRINEX;
-use navigation::NavFrame;
 use observable::Observable;
 
 use production::{DataSource, DetailedProductionAttributes, ProductionAttributes, FFU, PPU};
-
-use hifitime::Unit;
 
 /// Package to include all basic structures
 pub mod prelude {
@@ -217,15 +214,15 @@ use crate::{
         decim::decim_mut as meteo_decim_mut, mask::mask_mut as meteo_mask_mut,
         repair::repair_mut as meteo_repair_mut,
     },
-    navigation::record::{navigation_decim_mut, navigation_mask_mut},
+    navigation::{
+        decim::decim_mut as navigation_decim_mut, mask::mask_mut as navigation_mask_mut,
+        repair::repair_mut as navigation_repair_mut,
+    },
     observation::{
         decim::decim_mut as observation_decim_mut, mask::mask_mut as observation_mask_mut,
         repair::repair_mut as observation_repair_mut,
     },
 };
-
-#[cfg(feature = "nav")]
-use crate::nav::{Almanac, AzElRange, DeltaTaiUt1, Orbit};
 
 use carrier::Carrier;
 use prelude::*;
@@ -1077,11 +1074,6 @@ impl Rinex {
         self.header.rinex_type == types::Type::ClockData
     }
 
-    /// Retruns true if this is a NAV RINEX
-    pub fn is_navigation_rinex(&self) -> bool {
-        self.header.rinex_type == types::Type::NavigationData
-    }
-
     /// Returns true if Differential Code Biases (DCBs)
     /// are compensated for, in this file, for this GNSS constellation.
     /// DCBs are biases due to tiny frequency differences,
@@ -1138,7 +1130,7 @@ impl Rinex {
         } else if let Some(r) = self.record.as_doris() {
             Box::new(r.iter().map(|(k, _)| k.epoch))
         } else if let Some(r) = self.record.as_nav() {
-            Box::new(r.iter().map(|(k, _)| *k))
+            Box::new(r.iter().map(|(k, _)| k.epoch))
         } else if let Some(r) = self.record.as_clock() {
             Box::new(r.iter().map(|(k, _)| *k))
         } else if let Some(r) = self.record.as_ionex() {
@@ -1184,30 +1176,7 @@ impl Rinex {
                     .unique(),
             )
         } else if let Some(record) = self.record.as_nav() {
-            Box::new(
-                record
-                    .iter()
-                    .flat_map(|(_, frames)| {
-                        frames
-                            .iter()
-                            .filter_map(|fr| {
-                                if let Some((_, sv, _)) = fr.as_eph() {
-                                    Some(sv)
-                                } else if let Some((_, sv, _)) = fr.as_eop() {
-                                    Some(sv)
-                                } else if let Some((_, sv, _)) = fr.as_ion() {
-                                    Some(sv)
-                                } else if let Some((_, sv, _)) = fr.as_sto() {
-                                    Some(sv)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .into_iter()
-                    })
-                    .unique(),
-            )
+            Box::new(record.iter().map(|(k, _)| k.sv).sorted().unique())
         } else if let Some(record) = self.record.as_clock() {
             Box::new(
                 // grab all embedded sv clocks
@@ -1398,38 +1367,6 @@ impl Rinex {
         }
     }
 
-    /// Returns Navigation Data interator (any type of message).
-    /// NAV records may contain several different types of frames.
-    /// You should prefer more precise methods, like [ephemeris] or
-    /// [ionosphere_models] but those require the "nav" feature.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::navigation::NavMsgType;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
-    ///     .unwrap();
-    /// for (epoch, nav_frames) in rinex.navigation() {
-    ///     for frame in nav_frames {
-    ///         // this record only contains ephemeris frames
-    ///         assert!(frame.as_eph().is_some());
-    ///         assert!(frame.as_ion().is_none());
-    ///         assert!(frame.as_eop().is_none());
-    ///         assert!(frame.as_sto().is_none());
-    ///         if let Some((msg, sv, data)) = frame.as_eph() {
-    ///             // this record only contains legacy frames
-    ///             assert_eq!(msg, NavMsgType::LNAV);
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub fn navigation(&self) -> Box<dyn Iterator<Item = (&Epoch, &Vec<NavFrame>)> + '_> {
-        Box::new(
-            self.record
-                .as_nav()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
-    }
-
     /// ANTEX antennas specifications browsing
     pub fn antennas(
         &self,
@@ -1504,397 +1441,6 @@ impl Rinex {
     }
 }
 
-#[cfg(feature = "nav")]
-use crate::navigation::{
-    BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NavMsgType, NgModel, StoMessage,
-};
-
-/*
- * NAV RINEX specific methods: only available on crate feature.
- * Either specific Iterators, or meaningful data we can extract.
- */
-#[cfg(feature = "nav")]
-#[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
-impl Rinex {
-    /// Returns a Unique Iterator over [`NavMsgType`]s that were identified
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::navigation::NavMsgType;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
-    ///     .unwrap();
-    /// assert!(
-    ///     rinex.nav_msg_type().eq(
-    ///         vec![NavMsgType::LNAV],
-    ///     ),
-    ///     "this file only contains legacy frames"
-    /// );
-    /// ```
-    pub fn nav_msg_type(&self) -> Box<dyn Iterator<Item = NavMsgType> + '_> {
-        Box::new(
-            self.navigation()
-                .map(|(_, frames)| {
-                    frames
-                        .iter()
-                        .filter_map(|fr| {
-                            if let Some((msg, _, _)) = fr.as_eph() {
-                                Some(msg)
-                            } else if let Some((msg, _, _)) = fr.as_ion() {
-                                Some(msg)
-                            } else if let Some((msg, _, _)) = fr.as_eop() {
-                                Some(msg)
-                            } else if let Some((msg, _, _)) = fr.as_sto() {
-                                Some(msg)
-                            } else {
-                                None
-                            }
-                        })
-                        .fold(vec![], |mut list, msg| {
-                            list.push(msg);
-                            list
-                        })
-                        .into_iter()
-                })
-                .fold(vec![], |mut list, items| {
-                    for item in items {
-                        if !list.contains(&item) {
-                            list.push(item); // create a unique list
-                        }
-                    }
-                    list
-                })
-                .into_iter(),
-        )
-    }
-    /// Returns Ephemeris frames interator.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::navigation::NavMsgType;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
-    ///     .unwrap();
-    /// for (epoch, (msg, sv, data)) in rinex.ephemeris() {
-    ///     // this record only contains Legacy NAV frames
-    ///     assert_eq!(msg, NavMsgType::LNAV);
-    /// }
-    /// ```
-    pub fn ephemeris(
-        &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &Ephemeris))> + '_> {
-        Box::new(self.navigation().flat_map(|(e, frames)| {
-            frames.iter().filter_map(move |fr| {
-                if let Some((msg, sv, eph)) = fr.as_eph() {
-                    Some((e, (msg, sv, eph)))
-                } else {
-                    None
-                }
-            })
-        }))
-    }
-    /// Returns [SV] [Orbit]al state vector (if we can) at specified [Epoch] `t`.
-    /// Self must be NAV RINEX.
-    pub fn sv_orbit(&self, sv: SV, t: Epoch) -> Option<Orbit> {
-        let (toc, _, eph) = self.sv_ephemeris(sv, t)?;
-        eph.kepler2position(sv, toc, t)
-    }
-    /// Returns [SV] attitude vector (if we can) at specified [Epoch] `t`
-    /// with respect to specified reference point expressed as an [Orbit].
-    /// [Self] must be NAV RINEX.
-    pub fn sv_azimuth_elevation_range(
-        &self,
-        sv: SV,
-        t: Epoch,
-        rx_orbit: Orbit,
-        almanac: &Almanac,
-    ) -> Option<AzElRange> {
-        let sv_orbit = self.sv_orbit(sv, t)?;
-        let azelrange = almanac
-            .azimuth_elevation_range_sez(sv_orbit, rx_orbit, None, None)
-            .ok()?;
-        Some(azelrange)
-    }
-    /// Ephemeris selection method. Use this method to select Ephemeris
-    /// for [SV] at [Epoch], to be used in navigation.
-    /// Returns (ToC, ToE and ephemeris frame).
-    /// Note that ToE = ToC for GEO/SBAS vehicles, because this field does not exist.
-    pub fn sv_ephemeris(&self, sv: SV, t: Epoch) -> Option<(Epoch, Epoch, &Ephemeris)> {
-        let sv_ts = sv.constellation.timescale()?;
-        if sv.constellation.is_sbas() {
-            let (toc, (_, _, eph)) = self
-                .ephemeris()
-                .filter(|(t_i, (_, sv_i, _eph_i))| sv == *sv_i)
-                .reduce(|k, _| k)?;
-            Some((*toc, *toc, eph))
-        } else {
-            self.ephemeris()
-                .filter_map(|(t_i, (_, sv_i, eph_i))| {
-                    if sv_i == sv {
-                        if eph_i.is_valid(sv, t) && t >= *t_i {
-                            let toe = eph_i.toe(sv_ts)?;
-                            Some((*t_i, toe, eph_i))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())
-        }
-    }
-    /// [SV] embedded clock offset (s), drift (s.s⁻¹) and drift rate (s.s⁻²) Iterator.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// for (epoch, sv, (offset, drift, drift_rate)) in rinex.sv_clock() {
-    ///     // sv: satellite vehicle
-    ///     // offset [s]
-    ///     // clock drift [s.s⁻¹]
-    ///     // clock drift rate [s.s⁻²]
-    /// }
-    /// ```
-    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, SV, (f64, f64, f64))> + '_> {
-        Box::new(
-            self.ephemeris()
-                .map(|(e, (_, sv, data))| (*e, sv, data.sv_clock())),
-        )
-    }
-    /*
-     * [IonMessage] Iterator
-     */
-    fn ionod_correction_models(
-        &self,
-    ) -> Box<dyn Iterator<Item = (Epoch, (NavMsgType, SV, IonMessage))> + '_> {
-        /*
-         * Answers both OLD and MODERN RINEX requirements
-         * In RINEX2/3, midnight UTC is the publication datetime
-         */
-        let t0 = self.first_epoch().unwrap(); // will fail on invalid RINEX
-        let t0 = Epoch::from_utc_days(t0.to_utc_days().round());
-        Box::new(
-            self.header
-                .ionod_corrections
-                .iter()
-                .map(move |(c, ion)| (t0, (NavMsgType::LNAV, SV::new(*c, 1), *ion)))
-                .chain(self.navigation().flat_map(|(t, frames)| {
-                    frames.iter().filter_map(move |fr| {
-                        let (msg, sv, ion) = fr.as_ion()?;
-                        Some((*t, (msg, sv, *ion)))
-                    })
-                })),
-        )
-    }
-    /// Returns [`KbModel`] Iterator.
-    /// RINEX4 is the real application of this, as it provides model updates
-    /// during the day. You're probably more interested
-    /// in using [ionod_correction] instead of this, especially in PPP:
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::navigation::KbRegionCode;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-    ///     .unwrap();
-    /// for (epoch, _sv, kb_model) in rinex.klobuchar_models() {
-    ///     let alpha = kb_model.alpha;
-    ///     let beta = kb_model.beta;
-    ///     assert_eq!(kb_model.region, KbRegionCode::WideArea);
-    /// }
-    /// ```
-    /// We support all RINEX3 constellations. When working with this revision,
-    /// you only get one model per day (24 hour validity period). [ionod_correction]
-    /// does that verification internally.
-    /// ```
-    /// use std::str::FromStr;
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// let t0 = Epoch::from_str("2021-01-01T00:00:00 UTC")
-    ///     .unwrap(); // model publication Epoch
-    /// for (t, sv, model) in rinex.klobuchar_models() {
-    ///     assert_eq!(t, t0);
-    ///     // You should use "t==t0" to compare and verify model validity
-    ///     // withint a 24 hour time frame.
-    ///     // Note that we support all RINEX3 constellations
-    ///     if sv.constellation == Constellation::BeiDou {
-    ///         assert_eq!(model.alpha.0, 1.1176E-8);
-    ///     }
-    /// }
-    /// ```
-    /// Klobuchar models exists in RINEX2 and this method applies similarly.
-    pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, SV, KbModel)> + '_> {
-        Box::new(
-            self.ionod_correction_models()
-                .filter_map(|(t, (_, sv, ion))| ion.as_klobuchar().map(|model| (t, sv, *model))),
-        )
-    }
-    /// Returns [`NgModel`] Iterator.
-    /// RINEX4 is the real application of this, as it provides model updates
-    /// during the day. You're probably more interested
-    /// in using [ionod_correction] instead of this, especially in PPP:
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-    ///     .unwrap();
-    /// for (epoch, ng_model) in rinex.nequick_g_models() {
-    ///     let (a0, a1, a2) = ng_model.a;
-    ///     let region = ng_model.region; // bitflag: supports bitmasking operations
-    /// }
-    /// ```
-    /// We support all RINEX3 constellations. When working with this revision,
-    /// you only get one model per day (24 hour validity period). You should prefer
-    /// [ionod_correction] which does that check internally:
-    /// ```
-    /// use std::str::FromStr;
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// let t0 = Epoch::from_str("2021-01-01T00:00:00 UTC")
-    ///     .unwrap(); // model publication Epoch
-    /// for (t, model) in rinex.nequick_g_models() {
-    ///     assert_eq!(t, t0);
-    ///     // You should use "t==t0" to compare and verify model validity
-    ///     // within a 24 hour time frame.
-    ///     assert_eq!(model.a.0, 66.25_f64);
-    /// }
-    /// ```
-    /// Nequick-G model is not known to RINEX2 and only applies to RINEX V>2.
-    pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
-        Box::new(
-            self.ionod_correction_models()
-                .filter_map(|(t, (_, _, ion))| ion.as_nequick_g().map(|model| (t, *model))),
-        )
-    }
-    /// Returns [`BdModel`] Iterator.
-    /// RINEX4 is the real application of this, as it provides model updates
-    /// during the day. You're probably more interested
-    /// in using [ionod_correction] instead of this, especially in PPP:
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-    ///     .unwrap();
-    /// for (epoch, bd_model) in rinex.bdgim_models() {
-    ///     let alpha_tecu = bd_model.alpha;
-    /// }
-    /// ```
-    /// BDGIM was introduced in RINEX4, therefore this method does not apply
-    /// to older revisions and returns an empty Iterator.
-    pub fn bdgim_models(&self) -> Box<dyn Iterator<Item = (Epoch, BdModel)> + '_> {
-        Box::new(
-            self.ionod_correction_models()
-                .filter_map(|(t, (_, _, ion))| ion.as_bdgim().map(|model| (t, *model))),
-        )
-    }
-    /// Returns Ionospheric delay compensation, to apply at "t" desired Epoch
-    /// and desired location. NB: we only support Klobuchar models at the moment,
-    /// as we don't know how to convert other models (feel free to contribute).
-    /// "t" must be within a 24 hour time frame of the oldest model.
-    /// When working with RINEX2/3, the model is published at midnight
-    /// and you should expect discontinuities when a new model is being published.
-    pub fn ionod_correction(
-        &self,
-        t: Epoch,
-        sv_elevation: f64,
-        sv_azimuth: f64,
-        user_lat_ddeg: f64,
-        user_lon_ddeg: f64,
-        carrier: Carrier,
-    ) -> Option<f64> {
-        // determine nearest in time
-        let (_, (model_sv, model)) = self
-            .ionod_correction_models()
-            .filter_map(|(t_i, (_, sv_i, msg_i))| {
-                // TODO
-                // calculations currently limited to KB model: implement others
-                let _ = msg_i.as_klobuchar()?;
-                // At most 1 day from publication time
-                if t_i <= t && (t - t_i) < 24.0 * Unit::Hour {
-                    Some((t_i, (sv_i, msg_i)))
-                } else {
-                    None
-                }
-            })
-            .min_by_key(|(t_i, _)| (t - *t_i))?;
-
-        // TODO
-        // calculations currently limited to KB model: implement others
-        let kb = model.as_klobuchar().unwrap();
-        let h_km = match model_sv.constellation {
-            Constellation::BeiDou => 375.0,
-            // we only expect BDS or GPS here,
-            // wrongly formed RINEX will cause innacurate results
-            Constellation::GPS | _ => 350.0,
-        };
-        Some(kb.meters_delay(
-            t,
-            sv_elevation,
-            sv_azimuth,
-            h_km,
-            user_lat_ddeg,
-            user_lon_ddeg,
-            carrier,
-        ))
-    }
-    /// Returns [`StoMessage`] frames Iterator
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-    ///     .unwrap();
-    /// for (epoch, (msg, sv, data)) in rnx.system_time_offset() {
-    ///    let system = data.system.clone(); // time system
-    ///    let utc = data.utc.clone(); // UTC provider
-    ///    let t_tm = data.t_tm; // message transmission time in week seconds
-    ///    let (a, dadt, ddadt) = data.a;
-    /// }
-    /// ```
-    pub fn system_time_offset(
-        &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &StoMessage))> + '_> {
-        Box::new(self.navigation().flat_map(|(e, frames)| {
-            frames.iter().filter_map(move |fr| {
-                if let Some((msg, sv, sto)) = fr.as_sto() {
-                    Some((e, (msg, sv, sto)))
-                } else {
-                    None
-                }
-            })
-        }))
-    }
-    /// Returns [`EopMessage`] frames Iterator
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-    ///     .unwrap();
-    /// for (epoch, (msg, sv, eop)) in rnx.earth_orientation() {
-    ///     let (x, dxdt, ddxdt) = eop.x;
-    ///     let (y, dydt, ddydt) = eop.x;
-    ///     let t_tm = eop.t_tm;
-    ///     let (u, dudt, ddudt) = eop.delta_ut1;
-    /// }
-    /// ```
-    pub fn earth_orientation(
-        &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, SV, &EopMessage))> + '_> {
-        Box::new(self.navigation().flat_map(|(e, frames)| {
-            frames.iter().filter_map(move |fr| {
-                if let Some((msg, sv, eop)) = fr.as_eop() {
-                    Some((e, (msg, sv, eop)))
-                } else {
-                    None
-                }
-            })
-        }))
-    }
-    /// Forms a Ut1 Provider as an [DeltaTaiUt1] Iterator from [Self] which must
-    /// be a NAV V4 RINEX file with EOP messages.
-    pub fn ut1_provider(&self) -> Box<dyn Iterator<Item = DeltaTaiUt1> + '_> {
-        Box::new(
-            self.earth_orientation()
-                .map(|(t, (_, _sv, eop))| DeltaTaiUt1 {
-                    epoch: *t,
-                    delta_tai_minus_ut1: Duration::from_seconds(eop.delta_ut1.0),
-                }),
-        )
-    }
-}
-
 #[cfg(feature = "processing")]
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Preprocessing for Rinex {}
@@ -1916,6 +1462,8 @@ impl RepairTrait for Rinex {
             doris_repair_mut(rec, r);
         } else if let Some(rec) = self.record.as_mut_ionex() {
             ionex_repair_mut(rec, r);
+        } else if let Some(rec) = self.record.as_mut_nav() {
+            navigation_repair_mut(rec, r);
         }
     }
 }
@@ -1929,6 +1477,7 @@ impl Masking for Rinex {
         s
     }
     fn mask_mut(&mut self, f: &MaskFilter) {
+        header_mask_mut(&mut self.header, f);
         if let Some(rec) = self.record.as_mut_obs() {
             observation_mask_mut(rec, f);
         } else if let Some(rec) = self.record.as_mut_nav() {
@@ -1942,7 +1491,6 @@ impl Masking for Rinex {
         } else if let Some(rec) = self.record.as_mut_ionex() {
             ionex_mask_mut(rec, f);
         }
-        header_mask_mut(&mut self.header, f);
     }
 }
 

@@ -236,7 +236,7 @@ impl OrbitItem {
 pub(crate) fn closest_nav_standards(
     constellation: Constellation,
     revision: Version,
-    msg: NavMsgType,
+    msg: NavMessageType,
 ) -> Option<&'static NavHelper<'static>> {
     let database = &NAV_ORBITS;
     // start by trying to locate desired revision.
@@ -245,7 +245,7 @@ pub(crate) fn closest_nav_standards(
     loop {
         // filter on both:
         //  + Exact Constellation
-        //  + Exact NavMsgType
+        //  + Exact NavMessageType
         //  + Exact revision we're currently trying to locate
         //    algorithm: decreasing, starting from desired revision
         let items: Vec<_> = database
@@ -283,6 +283,8 @@ pub(crate) fn closest_nav_standards(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::navigation::NavMessageType;
+
     #[test]
     fn orbit_database_sanity() {
         for frame in NAV_ORBITS.iter() {
@@ -311,38 +313,107 @@ mod test {
             }
         }
     }
+
     #[test]
     fn nav_standards_finder() {
         // Constellation::Mixed is not contained in db!
         assert_eq!(
-            closest_nav_standards(Constellation::Mixed, Version::default(), NavMsgType::LNAV),
+            closest_nav_standards(
+                Constellation::Mixed,
+                Version::default(),
+                NavMessageType::LNAV
+            ),
             None,
             "Mixed GNSS constellation is or should not exist in the DB"
         );
 
         // Test existing (exact match) entries
         for (constellation, rev, msg) in [
-            (Constellation::GPS, Version::new(1, 0), NavMsgType::LNAV),
-            (Constellation::GPS, Version::new(2, 0), NavMsgType::LNAV),
-            (Constellation::GPS, Version::new(4, 0), NavMsgType::LNAV),
-            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNAV),
-            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNV2),
-            (Constellation::Glonass, Version::new(2, 0), NavMsgType::LNAV),
-            (Constellation::Glonass, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::Galileo, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::Galileo, Version::new(4, 0), NavMsgType::INAV),
-            (Constellation::Galileo, Version::new(4, 0), NavMsgType::FNAV),
-            (Constellation::QZSS, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::QZSS, Version::new(4, 0), NavMsgType::LNAV),
-            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNAV),
-            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNV2),
-            (Constellation::BeiDou, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D1),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D2),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV1),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV2),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV3),
-            (Constellation::SBAS, Version::new(4, 0), NavMsgType::SBAS),
+            (Constellation::GPS, Version::new(1, 0), NavMessageType::LNAV),
+            (Constellation::GPS, Version::new(2, 0), NavMessageType::LNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMessageType::LNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMessageType::CNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMessageType::CNV2),
+            (
+                Constellation::Glonass,
+                Version::new(2, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::Glonass,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::Galileo,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::Galileo,
+                Version::new(4, 0),
+                NavMessageType::INAV,
+            ),
+            (
+                Constellation::Galileo,
+                Version::new(4, 0),
+                NavMessageType::FNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(4, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(4, 0),
+                NavMessageType::CNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(4, 0),
+                NavMessageType::CNV2,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::D1,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::D2,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::CNV1,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::CNV2,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::CNV3,
+            ),
+            (
+                Constellation::SBAS,
+                Version::new(4, 0),
+                NavMessageType::SBAS,
+            ),
         ] {
             let found = closest_nav_standards(constellation, rev, msg);
             assert!(
@@ -374,19 +445,19 @@ mod test {
                 Constellation::GPS,
                 Version::new(5, 0),
                 Version::new(4, 0),
-                NavMsgType::LNAV,
+                NavMessageType::LNAV,
             ),
             (
                 Constellation::GPS,
                 Version::new(4, 1),
                 Version::new(4, 0),
-                NavMsgType::LNAV,
+                NavMessageType::LNAV,
             ),
             (
                 Constellation::Glonass,
                 Version::new(3, 4),
                 Version::new(3, 0),
-                NavMsgType::LNAV,
+                NavMessageType::LNAV,
             ),
         ] {
             let found = closest_nav_standards(constellation, desired, msg);
@@ -416,6 +487,7 @@ mod test {
                 expected);
         }
     }
+
     #[test]
     fn test_db_item() {
         let e = OrbitItem::U8(10);

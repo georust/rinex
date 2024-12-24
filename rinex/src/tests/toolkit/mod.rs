@@ -1,4 +1,3 @@
-use crate::navigation::FrameClass;
 use crate::*;
 use rand::{distributions::Alphanumeric, Rng};
 
@@ -14,7 +13,8 @@ mod ionex;
 pub use ionex::{generic_ionex_test, TecPoint};
 
 // NAV RINEX dedicated tools
-pub mod nav;
+mod nav;
+pub use nav::generic_comparison as generic_navigation_comparison;
 
 // DORIS RINEX dedicated tools
 mod doris;
@@ -127,6 +127,8 @@ pub fn generic_rinex_comparison(dut: &Rinex, model: &Rinex) {
         generic_observation_comparison(&dut, &model);
     } else if dut.is_meteo_rinex() && model.is_meteo_rinex() {
         generic_meteo_comparison(&dut, &model);
+    } else if dut.is_navigation_rinex() && model.is_navigation_rinex() {
+        generic_navigation_comparison(&dut, &model);
     }
 }
 
@@ -157,66 +159,4 @@ fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f6
             panic!("\"{}\" - missing epoch {:?}", filename, e_model);
         }
     }
-}
-
-/*
- * Navigation RINEX thorough comparison
- */
-fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f64) {
-    let rec_dut = dut.record.as_nav().expect("failed to unwrap rinex record");
-    let rec_model = model
-        .record
-        .as_nav()
-        .expect("failed to unwrap rinex record");
-    for (e_model, model_frames) in rec_model.iter() {
-        if let Some(dut_frames) = rec_dut.get(e_model) {
-            println!("{:?}", dut_frames);
-            for model_frame in model_frames {
-                let mut frametype = FrameClass::default();
-                if model_frame.as_eph().is_some() {
-                    frametype = FrameClass::Ephemeris;
-                } else if model_frame.as_sto().is_some() {
-                    frametype = FrameClass::SystemTimeOffset;
-                } else if model_frame.as_eop().is_some() {
-                    frametype = FrameClass::EarthOrientation;
-                } else if model_frame.as_ion().is_some() {
-                    frametype = FrameClass::IonosphericModel;
-                }
-                if !dut_frames.contains(model_frame) {
-                    panic!(
-                        "\"{}\" - @{} missing {} frame {:?}",
-                        filename, e_model, frametype, model_frame
-                    );
-                    //assert_eq!(
-                    //    observation_model, observation_dut,
-                    //    "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                    //    filename, e_model, code_model, observation_model, observation_dut
-                    //);
-                }
-            }
-        } else {
-            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
-        }
-    }
-
-    //for (e_dut, obscodes_dut) in rec_dut.iter() {
-    //    if let Some(obscodes_model) = rec_model.get(e_dut) {
-    //        for (code_dut, observation_dut) in obscodes_dut.iter() {
-    //            if let Some(observation_model) = obscodes_model.get(code_dut) {
-    //                assert_eq!(
-    //                    observation_model, observation_dut,
-    //                    "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-    //                    filename, e_dut, code_dut, observation_model, observation_dut
-    //                );
-    //            } else {
-    //                panic!(
-    //                    "\"{}\" - {:?} parsed \"{}\" unexpectedly",
-    //                    filename, e_dut, code_dut
-    //                );
-    //            }
-    //        }
-    //    } else {
-    //        panic!("\"{}\" - parsed {:?} unexpectedly", filename, e_dut);
-    //    }
-    //}
 }

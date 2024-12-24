@@ -22,8 +22,7 @@ use crate::{
         is_new_epoch as is_new_meteo_epoch, parse_epoch as parse_meteo_epoch, Record as MeteoRecord,
     },
     navigation::{
-        record::{is_new_epoch as is_new_nav_epoch, parse_epoch as parse_nav_epoch},
-        Record as NavRecord,
+        is_new_epoch as is_new_nav_epoch, parse_epoch as parse_nav_epoch, Record as NavRecord,
     },
     observation::Observations,
     observation::{
@@ -280,15 +279,9 @@ impl Record {
 
                     match &header.rinex_type {
                         Type::NavigationData => {
-                            let constellation = &header.constellation.unwrap();
-                            if let Ok((e, fr)) =
-                                parse_nav_epoch(header.version, *constellation, &epoch_buf)
-                            {
-                                nav_rec
-                                    .entry(e)
-                                    .and_modify(|frames| frames.push(fr.clone()))
-                                    .or_insert_with(|| vec![fr.clone()]);
-                                comment_ts = e; // for comments storage
+                            if let Ok((k, v)) = parse_nav_epoch(&header, &epoch_buf) {
+                                nav_rec.insert(k, v);
+                                comment_ts = k.epoch; // for comments storage
                             }
                         },
                         Type::ObservationData => {

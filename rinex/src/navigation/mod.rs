@@ -1,56 +1,60 @@
-//! Navigation RINEX module
+//! Navigation module
+
+pub mod orbits;
 
 mod eopmessage;
 mod ephemeris;
+mod frame;
 mod health;
 mod ionmessage;
+mod message;
+mod parsing;
+mod rinex;
 mod stomessage;
 
-pub mod orbits;
-pub mod record;
+pub(crate) use parsing::{is_new_epoch, parse_epoch};
+
+pub use crate::navigation::{
+    frame::{NavFrame, NavFrameType},
+    message::NavMessageType,
+};
+
+#[cfg(feature = "processing")]
+pub(crate) mod mask; // mask Trait implementation
+
+#[cfg(feature = "processing")]
+pub(crate) mod decim; // decim Trait implementation
+
+#[cfg(feature = "processing")]
+pub(crate) mod repair; // repair Trait implementation
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+pub use orbits::OrbitItem;
 
 pub use eopmessage::EopMessage;
 pub use ephemeris::Ephemeris;
 pub use health::{GeoHealth, GloHealth, Health, IrnssHealth};
 pub use ionmessage::{BdModel, IonMessage, KbModel, KbRegionCode, NgModel, NgRegionFlags};
-pub use orbits::OrbitItem;
-pub use record::{NavFrame, NavMsgType, Record};
 pub use stomessage::StoMessage;
 
-use crate::prelude::ParsingError;
+use crate::prelude::{Epoch, SV};
 
-/// Navigation Frame classes
-#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub enum FrameClass {
-    #[default]
-    Ephemeris,
-    SystemTimeOffset,
-    EarthOrientation,
-    IonosphericModel,
+use std::collections::BTreeMap;
+
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct NavKey {
+    /// [Epoch] of publication
+    pub epoch: Epoch,
+    /// [SV] source
+    pub sv: SV,
+    /// [NavMessageType] associated to following [NavFrame]
+    pub msgtype: NavMessageType,
+    /// [NavFrame] type following
+    pub frmtype: NavFrameType,
 }
 
-impl std::fmt::Display for FrameClass {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Ephemeris => f.write_str("EPH"),
-            Self::SystemTimeOffset => f.write_str("STO"),
-            Self::EarthOrientation => f.write_str("EOP"),
-            Self::IonosphericModel => f.write_str("ION"),
-        }
-    }
-}
-
-impl std::str::FromStr for FrameClass {
-    type Err = ParsingError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let c = s.to_uppercase();
-        let c = c.trim();
-        match c {
-            "EPH" => Ok(Self::Ephemeris),
-            "STO" => Ok(Self::SystemTimeOffset),
-            "EOP" => Ok(Self::EarthOrientation),
-            "ION" => Ok(Self::IonosphericModel),
-            _ => Err(ParsingError::NavFrameClass),
-        }
-    }
-}
+/// Navigation data are [NavFrame]s indexed by [NavKey]
+pub type Record = BTreeMap<NavKey, NavFrame>;

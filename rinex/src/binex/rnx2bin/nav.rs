@@ -1,5 +1,5 @@
 use crate::{
-    navigation::{Ephemeris, NavMsgType},
+    navigation::{Ephemeris, NavKey},
     prelude::{Constellation, Epoch, Rinex, SV},
 };
 
@@ -10,7 +10,7 @@ use binex::prelude::{
 /// NAV Record Streamer
 pub struct Streamer<'a> {
     meta: Meta,
-    ephemeris_iter: Box<dyn Iterator<Item = (&'a Epoch, (NavMsgType, SV, &'a Ephemeris))> + 'a>,
+    ephemeris_iter: Box<dyn Iterator<Item = (&'a NavKey, &'a Ephemeris)> + 'a>,
 }
 
 fn forge_gps_ephemeris_frame(toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<EphemerisFrame> {
@@ -221,7 +221,7 @@ impl<'a> Streamer<'a> {
     pub fn new(meta: Meta, rinex: &'a Rinex) -> Self {
         Self {
             meta: meta,
-            ephemeris_iter: rinex.ephemeris(),
+            ephemeris_iter: rinex.nav_ephemeris_frames_iter(),
         }
     }
 }
@@ -229,13 +229,14 @@ impl<'a> Streamer<'a> {
 impl<'a> Iterator for Streamer<'a> {
     type Item = Message;
     fn next(&mut self) -> Option<Self::Item> {
-        let (toc, (_msg, sv, eph)) = self.ephemeris_iter.next()?;
-        let frame = if sv.constellation.is_sbas() {
-            forge_sbas_ephemeris_frame(toc, sv, eph)
+        let (key, eph) = self.ephemeris_iter.next()?;
+
+        let frame = if key.sv.constellation.is_sbas() {
+            forge_sbas_ephemeris_frame(&key.epoch, key.sv, eph)
         } else {
-            match sv.constellation {
-                Constellation::GPS => forge_gps_ephemeris_frame(toc, sv, eph),
-                Constellation::Galileo => forge_gal_ephemeris_frame(toc, sv, eph),
+            match key.sv.constellation {
+                Constellation::GPS => forge_gps_ephemeris_frame(&key.epoch, key.sv, eph),
+                Constellation::Galileo => forge_gal_ephemeris_frame(&key.epoch, key.sv, eph),
                 Constellation::Glonass => forge_glo_ephemeris_frame(eph),
                 _ => None,
             }

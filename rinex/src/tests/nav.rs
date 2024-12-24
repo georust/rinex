@@ -1,10 +1,40 @@
+ // ephmeris verifications
+ #[cfg(feature = "nav")]
+ for (_toc_i, (_msg, sv_i, eph_i)) in rinex.ephemeris() {
+     // test toc(i)
+     let _timescale = sv_i.constellation.timescale().unwrap();
+
+     // TODO: verify V4 cases
+     if revision != "V4" {
+         // Verify week counter
+         match sv_i.constellation {
+             Constellation::GPS
+             | Constellation::Galileo
+             | Constellation::BeiDou => {
+                 assert!(
+                     eph_i.get_week().is_some(),
+                     "should have week counter: {:?}",
+                     eph_i.orbits
+                 );
+             },
+             c => {
+                 if c.is_sbas() {
+                     assert!(
+                         eph_i.get_week().is_some(),
+                         "should have week counter: {:?}",
+                         eph_i.orbits
+                     );
+                 }
+             },
+         }
+     }
+ }
+
 #[cfg(test)]
 mod test {
     use crate::carrier::Carrier;
     use crate::navigation::*;
     use crate::prelude::*;
-    use crate::tests::toolkit::nav::check_klobuchar_models;
-    use crate::tests::toolkit::nav::check_nequick_g_models;
     use gnss_rs::prelude::SV;
     use gnss_rs::sv;
     use hifitime::Unit;
@@ -16,6 +46,7 @@ mod test {
     #[test]
     #[cfg(feature = "nav")]
     fn v2_amel0010_21g() {
+
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/amel0010.21g";
 
@@ -181,6 +212,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "flate2")]
     fn v2_cbw10010_21n() {
@@ -302,6 +334,7 @@ mod test {
             }
         }
     }
+    
     #[test]
     fn v3_amel00nld_r_2021() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
@@ -485,6 +518,7 @@ mod test {
             } //match sv.constellation
         }
     }
+
     #[test]
     #[cfg(feature = "flate2")]
     fn v4_kms300dnk_r_202215910() {
@@ -950,6 +984,7 @@ mod test {
         assert_eq!(ion_count, 3);
         assert_eq!(eop_count, 0); // no EOP in this file
     }
+
     #[test]
     #[cfg(feature = "flate2")]
     fn v3_brdc00gop_r_2021_gz() {
@@ -1053,6 +1088,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
@@ -1115,6 +1151,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "nav")]
     #[cfg(feature = "flate2")]
@@ -1353,6 +1390,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "nav")]
     fn toe_glo() {
@@ -1378,6 +1416,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "nav")]
     fn toe_gal_bds() {
@@ -1425,6 +1464,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "nav")]
     fn v3_ionospheric_corr() {
@@ -1584,6 +1624,7 @@ mod test {
             }
         }
     }
+
     #[test]
     #[cfg(feature = "flate2")]
     fn nav_v4_messages() {
@@ -1682,6 +1723,7 @@ mod test {
             }
         }
     }
+    
     // Computes TOE in said timescale
     fn toe_helper(week: f64, week_s: f64, ts: TimeScale) -> Epoch {
         if ts == TimeScale::GST {

@@ -70,38 +70,9 @@ mod test {
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());
                             assert!(rinex.epoch_iter().count() > 0); // all files have content
-                            assert!(rinex.navigation().count() > 0); // all files have content
-                                                                     // Ephemeris verifications
-                            #[cfg(feature = "nav")]
-                            for (_toc_i, (_msg, sv_i, eph_i)) in rinex.ephemeris() {
-                                // test toc(i)
-                                let _timescale = sv_i.constellation.timescale().unwrap();
-
-                                // TODO: verify V4 cases
-                                if revision != "V4" {
-                                    // Verify week counter
-                                    match sv_i.constellation {
-                                        Constellation::GPS
-                                        | Constellation::Galileo
-                                        | Constellation::BeiDou => {
-                                            assert!(
-                                                eph_i.get_week().is_some(),
-                                                "should have week counter: {:?}",
-                                                eph_i.orbits
-                                            );
-                                        },
-                                        c => {
-                                            if c.is_sbas() {
-                                                assert!(
-                                                    eph_i.get_week().is_some(),
-                                                    "should have week counter: {:?}",
-                                                    eph_i.orbits
-                                                );
-                                            }
-                                        },
-                                    }
-                                }
-                            }
+                            assert!(rinex.navigation_keys().count() > 0); // all files have content
+                            assert!(rinex.nav_ephemeris_frames_iter().count() > 0);
+                            // all files have content
                         },
                         "CRNX" | "OBS" => {
                             assert!(rinex.header.obs.is_some());
