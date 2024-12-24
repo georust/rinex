@@ -28,8 +28,6 @@ impl<'a> EphemerisContext<'a> {
 
         loop {
             if let Some((sv, toc, eph)) = self.iter.next() {
-                println!("found {:?}({})", toc, sv);
-
                 // calculate ToE
                 if let Some(toe) = eph.toe(sel_ts) {
                     // store
@@ -143,7 +141,7 @@ mod test {
         let mut ctx = QcContext::new(cfg).unwrap();
 
         ctx.load_gzip_file(format!(
-            "{}/../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz",
+            "{}/../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz",
             env!("CARGO_MANIFEST_DIR")
         ))
         .unwrap();
@@ -190,7 +188,7 @@ mod test {
             if let Some(toc) = toc {
                 let (toc_i, _, _) = ctx.select(t, sv).unwrap_or_else(|| {
                     let buffered = ctx.buffer.get(&sv).unwrap();
-                    panic!("missed selection for {}({}): buffer: {:?}", t, sv, buffered);
+                    panic!("missed selection for {}({}): {:#?}", t, sv, buffered);
                 });
 
                 assert_eq!(toc_i, toc);

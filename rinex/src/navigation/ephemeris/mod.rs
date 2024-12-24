@@ -1,5 +1,8 @@
 mod parsing;
 
+#[cfg(feature = "log")]
+use log::error;
+
 #[cfg(feature = "nav")]
 #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
 mod kepler;

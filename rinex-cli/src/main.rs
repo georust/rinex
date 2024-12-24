@@ -185,9 +185,12 @@ fn user_data_parsing(
 pub fn main() -> Result<(), Error> {
     // logs builder
     let mut builder = Builder::from_default_env();
+
     builder
         .target(Target::Stdout)
         .format_timestamp_secs()
+        .format_file(false)
+        .format_source_path(false)
         .format_module_path(false)
         .init();
 
